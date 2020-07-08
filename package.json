@@ -24,7 +24,8 @@
   "dependencies": {
     "needle": "^2.5.0",
     "pouchdb": "^7.2.1",
-    "pouchdb-replication-stream": "github:pouchdb-community/pouchdb-replication-stream#56f0511"
+    "pouchdb-replication-stream": "github:pouchdb-community/pouchdb-replication-stream#56f0511",
+    "sqlite3": "^5.0.0"
   },
   "devDependencies": {
     "eslint": "^7.4.0",

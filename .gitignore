@@ -1,2 +1,4 @@
 node_modules
 localdb
+*.db
+*.db-journal
