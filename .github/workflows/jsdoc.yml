@@ -1,0 +1,23 @@
+# This is a basic workflow to help you get started with Actions
+
+name: JSDoc
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Build
+      uses: andstor/jsdoc-action@v1
+      with:
+        source_dir: ./lib
+        recurse: true
+        output_dir: ./docs
