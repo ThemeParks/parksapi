@@ -138,8 +138,6 @@ export default class DisneyLiveDB extends ConfigBase {
     PouchDB.replicate(this.remoteDB, this.localDB, {
       live: true,
       retry: true,
-    }).on(&apos;change&apos;, (info) =&gt; {
-      console.log(info.docs);
     });
   }
 
