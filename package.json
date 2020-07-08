@@ -9,7 +9,8 @@
   },
   "main": "lib/index.js",
   "scripts": {
-    "test": "eslint ./lib/**"
+    "test": "eslint ./lib/**",
+    "docs": "esdoc"
   },
   "repository": {
     "type": "git",
@@ -29,6 +30,8 @@
     "sqlite3": "^5.0.0"
   },
   "devDependencies": {
+    "esdoc": "^1.1.0",
+    "esdoc-standard-plugin": "^1.0.0",
     "eslint": "^7.4.0",
     "eslint-config-google": "^0.14.0",
     "jsdoc-export-default-interop": "github:charlieanstey/jsdoc-export-default-interop#a0afb2f"

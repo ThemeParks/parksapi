@@ -3,3 +3,4 @@ localdb
 *.db
 *.db-journal
 out
+docs
