@@ -34,19 +34,20 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheMemory.js~CacheMemory.html">CacheMemory</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheSqlite.js~CacheSqlite.html">CacheSqlite</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-constants">constants</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~DisneyLiveDB.html">DisneyLiveDB</a></span></span></li>
 </ul>
 </div>
 </nav>
 
 <div class="content" data-ice="content"><div class="header-notice">
-  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import Park from &apos;<span><a href="file/lib/parks/park.js.html#lineNumber13">parksapi/lib/parks/park.js</a></span>&apos;</code></pre></div>
+  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import Park from &apos;<span><a href="file/lib/parks/park.js.html#lineNumber28">parksapi/lib/parks/park.js</a></span>&apos;</code></pre></div>
   <span data-ice="access">public</span>
   <span data-ice="kind">class</span>
   
   
   
-  <span data-ice="source">| <span><a href="file/lib/parks/park.js.html#lineNumber13">source</a></span></span>
+  <span data-ice="source">| <span><a href="file/lib/parks/park.js.html#lineNumber28">source</a></span></span>
 </div>
 
 <div class="self-detail detail">
@@ -80,78 +81,7 @@
 </div>
 
 
-<div data-ice="staticMethodSummary"><h2>Static Method Summary</h2><table class="summary" data-ice="summary">
-  <thead><tr><td data-ice="title" colspan="3">Static Public Methods</td></tr></thead>
-  <tbody>
-  
-  <tr data-ice="target">
-    <td>
-      <span class="access" data-ice="access">public</span>
-      <span data-ice="static">static</span>
-      
-      
-      <span class="override" data-ice="override"></span>
-    </td>
-    <td>
-      <div>
-        <p>
-          
-          <span data-ice="async">async</span>
-          
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#static-method-getAllParkClasses">getAllParkClasses</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
-        </p>
-      </div>
-      <div>
-        
-        
-        <div data-ice="description"><p>Get all Park classes that are loaded by require()</p>
-</div>
-      </div>
-    </td>
-    <td>
-      
-      
-    </td>
-  </tr>
-</tbody>
-</table>
-<table class="summary" data-ice="summary">
-  <thead><tr><td data-ice="title" colspan="3">Static Private Methods</td></tr></thead>
-  <tbody>
-  
-  <tr data-ice="target">
-    <td>
-      <span class="access" data-ice="access">private</span>
-      <span data-ice="static">static</span>
-      
-      
-      <span class="override" data-ice="override"></span>
-    </td>
-    <td>
-      <div>
-        <p>
-          
-          
-          
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#static-method-isParkObject">isParkObject</a></span></span><span class="code" data-ice="signature">(): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean">boolean</a></span></span>
-        </p>
-      </div>
-      <div>
-        
-        
-        <div data-ice="description"><p>Is this a Park object?
-Used for internal reflection system</p>
-</div>
-      </div>
-    </td>
-    <td>
-      
-      
-    </td>
-  </tr>
-</tbody>
-</table>
-</div>
+
 <div data-ice="constructorSummary"><h2>Constructor Summary</h2><table class="summary" data-ice="summary">
   <thead><tr><td data-ice="title" colspan="3">Public Constructor</td></tr></thead>
   <tbody>
@@ -234,35 +164,7 @@ Used for internal reflection system</p>
           
           
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-member-pendingInitialisedRequests">pendingInitialisedRequests</a></span></span><span class="code" data-ice="signature">: <span><span>*</span><span>[]</span></span></span>
-        </p>
-      </div>
-      <div>
-        
-        
-        
-      </div>
-    </td>
-    <td>
-      
-      
-    </td>
-  </tr>
-<tr data-ice="target">
-    <td>
-      <span class="access" data-ice="access">public</span>
-      
-      
-      
-      <span class="override" data-ice="override"></span>
-    </td>
-    <td>
-      <div>
-        <p>
-          
-          
-          
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-member-setupComplete">setupComplete</a></span></span><span class="code" data-ice="signature">: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean">boolean</a></span></span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-member-pendingSetupPromise">pendingSetupPromise</a></span></span><span class="code" data-ice="signature">: <span>*</span></span>
         </p>
       </div>
       <div>
@@ -297,13 +199,13 @@ Used for internal reflection system</p>
           
           <span data-ice="async">async</span>
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-getWaitTimes">getWaitTimes</a></span></span><span class="code" data-ice="signature">(): {&quot;wait_times&quot;: <span>*</span>}</span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-getAttractions">getAttractions</a></span></span><span class="code" data-ice="signature">(): <span><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/undefined">undefined</a></span><span>[]</span></span></span>
         </p>
       </div>
       <div>
         
         
-        <div data-ice="description"><p>Get Park Wait Times</p>
+        <div data-ice="description"><p>Get Park Attractions</p>
 </div>
       </div>
     </td>
@@ -326,13 +228,14 @@ Used for internal reflection system</p>
           
           <span data-ice="async">async</span>
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-setup">setup</a></span></span><span class="code" data-ice="signature">()</span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-init">init</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
         </p>
       </div>
       <div>
         
         
-        <div data-ice="description"><p>Setup the park for use</p>
+        <div data-ice="description"><p>Setup the park for use
+Call to ensure the object has been initialised before accessing data</p>
 </div>
       </div>
     </td>
@@ -370,9 +273,15 @@ Used for internal reflection system</p>
       
     </td>
   </tr>
-<tr data-ice="target">
+</tbody>
+</table>
+<table class="summary" data-ice="summary">
+  <thead><tr><td data-ice="title" colspan="3">Private Methods</td></tr></thead>
+  <tbody>
+  
+  <tr data-ice="target">
     <td>
-      <span class="access" data-ice="access">public</span>
+      <span class="access" data-ice="access">private</span>
       
       
       
@@ -384,13 +293,14 @@ Used for internal reflection system</p>
           
           <span data-ice="async">async</span>
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-waitForParkInitialised">waitForParkInitialised</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-_init">_init</a></span></span><span class="code" data-ice="signature">()</span>
         </p>
       </div>
       <div>
         
         
-        <div data-ice="description"><p>Waits until the park has finished initialisation</p>
+        <div data-ice="description"><p>Internal function
+Called by init() to initialise the object</p>
 </div>
       </div>
     </td>
@@ -440,124 +350,7 @@ Used for internal reflection system</p>
 </div>
 
 
-<div data-ice="staticMethodDetails"><h2 data-ice="title">Static Public Methods</h2>
 
-<div class="detail" data-ice="detail">
-  <h3 data-ice="anchor" id="static-method-getAllParkClasses">
-    <span class="access" data-ice="access">public</span>
-    <span data-ice="static">static</span>
-    
-    
-    <span data-ice="async">async</span>
-    
-    <span class="code" data-ice="name">getAllParkClasses</span><span class="code" data-ice="signature">(): <span>*</span></span>
-    <span class="right-info">
-      
-      
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber40">source</a></span></span>
-    </span>
-  </h3>
-
-  
-  
-  
-  <div data-ice="description"><p>Get all Park classes that are loaded by require()</p>
-</div>
-
-  
-
-  <div data-ice="properties">
-</div>
-
-  <div class="return-params" data-ice="returnParams">
-    <h4>Return:</h4>
-    <table>
-      <tbody>
-        <tr>
-          <td class="return-type code" data-ice="returnType"><span>*</span></td>
-          
-        </tr>
-      </tbody>
-    </table>
-    <div data-ice="returnProperties">
-</div>
-  </div>
-
-  
-
-  
-
-  
-
-  
-
-  
-
-  
-
-  
-  
-</div>
-<h2 data-ice="title">Static Private Methods</h2>
-
-<div class="detail" data-ice="detail">
-  <h3 data-ice="anchor" id="static-method-isParkObject">
-    <span class="access" data-ice="access">private</span>
-    <span data-ice="static">static</span>
-    
-    
-    
-    
-    <span class="code" data-ice="name">isParkObject</span><span class="code" data-ice="signature">(): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean">boolean</a></span></span>
-    <span class="right-info">
-      
-      
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber33">source</a></span></span>
-    </span>
-  </h3>
-
-  
-  
-  
-  <div data-ice="description"><p>Is this a Park object?
-Used for internal reflection system</p>
-</div>
-
-  
-
-  <div data-ice="properties">
-</div>
-
-  <div class="return-params" data-ice="returnParams">
-    <h4>Return:</h4>
-    <table>
-      <tbody>
-        <tr>
-          <td class="return-type code" data-ice="returnType"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean">boolean</a></span></td>
-          
-        </tr>
-      </tbody>
-    </table>
-    <div data-ice="returnProperties">
-</div>
-  </div>
-
-  
-
-  
-
-  
-
-  
-
-  
-
-  
-
-  
-  
-</div>
-</div>
 <div data-ice="constructorDetails"><h2 data-ice="title">Public Constructors</h2>
 
 <div class="detail" data-ice="detail">
@@ -572,7 +365,7 @@ Used for internal reflection system</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber18">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber33">source</a></span></span>
     </span>
   </h3>
 
@@ -635,7 +428,7 @@ Used for internal reflection system</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber23">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber36">source</a></span></span>
     </span>
   </h3>
 
@@ -667,61 +460,18 @@ Used for internal reflection system</p>
   
 </div>
 <div class="detail" data-ice="detail">
-  <h3 data-ice="anchor" id="instance-member-pendingInitialisedRequests">
+  <h3 data-ice="anchor" id="instance-member-pendingSetupPromise">
     <span class="access" data-ice="access">public</span>
     
     
     
     
     
-    <span class="code" data-ice="name">pendingInitialisedRequests</span><span class="code" data-ice="signature">: <span><span>*</span><span>[]</span></span></span>
+    <span class="code" data-ice="name">pendingSetupPromise</span><span class="code" data-ice="signature">: <span>*</span></span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber24">source</a></span></span>
-    </span>
-  </h3>
-
-  
-  
-  
-  
-
-  
-
-  <div data-ice="properties">
-</div>
-
-  
-
-  
-
-  
-
-  
-
-  
-
-  
-
-  
-
-  
-  
-</div>
-<div class="detail" data-ice="detail">
-  <h3 data-ice="anchor" id="instance-member-setupComplete">
-    <span class="access" data-ice="access">public</span>
-    
-    
-    
-    
-    
-    <span class="code" data-ice="name">setupComplete</span><span class="code" data-ice="signature">: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean">boolean</a></span></span>
-    <span class="right-info">
-      
-      
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber21">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber87">source</a></span></span>
     </span>
   </h3>
 
@@ -756,25 +506,25 @@ Used for internal reflection system</p>
 <div data-ice="methodDetails"><h2 data-ice="title">Public Methods</h2>
 
 <div class="detail" data-ice="detail">
-  <h3 data-ice="anchor" id="instance-method-getWaitTimes">
+  <h3 data-ice="anchor" id="instance-method-getAttractions">
     <span class="access" data-ice="access">public</span>
     
     
     
     <span data-ice="async">async</span>
     
-    <span class="code" data-ice="name">getWaitTimes</span><span class="code" data-ice="signature">(): {&quot;wait_times&quot;: <span>*</span>}</span>
+    <span class="code" data-ice="name">getAttractions</span><span class="code" data-ice="signature">(): <span><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/undefined">undefined</a></span><span>[]</span></span></span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber62">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber42">source</a></span></span>
     </span>
   </h3>
 
   
   
   
-  <div data-ice="description"><p>Get Park Wait Times</p>
+  <div data-ice="description"><p>Get Park Attractions</p>
 </div>
 
   
@@ -787,7 +537,7 @@ Used for internal reflection system</p>
     <table>
       <tbody>
         <tr>
-          <td class="return-type code" data-ice="returnType">{&quot;wait_times&quot;: <span>*</span>}</td>
+          <td class="return-type code" data-ice="returnType"><span><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/undefined">undefined</a></span><span>[]</span></span></td>
           
         </tr>
       </tbody>
@@ -812,25 +562,26 @@ Used for internal reflection system</p>
   
 </div>
 <div class="detail" data-ice="detail">
-  <h3 data-ice="anchor" id="instance-method-setup">
+  <h3 data-ice="anchor" id="instance-method-init">
     <span class="access" data-ice="access">public</span>
     
     
     
     <span data-ice="async">async</span>
     
-    <span class="code" data-ice="name">setup</span><span class="code" data-ice="signature">()</span>
+    <span class="code" data-ice="name">init</span><span class="code" data-ice="signature">(): <span>*</span></span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber98">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber79">source</a></span></span>
     </span>
   </h3>
 
   
   
   
-  <div data-ice="description"><p>Setup the park for use</p>
+  <div data-ice="description"><p>Setup the park for use
+Call to ensure the object has been initialised before accessing data</p>
 </div>
 
   
@@ -838,7 +589,19 @@ Used for internal reflection system</p>
   <div data-ice="properties">
 </div>
 
-  
+  <div class="return-params" data-ice="returnParams">
+    <h4>Return:</h4>
+    <table>
+      <tbody>
+        <tr>
+          <td class="return-type code" data-ice="returnType"><span>*</span></td>
+          
+        </tr>
+      </tbody>
+    </table>
+    <div data-ice="returnProperties">
+</div>
+  </div>
 
   
 
@@ -867,7 +630,7 @@ Used for internal reflection system</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber106">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber105">source</a></span></span>
     </span>
   </h3>
 
@@ -899,26 +662,29 @@ Used for internal reflection system</p>
   
   
 </div>
+<h2 data-ice="title">Private Methods</h2>
+
 <div class="detail" data-ice="detail">
-  <h3 data-ice="anchor" id="instance-method-waitForParkInitialised">
-    <span class="access" data-ice="access">public</span>
+  <h3 data-ice="anchor" id="instance-method-_init">
+    <span class="access" data-ice="access">private</span>
     
     
     
     <span data-ice="async">async</span>
     
-    <span class="code" data-ice="name">waitForParkInitialised</span><span class="code" data-ice="signature">(): <span>*</span></span>
+    <span class="code" data-ice="name">_init</span><span class="code" data-ice="signature">()</span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber85">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber100">source</a></span></span>
     </span>
   </h3>
 
   
   
   
-  <div data-ice="description"><p>Waits until the park has finished initialisation</p>
+  <div data-ice="description"><p>Internal function
+Called by init() to initialise the object</p>
 </div>
 
   
@@ -926,19 +692,7 @@ Used for internal reflection system</p>
   <div data-ice="properties">
 </div>
 
-  <div class="return-params" data-ice="returnParams">
-    <h4>Return:</h4>
-    <table>
-      <tbody>
-        <tr>
-          <td class="return-type code" data-ice="returnType"><span>*</span></td>
-          
-        </tr>
-      </tbody>
-    </table>
-    <div data-ice="returnProperties">
-</div>
-  </div>
+  
 
   
 

@@ -36,6 +36,12 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "parksapi/lib/parks/park.js~constants",
+    "variable/index.html#static-variable-constants",
+    "<span>constants</span> <span class=\"search-result-import-path\">parksapi/lib/parks/park.js</span>",
+    "variable"
+  ],
+  [
     "lib/.external-ecmascript.js~array",
     "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array",
     "lib/.external-ecmascript.js~Array",
@@ -480,15 +486,27 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
+    "lib/parks/park.js~park#_init",
+    "class/lib/parks/park.js~Park.html#instance-method-_init",
+    "lib/parks/park.js~Park#_init",
+    "method"
+  ],
+  [
     "lib/parks/park.js~park#constructor",
     "class/lib/parks/park.js~Park.html#instance-constructor-constructor",
     "lib/parks/park.js~Park#constructor",
     "method"
   ],
   [
-    "lib/parks/park.js~park#getwaittimes",
-    "class/lib/parks/park.js~Park.html#instance-method-getWaitTimes",
-    "lib/parks/park.js~Park#getWaitTimes",
+    "lib/parks/park.js~park#getattractions",
+    "class/lib/parks/park.js~Park.html#instance-method-getAttractions",
+    "lib/parks/park.js~Park#getAttractions",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#init",
+    "class/lib/parks/park.js~Park.html#instance-method-init",
+    "lib/parks/park.js~Park#init",
     "method"
   ],
   [
@@ -498,45 +516,15 @@ window.esdocSearchIndex = [
     "member"
   ],
   [
-    "lib/parks/park.js~park#pendinginitialisedrequests",
-    "class/lib/parks/park.js~Park.html#instance-member-pendingInitialisedRequests",
-    "lib/parks/park.js~Park#pendingInitialisedRequests",
-    "member"
-  ],
-  [
-    "lib/parks/park.js~park#setup",
-    "class/lib/parks/park.js~Park.html#instance-method-setup",
-    "lib/parks/park.js~Park#setup",
-    "method"
-  ],
-  [
-    "lib/parks/park.js~park#setupcomplete",
-    "class/lib/parks/park.js~Park.html#instance-member-setupComplete",
-    "lib/parks/park.js~Park#setupComplete",
+    "lib/parks/park.js~park#pendingsetuppromise",
+    "class/lib/parks/park.js~Park.html#instance-member-pendingSetupPromise",
+    "lib/parks/park.js~Park#pendingSetupPromise",
     "member"
   ],
   [
     "lib/parks/park.js~park#update",
     "class/lib/parks/park.js~Park.html#instance-method-update",
     "lib/parks/park.js~Park#update",
-    "method"
-  ],
-  [
-    "lib/parks/park.js~park#waitforparkinitialised",
-    "class/lib/parks/park.js~Park.html#instance-method-waitForParkInitialised",
-    "lib/parks/park.js~Park#waitForParkInitialised",
-    "method"
-  ],
-  [
-    "lib/parks/park.js~park.getallparkclasses",
-    "class/lib/parks/park.js~Park.html#static-method-getAllParkClasses",
-    "lib/parks/park.js~Park.getAllParkClasses",
-    "method"
-  ],
-  [
-    "lib/parks/park.js~park.isparkobject",
-    "class/lib/parks/park.js~Park.html#static-method-isParkObject",
-    "lib/parks/park.js~Park.isParkObject",
     "method"
   ],
   [

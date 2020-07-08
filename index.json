@@ -1382,7 +1382,7 @@
     "__docId__": 79,
     "kind": "file",
     "name": "lib/parks/park.js",
-    "content": "import ConfigBase from '../configBase.js';\n\nconst delay = (seconds) => {\n  return new Promise((resolve) => {\n    setTimeout(resolve, seconds * 1000);\n  });\n};\n\n/**\n * Base Park Object\n * @class\n */\nexport default class Park extends ConfigBase {\n  /**\n   * Create a new park object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    super(options);\n\n    this.setupComplete = false;\n\n    this.initialised = false;\n    this.pendingInitialisedRequests = [];\n  }\n\n  /**\n   * Is this a Park object?\n   * Used for internal reflection system\n   * @return {boolean}\n   * @private\n   */\n  static isParkObject() {\n    return true;\n  }\n\n  /**\n     * Get all Park classes that are loaded by require()\n     */\n  static async getAllParkClasses() {\n    // wait a single exec tick so we don't cause circular require() chains if this is requested on module load\n    await delay(0);\n\n    // gather all loaded node modules\n    const modules = Object.keys(require.cache).filter((f) => f !== __filename).map(require);\n\n    // filter out all classes that don't have the isParkObject function defined (and any that return false)\n    const classes = modules.filter((obj) => {\n      try {\n        return obj && obj.isParkObject && obj.isParkObject() && obj !== Park;\n      } catch (e) {\n        return false;\n      }\n    });\n\n    return classes;\n  }\n\n  /**\n   * Get Park Wait Times\n   */\n  async getWaitTimes() {\n    await this.waitForParkInitialised();\n\n    // TODO - return park wait times\n    return {\n      wait_times: [\n        {\n          id: 'heidepark_1',\n          name: {\n            en: 'Test Coaster',\n          },\n          standby_time: 5,\n          single_rider_time: 5,\n          fastpass: false,\n          virtual_queue: [],\n        },\n      ],\n    };\n  }\n\n  /**\n   * Waits until the park has finished initialisation\n   */\n  async waitForParkInitialised() {\n    if (this.initialised) {\n      return true;\n    }\n\n    return new Promise((resolve) => {\n      this.pendingInitialisedRequests.push(resolve);\n    });\n  }\n\n  /**\n   * Setup the park for use\n   */\n  async setup() {\n    // TODO - setup the park ready for use\n    // eg. download any large data-sets, calendars etc.\n\n    this.setupComplete = true;\n  }\n\n  /** The master Update function, called every 5 minutes or so to update park state */\n  async update() {\n    // TODO - run park update\n    await delay(2);\n\n    // we have finished a successful Update() call\n    //  if we were not initialised before, mark ourselves as such as call any pending waits\n    if (!this.initialised) {\n      this.initialised = true;\n      this.pendingInitialisedRequests.forEach((fn) => {\n        fn();\n      });\n      this.pendingInitialisedRequests = [];\n    }\n  }\n}\n",
+    "content": "import ConfigBase from '../configBase.js';\n\n// quick helper function to wait x milliseconds as a Promise\nconst delay = (milliseconds) => {\n  return new Promise((resolve) => {\n    setTimeout(resolve, milliseconds);\n  });\n};\n\nexport const constants = {\n  // different queue types rides can have\n  QUEUE_STANDBY: 'STANDBY',\n  QUEUE_SINGLERIDER: 'SINGLE_RIDER',\n  QUEUE_VIRTUALQUEUE: 'VIRTUAL_QUEUE',\n  QUEUE_FASTPASS: 'FAST_PASS',\n  // attraction types\n  ATTRACTION_RIDE: 'RIDE',\n  ATTRACTION_SHOW: 'SHOW',\n  ATTRACTION_TRANSPORT: 'TRANSPORT',\n  ATTRACTION_PARADE: 'PARADE',\n  ATTRACTION_MEET_AND_GREET: 'MEET_AND_GREET',\n};\n\n/**\n * Base Park Object\n * @class\n */\nexport default class Park extends ConfigBase {\n  /**\n   * Create a new park object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    super(options);\n\n    this.initialised = false;\n  }\n\n  /**\n   * Get Park Attractions\n   */\n  async getAttractions() {\n    // park must be initialised before returning any data\n    await this.init();\n\n    // TODO - return park attractions with any attributes/wait times etc.\n    return [\n      {\n        id: 1,\n        type: constants.ATTRACTION_RIDE,\n        queues: [\n          {\n            type: constants.QUEUE_STANDBY,\n            waitTime: 15,\n          },\n        ],\n      },\n      {\n        id: 2,\n        type: constants.ATTRACTION_RIDE,\n        queues: [\n          {\n            type: constants.QUEUE_STANDBY,\n            waitTime: 25,\n          },\n          {\n            type: constants.QUEUE_SINGLERIDER,\n            waitTime: 5,\n          },\n        ],\n      },\n    ];\n  }\n\n  /**\n   * Setup the park for use\n   * Call to ensure the object has been initialised before accessing data\n   */\n  async init() {\n    // setup the park ready for use\n    //  eg. download any large data-sets, calendars etc.\n    if (this.pendingSetupPromise) {\n      return this.pendingSetupPromise;\n    }\n\n    // call our internal init and wait on it\n    this.pendingSetupPromise = this._init();\n    await this.pendingSetupPromise;\n\n    this.initialised = true;\n\n    // TODO - start update loop\n  }\n\n  /**\n   * Internal function\n   * Called by init() to initialise the object\n   * @private\n   */\n  async _init() {\n    // implementation should be setup in child classes\n  }\n\n  /** The master Update function, called every 5 minutes or so to update park state */\n  async update() {\n    // TODO - run park update\n    await delay(2000);\n  }\n}\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/park.js",
     "access": "public",
@@ -1403,11 +1403,11 @@
     "importPath": "parksapi/lib/parks/park.js",
     "importStyle": null,
     "description": null,
-    "lineNumber": 3,
+    "lineNumber": 4,
     "undocument": true,
     "params": [
       {
-        "name": "seconds",
+        "name": "milliseconds",
         "types": [
           "*"
         ]
@@ -1422,6 +1422,26 @@
   },
   {
     "__docId__": 81,
+    "kind": "variable",
+    "name": "constants",
+    "memberof": "lib/parks/park.js",
+    "static": true,
+    "longname": "lib/parks/park.js~constants",
+    "access": "public",
+    "export": true,
+    "importPath": "parksapi/lib/parks/park.js",
+    "importStyle": "{constants}",
+    "description": null,
+    "lineNumber": 10,
+    "undocument": true,
+    "type": {
+      "types": [
+        "{\"QUEUE_STANDBY\": string, \"QUEUE_SINGLERIDER\": string, \"QUEUE_VIRTUALQUEUE\": string, \"QUEUE_FASTPASS\": string, \"ATTRACTION_RIDE\": string, \"ATTRACTION_SHOW\": string, \"ATTRACTION_TRANSPORT\": string, \"ATTRACTION_PARADE\": string, \"ATTRACTION_MEET_AND_GREET\": string}"
+      ]
+    }
+  },
+  {
+    "__docId__": 82,
     "kind": "class",
     "name": "Park",
     "memberof": "lib/parks/park.js",
@@ -1432,7 +1452,7 @@
     "importPath": "parksapi/lib/parks/park.js",
     "importStyle": "Park",
     "description": "Base Park Object",
-    "lineNumber": 13,
+    "lineNumber": 28,
     "unknown": [
       {
         "tagName": "@class",
@@ -1445,7 +1465,7 @@
     ]
   },
   {
-    "__docId__": 82,
+    "__docId__": 83,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/park.js~Park",
@@ -1455,7 +1475,7 @@
     "longname": "lib/parks/park.js~Park#constructor",
     "access": "public",
     "description": "Create a new park object",
-    "lineNumber": 18,
+    "lineNumber": 33,
     "params": [
       {
         "nullable": null,
@@ -1470,23 +1490,6 @@
     ]
   },
   {
-    "__docId__": 83,
-    "kind": "member",
-    "name": "setupComplete",
-    "memberof": "lib/parks/park.js~Park",
-    "static": false,
-    "longname": "lib/parks/park.js~Park#setupComplete",
-    "access": "public",
-    "description": null,
-    "lineNumber": 21,
-    "undocument": true,
-    "type": {
-      "types": [
-        "boolean"
-      ]
-    }
-  },
-  {
     "__docId__": 84,
     "kind": "member",
     "name": "initialised",
@@ -1495,7 +1498,7 @@
     "longname": "lib/parks/park.js~Park#initialised",
     "access": "public",
     "description": null,
-    "lineNumber": 23,
+    "lineNumber": 36,
     "undocument": true,
     "type": {
       "types": [
@@ -1505,55 +1508,35 @@
   },
   {
     "__docId__": 85,
-    "kind": "member",
-    "name": "pendingInitialisedRequests",
+    "kind": "method",
+    "name": "getAttractions",
     "memberof": "lib/parks/park.js~Park",
+    "generator": false,
+    "async": true,
     "static": false,
-    "longname": "lib/parks/park.js~Park#pendingInitialisedRequests",
+    "longname": "lib/parks/park.js~Park#getAttractions",
     "access": "public",
-    "description": null,
-    "lineNumber": 24,
-    "undocument": true,
-    "type": {
+    "description": "Get Park Attractions",
+    "lineNumber": 42,
+    "params": [],
+    "return": {
       "types": [
-        "*[]"
+        "undefined[]"
       ]
     }
   },
   {
     "__docId__": 86,
     "kind": "method",
-    "name": "isParkObject",
-    "memberof": "lib/parks/park.js~Park",
-    "generator": false,
-    "async": false,
-    "static": true,
-    "longname": "lib/parks/park.js~Park.isParkObject",
-    "access": "private",
-    "description": "Is this a Park object?\nUsed for internal reflection system",
-    "lineNumber": 33,
-    "return": {
-      "nullable": null,
-      "types": [
-        "boolean"
-      ],
-      "spread": false,
-      "description": ""
-    },
-    "params": []
-  },
-  {
-    "__docId__": 87,
-    "kind": "method",
-    "name": "getAllParkClasses",
+    "name": "init",
     "memberof": "lib/parks/park.js~Park",
     "generator": false,
     "async": true,
-    "static": true,
-    "longname": "lib/parks/park.js~Park.getAllParkClasses",
+    "static": false,
+    "longname": "lib/parks/park.js~Park#init",
     "access": "public",
-    "description": "Get all Park classes that are loaded by require()",
-    "lineNumber": 40,
+    "description": "Setup the park for use\nCall to ensure the object has been initialised before accessing data",
+    "lineNumber": 79,
     "params": [],
     "return": {
       "types": [
@@ -1562,60 +1545,39 @@
     }
   },
   {
-    "__docId__": 88,
-    "kind": "method",
-    "name": "getWaitTimes",
+    "__docId__": 87,
+    "kind": "member",
+    "name": "pendingSetupPromise",
     "memberof": "lib/parks/park.js~Park",
-    "generator": false,
-    "async": true,
     "static": false,
-    "longname": "lib/parks/park.js~Park#getWaitTimes",
+    "longname": "lib/parks/park.js~Park#pendingSetupPromise",
     "access": "public",
-    "description": "Get Park Wait Times",
-    "lineNumber": 62,
-    "params": [],
-    "return": {
+    "description": null,
+    "lineNumber": 87,
+    "undocument": true,
+    "type": {
       "types": [
-        "{\"wait_times\": *}"
+        "*"
       ]
     }
   },
   {
     "__docId__": 89,
     "kind": "method",
-    "name": "waitForParkInitialised",
+    "name": "_init",
     "memberof": "lib/parks/park.js~Park",
     "generator": false,
     "async": true,
     "static": false,
-    "longname": "lib/parks/park.js~Park#waitForParkInitialised",
-    "access": "public",
-    "description": "Waits until the park has finished initialisation",
-    "lineNumber": 85,
-    "params": [],
-    "return": {
-      "types": [
-        "*"
-      ]
-    }
-  },
-  {
-    "__docId__": 90,
-    "kind": "method",
-    "name": "setup",
-    "memberof": "lib/parks/park.js~Park",
-    "generator": false,
-    "async": true,
-    "static": false,
-    "longname": "lib/parks/park.js~Park#setup",
-    "access": "public",
-    "description": "Setup the park for use",
-    "lineNumber": 98,
+    "longname": "lib/parks/park.js~Park#_init",
+    "access": "private",
+    "description": "Internal function\nCalled by init() to initialise the object",
+    "lineNumber": 100,
     "params": [],
     "return": null
   },
   {
-    "__docId__": 92,
+    "__docId__": 90,
     "kind": "method",
     "name": "update",
     "memberof": "lib/parks/park.js~Park",
@@ -1625,12 +1587,12 @@
     "longname": "lib/parks/park.js~Park#update",
     "access": "public",
     "description": "The master Update function, called every 5 minutes or so to update park state",
-    "lineNumber": 106,
+    "lineNumber": 105,
     "params": [],
     "return": null
   },
   {
-    "__docId__": 95,
+    "__docId__": 91,
     "kind": "file",
     "name": "lib/parks/wdw/wdwdb.js",
     "content": "import PouchDB from 'pouchdb';\nimport ReplicationStream from 'pouchdb-replication-stream';\n\nimport {promises as fs, constants as fsConstants, createReadStream, createWriteStream} from 'fs';\nimport path from 'path';\n\nimport ConfigBase from '../configBase.js';\n\n// pouchdb-replication-stream allows us to \"seed\" the database with an initial database dump\n//  incredibly useful for the wdw db, which is pretty huge\nPouchDB.plugin(ReplicationStream.plugin);\nPouchDB.adapter('writableStream', ReplicationStream.adapters.writableStream);\n\nconst delay = (time) => {\n  return new Promise((resolve) => {\n    setTimeout(resolve, time);\n  });\n};\n\n/**\n * Live Database object for Disney parks using couchbase databases\n * Will syncronise databae locally before accessing, allowing fast queries\n * @class\n */\nexport default class DisneyLiveDB extends ConfigBase {\n  /**\n     * Create a new DisneyLiveDB object\n     * @param {*} options\n     */\n  constructor(options = {}) {\n    if (!options.dbName) {\n      options.dbName = 'wdw';\n    }\n\n    // env variables can override with\n    //  env.WDWDB_HOST, env.WDWDB_USERNAME, env.WDWDB_PASSWORD etc.\n    if (!options.configPrefixes) {\n      options.configPrefixes = ['wdwdb'];\n    }\n\n    options.host = options.host || '';\n    options.username = options.username || '';\n    options.password = options.password || '';\n    // TODO - get latest useragent for app\n    options.useragent = options.useragent || 'CouchbaseLite/1.3 (1.4.1/8a21c5927a273a038fb3b66ec29c86425e871b11)';\n\n    // how often to take database checkpoints (default 15 minutes)\n    options.checkpointTime = options.checkpointTime || 1000 * 60 * 15;\n\n    super(options);\n\n    // create our database objects\n    this.localDB = new PouchDB(`localdb/${this.config.dbName}`);\n    this.remoteDB = new PouchDB(this.config.host, {\n      auth: {\n        username: this.config.username,\n        password: this.config.password,\n      },\n      // override user-agent header when syncing remote database\n      fetch: (url, opts) => {\n        opts.headers.set('User-Agent', this.config.useragent);\n        return PouchDB.fetch(url, opts);\n      },\n    });\n\n    this.synced = false;\n\n    this.initPromiseSync = null;\n\n    // start the database disk scheduler\n    this._scheduleDBDump();\n  }\n\n  /**\n   * Initialise the live database, returns once finished an initial sync\n   */\n  async init() {\n    if (this.synced) {\n      return;\n    }\n\n    if (this.initPromiseSync) return this.initPromiseSync;\n\n    // first, syncronise our database before we start rolling updates\n    this.initPromiseSync = this._loadAndInit();\n    // keep the Promise as a variable so we can keep returning it for any additional init() calls\n    await this.initPromiseSync;\n    this.initPromiseSync = null;\n\n    console.log(`Database ${this.config.dbName} finished setup!`);\n\n    this.synced = true;\n\n    // start rolling replicate to keep our local database in-sync\n    PouchDB.replicate(this.remoteDB, this.localDB, {\n      live: true,\n      retry: true,\n    }).on('change', (info) => {\n      console.log(info.docs);\n    });\n  }\n\n  /**\n   * Internal function\n   * Loads and performs an initial sync on the database\n   * @private\n   */\n  async _loadAndInit() {\n    // first, try and restore from disk\n    await this.load();\n\n    // then perform an initial replication from remote to local\n    console.log('Performing initial replication...');\n    await PouchDB.replicate(this.remoteDB, this.localDB, {\n      batch_size: 500,\n    });\n\n    // then dump our initial state to disk\n    return await this.dump();\n  }\n\n  /**\n   * Get the filename we use for saving backups of the database to disk\n   * Used for creating simple \"snapshots\" to reduce initial sync times\n   * @param {string} [postfix] Optional postfix for the filename\n   * @return{string}\n   */\n  getDumpFilename(postfix='') {\n    return path.join('localdb', `${this.config.dbName}${postfix}.db`);\n  }\n\n  /**\n   * Restore a database backup from disk\n   * Perform this after running \"dump()\" on a previous synced database\n   * This will help to reduce the initial sync time for large databases\n   */\n  async load() {\n    const dumpPath = this.getDumpFilename();\n\n    // if our database dump doesn't exist, then early out and we'll do a normal sync\n    try {\n      await fs.access(dumpPath, fsConstants.F_OK);\n    } catch (error) {\n      return;\n    }\n\n    console.log('Restoring database from disk...');\n\n    // otherwise, load up our database from disk\n    const ws = createReadStream(dumpPath);\n    return this.localDB.load(ws, {\n      batch_size: 500,\n    });\n  }\n\n  /**\n   * Dump this live database to disk\n   * This will be used to \"seed\" the database to speed up syncs for future runs\n   */\n  async dump() {\n    if (this.databaseDumpPendingPromise) {\n      return this.databaseDumpPendingPromise;\n    }\n\n    console.log('Dumping database to disk...');\n\n    const dumpPath = this.getDumpFilename();\n    const dumpPathNew = this.getDumpFilename('_new');\n\n    // dump database to our new location\n    const ws = createWriteStream(dumpPathNew);\n    this.databaseDumpPendingPromise = this.localDB.dump(ws, {\n      batch_size: 500,\n    });\n    // save Promise so multiple \"dump()\" calls can stack cleanly\n    await this.databaseDumpPendingPromise;\n    this.databaseDumpPendingPromise = null;\n\n    // rename new database dump to our final intended location\n    return fs.rename(dumpPathNew, dumpPath);\n  }\n\n  /**\n   * Begin a database dump loop\n   * This will dump the database to disk every 15 minutes (override with options.checkpointTime)\n   *  to speed up initial syncs\n   * @private\n   */\n  async _scheduleDBDump() {\n    await delay(this.config.checkpointTime);\n\n    // make sure database is initialised before writing anything to disk\n    await this.init();\n    await this.dump();\n\n    process.nextTick(this._scheduleDBDump.bind(this));\n  }\n\n  /**\n   * Get a document from this live database\n   * Will wait until database is syncronised before returning\n   * See PouchDB.get(...) for options\n   */\n  async get(...args) {\n    await this.init();\n    return await this.localDB.get.apply(this, args);\n  }\n}\n",
@@ -1641,7 +1603,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 96,
+    "__docId__": 92,
     "kind": "function",
     "name": "delay",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -1672,7 +1634,7 @@
     "ignore": true
   },
   {
-    "__docId__": 97,
+    "__docId__": 93,
     "kind": "class",
     "name": "DisneyLiveDB",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -1696,7 +1658,7 @@
     ]
   },
   {
-    "__docId__": 98,
+    "__docId__": 94,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
@@ -1721,7 +1683,7 @@
     ]
   },
   {
-    "__docId__": 99,
+    "__docId__": 95,
     "kind": "member",
     "name": "localDB",
     "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
@@ -1738,7 +1700,7 @@
     }
   },
   {
-    "__docId__": 100,
+    "__docId__": 96,
     "kind": "member",
     "name": "remoteDB",
     "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
@@ -1755,7 +1717,7 @@
     }
   },
   {
-    "__docId__": 101,
+    "__docId__": 97,
     "kind": "member",
     "name": "synced",
     "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
@@ -1772,7 +1734,7 @@
     }
   },
   {
-    "__docId__": 102,
+    "__docId__": 98,
     "kind": "member",
     "name": "initPromiseSync",
     "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
@@ -1789,7 +1751,7 @@
     }
   },
   {
-    "__docId__": 103,
+    "__docId__": 99,
     "kind": "method",
     "name": "init",
     "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
@@ -1808,7 +1770,7 @@
     }
   },
   {
-    "__docId__": 107,
+    "__docId__": 103,
     "kind": "method",
     "name": "_loadAndInit",
     "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
@@ -1827,7 +1789,7 @@
     }
   },
   {
-    "__docId__": 108,
+    "__docId__": 104,
     "kind": "method",
     "name": "getDumpFilename",
     "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
@@ -1857,7 +1819,7 @@
     }
   },
   {
-    "__docId__": 109,
+    "__docId__": 105,
     "kind": "method",
     "name": "load",
     "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
@@ -1876,7 +1838,7 @@
     }
   },
   {
-    "__docId__": 110,
+    "__docId__": 106,
     "kind": "method",
     "name": "dump",
     "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
@@ -1895,7 +1857,7 @@
     }
   },
   {
-    "__docId__": 111,
+    "__docId__": 107,
     "kind": "member",
     "name": "databaseDumpPendingPromise",
     "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
@@ -1912,7 +1874,7 @@
     }
   },
   {
-    "__docId__": 113,
+    "__docId__": 109,
     "kind": "method",
     "name": "_scheduleDBDump",
     "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
@@ -1927,7 +1889,7 @@
     "return": null
   },
   {
-    "__docId__": 114,
+    "__docId__": 110,
     "kind": "method",
     "name": "get",
     "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
