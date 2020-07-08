@@ -1,0 +1,1972 @@
+[
+  {
+    "__docId__": 1,
+    "kind": "external",
+    "name": "Infinity",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Infinity",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Infinity",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 2,
+    "kind": "external",
+    "name": "NaN",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/NaN",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~NaN",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 3,
+    "kind": "external",
+    "name": "undefined",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/undefined",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~undefined",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 4,
+    "kind": "external",
+    "name": "null",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/null",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~null",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 5,
+    "kind": "external",
+    "name": "Object",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Object",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 6,
+    "kind": "external",
+    "name": "object",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~object",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 7,
+    "kind": "external",
+    "name": "Function",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Function",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 8,
+    "kind": "external",
+    "name": "function",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~function",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 9,
+    "kind": "external",
+    "name": "Boolean",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Boolean",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 10,
+    "kind": "external",
+    "name": "boolean",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~boolean",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 11,
+    "kind": "external",
+    "name": "Symbol",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Symbol",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 12,
+    "kind": "external",
+    "name": "Error",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Error",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 13,
+    "kind": "external",
+    "name": "EvalError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/EvalError",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~EvalError",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 14,
+    "kind": "external",
+    "name": "InternalError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/InternalError",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~InternalError",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 15,
+    "kind": "external",
+    "name": "RangeError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RangeError",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~RangeError",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 16,
+    "kind": "external",
+    "name": "ReferenceError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ReferenceError",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~ReferenceError",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 17,
+    "kind": "external",
+    "name": "SyntaxError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~SyntaxError",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 18,
+    "kind": "external",
+    "name": "TypeError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~TypeError",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 19,
+    "kind": "external",
+    "name": "URIError",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/URIError",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~URIError",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 20,
+    "kind": "external",
+    "name": "Number",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Number",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 21,
+    "kind": "external",
+    "name": "number",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~number",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 22,
+    "kind": "external",
+    "name": "Date",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Date",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 23,
+    "kind": "external",
+    "name": "String",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~String",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 24,
+    "kind": "external",
+    "name": "string",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~string",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 25,
+    "kind": "external",
+    "name": "RegExp",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~RegExp",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 26,
+    "kind": "external",
+    "name": "Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Array",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 27,
+    "kind": "external",
+    "name": "Int8Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Int8Array",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 28,
+    "kind": "external",
+    "name": "Uint8Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Uint8Array",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 29,
+    "kind": "external",
+    "name": "Uint8ClampedArray",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8ClampedArray",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Uint8ClampedArray",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 30,
+    "kind": "external",
+    "name": "Int16Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int16Array",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Int16Array",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 31,
+    "kind": "external",
+    "name": "Uint16Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint16Array",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Uint16Array",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 32,
+    "kind": "external",
+    "name": "Int32Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int32Array",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Int32Array",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 33,
+    "kind": "external",
+    "name": "Uint32Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint32Array",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Uint32Array",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 34,
+    "kind": "external",
+    "name": "Float32Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Float32Array",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 35,
+    "kind": "external",
+    "name": "Float64Array",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float64Array",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Float64Array",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 36,
+    "kind": "external",
+    "name": "Map",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Map",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 37,
+    "kind": "external",
+    "name": "Set",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Set",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 38,
+    "kind": "external",
+    "name": "WeakMap",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~WeakMap",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 39,
+    "kind": "external",
+    "name": "WeakSet",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~WeakSet",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 40,
+    "kind": "external",
+    "name": "ArrayBuffer",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~ArrayBuffer",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 41,
+    "kind": "external",
+    "name": "DataView",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~DataView",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 42,
+    "kind": "external",
+    "name": "JSON",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~JSON",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 43,
+    "kind": "external",
+    "name": "Promise",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Promise",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 44,
+    "kind": "external",
+    "name": "Generator",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Generator",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 45,
+    "kind": "external",
+    "name": "GeneratorFunction",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/GeneratorFunction",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~GeneratorFunction",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 46,
+    "kind": "external",
+    "name": "Reflect",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Reflect",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 47,
+    "kind": "external",
+    "name": "Proxy",
+    "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy",
+    "memberof": "lib/.external-ecmascript.js",
+    "static": true,
+    "longname": "lib/.external-ecmascript.js~Proxy",
+    "access": "public",
+    "description": "",
+    "builtinExternal": true
+  },
+  {
+    "__docId__": 48,
+    "kind": "file",
+    "name": "lib/cache/cacheBase.js",
+    "content": "/**\n * Our base Cache implementation\n * Extend this class with new implementations to create different cache types (in-memory, database, file system etc.)\n * @class\n */\nexport default class CacheBase {\n  /**\n     * @param {Object} options\n     * @param {boolean} [options.useMemoryCache=true] Use an in-memory layer on top of this cache\n     *  Avoid hitting databases too often\n     *  Not useful if using any distributed setup where memory will be out-of-sync between processes\n     * @param {(number|null)} [options.memoryCacheTimeout=null] Timeout for in-memory cache values\n     *  Default is null, which will use the incoming ttl values for each key\n     */\n  constructor(options = {\n    useMemoryCache: true,\n    memoryCacheTimeout: null,\n  }) {\n    this.memoryLayerEnabled = options.useMemoryCache;\n    this.memCache = {};\n  }\n\n  /**\n     * Internal implementation of Get()\n     * @abstract\n     * @async\n     * @private\n     * @param {string} key Unique key name for this cache entry\n     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present\n     */\n  async _get(key) {\n    throw new Error('Missing Implementation CacheBase::_Get(key)');\n  }\n\n  /**\n     * Internal implementation of Set()\n     * @abstract\n     * @async\n     * @private\n     * @param {string} key Unique key name for this cache entry\n     * @param {Object} value\n     * @param {number} ttl How long the cache entry should last in milliseconds\n     */\n  async _set(key, value, ttl) {\n    throw new Error('Missing Implementation CacheBase::_Set(key, value, ttl)');\n  }\n\n  /**\n     * Get a cached object\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present\n     */\n  async get(key) {\n    // our optional in-memory cache goes first\n    if (this.memoryLayerEnabled) {\n      const cacheEntry = this.memCache[key];\n      if (cacheEntry !== undefined) {\n        const now = +new Date();\n        if (cacheEntry.expires >= now) {\n          return cacheEntry.value;\n        }\n      }\n    }\n\n    // then use our internal cache if we haven't got the value stored locally\n    return await this._get(key);\n  }\n\n  /**\n     * Set a key in our cache\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {Object} value\n     * @param {(Function|number)} [ttl=3600000] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     *  Default 1 hour\n     */\n  async set(key, value, ttl = 3600000) {\n    // resolve our cache time\n    let cacheTime = ttl;\n    // if our cache time input is a function, resolve it and store the result (in milliseconds)\n    if (typeof cacheTime === 'function') {\n      cacheTime = await cacheTime();\n    }\n\n    // optionally keep an in-memory cache layer\n    if (this.memoryLayerEnabled) {\n      const memoryCacheTime = this.memoryCacheTimeout === null ?\n        cacheTime :\n        (Math.min(this.memoryCacheTimeout, cacheTime)\n        );\n\n      this.cache[key] = {\n        value,\n        expires: (+new Date()) + memoryCacheTime,\n      };\n    }\n\n    // call the private _Set implementation to actually set the key\n    this._set(key, value, cacheTime);\n  }\n\n  /**\n     * A helper \"wrap\" function that will return a cached value if present\n     *  This will call the supplied function to fetch it if the value isn't present in the cache\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {function} fn Fetch function that will be called if the cache entry is not present\n     * @param {(function|number)} [ttl] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     */\n  async wrap(key, fn, ttl) {\n    // try and fetch the cached value\n    let cachedValue = await this.get(key);\n\n    // if not in our cache, call the supplied fetcher function\n    if (cachedValue === undefined) {\n      cachedValue = await fn();\n      // set the new value in our cache\n      await this.set(key, cachedValue, ttl);\n    }\n\n    // return the fetched or calculated value\n    return cachedValue;\n  }\n}\n",
+    "static": true,
+    "longname": "/home/runner/work/parksapi/parksapi/lib/cache/cacheBase.js",
+    "access": "public",
+    "description": null,
+    "lineNumber": 1
+  },
+  {
+    "__docId__": 49,
+    "kind": "class",
+    "name": "CacheBase",
+    "memberof": "lib/cache/cacheBase.js",
+    "static": true,
+    "longname": "lib/cache/cacheBase.js~CacheBase",
+    "access": "public",
+    "export": true,
+    "importPath": "parksapi/lib/cache/cacheBase.js",
+    "importStyle": "CacheBase",
+    "description": "Our base Cache implementation\nExtend this class with new implementations to create different cache types (in-memory, database, file system etc.)",
+    "lineNumber": 6,
+    "unknown": [
+      {
+        "tagName": "@class",
+        "tagValue": ""
+      }
+    ],
+    "interface": false
+  },
+  {
+    "__docId__": 50,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/cache/cacheBase.js~CacheBase",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/cache/cacheBase.js~CacheBase#constructor",
+    "access": "public",
+    "description": "",
+    "lineNumber": 15,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "options",
+        "description": ""
+      },
+      {
+        "nullable": null,
+        "types": [
+          "boolean"
+        ],
+        "spread": false,
+        "optional": true,
+        "defaultValue": "true",
+        "defaultRaw": true,
+        "name": "options.useMemoryCache",
+        "description": "Use an in-memory layer on top of this cache\n Avoid hitting databases too often\n Not useful if using any distributed setup where memory will be out-of-sync between processes"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "number",
+          "null"
+        ],
+        "spread": false,
+        "optional": true,
+        "defaultValue": "null",
+        "defaultRaw": null,
+        "name": "options.memoryCacheTimeout",
+        "description": "Timeout for in-memory cache values\n Default is null, which will use the incoming ttl values for each key"
+      }
+    ]
+  },
+  {
+    "__docId__": 51,
+    "kind": "member",
+    "name": "memoryLayerEnabled",
+    "memberof": "lib/cache/cacheBase.js~CacheBase",
+    "static": false,
+    "longname": "lib/cache/cacheBase.js~CacheBase#memoryLayerEnabled",
+    "access": "public",
+    "description": null,
+    "lineNumber": 19,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 52,
+    "kind": "member",
+    "name": "memCache",
+    "memberof": "lib/cache/cacheBase.js~CacheBase",
+    "static": false,
+    "longname": "lib/cache/cacheBase.js~CacheBase#memCache",
+    "access": "public",
+    "description": null,
+    "lineNumber": 20,
+    "undocument": true,
+    "type": {
+      "types": [
+        "{}"
+      ]
+    }
+  },
+  {
+    "__docId__": 53,
+    "kind": "method",
+    "name": "_get",
+    "memberof": "lib/cache/cacheBase.js~CacheBase",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheBase.js~CacheBase#_get",
+    "access": "private",
+    "description": "Internal implementation of Get()",
+    "lineNumber": 31,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "key",
+        "description": "Unique key name for this cache entry"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "Object",
+        "undefined"
+      ],
+      "spread": false,
+      "description": "Returns the object in the cache, or undefined if not present"
+    },
+    "abstract": true
+  },
+  {
+    "__docId__": 54,
+    "kind": "method",
+    "name": "_set",
+    "memberof": "lib/cache/cacheBase.js~CacheBase",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheBase.js~CacheBase#_set",
+    "access": "private",
+    "description": "Internal implementation of Set()",
+    "lineNumber": 44,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "key",
+        "description": "Unique key name for this cache entry"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "value",
+        "description": ""
+      },
+      {
+        "nullable": null,
+        "types": [
+          "number"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "ttl",
+        "description": "How long the cache entry should last in milliseconds"
+      }
+    ],
+    "abstract": true,
+    "return": null
+  },
+  {
+    "__docId__": 55,
+    "kind": "method",
+    "name": "get",
+    "memberof": "lib/cache/cacheBase.js~CacheBase",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheBase.js~CacheBase#get",
+    "access": "public",
+    "description": "Get a cached object",
+    "lineNumber": 55,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "key",
+        "description": "Unique key name for this cache entry"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "Object",
+        "undefined"
+      ],
+      "spread": false,
+      "description": "Returns the object in the cache, or undefined if not present"
+    }
+  },
+  {
+    "__docId__": 56,
+    "kind": "method",
+    "name": "set",
+    "memberof": "lib/cache/cacheBase.js~CacheBase",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheBase.js~CacheBase#set",
+    "access": "public",
+    "description": "Set a key in our cache",
+    "lineNumber": 81,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "key",
+        "description": "Unique key name for this cache entry"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "value",
+        "description": ""
+      },
+      {
+        "nullable": null,
+        "types": [
+          "Function",
+          "number"
+        ],
+        "spread": false,
+        "optional": true,
+        "defaultValue": "3600000",
+        "defaultRaw": 3600000,
+        "name": "ttl",
+        "description": "How long the cache entry should last in milliseconds\n Can be a number or a function that will return a number\n Default 1 hour"
+      }
+    ],
+    "return": null
+  },
+  {
+    "__docId__": 57,
+    "kind": "method",
+    "name": "wrap",
+    "memberof": "lib/cache/cacheBase.js~CacheBase",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheBase.js~CacheBase#wrap",
+    "access": "public",
+    "description": "A helper \"wrap\" function that will return a cached value if present\n This will call the supplied function to fetch it if the value isn't present in the cache",
+    "lineNumber": 116,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "key",
+        "description": "Unique key name for this cache entry"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "function"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "fn",
+        "description": "Fetch function that will be called if the cache entry is not present"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "function",
+          "number"
+        ],
+        "spread": false,
+        "optional": true,
+        "name": "ttl",
+        "description": "How long the cache entry should last in milliseconds\n Can be a number or a function that will return a number"
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 58,
+    "kind": "file",
+    "name": "lib/cache/cacheMemory.js",
+    "content": "import CacheBase from './cacheBase.js';\n\n/**\n * A basic in-memory cache implementation\n * @extends CacheBase\n * @class\n */\nexport default class CacheMemory extends CacheBase {\n  /**\n   * Create new Memory cache object\n   * @param {object} options\n   */\n  constructor(options) {\n    // disable our internal memory cache, since this is exactly what this implementation is already doing\n    options.useMemoryCache = false;\n\n    super(options);\n\n    this.cache = {};\n  }\n\n  /**\n   * Get a cached object by key\n   * @param {string} key\n   * @private\n   */\n  async _get(key) {\n    const cacheEntry = this.cache[key];\n\n    if (cacheEntry !== undefined) {\n      const now = +new Date();\n      if (cacheEntry.expires >= now) {\n        return cacheEntry.value;\n      }\n    }\n\n    return undefined;\n  }\n\n  /**\n   * Set a key\n   * @param {string} key\n   * @param {object} value\n   * @param {*} [ttl]\n   * @private\n   */\n  async _set(key, value, ttl) {\n    this.cache[key] = {\n      value,\n      expires: (+ new Date()) + ttl,\n    };\n  }\n}\n",
+    "static": true,
+    "longname": "/home/runner/work/parksapi/parksapi/lib/cache/cacheMemory.js",
+    "access": "public",
+    "description": null,
+    "lineNumber": 1
+  },
+  {
+    "__docId__": 59,
+    "kind": "class",
+    "name": "CacheMemory",
+    "memberof": "lib/cache/cacheMemory.js",
+    "static": true,
+    "longname": "lib/cache/cacheMemory.js~CacheMemory",
+    "access": "public",
+    "export": true,
+    "importPath": "parksapi/lib/cache/cacheMemory.js",
+    "importStyle": "CacheMemory",
+    "description": "A basic in-memory cache implementation",
+    "lineNumber": 8,
+    "unknown": [
+      {
+        "tagName": "@class",
+        "tagValue": ""
+      }
+    ],
+    "interface": false,
+    "extends": [
+      "*"
+    ]
+  },
+  {
+    "__docId__": 60,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/cache/cacheMemory.js~CacheMemory",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/cache/cacheMemory.js~CacheMemory#constructor",
+    "access": "public",
+    "description": "Create new Memory cache object",
+    "lineNumber": 13,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "options",
+        "description": ""
+      }
+    ]
+  },
+  {
+    "__docId__": 61,
+    "kind": "member",
+    "name": "cache",
+    "memberof": "lib/cache/cacheMemory.js~CacheMemory",
+    "static": false,
+    "longname": "lib/cache/cacheMemory.js~CacheMemory#cache",
+    "access": "public",
+    "description": null,
+    "lineNumber": 19,
+    "undocument": true,
+    "type": {
+      "types": [
+        "{}"
+      ]
+    }
+  },
+  {
+    "__docId__": 62,
+    "kind": "method",
+    "name": "_get",
+    "memberof": "lib/cache/cacheMemory.js~CacheMemory",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheMemory.js~CacheMemory#_get",
+    "access": "private",
+    "description": "Get a cached object by key",
+    "lineNumber": 27,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "key",
+        "description": ""
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 63,
+    "kind": "method",
+    "name": "_set",
+    "memberof": "lib/cache/cacheMemory.js~CacheMemory",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheMemory.js~CacheMemory#_set",
+    "access": "private",
+    "description": "Set a key",
+    "lineNumber": 47,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "key",
+        "description": ""
+      },
+      {
+        "nullable": null,
+        "types": [
+          "object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "value",
+        "description": ""
+      },
+      {
+        "nullable": null,
+        "types": [
+          "*"
+        ],
+        "spread": false,
+        "optional": true,
+        "name": "ttl",
+        "description": ""
+      }
+    ],
+    "return": null
+  },
+  {
+    "__docId__": 64,
+    "kind": "file",
+    "name": "lib/cache/cacheSqlite.js",
+    "content": "import sqlite3 from 'sqlite3';\n\nimport CacheBase from './cacheBase.js';\n\n/**\n * Caching implementation using SQLite\n * @extends CacheBase\n * @class\n */\nexport default class CacheSqlite extends CacheBase {\n  /**\n     * @param {Object} options\n     * @param {string} options.filename Database filename to use with Sqlite\n     * @param {Object} [options.db] Existing SQLite3 object to use for our database\n     *  If left empty, a database object will be created automatically\n     */\n  constructor(options = {\n    filename: ':memory:',\n    db: undefined,\n  }) {\n    options.useMemoryCache = false;\n\n    super(options);\n\n    const dbFilename = options.filename || ':memory:';\n    this.db = options.db || new sqlite3.Database(dbFilename);\n\n    this.init = false;\n  }\n\n  /**\n   * Run a query against our SQLite database\n   * @param {string} query\n   * @param {array} args\n   */\n  async runQuery(query, args) {\n    return new Promise((resolve, reject) => {\n      this.db.get(query, args, (err, result) => {\n        if (err) {\n          return reject(err);\n        }\n        resolve(result);\n      });\n    });\n  }\n\n  /**\n   * Setup the database ready for use\n   * @private\n   */\n  async setupDB() {\n    if (this.init) return;\n\n    // setup our database\n    this.db.serialize(() => {\n      this.db.run('CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, value TEXT, expires BIGINT)');\n    });\n\n    this.init = true;\n  }\n\n  /**\n   * Get a cache entry by key\n   * @param {string} key\n   * @private\n   */\n  async _get(key) {\n    await this.setupDB();\n\n    const row = await this.runQuery('SELECT value FROM cache WHERE key = ? AND expires >= ?', [key, +new Date()]);\n    if (!row) return undefined;\n\n    try {\n      return JSON.parse(row.value);\n    } catch (e) {\n    }\n    return undefined;\n  }\n\n  /**\n   * Set a cache entry\n   * @param {string} key\n   * @param {object} value\n   * @param {*} ttl\n   * @private\n   */\n  async _set(key, value, ttl) {\n    await this.setupDB();\n\n    await this.runQuery(\n        'INSERT OR REPLACE INTO cache (key, value, expires) VALUES (?, ?, ?)',\n        [\n          key,\n          JSON.stringify(value),\n          (+new Date()) + ttl,\n        ]);\n  }\n}\n",
+    "static": true,
+    "longname": "/home/runner/work/parksapi/parksapi/lib/cache/cacheSqlite.js",
+    "access": "public",
+    "description": null,
+    "lineNumber": 1
+  },
+  {
+    "__docId__": 65,
+    "kind": "class",
+    "name": "CacheSqlite",
+    "memberof": "lib/cache/cacheSqlite.js",
+    "static": true,
+    "longname": "lib/cache/cacheSqlite.js~CacheSqlite",
+    "access": "public",
+    "export": true,
+    "importPath": "parksapi/lib/cache/cacheSqlite.js",
+    "importStyle": "CacheSqlite",
+    "description": "Caching implementation using SQLite",
+    "lineNumber": 10,
+    "unknown": [
+      {
+        "tagName": "@class",
+        "tagValue": ""
+      }
+    ],
+    "interface": false,
+    "extends": [
+      "*"
+    ]
+  },
+  {
+    "__docId__": 66,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/cache/cacheSqlite.js~CacheSqlite#constructor",
+    "access": "public",
+    "description": "",
+    "lineNumber": 17,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "options",
+        "description": ""
+      },
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "options.filename",
+        "description": "Database filename to use with Sqlite"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": true,
+        "name": "options.db",
+        "description": "Existing SQLite3 object to use for our database\n If left empty, a database object will be created automatically"
+      }
+    ]
+  },
+  {
+    "__docId__": 67,
+    "kind": "member",
+    "name": "db",
+    "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
+    "static": false,
+    "longname": "lib/cache/cacheSqlite.js~CacheSqlite#db",
+    "access": "public",
+    "description": null,
+    "lineNumber": 26,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 68,
+    "kind": "member",
+    "name": "init",
+    "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
+    "static": false,
+    "longname": "lib/cache/cacheSqlite.js~CacheSqlite#init",
+    "access": "public",
+    "description": null,
+    "lineNumber": 28,
+    "undocument": true,
+    "type": {
+      "types": [
+        "boolean"
+      ]
+    }
+  },
+  {
+    "__docId__": 69,
+    "kind": "method",
+    "name": "runQuery",
+    "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheSqlite.js~CacheSqlite#runQuery",
+    "access": "public",
+    "description": "Run a query against our SQLite database",
+    "lineNumber": 36,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "query",
+        "description": ""
+      },
+      {
+        "nullable": null,
+        "types": [
+          "array"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "args",
+        "description": ""
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 70,
+    "kind": "method",
+    "name": "setupDB",
+    "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheSqlite.js~CacheSqlite#setupDB",
+    "access": "private",
+    "description": "Setup the database ready for use",
+    "lineNumber": 51,
+    "params": [],
+    "return": null
+  },
+  {
+    "__docId__": 72,
+    "kind": "method",
+    "name": "_get",
+    "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheSqlite.js~CacheSqlite#_get",
+    "access": "private",
+    "description": "Get a cache entry by key",
+    "lineNumber": 67,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "key",
+        "description": ""
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 73,
+    "kind": "method",
+    "name": "_set",
+    "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheSqlite.js~CacheSqlite#_set",
+    "access": "private",
+    "description": "Set a cache entry",
+    "lineNumber": 87,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "key",
+        "description": ""
+      },
+      {
+        "nullable": null,
+        "types": [
+          "object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "value",
+        "description": ""
+      },
+      {
+        "nullable": null,
+        "types": [
+          "*"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "ttl",
+        "description": ""
+      }
+    ],
+    "return": null
+  },
+  {
+    "__docId__": 74,
+    "kind": "file",
+    "name": "lib/configBase.js",
+    "content": "/**\n * Base Config Object\n * Supports classes with a single argument \"options\"\n * These will be sorted into a member called \"this.config\" containing all the same keys\n *\n * Crucially, these can also be overriden through environment variables\n * For example, for a config option \"timeout\" for class Database, this could be overriden through either:\n *   env.THEMEPARKS_TIMEOUT (using a \"global module name\")\n *   env.DATABASE_TIMEOUT (using the class name)\n *\n * Classes can also add additional prefixes to the supported environment variables through:\n *   new ClassInstance({configPrefixes: ['myCustomPrefix']});\n * Which would also allow env.MYCUSTOMPREFIX_TIMEOUT to be used\n *\n * Note that a default value must be supplied for the environment variable to be processed\n * If the default value is a number, the environment variable will be cast to a number as well\n * @class\n */\nexport default class ConfigBase {\n  /**\n   * A base class that can be configured through environment variables\n   * @param {object} options Config for instantiating this object\n   */\n  constructor(options = {}) {\n    const config = options || {};\n    const configKeys = Object.keys(config);\n\n    this.config = {};\n\n    const className = this.constructor.name;\n\n    const configPrefixes = [className, 'THEMEPARKS'].concat(\n        options.configPrefixes || [],\n    );\n\n    // build this.config object with our settings\n    configKeys.forEach((key) => {\n      // default prefixes are either \"classname_\" or \"THEMEPARKS_\"\n      //  classes can add more with configPrefixes\n      configPrefixes.forEach((prefix) => {\n        const configEnvName = `${prefix}_${key}`.toUpperCase();\n\n        if (process.env[configEnvName]) {\n          console.log(`Using env variable config for class ${className}`);\n          this.config[key] = process.env[configEnvName];\n          console.log(` ${key}(env.${configEnvName})=${this.config[key]}`);\n        }\n      });\n\n      if (this.config[key] === undefined) {\n        this.config[key] = config[key];\n      } else {\n        // convert env variable to number if the base default is a number\n        if (typeof config[key] === 'number') {\n          this.config[key] = Number(this.config[key]);\n        }\n      }\n    });\n  }\n}\n",
+    "static": true,
+    "longname": "/home/runner/work/parksapi/parksapi/lib/configBase.js",
+    "access": "public",
+    "description": null,
+    "lineNumber": 1
+  },
+  {
+    "__docId__": 75,
+    "kind": "class",
+    "name": "ConfigBase",
+    "memberof": "lib/configBase.js",
+    "static": true,
+    "longname": "lib/configBase.js~ConfigBase",
+    "access": "public",
+    "export": true,
+    "importPath": "parksapi/lib/configBase.js",
+    "importStyle": "ConfigBase",
+    "description": "Base Config Object\nSupports classes with a single argument \"options\"\nThese will be sorted into a member called \"this.config\" containing all the same keys\n\nCrucially, these can also be overriden through environment variables\nFor example, for a config option \"timeout\" for class Database, this could be overriden through either:\n  env.THEMEPARKS_TIMEOUT (using a \"global module name\")\n  env.DATABASE_TIMEOUT (using the class name)\n\nClasses can also add additional prefixes to the supported environment variables through:\n  new ClassInstance({configPrefixes: ['myCustomPrefix']});\nWhich would also allow env.MYCUSTOMPREFIX_TIMEOUT to be used\n\nNote that a default value must be supplied for the environment variable to be processed\nIf the default value is a number, the environment variable will be cast to a number as well",
+    "lineNumber": 19,
+    "unknown": [
+      {
+        "tagName": "@class",
+        "tagValue": ""
+      }
+    ],
+    "interface": false
+  },
+  {
+    "__docId__": 76,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/configBase.js~ConfigBase",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/configBase.js~ConfigBase#constructor",
+    "access": "public",
+    "description": "A base class that can be configured through environment variables",
+    "lineNumber": 24,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "options",
+        "description": "Config for instantiating this object"
+      }
+    ]
+  },
+  {
+    "__docId__": 77,
+    "kind": "member",
+    "name": "config",
+    "memberof": "lib/configBase.js~ConfigBase",
+    "static": false,
+    "longname": "lib/configBase.js~ConfigBase#config",
+    "access": "public",
+    "description": null,
+    "lineNumber": 28,
+    "undocument": true,
+    "type": {
+      "types": [
+        "{}"
+      ]
+    }
+  },
+  {
+    "__docId__": 78,
+    "kind": "file",
+    "name": "lib/index.js",
+    "content": "",
+    "static": true,
+    "longname": "/home/runner/work/parksapi/parksapi/lib/index.js",
+    "access": "public",
+    "description": null,
+    "lineNumber": 1
+  },
+  {
+    "__docId__": 79,
+    "kind": "file",
+    "name": "lib/parks/park.js",
+    "content": "import ConfigBase from '../configBase.js';\n\nconst delay = (seconds) => {\n  return new Promise((resolve) => {\n    setTimeout(resolve, seconds * 1000);\n  });\n};\n\n/**\n * Base Park Object\n * @class\n */\nexport default class Park extends ConfigBase {\n  /**\n   * Create a new park object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    super(options);\n\n    this.setupComplete = false;\n\n    this.initialised = false;\n    this.pendingInitialisedRequests = [];\n  }\n\n  /**\n   * Is this a Park object?\n   * Used for internal reflection system\n   * @return {boolean}\n   * @private\n   */\n  static isParkObject() {\n    return true;\n  }\n\n  /**\n     * Get all Park classes that are loaded by require()\n     */\n  static async getAllParkClasses() {\n    // wait a single exec tick so we don't cause circular require() chains if this is requested on module load\n    await delay(0);\n\n    // gather all loaded node modules\n    const modules = Object.keys(require.cache).filter((f) => f !== __filename).map(require);\n\n    // filter out all classes that don't have the isParkObject function defined (and any that return false)\n    const classes = modules.filter((obj) => {\n      try {\n        return obj && obj.isParkObject && obj.isParkObject() && obj !== Park;\n      } catch (e) {\n        return false;\n      }\n    });\n\n    return classes;\n  }\n\n  /**\n   * Get Park Wait Times\n   */\n  async getWaitTimes() {\n    await this.waitForParkInitialised();\n\n    // TODO - return park wait times\n    return {\n      wait_times: [\n        {\n          id: 'heidepark_1',\n          name: {\n            en: 'Test Coaster',\n          },\n          standby_time: 5,\n          single_rider_time: 5,\n          fastpass: false,\n          virtual_queue: [],\n        },\n      ],\n    };\n  }\n\n  /**\n   * Waits until the park has finished initialisation\n   */\n  async waitForParkInitialised() {\n    if (this.initialised) {\n      return true;\n    }\n\n    return new Promise((resolve) => {\n      this.pendingInitialisedRequests.push(resolve);\n    });\n  }\n\n  /**\n   * Setup the park for use\n   */\n  async setup() {\n    // TODO - setup the park ready for use\n    // eg. download any large data-sets, calendars etc.\n\n    this.setupComplete = true;\n  }\n\n  /** The master Update function, called every 5 minutes or so to update park state */\n  async update() {\n    // TODO - run park update\n    await delay(2);\n\n    // we have finished a successful Update() call\n    //  if we were not initialised before, mark ourselves as such as call any pending waits\n    if (!this.initialised) {\n      this.initialised = true;\n      this.pendingInitialisedRequests.forEach((fn) => {\n        fn();\n      });\n      this.pendingInitialisedRequests = [];\n    }\n  }\n}\n",
+    "static": true,
+    "longname": "/home/runner/work/parksapi/parksapi/lib/parks/park.js",
+    "access": "public",
+    "description": null,
+    "lineNumber": 1
+  },
+  {
+    "__docId__": 80,
+    "kind": "function",
+    "name": "delay",
+    "memberof": "lib/parks/park.js",
+    "generator": false,
+    "async": false,
+    "static": true,
+    "longname": "lib/parks/park.js~delay",
+    "access": "public",
+    "export": false,
+    "importPath": "parksapi/lib/parks/park.js",
+    "importStyle": null,
+    "description": null,
+    "lineNumber": 3,
+    "undocument": true,
+    "params": [
+      {
+        "name": "seconds",
+        "types": [
+          "*"
+        ]
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    },
+    "ignore": true
+  },
+  {
+    "__docId__": 81,
+    "kind": "class",
+    "name": "Park",
+    "memberof": "lib/parks/park.js",
+    "static": true,
+    "longname": "lib/parks/park.js~Park",
+    "access": "public",
+    "export": true,
+    "importPath": "parksapi/lib/parks/park.js",
+    "importStyle": "Park",
+    "description": "Base Park Object",
+    "lineNumber": 13,
+    "unknown": [
+      {
+        "tagName": "@class",
+        "tagValue": ""
+      }
+    ],
+    "interface": false,
+    "extends": [
+      "lib/configBase.js~ConfigBase"
+    ]
+  },
+  {
+    "__docId__": 82,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/park.js~Park",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/park.js~Park#constructor",
+    "access": "public",
+    "description": "Create a new park object",
+    "lineNumber": 18,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "options",
+        "description": ""
+      }
+    ]
+  },
+  {
+    "__docId__": 83,
+    "kind": "member",
+    "name": "setupComplete",
+    "memberof": "lib/parks/park.js~Park",
+    "static": false,
+    "longname": "lib/parks/park.js~Park#setupComplete",
+    "access": "public",
+    "description": null,
+    "lineNumber": 21,
+    "undocument": true,
+    "type": {
+      "types": [
+        "boolean"
+      ]
+    }
+  },
+  {
+    "__docId__": 84,
+    "kind": "member",
+    "name": "initialised",
+    "memberof": "lib/parks/park.js~Park",
+    "static": false,
+    "longname": "lib/parks/park.js~Park#initialised",
+    "access": "public",
+    "description": null,
+    "lineNumber": 23,
+    "undocument": true,
+    "type": {
+      "types": [
+        "boolean"
+      ]
+    }
+  },
+  {
+    "__docId__": 85,
+    "kind": "member",
+    "name": "pendingInitialisedRequests",
+    "memberof": "lib/parks/park.js~Park",
+    "static": false,
+    "longname": "lib/parks/park.js~Park#pendingInitialisedRequests",
+    "access": "public",
+    "description": null,
+    "lineNumber": 24,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*[]"
+      ]
+    }
+  },
+  {
+    "__docId__": 86,
+    "kind": "method",
+    "name": "isParkObject",
+    "memberof": "lib/parks/park.js~Park",
+    "generator": false,
+    "async": false,
+    "static": true,
+    "longname": "lib/parks/park.js~Park.isParkObject",
+    "access": "private",
+    "description": "Is this a Park object?\nUsed for internal reflection system",
+    "lineNumber": 33,
+    "return": {
+      "nullable": null,
+      "types": [
+        "boolean"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "params": []
+  },
+  {
+    "__docId__": 87,
+    "kind": "method",
+    "name": "getAllParkClasses",
+    "memberof": "lib/parks/park.js~Park",
+    "generator": false,
+    "async": true,
+    "static": true,
+    "longname": "lib/parks/park.js~Park.getAllParkClasses",
+    "access": "public",
+    "description": "Get all Park classes that are loaded by require()",
+    "lineNumber": 40,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 88,
+    "kind": "method",
+    "name": "getWaitTimes",
+    "memberof": "lib/parks/park.js~Park",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/park.js~Park#getWaitTimes",
+    "access": "public",
+    "description": "Get Park Wait Times",
+    "lineNumber": 62,
+    "params": [],
+    "return": {
+      "types": [
+        "{\"wait_times\": *}"
+      ]
+    }
+  },
+  {
+    "__docId__": 89,
+    "kind": "method",
+    "name": "waitForParkInitialised",
+    "memberof": "lib/parks/park.js~Park",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/park.js~Park#waitForParkInitialised",
+    "access": "public",
+    "description": "Waits until the park has finished initialisation",
+    "lineNumber": 85,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 90,
+    "kind": "method",
+    "name": "setup",
+    "memberof": "lib/parks/park.js~Park",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/park.js~Park#setup",
+    "access": "public",
+    "description": "Setup the park for use",
+    "lineNumber": 98,
+    "params": [],
+    "return": null
+  },
+  {
+    "__docId__": 92,
+    "kind": "method",
+    "name": "update",
+    "memberof": "lib/parks/park.js~Park",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/park.js~Park#update",
+    "access": "public",
+    "description": "The master Update function, called every 5 minutes or so to update park state",
+    "lineNumber": 106,
+    "params": [],
+    "return": null
+  },
+  {
+    "__docId__": 95,
+    "kind": "file",
+    "name": "lib/parks/wdw/wdwdb.js",
+    "content": "import PouchDB from 'pouchdb';\nimport ReplicationStream from 'pouchdb-replication-stream';\n\nimport {promises as fs, constants as fsConstants, createReadStream, createWriteStream} from 'fs';\nimport path from 'path';\n\nimport ConfigBase from '../configBase.js';\n\n// pouchdb-replication-stream allows us to \"seed\" the database with an initial database dump\n//  incredibly useful for the wdw db, which is pretty huge\nPouchDB.plugin(ReplicationStream.plugin);\nPouchDB.adapter('writableStream', ReplicationStream.adapters.writableStream);\n\nconst delay = (time) => {\n  return new Promise((resolve) => {\n    setTimeout(resolve, time);\n  });\n};\n\n/**\n * Live Database object for Disney parks using couchbase databases\n * Will syncronise databae locally before accessing, allowing fast queries\n * @class\n */\nexport default class DisneyLiveDB extends ConfigBase {\n  /**\n     * Create a new DisneyLiveDB object\n     * @param {*} options\n     */\n  constructor(options = {}) {\n    if (!options.dbName) {\n      options.dbName = 'wdw';\n    }\n\n    // env variables can override with\n    //  env.WDWDB_HOST, env.WDWDB_USERNAME, env.WDWDB_PASSWORD etc.\n    if (!options.configPrefixes) {\n      options.configPrefixes = ['wdwdb'];\n    }\n\n    options.host = options.host || '';\n    options.username = options.username || '';\n    options.password = options.password || '';\n    // TODO - get latest useragent for app\n    options.useragent = options.useragent || 'CouchbaseLite/1.3 (1.4.1/8a21c5927a273a038fb3b66ec29c86425e871b11)';\n\n    // how often to take database checkpoints (default 15 minutes)\n    options.checkpointTime = options.checkpointTime || 1000 * 60 * 15;\n\n    super(options);\n\n    // create our database objects\n    this.localDB = new PouchDB(`localdb/${this.config.dbName}`);\n    this.remoteDB = new PouchDB(this.config.host, {\n      auth: {\n        username: this.config.username,\n        password: this.config.password,\n      },\n      // override user-agent header when syncing remote database\n      fetch: (url, opts) => {\n        opts.headers.set('User-Agent', this.config.useragent);\n        return PouchDB.fetch(url, opts);\n      },\n    });\n\n    this.synced = false;\n\n    this.initPromiseSync = null;\n\n    // start the database disk scheduler\n    this._scheduleDBDump();\n  }\n\n  /**\n   * Initialise the live database, returns once finished an initial sync\n   */\n  async init() {\n    if (this.synced) {\n      return;\n    }\n\n    if (this.initPromiseSync) return this.initPromiseSync;\n\n    // first, syncronise our database before we start rolling updates\n    this.initPromiseSync = this._loadAndInit();\n    // keep the Promise as a variable so we can keep returning it for any additional init() calls\n    await this.initPromiseSync;\n    this.initPromiseSync = null;\n\n    console.log(`Database ${this.config.dbName} finished setup!`);\n\n    this.synced = true;\n\n    // start rolling replicate to keep our local database in-sync\n    PouchDB.replicate(this.remoteDB, this.localDB, {\n      live: true,\n      retry: true,\n    }).on('change', (info) => {\n      console.log(info.docs);\n    });\n  }\n\n  /**\n   * Internal function\n   * Loads and performs an initial sync on the database\n   * @private\n   */\n  async _loadAndInit() {\n    // first, try and restore from disk\n    await this.load();\n\n    // then perform an initial replication from remote to local\n    console.log('Performing initial replication...');\n    await PouchDB.replicate(this.remoteDB, this.localDB, {\n      batch_size: 500,\n    });\n\n    // then dump our initial state to disk\n    return await this.dump();\n  }\n\n  /**\n   * Get the filename we use for saving backups of the database to disk\n   * Used for creating simple \"snapshots\" to reduce initial sync times\n   * @param {string} [postfix] Optional postfix for the filename\n   * @return{string}\n   */\n  getDumpFilename(postfix='') {\n    return path.join('localdb', `${this.config.dbName}${postfix}.db`);\n  }\n\n  /**\n   * Restore a database backup from disk\n   * Perform this after running \"dump()\" on a previous synced database\n   * This will help to reduce the initial sync time for large databases\n   */\n  async load() {\n    const dumpPath = this.getDumpFilename();\n\n    // if our database dump doesn't exist, then early out and we'll do a normal sync\n    try {\n      await fs.access(dumpPath, fsConstants.F_OK);\n    } catch (error) {\n      return;\n    }\n\n    console.log('Restoring database from disk...');\n\n    // otherwise, load up our database from disk\n    const ws = createReadStream(dumpPath);\n    return this.localDB.load(ws, {\n      batch_size: 500,\n    });\n  }\n\n  /**\n   * Dump this live database to disk\n   * This will be used to \"seed\" the database to speed up syncs for future runs\n   */\n  async dump() {\n    if (this.databaseDumpPendingPromise) {\n      return this.databaseDumpPendingPromise;\n    }\n\n    console.log('Dumping database to disk...');\n\n    const dumpPath = this.getDumpFilename();\n    const dumpPathNew = this.getDumpFilename('_new');\n\n    // dump database to our new location\n    const ws = createWriteStream(dumpPathNew);\n    this.databaseDumpPendingPromise = this.localDB.dump(ws, {\n      batch_size: 500,\n    });\n    // save Promise so multiple \"dump()\" calls can stack cleanly\n    await this.databaseDumpPendingPromise;\n    this.databaseDumpPendingPromise = null;\n\n    // rename new database dump to our final intended location\n    return fs.rename(dumpPathNew, dumpPath);\n  }\n\n  /**\n   * Begin a database dump loop\n   * This will dump the database to disk every 15 minutes (override with options.checkpointTime)\n   *  to speed up initial syncs\n   * @private\n   */\n  async _scheduleDBDump() {\n    await delay(this.config.checkpointTime);\n\n    // make sure database is initialised before writing anything to disk\n    await this.init();\n    await this.dump();\n\n    process.nextTick(this._scheduleDBDump.bind(this));\n  }\n\n  /**\n   * Get a document from this live database\n   * Will wait until database is syncronised before returning\n   * See PouchDB.get(...) for options\n   */\n  async get(...args) {\n    await this.init();\n    return await this.localDB.get.apply(this, args);\n  }\n}\n",
+    "static": true,
+    "longname": "/home/runner/work/parksapi/parksapi/lib/parks/wdw/wdwdb.js",
+    "access": "public",
+    "description": null,
+    "lineNumber": 1
+  },
+  {
+    "__docId__": 96,
+    "kind": "function",
+    "name": "delay",
+    "memberof": "lib/parks/wdw/wdwdb.js",
+    "generator": false,
+    "async": false,
+    "static": true,
+    "longname": "lib/parks/wdw/wdwdb.js~delay",
+    "access": "public",
+    "export": false,
+    "importPath": "parksapi/lib/parks/wdw/wdwdb.js",
+    "importStyle": null,
+    "description": null,
+    "lineNumber": 14,
+    "undocument": true,
+    "params": [
+      {
+        "name": "time",
+        "types": [
+          "*"
+        ]
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    },
+    "ignore": true
+  },
+  {
+    "__docId__": 97,
+    "kind": "class",
+    "name": "DisneyLiveDB",
+    "memberof": "lib/parks/wdw/wdwdb.js",
+    "static": true,
+    "longname": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
+    "access": "public",
+    "export": true,
+    "importPath": "parksapi/lib/parks/wdw/wdwdb.js",
+    "importStyle": "DisneyLiveDB",
+    "description": "Live Database object for Disney parks using couchbase databases\nWill syncronise databae locally before accessing, allowing fast queries",
+    "lineNumber": 25,
+    "unknown": [
+      {
+        "tagName": "@class",
+        "tagValue": ""
+      }
+    ],
+    "interface": false,
+    "extends": [
+      "lib/parks/configBase.js~ConfigBase"
+    ]
+  },
+  {
+    "__docId__": 98,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/wdw/wdwdb.js~DisneyLiveDB#constructor",
+    "access": "public",
+    "description": "Create a new DisneyLiveDB object",
+    "lineNumber": 30,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "*"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "options",
+        "description": ""
+      }
+    ]
+  },
+  {
+    "__docId__": 99,
+    "kind": "member",
+    "name": "localDB",
+    "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
+    "static": false,
+    "longname": "lib/parks/wdw/wdwdb.js~DisneyLiveDB#localDB",
+    "access": "public",
+    "description": null,
+    "lineNumber": 53,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 100,
+    "kind": "member",
+    "name": "remoteDB",
+    "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
+    "static": false,
+    "longname": "lib/parks/wdw/wdwdb.js~DisneyLiveDB#remoteDB",
+    "access": "public",
+    "description": null,
+    "lineNumber": 54,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 101,
+    "kind": "member",
+    "name": "synced",
+    "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
+    "static": false,
+    "longname": "lib/parks/wdw/wdwdb.js~DisneyLiveDB#synced",
+    "access": "public",
+    "description": null,
+    "lineNumber": 66,
+    "undocument": true,
+    "type": {
+      "types": [
+        "boolean"
+      ]
+    }
+  },
+  {
+    "__docId__": 102,
+    "kind": "member",
+    "name": "initPromiseSync",
+    "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
+    "static": false,
+    "longname": "lib/parks/wdw/wdwdb.js~DisneyLiveDB#initPromiseSync",
+    "access": "public",
+    "description": null,
+    "lineNumber": 68,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 103,
+    "kind": "method",
+    "name": "init",
+    "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/wdw/wdwdb.js~DisneyLiveDB#init",
+    "access": "public",
+    "description": "Initialise the live database, returns once finished an initial sync",
+    "lineNumber": 77,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 107,
+    "kind": "method",
+    "name": "_loadAndInit",
+    "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/wdw/wdwdb.js~DisneyLiveDB#_loadAndInit",
+    "access": "private",
+    "description": "Internal function\nLoads and performs an initial sync on the database",
+    "lineNumber": 108,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 108,
+    "kind": "method",
+    "name": "getDumpFilename",
+    "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/wdw/wdwdb.js~DisneyLiveDB#getDumpFilename",
+    "access": "public",
+    "description": "Get the filename we use for saving backups of the database to disk\nUsed for creating simple \"snapshots\" to reduce initial sync times",
+    "lineNumber": 128,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": true,
+        "name": "postfix",
+        "description": "Optional postfix for the filename\n@return{string}"
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 109,
+    "kind": "method",
+    "name": "load",
+    "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/wdw/wdwdb.js~DisneyLiveDB#load",
+    "access": "public",
+    "description": "Restore a database backup from disk\nPerform this after running \"dump()\" on a previous synced database\nThis will help to reduce the initial sync time for large databases",
+    "lineNumber": 137,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 110,
+    "kind": "method",
+    "name": "dump",
+    "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/wdw/wdwdb.js~DisneyLiveDB#dump",
+    "access": "public",
+    "description": "Dump this live database to disk\nThis will be used to \"seed\" the database to speed up syncs for future runs",
+    "lineNumber": 160,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 111,
+    "kind": "member",
+    "name": "databaseDumpPendingPromise",
+    "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
+    "static": false,
+    "longname": "lib/parks/wdw/wdwdb.js~DisneyLiveDB#databaseDumpPendingPromise",
+    "access": "public",
+    "description": null,
+    "lineNumber": 172,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 113,
+    "kind": "method",
+    "name": "_scheduleDBDump",
+    "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/wdw/wdwdb.js~DisneyLiveDB#_scheduleDBDump",
+    "access": "private",
+    "description": "Begin a database dump loop\nThis will dump the database to disk every 15 minutes (override with options.checkpointTime)\n to speed up initial syncs",
+    "lineNumber": 189,
+    "params": [],
+    "return": null
+  },
+  {
+    "__docId__": 114,
+    "kind": "method",
+    "name": "get",
+    "memberof": "lib/parks/wdw/wdwdb.js~DisneyLiveDB",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/wdw/wdwdb.js~DisneyLiveDB#get",
+    "access": "public",
+    "description": "Get a document from this live database\nWill wait until database is syncronised before returning\nSee PouchDB.get(...) for options",
+    "lineNumber": 204,
+    "params": [
+      {
+        "name": "args",
+        "types": [
+          "...*"
+        ],
+        "spread": true
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "kind": "index",
+    "content": "",
+    "longname": "/home/runner/work/parksapi/parksapi/README.md",
+    "name": "./README.md",
+    "static": true,
+    "access": "public"
+  },
+  {
+    "kind": "packageJSON",
+    "content": "{\n  \"name\": \"parksapi\",\n  \"type\": \"module\",\n  \"version\": \"1.0.0\",\n  \"description\": \"\",\n  \"engines\": {\n    \"npm\": \">=6\",\n    \"node\": \">=14\"\n  },\n  \"main\": \"lib/index.js\",\n  \"scripts\": {\n    \"test\": \"eslint ./lib/**\",\n    \"docs\": \"esdoc\"\n  },\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/ThemeParks/parksapi.git\"\n  },\n  \"author\": \"@cube\",\n  \"license\": \"ISC\",\n  \"bugs\": {\n    \"url\": \"https://github.com/ThemeParks/parksapi/issues\"\n  },\n  \"homepage\": \"https://github.com/ThemeParks/parksapi#readme\",\n  \"dependencies\": {\n    \"extends-classes\": \"^1.0.5\",\n    \"needle\": \"^2.5.0\",\n    \"pouchdb\": \"^7.2.1\",\n    \"pouchdb-replication-stream\": \"github:pouchdb-community/pouchdb-replication-stream#56f0511\",\n    \"sqlite3\": \"^5.0.0\"\n  },\n  \"devDependencies\": {\n    \"esdoc\": \"^1.1.0\",\n    \"esdoc-standard-plugin\": \"^1.0.0\",\n    \"eslint\": \"^7.4.0\",\n    \"eslint-config-google\": \"^0.14.0\",\n    \"jsdoc-export-default-interop\": \"github:charlieanstey/jsdoc-export-default-interop#a0afb2f\"\n  }\n}\n",
+    "longname": "/home/runner/work/parksapi/parksapi/package.json",
+    "name": "package.json",
+    "static": true,
+    "access": "public"
+  }
+]

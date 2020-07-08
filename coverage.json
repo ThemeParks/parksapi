@@ -1,0 +1,59 @@
+{
+  "coverage": "69.23%",
+  "expectCount": 52,
+  "actualCount": 36,
+  "files": {
+    "lib/cache/cacheBase.js": {
+      "expectCount": 9,
+      "actualCount": 7,
+      "undocumentLines": [
+        19,
+        20
+      ]
+    },
+    "lib/cache/cacheMemory.js": {
+      "expectCount": 5,
+      "actualCount": 4,
+      "undocumentLines": [
+        19
+      ]
+    },
+    "lib/cache/cacheSqlite.js": {
+      "expectCount": 8,
+      "actualCount": 6,
+      "undocumentLines": [
+        26,
+        28
+      ]
+    },
+    "lib/configBase.js": {
+      "expectCount": 3,
+      "actualCount": 2,
+      "undocumentLines": [
+        28
+      ]
+    },
+    "lib/parks/park.js": {
+      "expectCount": 12,
+      "actualCount": 8,
+      "undocumentLines": [
+        3,
+        21,
+        23,
+        24
+      ]
+    },
+    "lib/parks/wdw/wdwdb.js": {
+      "expectCount": 15,
+      "actualCount": 9,
+      "undocumentLines": [
+        14,
+        53,
+        54,
+        66,
+        68,
+        172
+      ]
+    }
+  }
+}

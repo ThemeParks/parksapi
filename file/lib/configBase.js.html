@@ -2,8 +2,8 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <base data-ice="baseUrl">
-  <title data-ice="title">Home | parksapi</title>
+  <base data-ice="baseUrl" href="../../">
+  <title data-ice="title">lib/configBase.js | parksapi</title>
   <link type="text/css" rel="stylesheet" href="css/style.css">
   <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
   <script src="script/prettify/prettify.js"></script>
@@ -39,7 +39,69 @@
 </div>
 </nav>
 
-<div class="content" data-ice="content">
+<div class="content" data-ice="content"><h1 data-ice="title">lib/configBase.js</h1>
+<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">/**
+ * Base Config Object
+ * Supports classes with a single argument &quot;options&quot;
+ * These will be sorted into a member called &quot;this.config&quot; containing all the same keys
+ *
+ * Crucially, these can also be overriden through environment variables
+ * For example, for a config option &quot;timeout&quot; for class Database, this could be overriden through either:
+ *   env.THEMEPARKS_TIMEOUT (using a &quot;global module name&quot;)
+ *   env.DATABASE_TIMEOUT (using the class name)
+ *
+ * Classes can also add additional prefixes to the supported environment variables through:
+ *   new ClassInstance({configPrefixes: [&apos;myCustomPrefix&apos;]});
+ * Which would also allow env.MYCUSTOMPREFIX_TIMEOUT to be used
+ *
+ * Note that a default value must be supplied for the environment variable to be processed
+ * If the default value is a number, the environment variable will be cast to a number as well
+ * @class
+ */
+export default class ConfigBase {
+  /**
+   * A base class that can be configured through environment variables
+   * @param {object} options Config for instantiating this object
+   */
+  constructor(options = {}) {
+    const config = options || {};
+    const configKeys = Object.keys(config);
+
+    this.config = {};
+
+    const className = this.constructor.name;
+
+    const configPrefixes = [className, &apos;THEMEPARKS&apos;].concat(
+        options.configPrefixes || [],
+    );
+
+    // build this.config object with our settings
+    configKeys.forEach((key) =&gt; {
+      // default prefixes are either &quot;classname_&quot; or &quot;THEMEPARKS_&quot;
+      //  classes can add more with configPrefixes
+      configPrefixes.forEach((prefix) =&gt; {
+        const configEnvName = `${prefix}_${key}`.toUpperCase();
+
+        if (process.env[configEnvName]) {
+          console.log(`Using env variable config for class ${className}`);
+          this.config[key] = process.env[configEnvName];
+          console.log(` ${key}(env.${configEnvName})=${this.config[key]}`);
+        }
+      });
+
+      if (this.config[key] === undefined) {
+        this.config[key] = config[key];
+      } else {
+        // convert env variable to number if the base default is a number
+        if (typeof config[key] === &apos;number&apos;) {
+          this.config[key] = Number(this.config[key]);
+        }
+      }
+    });
+  }
+}
+</code></pre>
+
 </div>
 
 <footer class="footer">

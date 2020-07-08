@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <base data-ice="baseUrl" href="../../../">
+  <title data-ice="title">lib/cache/cacheBase.js | parksapi</title>
+  <link type="text/css" rel="stylesheet" href="css/style.css">
+  <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
+  <script src="script/prettify/prettify.js"></script>
+  <script src="script/manual.js"></script>
+</head>
+<body class="layout-container" data-ice="rootContainer">
+
+<header>
+  <a href="./">Home</a>
+  
+  <a href="identifiers.html">Reference</a>
+  <a href="source.html">Source</a>
+  
+  <div class="search-box">
+  <span>
+    <img src="./image/search.png">
+    <span class="search-input-edge"></span><input class="search-input"><span class="search-input-edge"></span>
+  </span>
+    <ul class="search-result"></ul>
+  </div>
+<a style="position:relative; top:3px;" href="https://github.com/ThemeParks/parksapi"><img width="20px" src="./image/github.png"></a></header>
+
+<nav class="navigation" data-ice="nav"><div>
+  <ul>
+    
+  <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/configBase.js~ConfigBase.html">ConfigBase</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#cache">cache</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheBase.js~CacheBase.html">CacheBase</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheMemory.js~CacheMemory.html">CacheMemory</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheSqlite.js~CacheSqlite.html">CacheSqlite</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~DisneyLiveDB.html">DisneyLiveDB</a></span></span></li>
+</ul>
+</div>
+</nav>
+
+<div class="content" data-ice="content"><h1 data-ice="title">lib/cache/cacheBase.js</h1>
+<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">/**
+ * Our base Cache implementation
+ * Extend this class with new implementations to create different cache types (in-memory, database, file system etc.)
+ * @class
+ */
+export default class CacheBase {
+  /**
+     * @param {Object} options
+     * @param {boolean} [options.useMemoryCache=true] Use an in-memory layer on top of this cache
+     *  Avoid hitting databases too often
+     *  Not useful if using any distributed setup where memory will be out-of-sync between processes
+     * @param {(number|null)} [options.memoryCacheTimeout=null] Timeout for in-memory cache values
+     *  Default is null, which will use the incoming ttl values for each key
+     */
+  constructor(options = {
+    useMemoryCache: true,
+    memoryCacheTimeout: null,
+  }) {
+    this.memoryLayerEnabled = options.useMemoryCache;
+    this.memCache = {};
+  }
+
+  /**
+     * Internal implementation of Get()
+     * @abstract
+     * @async
+     * @private
+     * @param {string} key Unique key name for this cache entry
+     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present
+     */
+  async _get(key) {
+    throw new Error(&apos;Missing Implementation CacheBase::_Get(key)&apos;);
+  }
+
+  /**
+     * Internal implementation of Set()
+     * @abstract
+     * @async
+     * @private
+     * @param {string} key Unique key name for this cache entry
+     * @param {Object} value
+     * @param {number} ttl How long the cache entry should last in milliseconds
+     */
+  async _set(key, value, ttl) {
+    throw new Error(&apos;Missing Implementation CacheBase::_Set(key, value, ttl)&apos;);
+  }
+
+  /**
+     * Get a cached object
+     * @public
+     * @async
+     * @param {string} key Unique key name for this cache entry
+     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present
+     */
+  async get(key) {
+    // our optional in-memory cache goes first
+    if (this.memoryLayerEnabled) {
+      const cacheEntry = this.memCache[key];
+      if (cacheEntry !== undefined) {
+        const now = +new Date();
+        if (cacheEntry.expires &gt;= now) {
+          return cacheEntry.value;
+        }
+      }
+    }
+
+    // then use our internal cache if we haven&apos;t got the value stored locally
+    return await this._get(key);
+  }
+
+  /**
+     * Set a key in our cache
+     * @public
+     * @async
+     * @param {string} key Unique key name for this cache entry
+     * @param {Object} value
+     * @param {(Function|number)} [ttl=3600000] How long the cache entry should last in milliseconds
+     *  Can be a number or a function that will return a number
+     *  Default 1 hour
+     */
+  async set(key, value, ttl = 3600000) {
+    // resolve our cache time
+    let cacheTime = ttl;
+    // if our cache time input is a function, resolve it and store the result (in milliseconds)
+    if (typeof cacheTime === &apos;function&apos;) {
+      cacheTime = await cacheTime();
+    }
+
+    // optionally keep an in-memory cache layer
+    if (this.memoryLayerEnabled) {
+      const memoryCacheTime = this.memoryCacheTimeout === null ?
+        cacheTime :
+        (Math.min(this.memoryCacheTimeout, cacheTime)
+        );
+
+      this.cache[key] = {
+        value,
+        expires: (+new Date()) + memoryCacheTime,
+      };
+    }
+
+    // call the private _Set implementation to actually set the key
+    this._set(key, value, cacheTime);
+  }
+
+  /**
+     * A helper &quot;wrap&quot; function that will return a cached value if present
+     *  This will call the supplied function to fetch it if the value isn&apos;t present in the cache
+     * @public
+     * @async
+     * @param {string} key Unique key name for this cache entry
+     * @param {function} fn Fetch function that will be called if the cache entry is not present
+     * @param {(function|number)} [ttl] How long the cache entry should last in milliseconds
+     *  Can be a number or a function that will return a number
+     */
+  async wrap(key, fn, ttl) {
+    // try and fetch the cached value
+    let cachedValue = await this.get(key);
+
+    // if not in our cache, call the supplied fetcher function
+    if (cachedValue === undefined) {
+      cachedValue = await fn();
+      // set the new value in our cache
+      await this.set(key, cachedValue, ttl);
+    }
+
+    // return the fetched or calculated value
+    return cachedValue;
+  }
+}
+</code></pre>
+
+</div>
+
+<footer class="footer">
+  Generated by <a href="https://esdoc.org">ESDoc<span data-ice="esdocVersion">(1.1.0)</span><img src="./image/esdoc-logo-mini-black.png"></a>
+</footer>
+
+<script src="script/search_index.js"></script>
+<script src="script/search.js"></script>
+<script src="script/pretty-print.js"></script>
+<script src="script/inherited-summary.js"></script>
+<script src="script/test-summary.js"></script>
+<script src="script/inner-link.js"></script>
+<script src="script/patch-for-local.js"></script>
+</body>
+</html>
