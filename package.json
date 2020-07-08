@@ -9,7 +9,7 @@
   },
   "main": "lib/index.js",
   "scripts": {
-    "test": "semistandard"
+    "test": "eslint ./lib/**"
   },
   "repository": {
     "type": "git",
