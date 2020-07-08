@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/ThemeParks/parksapi#readme",
   "dependencies": {
+    "extends-classes": "^1.0.5",
     "needle": "^2.5.0",
     "pouchdb": "^7.2.1",
     "pouchdb-replication-stream": "github:pouchdb-community/pouchdb-replication-stream#56f0511",
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "eslint": "^7.4.0",
-    "eslint-config-google": "^0.14.0"
+    "eslint-config-google": "^0.14.0",
+    "jsdoc-export-default-interop": "github:charlieanstey/jsdoc-export-default-interop#a0afb2f"
   }
 }
