@@ -33,7 +33,6 @@
     "esdoc": "^1.1.0",
     "esdoc-standard-plugin": "^1.0.0",
     "eslint": "^7.4.0",
-    "eslint-config-google": "^0.14.0",
-    "jsdoc-export-default-interop": "github:charlieanstey/jsdoc-export-default-interop#a0afb2f"
+    "eslint-config-google": "^0.14.0"
   }
 }
