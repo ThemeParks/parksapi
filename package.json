@@ -1,0 +1,33 @@
+{
+  "name": "parksapi",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "",
+  "engines": {
+    "npm": ">=6",
+    "node": ">=14"
+  },
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "semistandard"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ThemeParks/parksapi.git"
+  },
+  "author": "@cube",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ThemeParks/parksapi/issues"
+  },
+  "homepage": "https://github.com/ThemeParks/parksapi#readme",
+  "dependencies": {
+    "needle": "^2.5.0",
+    "pouchdb": "^7.2.1",
+    "pouchdb-replication-stream": "github:pouchdb-community/pouchdb-replication-stream#56f0511"
+  },
+  "devDependencies": {
+    "eslint": "^7.4.0",
+    "eslint-config-google": "^0.14.0"
+  }
+}
