@@ -24,12 +24,6 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
-    "parksapi/lib/parks/wdw/wdwdb.js~disneylivedb",
-    "class/lib/parks/wdw/wdwdb.js~DisneyLiveDB.html",
-    "<span>DisneyLiveDB</span> <span class=\"search-result-import-path\">parksapi/lib/parks/wdw/wdwdb.js</span>",
-    "class"
-  ],
-  [
     "parksapi/lib/parks/park.js~park",
     "class/lib/parks/park.js~Park.html",
     "<span>Park</span> <span class=\"search-result-import-path\">parksapi/lib/parks/park.js</span>",
@@ -526,89 +520,5 @@ window.esdocSearchIndex = [
     "class/lib/parks/park.js~Park.html#instance-method-update",
     "lib/parks/park.js~Park#update",
     "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js",
-    "file/lib/parks/wdw/wdwdb.js.html",
-    "lib/parks/wdw/wdwdb.js",
-    "file"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneylivedb#_loadandinit",
-    "class/lib/parks/wdw/wdwdb.js~DisneyLiveDB.html#instance-method-_loadAndInit",
-    "lib/parks/wdw/wdwdb.js~DisneyLiveDB#_loadAndInit",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneylivedb#_scheduledbdump",
-    "class/lib/parks/wdw/wdwdb.js~DisneyLiveDB.html#instance-method-_scheduleDBDump",
-    "lib/parks/wdw/wdwdb.js~DisneyLiveDB#_scheduleDBDump",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneylivedb#constructor",
-    "class/lib/parks/wdw/wdwdb.js~DisneyLiveDB.html#instance-constructor-constructor",
-    "lib/parks/wdw/wdwdb.js~DisneyLiveDB#constructor",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneylivedb#databasedumppendingpromise",
-    "class/lib/parks/wdw/wdwdb.js~DisneyLiveDB.html#instance-member-databaseDumpPendingPromise",
-    "lib/parks/wdw/wdwdb.js~DisneyLiveDB#databaseDumpPendingPromise",
-    "member"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneylivedb#dump",
-    "class/lib/parks/wdw/wdwdb.js~DisneyLiveDB.html#instance-method-dump",
-    "lib/parks/wdw/wdwdb.js~DisneyLiveDB#dump",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneylivedb#get",
-    "class/lib/parks/wdw/wdwdb.js~DisneyLiveDB.html#instance-method-get",
-    "lib/parks/wdw/wdwdb.js~DisneyLiveDB#get",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneylivedb#getdumpfilename",
-    "class/lib/parks/wdw/wdwdb.js~DisneyLiveDB.html#instance-method-getDumpFilename",
-    "lib/parks/wdw/wdwdb.js~DisneyLiveDB#getDumpFilename",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneylivedb#init",
-    "class/lib/parks/wdw/wdwdb.js~DisneyLiveDB.html#instance-method-init",
-    "lib/parks/wdw/wdwdb.js~DisneyLiveDB#init",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneylivedb#initpromisesync",
-    "class/lib/parks/wdw/wdwdb.js~DisneyLiveDB.html#instance-member-initPromiseSync",
-    "lib/parks/wdw/wdwdb.js~DisneyLiveDB#initPromiseSync",
-    "member"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneylivedb#load",
-    "class/lib/parks/wdw/wdwdb.js~DisneyLiveDB.html#instance-method-load",
-    "lib/parks/wdw/wdwdb.js~DisneyLiveDB#load",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneylivedb#localdb",
-    "class/lib/parks/wdw/wdwdb.js~DisneyLiveDB.html#instance-member-localDB",
-    "lib/parks/wdw/wdwdb.js~DisneyLiveDB#localDB",
-    "member"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneylivedb#remotedb",
-    "class/lib/parks/wdw/wdwdb.js~DisneyLiveDB.html#instance-member-remoteDB",
-    "lib/parks/wdw/wdwdb.js~DisneyLiveDB#remoteDB",
-    "member"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneylivedb#synced",
-    "class/lib/parks/wdw/wdwdb.js~DisneyLiveDB.html#instance-member-synced",
-    "lib/parks/wdw/wdwdb.js~DisneyLiveDB#synced",
-    "member"
   ]
 ]
