@@ -23,6 +23,8 @@
   },
   "homepage": "https://github.com/ThemeParks/parksapi#readme",
   "dependencies": {
+    "express": "^4.17.1",
+    "express-pouchdb": "^4.2.0",
     "extends-classes": "^1.0.5",
     "needle": "^2.5.0",
     "pouchdb": "^7.2.1",
