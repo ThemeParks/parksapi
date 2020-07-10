@@ -179,7 +179,7 @@ export class Park extends ConfigBase {
    */
   async findAttractionByID(attractionID) {
     // search our existing store for this attraction
-    const attraction = this._attractions.find((attr) =&gt; attr.id === attractionID);
+    const attraction = this._attractions.find((attr) =&gt; attr.id == attractionID);
     if (attraction) {
       return attraction;
     }
