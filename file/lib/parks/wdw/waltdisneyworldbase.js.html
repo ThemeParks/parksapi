@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <base data-ice="baseUrl" href="../../../../">
+  <title data-ice="title">lib/parks/wdw/waltdisneyworldbase.js | parksapi</title>
+  <link type="text/css" rel="stylesheet" href="css/style.css">
+  <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
+  <script src="script/prettify/prettify.js"></script>
+  <script src="script/manual.js"></script>
+</head>
+<body class="layout-container" data-ice="rootContainer">
+
+<header>
+  <a href="./">Home</a>
+  
+  <a href="identifiers.html">Reference</a>
+  <a href="source.html">Source</a>
+  
+  <div class="search-box">
+  <span>
+    <img src="./image/search.png">
+    <span class="search-input-edge"></span><input class="search-input"><span class="search-input-edge"></span>
+  </span>
+    <ul class="search-result"></ul>
+  </div>
+<a style="position:relative; top:3px;" href="https://github.com/ThemeParks/parksapi"><img width="20px" src="./image/github.png"></a></header>
+
+<nav class="navigation" data-ice="nav"><div>
+  <ul>
+    
+  <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/configBase.js~ConfigBase.html">ConfigBase</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#cache">cache</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheBase.js~CacheBase.html">CacheBase</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheMemory.js~CacheMemory.html">CacheMemory</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheSqlite.js~CacheSqlite.html">CacheSqlite</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-ParkConstants">ParkConstants</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabase">getDatabase</a></span></span></li>
+</ul>
+</div>
+</nav>
+
+<div class="content" data-ice="content"><h1 data-ice="title">lib/parks/wdw/waltdisneyworldbase.js</h1>
+<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {DisneyDB, getEntityID} from &apos;./wdwdb.js&apos;;
+import {Park, ParkConstants} from &apos;../park.js&apos;;
+
+let wdwDB = null;
+/**
+ * Get the live WDW database object
+ * @return {object} wdwdb live database instance
+ */
+export function getDatabase() {
+  if (!wdwDB) {
+    wdwDB = new DisneyDB();
+  }
+  return wdwDB;
+}
+
+/**
+ * Base Disney Park Class
+ */
+export class DisneyPark extends Park {
+  /**
+   * Create a new DisneyPark object
+   * @param {object} options
+   */
+  constructor(options) {
+    options.resort_id = options.resort_id || &apos;&apos;;
+    options.park_id = options.park_id || &apos;&apos;;
+
+    super(options);
+
+    if (this.config.park_id === &apos;&apos;) {
+      throw new Error(`Missing park_id for class ${this.constructor.name}`);
+    }
+    if (this.config.resort_id === &apos;&apos;) {
+      throw new Error(`Missing resort_id for class ${this.constructor.name}`);
+    }
+
+    // get a reference to our shared live database
+    this.db = getDatabase();
+  }
+
+  /**
+   * Get a unique ID for this park
+   * @return {string}
+   */
+  getParkUniqueID() {
+    return `${this.config.resort_id}_${this.config.park_id}`;
+  }
+
+  /**
+   * Get the channel ID for the facility status live update documents
+   * @return {string}
+   */
+  getFacilityStatusChannelID() {
+    return `${this.config.resort_id}.facilitystatus.1_0`;
+  }
+
+  /**
+   *
+   */
+  async _init() {
+    console.log(&apos;Initialising...&apos;);
+
+    // make sure the shared database is initialised
+    await this.db.init();
+
+    // subscribe to any live facility status updates
+    this.db.subscribeToChannel(this.getFacilityStatusChannelID(), async (doc) =&gt; {
+      this._processAttractionStatusUpdate(doc);
+    });
+
+    // fetch the current attraction times
+    await Promise.all((
+      // get all attractions with facility statuses
+      await this.db.findByChannel(this.getFacilityStatusChannelID())
+    ).map(this._processAttractionStatusUpdate.bind(this)));
+  }
+
+  /**
+   * Process a document update from a facilitystatus channel
+   * @param {object} doc The updated document
+   */
+  async _processAttractionStatusUpdate(doc) {
+    // get our clean attraction ID
+    const entityID = getEntityID(doc.id);
+
+    // check attraction is within our park
+    const updateIndexEntry = await this.db.findIndexEntity(entityID, {
+      park_id: this.config.park_id,
+    });
+    // if we have no entries, then attraction is not in our park
+    if (updateIndexEntry.length === 0) {
+      return;
+    }
+
+    // figure out general ride status
+    let status = ParkConstants.STATUS_OPERATING;
+    if (doc.status === &apos;Down&apos;) {
+      status = ParkConstants.STATUS_DOWN;
+    } else if (doc.status === &apos;Closed&apos;) {
+      status = ParkConstants.STATUS_CLOSED;
+    } else if (doc.status === &apos;Refurbishment&apos;) {
+      status = ParkConstants.STATUS_REFURBISHMENT;
+    }
+
+    // build our status object
+    const state = {
+      status,
+      // all our queue types
+      // TODO - how to detect virtual queue and FastPass availability?
+      queues: [
+        {
+          type: ParkConstants.QUEUE_STANDBY,
+          waitTime: doc.waitMinutes,
+        },
+      ],
+    };
+
+    // console.log(entityID, state);
+
+    // update attraction status in base class
+    await this._updateAttractionState(entityID, state);
+  }
+
+  /**
+   * Build an attraction object from an ID
+   * @param {string} attractionID Unique Attraction ID
+   */
+  async _buildAttractionObject(attractionID) {
+    await this.db.init();
+
+    // find a document for our attraction ID
+    const attr = await this.db.findOne(attractionID);
+    if (attr) {
+      // TODO - build a full document about this attraction
+      return {
+        id: attractionID,
+        name: attr.name,
+      };
+    }
+
+    return undefined;
+  }
+
+  /**
+   *
+   */
+  async _update() {
+    // TODO - parks that don&apos;t use the live database need to implement this function
+  }
+}
+
+export default DisneyPark;
+</code></pre>
+
+</div>
+
+<footer class="footer">
+  Generated by <a href="https://esdoc.org">ESDoc<span data-ice="esdocVersion">(1.1.0)</span><img src="./image/esdoc-logo-mini-black.png"></a>
+</footer>
+
+<script src="script/search_index.js"></script>
+<script src="script/search.js"></script>
+<script src="script/pretty-print.js"></script>
+<script src="script/inherited-summary.js"></script>
+<script src="script/test-summary.js"></script>
+<script src="script/inner-link.js"></script>
+<script src="script/patch-for-local.js"></script>
+</body>
+</html>

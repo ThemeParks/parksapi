@@ -34,13 +34,19 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheMemory.js~CacheMemory.html">CacheMemory</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheSqlite.js~CacheSqlite.html">CacheSqlite</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-constants">constants</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-ParkConstants">ParkConstants</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabase">getDatabase</a></span></span></li>
 </ul>
 </div>
 </nav>
 
 <div class="content" data-ice="content"><h1 data-ice="title">lib/configBase.js</h1>
-<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">/**
+<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">// load any environment variables from .env (if it exists)
+import DotEnv from &apos;dotenv&apos;;
+DotEnv.config();
+
+/**
  * Base Config Object
  * Supports classes with a single argument &quot;options&quot;
  * These will be sorted into a member called &quot;this.config&quot; containing all the same keys
@@ -58,7 +64,7 @@
  * If the default value is a number, the environment variable will be cast to a number as well
  * @class
  */
-export default class ConfigBase {
+export class ConfigBase {
   /**
    * A base class that can be configured through environment variables
    * @param {object} options Config for instantiating this object
@@ -95,11 +101,16 @@ export default class ConfigBase {
         // convert env variable to number if the base default is a number
         if (typeof config[key] === &apos;number&apos;) {
           this.config[key] = Number(this.config[key]);
+        } else if (typeof config[key] === &apos;boolean&apos;) {
+          // convert any boolean configs too
+          this.config[key] = (this.config[key] === &apos;true&apos;);
         }
       }
     });
   }
 }
+
+export default ConfigBase;
 </code></pre>
 
 </div>

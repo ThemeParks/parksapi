@@ -24,16 +24,28 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "parksapi/lib/parks/wdw/waltdisneyworldbase.js~disneypark",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html",
+    "<span>DisneyPark</span> <span class=\"search-result-import-path\">parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "class"
+  ],
+  [
     "parksapi/lib/parks/park.js~park",
     "class/lib/parks/park.js~Park.html",
     "<span>Park</span> <span class=\"search-result-import-path\">parksapi/lib/parks/park.js</span>",
     "class"
   ],
   [
-    "parksapi/lib/parks/park.js~constants",
-    "variable/index.html#static-variable-constants",
-    "<span>constants</span> <span class=\"search-result-import-path\">parksapi/lib/parks/park.js</span>",
+    "parksapi/lib/parks/park.js~parkconstants",
+    "variable/index.html#static-variable-ParkConstants",
+    "<span>ParkConstants</span> <span class=\"search-result-import-path\">parksapi/lib/parks/park.js</span>",
     "variable"
+  ],
+  [
+    "parksapi/lib/parks/wdw/waltdisneyworldbase.js~getdatabase",
+    "function/index.html#static-function-getDatabase",
+    "<span>getDatabase</span> <span class=\"search-result-import-path\">parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "function"
   ],
   [
     "lib/.external-ecmascript.js~array",
@@ -480,9 +492,39 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
+    "lib/parks/park.js~park#_attractions",
+    "class/lib/parks/park.js~Park.html#instance-member-_attractions",
+    "lib/parks/park.js~Park#_attractions",
+    "member"
+  ],
+  [
+    "lib/parks/park.js~park#_buildattractionobject",
+    "class/lib/parks/park.js~Park.html#instance-method-_buildAttractionObject",
+    "lib/parks/park.js~Park#_buildAttractionObject",
+    "method"
+  ],
+  [
     "lib/parks/park.js~park#_init",
     "class/lib/parks/park.js~Park.html#instance-method-_init",
     "lib/parks/park.js~Park#_init",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#_runinit",
+    "class/lib/parks/park.js~Park.html#instance-method-_runInit",
+    "lib/parks/park.js~Park#_runInit",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#_update",
+    "class/lib/parks/park.js~Park.html#instance-method-_update",
+    "lib/parks/park.js~Park#_update",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#_updateattractionstate",
+    "class/lib/parks/park.js~Park.html#instance-method-_updateAttractionState",
+    "lib/parks/park.js~Park#_updateAttractionState",
     "method"
   ],
   [
@@ -492,9 +534,21 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/park.js~park#findattractionbyid",
+    "class/lib/parks/park.js~Park.html#instance-method-findAttractionByID",
+    "lib/parks/park.js~Park#findAttractionByID",
+    "method"
+  ],
+  [
     "lib/parks/park.js~park#getattractions",
     "class/lib/parks/park.js~Park.html#instance-method-getAttractions",
     "lib/parks/park.js~Park#getAttractions",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#getparkuniqueid",
+    "class/lib/parks/park.js~Park.html#instance-method-getParkUniqueID",
+    "lib/parks/park.js~Park#getParkUniqueID",
     "method"
   ],
   [
@@ -516,9 +570,69 @@ window.esdocSearchIndex = [
     "member"
   ],
   [
+    "lib/parks/park.js~park#pendingupdatepromise",
+    "class/lib/parks/park.js~Park.html#instance-member-pendingUpdatePromise",
+    "lib/parks/park.js~Park#pendingUpdatePromise",
+    "member"
+  ],
+  [
     "lib/parks/park.js~park#update",
     "class/lib/parks/park.js~Park.html#instance-method-update",
     "lib/parks/park.js~Park#update",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js",
+    "file/lib/parks/wdw/waltdisneyworldbase.js.html",
+    "lib/parks/wdw/waltdisneyworldbase.js",
+    "file"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#_buildattractionobject",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_buildAttractionObject",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_buildAttractionObject",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#_init",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_init",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_init",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#_processattractionstatusupdate",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_processAttractionStatusUpdate",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_processAttractionStatusUpdate",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#_update",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_update",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_update",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#constructor",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-constructor-constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#db",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-member-db",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#db",
+    "member"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#getfacilitystatuschannelid",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-getFacilityStatusChannelID",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#getFacilityStatusChannelID",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#getparkuniqueid",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-getParkUniqueID",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#getParkUniqueID",
     "method"
   ]
 ]

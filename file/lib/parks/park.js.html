@@ -34,13 +34,16 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheMemory.js~CacheMemory.html">CacheMemory</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheSqlite.js~CacheSqlite.html">CacheSqlite</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-constants">constants</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-ParkConstants">ParkConstants</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabase">getDatabase</a></span></span></li>
 </ul>
 </div>
 </nav>
 
 <div class="content" data-ice="content"><h1 data-ice="title">lib/parks/park.js</h1>
-<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import ConfigBase from &apos;../configBase.js&apos;;
+<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import promiseRetry from &apos;promise-retry&apos;;
+import ConfigBase from &apos;../configBase.js&apos;;
 
 // quick helper function to wait x milliseconds as a Promise
 const delay = (milliseconds) =&gt; {
@@ -49,7 +52,7 @@ const delay = (milliseconds) =&gt; {
   });
 };
 
-export const constants = {
+export const ParkConstants = {
   // different queue types rides can have
   QUEUE_STANDBY: &apos;STANDBY&apos;,
   QUEUE_SINGLERIDER: &apos;SINGLE_RIDER&apos;,
@@ -61,21 +64,41 @@ export const constants = {
   ATTRACTION_TRANSPORT: &apos;TRANSPORT&apos;,
   ATTRACTION_PARADE: &apos;PARADE&apos;,
   ATTRACTION_MEET_AND_GREET: &apos;MEET_AND_GREET&apos;,
+  // attraction statuses
+  STATUS_OPERATING: &apos;OPERATING&apos;,
+  STATUS_DOWN: &apos;DOWN&apos;,
+  STATUS_CLOSED: &apos;CLOSED&apos;,
+  STATUS_REFURBISHMENT: &apos;REFURBISHMENT&apos;,
 };
 
 /**
  * Base Park Object
  * @class
  */
-export default class Park extends ConfigBase {
+export class Park extends ConfigBase {
   /**
    * Create a new park object
    * @param {object} options
    */
   constructor(options = {}) {
+    // how often to wait between updates to run another update
+    options.updateInterval = 1000 * 60 * 5; // 5 minutes
+    // disable auto-update for this object
+    //  set this if the update is being handled by an external system
+    options.disableParkUpdate = false;
+
     super(options);
 
     this.initialised = false;
+
+    this._attractions = [];
+  }
+
+  /**
+   * Get a globally unique ID for this park
+   */
+  getParkUniqueID() {
+    throw new Error(`Missing getParkUniqueID() implementation for ${this.constructor.name}`);
   }
 
   /**
@@ -85,33 +108,7 @@ export default class Park extends ConfigBase {
     // park must be initialised before returning any data
     await this.init();
 
-    // TODO - return park attractions with any attributes/wait times etc.
-    return [
-      {
-        id: 1,
-        type: constants.ATTRACTION_RIDE,
-        queues: [
-          {
-            type: constants.QUEUE_STANDBY,
-            waitTime: 15,
-          },
-        ],
-      },
-      {
-        id: 2,
-        type: constants.ATTRACTION_RIDE,
-        queues: [
-          {
-            type: constants.QUEUE_STANDBY,
-            waitTime: 25,
-          },
-          {
-            type: constants.QUEUE_SINGLERIDER,
-            waitTime: 5,
-          },
-        ],
-      },
-    ];
+    return this._attractions;
   }
 
   /**
@@ -119,6 +116,10 @@ export default class Park extends ConfigBase {
    * Call to ensure the object has been initialised before accessing data
    */
   async init() {
+    if (this.initialised) {
+      return;
+    }
+
     // setup the park ready for use
     //  eg. download any large data-sets, calendars etc.
     if (this.pendingSetupPromise) {
@@ -126,12 +127,126 @@ export default class Park extends ConfigBase {
     }
 
     // call our internal init and wait on it
-    this.pendingSetupPromise = this._init();
+    this.pendingSetupPromise = this._runInit();
     await this.pendingSetupPromise;
+    this.pendingSetupPromise = null;
 
     this.initialised = true;
 
-    // TODO - start update loop
+    if (!this.config.disableParkUpdate) {
+      // start an update loop
+
+      // use a separate function so we can quickly loop back around
+      const scheduleUpdate = async () =&gt; {
+        // pause for our updateInterval time
+        await delay(this.config.updateInterval);
+
+        // wait for Promise to resolve, grab any catches, then continue anyway
+        this.update().then().catch().then(() =&gt; {
+          // schedule another update
+          setImmediate(scheduleUpdate.bind(this));
+        });
+      };
+
+      // start the first loop timer
+      scheduleUpdate();
+    }
+  }
+
+  /**
+   * Run all the internal stages of the init process
+   * @private
+   */
+  async _runInit() {
+    await this._init();
+
+    // run an initial update so we&apos;re fully setup with data before init() returns
+    return await this._update();
+  }
+
+  /**
+   * Build an object representing an attraction from sourced data
+   * This object should not contain any &quot;state&quot; data, just static information about the attraction
+   * @param {string} attractionID Unique Attraction ID
+   */
+  async _buildAttractionObject(attractionID) {
+    throw new Error(&apos;Missing _buildAttractionObject Implementation&apos;, this.constructor.name);
+  }
+
+  /**
+   * Get data about a attraction from its ID
+   * @param {string} attractionID Unique Attraction ID
+   */
+  async findAttractionByID(attractionID) {
+    // search our existing store for this attraction
+    const attraction = this._attractions.find((attr) =&gt; attr.id === attractionID);
+    if (attraction) {
+      return attraction;
+    }
+
+    // attraction wasn&apos;t found, try and add one to our store
+    const newAttraction = await this._buildAttractionObject(attractionID);
+    if (newAttraction) {
+      // default to a &quot;null&quot; state
+      //  meaning an attraction with no waiting times etc.
+      newAttraction.state = null;
+
+      // make a globally unique ID for this attraction by combining the park ID and attraction ID
+      newAttraction._id = `${this.getParkUniqueID()}_${attractionID}`;
+
+      this._attractions.push(newAttraction);
+
+      return newAttraction;
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Update an attraction state
+   * @param {string} attractionID Unique Attraction ID
+   * @param {object} data New Attraction State Data
+   */
+  async _updateAttractionState(attractionID, data) {
+    if (attractionID === undefined) return;
+
+    const existingRide = await this.findAttractionByID(attractionID);
+    if (existingRide) {
+      // if we found a matching attraction, update its &quot;state&quot; property with our new data
+      existingRide.state = data;
+
+      // TODO - broadcast updated ride event
+    }
+  }
+
+  /**
+   * Update this park
+   * This is automatically called for you unless disableParkUpdate is set to false
+   */
+  async update() {
+    if (this.pendingUpdatePromise) {
+      return this.pendingUpdatePromise;
+    }
+
+    // start the _update call in a retry loop
+    this.pendingUpdatePromise = promiseRetry({
+      retries: 5,
+    }, (retryFn, retryAttempt) =&gt; {
+      /* if (retryAttempt &gt; 1) {
+        console.error(`Making attempt ${retryAttempt} to call _update on ${this.constructor.name} class`);
+      }*/
+      return this._update().catch(retryFn);
+    });
+
+    // wait and catch the update Promise
+    try {
+      await this.pendingUpdatePromise;
+    } catch (e) {
+      // TODO - record park API error somewhere and continue
+      console.error(e);
+    }
+
+    this.pendingUpdatePromise = null;
   }
 
   /**
@@ -141,14 +256,20 @@ export default class Park extends ConfigBase {
    */
   async _init() {
     // implementation should be setup in child classes
+    throw new Error(&apos;_init() needs an implementation&apos;, this.constructor.name);
   }
 
-  /** The master Update function, called every 5 minutes or so to update park state */
-  async update() {
-    // TODO - run park update
-    await delay(2000);
+  /**
+   * Update function the park object calls on interval to update internal state
+   * @abstract
+   */
+  async _update() {
+    // implementation should be setup in child classes
+    throw new Error(&apos;_update() needs an implementation&apos;, this.constructor.name);
   }
 }
+
+export default Park;
 </code></pre>
 
 </div>
