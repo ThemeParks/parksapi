@@ -567,7 +567,7 @@
     "__docId__": 48,
     "kind": "file",
     "name": "lib/cache/cacheBase.js",
-    "content": "/**\n * Our base Cache implementation\n * Extend this class with new implementations to create different cache types (in-memory, database, file system etc.)\n * @class\n */\nexport default class CacheBase {\n  /**\n     * @param {Object} options\n     * @param {boolean} [options.useMemoryCache=true] Use an in-memory layer on top of this cache\n     *  Avoid hitting databases too often\n     *  Not useful if using any distributed setup where memory will be out-of-sync between processes\n     * @param {(number|null)} [options.memoryCacheTimeout=null] Timeout for in-memory cache values\n     *  Default is null, which will use the incoming ttl values for each key\n     */\n  constructor(options = {\n    useMemoryCache: true,\n    memoryCacheTimeout: null,\n  }) {\n    this.memoryLayerEnabled = options.useMemoryCache;\n    this.memCache = {};\n  }\n\n  /**\n     * Internal implementation of Get()\n     * @abstract\n     * @async\n     * @private\n     * @param {string} key Unique key name for this cache entry\n     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present\n     */\n  async _get(key) {\n    throw new Error('Missing Implementation CacheBase::_Get(key)');\n  }\n\n  /**\n     * Internal implementation of Set()\n     * @abstract\n     * @async\n     * @private\n     * @param {string} key Unique key name for this cache entry\n     * @param {Object} value\n     * @param {number} ttl How long the cache entry should last in milliseconds\n     */\n  async _set(key, value, ttl) {\n    throw new Error('Missing Implementation CacheBase::_Set(key, value, ttl)');\n  }\n\n  /**\n     * Get a cached object\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present\n     */\n  async get(key) {\n    // our optional in-memory cache goes first\n    if (this.memoryLayerEnabled) {\n      const cacheEntry = this.memCache[key];\n      if (cacheEntry !== undefined) {\n        const now = +new Date();\n        if (cacheEntry.expires >= now) {\n          return cacheEntry.value;\n        }\n      }\n    }\n\n    // then use our internal cache if we haven't got the value stored locally\n    return await this._get(key);\n  }\n\n  /**\n     * Set a key in our cache\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {Object} value\n     * @param {(Function|number)} [ttl=3600000] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     *  Default 1 hour\n     */\n  async set(key, value, ttl = 3600000) {\n    // resolve our cache time\n    let cacheTime = ttl;\n    // if our cache time input is a function, resolve it and store the result (in milliseconds)\n    if (typeof cacheTime === 'function') {\n      cacheTime = await cacheTime();\n    }\n\n    // optionally keep an in-memory cache layer\n    if (this.memoryLayerEnabled) {\n      const memoryCacheTime = this.memoryCacheTimeout === null ?\n        cacheTime :\n        (Math.min(this.memoryCacheTimeout, cacheTime)\n        );\n\n      this.cache[key] = {\n        value,\n        expires: (+new Date()) + memoryCacheTime,\n      };\n    }\n\n    // call the private _Set implementation to actually set the key\n    this._set(key, value, cacheTime);\n  }\n\n  /**\n     * A helper \"wrap\" function that will return a cached value if present\n     *  This will call the supplied function to fetch it if the value isn't present in the cache\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {function} fn Fetch function that will be called if the cache entry is not present\n     * @param {(function|number)} [ttl] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     */\n  async wrap(key, fn, ttl) {\n    // try and fetch the cached value\n    let cachedValue = await this.get(key);\n\n    // if not in our cache, call the supplied fetcher function\n    if (cachedValue === undefined) {\n      cachedValue = await fn();\n      // set the new value in our cache\n      await this.set(key, cachedValue, ttl);\n    }\n\n    // return the fetched or calculated value\n    return cachedValue;\n  }\n}\n",
+    "content": "/**\n * Our base Cache implementation\n * Extend this class with new implementations to create different cache types (in-memory, database, file system etc.)\n * @class\n */\nexport default class CacheBase {\n  /**\n     * @param {Object} options\n     * @param {boolean} [options.useMemoryCache=true] Use an in-memory layer on top of this cache\n     *  Avoid hitting databases too often\n     *  Not useful if using any distributed setup where memory will be out-of-sync between processes\n     * @param {(number|null)} [options.memoryCacheTimeout=null] Timeout for in-memory cache values\n     *  Default is null, which will use the incoming ttl values for each key\n     */\n  constructor(options = {\n    useMemoryCache: true,\n    memoryCacheTimeout: null,\n  }) {\n    this.memoryLayerEnabled = options.useMemoryCache;\n    this.memCache = {};\n  }\n\n  /**\n     * Internal implementation of Get()\n     * @abstract\n     * @async\n     * @private\n     * @param {string} key Unique key name for this cache entry\n     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present\n     */\n  async _get(key) {\n    throw new Error('Missing Implementation CacheBase::_Get(key)');\n  }\n\n  /**\n     * Internal implementation of Set()\n     * @abstract\n     * @async\n     * @private\n     * @param {string} key Unique key name for this cache entry\n     * @param {Object} value\n     * @param {number} ttl How long the cache entry should last in milliseconds\n     */\n  async _set(key, value, ttl) {\n    throw new Error('Missing Implementation CacheBase::_Set(key, value, ttl)');\n  }\n\n  /**\n     * Get a cached object\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present\n     */\n  async get(key) {\n    // our optional in-memory cache goes first\n    if (this.memoryLayerEnabled) {\n      const cacheEntry = this.memCache[key];\n      if (cacheEntry !== undefined) {\n        const now = +new Date();\n        if (cacheEntry.expires >= now) {\n          return cacheEntry.value;\n        }\n      }\n    }\n\n    // then use our internal cache if we haven't got the value stored locally\n    return await this._get(key);\n  }\n\n  /**\n     * Set a key in our cache\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {Object} value\n     * @param {(Function|number)} [ttl=3600000] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     *  Default 1 hour\n     */\n  async set(key, value, ttl = 3600000) {\n    // resolve our cache time\n    let cacheTime = ttl;\n    // if our cache time input is a function, resolve it and store the result (in milliseconds)\n    if (typeof cacheTime === 'function') {\n      cacheTime = await cacheTime();\n    }\n\n    // optionally keep an in-memory cache layer\n    if (this.memoryLayerEnabled) {\n      const memoryCacheTime = this.memoryCacheTimeout === null ?\n        cacheTime :\n        (Math.min(this.memoryCacheTimeout, cacheTime)\n        );\n\n      this.memCache[key] = {\n        value,\n        expires: (+new Date()) + memoryCacheTime,\n      };\n    }\n\n    // call the private _Set implementation to actually set the key\n    this._set(key, value, cacheTime);\n  }\n\n  /**\n     * A helper \"wrap\" function that will return a cached value if present\n     *  This will call the supplied function to fetch it if the value isn't present in the cache\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {function} fn Fetch function that will be called if the cache entry is not present\n     * @param {(function|number)} [ttl] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     */\n  async wrap(key, fn, ttl) {\n    // try and fetch the cached value\n    let cachedValue = await this.get(key);\n\n    // if not in our cache, call the supplied fetcher function\n    if (cachedValue === undefined) {\n      cachedValue = await fn();\n      // set the new value in our cache\n      await this.set(key, cachedValue, ttl);\n    }\n\n    // return the fetched or calculated value\n    return cachedValue;\n  }\n}\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/cache/cacheBase.js",
     "access": "public",
@@ -898,6 +898,159 @@
   {
     "__docId__": 58,
     "kind": "file",
+    "name": "lib/cache/cacheLevel.js",
+    "content": "import CacheBase from './cacheBase.js';\nimport level from 'level';\n\n/**\n * A cache implementation using LevelDown\n * @extends CacheBase\n * @class\n */\nexport default class CacheLevel extends CacheBase {\n  /**\n   * Create new Memory cache object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.useMemoryCache = false;\n\n    super(options);\n\n    // setup our Level database\n    this.db = level('db.cache');\n  }\n\n  /**\n   * Get a cached object by key\n   * @param {string} key\n   * @private\n   */\n  async _get(key) {\n    const cacheEntry = await this.db.get(key);\n\n    if (cacheEntry !== undefined) {\n      const cacheEntryData = JSON.parse(cacheEntry);\n      const now = +new Date();\n      if (cacheEntryData.expires >= now) {\n        return cacheEntryData.value;\n      }\n    }\n\n    return undefined;\n  }\n\n  /**\n   * Set a key\n   * @param {string} key\n   * @param {object} value\n   * @param {*} [ttl]\n   * @private\n   */\n  async _set(key, value, ttl) {\n    await this.db.put(key, JSON.stringify({\n      value,\n      expires: (+ new Date()) + ttl,\n    }));\n  }\n}\n",
+    "static": true,
+    "longname": "/home/runner/work/parksapi/parksapi/lib/cache/cacheLevel.js",
+    "access": "public",
+    "description": null,
+    "lineNumber": 1
+  },
+  {
+    "__docId__": 59,
+    "kind": "class",
+    "name": "CacheLevel",
+    "memberof": "lib/cache/cacheLevel.js",
+    "static": true,
+    "longname": "lib/cache/cacheLevel.js~CacheLevel",
+    "access": "public",
+    "export": true,
+    "importPath": "parksapi/lib/cache/cacheLevel.js",
+    "importStyle": "CacheLevel",
+    "description": "A cache implementation using LevelDown",
+    "lineNumber": 9,
+    "unknown": [
+      {
+        "tagName": "@class",
+        "tagValue": ""
+      }
+    ],
+    "interface": false,
+    "extends": [
+      "*"
+    ]
+  },
+  {
+    "__docId__": 60,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/cache/cacheLevel.js~CacheLevel",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/cache/cacheLevel.js~CacheLevel#constructor",
+    "access": "public",
+    "description": "Create new Memory cache object",
+    "lineNumber": 14,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "options",
+        "description": ""
+      }
+    ]
+  },
+  {
+    "__docId__": 61,
+    "kind": "member",
+    "name": "db",
+    "memberof": "lib/cache/cacheLevel.js~CacheLevel",
+    "static": false,
+    "longname": "lib/cache/cacheLevel.js~CacheLevel#db",
+    "access": "public",
+    "description": null,
+    "lineNumber": 20,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 62,
+    "kind": "method",
+    "name": "_get",
+    "memberof": "lib/cache/cacheLevel.js~CacheLevel",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheLevel.js~CacheLevel#_get",
+    "access": "private",
+    "description": "Get a cached object by key",
+    "lineNumber": 28,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "key",
+        "description": ""
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 63,
+    "kind": "method",
+    "name": "_set",
+    "memberof": "lib/cache/cacheLevel.js~CacheLevel",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheLevel.js~CacheLevel#_set",
+    "access": "private",
+    "description": "Set a key",
+    "lineNumber": 49,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "key",
+        "description": ""
+      },
+      {
+        "nullable": null,
+        "types": [
+          "object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "value",
+        "description": ""
+      },
+      {
+        "nullable": null,
+        "types": [
+          "*"
+        ],
+        "spread": false,
+        "optional": true,
+        "name": "ttl",
+        "description": ""
+      }
+    ],
+    "return": null
+  },
+  {
+    "__docId__": 64,
+    "kind": "file",
     "name": "lib/cache/cacheMemory.js",
     "content": "import CacheBase from './cacheBase.js';\n\n/**\n * A basic in-memory cache implementation\n * @extends CacheBase\n * @class\n */\nexport default class CacheMemory extends CacheBase {\n  /**\n   * Create new Memory cache object\n   * @param {object} options\n   */\n  constructor(options) {\n    // disable our internal memory cache, since this is exactly what this implementation is already doing\n    options.useMemoryCache = false;\n\n    super(options);\n\n    this.cache = {};\n  }\n\n  /**\n   * Get a cached object by key\n   * @param {string} key\n   * @private\n   */\n  async _get(key) {\n    const cacheEntry = this.cache[key];\n\n    if (cacheEntry !== undefined) {\n      const now = +new Date();\n      if (cacheEntry.expires >= now) {\n        return cacheEntry.value;\n      }\n    }\n\n    return undefined;\n  }\n\n  /**\n   * Set a key\n   * @param {string} key\n   * @param {object} value\n   * @param {*} [ttl]\n   * @private\n   */\n  async _set(key, value, ttl) {\n    this.cache[key] = {\n      value,\n      expires: (+ new Date()) + ttl,\n    };\n  }\n}\n",
     "static": true,
@@ -907,7 +1060,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 59,
+    "__docId__": 65,
     "kind": "class",
     "name": "CacheMemory",
     "memberof": "lib/cache/cacheMemory.js",
@@ -931,7 +1084,7 @@
     ]
   },
   {
-    "__docId__": 60,
+    "__docId__": 66,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/cache/cacheMemory.js~CacheMemory",
@@ -956,7 +1109,7 @@
     ]
   },
   {
-    "__docId__": 61,
+    "__docId__": 67,
     "kind": "member",
     "name": "cache",
     "memberof": "lib/cache/cacheMemory.js~CacheMemory",
@@ -973,7 +1126,7 @@
     }
   },
   {
-    "__docId__": 62,
+    "__docId__": 68,
     "kind": "method",
     "name": "_get",
     "memberof": "lib/cache/cacheMemory.js~CacheMemory",
@@ -1003,7 +1156,7 @@
     }
   },
   {
-    "__docId__": 63,
+    "__docId__": 69,
     "kind": "method",
     "name": "_set",
     "memberof": "lib/cache/cacheMemory.js~CacheMemory",
@@ -1049,7 +1202,7 @@
     "return": null
   },
   {
-    "__docId__": 64,
+    "__docId__": 70,
     "kind": "file",
     "name": "lib/cache/cacheSqlite.js",
     "content": "import sqlite3 from 'sqlite3';\n\nimport CacheBase from './cacheBase.js';\n\n/**\n * Caching implementation using SQLite\n * @extends CacheBase\n * @class\n */\nexport default class CacheSqlite extends CacheBase {\n  /**\n     * @param {Object} options\n     * @param {string} options.filename Database filename to use with Sqlite\n     * @param {Object} [options.db] Existing SQLite3 object to use for our database\n     *  If left empty, a database object will be created automatically\n     */\n  constructor(options = {\n    filename: ':memory:',\n    db: undefined,\n  }) {\n    options.useMemoryCache = false;\n\n    super(options);\n\n    const dbFilename = options.filename || ':memory:';\n    this.db = options.db || new sqlite3.Database(dbFilename);\n\n    this.init = false;\n  }\n\n  /**\n   * Run a query against our SQLite database\n   * @param {string} query\n   * @param {array} args\n   */\n  async runQuery(query, args) {\n    return new Promise((resolve, reject) => {\n      this.db.get(query, args, (err, result) => {\n        if (err) {\n          return reject(err);\n        }\n        resolve(result);\n      });\n    });\n  }\n\n  /**\n   * Setup the database ready for use\n   * @private\n   */\n  async setupDB() {\n    if (this.init) return;\n\n    // setup our database\n    this.db.serialize(() => {\n      this.db.run('CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, value TEXT, expires BIGINT)');\n    });\n\n    this.init = true;\n  }\n\n  /**\n   * Get a cache entry by key\n   * @param {string} key\n   * @private\n   */\n  async _get(key) {\n    await this.setupDB();\n\n    const row = await this.runQuery('SELECT value FROM cache WHERE key = ? AND expires >= ?', [key, +new Date()]);\n    if (!row) return undefined;\n\n    try {\n      return JSON.parse(row.value);\n    } catch (e) {\n    }\n    return undefined;\n  }\n\n  /**\n   * Set a cache entry\n   * @param {string} key\n   * @param {object} value\n   * @param {*} ttl\n   * @private\n   */\n  async _set(key, value, ttl) {\n    await this.setupDB();\n\n    await this.runQuery(\n        'INSERT OR REPLACE INTO cache (key, value, expires) VALUES (?, ?, ?)',\n        [\n          key,\n          JSON.stringify(value),\n          (+new Date()) + ttl,\n        ]);\n  }\n}\n",
@@ -1060,7 +1213,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 65,
+    "__docId__": 71,
     "kind": "class",
     "name": "CacheSqlite",
     "memberof": "lib/cache/cacheSqlite.js",
@@ -1084,7 +1237,7 @@
     ]
   },
   {
-    "__docId__": 66,
+    "__docId__": 72,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
@@ -1129,7 +1282,7 @@
     ]
   },
   {
-    "__docId__": 67,
+    "__docId__": 73,
     "kind": "member",
     "name": "db",
     "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
@@ -1146,7 +1299,7 @@
     }
   },
   {
-    "__docId__": 68,
+    "__docId__": 74,
     "kind": "member",
     "name": "init",
     "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
@@ -1163,7 +1316,7 @@
     }
   },
   {
-    "__docId__": 69,
+    "__docId__": 75,
     "kind": "method",
     "name": "runQuery",
     "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
@@ -1203,7 +1356,7 @@
     }
   },
   {
-    "__docId__": 70,
+    "__docId__": 76,
     "kind": "method",
     "name": "setupDB",
     "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
@@ -1218,7 +1371,7 @@
     "return": null
   },
   {
-    "__docId__": 72,
+    "__docId__": 78,
     "kind": "method",
     "name": "_get",
     "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
@@ -1248,7 +1401,7 @@
     }
   },
   {
-    "__docId__": 73,
+    "__docId__": 79,
     "kind": "method",
     "name": "_set",
     "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
@@ -1294,7 +1447,84 @@
     "return": null
   },
   {
-    "__docId__": 74,
+    "__docId__": 80,
+    "kind": "file",
+    "name": "lib/cache.js",
+    "content": "/**\n * Cache provider for this module.\n * Various cache types are available, we default to using \"leveldown\" via the Level library.\n */\n\nimport CacheLevel from './cache/cacheLevel.js';\n\n// our global cache instance\nlet CacheInstance = null;\n\n/**\n * Create a new Cache Instance.\n * This function should only be called once for the lifetime of the module.\n */\nasync function createCacheInstance() {\n  // TODO - accept configured caches through environment variables (or other?)\n  return new CacheLevel();\n}\n\n/**\n  * Get the configured Cache implementation\n  */\nexport async function get() {\n  if (CacheInstance === null) {\n    CacheInstance = await createCacheInstance();\n  }\n\n  return CacheInstance;\n}\n\nexport default {\n  get,\n};\n",
+    "static": true,
+    "longname": "/home/runner/work/parksapi/parksapi/lib/cache.js",
+    "access": "public",
+    "description": null,
+    "lineNumber": 1
+  },
+  {
+    "__docId__": 81,
+    "kind": "variable",
+    "name": "CacheInstance",
+    "memberof": "lib/cache.js",
+    "static": true,
+    "longname": "lib/cache.js~CacheInstance",
+    "access": "public",
+    "export": false,
+    "importPath": "parksapi/lib/cache.js",
+    "importStyle": null,
+    "description": null,
+    "lineNumber": 9,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    },
+    "ignore": true
+  },
+  {
+    "__docId__": 82,
+    "kind": "function",
+    "name": "createCacheInstance",
+    "memberof": "lib/cache.js",
+    "generator": false,
+    "async": true,
+    "static": true,
+    "longname": "lib/cache.js~createCacheInstance",
+    "access": "public",
+    "export": false,
+    "importPath": "parksapi/lib/cache.js",
+    "importStyle": null,
+    "description": "Create a new Cache Instance.\nThis function should only be called once for the lifetime of the module.",
+    "lineNumber": 15,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    },
+    "ignore": true
+  },
+  {
+    "__docId__": 83,
+    "kind": "function",
+    "name": "get",
+    "memberof": "lib/cache.js",
+    "generator": false,
+    "async": true,
+    "static": true,
+    "longname": "lib/cache.js~get",
+    "access": "public",
+    "export": true,
+    "importPath": "parksapi/lib/cache.js",
+    "importStyle": "{get}",
+    "description": "Get the configured Cache implementation",
+    "lineNumber": 23,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 84,
     "kind": "file",
     "name": "lib/configBase.js",
     "content": "// load any environment variables from .env (if it exists)\nimport DotEnv from 'dotenv';\nDotEnv.config();\n\n/**\n * Base Config Object\n * Supports classes with a single argument \"options\"\n * These will be sorted into a member called \"this.config\" containing all the same keys\n *\n * Crucially, these can also be overriden through environment variables\n * For example, for a config option \"timeout\" for class Database, this could be overriden through either:\n *   env.THEMEPARKS_TIMEOUT (using a \"global module name\")\n *   env.DATABASE_TIMEOUT (using the class name)\n *\n * Classes can also add additional prefixes to the supported environment variables through:\n *   new ClassInstance({configPrefixes: ['myCustomPrefix']});\n * Which would also allow env.MYCUSTOMPREFIX_TIMEOUT to be used\n *\n * Note that a default value must be supplied for the environment variable to be processed\n * If the default value is a number, the environment variable will be cast to a number as well\n * @class\n */\nexport class ConfigBase {\n  /**\n   * A base class that can be configured through environment variables\n   * @param {object} options Config for instantiating this object\n   */\n  constructor(options = {}) {\n    const config = options || {};\n    const configKeys = Object.keys(config);\n\n    this.config = {};\n\n    const className = this.constructor.name;\n\n    const configPrefixes = [className, 'THEMEPARKS'].concat(\n        options.configPrefixes || [],\n    );\n\n    // build this.config object with our settings\n    configKeys.forEach((key) => {\n      // default prefixes are either \"classname_\" or \"THEMEPARKS_\"\n      //  classes can add more with configPrefixes\n      configPrefixes.forEach((prefix) => {\n        const configEnvName = `${prefix}_${key}`.toUpperCase();\n\n        if (process.env[configEnvName]) {\n          console.log(`Using env variable config for class ${className}`);\n          this.config[key] = process.env[configEnvName];\n          console.log(` ${key}(env.${configEnvName})=${this.config[key]}`);\n        }\n      });\n\n      if (this.config[key] === undefined) {\n        this.config[key] = config[key];\n      } else {\n        // convert env variable to number if the base default is a number\n        if (typeof config[key] === 'number') {\n          this.config[key] = Number(this.config[key]);\n        } else if (typeof config[key] === 'boolean') {\n          // convert any boolean configs too\n          this.config[key] = (this.config[key] === 'true');\n        }\n      }\n    });\n  }\n}\n\nexport default ConfigBase;\n",
@@ -1305,7 +1535,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 75,
+    "__docId__": 85,
     "kind": "class",
     "name": "ConfigBase",
     "memberof": "lib/configBase.js",
@@ -1326,7 +1556,7 @@
     "interface": false
   },
   {
-    "__docId__": 76,
+    "__docId__": 86,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/configBase.js~ConfigBase",
@@ -1351,7 +1581,7 @@
     ]
   },
   {
-    "__docId__": 77,
+    "__docId__": 87,
     "kind": "member",
     "name": "config",
     "memberof": "lib/configBase.js~ConfigBase",
@@ -1368,7 +1598,7 @@
     }
   },
   {
-    "__docId__": 78,
+    "__docId__": 88,
     "kind": "file",
     "name": "lib/index.js",
     "content": "",
@@ -1379,7 +1609,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 79,
+    "__docId__": 89,
     "kind": "file",
     "name": "lib/parks/park.js",
     "content": "import promiseRetry from 'promise-retry';\nimport ConfigBase from '../configBase.js';\n\n// quick helper function to wait x milliseconds as a Promise\nconst delay = (milliseconds) => {\n  return new Promise((resolve) => {\n    setTimeout(resolve, milliseconds);\n  });\n};\n\nexport const ParkConstants = {\n  // different queue types rides can have\n  QUEUE_STANDBY: 'STANDBY',\n  QUEUE_SINGLERIDER: 'SINGLE_RIDER',\n  QUEUE_VIRTUALQUEUE: 'VIRTUAL_QUEUE',\n  QUEUE_FASTPASS: 'FAST_PASS',\n  // attraction types\n  ATTRACTION_RIDE: 'RIDE',\n  ATTRACTION_SHOW: 'SHOW',\n  ATTRACTION_TRANSPORT: 'TRANSPORT',\n  ATTRACTION_PARADE: 'PARADE',\n  ATTRACTION_MEET_AND_GREET: 'MEET_AND_GREET',\n  // attraction statuses\n  STATUS_OPERATING: 'OPERATING',\n  STATUS_DOWN: 'DOWN',\n  STATUS_CLOSED: 'CLOSED',\n  STATUS_REFURBISHMENT: 'REFURBISHMENT',\n};\n\n/**\n * Base Park Object\n * @class\n */\nexport class Park extends ConfigBase {\n  /**\n   * Create a new park object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    // how often to wait between updates to run another update\n    options.updateInterval = 1000 * 60 * 5; // 5 minutes\n    // disable auto-update for this object\n    //  set this if the update is being handled by an external system\n    options.disableParkUpdate = false;\n\n    super(options);\n\n    this.initialised = false;\n\n    this._attractions = [];\n  }\n\n  /**\n   * Get a globally unique ID for this park\n   */\n  getParkUniqueID() {\n    throw new Error(`Missing getParkUniqueID() implementation for ${this.constructor.name}`);\n  }\n\n  /**\n   * Get Park Attractions\n   */\n  async getAttractions() {\n    // park must be initialised before returning any data\n    await this.init();\n\n    return this._attractions;\n  }\n\n  /**\n   * Setup the park for use\n   * Call to ensure the object has been initialised before accessing data\n   */\n  async init() {\n    if (this.initialised) {\n      return;\n    }\n\n    // setup the park ready for use\n    //  eg. download any large data-sets, calendars etc.\n    if (this.pendingSetupPromise) {\n      return this.pendingSetupPromise;\n    }\n\n    // call our internal init and wait on it\n    this.pendingSetupPromise = this._runInit();\n    await this.pendingSetupPromise;\n    this.pendingSetupPromise = null;\n\n    this.initialised = true;\n\n    if (!this.config.disableParkUpdate) {\n      // start an update loop\n\n      // use a separate function so we can quickly loop back around\n      const scheduleUpdate = async () => {\n        // pause for our updateInterval time\n        await delay(this.config.updateInterval);\n\n        // wait for Promise to resolve, grab any catches, then continue anyway\n        this.update().then().catch().then(() => {\n          // schedule another update\n          setImmediate(scheduleUpdate.bind(this));\n        });\n      };\n\n      // start the first loop timer\n      scheduleUpdate();\n    }\n  }\n\n  /**\n   * Run all the internal stages of the init process\n   * @private\n   */\n  async _runInit() {\n    await this._init();\n\n    // run an initial update so we're fully setup with data before init() returns\n    return await this._update();\n  }\n\n  /**\n   * Build an object representing an attraction from sourced data\n   * This object should not contain any \"state\" data, just static information about the attraction\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async _buildAttractionObject(attractionID) {\n    throw new Error('Missing _buildAttractionObject Implementation', this.constructor.name);\n  }\n\n  /**\n   * Get data about a attraction from its ID\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async findAttractionByID(attractionID) {\n    // search our existing store for this attraction\n    const attraction = this._attractions.find((attr) => attr.id == attractionID);\n    if (attraction) {\n      return attraction;\n    }\n\n    // attraction wasn't found, try and add one to our store\n    const newAttraction = await this._buildAttractionObject(attractionID);\n    if (newAttraction) {\n      // default to a \"null\" state\n      //  meaning an attraction with no waiting times etc.\n      newAttraction.state = null;\n\n      // make a globally unique ID for this attraction by combining the park ID and attraction ID\n      newAttraction._id = `${this.getParkUniqueID()}_${attractionID}`;\n\n      this._attractions.push(newAttraction);\n\n      return newAttraction;\n    }\n\n    return undefined;\n  }\n\n  /**\n   * Update an attraction state\n   * @param {string} attractionID Unique Attraction ID\n   * @param {object} data New Attraction State Data\n   */\n  async _updateAttractionState(attractionID, data) {\n    if (attractionID === undefined) return;\n\n    const existingRide = await this.findAttractionByID(attractionID);\n    if (existingRide) {\n      // if we found a matching attraction, update its \"state\" property with our new data\n      existingRide.state = data;\n\n      // TODO - broadcast updated ride event\n    }\n  }\n\n  /**\n   * Update this park\n   * This is automatically called for you unless disableParkUpdate is set to false\n   */\n  async update() {\n    if (this.pendingUpdatePromise) {\n      return this.pendingUpdatePromise;\n    }\n\n    // start the _update call in a retry loop\n    this.pendingUpdatePromise = promiseRetry({\n      retries: 5,\n    }, (retryFn, retryAttempt) => {\n      /* if (retryAttempt > 1) {\n        console.error(`Making attempt ${retryAttempt} to call _update on ${this.constructor.name} class`);\n      }*/\n      return this._update().catch(retryFn);\n    });\n\n    // wait and catch the update Promise\n    try {\n      await this.pendingUpdatePromise;\n    } catch (e) {\n      // TODO - record park API error somewhere and continue\n      console.error(e);\n    }\n\n    this.pendingUpdatePromise = null;\n  }\n\n  /**\n   * Internal function\n   * Called by init() to initialise the object\n   * @private\n   */\n  async _init() {\n    // implementation should be setup in child classes\n    throw new Error('_init() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Update function the park object calls on interval to update internal state\n   * @abstract\n   */\n  async _update() {\n    // implementation should be setup in child classes\n    throw new Error('_update() needs an implementation', this.constructor.name);\n  }\n}\n\nexport default Park;\n",
@@ -1390,7 +1620,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 80,
+    "__docId__": 90,
     "kind": "function",
     "name": "delay",
     "memberof": "lib/parks/park.js",
@@ -1421,7 +1651,7 @@
     "ignore": true
   },
   {
-    "__docId__": 81,
+    "__docId__": 91,
     "kind": "variable",
     "name": "ParkConstants",
     "memberof": "lib/parks/park.js",
@@ -1441,7 +1671,7 @@
     }
   },
   {
-    "__docId__": 82,
+    "__docId__": 92,
     "kind": "class",
     "name": "Park",
     "memberof": "lib/parks/park.js",
@@ -1465,7 +1695,7 @@
     ]
   },
   {
-    "__docId__": 83,
+    "__docId__": 93,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/park.js~Park",
@@ -1490,7 +1720,7 @@
     ]
   },
   {
-    "__docId__": 84,
+    "__docId__": 94,
     "kind": "member",
     "name": "initialised",
     "memberof": "lib/parks/park.js~Park",
@@ -1507,7 +1737,7 @@
     }
   },
   {
-    "__docId__": 85,
+    "__docId__": 95,
     "kind": "member",
     "name": "_attractions",
     "memberof": "lib/parks/park.js~Park",
@@ -1524,7 +1754,7 @@
     }
   },
   {
-    "__docId__": 86,
+    "__docId__": 96,
     "kind": "method",
     "name": "getParkUniqueID",
     "memberof": "lib/parks/park.js~Park",
@@ -1539,7 +1769,7 @@
     "return": null
   },
   {
-    "__docId__": 87,
+    "__docId__": 97,
     "kind": "method",
     "name": "getAttractions",
     "memberof": "lib/parks/park.js~Park",
@@ -1558,7 +1788,7 @@
     }
   },
   {
-    "__docId__": 88,
+    "__docId__": 98,
     "kind": "method",
     "name": "init",
     "memberof": "lib/parks/park.js~Park",
@@ -1577,7 +1807,7 @@
     }
   },
   {
-    "__docId__": 89,
+    "__docId__": 99,
     "kind": "member",
     "name": "pendingSetupPromise",
     "memberof": "lib/parks/park.js~Park",
@@ -1594,7 +1824,7 @@
     }
   },
   {
-    "__docId__": 92,
+    "__docId__": 102,
     "kind": "method",
     "name": "_runInit",
     "memberof": "lib/parks/park.js~Park",
@@ -1613,7 +1843,7 @@
     }
   },
   {
-    "__docId__": 93,
+    "__docId__": 103,
     "kind": "method",
     "name": "_buildAttractionObject",
     "memberof": "lib/parks/park.js~Park",
@@ -1639,7 +1869,7 @@
     "return": null
   },
   {
-    "__docId__": 94,
+    "__docId__": 104,
     "kind": "method",
     "name": "findAttractionByID",
     "memberof": "lib/parks/park.js~Park",
@@ -1669,7 +1899,7 @@
     }
   },
   {
-    "__docId__": 95,
+    "__docId__": 105,
     "kind": "method",
     "name": "_updateAttractionState",
     "memberof": "lib/parks/park.js~Park",
@@ -1705,7 +1935,7 @@
     "return": null
   },
   {
-    "__docId__": 96,
+    "__docId__": 106,
     "kind": "method",
     "name": "update",
     "memberof": "lib/parks/park.js~Park",
@@ -1724,7 +1954,7 @@
     }
   },
   {
-    "__docId__": 97,
+    "__docId__": 107,
     "kind": "member",
     "name": "pendingUpdatePromise",
     "memberof": "lib/parks/park.js~Park",
@@ -1741,7 +1971,7 @@
     }
   },
   {
-    "__docId__": 99,
+    "__docId__": 109,
     "kind": "method",
     "name": "_init",
     "memberof": "lib/parks/park.js~Park",
@@ -1756,7 +1986,7 @@
     "return": null
   },
   {
-    "__docId__": 100,
+    "__docId__": 110,
     "kind": "method",
     "name": "_update",
     "memberof": "lib/parks/park.js~Park",
@@ -1772,7 +2002,7 @@
     "return": null
   },
   {
-    "__docId__": 101,
+    "__docId__": 111,
     "kind": "file",
     "name": "lib/parks/wdw/waltdisneyworldbase.js",
     "content": "import {DisneyDB, getEntityID} from './wdwdb.js';\nimport {Park, ParkConstants} from '../park.js';\n\nlet wdwDB = null;\n/**\n * Get the live WDW database object\n * @return {object} wdwdb live database instance\n */\nexport function getDatabase() {\n  if (!wdwDB) {\n    wdwDB = new DisneyDB();\n  }\n  return wdwDB;\n}\n\n/**\n * Base Disney Park Class\n */\nexport class DisneyPark extends Park {\n  /**\n   * Create a new DisneyPark object\n   * @param {object} options\n   */\n  constructor(options) {\n    options.resort_id = options.resort_id || '';\n    options.park_id = options.park_id || '';\n\n    super(options);\n\n    if (this.config.park_id === '') {\n      throw new Error(`Missing park_id for class ${this.constructor.name}`);\n    }\n    if (this.config.resort_id === '') {\n      throw new Error(`Missing resort_id for class ${this.constructor.name}`);\n    }\n\n    // get a reference to our shared live database\n    this.db = getDatabase();\n  }\n\n  /**\n   * Get a unique ID for this park\n   * @return {string}\n   */\n  getParkUniqueID() {\n    return `${this.config.resort_id}_${this.config.park_id}`;\n  }\n\n  /**\n   * Get the channel ID for the facility status live update documents\n   * @return {string}\n   */\n  getFacilityStatusChannelID() {\n    return `${this.config.resort_id}.facilitystatus.1_0`;\n  }\n\n  /**\n   *\n   */\n  async _init() {\n    console.log('Initialising...');\n\n    // make sure the shared database is initialised\n    await this.db.init();\n\n    // subscribe to any live facility status updates\n    this.db.subscribeToChannel(this.getFacilityStatusChannelID(), async (doc) => {\n      this._processAttractionStatusUpdate(doc);\n    });\n\n    // fetch the current attraction times\n    await Promise.all((\n      // get all attractions with facility statuses\n      await this.db.findByChannel(this.getFacilityStatusChannelID())\n    ).map(this._processAttractionStatusUpdate.bind(this)));\n  }\n\n  /**\n   * Process a document update from a facilitystatus channel\n   * @param {object} doc The updated document\n   */\n  async _processAttractionStatusUpdate(doc) {\n    // get our clean attraction ID\n    const entityID = getEntityID(doc.id);\n\n    // check attraction is within our park\n    const updateIndexEntry = await this.db.findIndexEntity(entityID, {\n      park_id: this.config.park_id,\n    });\n    // if we have no entries, then attraction is not in our park\n    if (updateIndexEntry.length === 0) {\n      return;\n    }\n\n    // figure out general ride status\n    let status = ParkConstants.STATUS_OPERATING;\n    if (doc.status === 'Down') {\n      status = ParkConstants.STATUS_DOWN;\n    } else if (doc.status === 'Closed') {\n      status = ParkConstants.STATUS_CLOSED;\n    } else if (doc.status === 'Refurbishment') {\n      status = ParkConstants.STATUS_REFURBISHMENT;\n    }\n\n    // build our status object\n    const state = {\n      status,\n      // all our queue types\n      // TODO - how to detect virtual queue and FastPass availability?\n      queues: [\n        {\n          type: ParkConstants.QUEUE_STANDBY,\n          waitTime: doc.waitMinutes,\n        },\n      ],\n    };\n\n    // console.log(entityID, state);\n\n    // update attraction status in base class\n    await this._updateAttractionState(entityID, state);\n  }\n\n  /**\n   * Build an attraction object from an ID\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async _buildAttractionObject(attractionID) {\n    await this.db.init();\n\n    // find a document for our attraction ID\n    const attr = await this.db.findOne(attractionID);\n    if (attr) {\n      // TODO - build a full document about this attraction\n      return {\n        id: attractionID,\n        name: attr.name,\n      };\n    }\n\n    return undefined;\n  }\n\n  /**\n   *\n   */\n  async _update() {\n    // TODO - parks that don't use the live database need to implement this function\n  }\n}\n\nexport default DisneyPark;\n",
@@ -1783,7 +2013,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 102,
+    "__docId__": 112,
     "kind": "variable",
     "name": "wdwDB",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -1804,7 +2034,7 @@
     "ignore": true
   },
   {
-    "__docId__": 103,
+    "__docId__": 113,
     "kind": "function",
     "name": "getDatabase",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -1829,7 +2059,7 @@
     "params": []
   },
   {
-    "__docId__": 104,
+    "__docId__": 114,
     "kind": "class",
     "name": "DisneyPark",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -1847,7 +2077,7 @@
     ]
   },
   {
-    "__docId__": 105,
+    "__docId__": 115,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -1872,7 +2102,7 @@
     ]
   },
   {
-    "__docId__": 106,
+    "__docId__": 116,
     "kind": "member",
     "name": "db",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -1889,7 +2119,7 @@
     }
   },
   {
-    "__docId__": 107,
+    "__docId__": 117,
     "kind": "method",
     "name": "getParkUniqueID",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -1911,7 +2141,7 @@
     "params": []
   },
   {
-    "__docId__": 108,
+    "__docId__": 118,
     "kind": "method",
     "name": "getFacilityStatusChannelID",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -1933,7 +2163,7 @@
     "params": []
   },
   {
-    "__docId__": 109,
+    "__docId__": 119,
     "kind": "method",
     "name": "_init",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -1948,7 +2178,7 @@
     "return": null
   },
   {
-    "__docId__": 110,
+    "__docId__": 120,
     "kind": "method",
     "name": "_processAttractionStatusUpdate",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -1974,7 +2204,7 @@
     "return": null
   },
   {
-    "__docId__": 111,
+    "__docId__": 121,
     "kind": "method",
     "name": "_buildAttractionObject",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2004,7 +2234,7 @@
     }
   },
   {
-    "__docId__": 112,
+    "__docId__": 122,
     "kind": "method",
     "name": "_update",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",

@@ -6,6 +6,12 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "parksapi/lib/cache/cachelevel.js~cachelevel",
+    "class/lib/cache/cacheLevel.js~CacheLevel.html",
+    "<span>CacheLevel</span> <span class=\"search-result-import-path\">parksapi/lib/cache/cacheLevel.js</span>",
+    "class"
+  ],
+  [
     "parksapi/lib/cache/cachememory.js~cachememory",
     "class/lib/cache/cacheMemory.js~CacheMemory.html",
     "<span>CacheMemory</span> <span class=\"search-result-import-path\">parksapi/lib/cache/cacheMemory.js</span>",
@@ -40,6 +46,12 @@ window.esdocSearchIndex = [
     "variable/index.html#static-variable-ParkConstants",
     "<span>ParkConstants</span> <span class=\"search-result-import-path\">parksapi/lib/parks/park.js</span>",
     "variable"
+  ],
+  [
+    "parksapi/lib/cache.js~get",
+    "function/index.html#static-function-get",
+    "<span>get</span> <span class=\"search-result-import-path\">parksapi/lib/cache.js</span>",
+    "function"
   ],
   [
     "parksapi/lib/parks/wdw/waltdisneyworldbase.js~getdatabase",
@@ -330,6 +342,12 @@ window.esdocSearchIndex = [
     "external"
   ],
   [
+    "lib/cache.js",
+    "file/lib/cache.js.html",
+    "lib/cache.js",
+    "file"
+  ],
+  [
     "lib/cache/cachebase.js",
     "file/lib/cache/cacheBase.js.html",
     "lib/cache/cacheBase.js",
@@ -382,6 +400,36 @@ window.esdocSearchIndex = [
     "class/lib/cache/cacheBase.js~CacheBase.html#instance-method-wrap",
     "lib/cache/cacheBase.js~CacheBase#wrap",
     "method"
+  ],
+  [
+    "lib/cache/cachelevel.js",
+    "file/lib/cache/cacheLevel.js.html",
+    "lib/cache/cacheLevel.js",
+    "file"
+  ],
+  [
+    "lib/cache/cachelevel.js~cachelevel#_get",
+    "class/lib/cache/cacheLevel.js~CacheLevel.html#instance-method-_get",
+    "lib/cache/cacheLevel.js~CacheLevel#_get",
+    "method"
+  ],
+  [
+    "lib/cache/cachelevel.js~cachelevel#_set",
+    "class/lib/cache/cacheLevel.js~CacheLevel.html#instance-method-_set",
+    "lib/cache/cacheLevel.js~CacheLevel#_set",
+    "method"
+  ],
+  [
+    "lib/cache/cachelevel.js~cachelevel#constructor",
+    "class/lib/cache/cacheLevel.js~CacheLevel.html#instance-constructor-constructor",
+    "lib/cache/cacheLevel.js~CacheLevel#constructor",
+    "method"
+  ],
+  [
+    "lib/cache/cachelevel.js~cachelevel#db",
+    "class/lib/cache/cacheLevel.js~CacheLevel.html#instance-member-db",
+    "lib/cache/cacheLevel.js~CacheLevel#db",
+    "member"
   ],
   [
     "lib/cache/cachememory.js",

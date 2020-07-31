@@ -2,8 +2,8 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <base data-ice="baseUrl" href="../../../">
-  <title data-ice="title">lib/cache/cacheMemory.js | parksapi</title>
+  <base data-ice="baseUrl" href="../../">
+  <title data-ice="title">lib/cache.js | parksapi</title>
   <link type="text/css" rel="stylesheet" href="css/style.css">
   <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
   <script src="script/prettify/prettify.js"></script>
@@ -43,60 +43,40 @@
 </div>
 </nav>
 
-<div class="content" data-ice="content"><h1 data-ice="title">lib/cache/cacheMemory.js</h1>
-<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import CacheBase from &apos;./cacheBase.js&apos;;
+<div class="content" data-ice="content"><h1 data-ice="title">lib/cache.js</h1>
+<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">/**
+ * Cache provider for this module.
+ * Various cache types are available, we default to using &quot;leveldown&quot; via the Level library.
+ */
+
+import CacheLevel from &apos;./cache/cacheLevel.js&apos;;
+
+// our global cache instance
+let CacheInstance = null;
 
 /**
- * A basic in-memory cache implementation
- * @extends CacheBase
- * @class
+ * Create a new Cache Instance.
+ * This function should only be called once for the lifetime of the module.
  */
-export default class CacheMemory extends CacheBase {
-  /**
-   * Create new Memory cache object
-   * @param {object} options
-   */
-  constructor(options) {
-    // disable our internal memory cache, since this is exactly what this implementation is already doing
-    options.useMemoryCache = false;
-
-    super(options);
-
-    this.cache = {};
-  }
-
-  /**
-   * Get a cached object by key
-   * @param {string} key
-   * @private
-   */
-  async _get(key) {
-    const cacheEntry = this.cache[key];
-
-    if (cacheEntry !== undefined) {
-      const now = +new Date();
-      if (cacheEntry.expires &gt;= now) {
-        return cacheEntry.value;
-      }
-    }
-
-    return undefined;
-  }
-
-  /**
-   * Set a key
-   * @param {string} key
-   * @param {object} value
-   * @param {*} [ttl]
-   * @private
-   */
-  async _set(key, value, ttl) {
-    this.cache[key] = {
-      value,
-      expires: (+ new Date()) + ttl,
-    };
-  }
+async function createCacheInstance() {
+  // TODO - accept configured caches through environment variables (or other?)
+  return new CacheLevel();
 }
+
+/**
+  * Get the configured Cache implementation
+  */
+export async function get() {
+  if (CacheInstance === null) {
+    CacheInstance = await createCacheInstance();
+  }
+
+  return CacheInstance;
+}
+
+export default {
+  get,
+};
 </code></pre>
 
 </div>

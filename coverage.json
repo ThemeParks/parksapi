@@ -1,13 +1,20 @@
 {
-  "coverage": "74.07%",
-  "expectCount": 54,
-  "actualCount": 40,
+  "coverage": "74.19%",
+  "expectCount": 62,
+  "actualCount": 46,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 9,
       "actualCount": 7,
       "undocumentLines": [
         19,
+        20
+      ]
+    },
+    "lib/cache/cacheLevel.js": {
+      "expectCount": 5,
+      "actualCount": 4,
+      "undocumentLines": [
         20
       ]
     },
@@ -24,6 +31,13 @@
       "undocumentLines": [
         26,
         28
+      ]
+    },
+    "lib/cache.js": {
+      "expectCount": 3,
+      "actualCount": 2,
+      "undocumentLines": [
+        9
       ]
     },
     "lib/configBase.js": {
