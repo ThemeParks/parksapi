@@ -1,4 +1,5 @@
 {
+    "files.eol": "\n",
     "eslint.alwaysShowStatus": true,
     "eslint.format.enable": true,
     "editor.tabSize": 2,
