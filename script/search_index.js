@@ -552,6 +552,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/park.js~park#_httpinjections",
+    "class/lib/parks/park.js~Park.html#instance-member-_httpInjections",
+    "lib/parks/park.js~Park#_httpInjections",
+    "member"
+  ],
+  [
     "lib/parks/park.js~park#_init",
     "class/lib/parks/park.js~Park.html#instance-method-_init",
     "lib/parks/park.js~Park#_init",
@@ -600,6 +606,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/park.js~park#http",
+    "class/lib/parks/park.js~Park.html#instance-method-http",
+    "lib/parks/park.js~Park#http",
+    "method"
+  ],
+  [
     "lib/parks/park.js~park#init",
     "class/lib/parks/park.js~Park.html#instance-method-init",
     "lib/parks/park.js~Park#init",
@@ -610,6 +622,12 @@ window.esdocSearchIndex = [
     "class/lib/parks/park.js~Park.html#instance-member-initialised",
     "lib/parks/park.js~Park#initialised",
     "member"
+  ],
+  [
+    "lib/parks/park.js~park#injectfordomain",
+    "class/lib/parks/park.js~Park.html#instance-method-injectForDomain",
+    "lib/parks/park.js~Park#injectForDomain",
+    "method"
   ],
   [
     "lib/parks/park.js~park#pendingsetuppromise",

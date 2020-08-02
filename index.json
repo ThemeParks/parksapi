@@ -1612,7 +1612,7 @@
     "__docId__": 89,
     "kind": "file",
     "name": "lib/parks/park.js",
-    "content": "import promiseRetry from 'promise-retry';\nimport ConfigBase from '../configBase.js';\n\n// quick helper function to wait x milliseconds as a Promise\nconst delay = (milliseconds) => {\n  return new Promise((resolve) => {\n    setTimeout(resolve, milliseconds);\n  });\n};\n\nexport const ParkConstants = {\n  // different queue types rides can have\n  QUEUE_STANDBY: 'STANDBY',\n  QUEUE_SINGLERIDER: 'SINGLE_RIDER',\n  QUEUE_VIRTUALQUEUE: 'VIRTUAL_QUEUE',\n  QUEUE_FASTPASS: 'FAST_PASS',\n  // attraction types\n  ATTRACTION_RIDE: 'RIDE',\n  ATTRACTION_SHOW: 'SHOW',\n  ATTRACTION_TRANSPORT: 'TRANSPORT',\n  ATTRACTION_PARADE: 'PARADE',\n  ATTRACTION_MEET_AND_GREET: 'MEET_AND_GREET',\n  // attraction statuses\n  STATUS_OPERATING: 'OPERATING',\n  STATUS_DOWN: 'DOWN',\n  STATUS_CLOSED: 'CLOSED',\n  STATUS_REFURBISHMENT: 'REFURBISHMENT',\n};\n\n/**\n * Base Park Object\n * @class\n */\nexport class Park extends ConfigBase {\n  /**\n   * Create a new park object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    // how often to wait between updates to run another update\n    options.updateInterval = 1000 * 60 * 5; // 5 minutes\n    // disable auto-update for this object\n    //  set this if the update is being handled by an external system\n    options.disableParkUpdate = false;\n\n    super(options);\n\n    this.initialised = false;\n\n    this._attractions = [];\n  }\n\n  /**\n   * Get a globally unique ID for this park\n   */\n  getParkUniqueID() {\n    throw new Error(`Missing getParkUniqueID() implementation for ${this.constructor.name}`);\n  }\n\n  /**\n   * Get Park Attractions\n   */\n  async getAttractions() {\n    // park must be initialised before returning any data\n    await this.init();\n\n    return this._attractions;\n  }\n\n  /**\n   * Setup the park for use\n   * Call to ensure the object has been initialised before accessing data\n   */\n  async init() {\n    if (this.initialised) {\n      return;\n    }\n\n    // setup the park ready for use\n    //  eg. download any large data-sets, calendars etc.\n    if (this.pendingSetupPromise) {\n      return this.pendingSetupPromise;\n    }\n\n    // call our internal init and wait on it\n    this.pendingSetupPromise = this._runInit();\n    await this.pendingSetupPromise;\n    this.pendingSetupPromise = null;\n\n    this.initialised = true;\n\n    if (!this.config.disableParkUpdate) {\n      // start an update loop\n\n      // use a separate function so we can quickly loop back around\n      const scheduleUpdate = async () => {\n        // pause for our updateInterval time\n        await delay(this.config.updateInterval);\n\n        // wait for Promise to resolve, grab any catches, then continue anyway\n        this.update().then().catch().then(() => {\n          // schedule another update\n          setImmediate(scheduleUpdate.bind(this));\n        });\n      };\n\n      // start the first loop timer\n      scheduleUpdate();\n    }\n  }\n\n  /**\n   * Run all the internal stages of the init process\n   * @private\n   */\n  async _runInit() {\n    await this._init();\n\n    // run an initial update so we're fully setup with data before init() returns\n    return await this._update();\n  }\n\n  /**\n   * Build an object representing an attraction from sourced data\n   * This object should not contain any \"state\" data, just static information about the attraction\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async _buildAttractionObject(attractionID) {\n    throw new Error('Missing _buildAttractionObject Implementation', this.constructor.name);\n  }\n\n  /**\n   * Get data about a attraction from its ID\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async findAttractionByID(attractionID) {\n    // search our existing store for this attraction\n    const attraction = this._attractions.find((attr) => attr.id == attractionID);\n    if (attraction) {\n      return attraction;\n    }\n\n    // attraction wasn't found, try and add one to our store\n    const newAttraction = await this._buildAttractionObject(attractionID);\n    if (newAttraction) {\n      // default to a \"null\" state\n      //  meaning an attraction with no waiting times etc.\n      newAttraction.state = null;\n\n      // make a globally unique ID for this attraction by combining the park ID and attraction ID\n      newAttraction._id = `${this.getParkUniqueID()}_${attractionID}`;\n\n      this._attractions.push(newAttraction);\n\n      return newAttraction;\n    }\n\n    return undefined;\n  }\n\n  /**\n   * Update an attraction state\n   * @param {string} attractionID Unique Attraction ID\n   * @param {object} data New Attraction State Data\n   */\n  async _updateAttractionState(attractionID, data) {\n    if (attractionID === undefined) return;\n\n    const existingRide = await this.findAttractionByID(attractionID);\n    if (existingRide) {\n      // if we found a matching attraction, update its \"state\" property with our new data\n      existingRide.state = data;\n\n      // TODO - broadcast updated ride event\n    }\n  }\n\n  /**\n   * Update this park\n   * This is automatically called for you unless disableParkUpdate is set to false\n   */\n  async update() {\n    if (this.pendingUpdatePromise) {\n      return this.pendingUpdatePromise;\n    }\n\n    // start the _update call in a retry loop\n    this.pendingUpdatePromise = promiseRetry({\n      retries: 5,\n    }, (retryFn, retryAttempt) => {\n      /* if (retryAttempt > 1) {\n        console.error(`Making attempt ${retryAttempt} to call _update on ${this.constructor.name} class`);\n      }*/\n      return this._update().catch(retryFn);\n    });\n\n    // wait and catch the update Promise\n    try {\n      await this.pendingUpdatePromise;\n    } catch (e) {\n      // TODO - record park API error somewhere and continue\n      console.error(e);\n    }\n\n    this.pendingUpdatePromise = null;\n  }\n\n  /**\n   * Internal function\n   * Called by init() to initialise the object\n   * @private\n   */\n  async _init() {\n    // implementation should be setup in child classes\n    throw new Error('_init() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Update function the park object calls on interval to update internal state\n   * @abstract\n   */\n  async _update() {\n    // implementation should be setup in child classes\n    throw new Error('_update() needs an implementation', this.constructor.name);\n  }\n}\n\nexport default Park;\n",
+    "content": "import promiseRetry from 'promise-retry';\nimport ConfigBase from '../configBase.js';\nimport needle from 'needle';\nimport domainMatch from 'domain-match';\n\n// quick helper function to wait x milliseconds as a Promise\nconst delay = (milliseconds) => {\n  return new Promise((resolve) => {\n    setTimeout(resolve, milliseconds);\n  });\n};\n\nexport const ParkConstants = {\n  // different queue types rides can have\n  QUEUE_STANDBY: 'STANDBY',\n  QUEUE_SINGLERIDER: 'SINGLE_RIDER',\n  QUEUE_VIRTUALQUEUE: 'VIRTUAL_QUEUE',\n  QUEUE_FASTPASS: 'FAST_PASS',\n  // attraction types\n  ATTRACTION_RIDE: 'RIDE',\n  ATTRACTION_SHOW: 'SHOW',\n  ATTRACTION_TRANSPORT: 'TRANSPORT',\n  ATTRACTION_PARADE: 'PARADE',\n  ATTRACTION_MEET_AND_GREET: 'MEET_AND_GREET',\n  // attraction statuses\n  STATUS_OPERATING: 'OPERATING',\n  STATUS_DOWN: 'DOWN',\n  STATUS_CLOSED: 'CLOSED',\n  STATUS_REFURBISHMENT: 'REFURBISHMENT',\n};\n\n/**\n * Base Park Object\n * @class\n */\nexport class Park extends ConfigBase {\n  /**\n   * Create a new park object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    // how often to wait between updates to run another update\n    options.updateInterval = 1000 * 60 * 5; // 5 minutes\n    // disable auto-update for this object\n    //  set this if the update is being handled by an external system\n    options.disableParkUpdate = false;\n\n    super(options);\n\n    this.initialised = false;\n\n    this._attractions = [];\n\n    // any HTTP injections that have been setup\n    //  allows parks to automatically intercept HTTP requests and add auth headers etc.\n    this._httpInjections = [];\n  }\n\n  /**\n   * Get a globally unique ID for this park\n   */\n  getParkUniqueID() {\n    throw new Error(`Missing getParkUniqueID() implementation for ${this.constructor.name}`);\n  }\n\n  /**\n   * Get Park Attractions\n   */\n  async getAttractions() {\n    // park must be initialised before returning any data\n    await this.init();\n\n    return this._attractions;\n  }\n\n  /**\n   * Setup the park for use\n   * Call to ensure the object has been initialised before accessing data\n   */\n  async init() {\n    if (this.initialised) {\n      return;\n    }\n\n    // setup the park ready for use\n    //  eg. download any large data-sets, calendars etc.\n    if (this.pendingSetupPromise) {\n      return this.pendingSetupPromise;\n    }\n\n    // call our internal init and wait on it\n    this.pendingSetupPromise = this._runInit();\n    await this.pendingSetupPromise;\n    this.pendingSetupPromise = null;\n\n    this.initialised = true;\n\n    if (!this.config.disableParkUpdate) {\n      // start an update loop\n\n      // use a separate function so we can quickly loop back around\n      const scheduleUpdate = async () => {\n        // pause for our updateInterval time\n        await delay(this.config.updateInterval);\n\n        // wait for Promise to resolve, grab any catches, then continue anyway\n        this.update().then().catch().then(() => {\n          // schedule another update\n          setImmediate(scheduleUpdate.bind(this));\n        });\n      };\n\n      // start the first loop timer\n      scheduleUpdate();\n    }\n  }\n\n  /**\n   * Run all the internal stages of the init process\n   * @private\n   */\n  async _runInit() {\n    await this._init();\n\n    // run an initial update so we're fully setup with data before init() returns\n    return await this._update();\n  }\n\n  /**\n   * Build an object representing an attraction from sourced data\n   * This object should not contain any \"state\" data, just static information about the attraction\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async _buildAttractionObject(attractionID) {\n    throw new Error('Missing _buildAttractionObject Implementation', this.constructor.name);\n  }\n\n  /**\n   * Get data about a attraction from its ID\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async findAttractionByID(attractionID) {\n    // search our existing store for this attraction\n    const attraction = this._attractions.find((attr) => attr.id == attractionID);\n    if (attraction) {\n      return attraction;\n    }\n\n    // attraction wasn't found, try and add one to our store\n    const newAttraction = await this._buildAttractionObject(attractionID);\n    if (newAttraction) {\n      // default to a \"null\" state\n      //  meaning an attraction with no waiting times etc.\n      newAttraction.state = null;\n\n      // make a globally unique ID for this attraction by combining the park ID and attraction ID\n      newAttraction._id = `${this.getParkUniqueID()}_${attractionID}`;\n\n      this._attractions.push(newAttraction);\n\n      return newAttraction;\n    }\n\n    return undefined;\n  }\n\n  /**\n   * Update an attraction state\n   * @param {string} attractionID Unique Attraction ID\n   * @param {object} data New Attraction State Data\n   */\n  async _updateAttractionState(attractionID, data) {\n    if (attractionID === undefined) return;\n\n    const existingRide = await this.findAttractionByID(attractionID);\n    if (existingRide) {\n      // if we found a matching attraction, update its \"state\" property with our new data\n      existingRide.state = data;\n\n      // TODO - broadcast updated ride event\n    }\n  }\n\n  /**\n   * Update this park\n   * This is automatically called for you unless disableParkUpdate is set to false\n   */\n  async update() {\n    if (this.pendingUpdatePromise) {\n      return this.pendingUpdatePromise;\n    }\n\n    // start the _update call in a retry loop\n    this.pendingUpdatePromise = promiseRetry({\n      retries: 5,\n    }, (retryFn, retryAttempt) => {\n      /* if (retryAttempt > 1) {\n        console.error(`Making attempt ${retryAttempt} to call _update on ${this.constructor.name} class`);\n      }*/\n      return this._update().catch(retryFn);\n    });\n\n    // wait and catch the update Promise\n    try {\n      await this.pendingUpdatePromise;\n    } catch (e) {\n      // TODO - record park API error somewhere and continue\n      console.error(e);\n    }\n\n    this.pendingUpdatePromise = null;\n  }\n\n  /**\n   * Internal function\n   * Called by init() to initialise the object\n   * @private\n   */\n  async _init() {\n    // implementation should be setup in child classes\n    throw new Error('_init() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Update function the park object calls on interval to update internal state\n   * @abstract\n   */\n  async _update() {\n    // implementation should be setup in child classes\n    throw new Error('_update() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Register a new injection for a specific domain\n   * @param {string} domain Domain to inject for, accepts wildcards. See domain-match\n   * @param {function} func Function to call with needle request to inject extra data into. Must return a Promise\n   */\n  async injectForDomain(domain, func) {\n    // add to our array of injections, this is processing by http()\n    this._httpInjections.push({\n      domain,\n      func,\n    });\n  }\n\n  /**\n   * Helper function to make an HTTP request for this park\n   * Parks can automatically add in authentication headers etc. to requests sent to this function\n   * @param {string} method HTTP method to use (GET,POST,DELETE, etc)\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options] Object containing needle-compatible HTTP options\n   */\n  async http(method, url, data = {}, options = {}) {\n    // always have a headers array\n    if (!options.headers) {\n      options.headers = {};\n    }\n\n    // check any hostname injections we have setup\n    for (let injectionIDX=0; injectionIDX<this._httpInjections.length; injectionIDX++) {\n      const injection = this._httpInjections[injectionIDX];\n\n      // check if the domain matches\n      if (domainMatch(injection.domain, url)) {\n        await injection.func(method, url, data, options);\n      }\n    }\n\n    return needle(method, url, data, options);\n  }\n}\n\nexport default Park;\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/park.js",
     "access": "public",
@@ -1633,7 +1633,7 @@
     "importPath": "parksapi/lib/parks/park.js",
     "importStyle": null,
     "description": null,
-    "lineNumber": 5,
+    "lineNumber": 7,
     "undocument": true,
     "params": [
       {
@@ -1662,7 +1662,7 @@
     "importPath": "parksapi/lib/parks/park.js",
     "importStyle": "{ParkConstants}",
     "description": null,
-    "lineNumber": 11,
+    "lineNumber": 13,
     "undocument": true,
     "type": {
       "types": [
@@ -1682,7 +1682,7 @@
     "importPath": "parksapi/lib/parks/park.js",
     "importStyle": "{Park}",
     "description": "Base Park Object",
-    "lineNumber": 34,
+    "lineNumber": 36,
     "unknown": [
       {
         "tagName": "@class",
@@ -1705,7 +1705,7 @@
     "longname": "lib/parks/park.js~Park#constructor",
     "access": "public",
     "description": "Create a new park object",
-    "lineNumber": 39,
+    "lineNumber": 41,
     "params": [
       {
         "nullable": null,
@@ -1728,7 +1728,7 @@
     "longname": "lib/parks/park.js~Park#initialised",
     "access": "public",
     "description": null,
-    "lineNumber": 48,
+    "lineNumber": 50,
     "undocument": true,
     "type": {
       "types": [
@@ -1745,7 +1745,7 @@
     "longname": "lib/parks/park.js~Park#_attractions",
     "access": "private",
     "description": null,
-    "lineNumber": 50,
+    "lineNumber": 52,
     "undocument": true,
     "type": {
       "types": [
@@ -1755,6 +1755,23 @@
   },
   {
     "__docId__": 96,
+    "kind": "member",
+    "name": "_httpInjections",
+    "memberof": "lib/parks/park.js~Park",
+    "static": false,
+    "longname": "lib/parks/park.js~Park#_httpInjections",
+    "access": "private",
+    "description": null,
+    "lineNumber": 56,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*[]"
+      ]
+    }
+  },
+  {
+    "__docId__": 97,
     "kind": "method",
     "name": "getParkUniqueID",
     "memberof": "lib/parks/park.js~Park",
@@ -1764,12 +1781,12 @@
     "longname": "lib/parks/park.js~Park#getParkUniqueID",
     "access": "public",
     "description": "Get a globally unique ID for this park",
-    "lineNumber": 56,
+    "lineNumber": 62,
     "params": [],
     "return": null
   },
   {
-    "__docId__": 97,
+    "__docId__": 98,
     "kind": "method",
     "name": "getAttractions",
     "memberof": "lib/parks/park.js~Park",
@@ -1779,26 +1796,7 @@
     "longname": "lib/parks/park.js~Park#getAttractions",
     "access": "public",
     "description": "Get Park Attractions",
-    "lineNumber": 63,
-    "params": [],
-    "return": {
-      "types": [
-        "*"
-      ]
-    }
-  },
-  {
-    "__docId__": 98,
-    "kind": "method",
-    "name": "init",
-    "memberof": "lib/parks/park.js~Park",
-    "generator": false,
-    "async": true,
-    "static": false,
-    "longname": "lib/parks/park.js~Park#init",
-    "access": "public",
-    "description": "Setup the park for use\nCall to ensure the object has been initialised before accessing data",
-    "lineNumber": 74,
+    "lineNumber": 69,
     "params": [],
     "return": {
       "types": [
@@ -1808,6 +1806,25 @@
   },
   {
     "__docId__": 99,
+    "kind": "method",
+    "name": "init",
+    "memberof": "lib/parks/park.js~Park",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/park.js~Park#init",
+    "access": "public",
+    "description": "Setup the park for use\nCall to ensure the object has been initialised before accessing data",
+    "lineNumber": 80,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 100,
     "kind": "member",
     "name": "pendingSetupPromise",
     "memberof": "lib/parks/park.js~Park",
@@ -1815,7 +1832,7 @@
     "longname": "lib/parks/park.js~Park#pendingSetupPromise",
     "access": "public",
     "description": null,
-    "lineNumber": 86,
+    "lineNumber": 92,
     "undocument": true,
     "type": {
       "types": [
@@ -1824,7 +1841,7 @@
     }
   },
   {
-    "__docId__": 102,
+    "__docId__": 103,
     "kind": "method",
     "name": "_runInit",
     "memberof": "lib/parks/park.js~Park",
@@ -1834,7 +1851,7 @@
     "longname": "lib/parks/park.js~Park#_runInit",
     "access": "private",
     "description": "Run all the internal stages of the init process",
-    "lineNumber": 116,
+    "lineNumber": 122,
     "params": [],
     "return": {
       "types": [
@@ -1843,7 +1860,7 @@
     }
   },
   {
-    "__docId__": 103,
+    "__docId__": 104,
     "kind": "method",
     "name": "_buildAttractionObject",
     "memberof": "lib/parks/park.js~Park",
@@ -1853,7 +1870,7 @@
     "longname": "lib/parks/park.js~Park#_buildAttractionObject",
     "access": "private",
     "description": "Build an object representing an attraction from sourced data\nThis object should not contain any \"state\" data, just static information about the attraction",
-    "lineNumber": 128,
+    "lineNumber": 134,
     "params": [
       {
         "nullable": null,
@@ -1869,7 +1886,7 @@
     "return": null
   },
   {
-    "__docId__": 104,
+    "__docId__": 105,
     "kind": "method",
     "name": "findAttractionByID",
     "memberof": "lib/parks/park.js~Park",
@@ -1879,7 +1896,7 @@
     "longname": "lib/parks/park.js~Park#findAttractionByID",
     "access": "public",
     "description": "Get data about a attraction from its ID",
-    "lineNumber": 136,
+    "lineNumber": 142,
     "params": [
       {
         "nullable": null,
@@ -1899,7 +1916,7 @@
     }
   },
   {
-    "__docId__": 105,
+    "__docId__": 106,
     "kind": "method",
     "name": "_updateAttractionState",
     "memberof": "lib/parks/park.js~Park",
@@ -1909,7 +1926,7 @@
     "longname": "lib/parks/park.js~Park#_updateAttractionState",
     "access": "private",
     "description": "Update an attraction state",
-    "lineNumber": 166,
+    "lineNumber": 172,
     "params": [
       {
         "nullable": null,
@@ -1935,7 +1952,7 @@
     "return": null
   },
   {
-    "__docId__": 106,
+    "__docId__": 107,
     "kind": "method",
     "name": "update",
     "memberof": "lib/parks/park.js~Park",
@@ -1945,7 +1962,7 @@
     "longname": "lib/parks/park.js~Park#update",
     "access": "public",
     "description": "Update this park\nThis is automatically called for you unless disableParkUpdate is set to false",
-    "lineNumber": 182,
+    "lineNumber": 188,
     "params": [],
     "return": {
       "types": [
@@ -1954,7 +1971,7 @@
     }
   },
   {
-    "__docId__": 107,
+    "__docId__": 108,
     "kind": "member",
     "name": "pendingUpdatePromise",
     "memberof": "lib/parks/park.js~Park",
@@ -1962,7 +1979,7 @@
     "longname": "lib/parks/park.js~Park#pendingUpdatePromise",
     "access": "public",
     "description": null,
-    "lineNumber": 188,
+    "lineNumber": 194,
     "undocument": true,
     "type": {
       "types": [
@@ -1971,7 +1988,7 @@
     }
   },
   {
-    "__docId__": 109,
+    "__docId__": 110,
     "kind": "method",
     "name": "_init",
     "memberof": "lib/parks/park.js~Park",
@@ -1981,12 +1998,12 @@
     "longname": "lib/parks/park.js~Park#_init",
     "access": "private",
     "description": "Internal function\nCalled by init() to initialise the object",
-    "lineNumber": 213,
+    "lineNumber": 219,
     "params": [],
     "return": null
   },
   {
-    "__docId__": 110,
+    "__docId__": 111,
     "kind": "method",
     "name": "_update",
     "memberof": "lib/parks/park.js~Park",
@@ -1996,13 +2013,109 @@
     "longname": "lib/parks/park.js~Park#_update",
     "access": "private",
     "description": "Update function the park object calls on interval to update internal state",
-    "lineNumber": 222,
+    "lineNumber": 228,
     "abstract": true,
     "params": [],
     "return": null
   },
   {
-    "__docId__": 111,
+    "__docId__": 112,
+    "kind": "method",
+    "name": "injectForDomain",
+    "memberof": "lib/parks/park.js~Park",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/park.js~Park#injectForDomain",
+    "access": "public",
+    "description": "Register a new injection for a specific domain",
+    "lineNumber": 238,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "domain",
+        "description": "Domain to inject for, accepts wildcards. See domain-match"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "function"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "func",
+        "description": "Function to call with needle request to inject extra data into. Must return a Promise"
+      }
+    ],
+    "return": null
+  },
+  {
+    "__docId__": 113,
+    "kind": "method",
+    "name": "http",
+    "memberof": "lib/parks/park.js~Park",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/park.js~Park#http",
+    "access": "public",
+    "description": "Helper function to make an HTTP request for this park\nParks can automatically add in authentication headers etc. to requests sent to this function",
+    "lineNumber": 254,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "method",
+        "description": "HTTP method to use (GET,POST,DELETE, etc)"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "url",
+        "description": "URL to request"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "object"
+        ],
+        "spread": false,
+        "optional": true,
+        "name": "data",
+        "description": "data to send. Will become querystring for GET, body for POST"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "object"
+        ],
+        "spread": false,
+        "optional": true,
+        "name": "options",
+        "description": "Object containing needle-compatible HTTP options"
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 114,
     "kind": "file",
     "name": "lib/parks/wdw/waltdisneyworldbase.js",
     "content": "import {DisneyDB, getEntityID} from './wdwdb.js';\nimport {Park, ParkConstants} from '../park.js';\n\nlet wdwDB = null;\n/**\n * Get the live WDW database object\n * @return {object} wdwdb live database instance\n */\nexport function getDatabase() {\n  if (!wdwDB) {\n    wdwDB = new DisneyDB();\n  }\n  return wdwDB;\n}\n\n/**\n * Base Disney Park Class\n */\nexport class DisneyPark extends Park {\n  /**\n   * Create a new DisneyPark object\n   * @param {object} options\n   */\n  constructor(options) {\n    options.resort_id = options.resort_id || '';\n    options.park_id = options.park_id || '';\n\n    super(options);\n\n    if (this.config.park_id === '') {\n      throw new Error(`Missing park_id for class ${this.constructor.name}`);\n    }\n    if (this.config.resort_id === '') {\n      throw new Error(`Missing resort_id for class ${this.constructor.name}`);\n    }\n\n    // get a reference to our shared live database\n    this.db = getDatabase();\n  }\n\n  /**\n   * Get a unique ID for this park\n   * @return {string}\n   */\n  getParkUniqueID() {\n    return `${this.config.resort_id}_${this.config.park_id}`;\n  }\n\n  /**\n   * Get the channel ID for the facility status live update documents\n   * @return {string}\n   */\n  getFacilityStatusChannelID() {\n    return `${this.config.resort_id}.facilitystatus.1_0`;\n  }\n\n  /**\n   *\n   */\n  async _init() {\n    console.log('Initialising...');\n\n    // make sure the shared database is initialised\n    await this.db.init();\n\n    // subscribe to any live facility status updates\n    this.db.subscribeToChannel(this.getFacilityStatusChannelID(), async (doc) => {\n      this._processAttractionStatusUpdate(doc);\n    });\n\n    // fetch the current attraction times\n    await Promise.all((\n      // get all attractions with facility statuses\n      await this.db.findByChannel(this.getFacilityStatusChannelID())\n    ).map(this._processAttractionStatusUpdate.bind(this)));\n  }\n\n  /**\n   * Process a document update from a facilitystatus channel\n   * @param {object} doc The updated document\n   */\n  async _processAttractionStatusUpdate(doc) {\n    // get our clean attraction ID\n    const entityID = getEntityID(doc.id);\n\n    // check attraction is within our park\n    const updateIndexEntry = await this.db.findIndexEntity(entityID, {\n      park_id: this.config.park_id,\n    });\n    // if we have no entries, then attraction is not in our park\n    if (updateIndexEntry.length === 0) {\n      return;\n    }\n\n    // figure out general ride status\n    let status = ParkConstants.STATUS_OPERATING;\n    if (doc.status === 'Down') {\n      status = ParkConstants.STATUS_DOWN;\n    } else if (doc.status === 'Closed') {\n      status = ParkConstants.STATUS_CLOSED;\n    } else if (doc.status === 'Refurbishment') {\n      status = ParkConstants.STATUS_REFURBISHMENT;\n    }\n\n    // build our status object\n    const state = {\n      status,\n      // all our queue types\n      // TODO - how to detect virtual queue and FastPass availability?\n      queues: [\n        {\n          type: ParkConstants.QUEUE_STANDBY,\n          waitTime: doc.waitMinutes,\n        },\n      ],\n    };\n\n    // console.log(entityID, state);\n\n    // update attraction status in base class\n    await this._updateAttractionState(entityID, state);\n  }\n\n  /**\n   * Build an attraction object from an ID\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async _buildAttractionObject(attractionID) {\n    await this.db.init();\n\n    // find a document for our attraction ID\n    const attr = await this.db.findOne(attractionID);\n    if (attr) {\n      // TODO - build a full document about this attraction\n      return {\n        id: attractionID,\n        name: attr.name,\n      };\n    }\n\n    return undefined;\n  }\n\n  /**\n   *\n   */\n  async _update() {\n    // TODO - parks that don't use the live database need to implement this function\n  }\n}\n\nexport default DisneyPark;\n",
@@ -2013,7 +2126,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 112,
+    "__docId__": 115,
     "kind": "variable",
     "name": "wdwDB",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -2034,7 +2147,7 @@
     "ignore": true
   },
   {
-    "__docId__": 113,
+    "__docId__": 116,
     "kind": "function",
     "name": "getDatabase",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -2059,7 +2172,7 @@
     "params": []
   },
   {
-    "__docId__": 114,
+    "__docId__": 117,
     "kind": "class",
     "name": "DisneyPark",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -2077,7 +2190,7 @@
     ]
   },
   {
-    "__docId__": 115,
+    "__docId__": 118,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2102,7 +2215,7 @@
     ]
   },
   {
-    "__docId__": 116,
+    "__docId__": 119,
     "kind": "member",
     "name": "db",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2119,7 +2232,7 @@
     }
   },
   {
-    "__docId__": 117,
+    "__docId__": 120,
     "kind": "method",
     "name": "getParkUniqueID",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2141,7 +2254,7 @@
     "params": []
   },
   {
-    "__docId__": 118,
+    "__docId__": 121,
     "kind": "method",
     "name": "getFacilityStatusChannelID",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2163,7 +2276,7 @@
     "params": []
   },
   {
-    "__docId__": 119,
+    "__docId__": 122,
     "kind": "method",
     "name": "_init",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2178,7 +2291,7 @@
     "return": null
   },
   {
-    "__docId__": 120,
+    "__docId__": 123,
     "kind": "method",
     "name": "_processAttractionStatusUpdate",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2204,7 +2317,7 @@
     "return": null
   },
   {
-    "__docId__": 121,
+    "__docId__": 124,
     "kind": "method",
     "name": "_buildAttractionObject",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2234,7 +2347,7 @@
     }
   },
   {
-    "__docId__": 122,
+    "__docId__": 125,
     "kind": "method",
     "name": "_update",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2258,7 +2371,7 @@
   },
   {
     "kind": "packageJSON",
-    "content": "{\n  \"name\": \"parksapi\",\n  \"type\": \"module\",\n  \"version\": \"1.0.0\",\n  \"description\": \"\",\n  \"engines\": {\n    \"npm\": \">=6\",\n    \"node\": \">=14\"\n  },\n  \"main\": \"lib/index.js\",\n  \"scripts\": {\n    \"test\": \"eslint ./lib/**\",\n    \"docs\": \"esdoc\"\n  },\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/ThemeParks/parksapi.git\"\n  },\n  \"author\": \"@cube\",\n  \"license\": \"ISC\",\n  \"bugs\": {\n    \"url\": \"https://github.com/ThemeParks/parksapi/issues\"\n  },\n  \"homepage\": \"https://github.com/ThemeParks/parksapi#readme\",\n  \"dependencies\": {\n    \"dotenv\": \"^8.2.0\",\n    \"express\": \"^4.17.1\",\n    \"express-pouchdb\": \"^4.2.0\",\n    \"extends-classes\": \"^1.0.5\",\n    \"needle\": \"^2.5.0\",\n    \"pouchdb\": \"^7.2.1\",\n    \"pouchdb-replication-stream\": \"github:pouchdb-community/pouchdb-replication-stream#56f0511\",\n    \"promise-retry\": \"^2.0.1\",\n    \"sift\": \"^13.1.10\",\n    \"sqlite3\": \"^5.0.0\"\n  },\n  \"devDependencies\": {\n    \"esdoc\": \"^1.1.0\",\n    \"esdoc-standard-plugin\": \"^1.0.0\",\n    \"eslint\": \"^7.4.0\",\n    \"eslint-config-google\": \"^0.14.0\"\n  }\n}\n",
+    "content": "{\n  \"name\": \"parksapi\",\n  \"type\": \"module\",\n  \"version\": \"1.0.0\",\n  \"description\": \"\",\n  \"engines\": {\n    \"npm\": \">=6\",\n    \"node\": \">=14\"\n  },\n  \"main\": \"lib/index.js\",\n  \"scripts\": {\n    \"test\": \"eslint ./lib/**\",\n    \"docs\": \"esdoc\"\n  },\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/ThemeParks/parksapi.git\"\n  },\n  \"author\": \"@cube\",\n  \"license\": \"ISC\",\n  \"bugs\": {\n    \"url\": \"https://github.com/ThemeParks/parksapi/issues\"\n  },\n  \"homepage\": \"https://github.com/ThemeParks/parksapi#readme\",\n  \"dependencies\": {\n    \"domain-match\": \"^1.0.0\",\n    \"dotenv\": \"^8.2.0\",\n    \"express\": \"^4.17.1\",\n    \"express-pouchdb\": \"^4.2.0\",\n    \"extends-classes\": \"^1.0.5\",\n    \"moment-timezone\": \"^0.5.31\",\n    \"needle\": \"^2.5.0\",\n    \"pouchdb\": \"^7.2.1\",\n    \"pouchdb-replication-stream\": \"github:pouchdb-community/pouchdb-replication-stream#56f0511\",\n    \"promise-retry\": \"^2.0.1\",\n    \"sift\": \"^13.1.10\",\n    \"sqlite3\": \"^5.0.0\"\n  },\n  \"devDependencies\": {\n    \"esdoc\": \"^1.1.0\",\n    \"esdoc-standard-plugin\": \"^1.0.0\",\n    \"eslint\": \"^7.4.0\",\n    \"eslint-config-google\": \"^0.14.0\"\n  }\n}\n",
     "longname": "/home/runner/work/parksapi/parksapi/package.json",
     "name": "package.json",
     "static": true,
