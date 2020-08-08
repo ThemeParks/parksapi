@@ -78,12 +78,6 @@ window.esdocSearchIndex = [
     "function"
   ],
   [
-    "parksapi/lib/parks/wdw/wdwdb.js~getdatabaselocation",
-    "function/index.html#static-function-getDatabaseLocation",
-    "<span>getDatabaseLocation</span> <span class=\"search-result-import-path\">parksapi/lib/parks/wdw/wdwdb.js</span>",
-    "function"
-  ],
-  [
     "parksapi/lib/parks/wdw/wdwdb.js~getentityid",
     "function/index.html#static-function-getEntityID",
     "<span>getEntityID</span> <span class=\"search-result-import-path\">parksapi/lib/parks/wdw/wdwdb.js</span>",
@@ -1053,6 +1047,12 @@ window.esdocSearchIndex = [
     "lib/parks/wdw/wdwdb.js~indexedwdwdb._pluginbulkdocs",
     "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#static-method-_pluginBulkDocs",
     "lib/parks/wdw/wdwdb.js~IndexedWDWDB._pluginBulkDocs",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb.getdatabasefilepath",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#static-method-getDatabaseFilePath",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB.getDatabaseFilePath",
     "method"
   ]
 ]

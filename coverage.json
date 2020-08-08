@@ -15,7 +15,7 @@
       "expectCount": 6,
       "actualCount": 5,
       "undocumentLines": [
-        20
+        21
       ]
     },
     "lib/cache/cacheMemory.js": {
@@ -83,18 +83,18 @@
       "expectCount": 38,
       "actualCount": 26,
       "undocumentLines": [
-        42,
-        50,
-        70,
-        107,
+        33,
+        41,
+        61,
+        99,
+        113,
+        116,
+        117,
+        119,
+        120,
         121,
-        124,
-        125,
-        127,
-        128,
-        129,
-        143,
-        258
+        144,
+        259
       ]
     }
   }

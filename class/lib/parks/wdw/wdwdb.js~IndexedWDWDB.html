@@ -43,20 +43,19 @@
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html">IndexedWDWDB</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabase">getDatabase</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabaseLocation">getDatabaseLocation</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getEntityID">getEntityID</a></span></span></li>
 </ul>
 </div>
 </nav>
 
 <div class="content" data-ice="content"><div class="header-notice">
-  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import {IndexedWDWDB} from &apos;<span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber78">parksapi/lib/parks/wdw/wdwdb.js</a></span>&apos;</code></pre></div>
+  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import {IndexedWDWDB} from &apos;<span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber69">parksapi/lib/parks/wdw/wdwdb.js</a></span>&apos;</code></pre></div>
   <span data-ice="access">public</span>
   <span data-ice="kind">class</span>
   
   
   
-  <span data-ice="source">| <span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber78">source</a></span></span>
+  <span data-ice="source">| <span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber69">source</a></span></span>
 </div>
 
 <div class="self-detail detail">
@@ -94,6 +93,41 @@ Options to dump database to a single file or load a snapshot for quicker databas
 
 
 <div data-ice="staticMethodSummary"><h2>Static Method Summary</h2><table class="summary" data-ice="summary">
+  <thead><tr><td data-ice="title" colspan="3">Static Public Methods</td></tr></thead>
+  <tbody>
+  
+  <tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      <span data-ice="static">static</span>
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#static-method-getDatabaseFilePath">getDatabaseFilePath</a></span></span><span class="code" data-ice="signature">(name: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Get the LevelDOWN database location to use</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+</tbody>
+</table>
+<table class="summary" data-ice="summary">
   <thead><tr><td data-ice="title" colspan="3">Static Private Methods</td></tr></thead>
   <tbody>
   
@@ -1072,7 +1106,82 @@ Loads and performs an initial sync on the database</p>
 
 
 
-<div data-ice="staticMethodDetails"><h2 data-ice="title">Static Private Methods</h2>
+<div data-ice="staticMethodDetails"><h2 data-ice="title">Static Public Methods</h2>
+
+<div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="static-method-getDatabaseFilePath">
+    <span class="access" data-ice="access">public</span>
+    <span data-ice="static">static</span>
+    
+    
+    
+    
+    <span class="code" data-ice="name">getDatabaseFilePath</span><span class="code" data-ice="signature">(name: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber129">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Get the LevelDOWN database location to use</p>
+</div>
+
+  
+
+  <div data-ice="properties"><div data-ice="properties">
+  <h4 data-ice="title">Params:</h4>
+  <table class="params">
+    <thead>
+    <tr><td>Name</td><td>Type</td><td>Attribute</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+    
+    <tr data-ice="property" data-depth="0">
+      <td data-ice="name" class="code" data-depth="0">name</td>
+      <td data-ice="type" class="code"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></td>
+      <td data-ice="appendix"></td>
+      <td data-ice="description"><p>Database name</p>
+</td>
+    </tr>
+</tbody>
+  </table>
+</div>
+</div>
+
+  <div class="return-params" data-ice="returnParams">
+    <h4>Return:</h4>
+    <table>
+      <tbody>
+        <tr>
+          <td class="return-type code" data-ice="returnType"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></td>
+          
+        </tr>
+      </tbody>
+    </table>
+    <div data-ice="returnProperties">
+</div>
+  </div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<h2 data-ice="title">Static Private Methods</h2>
 
 <div class="detail" data-ice="detail">
   <h3 data-ice="anchor" id="static-method-_pluginBulkDocs">
@@ -1086,7 +1195,7 @@ Loads and performs an initial sync on the database</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber662">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber663">source</a></span></span>
     </span>
   </h3>
 
@@ -1163,7 +1272,7 @@ We index any WDW documents we find for easier lookup later</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber90">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber81">source</a></span></span>
     </span>
   </h3>
 
@@ -1270,7 +1379,7 @@ We index any WDW documents we find for easier lookup later</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber107">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber99">source</a></span></span>
     </span>
   </h3>
 
@@ -1313,7 +1422,7 @@ We index any WDW documents we find for easier lookup later</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber258">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber259">source</a></span></span>
     </span>
   </h3>
 
@@ -1356,7 +1465,7 @@ We index any WDW documents we find for easier lookup later</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber143">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber144">source</a></span></span>
     </span>
   </h3>
 
@@ -1399,7 +1508,7 @@ We index any WDW documents we find for easier lookup later</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber121">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber113">source</a></span></span>
     </span>
   </h3>
 
@@ -1442,7 +1551,7 @@ We index any WDW documents we find for easier lookup later</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber125">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber117">source</a></span></span>
     </span>
   </h3>
 
@@ -1485,7 +1594,7 @@ We index any WDW documents we find for easier lookup later</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber124">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber116">source</a></span></span>
     </span>
   </h3>
 
@@ -1530,7 +1639,7 @@ We index any WDW documents we find for easier lookup later</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber127">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber119">source</a></span></span>
     </span>
   </h3>
 
@@ -1573,7 +1682,7 @@ We index any WDW documents we find for easier lookup later</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber129">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber121">source</a></span></span>
     </span>
   </h3>
 
@@ -1616,7 +1725,7 @@ We index any WDW documents we find for easier lookup later</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber128">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber120">source</a></span></span>
     </span>
   </h3>
 
@@ -1662,7 +1771,7 @@ We index any WDW documents we find for easier lookup later</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber610">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber611">source</a></span></span>
     </span>
   </h3>
 
@@ -1735,7 +1844,7 @@ This is a slow operation! Use sparingly!</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber588">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber589">source</a></span></span>
     </span>
   </h3>
 
@@ -1817,7 +1926,7 @@ eg. &apos;wdw.facilitystatus.1_0&apos; to get all WDW facility status documents<
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber484">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber485">source</a></span></span>
     </span>
   </h3>
 
@@ -1889,7 +1998,7 @@ eg. &apos;wdw.facilitystatus.1_0&apos; to get all WDW facility status documents<
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber205">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber206">source</a></span></span>
     </span>
   </h3>
 
@@ -1964,7 +2073,7 @@ eg. Use postfix to generate a temporary version of a file to write to before rep
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber520">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber521">source</a></span></span>
     </span>
   </h3>
 
@@ -2045,7 +2154,7 @@ eg. Use postfix to generate a temporary version of a file to write to before rep
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber503">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber504">source</a></span></span>
     </span>
   </h3>
 
@@ -2125,7 +2234,7 @@ If you want the actual document and not just the meta-index data, use getEntity(
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber537">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber538">source</a></span></span>
     </span>
   </h3>
 
@@ -2207,7 +2316,7 @@ Attempts to return the &quot;best candidate&quot; single document that matches t
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber567">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber568">source</a></span></span>
     </span>
   </h3>
 
@@ -2281,7 +2390,7 @@ Attempts to return the &quot;best candidate&quot; single document that matches t
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber135">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber136">source</a></span></span>
     </span>
   </h3>
 
@@ -2337,7 +2446,7 @@ Attempts to return the &quot;best candidate&quot; single document that matches t
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber216">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber217">source</a></span></span>
     </span>
   </h3>
 
@@ -2413,7 +2522,7 @@ snapshotFile will use default saveSnapshot result location if not supplied</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber246">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber247">source</a></span></span>
     </span>
   </h3>
 
@@ -2471,7 +2580,7 @@ This will be used to &quot;seed&quot; the database to speed up syncs for future 
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber625">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber626">source</a></span></span>
     </span>
   </h3>
 
@@ -2537,7 +2646,7 @@ This will be used to &quot;seed&quot; the database to speed up syncs for future 
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber647">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber648">source</a></span></span>
     </span>
   </h3>
 
@@ -2605,7 +2714,7 @@ This will be used to &quot;seed&quot; the database to speed up syncs for future 
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber318">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber319">source</a></span></span>
     </span>
   </h3>
 
@@ -2673,7 +2782,7 @@ This will be used to &quot;seed&quot; the database to speed up syncs for future 
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber296">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber297">source</a></span></span>
     </span>
   </h3>
 
@@ -2717,7 +2826,7 @@ This will be used to &quot;seed&quot; the database to speed up syncs for future 
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber392">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber393">source</a></span></span>
     </span>
   </h3>
 
@@ -2790,7 +2899,7 @@ This will be used to &quot;seed&quot; the database to speed up syncs for future 
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber335">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber336">source</a></span></span>
     </span>
   </h3>
 
@@ -2869,7 +2978,7 @@ These need to both be in the index under the same entity ID, but with different 
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber414">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber415">source</a></span></span>
     </span>
   </h3>
 
@@ -2931,7 +3040,7 @@ Used for fast lookups of entities etc. to the correct documents</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber277">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber278">source</a></span></span>
     </span>
   </h3>
 
@@ -2988,7 +3097,7 @@ This function wraps taking care of creating our indexes once only</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber167">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber168">source</a></span></span>
     </span>
   </h3>
 
@@ -3045,7 +3154,7 @@ Loads and performs an initial sync on the database</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber308">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/wdwdb.js.html#lineNumber309">source</a></span></span>
     </span>
   </h3>
 

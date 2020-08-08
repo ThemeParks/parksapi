@@ -43,7 +43,6 @@
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html">IndexedWDWDB</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabase">getDatabase</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabaseLocation">getDatabaseLocation</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getEntityID">getEntityID</a></span></span></li>
 </ul>
 </div>
@@ -79,15 +78,6 @@ export function getEntityID(doc) {
     const keyval = p.split(&apos;=&apos;);
     return (keyval.length === 1);
   });
-}
-
-/**
- * Get the LevelDOWN database location to use
- * @param {string} name Database name
- * @return {string}
- */
-export function getDatabaseLocation(name) {
-  return path.join(__dirname, `db.${name}`);
 }
 
 // internal key names for our indexes. Stored as constants to save typing these over and over
@@ -148,7 +138,8 @@ export class IndexedWDWDB extends PouchDB {
     opts.remotePassword = &apos;&apos;;
     opts.dbName = opts.dbName || &apos;wdw&apos;;
     opts.snapshot = &apos;&apos;; // optional snapshot to use when starting database
-    opts.name = opts.name || getDatabaseLocation(opts.dbName);
+    // &apos;name&apos; is the config option pouchdb uses for the storage path
+    opts.name = opts.name || IndexedWDWDB.getDatabaseFilePath(opts.dbName);
 
     opts.skipSync = opts.skipSync === undefined ? false : opts.skipSync;
 
@@ -179,6 +170,15 @@ export class IndexedWDWDB extends PouchDB {
     this._index = {};
     this._setupPromise = null;
     this._indexSetup = false;
+  }
+
+  /**
+ * Get the LevelDOWN database location to use
+ * @param {string} name Database name
+ * @return {string}
+ */
+  static getDatabaseFilePath(name) {
+    return path.join(process.cwd(), `db.${name}`);
   }
 
   /**
