@@ -25,9 +25,6 @@
   "dependencies": {
     "domain-match": "^1.0.0",
     "dotenv": "^8.2.0",
-    "express": "^4.17.1",
-    "express-pouchdb": "^4.2.0",
-    "extends-classes": "^1.0.5",
     "moment-timezone": "^0.5.31",
     "needle": "^2.5.0",
     "pouchdb": "^7.2.1",
