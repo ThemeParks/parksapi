@@ -33,6 +33,7 @@
     "pouchdb": "^7.2.1",
     "pouchdb-replication-stream": "github:pouchdb-community/pouchdb-replication-stream#56f0511",
     "promise-retry": "^2.0.1",
+    "random-useragent": "^0.4.0",
     "sift": "^13.1.10",
     "sqlite3": "^5.0.0"
   },
