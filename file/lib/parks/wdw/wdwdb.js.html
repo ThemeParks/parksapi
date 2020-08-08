@@ -148,6 +148,8 @@ export class IndexedWDWDB extends PouchDB {
     opts.snapshot = &apos;&apos;; // optional snapshot to use when starting database
     opts.name = opts.name || getDatabaseLocation(opts.dbName);
 
+    opts.skipSync = opts.skipSync === undefined ? false : opts.skipSync;
+
     opts.configPrefixes = [&apos;WDWDB&apos;].concat(opts.configPrefixes || []);
     const config = parseConfig(opts);
 
