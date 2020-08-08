@@ -36,7 +36,9 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheLevel.js~CacheLevel.html">CacheLevel</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheMemory.js~CacheMemory.html">CacheMemory</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheSqlite.js~CacheSqlite.html">CacheSqlite</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/scopedCache.js~ScopedCache.html">ScopedCache</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-ParkConstants">ParkConstants</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html">IndexedWDWDB</a></span></span></li>
@@ -52,6 +54,9 @@
 import ConfigBase from &apos;../configBase.js&apos;;
 import needle from &apos;needle&apos;;
 import domainMatch from &apos;domain-match&apos;;
+import moment from &apos;moment-timezone&apos;;
+import randomUseragent from &apos;random-useragent&apos;;
+import Cache from &apos;../cache/scopedCache.js&apos;;
 
 // quick helper function to wait x milliseconds as a Promise
 const delay = (milliseconds) =&gt; {
@@ -79,6 +84,13 @@ export const ParkConstants = {
   STATUS_REFURBISHMENT: &apos;REFURBISHMENT&apos;,
 };
 
+/** Generate a random Android user agent for making network requests */
+export function generateRandomAndroidUseragent() {
+  randomUseragent.getRandom((ua) =&gt; {
+    return (ua.osName === &apos;Android&apos;);
+  });
+}
+
 /**
  * Base Park Object
  * @class
@@ -95,7 +107,25 @@ export class Park extends ConfigBase {
     //  set this if the update is being handled by an external system
     options.disableParkUpdate = false;
 
+    // generate a random Android user-agent if we aren&apos;t supplied one
+    options.useragent = options.useragent || generateRandomAndroidUseragent();
+
     super(options);
+
+    if (!options.name) {
+      throw new Error(`Missing name for constructed park object ${this.constructor.name}`);
+    }
+
+    if (!options.timezone) {
+      throw new Error(`Missing timezone for constructed park object ${this.constructor.name}`);
+    }
+    // validate park timezone
+    if (moment.tz.names().indexOf(options.timezone) &lt; 0) {
+      throw new Error(`Park object ${this.constructor.name} gives an invalid timezone: ${options.timezone}`);
+    }
+
+    // create a new cache object for this park
+    this.cache = new Cache(this.constructor.name, this.config.cacheVersion || 0);
 
     this.initialised = false;
 
@@ -265,6 +295,7 @@ export class Park extends ConfigBase {
    * Internal function
    * Called by init() to initialise the object
    * @private
+   * @abstract
    */
   async _init() {
     // implementation should be setup in child classes
@@ -273,6 +304,7 @@ export class Park extends ConfigBase {
 
   /**
    * Update function the park object calls on interval to update internal state
+   * @private
    * @abstract
    */
   async _update() {
@@ -283,7 +315,8 @@ export class Park extends ConfigBase {
   /**
    * Register a new injection for a specific domain
    * @param {string} domain Domain to inject for, accepts wildcards. See domain-match
-   * @param {function} func Function to call with needle request to inject extra data into. Must return a Promise
+   * @param {function} func Function to call with needle request to inject extra data into.
+   * Function will take arguments: (method, URL, data, options)
    */
   async injectForDomain(domain, func) {
     // add to our array of injections, this is processing by http()
@@ -305,6 +338,12 @@ export class Park extends ConfigBase {
     // always have a headers array
     if (!options.headers) {
       options.headers = {};
+    }
+
+    // inject custom standard user agent (if we have one)
+    //  do this before any custom injections so parks can optionally override this for each domain
+    if (this.config.useragent) {
+      options.headers[&apos;user-agent&apos;] = this.config.useragent;
     }
 
     // check any hostname injections we have setup

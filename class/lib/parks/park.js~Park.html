@@ -36,7 +36,9 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheLevel.js~CacheLevel.html">CacheLevel</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheMemory.js~CacheMemory.html">CacheMemory</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheSqlite.js~CacheSqlite.html">CacheSqlite</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/scopedCache.js~ScopedCache.html">ScopedCache</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-ParkConstants">ParkConstants</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html">IndexedWDWDB</a></span></span></li>
@@ -48,13 +50,13 @@
 </nav>
 
 <div class="content" data-ice="content"><div class="header-notice">
-  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import {Park} from &apos;<span><a href="file/lib/parks/park.js.html#lineNumber36">parksapi/lib/parks/park.js</a></span>&apos;</code></pre></div>
+  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import {Park} from &apos;<span><a href="file/lib/parks/park.js.html#lineNumber46">parksapi/lib/parks/park.js</a></span>&apos;</code></pre></div>
   <span data-ice="access">public</span>
   <span data-ice="kind">class</span>
   
   
   
-  <span data-ice="source">| <span><a href="file/lib/parks/park.js.html#lineNumber36">source</a></span></span>
+  <span data-ice="source">| <span><a href="file/lib/parks/park.js.html#lineNumber46">source</a></span></span>
 </div>
 
 <div class="self-detail detail">
@@ -130,6 +132,34 @@
   <tbody>
   
   <tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-member-cache">cache</a></span></span><span class="code" data-ice="signature">: <span>*</span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
     <td>
       <span class="access" data-ice="access">public</span>
       
@@ -529,7 +559,7 @@ This object should not contain any &quot;state&quot; data, just static informati
       <span class="access" data-ice="access">private</span>
       
       
-      
+      <span class="abstract" data-ice="abstract">abstract</span>
       <span class="override" data-ice="override"></span>
     </td>
     <td>
@@ -697,7 +727,7 @@ Called by init() to initialise the object</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber41">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber51">source</a></span></span>
     </span>
   </h3>
 
@@ -749,6 +779,49 @@ Called by init() to initialise the object</p>
 <div data-ice="memberDetails"><h2 data-ice="title">Public Members</h2>
 
 <div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-member-cache">
+    <span class="access" data-ice="access">public</span>
+    
+    
+    
+    
+    
+    <span class="code" data-ice="name">cache</span><span class="code" data-ice="signature">: <span>*</span></span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber76">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  
+
+  
+
+  <div data-ice="properties">
+</div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
   <h3 data-ice="anchor" id="instance-member-initialised">
     <span class="access" data-ice="access">public</span>
     
@@ -760,7 +833,7 @@ Called by init() to initialise the object</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber50">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber78">source</a></span></span>
     </span>
   </h3>
 
@@ -803,7 +876,7 @@ Called by init() to initialise the object</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber92">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber120">source</a></span></span>
     </span>
   </h3>
 
@@ -846,7 +919,7 @@ Called by init() to initialise the object</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber194">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber222">source</a></span></span>
     </span>
   </h3>
 
@@ -891,7 +964,7 @@ Called by init() to initialise the object</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber52">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber80">source</a></span></span>
     </span>
   </h3>
 
@@ -934,7 +1007,7 @@ Called by init() to initialise the object</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber56">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber84">source</a></span></span>
     </span>
   </h3>
 
@@ -980,7 +1053,7 @@ Called by init() to initialise the object</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber142">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber170">source</a></span></span>
     </span>
   </h3>
 
@@ -1053,7 +1126,7 @@ Called by init() to initialise the object</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber69">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber97">source</a></span></span>
     </span>
   </h3>
 
@@ -1109,7 +1182,7 @@ Called by init() to initialise the object</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber62">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber90">source</a></span></span>
     </span>
   </h3>
 
@@ -1153,7 +1226,7 @@ Called by init() to initialise the object</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber254">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber285">source</a></span></span>
     </span>
   </h3>
 
@@ -1248,7 +1321,7 @@ Parks can automatically add in authentication headers etc. to requests sent to t
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber80">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber108">source</a></span></span>
     </span>
   </h3>
 
@@ -1305,7 +1378,7 @@ Call to ensure the object has been initialised before accessing data</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber238">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber269">source</a></span></span>
     </span>
   </h3>
 
@@ -1336,7 +1409,8 @@ Call to ensure the object has been initialised before accessing data</p>
       <td data-ice="name" class="code" data-depth="0">func</td>
       <td data-ice="type" class="code"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function">function</a></span></td>
       <td data-ice="appendix"></td>
-      <td data-ice="description"><p>Function to call with needle request to inject extra data into. Must return a Promise</p>
+      <td data-ice="description"><p>Function to call with needle request to inject extra data into.
+Function will take arguments: (method, URL, data, options)</p>
 </td>
     </tr>
 </tbody>
@@ -1373,7 +1447,7 @@ Call to ensure the object has been initialised before accessing data</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber188">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber216">source</a></span></span>
     </span>
   </h3>
 
@@ -1432,7 +1506,7 @@ This is automatically called for you unless disableParkUpdate is set to false</p
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber134">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber162">source</a></span></span>
     </span>
   </h3>
 
@@ -1487,14 +1561,14 @@ This object should not contain any &quot;state&quot; data, just static informati
     <span class="access" data-ice="access">private</span>
     
     
-    
+    <span class="abstract" data-ice="abstract">abstract</span>
     <span data-ice="async">async</span>
     
     <span class="code" data-ice="name">_init</span><span class="code" data-ice="signature">()</span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber219">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber248">source</a></span></span>
     </span>
   </h3>
 
@@ -1539,7 +1613,7 @@ Called by init() to initialise the object</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber122">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber150">source</a></span></span>
     </span>
   </h3>
 
@@ -1595,7 +1669,7 @@ Called by init() to initialise the object</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber228">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber258">source</a></span></span>
     </span>
   </h3>
 
@@ -1639,7 +1713,7 @@ Called by init() to initialise the object</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber172">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber200">source</a></span></span>
     </span>
   </h3>
 

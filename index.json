@@ -567,7 +567,7 @@
     "__docId__": 48,
     "kind": "file",
     "name": "lib/cache/cacheBase.js",
-    "content": "/**\n * Our base Cache implementation\n * Extend this class with new implementations to create different cache types (in-memory, database, file system etc.)\n * @class\n */\nexport default class CacheBase {\n  /**\n     * @param {Object} options\n     * @param {boolean} [options.useMemoryCache=true] Use an in-memory layer on top of this cache\n     *  Avoid hitting databases too often\n     *  Not useful if using any distributed setup where memory will be out-of-sync between processes\n     * @param {(number|null)} [options.memoryCacheTimeout=null] Timeout for in-memory cache values\n     *  Default is null, which will use the incoming ttl values for each key\n     */\n  constructor(options = {\n    useMemoryCache: true,\n    memoryCacheTimeout: null,\n  }) {\n    this.memoryLayerEnabled = options.useMemoryCache;\n    this.memCache = {};\n  }\n\n  /**\n     * Internal implementation of Get()\n     * @abstract\n     * @async\n     * @private\n     * @param {string} key Unique key name for this cache entry\n     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present\n     */\n  async _get(key) {\n    throw new Error('Missing Implementation CacheBase::_Get(key)');\n  }\n\n  /**\n     * Internal implementation of Set()\n     * @abstract\n     * @async\n     * @private\n     * @param {string} key Unique key name for this cache entry\n     * @param {Object} value\n     * @param {number} ttl How long the cache entry should last in milliseconds\n     */\n  async _set(key, value, ttl) {\n    throw new Error('Missing Implementation CacheBase::_Set(key, value, ttl)');\n  }\n\n  /**\n     * Get a cached object\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present\n     */\n  async get(key) {\n    // our optional in-memory cache goes first\n    if (this.memoryLayerEnabled) {\n      const cacheEntry = this.memCache[key];\n      if (cacheEntry !== undefined) {\n        const now = +new Date();\n        if (cacheEntry.expires >= now) {\n          return cacheEntry.value;\n        }\n      }\n    }\n\n    // then use our internal cache if we haven't got the value stored locally\n    return await this._get(key);\n  }\n\n  /**\n     * Set a key in our cache\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {Object} value\n     * @param {(Function|number)} [ttl=3600000] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     *  Default 1 hour\n     */\n  async set(key, value, ttl = 3600000) {\n    // resolve our cache time\n    let cacheTime = ttl;\n    // if our cache time input is a function, resolve it and store the result (in milliseconds)\n    if (typeof cacheTime === 'function') {\n      cacheTime = await cacheTime();\n    }\n\n    // optionally keep an in-memory cache layer\n    if (this.memoryLayerEnabled) {\n      const memoryCacheTime = this.memoryCacheTimeout === null ?\n        cacheTime :\n        (Math.min(this.memoryCacheTimeout, cacheTime)\n        );\n\n      this.memCache[key] = {\n        value,\n        expires: (+new Date()) + memoryCacheTime,\n      };\n    }\n\n    // call the private _Set implementation to actually set the key\n    this._set(key, value, cacheTime);\n  }\n\n  /**\n     * A helper \"wrap\" function that will return a cached value if present\n     *  This will call the supplied function to fetch it if the value isn't present in the cache\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {function} fn Fetch function that will be called if the cache entry is not present\n     * @param {(function|number)} [ttl] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     */\n  async wrap(key, fn, ttl) {\n    // try and fetch the cached value\n    let cachedValue = await this.get(key);\n\n    // if not in our cache, call the supplied fetcher function\n    if (cachedValue === undefined) {\n      cachedValue = await fn();\n      // set the new value in our cache\n      await this.set(key, cachedValue, ttl);\n    }\n\n    // return the fetched or calculated value\n    return cachedValue;\n  }\n}\n",
+    "content": "/**\n * Our base Cache implementation\n * Extend this class with new implementations to create different cache types (in-memory, database, file system etc.)\n * @class\n */\nexport default class CacheBase {\n  /**\n     * @param {Object} options\n     * @param {boolean} [options.useMemoryCache=true] Use an in-memory layer on top of this cache\n     *  Avoid hitting databases too often\n     *  Not useful if using any distributed setup where memory will be out-of-sync between processes\n     * @param {(number|null)} [options.memoryCacheTimeout=null] Timeout for in-memory cache values\n     *  Default is null, which will use the incoming ttl values for each key\n     */\n  constructor(options = {\n    useMemoryCache: true,\n    memoryCacheTimeout: null,\n  }) {\n    this.memoryLayerEnabled = options.useMemoryCache;\n    this.memCache = {};\n  }\n\n  /**\n     * Internal implementation of Get()\n     * @param {string} key Unique key name for this cache entry\n     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present\n     * @abstract\n     * @private\n     */\n  async _get(key) {\n    throw new Error('Missing Implementation CacheBase::_Get(key)');\n  }\n\n  /**\n     * Internal implementation of Set()\n     * @param {string} key Unique key name for this cache entry\n     * @param {Object} value\n     * @param {number} ttl How long the cache entry should last in milliseconds\n     * @abstract\n     * @private\n     */\n  async _set(key, value, ttl) {\n    throw new Error('Missing Implementation CacheBase::_Set(key, value, ttl)');\n  }\n\n  /**\n     * Internal implementation of getKeys()\n     * @param {string} prefix\n     * @abstract\n     * @private\n     */\n  async _getKeys(prefix) {\n    throw new Error('Missing Implementation CacheBase::_getKeys(prefix)');\n  }\n\n  /**\n     * Get a cached object\n     * @param {string} key Unique key name for this cache entry\n     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present\n     */\n  async get(key) {\n    // our optional in-memory cache goes first\n    if (this.memoryLayerEnabled) {\n      const cacheEntry = this.memCache[key];\n      if (cacheEntry !== undefined) {\n        const now = +new Date();\n        if (cacheEntry.expires >= now) {\n          return cacheEntry.value;\n        }\n      }\n    }\n\n    // then use our internal cache if we haven't got the value stored locally\n    return await this._get(key);\n  }\n\n  /**\n     * Set a key in our cache\n     * @param {string} key Unique key name for this cache entry\n     * @param {Object} value\n     * @param {(Function|number)} [ttl=3600000] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     *  Default 1 hour\n     */\n  async set(key, value, ttl = 3600000) {\n    // resolve our cache time\n    let cacheTime = ttl;\n    // if our cache time input is a function, resolve it and store the result (in milliseconds)\n    if (typeof cacheTime === 'function') {\n      cacheTime = await cacheTime();\n    }\n\n    // optionally keep an in-memory cache layer\n    if (this.memoryLayerEnabled) {\n      const memoryCacheTime = this.memoryCacheTimeout === null ?\n        cacheTime :\n        (Math.min(this.memoryCacheTimeout, cacheTime)\n        );\n\n      this.memCache[key] = {\n        value,\n        expires: (+new Date()) + memoryCacheTime,\n      };\n    }\n\n    // call the private _Set implementation to actually set the key\n    this._set(key, value, cacheTime);\n  }\n\n  /**\n     * A helper \"wrap\" function that will return a cached value if present\n     *  This will call the supplied function to fetch it if the value isn't present in the cache\n     * @param {string} key Unique key name for this cache entry\n     * @param {function} fn Fetch function that will be called if the cache entry is not present\n     * @param {(function|number)} [ttl] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     */\n  async wrap(key, fn, ttl) {\n    // try and fetch the cached value\n    let cachedValue = await this.get(key);\n\n    // if not in our cache, call the supplied fetcher function\n    if (cachedValue === undefined) {\n      cachedValue = await fn();\n      // set the new value in our cache\n      await this.set(key, cachedValue, ttl);\n    }\n\n    // return the fetched or calculated value\n    return cachedValue;\n  }\n\n  /**\n   * Get an array of all the cached keys matching the supplied prefix\n   * @param {string} [prefix='']\n   * @return {array<string>}\n   */\n  async getKeys(prefix = '') {\n    return this._getKeys(prefix);\n  }\n}\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/cache/cacheBase.js",
     "access": "public",
@@ -690,7 +690,7 @@
     "longname": "lib/cache/cacheBase.js~CacheBase#_get",
     "access": "private",
     "description": "Internal implementation of Get()",
-    "lineNumber": 31,
+    "lineNumber": 30,
     "params": [
       {
         "nullable": null,
@@ -725,7 +725,7 @@
     "longname": "lib/cache/cacheBase.js~CacheBase#_set",
     "access": "private",
     "description": "Internal implementation of Set()",
-    "lineNumber": 44,
+    "lineNumber": 42,
     "params": [
       {
         "nullable": null,
@@ -764,6 +764,33 @@
   {
     "__docId__": 55,
     "kind": "method",
+    "name": "_getKeys",
+    "memberof": "lib/cache/cacheBase.js~CacheBase",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheBase.js~CacheBase#_getKeys",
+    "access": "private",
+    "description": "Internal implementation of getKeys()",
+    "lineNumber": 52,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "prefix",
+        "description": ""
+      }
+    ],
+    "abstract": true,
+    "return": null
+  },
+  {
+    "__docId__": 56,
+    "kind": "method",
     "name": "get",
     "memberof": "lib/cache/cacheBase.js~CacheBase",
     "generator": false,
@@ -772,7 +799,7 @@
     "longname": "lib/cache/cacheBase.js~CacheBase#get",
     "access": "public",
     "description": "Get a cached object",
-    "lineNumber": 55,
+    "lineNumber": 61,
     "params": [
       {
         "nullable": null,
@@ -796,7 +823,7 @@
     }
   },
   {
-    "__docId__": 56,
+    "__docId__": 57,
     "kind": "method",
     "name": "set",
     "memberof": "lib/cache/cacheBase.js~CacheBase",
@@ -806,7 +833,7 @@
     "longname": "lib/cache/cacheBase.js~CacheBase#set",
     "access": "public",
     "description": "Set a key in our cache",
-    "lineNumber": 81,
+    "lineNumber": 85,
     "params": [
       {
         "nullable": null,
@@ -845,7 +872,7 @@
     "return": null
   },
   {
-    "__docId__": 57,
+    "__docId__": 58,
     "kind": "method",
     "name": "wrap",
     "memberof": "lib/cache/cacheBase.js~CacheBase",
@@ -855,7 +882,7 @@
     "longname": "lib/cache/cacheBase.js~CacheBase#wrap",
     "access": "public",
     "description": "A helper \"wrap\" function that will return a cached value if present\n This will call the supplied function to fetch it if the value isn't present in the cache",
-    "lineNumber": 116,
+    "lineNumber": 118,
     "params": [
       {
         "nullable": null,
@@ -896,10 +923,45 @@
     }
   },
   {
-    "__docId__": 58,
+    "__docId__": 59,
+    "kind": "method",
+    "name": "getKeys",
+    "memberof": "lib/cache/cacheBase.js~CacheBase",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheBase.js~CacheBase#getKeys",
+    "access": "public",
+    "description": "Get an array of all the cached keys matching the supplied prefix",
+    "lineNumber": 138,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": true,
+        "defaultValue": "''",
+        "defaultRaw": "''",
+        "name": "prefix",
+        "description": ""
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "array<string>"
+      ],
+      "spread": false,
+      "description": ""
+    }
+  },
+  {
+    "__docId__": 60,
     "kind": "file",
     "name": "lib/cache/cacheLevel.js",
-    "content": "import CacheBase from './cacheBase.js';\nimport level from 'level';\n\n/**\n * A cache implementation using LevelDown\n * @extends CacheBase\n * @class\n */\nexport default class CacheLevel extends CacheBase {\n  /**\n   * Create new Memory cache object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.useMemoryCache = false;\n\n    super(options);\n\n    // setup our Level database\n    this.db = level('db.cache');\n  }\n\n  /**\n   * Get a cached object by key\n   * @param {string} key\n   * @private\n   */\n  async _get(key) {\n    const cacheEntry = await this.db.get(key);\n\n    if (cacheEntry !== undefined) {\n      const cacheEntryData = JSON.parse(cacheEntry);\n      const now = +new Date();\n      if (cacheEntryData.expires >= now) {\n        return cacheEntryData.value;\n      }\n    }\n\n    return undefined;\n  }\n\n  /**\n   * Set a key\n   * @param {string} key\n   * @param {object} value\n   * @param {*} [ttl]\n   * @private\n   */\n  async _set(key, value, ttl) {\n    await this.db.put(key, JSON.stringify({\n      value,\n      expires: (+ new Date()) + ttl,\n    }));\n  }\n}\n",
+    "content": "import CacheBase from './cacheBase.js';\nimport level from 'level';\n\n/**\n * A cache implementation using LevelDown\n * @extends CacheBase\n * @class\n */\nexport default class CacheLevel extends CacheBase {\n  /**\n   * Create new Memory cache object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.useMemoryCache = false;\n\n    super(options);\n\n    // setup our Level database\n    this.db = level('db.cache');\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _get(key) {\n    try {\n      const cacheEntry = await this.db.get(key);\n      if (cacheEntry !== undefined) {\n        const cacheEntryData = JSON.parse(cacheEntry);\n        const now = +new Date();\n        if (cacheEntryData.expires >= now) {\n          return cacheEntryData.value;\n        }\n      }\n    } catch (err) {\n      // ignore NotFoundError, throw any other errors back up the chain\n      if (err.name !== 'NotFoundError') {\n        throw err;\n      }\n    }\n\n    return undefined;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _set(key, value, ttl) {\n    await this.db.put(key, JSON.stringify({\n      value,\n      expires: (+ new Date()) + ttl,\n    }));\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _getKeys(prefix) {\n    return new Promise((resolve) => {\n      const keys = [];\n      const keyStream = this.db.createKeyStream();\n      keyStream.on('data', (data) => {\n        if (data.indexOf(prefix) === 0) {\n          keys.push(data);\n        }\n      });\n      keyStream.on('end', () => {\n        return resolve(keys);\n      });\n    });\n  }\n}\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/cache/cacheLevel.js",
     "access": "public",
@@ -907,7 +969,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 59,
+    "__docId__": 61,
     "kind": "class",
     "name": "CacheLevel",
     "memberof": "lib/cache/cacheLevel.js",
@@ -931,7 +993,7 @@
     ]
   },
   {
-    "__docId__": 60,
+    "__docId__": 62,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/cache/cacheLevel.js~CacheLevel",
@@ -956,7 +1018,7 @@
     ]
   },
   {
-    "__docId__": 61,
+    "__docId__": 63,
     "kind": "member",
     "name": "db",
     "memberof": "lib/cache/cacheLevel.js~CacheLevel",
@@ -973,7 +1035,7 @@
     }
   },
   {
-    "__docId__": 62,
+    "__docId__": 64,
     "kind": "method",
     "name": "_get",
     "memberof": "lib/cache/cacheLevel.js~CacheLevel",
@@ -982,18 +1044,20 @@
     "static": false,
     "longname": "lib/cache/cacheLevel.js~CacheLevel#_get",
     "access": "private",
-    "description": "Get a cached object by key",
-    "lineNumber": 28,
+    "description": "",
+    "lineNumber": 26,
+    "unknown": [
+      {
+        "tagName": "@inheritdoc",
+        "tagValue": ""
+      }
+    ],
     "params": [
       {
-        "nullable": null,
-        "types": [
-          "string"
-        ],
-        "spread": false,
-        "optional": false,
         "name": "key",
-        "description": ""
+        "types": [
+          "*"
+        ]
       }
     ],
     "return": {
@@ -1003,7 +1067,7 @@
     }
   },
   {
-    "__docId__": 63,
+    "__docId__": 65,
     "kind": "method",
     "name": "_set",
     "memberof": "lib/cache/cacheLevel.js~CacheLevel",
@@ -1012,47 +1076,73 @@
     "static": false,
     "longname": "lib/cache/cacheLevel.js~CacheLevel#_set",
     "access": "private",
-    "description": "Set a key",
+    "description": "",
     "lineNumber": 49,
+    "unknown": [
+      {
+        "tagName": "@inheritdoc",
+        "tagValue": ""
+      }
+    ],
     "params": [
       {
-        "nullable": null,
-        "types": [
-          "string"
-        ],
-        "spread": false,
-        "optional": false,
         "name": "key",
-        "description": ""
-      },
-      {
-        "nullable": null,
-        "types": [
-          "object"
-        ],
-        "spread": false,
-        "optional": false,
-        "name": "value",
-        "description": ""
-      },
-      {
-        "nullable": null,
         "types": [
           "*"
-        ],
-        "spread": false,
-        "optional": true,
+        ]
+      },
+      {
+        "name": "value",
+        "types": [
+          "*"
+        ]
+      },
+      {
         "name": "ttl",
-        "description": ""
+        "types": [
+          "*"
+        ]
       }
     ],
     "return": null
   },
   {
-    "__docId__": 64,
+    "__docId__": 66,
+    "kind": "method",
+    "name": "_getKeys",
+    "memberof": "lib/cache/cacheLevel.js~CacheLevel",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheLevel.js~CacheLevel#_getKeys",
+    "access": "private",
+    "description": "",
+    "lineNumber": 59,
+    "unknown": [
+      {
+        "tagName": "@inheritdoc",
+        "tagValue": ""
+      }
+    ],
+    "params": [
+      {
+        "name": "prefix",
+        "types": [
+          "*"
+        ]
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 67,
     "kind": "file",
     "name": "lib/cache/cacheMemory.js",
-    "content": "import CacheBase from './cacheBase.js';\n\n/**\n * A basic in-memory cache implementation\n * @extends CacheBase\n * @class\n */\nexport default class CacheMemory extends CacheBase {\n  /**\n   * Create new Memory cache object\n   * @param {object} options\n   */\n  constructor(options) {\n    // disable our internal memory cache, since this is exactly what this implementation is already doing\n    options.useMemoryCache = false;\n\n    super(options);\n\n    this.cache = {};\n  }\n\n  /**\n   * Get a cached object by key\n   * @param {string} key\n   * @private\n   */\n  async _get(key) {\n    const cacheEntry = this.cache[key];\n\n    if (cacheEntry !== undefined) {\n      const now = +new Date();\n      if (cacheEntry.expires >= now) {\n        return cacheEntry.value;\n      }\n    }\n\n    return undefined;\n  }\n\n  /**\n   * Set a key\n   * @param {string} key\n   * @param {object} value\n   * @param {*} [ttl]\n   * @private\n   */\n  async _set(key, value, ttl) {\n    this.cache[key] = {\n      value,\n      expires: (+ new Date()) + ttl,\n    };\n  }\n}\n",
+    "content": "import CacheBase from './cacheBase.js';\n\n/**\n * A basic in-memory cache implementation\n * @extends CacheBase\n * @class\n */\nexport default class CacheMemory extends CacheBase {\n  /**\n   * Create new Memory cache object\n   * @param {object} options\n   */\n  constructor(options) {\n    // disable our internal memory cache, since this is exactly what this implementation is already doing\n    options.useMemoryCache = false;\n\n    super(options);\n\n    this.cache = {};\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _get(key) {\n    const cacheEntry = this.cache[key];\n\n    if (cacheEntry !== undefined) {\n      const now = +new Date();\n      if (cacheEntry.expires >= now) {\n        return cacheEntry.value;\n      }\n    }\n\n    return undefined;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _set(key, value, ttl) {\n    this.cache[key] = {\n      value,\n      expires: (+ new Date()) + ttl,\n    };\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _getKeys(prefix) {\n    return Object.keys(this.cache).filter((key) => {\n      return key.indexOf(prefix) === 0;\n    });\n  }\n}\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/cache/cacheMemory.js",
     "access": "public",
@@ -1060,7 +1150,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 65,
+    "__docId__": 68,
     "kind": "class",
     "name": "CacheMemory",
     "memberof": "lib/cache/cacheMemory.js",
@@ -1084,7 +1174,7 @@
     ]
   },
   {
-    "__docId__": 66,
+    "__docId__": 69,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/cache/cacheMemory.js~CacheMemory",
@@ -1109,7 +1199,7 @@
     ]
   },
   {
-    "__docId__": 67,
+    "__docId__": 70,
     "kind": "member",
     "name": "cache",
     "memberof": "lib/cache/cacheMemory.js~CacheMemory",
@@ -1126,7 +1216,7 @@
     }
   },
   {
-    "__docId__": 68,
+    "__docId__": 71,
     "kind": "method",
     "name": "_get",
     "memberof": "lib/cache/cacheMemory.js~CacheMemory",
@@ -1135,18 +1225,20 @@
     "static": false,
     "longname": "lib/cache/cacheMemory.js~CacheMemory#_get",
     "access": "private",
-    "description": "Get a cached object by key",
-    "lineNumber": 27,
+    "description": "",
+    "lineNumber": 25,
+    "unknown": [
+      {
+        "tagName": "@inheritdoc",
+        "tagValue": ""
+      }
+    ],
     "params": [
       {
-        "nullable": null,
-        "types": [
-          "string"
-        ],
-        "spread": false,
-        "optional": false,
         "name": "key",
-        "description": ""
+        "types": [
+          "*"
+        ]
       }
     ],
     "return": {
@@ -1156,7 +1248,7 @@
     }
   },
   {
-    "__docId__": 69,
+    "__docId__": 72,
     "kind": "method",
     "name": "_set",
     "memberof": "lib/cache/cacheMemory.js~CacheMemory",
@@ -1165,47 +1257,73 @@
     "static": false,
     "longname": "lib/cache/cacheMemory.js~CacheMemory#_set",
     "access": "private",
-    "description": "Set a key",
-    "lineNumber": 47,
+    "description": "",
+    "lineNumber": 41,
+    "unknown": [
+      {
+        "tagName": "@inheritdoc",
+        "tagValue": ""
+      }
+    ],
     "params": [
       {
-        "nullable": null,
-        "types": [
-          "string"
-        ],
-        "spread": false,
-        "optional": false,
         "name": "key",
-        "description": ""
-      },
-      {
-        "nullable": null,
-        "types": [
-          "object"
-        ],
-        "spread": false,
-        "optional": false,
-        "name": "value",
-        "description": ""
-      },
-      {
-        "nullable": null,
         "types": [
           "*"
-        ],
-        "spread": false,
-        "optional": true,
+        ]
+      },
+      {
+        "name": "value",
+        "types": [
+          "*"
+        ]
+      },
+      {
         "name": "ttl",
-        "description": ""
+        "types": [
+          "*"
+        ]
       }
     ],
     "return": null
   },
   {
-    "__docId__": 70,
+    "__docId__": 73,
+    "kind": "method",
+    "name": "_getKeys",
+    "memberof": "lib/cache/cacheMemory.js~CacheMemory",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheMemory.js~CacheMemory#_getKeys",
+    "access": "private",
+    "description": "",
+    "lineNumber": 51,
+    "unknown": [
+      {
+        "tagName": "@inheritdoc",
+        "tagValue": ""
+      }
+    ],
+    "params": [
+      {
+        "name": "prefix",
+        "types": [
+          "*"
+        ]
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 74,
     "kind": "file",
     "name": "lib/cache/cacheSqlite.js",
-    "content": "import sqlite3 from 'sqlite3';\n\nimport CacheBase from './cacheBase.js';\n\n/**\n * Caching implementation using SQLite\n * @extends CacheBase\n * @class\n */\nexport default class CacheSqlite extends CacheBase {\n  /**\n     * @param {Object} options\n     * @param {string} options.filename Database filename to use with Sqlite\n     * @param {Object} [options.db] Existing SQLite3 object to use for our database\n     *  If left empty, a database object will be created automatically\n     */\n  constructor(options = {\n    filename: ':memory:',\n    db: undefined,\n  }) {\n    options.useMemoryCache = false;\n\n    super(options);\n\n    const dbFilename = options.filename || ':memory:';\n    this.db = options.db || new sqlite3.Database(dbFilename);\n\n    this.init = false;\n  }\n\n  /**\n   * Run a query against our SQLite database\n   * @param {string} query\n   * @param {array} args\n   */\n  async runQuery(query, args) {\n    return new Promise((resolve, reject) => {\n      this.db.get(query, args, (err, result) => {\n        if (err) {\n          return reject(err);\n        }\n        resolve(result);\n      });\n    });\n  }\n\n  /**\n   * Setup the database ready for use\n   * @private\n   */\n  async setupDB() {\n    if (this.init) return;\n\n    // setup our database\n    this.db.serialize(() => {\n      this.db.run('CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, value TEXT, expires BIGINT)');\n    });\n\n    this.init = true;\n  }\n\n  /**\n   * Get a cache entry by key\n   * @param {string} key\n   * @private\n   */\n  async _get(key) {\n    await this.setupDB();\n\n    const row = await this.runQuery('SELECT value FROM cache WHERE key = ? AND expires >= ?', [key, +new Date()]);\n    if (!row) return undefined;\n\n    try {\n      return JSON.parse(row.value);\n    } catch (e) {\n    }\n    return undefined;\n  }\n\n  /**\n   * Set a cache entry\n   * @param {string} key\n   * @param {object} value\n   * @param {*} ttl\n   * @private\n   */\n  async _set(key, value, ttl) {\n    await this.setupDB();\n\n    await this.runQuery(\n        'INSERT OR REPLACE INTO cache (key, value, expires) VALUES (?, ?, ?)',\n        [\n          key,\n          JSON.stringify(value),\n          (+new Date()) + ttl,\n        ]);\n  }\n}\n",
+    "content": "import sqlite3 from 'sqlite3';\n\nimport CacheBase from './cacheBase.js';\n\n/**\n * Caching implementation using SQLite\n * @extends CacheBase\n * @class\n */\nexport default class CacheSqlite extends CacheBase {\n  /**\n     * @param {Object} options\n     * @param {string} options.filename Database filename to use with Sqlite\n     * @param {Object} [options.db] Existing SQLite3 object to use for our database\n     *  If left empty, a database object will be created automatically\n     */\n  constructor(options = {\n    filename: ':memory:',\n    db: undefined,\n  }) {\n    options.useMemoryCache = false;\n\n    super(options);\n\n    const dbFilename = options.filename || ':memory:';\n    this.db = options.db || new sqlite3.Database(dbFilename);\n\n    this.init = false;\n  }\n\n  /**\n   * Run a query against our SQLite database\n   * @param {string} query\n   * @param {array} args\n   */\n  async runQuery(query, args) {\n    return new Promise((resolve, reject) => {\n      this.db.get(query, args, (err, result) => {\n        if (err) {\n          return reject(err);\n        }\n        resolve(result);\n      });\n    });\n  }\n\n  /**\n   * Setup the database ready for use\n   * @private\n   */\n  async setupDB() {\n    if (this.init) return;\n\n    // setup our database\n    this.db.serialize(() => {\n      this.db.run('CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, value TEXT, expires BIGINT)');\n    });\n\n    this.init = true;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _get(key) {\n    await this.setupDB();\n\n    const row = await this.runQuery('SELECT value FROM cache WHERE key = ? AND expires >= ?', [key, +new Date()]);\n    if (!row) return undefined;\n\n    try {\n      return JSON.parse(row.value);\n    } catch (e) {\n    }\n    return undefined;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _set(key, value, ttl) {\n    await this.setupDB();\n\n    await this.runQuery(\n        'INSERT OR REPLACE INTO cache (key, value, expires) VALUES (?, ?, ?)',\n        [\n          key,\n          JSON.stringify(value),\n          (+new Date()) + ttl,\n        ]);\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _getKeys(prefix) {\n    await this.setupDB();\n\n    return new Promise((resolve, reject) => {\n      const keys = [];\n      this.db.each('SELECT key FROM cache WHERE key LIKE \"?%\"',\n          [\n            prefix,\n          ], (err, result) => {\n            keys.push(row.key);\n          });\n      return resolve(keys);\n    });\n  }\n}\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/cache/cacheSqlite.js",
     "access": "public",
@@ -1213,7 +1331,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 71,
+    "__docId__": 75,
     "kind": "class",
     "name": "CacheSqlite",
     "memberof": "lib/cache/cacheSqlite.js",
@@ -1237,7 +1355,7 @@
     ]
   },
   {
-    "__docId__": 72,
+    "__docId__": 76,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
@@ -1282,7 +1400,7 @@
     ]
   },
   {
-    "__docId__": 73,
+    "__docId__": 77,
     "kind": "member",
     "name": "db",
     "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
@@ -1299,7 +1417,7 @@
     }
   },
   {
-    "__docId__": 74,
+    "__docId__": 78,
     "kind": "member",
     "name": "init",
     "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
@@ -1316,7 +1434,7 @@
     }
   },
   {
-    "__docId__": 75,
+    "__docId__": 79,
     "kind": "method",
     "name": "runQuery",
     "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
@@ -1356,7 +1474,7 @@
     }
   },
   {
-    "__docId__": 76,
+    "__docId__": 80,
     "kind": "method",
     "name": "setupDB",
     "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
@@ -1371,7 +1489,7 @@
     "return": null
   },
   {
-    "__docId__": 78,
+    "__docId__": 82,
     "kind": "method",
     "name": "_get",
     "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
@@ -1380,18 +1498,20 @@
     "static": false,
     "longname": "lib/cache/cacheSqlite.js~CacheSqlite#_get",
     "access": "private",
-    "description": "Get a cache entry by key",
-    "lineNumber": 67,
+    "description": "",
+    "lineNumber": 65,
+    "unknown": [
+      {
+        "tagName": "@inheritdoc",
+        "tagValue": ""
+      }
+    ],
     "params": [
       {
-        "nullable": null,
-        "types": [
-          "string"
-        ],
-        "spread": false,
-        "optional": false,
         "name": "key",
-        "description": ""
+        "types": [
+          "*"
+        ]
       }
     ],
     "return": {
@@ -1401,7 +1521,7 @@
     }
   },
   {
-    "__docId__": 79,
+    "__docId__": 83,
     "kind": "method",
     "name": "_set",
     "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
@@ -1410,8 +1530,261 @@
     "static": false,
     "longname": "lib/cache/cacheSqlite.js~CacheSqlite#_set",
     "access": "private",
-    "description": "Set a cache entry",
-    "lineNumber": 87,
+    "description": "",
+    "lineNumber": 81,
+    "unknown": [
+      {
+        "tagName": "@inheritdoc",
+        "tagValue": ""
+      }
+    ],
+    "params": [
+      {
+        "name": "key",
+        "types": [
+          "*"
+        ]
+      },
+      {
+        "name": "value",
+        "types": [
+          "*"
+        ]
+      },
+      {
+        "name": "ttl",
+        "types": [
+          "*"
+        ]
+      }
+    ],
+    "return": null
+  },
+  {
+    "__docId__": 84,
+    "kind": "method",
+    "name": "_getKeys",
+    "memberof": "lib/cache/cacheSqlite.js~CacheSqlite",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/cacheSqlite.js~CacheSqlite#_getKeys",
+    "access": "private",
+    "description": "",
+    "lineNumber": 96,
+    "unknown": [
+      {
+        "tagName": "@inheritdoc",
+        "tagValue": ""
+      }
+    ],
+    "params": [
+      {
+        "name": "prefix",
+        "types": [
+          "*"
+        ]
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 85,
+    "kind": "file",
+    "name": "lib/cache/scopedCache.js",
+    "content": "import {get as getCache} from '../cache.js';\n\n/**\n * A wrapper class for accessing the cache.\n * Prefixes a string before each key to avoid conflicts.\n */\nexport class ScopedCache {\n  /**\n   * Create a new ScopedCache object by passing in the key prefix descired\n   * @param {string} keyPrefix\n   * @param {number} [version] Cache version, bump this to invalidate existing cache entries for a scope\n   */\n  constructor(keyPrefix, version = 0) {\n    this.prefix = keyPrefix;\n    this.version = version;\n\n    this.cache = null;\n  }\n\n  /**\n   * Initialise the cache for this scope\n   */\n  async initCache() {\n    if (this.cache) {\n      return this.cache;\n    }\n\n    if (this.initCachePromise) {\n      return this.initCachePromise;\n    }\n\n    this.initCachePromise = (async () => {\n      this.cache = await getCache();\n\n      // check and flush cache if version mismatch\n      const cacheVersion = await this.get('%%version%%');\n      if (cacheVersion !== undefined && cacheVersion != this.version) {\n        // find all cache entries with this scope, and remove them\n        const keys = await this.cache.getKeys(`${this.prefix}_`);\n\n        await Promise.allSettled(keys.map((key) => {\n          // set expire date to 1 millisecond ago (this basically deletes it)\n          return this.setGlobal(key, {}, -1);\n        }));\n      }\n\n      // set our new cache version with a very very long ttl\n      await this.set('%%version%%', this.version, Number.MAX_SAFE_INTEGER);\n    })();\n    await this.initCachePromise;\n    this.initCachePromise = null;\n\n    return this.cache;\n  }\n\n  /**\n   * Generate a scoped key by adding our prefix to the incoming key\n   * @param {string} inKey\n   * @return {string} Scoped key\n   */\n  generateScopedKey(inKey) {\n    return `${this.prefix}_${inKey}`;\n  }\n\n  /**\n     * Get a cached object\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present\n     */\n  async get(key) {\n    return this.getGlobal(this.generateScopedKey(key));\n  }\n\n  /**\n     * Get a cached object from the global cache (skipping the scope prefix)\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present\n     */\n  async getGlobal(key) {\n    const cache = await this.initCache();\n    return cache.get(key);\n  }\n\n  /**\n     * Set a key in our cache\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {Object} value\n     * @param {(Function|number)} [ttl=3600000] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     *  Default 1 hour\n     */\n  async set(key, value, ttl = 3600000) {\n    return this.setGlobal(this.generateScopedKey(key), value, ttl);\n  }\n\n  /**\n     * Set a key in our global cache, skipping the scoped prefix\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {Object} value\n     * @param {(Function|number)} [ttl=3600000] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     *  Default 1 hour\n     */\n  async setGlobal(key, value, ttl = 3600000) {\n    const cache = await this.initCache();\n    return cache.set(key, value, ttl);\n  }\n\n  /**\n     * A helper \"wrap\" function that will return a cached value if present\n     *  This will call the supplied function to fetch it if the value isn't present in the cache\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {function} fn Fetch function that will be called if the cache entry is not present\n     * @param {(function|number)} [ttl] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     */\n  async wrap(key, fn, ttl) {\n    return this.wrapGlobal(this.generateScopedKey(key), fn, ttl);\n  }\n\n  /**\n     * A helper \"wrap\" function that will return a cached value if present (in the global scope)\n     *  This will call the supplied function to fetch it if the value isn't present in the cache\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {function} fn Fetch function that will be called if the cache entry is not present\n     * @param {(function|number)} [ttl] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     */\n  async wrapGlobal(key, fn, ttl) {\n    const cache = await this.initCache();\n    return cache.wrap(key, fn, ttl);\n  }\n}\n\nexport default ScopedCache;\n",
+    "static": true,
+    "longname": "/home/runner/work/parksapi/parksapi/lib/cache/scopedCache.js",
+    "access": "public",
+    "description": null,
+    "lineNumber": 1
+  },
+  {
+    "__docId__": 86,
+    "kind": "class",
+    "name": "ScopedCache",
+    "memberof": "lib/cache/scopedCache.js",
+    "static": true,
+    "longname": "lib/cache/scopedCache.js~ScopedCache",
+    "access": "public",
+    "export": true,
+    "importPath": "parksapi/lib/cache/scopedCache.js",
+    "importStyle": "{ScopedCache}",
+    "description": "A wrapper class for accessing the cache.\nPrefixes a string before each key to avoid conflicts.",
+    "lineNumber": 7,
+    "interface": false
+  },
+  {
+    "__docId__": 87,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/cache/scopedCache.js~ScopedCache",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/cache/scopedCache.js~ScopedCache#constructor",
+    "access": "public",
+    "description": "Create a new ScopedCache object by passing in the key prefix descired",
+    "lineNumber": 13,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "keyPrefix",
+        "description": ""
+      },
+      {
+        "nullable": null,
+        "types": [
+          "number"
+        ],
+        "spread": false,
+        "optional": true,
+        "name": "version",
+        "description": "Cache version, bump this to invalidate existing cache entries for a scope"
+      }
+    ]
+  },
+  {
+    "__docId__": 88,
+    "kind": "member",
+    "name": "prefix",
+    "memberof": "lib/cache/scopedCache.js~ScopedCache",
+    "static": false,
+    "longname": "lib/cache/scopedCache.js~ScopedCache#prefix",
+    "access": "public",
+    "description": null,
+    "lineNumber": 14,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 89,
+    "kind": "member",
+    "name": "version",
+    "memberof": "lib/cache/scopedCache.js~ScopedCache",
+    "static": false,
+    "longname": "lib/cache/scopedCache.js~ScopedCache#version",
+    "access": "public",
+    "description": null,
+    "lineNumber": 15,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 90,
+    "kind": "member",
+    "name": "cache",
+    "memberof": "lib/cache/scopedCache.js~ScopedCache",
+    "static": false,
+    "longname": "lib/cache/scopedCache.js~ScopedCache#cache",
+    "access": "public",
+    "description": null,
+    "lineNumber": 17,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 91,
+    "kind": "method",
+    "name": "initCache",
+    "memberof": "lib/cache/scopedCache.js~ScopedCache",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/scopedCache.js~ScopedCache#initCache",
+    "access": "public",
+    "description": "Initialise the cache for this scope",
+    "lineNumber": 23,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 92,
+    "kind": "member",
+    "name": "initCachePromise",
+    "memberof": "lib/cache/scopedCache.js~ScopedCache",
+    "static": false,
+    "longname": "lib/cache/scopedCache.js~ScopedCache#initCachePromise",
+    "access": "public",
+    "description": null,
+    "lineNumber": 32,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 95,
+    "kind": "method",
+    "name": "generateScopedKey",
+    "memberof": "lib/cache/scopedCache.js~ScopedCache",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/cache/scopedCache.js~ScopedCache#generateScopedKey",
+    "access": "public",
+    "description": "Generate a scoped key by adding our prefix to the incoming key",
+    "lineNumber": 61,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "inKey",
+        "description": ""
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "string"
+      ],
+      "spread": false,
+      "description": "Scoped key"
+    }
+  },
+  {
+    "__docId__": 96,
+    "kind": "method",
+    "name": "get",
+    "memberof": "lib/cache/scopedCache.js~ScopedCache",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/scopedCache.js~ScopedCache#get",
+    "access": "public",
+    "description": "Get a cached object",
+    "lineNumber": 72,
     "params": [
       {
         "nullable": null,
@@ -1421,12 +1794,80 @@
         "spread": false,
         "optional": false,
         "name": "key",
-        "description": ""
+        "description": "Unique key name for this cache entry"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "Object",
+        "undefined"
+      ],
+      "spread": false,
+      "description": "Returns the object in the cache, or undefined if not present"
+    }
+  },
+  {
+    "__docId__": 97,
+    "kind": "method",
+    "name": "getGlobal",
+    "memberof": "lib/cache/scopedCache.js~ScopedCache",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/scopedCache.js~ScopedCache#getGlobal",
+    "access": "public",
+    "description": "Get a cached object from the global cache (skipping the scope prefix)",
+    "lineNumber": 83,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "key",
+        "description": "Unique key name for this cache entry"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "Object",
+        "undefined"
+      ],
+      "spread": false,
+      "description": "Returns the object in the cache, or undefined if not present"
+    }
+  },
+  {
+    "__docId__": 98,
+    "kind": "method",
+    "name": "set",
+    "memberof": "lib/cache/scopedCache.js~ScopedCache",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/scopedCache.js~ScopedCache#set",
+    "access": "public",
+    "description": "Set a key in our cache",
+    "lineNumber": 98,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "key",
+        "description": "Unique key name for this cache entry"
       },
       {
         "nullable": null,
         "types": [
-          "object"
+          "Object"
         ],
         "spread": false,
         "optional": false,
@@ -1436,18 +1877,180 @@
       {
         "nullable": null,
         "types": [
-          "*"
+          "Function",
+          "number"
+        ],
+        "spread": false,
+        "optional": true,
+        "defaultValue": "3600000",
+        "defaultRaw": 3600000,
+        "name": "ttl",
+        "description": "How long the cache entry should last in milliseconds\n Can be a number or a function that will return a number\n Default 1 hour"
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 99,
+    "kind": "method",
+    "name": "setGlobal",
+    "memberof": "lib/cache/scopedCache.js~ScopedCache",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/scopedCache.js~ScopedCache#setGlobal",
+    "access": "public",
+    "description": "Set a key in our global cache, skipping the scoped prefix",
+    "lineNumber": 112,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
         ],
         "spread": false,
         "optional": false,
-        "name": "ttl",
+        "name": "key",
+        "description": "Unique key name for this cache entry"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "Object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "value",
         "description": ""
+      },
+      {
+        "nullable": null,
+        "types": [
+          "Function",
+          "number"
+        ],
+        "spread": false,
+        "optional": true,
+        "defaultValue": "3600000",
+        "defaultRaw": 3600000,
+        "name": "ttl",
+        "description": "How long the cache entry should last in milliseconds\n Can be a number or a function that will return a number\n Default 1 hour"
       }
     ],
-    "return": null
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
   },
   {
-    "__docId__": 80,
+    "__docId__": 100,
+    "kind": "method",
+    "name": "wrap",
+    "memberof": "lib/cache/scopedCache.js~ScopedCache",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/scopedCache.js~ScopedCache#wrap",
+    "access": "public",
+    "description": "A helper \"wrap\" function that will return a cached value if present\n This will call the supplied function to fetch it if the value isn't present in the cache",
+    "lineNumber": 127,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "key",
+        "description": "Unique key name for this cache entry"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "function"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "fn",
+        "description": "Fetch function that will be called if the cache entry is not present"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "function",
+          "number"
+        ],
+        "spread": false,
+        "optional": true,
+        "name": "ttl",
+        "description": "How long the cache entry should last in milliseconds\n Can be a number or a function that will return a number"
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 101,
+    "kind": "method",
+    "name": "wrapGlobal",
+    "memberof": "lib/cache/scopedCache.js~ScopedCache",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/cache/scopedCache.js~ScopedCache#wrapGlobal",
+    "access": "public",
+    "description": "A helper \"wrap\" function that will return a cached value if present (in the global scope)\n This will call the supplied function to fetch it if the value isn't present in the cache",
+    "lineNumber": 141,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "key",
+        "description": "Unique key name for this cache entry"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "function"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "fn",
+        "description": "Fetch function that will be called if the cache entry is not present"
+      },
+      {
+        "nullable": null,
+        "types": [
+          "function",
+          "number"
+        ],
+        "spread": false,
+        "optional": true,
+        "name": "ttl",
+        "description": "How long the cache entry should last in milliseconds\n Can be a number or a function that will return a number"
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 102,
     "kind": "file",
     "name": "lib/cache.js",
     "content": "/**\n * Cache provider for this module.\n * Various cache types are available, we default to using \"leveldown\" via the Level library.\n */\n\nimport CacheLevel from './cache/cacheLevel.js';\n\n// our global cache instance\nlet CacheInstance = null;\n\n/**\n * Create a new Cache Instance.\n * This function should only be called once for the lifetime of the module.\n */\nasync function createCacheInstance() {\n  // TODO - accept configured caches through environment variables (or other?)\n  return new CacheLevel();\n}\n\n/**\n  * Get the configured Cache implementation\n  */\nexport async function get() {\n  if (CacheInstance === null) {\n    CacheInstance = await createCacheInstance();\n  }\n\n  return CacheInstance;\n}\n\nexport default {\n  get,\n};\n",
@@ -1458,7 +2061,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 81,
+    "__docId__": 103,
     "kind": "variable",
     "name": "CacheInstance",
     "memberof": "lib/cache.js",
@@ -1479,7 +2082,7 @@
     "ignore": true
   },
   {
-    "__docId__": 82,
+    "__docId__": 104,
     "kind": "function",
     "name": "createCacheInstance",
     "memberof": "lib/cache.js",
@@ -1502,7 +2105,7 @@
     "ignore": true
   },
   {
-    "__docId__": 83,
+    "__docId__": 105,
     "kind": "function",
     "name": "get",
     "memberof": "lib/cache.js",
@@ -1524,7 +2127,7 @@
     }
   },
   {
-    "__docId__": 84,
+    "__docId__": 106,
     "kind": "file",
     "name": "lib/configBase.js",
     "content": "// load any environment variables from .env (if it exists)\nimport DotEnv from 'dotenv';\nDotEnv.config();\n\n/**\n * Combine given options with environment variables\n * @param {object} options Incoming options\n * @return {object} Processed configuration options\n */\nexport function parseConfig(options = {}) {\n  const configKeys = Object.keys(options);\n\n  const config = {};\n\n  options.configPrefixes = ['THEMEPARKS'].concat(\n      options.configPrefixes || [],\n  );\n\n  // build this.config object with our settings\n  configKeys.forEach((key) => {\n    // default prefixes are either \"classname_\" or \"THEMEPARKS_\"\n    //  classes can add more with configPrefixes\n    options.configPrefixes.forEach((prefix) => {\n      const configEnvName = `${prefix}_${key}`.toUpperCase();\n\n      if (process.env[configEnvName]) {\n        console.log(`Using env variable ${configEnvName}`);\n        config[key] = process.env[configEnvName];\n        console.log(` ${key}(env.${configEnvName})=${config[key]}`);\n      }\n    });\n\n    if (config[key] === undefined) {\n      config[key] = options[key];\n    } else {\n      // convert env variable to number if the base default is a number\n      if (typeof config[key] === 'number') {\n        config[key] = Number(config[key]);\n      } else if (typeof config[key] === 'boolean') {\n        // convert any boolean configs too\n        config[key] = (config[key] === 'true');\n      }\n    }\n  });\n\n  return config;\n}\n\n/**\n * Base Config Object\n * Supports classes with a single argument \"options\"\n * These will be sorted into a member called \"this.config\" containing all the same keys\n *\n * Crucially, these can also be overriden through environment variables\n * For example, for a config option \"timeout\" for class Database, this could be overriden through either:\n *   env.THEMEPARKS_TIMEOUT (using a \"global module name\")\n *   env.DATABASE_TIMEOUT (using the class name)\n *\n * Classes can also add additional prefixes to the supported environment variables through:\n *   new ClassInstance({configPrefixes: ['myCustomPrefix']});\n * Which would also allow env.MYCUSTOMPREFIX_TIMEOUT to be used\n *\n * Note that a default value must be supplied for the environment variable to be processed\n * If the default value is a number, the environment variable will be cast to a number as well\n * @class\n */\nexport class ConfigBase {\n  /**\n   * A base class that can be configured through environment variables\n   * @param {object} options Config for instantiating this object\n   */\n  constructor(options = {}) {\n    options.configPrefixes = [this.constructor.name].concat(\n        options.configPrefixes || [],\n    );\n\n    this.config = parseConfig(options || {});\n  }\n}\n\nexport default ConfigBase;\n",
@@ -1535,7 +2138,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 85,
+    "__docId__": 107,
     "kind": "function",
     "name": "parseConfig",
     "memberof": "lib/configBase.js",
@@ -1571,7 +2174,7 @@
     }
   },
   {
-    "__docId__": 86,
+    "__docId__": 108,
     "kind": "class",
     "name": "ConfigBase",
     "memberof": "lib/configBase.js",
@@ -1592,7 +2195,7 @@
     "interface": false
   },
   {
-    "__docId__": 87,
+    "__docId__": 109,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/configBase.js~ConfigBase",
@@ -1617,7 +2220,7 @@
     ]
   },
   {
-    "__docId__": 88,
+    "__docId__": 110,
     "kind": "member",
     "name": "config",
     "memberof": "lib/configBase.js~ConfigBase",
@@ -1634,7 +2237,7 @@
     }
   },
   {
-    "__docId__": 89,
+    "__docId__": 111,
     "kind": "file",
     "name": "lib/index.js",
     "content": "",
@@ -1645,10 +2248,10 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 90,
+    "__docId__": 112,
     "kind": "file",
     "name": "lib/parks/park.js",
-    "content": "import promiseRetry from 'promise-retry';\nimport ConfigBase from '../configBase.js';\nimport needle from 'needle';\nimport domainMatch from 'domain-match';\n\n// quick helper function to wait x milliseconds as a Promise\nconst delay = (milliseconds) => {\n  return new Promise((resolve) => {\n    setTimeout(resolve, milliseconds);\n  });\n};\n\nexport const ParkConstants = {\n  // different queue types rides can have\n  QUEUE_STANDBY: 'STANDBY',\n  QUEUE_SINGLERIDER: 'SINGLE_RIDER',\n  QUEUE_VIRTUALQUEUE: 'VIRTUAL_QUEUE',\n  QUEUE_FASTPASS: 'FAST_PASS',\n  // attraction types\n  ATTRACTION_RIDE: 'RIDE',\n  ATTRACTION_SHOW: 'SHOW',\n  ATTRACTION_TRANSPORT: 'TRANSPORT',\n  ATTRACTION_PARADE: 'PARADE',\n  ATTRACTION_MEET_AND_GREET: 'MEET_AND_GREET',\n  // attraction statuses\n  STATUS_OPERATING: 'OPERATING',\n  STATUS_DOWN: 'DOWN',\n  STATUS_CLOSED: 'CLOSED',\n  STATUS_REFURBISHMENT: 'REFURBISHMENT',\n};\n\n/**\n * Base Park Object\n * @class\n */\nexport class Park extends ConfigBase {\n  /**\n   * Create a new park object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    // how often to wait between updates to run another update\n    options.updateInterval = 1000 * 60 * 5; // 5 minutes\n    // disable auto-update for this object\n    //  set this if the update is being handled by an external system\n    options.disableParkUpdate = false;\n\n    super(options);\n\n    this.initialised = false;\n\n    this._attractions = [];\n\n    // any HTTP injections that have been setup\n    //  allows parks to automatically intercept HTTP requests and add auth headers etc.\n    this._httpInjections = [];\n  }\n\n  /**\n   * Get a globally unique ID for this park\n   */\n  getParkUniqueID() {\n    throw new Error(`Missing getParkUniqueID() implementation for ${this.constructor.name}`);\n  }\n\n  /**\n   * Get Park Attractions\n   */\n  async getAttractions() {\n    // park must be initialised before returning any data\n    await this.init();\n\n    return this._attractions;\n  }\n\n  /**\n   * Setup the park for use\n   * Call to ensure the object has been initialised before accessing data\n   */\n  async init() {\n    if (this.initialised) {\n      return;\n    }\n\n    // setup the park ready for use\n    //  eg. download any large data-sets, calendars etc.\n    if (this.pendingSetupPromise) {\n      return this.pendingSetupPromise;\n    }\n\n    // call our internal init and wait on it\n    this.pendingSetupPromise = this._runInit();\n    await this.pendingSetupPromise;\n    this.pendingSetupPromise = null;\n\n    this.initialised = true;\n\n    if (!this.config.disableParkUpdate) {\n      // start an update loop\n\n      // use a separate function so we can quickly loop back around\n      const scheduleUpdate = async () => {\n        // pause for our updateInterval time\n        await delay(this.config.updateInterval);\n\n        // wait for Promise to resolve, grab any catches, then continue anyway\n        this.update().then().catch().then(() => {\n          // schedule another update\n          setImmediate(scheduleUpdate.bind(this));\n        });\n      };\n\n      // start the first loop timer\n      scheduleUpdate();\n    }\n  }\n\n  /**\n   * Run all the internal stages of the init process\n   * @private\n   */\n  async _runInit() {\n    await this._init();\n\n    // run an initial update so we're fully setup with data before init() returns\n    return await this._update();\n  }\n\n  /**\n   * Build an object representing an attraction from sourced data\n   * This object should not contain any \"state\" data, just static information about the attraction\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async _buildAttractionObject(attractionID) {\n    throw new Error('Missing _buildAttractionObject Implementation', this.constructor.name);\n  }\n\n  /**\n   * Get data about a attraction from its ID\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async findAttractionByID(attractionID) {\n    // search our existing store for this attraction\n    const attraction = this._attractions.find((attr) => attr.id == attractionID);\n    if (attraction) {\n      return attraction;\n    }\n\n    // attraction wasn't found, try and add one to our store\n    const newAttraction = await this._buildAttractionObject(attractionID);\n    if (newAttraction) {\n      // default to a \"null\" state\n      //  meaning an attraction with no waiting times etc.\n      newAttraction.state = null;\n\n      // make a globally unique ID for this attraction by combining the park ID and attraction ID\n      newAttraction._id = `${this.getParkUniqueID()}_${attractionID}`;\n\n      this._attractions.push(newAttraction);\n\n      return newAttraction;\n    }\n\n    return undefined;\n  }\n\n  /**\n   * Update an attraction state\n   * @param {string} attractionID Unique Attraction ID\n   * @param {object} data New Attraction State Data\n   */\n  async _updateAttractionState(attractionID, data) {\n    if (attractionID === undefined) return;\n\n    const existingRide = await this.findAttractionByID(attractionID);\n    if (existingRide) {\n      // if we found a matching attraction, update its \"state\" property with our new data\n      existingRide.state = data;\n\n      // TODO - broadcast updated ride event\n    }\n  }\n\n  /**\n   * Update this park\n   * This is automatically called for you unless disableParkUpdate is set to false\n   */\n  async update() {\n    if (this.pendingUpdatePromise) {\n      return this.pendingUpdatePromise;\n    }\n\n    // start the _update call in a retry loop\n    this.pendingUpdatePromise = promiseRetry({\n      retries: 5,\n    }, (retryFn, retryAttempt) => {\n      /* if (retryAttempt > 1) {\n        console.error(`Making attempt ${retryAttempt} to call _update on ${this.constructor.name} class`);\n      }*/\n      return this._update().catch(retryFn);\n    });\n\n    // wait and catch the update Promise\n    try {\n      await this.pendingUpdatePromise;\n    } catch (e) {\n      // TODO - record park API error somewhere and continue\n      console.error(e);\n    }\n\n    this.pendingUpdatePromise = null;\n  }\n\n  /**\n   * Internal function\n   * Called by init() to initialise the object\n   * @private\n   */\n  async _init() {\n    // implementation should be setup in child classes\n    throw new Error('_init() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Update function the park object calls on interval to update internal state\n   * @abstract\n   */\n  async _update() {\n    // implementation should be setup in child classes\n    throw new Error('_update() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Register a new injection for a specific domain\n   * @param {string} domain Domain to inject for, accepts wildcards. See domain-match\n   * @param {function} func Function to call with needle request to inject extra data into. Must return a Promise\n   */\n  async injectForDomain(domain, func) {\n    // add to our array of injections, this is processing by http()\n    this._httpInjections.push({\n      domain,\n      func,\n    });\n  }\n\n  /**\n   * Helper function to make an HTTP request for this park\n   * Parks can automatically add in authentication headers etc. to requests sent to this function\n   * @param {string} method HTTP method to use (GET,POST,DELETE, etc)\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options] Object containing needle-compatible HTTP options\n   */\n  async http(method, url, data = {}, options = {}) {\n    // always have a headers array\n    if (!options.headers) {\n      options.headers = {};\n    }\n\n    // check any hostname injections we have setup\n    for (let injectionIDX=0; injectionIDX<this._httpInjections.length; injectionIDX++) {\n      const injection = this._httpInjections[injectionIDX];\n\n      // check if the domain matches\n      if (domainMatch(injection.domain, url)) {\n        await injection.func(method, url, data, options);\n      }\n    }\n\n    return needle(method, url, data, options);\n  }\n}\n\nexport default Park;\n",
+    "content": "import promiseRetry from 'promise-retry';\nimport ConfigBase from '../configBase.js';\nimport needle from 'needle';\nimport domainMatch from 'domain-match';\nimport moment from 'moment-timezone';\nimport randomUseragent from 'random-useragent';\nimport Cache from '../cache/scopedCache.js';\n\n// quick helper function to wait x milliseconds as a Promise\nconst delay = (milliseconds) => {\n  return new Promise((resolve) => {\n    setTimeout(resolve, milliseconds);\n  });\n};\n\nexport const ParkConstants = {\n  // different queue types rides can have\n  QUEUE_STANDBY: 'STANDBY',\n  QUEUE_SINGLERIDER: 'SINGLE_RIDER',\n  QUEUE_VIRTUALQUEUE: 'VIRTUAL_QUEUE',\n  QUEUE_FASTPASS: 'FAST_PASS',\n  // attraction types\n  ATTRACTION_RIDE: 'RIDE',\n  ATTRACTION_SHOW: 'SHOW',\n  ATTRACTION_TRANSPORT: 'TRANSPORT',\n  ATTRACTION_PARADE: 'PARADE',\n  ATTRACTION_MEET_AND_GREET: 'MEET_AND_GREET',\n  // attraction statuses\n  STATUS_OPERATING: 'OPERATING',\n  STATUS_DOWN: 'DOWN',\n  STATUS_CLOSED: 'CLOSED',\n  STATUS_REFURBISHMENT: 'REFURBISHMENT',\n};\n\n/** Generate a random Android user agent for making network requests */\nexport function generateRandomAndroidUseragent() {\n  randomUseragent.getRandom((ua) => {\n    return (ua.osName === 'Android');\n  });\n}\n\n/**\n * Base Park Object\n * @class\n */\nexport class Park extends ConfigBase {\n  /**\n   * Create a new park object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    // how often to wait between updates to run another update\n    options.updateInterval = 1000 * 60 * 5; // 5 minutes\n    // disable auto-update for this object\n    //  set this if the update is being handled by an external system\n    options.disableParkUpdate = false;\n\n    // generate a random Android user-agent if we aren't supplied one\n    options.useragent = options.useragent || generateRandomAndroidUseragent();\n\n    super(options);\n\n    if (!options.name) {\n      throw new Error(`Missing name for constructed park object ${this.constructor.name}`);\n    }\n\n    if (!options.timezone) {\n      throw new Error(`Missing timezone for constructed park object ${this.constructor.name}`);\n    }\n    // validate park timezone\n    if (moment.tz.names().indexOf(options.timezone) < 0) {\n      throw new Error(`Park object ${this.constructor.name} gives an invalid timezone: ${options.timezone}`);\n    }\n\n    // create a new cache object for this park\n    this.cache = new Cache(this.constructor.name, this.config.cacheVersion || 0);\n\n    this.initialised = false;\n\n    this._attractions = [];\n\n    // any HTTP injections that have been setup\n    //  allows parks to automatically intercept HTTP requests and add auth headers etc.\n    this._httpInjections = [];\n  }\n\n  /**\n   * Get a globally unique ID for this park\n   */\n  getParkUniqueID() {\n    throw new Error(`Missing getParkUniqueID() implementation for ${this.constructor.name}`);\n  }\n\n  /**\n   * Get Park Attractions\n   */\n  async getAttractions() {\n    // park must be initialised before returning any data\n    await this.init();\n\n    return this._attractions;\n  }\n\n  /**\n   * Setup the park for use\n   * Call to ensure the object has been initialised before accessing data\n   */\n  async init() {\n    if (this.initialised) {\n      return;\n    }\n\n    // setup the park ready for use\n    //  eg. download any large data-sets, calendars etc.\n    if (this.pendingSetupPromise) {\n      return this.pendingSetupPromise;\n    }\n\n    // call our internal init and wait on it\n    this.pendingSetupPromise = this._runInit();\n    await this.pendingSetupPromise;\n    this.pendingSetupPromise = null;\n\n    this.initialised = true;\n\n    if (!this.config.disableParkUpdate) {\n      // start an update loop\n\n      // use a separate function so we can quickly loop back around\n      const scheduleUpdate = async () => {\n        // pause for our updateInterval time\n        await delay(this.config.updateInterval);\n\n        // wait for Promise to resolve, grab any catches, then continue anyway\n        this.update().then().catch().then(() => {\n          // schedule another update\n          setImmediate(scheduleUpdate.bind(this));\n        });\n      };\n\n      // start the first loop timer\n      scheduleUpdate();\n    }\n  }\n\n  /**\n   * Run all the internal stages of the init process\n   * @private\n   */\n  async _runInit() {\n    await this._init();\n\n    // run an initial update so we're fully setup with data before init() returns\n    return await this._update();\n  }\n\n  /**\n   * Build an object representing an attraction from sourced data\n   * This object should not contain any \"state\" data, just static information about the attraction\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async _buildAttractionObject(attractionID) {\n    throw new Error('Missing _buildAttractionObject Implementation', this.constructor.name);\n  }\n\n  /**\n   * Get data about a attraction from its ID\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async findAttractionByID(attractionID) {\n    // search our existing store for this attraction\n    const attraction = this._attractions.find((attr) => attr.id == attractionID);\n    if (attraction) {\n      return attraction;\n    }\n\n    // attraction wasn't found, try and add one to our store\n    const newAttraction = await this._buildAttractionObject(attractionID);\n    if (newAttraction) {\n      // default to a \"null\" state\n      //  meaning an attraction with no waiting times etc.\n      newAttraction.state = null;\n\n      // make a globally unique ID for this attraction by combining the park ID and attraction ID\n      newAttraction._id = `${this.getParkUniqueID()}_${attractionID}`;\n\n      this._attractions.push(newAttraction);\n\n      return newAttraction;\n    }\n\n    return undefined;\n  }\n\n  /**\n   * Update an attraction state\n   * @param {string} attractionID Unique Attraction ID\n   * @param {object} data New Attraction State Data\n   */\n  async _updateAttractionState(attractionID, data) {\n    if (attractionID === undefined) return;\n\n    const existingRide = await this.findAttractionByID(attractionID);\n    if (existingRide) {\n      // if we found a matching attraction, update its \"state\" property with our new data\n      existingRide.state = data;\n\n      // TODO - broadcast updated ride event\n    }\n  }\n\n  /**\n   * Update this park\n   * This is automatically called for you unless disableParkUpdate is set to false\n   */\n  async update() {\n    if (this.pendingUpdatePromise) {\n      return this.pendingUpdatePromise;\n    }\n\n    // start the _update call in a retry loop\n    this.pendingUpdatePromise = promiseRetry({\n      retries: 5,\n    }, (retryFn, retryAttempt) => {\n      /* if (retryAttempt > 1) {\n        console.error(`Making attempt ${retryAttempt} to call _update on ${this.constructor.name} class`);\n      }*/\n      return this._update().catch(retryFn);\n    });\n\n    // wait and catch the update Promise\n    try {\n      await this.pendingUpdatePromise;\n    } catch (e) {\n      // TODO - record park API error somewhere and continue\n      console.error(e);\n    }\n\n    this.pendingUpdatePromise = null;\n  }\n\n  /**\n   * Internal function\n   * Called by init() to initialise the object\n   * @private\n   * @abstract\n   */\n  async _init() {\n    // implementation should be setup in child classes\n    throw new Error('_init() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Update function the park object calls on interval to update internal state\n   * @private\n   * @abstract\n   */\n  async _update() {\n    // implementation should be setup in child classes\n    throw new Error('_update() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Register a new injection for a specific domain\n   * @param {string} domain Domain to inject for, accepts wildcards. See domain-match\n   * @param {function} func Function to call with needle request to inject extra data into.\n   * Function will take arguments: (method, URL, data, options)\n   */\n  async injectForDomain(domain, func) {\n    // add to our array of injections, this is processing by http()\n    this._httpInjections.push({\n      domain,\n      func,\n    });\n  }\n\n  /**\n   * Helper function to make an HTTP request for this park\n   * Parks can automatically add in authentication headers etc. to requests sent to this function\n   * @param {string} method HTTP method to use (GET,POST,DELETE, etc)\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options] Object containing needle-compatible HTTP options\n   */\n  async http(method, url, data = {}, options = {}) {\n    // always have a headers array\n    if (!options.headers) {\n      options.headers = {};\n    }\n\n    // inject custom standard user agent (if we have one)\n    //  do this before any custom injections so parks can optionally override this for each domain\n    if (this.config.useragent) {\n      options.headers['user-agent'] = this.config.useragent;\n    }\n\n    // check any hostname injections we have setup\n    for (let injectionIDX=0; injectionIDX<this._httpInjections.length; injectionIDX++) {\n      const injection = this._httpInjections[injectionIDX];\n\n      // check if the domain matches\n      if (domainMatch(injection.domain, url)) {\n        await injection.func(method, url, data, options);\n      }\n    }\n\n    return needle(method, url, data, options);\n  }\n}\n\nexport default Park;\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/park.js",
     "access": "public",
@@ -1656,7 +2259,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 91,
+    "__docId__": 113,
     "kind": "function",
     "name": "delay",
     "memberof": "lib/parks/park.js",
@@ -1669,7 +2272,7 @@
     "importPath": "parksapi/lib/parks/park.js",
     "importStyle": null,
     "description": null,
-    "lineNumber": 7,
+    "lineNumber": 10,
     "undocument": true,
     "params": [
       {
@@ -1687,7 +2290,7 @@
     "ignore": true
   },
   {
-    "__docId__": 92,
+    "__docId__": 114,
     "kind": "variable",
     "name": "ParkConstants",
     "memberof": "lib/parks/park.js",
@@ -1698,7 +2301,7 @@
     "importPath": "parksapi/lib/parks/park.js",
     "importStyle": "{ParkConstants}",
     "description": null,
-    "lineNumber": 13,
+    "lineNumber": 16,
     "undocument": true,
     "type": {
       "types": [
@@ -1707,7 +2310,25 @@
     }
   },
   {
-    "__docId__": 93,
+    "__docId__": 115,
+    "kind": "function",
+    "name": "generateRandomAndroidUseragent",
+    "memberof": "lib/parks/park.js",
+    "generator": false,
+    "async": false,
+    "static": true,
+    "longname": "lib/parks/park.js~generateRandomAndroidUseragent",
+    "access": "public",
+    "export": true,
+    "importPath": "parksapi/lib/parks/park.js",
+    "importStyle": "{generateRandomAndroidUseragent}",
+    "description": "Generate a random Android user agent for making network requests",
+    "lineNumber": 36,
+    "params": [],
+    "return": null
+  },
+  {
+    "__docId__": 116,
     "kind": "class",
     "name": "Park",
     "memberof": "lib/parks/park.js",
@@ -1718,7 +2339,7 @@
     "importPath": "parksapi/lib/parks/park.js",
     "importStyle": "{Park}",
     "description": "Base Park Object",
-    "lineNumber": 36,
+    "lineNumber": 46,
     "unknown": [
       {
         "tagName": "@class",
@@ -1731,7 +2352,7 @@
     ]
   },
   {
-    "__docId__": 94,
+    "__docId__": 117,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/park.js~Park",
@@ -1741,7 +2362,7 @@
     "longname": "lib/parks/park.js~Park#constructor",
     "access": "public",
     "description": "Create a new park object",
-    "lineNumber": 41,
+    "lineNumber": 51,
     "params": [
       {
         "nullable": null,
@@ -1756,7 +2377,24 @@
     ]
   },
   {
-    "__docId__": 95,
+    "__docId__": 118,
+    "kind": "member",
+    "name": "cache",
+    "memberof": "lib/parks/park.js~Park",
+    "static": false,
+    "longname": "lib/parks/park.js~Park#cache",
+    "access": "public",
+    "description": null,
+    "lineNumber": 76,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 119,
     "kind": "member",
     "name": "initialised",
     "memberof": "lib/parks/park.js~Park",
@@ -1764,7 +2402,7 @@
     "longname": "lib/parks/park.js~Park#initialised",
     "access": "public",
     "description": null,
-    "lineNumber": 50,
+    "lineNumber": 78,
     "undocument": true,
     "type": {
       "types": [
@@ -1773,7 +2411,7 @@
     }
   },
   {
-    "__docId__": 96,
+    "__docId__": 120,
     "kind": "member",
     "name": "_attractions",
     "memberof": "lib/parks/park.js~Park",
@@ -1781,7 +2419,7 @@
     "longname": "lib/parks/park.js~Park#_attractions",
     "access": "private",
     "description": null,
-    "lineNumber": 52,
+    "lineNumber": 80,
     "undocument": true,
     "type": {
       "types": [
@@ -1790,7 +2428,7 @@
     }
   },
   {
-    "__docId__": 97,
+    "__docId__": 121,
     "kind": "member",
     "name": "_httpInjections",
     "memberof": "lib/parks/park.js~Park",
@@ -1798,7 +2436,7 @@
     "longname": "lib/parks/park.js~Park#_httpInjections",
     "access": "private",
     "description": null,
-    "lineNumber": 56,
+    "lineNumber": 84,
     "undocument": true,
     "type": {
       "types": [
@@ -1807,7 +2445,7 @@
     }
   },
   {
-    "__docId__": 98,
+    "__docId__": 122,
     "kind": "method",
     "name": "getParkUniqueID",
     "memberof": "lib/parks/park.js~Park",
@@ -1817,12 +2455,12 @@
     "longname": "lib/parks/park.js~Park#getParkUniqueID",
     "access": "public",
     "description": "Get a globally unique ID for this park",
-    "lineNumber": 62,
+    "lineNumber": 90,
     "params": [],
     "return": null
   },
   {
-    "__docId__": 99,
+    "__docId__": 123,
     "kind": "method",
     "name": "getAttractions",
     "memberof": "lib/parks/park.js~Park",
@@ -1832,7 +2470,7 @@
     "longname": "lib/parks/park.js~Park#getAttractions",
     "access": "public",
     "description": "Get Park Attractions",
-    "lineNumber": 69,
+    "lineNumber": 97,
     "params": [],
     "return": {
       "types": [
@@ -1841,7 +2479,7 @@
     }
   },
   {
-    "__docId__": 100,
+    "__docId__": 124,
     "kind": "method",
     "name": "init",
     "memberof": "lib/parks/park.js~Park",
@@ -1851,7 +2489,7 @@
     "longname": "lib/parks/park.js~Park#init",
     "access": "public",
     "description": "Setup the park for use\nCall to ensure the object has been initialised before accessing data",
-    "lineNumber": 80,
+    "lineNumber": 108,
     "params": [],
     "return": {
       "types": [
@@ -1860,7 +2498,7 @@
     }
   },
   {
-    "__docId__": 101,
+    "__docId__": 125,
     "kind": "member",
     "name": "pendingSetupPromise",
     "memberof": "lib/parks/park.js~Park",
@@ -1868,7 +2506,7 @@
     "longname": "lib/parks/park.js~Park#pendingSetupPromise",
     "access": "public",
     "description": null,
-    "lineNumber": 92,
+    "lineNumber": 120,
     "undocument": true,
     "type": {
       "types": [
@@ -1877,7 +2515,7 @@
     }
   },
   {
-    "__docId__": 104,
+    "__docId__": 128,
     "kind": "method",
     "name": "_runInit",
     "memberof": "lib/parks/park.js~Park",
@@ -1887,7 +2525,7 @@
     "longname": "lib/parks/park.js~Park#_runInit",
     "access": "private",
     "description": "Run all the internal stages of the init process",
-    "lineNumber": 122,
+    "lineNumber": 150,
     "params": [],
     "return": {
       "types": [
@@ -1896,7 +2534,7 @@
     }
   },
   {
-    "__docId__": 105,
+    "__docId__": 129,
     "kind": "method",
     "name": "_buildAttractionObject",
     "memberof": "lib/parks/park.js~Park",
@@ -1906,7 +2544,7 @@
     "longname": "lib/parks/park.js~Park#_buildAttractionObject",
     "access": "private",
     "description": "Build an object representing an attraction from sourced data\nThis object should not contain any \"state\" data, just static information about the attraction",
-    "lineNumber": 134,
+    "lineNumber": 162,
     "params": [
       {
         "nullable": null,
@@ -1922,7 +2560,7 @@
     "return": null
   },
   {
-    "__docId__": 106,
+    "__docId__": 130,
     "kind": "method",
     "name": "findAttractionByID",
     "memberof": "lib/parks/park.js~Park",
@@ -1932,7 +2570,7 @@
     "longname": "lib/parks/park.js~Park#findAttractionByID",
     "access": "public",
     "description": "Get data about a attraction from its ID",
-    "lineNumber": 142,
+    "lineNumber": 170,
     "params": [
       {
         "nullable": null,
@@ -1952,7 +2590,7 @@
     }
   },
   {
-    "__docId__": 107,
+    "__docId__": 131,
     "kind": "method",
     "name": "_updateAttractionState",
     "memberof": "lib/parks/park.js~Park",
@@ -1962,7 +2600,7 @@
     "longname": "lib/parks/park.js~Park#_updateAttractionState",
     "access": "private",
     "description": "Update an attraction state",
-    "lineNumber": 172,
+    "lineNumber": 200,
     "params": [
       {
         "nullable": null,
@@ -1988,7 +2626,7 @@
     "return": null
   },
   {
-    "__docId__": 108,
+    "__docId__": 132,
     "kind": "method",
     "name": "update",
     "memberof": "lib/parks/park.js~Park",
@@ -1998,7 +2636,7 @@
     "longname": "lib/parks/park.js~Park#update",
     "access": "public",
     "description": "Update this park\nThis is automatically called for you unless disableParkUpdate is set to false",
-    "lineNumber": 188,
+    "lineNumber": 216,
     "params": [],
     "return": {
       "types": [
@@ -2007,7 +2645,7 @@
     }
   },
   {
-    "__docId__": 109,
+    "__docId__": 133,
     "kind": "member",
     "name": "pendingUpdatePromise",
     "memberof": "lib/parks/park.js~Park",
@@ -2015,7 +2653,7 @@
     "longname": "lib/parks/park.js~Park#pendingUpdatePromise",
     "access": "public",
     "description": null,
-    "lineNumber": 194,
+    "lineNumber": 222,
     "undocument": true,
     "type": {
       "types": [
@@ -2024,7 +2662,7 @@
     }
   },
   {
-    "__docId__": 111,
+    "__docId__": 135,
     "kind": "method",
     "name": "_init",
     "memberof": "lib/parks/park.js~Park",
@@ -2034,12 +2672,13 @@
     "longname": "lib/parks/park.js~Park#_init",
     "access": "private",
     "description": "Internal function\nCalled by init() to initialise the object",
-    "lineNumber": 219,
+    "lineNumber": 248,
+    "abstract": true,
     "params": [],
     "return": null
   },
   {
-    "__docId__": 112,
+    "__docId__": 136,
     "kind": "method",
     "name": "_update",
     "memberof": "lib/parks/park.js~Park",
@@ -2049,13 +2688,13 @@
     "longname": "lib/parks/park.js~Park#_update",
     "access": "private",
     "description": "Update function the park object calls on interval to update internal state",
-    "lineNumber": 228,
+    "lineNumber": 258,
     "abstract": true,
     "params": [],
     "return": null
   },
   {
-    "__docId__": 113,
+    "__docId__": 137,
     "kind": "method",
     "name": "injectForDomain",
     "memberof": "lib/parks/park.js~Park",
@@ -2065,7 +2704,7 @@
     "longname": "lib/parks/park.js~Park#injectForDomain",
     "access": "public",
     "description": "Register a new injection for a specific domain",
-    "lineNumber": 238,
+    "lineNumber": 269,
     "params": [
       {
         "nullable": null,
@@ -2085,13 +2724,13 @@
         "spread": false,
         "optional": false,
         "name": "func",
-        "description": "Function to call with needle request to inject extra data into. Must return a Promise"
+        "description": "Function to call with needle request to inject extra data into.\nFunction will take arguments: (method, URL, data, options)"
       }
     ],
     "return": null
   },
   {
-    "__docId__": 114,
+    "__docId__": 138,
     "kind": "method",
     "name": "http",
     "memberof": "lib/parks/park.js~Park",
@@ -2101,7 +2740,7 @@
     "longname": "lib/parks/park.js~Park#http",
     "access": "public",
     "description": "Helper function to make an HTTP request for this park\nParks can automatically add in authentication headers etc. to requests sent to this function",
-    "lineNumber": 254,
+    "lineNumber": 285,
     "params": [
       {
         "nullable": null,
@@ -2151,7 +2790,7 @@
     }
   },
   {
-    "__docId__": 115,
+    "__docId__": 139,
     "kind": "file",
     "name": "lib/parks/wdw/waltdisneyworldbase.js",
     "content": "import {IndexedWDWDB, getEntityID} from './wdwdb.js';\nimport {Park, ParkConstants} from '../park.js';\n\nlet wdwDB = null;\n/**\n * Get the live WDW database object\n * @return {object} wdwdb live database instance\n */\nexport function getDatabase() {\n  if (!wdwDB) {\n    wdwDB = new IndexedWDWDB();\n  }\n  return wdwDB;\n}\n\n/**\n * Base Disney Park Class\n */\nexport class DisneyPark extends Park {\n  /**\n   * Create a new DisneyPark object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.resort_id = options.resort_id || '';\n    options.park_id = options.park_id || '';\n\n    if (!options.configPrefixes) {\n      options.configPrefixes = ['wdw'];\n    }\n\n    super(options);\n\n    if (this.config.park_id === '') {\n      throw new Error(`Missing park_id for class ${this.constructor.name}`);\n    }\n    if (this.config.resort_id === '') {\n      throw new Error(`Missing resort_id for class ${this.constructor.name}`);\n    }\n\n    // get a reference to our shared live database\n    this.db = getDatabase();\n  }\n\n  /**\n   * Get a unique ID for this park\n   * @return {string}\n   */\n  getParkUniqueID() {\n    return `${this.config.resort_id}_${this.config.park_id}`;\n  }\n\n  /**\n   * Get the channel ID for the facility status live update documents\n   * @return {string}\n   */\n  getFacilityStatusChannelID() {\n    return `${this.config.resort_id}.facilitystatus.1_0`;\n  }\n\n  /**\n   *\n   */\n  async _init() {\n    console.log('Initialising...');\n\n    // make sure the shared database is initialised\n    await this.db.init();\n\n    // subscribe to any live facility status updates\n    this.db.subscribeToChannel(this.getFacilityStatusChannelID(), async (doc) => {\n      this._processAttractionStatusUpdate(doc);\n    });\n\n    // fetch the current attraction times\n    await Promise.all((\n      // get all attractions with facility statuses\n      await this.db.getByChannel(this.getFacilityStatusChannelID())\n    ).map(this._processAttractionStatusUpdate.bind(this)));\n  }\n\n  /**\n   * Process a document update from a facilitystatus channel\n   * @param {object} doc The updated document\n   */\n  async _processAttractionStatusUpdate(doc) {\n    // get our clean attraction ID\n    const entityID = getEntityID(doc.id);\n\n    // check attraction is within our park\n    const updateIndexEntry = await this.db.getEntityIndex(entityID, {\n      park_id: this.config.park_id,\n    });\n    // if we have no entries, then attraction is not in our park\n    if (updateIndexEntry.length === 0) {\n      return;\n    }\n\n    // figure out general ride status\n    let status = ParkConstants.STATUS_OPERATING;\n    if (doc.status === 'Down') {\n      status = ParkConstants.STATUS_DOWN;\n    } else if (doc.status === 'Closed') {\n      status = ParkConstants.STATUS_CLOSED;\n    } else if (doc.status === 'Refurbishment') {\n      status = ParkConstants.STATUS_REFURBISHMENT;\n    }\n\n    // build our status object\n    const state = {\n      status,\n      // all our queue types\n      // TODO - how to detect virtual queue and FastPass availability?\n      queues: [\n        {\n          type: ParkConstants.QUEUE_STANDBY,\n          waitTime: doc.waitMinutes,\n        },\n      ],\n    };\n\n    // console.log(entityID, state);\n\n    // update attraction status in base class\n    await this._updateAttractionState(entityID, state);\n  }\n\n  /**\n   * Build an attraction object from an ID\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async _buildAttractionObject(attractionID) {\n    await this.db.init();\n\n    // find a document for our attraction ID\n    const attr = await this.db.getEntityOne(attractionID);\n    if (attr) {\n      // TODO - build a full document about this attraction\n      return {\n        id: attractionID,\n        name: attr.name,\n      };\n    }\n\n    return undefined;\n  }\n\n  /**\n   *\n   */\n  async _update() {\n    // TODO - parks that don't use the live database need to implement this function\n  }\n}\n\nexport default DisneyPark;\n",
@@ -2162,7 +2801,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 116,
+    "__docId__": 140,
     "kind": "variable",
     "name": "wdwDB",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -2183,7 +2822,7 @@
     "ignore": true
   },
   {
-    "__docId__": 117,
+    "__docId__": 141,
     "kind": "function",
     "name": "getDatabase",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -2208,7 +2847,7 @@
     "params": []
   },
   {
-    "__docId__": 118,
+    "__docId__": 142,
     "kind": "class",
     "name": "DisneyPark",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -2226,7 +2865,7 @@
     ]
   },
   {
-    "__docId__": 119,
+    "__docId__": 143,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2251,7 +2890,7 @@
     ]
   },
   {
-    "__docId__": 120,
+    "__docId__": 144,
     "kind": "member",
     "name": "db",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2268,7 +2907,7 @@
     }
   },
   {
-    "__docId__": 121,
+    "__docId__": 145,
     "kind": "method",
     "name": "getParkUniqueID",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2290,7 +2929,7 @@
     "params": []
   },
   {
-    "__docId__": 122,
+    "__docId__": 146,
     "kind": "method",
     "name": "getFacilityStatusChannelID",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2312,7 +2951,7 @@
     "params": []
   },
   {
-    "__docId__": 123,
+    "__docId__": 147,
     "kind": "method",
     "name": "_init",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2327,7 +2966,7 @@
     "return": null
   },
   {
-    "__docId__": 124,
+    "__docId__": 148,
     "kind": "method",
     "name": "_processAttractionStatusUpdate",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2353,7 +2992,7 @@
     "return": null
   },
   {
-    "__docId__": 125,
+    "__docId__": 149,
     "kind": "method",
     "name": "_buildAttractionObject",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2383,7 +3022,7 @@
     }
   },
   {
-    "__docId__": 126,
+    "__docId__": 150,
     "kind": "method",
     "name": "_update",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2398,10 +3037,10 @@
     "return": null
   },
   {
-    "__docId__": 127,
+    "__docId__": 151,
     "kind": "file",
     "name": "lib/parks/wdw/wdwdb.js",
-    "content": "import PouchDB from 'pouchdb';\nimport ReplicationStream from 'pouchdb-replication-stream';\nimport sift from 'sift';\nimport {promises as fs, constants as fsConstants, createReadStream, createWriteStream} from 'fs';\nimport path from 'path';\n\nimport {parseConfig} from '../../configBase.js';\n\n/**\n * Given a document, return it's entity ID for the WDW database\n * @param {object|string} doc CouchDB document or a document ID\n * @return {string}\n */\nexport function getEntityID(doc) {\n  const docId = doc?.id || doc;\n\n  const stack = docId.split(':');\n  const lowestLevelEntity = stack[stack.length - 1];\n\n  const parts = lowestLevelEntity.split(';');\n  if (parts <= 1) return undefined;\n\n  return parts.find((p) => {\n    // edge-case for some documents with no attraction attached (guessing test documents)\n    if (p === 'Unassigned') return false;\n\n    const keyval = p.split('=');\n    return (keyval.length === 1);\n  });\n}\n\n/**\n * Get the LevelDOWN database location to use\n * @param {string} name Database name\n * @return {string}\n */\nexport function getDatabaseLocation(name) {\n  return path.join('localdb', `${name}`);\n}\n\n// internal key names for our indexes. Stored as constants to save typing these over and over\nconst constants = {\n  INDEX_FACILITYSTATUS: 'facilityStatus',\n  INDEX_CHANNELS: 'channels',\n  INDEX_ENTITIES: 'entities',\n};\n\n// ancestors to include in our index\n//  we add these into our index objects to identify unique documents to index\nconst ancestorIndexes = [\n  {\n    key: 'ancestorLandId',\n    index: 'land_id',\n  },\n  {\n    key: 'ancestorResortId',\n    index: 'resort_id',\n  },\n  {\n    key: 'ancestorResortAreaId',\n    index: 'resort_area_id',\n  },\n  {\n    key: 'ancestorThemeParkId',\n    index: 'park_id',\n  },\n];\n\n// Super() function to call when we setup this class as a plugin\nconst pouchBulkDocs = PouchDB.prototype.bulkDocs;\n\n/**\n * An indexed live WDW database\n * Replicated WDW database to local disk for fast access\n * While replicating, will build an in-memory index of entities for fast lookup\n * Options to dump database to a single file or load a snapshot for quicker database boot ups\n */\nexport class IndexedWDWDB extends PouchDB {\n  /**\n   * Construct a new IndexedWDWDB object\n   * @param {object} opts PouchDB options object\n   * @param {string} [opts.remoteHost] Remote database to replicate\n   * @param {string} [opts.remoteUsername] Remote database username to authenticate\n   * @param {string} [opts.remotePassword] Remote database password to authenticate\n   * @param {string} [opts.dbName='wdw'] Local database name\n   * @param {string} [opts.snapshot] File location of a snapshot to 'seed' the database during startup\n   * @param {string} [opts.skipSync] Skip network replication, only use data already on disk\n   * @extends PouchDB\n   */\n  constructor(opts = {}) {\n    // default to enable auto_compaction\n    opts.auto_compaction = opts.auto_compaction || true;\n\n    opts.remoteHost = '';\n    opts.remoteUsername = '';\n    opts.remotePassword = '';\n    opts.dbName = opts.dbName || 'wdw';\n    opts.snapshot = ''; // optional snapshot to use when starting database\n    opts.name = opts.name || getDatabaseLocation(opts.dbName);\n\n    opts.skipSync = opts.skipSync === undefined ? false : opts.skipSync;\n\n    opts.configPrefixes = ['WDWDB'].concat(opts.configPrefixes || []);\n    const config = parseConfig(opts);\n\n    super(config);\n    this.config = config;\n\n    // setup our remote host to replicate locally\n    if (this.config.remoteHost) {\n      const remoteHostOptions = {\n        skip_setup: true,\n      };\n      if (this.config.remoteUsername && this.config.remotePassword) {\n        remoteHostOptions.auth = {\n          username: this.config.remoteUsername,\n          password: this.config.remotePassword,\n        };\n      }\n\n      this.remoteDB = new PouchDB(this.config.remoteHost, remoteHostOptions);\n    }\n\n    this.synced = false;\n    this.replicating = false;\n\n    this._index = {};\n    this._setupPromise = null;\n    this._indexSetup = false;\n  }\n\n  /**\n   * Initialise the live database, returns once finished an initial sync\n   */\n  async init() {\n    if (this.synced) {\n      return;\n    }\n\n    if (this.initPromiseSync) return this.initPromiseSync;\n\n    // first, syncronise our database before we start rolling updates\n    this.initPromiseSync = this._loadAndInit();\n    // keep the Promise as a variable so we can keep returning it for any additional init() calls\n    await this.initPromiseSync;\n    this.initPromiseSync = null;\n\n    console.log(`Database finished setup!`);\n\n    this.synced = true;\n\n    if (!this.config.skipSync && this.remoteDB) {\n      this.replicating = true;\n      // start rolling replicate to keep our local database in-sync\n      PouchDB.replicate(this.remoteDB, this, {\n        live: true,\n        retry: true,\n      });\n    }\n  }\n\n  /**\n   * Internal function\n   * Loads and performs an initial sync on the database\n   * @private\n   */\n  async _loadAndInit() {\n    // first, try and restore from disk (will check if an existing snapshot exists)\n    await this.loadSnapshot();\n\n    // load up our indexes\n    await this._initIndexes();\n\n    // reindex every document once we've initialised from disk\n    //  do this before replication, since all new docs will be auto-indexed\n    const docs = await this.allDocs({\n      include_docs: true,\n    });\n    console.log('Building index...');\n    await Promise.allSettled(docs.rows.map((doc) => {\n      return this._indexWDWDocument(doc.doc);\n    }));\n\n    // optionally skip replicating with remote (for local fast testing)\n    if (this.config.skipSync || !this.remoteDB) {\n      return;\n    }\n\n    // then perform an initial replication from remote to local\n    console.log('Performing initial replication...');\n    return await PouchDB.replicate(this.remoteDB, this, {\n      batch_size: 500,\n    }).catch((e) => {\n      console.error(`Replication error: ${e}`);\n    });\n  }\n\n  /**\n   * Get the filename we use for saving backups of the database to disk\n   * Used for creating simple \"snapshots\" to reduce initial sync times\n   * @param {string} [postfix] Optional postfix for the filename\n   * eg. Use postfix to generate a temporary version of a file to write to before replacing the \"real\" database\n   * @return {string}\n   */\n  getDumpFilename(postfix = '') {\n    return path.join('localdb', `${this.config.dbName}${postfix}.db`);\n  }\n\n  /**\n   * Restore a database backup from disk\n   * Perform this after running \"dump()\" on a previous synced database\n   * This will help to reduce the initial sync time for large databases\n   * @param {string} [snapshotFile] File path of the snapshot to restore into the database\n   * snapshotFile will use default saveSnapshot result location if not supplied\n   */\n  async loadSnapshot(snapshotFile = '') {\n    if (this.synced || this.replicating) {\n      console.warn('Trying to load database snapshot when replication has already started');\n      return;\n    }\n\n    const useCustomSnapshot = !!snapshotFile;\n    const dumpPath = useCustomSnapshot ? snapshotFile : this.getDumpFilename();\n\n    // if our database dump doesn't exist, then early out and we'll do a normal sync\n    try {\n      await fs.access(dumpPath, fsConstants.F_OK);\n    } catch (error) {\n      return;\n    }\n\n    console.log('Restoring database from disk...');\n\n    // otherwise, load up our database from disk\n    const ws = createReadStream(dumpPath);\n    return this.load(ws, {\n      batch_size: 500,\n    });\n  }\n\n  /**\n   * Save a snapshot of this live database to disk\n   * This will be used to \"seed\" the database to speed up syncs for future runs\n   * @return {string} Path to resulting database snapshot\n   */\n  async saveSnapshot() {\n    if (this.databaseDumpPendingPromise) {\n      return this.databaseDumpPendingPromise;\n    }\n\n    console.log('Dumping database to disk...');\n\n    const dumpPath = this.getDumpFilename();\n    const dumpPathNew = this.getDumpFilename('_new');\n\n    // dump database to our new location\n    const ws = createWriteStream(dumpPathNew);\n    this.databaseDumpPendingPromise = this.dump(ws, {\n      batch_size: 500,\n    });\n    // save Promise so multiple \"dump()\" calls can stack cleanly\n    await this.databaseDumpPendingPromise;\n    this.databaseDumpPendingPromise = null;\n\n    // rename new database dump to our final intended location\n    return fs.rename(dumpPathNew, dumpPath).then(() => {\n      // finally, return the actual path of the snapshot\n      return dumpPath;\n    });\n  }\n\n  /**\n   * Index initialisation\n   * This function wraps taking care of creating our indexes once only\n   * @private\n   */\n  async _initIndexes() {\n    if (this._indexSetup) {\n      return;\n    }\n\n    if (this._setupPromise) {\n      return this._setupPromise;\n    }\n\n    this._setupPromise = this._createIndexes();\n    await this._setupPromise;\n    this._indexSetup = true;\n    return;\n  }\n\n  /**\n   * Setup our WDW indexes\n   * @private\n   */\n  async _createIndexes() {\n    await this._createIndex(constants.INDEX_ENTITIES);\n    await this._createIndex(constants.INDEX_CHANNELS);\n    await this._createIndex(constants.INDEX_FACILITYSTATUS, []);\n  }\n\n  /**\n   * Get the internal index object for the given index type\n   * @param {object} name Index name (see constants.INDEX_*)\n   * @return {*}\n   * @private\n   */\n  getIndex(name) {\n    return this._index[name].index;\n  }\n\n  /**\n   * Create an index object to be used by this database\n   * @param {string} name Index name\n   * @param {*} defaultIndex Index initial object state\n   * @private\n   */\n  async _createIndex(name, defaultIndex = []) {\n    this._index[name] = {\n      index: defaultIndex,\n    };\n  }\n\n  /**\n   * Given a WDW document, extract key identifiable data\n   * This is used to build a look-up index of unique document types\n   * See ancestorIndexes for some of the keys we use\n   * This is important so we can tell the difference between entities with the same ID, but different purposes\n   * eg. an entity ID can have multiple documents, one for the attraction itself, one for it's wait times, etc.\n   * These need to both be in the index under the same entity ID, but with different properties to make them distinct\n   * @param {object} doc WDW Database Document\n   * @return {object} Index object containing important identifying data\n   * @private\n   */\n  _extractEntityKeys(doc) {\n    if (!doc || !doc.id) return undefined;\n\n    // some IDs are stacked using :\n    const stack = doc.id.split(':');\n    const lowestLevelEntity = stack[stack.length - 1];\n\n    const parts = lowestLevelEntity.split(';');\n    if (parts <= 1) return undefined;\n\n    // some documents can have different parents, they're the same, but different path to get there\n    const parentStackEl = stack.length > 1 ? stack[stack.length - 2] : undefined;\n    const parent = parentStackEl ? this._extractEntityKeys({id: parentStackEl}).id : undefined;\n\n    const ret = {\n      parent,\n    };\n\n    parts.forEach((p) => {\n      const keyval = p.split('=');\n      if (keyval.length === 1) {\n        ret.id = keyval[0];\n      } else {\n        ret[keyval[0]] = keyval[1];\n      }\n    });\n\n    // if this document is in a \"facilitystatus\" channel, add an extra tag\n    //  this is so we don't collide with the actaul document for this attraction\n    //  but also so we can filter it easier later\n    const channel = doc.channels?.length ? doc.channels[0] : undefined;\n    if (channel && channel.indexOf('facilitystatus') >= 0) {\n      ret.facilityStatus = true;\n    }\n\n    // include channel in our index\n    ret.channel = channel;\n\n    // add any ancestor data to our index (that we a) care about and b) can find) - see ancestorIndexes\n    ancestorIndexes.forEach((ancestorIndex) => {\n      if (doc[ancestorIndex.key]) {\n        const ancestorID = getEntityID(doc[ancestorIndex.key]);\n        if (ancestorID) {\n          ret[ancestorIndex.index] = ancestorID;\n        }\n      }\n    });\n\n    return ret;\n  }\n\n  /**\n   * Given a WDW database document, try to return its language\n   * @param {object} doc\n   * @return {string} Language of this document. Eg. en_intl, en_us\n   * @private\n   */\n  _extractChannelLanguage(doc) {\n    // pull channel from doc\n    const channel = doc.channels?.length ? doc.channels[0] : undefined;\n    if (!channel) return undefined;\n\n    // extract language from the end of the channel name\n    let lang = channel.slice(channel.lastIndexOf('.') + 1);\n\n    // channels missing any locale are assumed English International (they are using \"1_0\" or similar)\n    if (lang.indexOf('1') === 0) {\n      lang = 'en_intl';\n    }\n\n    return lang;\n  }\n\n  /**\n   * Add a document to the database index\n   * Used for fast lookups of entities etc. to the correct documents\n   * @param {object} doc CouchDB document to index\n   * @private\n   */\n  async _indexWDWDocument(doc) {\n    const entity = this._extractEntityKeys(doc);\n    if (entity && entity.id && entity.entityType) {\n      const id = entity.id;\n\n      const newIndexEntry = {\n        ...entity,\n        language: this._extractChannelLanguage(doc),\n        _id: doc._id,\n      };\n\n      // special-case, index all facility status documents in another index\n      if (newIndexEntry.facilityStatus) {\n        const facilityIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);\n\n        const docExists = facilityIndex.findIndex((x) => {\n          return x.id === newIndexEntry.id;\n        });\n        if (docExists >= 0) {\n          facilityIndex[docExists] = newIndexEntry;\n        } else {\n          facilityIndex.push(newIndexEntry);\n        }\n      }\n\n      // index all documents based on channel\n      const channel = doc.channels?.length ? doc.channels[0] : undefined;\n      if (channel) {\n        const channelIndex = this.getIndex(constants.INDEX_CHANNELS);\n        if (!channelIndex[channel]) {\n          channelIndex[channel] = [];\n        }\n        channelIndex[channel].push(newIndexEntry);\n      }\n\n      const newIndexKeys = Object.keys(newIndexEntry);\n\n      const entityIndex = this.getIndex(constants.INDEX_ENTITIES);\n      if (!entityIndex[id]) {\n        entityIndex[id] = [];\n      }\n      const findExisting = entityIndex[id].findIndex((x) => {\n        // if # keys are different, not a match\n        if (Object.keys(x).length !== newIndexKeys.length) return false;\n\n        // look for any mismatches between the keys\n        const findMismatch = newIndexKeys.find((key) => {\n          // _id is supposed to be different, so ignore it regardless of if it matches or not\n          if (key === '_id') return false;\n          return (newIndexEntry[key] !== x[key]);\n        });\n        return !findMismatch;\n      });\n\n      if (findExisting < 0) {\n        // entry doesn't exist, add to our list\n        entityIndex[id].push(newIndexEntry);\n      } else {\n        // replace existing entry that matches all the same properties\n        if (entityIndex[id][findExisting]._id !== newIndexEntry._id) {\n          entityIndex[id][findExisting] = newIndexEntry;\n        }\n      }\n    }\n  }\n\n  /**\n   * Get an array of documents from an array of _id\n   * @param {array<string>} ids\n   */\n  async getDocsById(ids) {\n    await this.init();\n\n    return (await Promise.all(ids.map((id) => {\n      // fetch each document using our local DB\n      return this.get(id);\n    }))).filter((doc) => {\n      // filter our any docs that failed to be fetched (they have been deleted etc.)\n      return doc !== undefined;\n    });\n  }\n\n  /**\n   * Find search index entries by ID\n   * If you want the actual document and not just the meta-index data, use getEntity() instead\n   * @param {string} id\n   * @param {object} [filter]\n   * @return {array<object>} Returns the index data for this entity ID\n   */\n  async getEntityIndex(id, filter = {}) {\n    await this.init();\n\n    const entityIndex = this.getIndex(constants.INDEX_ENTITIES);\n    const indexEntry = entityIndex[id];\n    if (!indexEntry) return [];\n\n    // filter entries by supplied filter options before resolving\n    return indexEntry.filter(sift(filter));\n  }\n\n  /**\n   * Search for an entity in the WDW database\n   * @param {string} id Entity ID\n   * @param {object} [filter] Filter index by field\n   * @return {array<object>} Returns all documents for this entity ID\n   */\n  async getEntity(id, filter = {}) {\n    const entities = await this.getEntityIndex(id, filter);\n\n    // resolve each index entry to our full documents\n    return this.getDocsById(entities.map((entry) => {\n      return entry._id;\n    }));\n  }\n\n\n  /**\n   * Search for an entity in the WDW database\n   * Attempts to return the \"best candidate\" single document that matches the incoming ID\n   * @param {string} id Entity ID\n   * @param {object} [filter] Optional index filter\n   * @return {object} Returns the best candidate single document, or undefined\n   */\n  async getEntityOne(id, filter = {}) {\n    const entities = await this.getEntityIndex(id, filter);\n    if (entities.length === 0) return undefined;\n\n    // filter to find the best document of the ones available\n    //  prioritise language en_intl\n    const enIntl = entities.find((doc) => {\n      return doc.language === 'en_intl' && !doc.facilityStatus; // don't include facilityStatus docs by-default\n    });\n    if (enIntl) {\n      return await this.get(enIntl._id);\n    }\n\n    //  2nd priority: en_US\n    const enUS = entities.find((doc) => {\n      return doc.language === 'en_us' && !doc.facilityStatus; // don't include facilityStatus docs by-default\n    });\n    if (enUS) {\n      return await this.get(enUS._id);\n    }\n\n    // otherwise just return the first entry in out list\n    return await this.get(entities[0]._id);\n  }\n\n  /**\n   * Get the live facility status for a given entity ID\n   * @param {string} id Entity ID\n   * @return {object} Facility status document, or undefined\n   */\n  async getFacilityStatus(id) {\n    await this.init();\n\n    const statusIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);\n\n    // look up entity ID in our facility status index\n    const indexEntity = statusIndex.find((x) => {\n      return x.id === id;\n    });\n    if (!indexEntity) return undefined;\n\n    return await this.get(indexEntity._id);\n  }\n\n  /**\n   * Find all documents by channel\n   * eg. 'wdw.facilitystatus.1_0' to get all WDW facility status documents\n   * @param {string} channel Channel ID\n   * @param {object} [filter] Optional document index filter\n   * @return {array<object>} All documents in this channel (or empty array)\n   */\n  async getByChannel(channel, filter = {}) {\n    await this.init();\n\n    const channelIndex = this.getIndex(constants.INDEX_CHANNELS);\n\n    const channelData = channelIndex[channel];\n    if (!channelData) {\n      return [];\n    }\n\n    // return resolved documents for the channel\n    return this.getDocsById(channelData.filter(sift(filter)).map((entry) => {\n      return entry._id;\n    }));\n  }\n\n  /**\n   * Return all documents in the database that match the given filter\n   * This is a slow operation! Use sparingly!\n   * @param {object} [filter]\n   * @return {array<object>}\n   */\n  async find(filter = {}) {\n    await this.init();\n\n    const docs = await this.allDocs({\n      include_docs: true,\n    });\n\n    return docs.rows.map((row) => row.doc).filter(sift(filter));\n  }\n\n  /**\n   * Subscribe to all database changes with an optional mongo-style filter\n   * @param {object} [filter]\n   * @param {function} callback\n   */\n  subscribeToChanges(filter, callback) {\n    if (typeof filter === 'function') {\n      // if no filter passed in, call ourselves with an empty set\n      this.subscribeToChanges({}, callback);\n    } else {\n      // listen to changes from now onwards, passing in our filter function\n      this.changes({\n        since: 'now',\n        live: true,\n        include_docs: true,\n        filter: sift(filter),\n      }).on('change', (change) => {\n        callback(change.doc);\n      });\n    }\n  }\n\n  /**\n   * Subscribe to all changes to a channel\n   * @param {string} channel\n   * @param {function} callback\n   */\n  subscribeToChannel(channel, callback) {\n    // only return documents that contain the supplied channel\n    this.subscribeToChanges({\n      channels: {\n        $elemMatch: channel,\n      },\n    }, callback);\n  }\n\n  /**\n   * Plugin function to intercept bulkDocs function\n   * We index any WDW documents we find for easier lookup later\n   * @param  {...any} args bulkDocs in\n   * @private\n   */\n  static async _pluginBulkDocs(...args) {\n    await this._initIndexes();\n\n    const body = args[0];\n    const docs = Array.isArray(body) ? body : body.docs;\n\n    // index each document being added to the database\n    // TODO - do we need to handle deletion events here?\n    await Promise.allSettled(docs.map((doc) => {\n      return this._indexWDWDocument(doc);\n    }));\n\n    // All documents check out. Pass them to PouchDB.\n    return pouchBulkDocs.call(this, ...args);\n  }\n}\n\n// add our plugin function\nIndexedWDWDB.plugin({\n  bulkDocs: IndexedWDWDB._pluginBulkDocs,\n});\n\n// pouchdb-replication-stream allows us to \"seed\" the database with an initial database dump\n//  incredibly useful for the wdw db, which is pretty huge\nIndexedWDWDB.plugin(ReplicationStream.plugin);\nPouchDB.adapter('writableStream', ReplicationStream.adapters.writableStream);\n\nexport default IndexedWDWDB;\n",
+    "content": "import PouchDB from 'pouchdb';\nimport ReplicationStream from 'pouchdb-replication-stream';\nimport sift from 'sift';\nimport {promises as fs, constants as fsConstants, createReadStream, createWriteStream} from 'fs';\nimport path from 'path';\n\nimport {parseConfig} from '../../configBase.js';\n\n/**\n * Given a document, return it's entity ID for the WDW database\n * @param {object|string} doc CouchDB document or a document ID\n * @return {string}\n */\nexport function getEntityID(doc) {\n  const docId = doc?.id || doc;\n\n  const stack = docId.split(':');\n  const lowestLevelEntity = stack[stack.length - 1];\n\n  const parts = lowestLevelEntity.split(';');\n  if (parts <= 1) return undefined;\n\n  return parts.find((p) => {\n    // edge-case for some documents with no attraction attached (guessing test documents)\n    if (p === 'Unassigned') return false;\n\n    const keyval = p.split('=');\n    return (keyval.length === 1);\n  });\n}\n\n/**\n * Get the LevelDOWN database location to use\n * @param {string} name Database name\n * @return {string}\n */\nexport function getDatabaseLocation(name) {\n  return path.join(__dirname, `db.${name}`);\n}\n\n// internal key names for our indexes. Stored as constants to save typing these over and over\nconst constants = {\n  INDEX_FACILITYSTATUS: 'facilityStatus',\n  INDEX_CHANNELS: 'channels',\n  INDEX_ENTITIES: 'entities',\n};\n\n// ancestors to include in our index\n//  we add these into our index objects to identify unique documents to index\nconst ancestorIndexes = [\n  {\n    key: 'ancestorLandId',\n    index: 'land_id',\n  },\n  {\n    key: 'ancestorResortId',\n    index: 'resort_id',\n  },\n  {\n    key: 'ancestorResortAreaId',\n    index: 'resort_area_id',\n  },\n  {\n    key: 'ancestorThemeParkId',\n    index: 'park_id',\n  },\n];\n\n// Super() function to call when we setup this class as a plugin\nconst pouchBulkDocs = PouchDB.prototype.bulkDocs;\n\n/**\n * An indexed live WDW database\n * Replicated WDW database to local disk for fast access\n * While replicating, will build an in-memory index of entities for fast lookup\n * Options to dump database to a single file or load a snapshot for quicker database boot ups\n */\nexport class IndexedWDWDB extends PouchDB {\n  /**\n   * Construct a new IndexedWDWDB object\n   * @param {object} opts PouchDB options object\n   * @param {string} [opts.remoteHost] Remote database to replicate\n   * @param {string} [opts.remoteUsername] Remote database username to authenticate\n   * @param {string} [opts.remotePassword] Remote database password to authenticate\n   * @param {string} [opts.dbName='wdw'] Local database name\n   * @param {string} [opts.snapshot] File location of a snapshot to 'seed' the database during startup\n   * @param {string} [opts.skipSync] Skip network replication, only use data already on disk\n   * @extends PouchDB\n   */\n  constructor(opts = {}) {\n    // default to enable auto_compaction\n    opts.auto_compaction = opts.auto_compaction || true;\n\n    opts.remoteHost = '';\n    opts.remoteUsername = '';\n    opts.remotePassword = '';\n    opts.dbName = opts.dbName || 'wdw';\n    opts.snapshot = ''; // optional snapshot to use when starting database\n    opts.name = opts.name || getDatabaseLocation(opts.dbName);\n\n    opts.skipSync = opts.skipSync === undefined ? false : opts.skipSync;\n\n    opts.configPrefixes = ['WDWDB'].concat(opts.configPrefixes || []);\n    const config = parseConfig(opts);\n\n    super(config);\n    this.config = config;\n\n    // setup our remote host to replicate locally\n    if (this.config.remoteHost) {\n      const remoteHostOptions = {\n        skip_setup: true,\n      };\n      if (this.config.remoteUsername && this.config.remotePassword) {\n        remoteHostOptions.auth = {\n          username: this.config.remoteUsername,\n          password: this.config.remotePassword,\n        };\n      }\n\n      this.remoteDB = new PouchDB(this.config.remoteHost, remoteHostOptions);\n    }\n\n    this.synced = false;\n    this.replicating = false;\n\n    this._index = {};\n    this._setupPromise = null;\n    this._indexSetup = false;\n  }\n\n  /**\n   * Initialise the live database, returns once finished an initial sync\n   */\n  async init() {\n    if (this.synced) {\n      return;\n    }\n\n    if (this.initPromiseSync) return this.initPromiseSync;\n\n    // first, syncronise our database before we start rolling updates\n    this.initPromiseSync = this._loadAndInit();\n    // keep the Promise as a variable so we can keep returning it for any additional init() calls\n    await this.initPromiseSync;\n    this.initPromiseSync = null;\n\n    console.log(`Database finished setup!`);\n\n    this.synced = true;\n\n    if (!this.config.skipSync && this.remoteDB) {\n      this.replicating = true;\n      // start rolling replicate to keep our local database in-sync\n      PouchDB.replicate(this.remoteDB, this, {\n        live: true,\n        retry: true,\n      });\n    }\n  }\n\n  /**\n   * Internal function\n   * Loads and performs an initial sync on the database\n   * @private\n   */\n  async _loadAndInit() {\n    // first, try and restore from disk (will check if an existing snapshot exists)\n    await this.loadSnapshot();\n\n    // load up our indexes\n    await this._initIndexes();\n\n    // reindex every document once we've initialised from disk\n    //  do this before replication, since all new docs will be auto-indexed\n    const docs = await this.allDocs({\n      include_docs: true,\n    });\n    console.log('Building index...');\n    await Promise.allSettled(docs.rows.map((doc) => {\n      return this._indexWDWDocument(doc.doc);\n    }));\n\n    // optionally skip replicating with remote (for local fast testing)\n    if (this.config.skipSync || !this.remoteDB) {\n      return;\n    }\n\n    // then perform an initial replication from remote to local\n    console.log('Performing initial replication...');\n    return await PouchDB.replicate(this.remoteDB, this, {\n      batch_size: 500,\n    }).catch((e) => {\n      console.error(`Replication error: ${e}`);\n    });\n  }\n\n  /**\n   * Get the filename we use for saving backups of the database to disk\n   * Used for creating simple \"snapshots\" to reduce initial sync times\n   * @param {string} [postfix] Optional postfix for the filename\n   * eg. Use postfix to generate a temporary version of a file to write to before replacing the \"real\" database\n   * @return {string}\n   */\n  getDumpFilename(postfix = '') {\n    return path.join('localdb', `${this.config.dbName}${postfix}.db`);\n  }\n\n  /**\n   * Restore a database backup from disk\n   * Perform this after running \"dump()\" on a previous synced database\n   * This will help to reduce the initial sync time for large databases\n   * @param {string} [snapshotFile] File path of the snapshot to restore into the database\n   * snapshotFile will use default saveSnapshot result location if not supplied\n   */\n  async loadSnapshot(snapshotFile = '') {\n    if (this.synced || this.replicating) {\n      console.warn('Trying to load database snapshot when replication has already started');\n      return;\n    }\n\n    const useCustomSnapshot = !!snapshotFile;\n    const dumpPath = useCustomSnapshot ? snapshotFile : this.getDumpFilename();\n\n    // if our database dump doesn't exist, then early out and we'll do a normal sync\n    try {\n      await fs.access(dumpPath, fsConstants.F_OK);\n    } catch (error) {\n      return;\n    }\n\n    console.log('Restoring database from disk...');\n\n    // otherwise, load up our database from disk\n    const ws = createReadStream(dumpPath);\n    return this.load(ws, {\n      batch_size: 500,\n    });\n  }\n\n  /**\n   * Save a snapshot of this live database to disk\n   * This will be used to \"seed\" the database to speed up syncs for future runs\n   * @return {string} Path to resulting database snapshot\n   */\n  async saveSnapshot() {\n    if (this.databaseDumpPendingPromise) {\n      return this.databaseDumpPendingPromise;\n    }\n\n    console.log('Dumping database to disk...');\n\n    const dumpPath = this.getDumpFilename();\n    const dumpPathNew = this.getDumpFilename('_new');\n\n    // dump database to our new location\n    const ws = createWriteStream(dumpPathNew);\n    this.databaseDumpPendingPromise = this.dump(ws, {\n      batch_size: 500,\n    });\n    // save Promise so multiple \"dump()\" calls can stack cleanly\n    await this.databaseDumpPendingPromise;\n    this.databaseDumpPendingPromise = null;\n\n    // rename new database dump to our final intended location\n    return fs.rename(dumpPathNew, dumpPath).then(() => {\n      // finally, return the actual path of the snapshot\n      return dumpPath;\n    });\n  }\n\n  /**\n   * Index initialisation\n   * This function wraps taking care of creating our indexes once only\n   * @private\n   */\n  async _initIndexes() {\n    if (this._indexSetup) {\n      return;\n    }\n\n    if (this._setupPromise) {\n      return this._setupPromise;\n    }\n\n    this._setupPromise = this._createIndexes();\n    await this._setupPromise;\n    this._indexSetup = true;\n    return;\n  }\n\n  /**\n   * Setup our WDW indexes\n   * @private\n   */\n  async _createIndexes() {\n    await this._createIndex(constants.INDEX_ENTITIES);\n    await this._createIndex(constants.INDEX_CHANNELS);\n    await this._createIndex(constants.INDEX_FACILITYSTATUS, []);\n  }\n\n  /**\n   * Get the internal index object for the given index type\n   * @param {object} name Index name (see constants.INDEX_*)\n   * @return {*}\n   * @private\n   */\n  getIndex(name) {\n    return this._index[name].index;\n  }\n\n  /**\n   * Create an index object to be used by this database\n   * @param {string} name Index name\n   * @param {*} defaultIndex Index initial object state\n   * @private\n   */\n  async _createIndex(name, defaultIndex = []) {\n    this._index[name] = {\n      index: defaultIndex,\n    };\n  }\n\n  /**\n   * Given a WDW document, extract key identifiable data\n   * This is used to build a look-up index of unique document types\n   * See ancestorIndexes for some of the keys we use\n   * This is important so we can tell the difference between entities with the same ID, but different purposes\n   * eg. an entity ID can have multiple documents, one for the attraction itself, one for it's wait times, etc.\n   * These need to both be in the index under the same entity ID, but with different properties to make them distinct\n   * @param {object} doc WDW Database Document\n   * @return {object} Index object containing important identifying data\n   * @private\n   */\n  _extractEntityKeys(doc) {\n    if (!doc || !doc.id) return undefined;\n\n    // some IDs are stacked using :\n    const stack = doc.id.split(':');\n    const lowestLevelEntity = stack[stack.length - 1];\n\n    const parts = lowestLevelEntity.split(';');\n    if (parts <= 1) return undefined;\n\n    // some documents can have different parents, they're the same, but different path to get there\n    const parentStackEl = stack.length > 1 ? stack[stack.length - 2] : undefined;\n    const parent = parentStackEl ? this._extractEntityKeys({id: parentStackEl}).id : undefined;\n\n    const ret = {\n      parent,\n    };\n\n    parts.forEach((p) => {\n      const keyval = p.split('=');\n      if (keyval.length === 1) {\n        ret.id = keyval[0];\n      } else {\n        ret[keyval[0]] = keyval[1];\n      }\n    });\n\n    // if this document is in a \"facilitystatus\" channel, add an extra tag\n    //  this is so we don't collide with the actaul document for this attraction\n    //  but also so we can filter it easier later\n    const channel = doc.channels?.length ? doc.channels[0] : undefined;\n    if (channel && channel.indexOf('facilitystatus') >= 0) {\n      ret.facilityStatus = true;\n    }\n\n    // include channel in our index\n    ret.channel = channel;\n\n    // add any ancestor data to our index (that we a) care about and b) can find) - see ancestorIndexes\n    ancestorIndexes.forEach((ancestorIndex) => {\n      if (doc[ancestorIndex.key]) {\n        const ancestorID = getEntityID(doc[ancestorIndex.key]);\n        if (ancestorID) {\n          ret[ancestorIndex.index] = ancestorID;\n        }\n      }\n    });\n\n    return ret;\n  }\n\n  /**\n   * Given a WDW database document, try to return its language\n   * @param {object} doc\n   * @return {string} Language of this document. Eg. en_intl, en_us\n   * @private\n   */\n  _extractChannelLanguage(doc) {\n    // pull channel from doc\n    const channel = doc.channels?.length ? doc.channels[0] : undefined;\n    if (!channel) return undefined;\n\n    // extract language from the end of the channel name\n    let lang = channel.slice(channel.lastIndexOf('.') + 1);\n\n    // channels missing any locale are assumed English International (they are using \"1_0\" or similar)\n    if (lang.indexOf('1') === 0) {\n      lang = 'en_intl';\n    }\n\n    return lang;\n  }\n\n  /**\n   * Add a document to the database index\n   * Used for fast lookups of entities etc. to the correct documents\n   * @param {object} doc CouchDB document to index\n   * @private\n   */\n  async _indexWDWDocument(doc) {\n    const entity = this._extractEntityKeys(doc);\n    if (entity && entity.id && entity.entityType) {\n      const id = entity.id;\n\n      const newIndexEntry = {\n        ...entity,\n        language: this._extractChannelLanguage(doc),\n        _id: doc._id,\n      };\n\n      // special-case, index all facility status documents in another index\n      if (newIndexEntry.facilityStatus) {\n        const facilityIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);\n\n        const docExists = facilityIndex.findIndex((x) => {\n          return x.id === newIndexEntry.id;\n        });\n        if (docExists >= 0) {\n          facilityIndex[docExists] = newIndexEntry;\n        } else {\n          facilityIndex.push(newIndexEntry);\n        }\n      }\n\n      // index all documents based on channel\n      const channel = doc.channels?.length ? doc.channels[0] : undefined;\n      if (channel) {\n        const channelIndex = this.getIndex(constants.INDEX_CHANNELS);\n        if (!channelIndex[channel]) {\n          channelIndex[channel] = [];\n        }\n        channelIndex[channel].push(newIndexEntry);\n      }\n\n      const newIndexKeys = Object.keys(newIndexEntry);\n\n      const entityIndex = this.getIndex(constants.INDEX_ENTITIES);\n      if (!entityIndex[id]) {\n        entityIndex[id] = [];\n      }\n      const findExisting = entityIndex[id].findIndex((x) => {\n        // if # keys are different, not a match\n        if (Object.keys(x).length !== newIndexKeys.length) return false;\n\n        // look for any mismatches between the keys\n        const findMismatch = newIndexKeys.find((key) => {\n          // _id is supposed to be different, so ignore it regardless of if it matches or not\n          if (key === '_id') return false;\n          return (newIndexEntry[key] !== x[key]);\n        });\n        return !findMismatch;\n      });\n\n      if (findExisting < 0) {\n        // entry doesn't exist, add to our list\n        entityIndex[id].push(newIndexEntry);\n      } else {\n        // replace existing entry that matches all the same properties\n        if (entityIndex[id][findExisting]._id !== newIndexEntry._id) {\n          entityIndex[id][findExisting] = newIndexEntry;\n        }\n      }\n    }\n  }\n\n  /**\n   * Get an array of documents from an array of _id\n   * @param {array<string>} ids\n   */\n  async getDocsById(ids) {\n    await this.init();\n\n    return (await Promise.all(ids.map((id) => {\n      // fetch each document using our local DB\n      return this.get(id);\n    }))).filter((doc) => {\n      // filter our any docs that failed to be fetched (they have been deleted etc.)\n      return doc !== undefined;\n    });\n  }\n\n  /**\n   * Find search index entries by ID\n   * If you want the actual document and not just the meta-index data, use getEntity() instead\n   * @param {string} id\n   * @param {object} [filter]\n   * @return {array<object>} Returns the index data for this entity ID\n   */\n  async getEntityIndex(id, filter = {}) {\n    await this.init();\n\n    const entityIndex = this.getIndex(constants.INDEX_ENTITIES);\n    const indexEntry = entityIndex[id];\n    if (!indexEntry) return [];\n\n    // filter entries by supplied filter options before resolving\n    return indexEntry.filter(sift(filter));\n  }\n\n  /**\n   * Search for an entity in the WDW database\n   * @param {string} id Entity ID\n   * @param {object} [filter] Filter index by field\n   * @return {array<object>} Returns all documents for this entity ID\n   */\n  async getEntity(id, filter = {}) {\n    const entities = await this.getEntityIndex(id, filter);\n\n    // resolve each index entry to our full documents\n    return this.getDocsById(entities.map((entry) => {\n      return entry._id;\n    }));\n  }\n\n\n  /**\n   * Search for an entity in the WDW database\n   * Attempts to return the \"best candidate\" single document that matches the incoming ID\n   * @param {string} id Entity ID\n   * @param {object} [filter] Optional index filter\n   * @return {object} Returns the best candidate single document, or undefined\n   */\n  async getEntityOne(id, filter = {}) {\n    const entities = await this.getEntityIndex(id, filter);\n    if (entities.length === 0) return undefined;\n\n    // filter to find the best document of the ones available\n    //  prioritise language en_intl\n    const enIntl = entities.find((doc) => {\n      return doc.language === 'en_intl' && !doc.facilityStatus; // don't include facilityStatus docs by-default\n    });\n    if (enIntl) {\n      return await this.get(enIntl._id);\n    }\n\n    //  2nd priority: en_US\n    const enUS = entities.find((doc) => {\n      return doc.language === 'en_us' && !doc.facilityStatus; // don't include facilityStatus docs by-default\n    });\n    if (enUS) {\n      return await this.get(enUS._id);\n    }\n\n    // otherwise just return the first entry in out list\n    return await this.get(entities[0]._id);\n  }\n\n  /**\n   * Get the live facility status for a given entity ID\n   * @param {string} id Entity ID\n   * @return {object} Facility status document, or undefined\n   */\n  async getFacilityStatus(id) {\n    await this.init();\n\n    const statusIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);\n\n    // look up entity ID in our facility status index\n    const indexEntity = statusIndex.find((x) => {\n      return x.id === id;\n    });\n    if (!indexEntity) return undefined;\n\n    return await this.get(indexEntity._id);\n  }\n\n  /**\n   * Find all documents by channel\n   * eg. 'wdw.facilitystatus.1_0' to get all WDW facility status documents\n   * @param {string} channel Channel ID\n   * @param {object} [filter] Optional document index filter\n   * @return {array<object>} All documents in this channel (or empty array)\n   */\n  async getByChannel(channel, filter = {}) {\n    await this.init();\n\n    const channelIndex = this.getIndex(constants.INDEX_CHANNELS);\n\n    const channelData = channelIndex[channel];\n    if (!channelData) {\n      return [];\n    }\n\n    // return resolved documents for the channel\n    return this.getDocsById(channelData.filter(sift(filter)).map((entry) => {\n      return entry._id;\n    }));\n  }\n\n  /**\n   * Return all documents in the database that match the given filter\n   * This is a slow operation! Use sparingly!\n   * @param {object} [filter]\n   * @return {array<object>}\n   */\n  async find(filter = {}) {\n    await this.init();\n\n    const docs = await this.allDocs({\n      include_docs: true,\n    });\n\n    return docs.rows.map((row) => row.doc).filter(sift(filter));\n  }\n\n  /**\n   * Subscribe to all database changes with an optional mongo-style filter\n   * @param {object} [filter]\n   * @param {function} callback\n   */\n  subscribeToChanges(filter, callback) {\n    if (typeof filter === 'function') {\n      // if no filter passed in, call ourselves with an empty set\n      this.subscribeToChanges({}, callback);\n    } else {\n      // listen to changes from now onwards, passing in our filter function\n      this.changes({\n        since: 'now',\n        live: true,\n        include_docs: true,\n        filter: sift(filter),\n      }).on('change', (change) => {\n        callback(change.doc);\n      });\n    }\n  }\n\n  /**\n   * Subscribe to all changes to a channel\n   * @param {string} channel\n   * @param {function} callback\n   */\n  subscribeToChannel(channel, callback) {\n    // only return documents that contain the supplied channel\n    this.subscribeToChanges({\n      channels: {\n        $elemMatch: channel,\n      },\n    }, callback);\n  }\n\n  /**\n   * Plugin function to intercept bulkDocs function\n   * We index any WDW documents we find for easier lookup later\n   * @param  {...any} args bulkDocs in\n   * @private\n   */\n  static async _pluginBulkDocs(...args) {\n    await this._initIndexes();\n\n    const body = args[0];\n    const docs = Array.isArray(body) ? body : body.docs;\n\n    // index each document being added to the database\n    // TODO - do we need to handle deletion events here?\n    await Promise.allSettled(docs.map((doc) => {\n      return this._indexWDWDocument(doc);\n    }));\n\n    // All documents check out. Pass them to PouchDB.\n    return pouchBulkDocs.call(this, ...args);\n  }\n}\n\n// add our plugin function\nIndexedWDWDB.plugin({\n  bulkDocs: IndexedWDWDB._pluginBulkDocs,\n});\n\n// pouchdb-replication-stream allows us to \"seed\" the database with an initial database dump\n//  incredibly useful for the wdw db, which is pretty huge\nIndexedWDWDB.plugin(ReplicationStream.plugin);\nPouchDB.adapter('writableStream', ReplicationStream.adapters.writableStream);\n\nexport default IndexedWDWDB;\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/wdw/wdwdb.js",
     "access": "public",
@@ -2409,7 +3048,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 128,
+    "__docId__": 152,
     "kind": "function",
     "name": "getEntityID",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -2446,7 +3085,7 @@
     }
   },
   {
-    "__docId__": 129,
+    "__docId__": 153,
     "kind": "function",
     "name": "getDatabaseLocation",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -2482,7 +3121,7 @@
     }
   },
   {
-    "__docId__": 130,
+    "__docId__": 154,
     "kind": "variable",
     "name": "constants",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -2503,7 +3142,7 @@
     "ignore": true
   },
   {
-    "__docId__": 131,
+    "__docId__": 155,
     "kind": "variable",
     "name": "ancestorIndexes",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -2524,7 +3163,7 @@
     "ignore": true
   },
   {
-    "__docId__": 132,
+    "__docId__": 156,
     "kind": "variable",
     "name": "pouchBulkDocs",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -2545,7 +3184,7 @@
     "ignore": true
   },
   {
-    "__docId__": 133,
+    "__docId__": 157,
     "kind": "class",
     "name": "IndexedWDWDB",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -2563,7 +3202,7 @@
     ]
   },
   {
-    "__docId__": 134,
+    "__docId__": 158,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2656,7 +3295,7 @@
     ]
   },
   {
-    "__docId__": 135,
+    "__docId__": 159,
     "kind": "member",
     "name": "config",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2673,7 +3312,7 @@
     }
   },
   {
-    "__docId__": 136,
+    "__docId__": 160,
     "kind": "member",
     "name": "remoteDB",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2690,7 +3329,7 @@
     }
   },
   {
-    "__docId__": 137,
+    "__docId__": 161,
     "kind": "member",
     "name": "synced",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2707,7 +3346,7 @@
     }
   },
   {
-    "__docId__": 138,
+    "__docId__": 162,
     "kind": "member",
     "name": "replicating",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2724,7 +3363,7 @@
     }
   },
   {
-    "__docId__": 139,
+    "__docId__": 163,
     "kind": "member",
     "name": "_index",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2741,7 +3380,7 @@
     }
   },
   {
-    "__docId__": 140,
+    "__docId__": 164,
     "kind": "member",
     "name": "_setupPromise",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2758,7 +3397,7 @@
     }
   },
   {
-    "__docId__": 141,
+    "__docId__": 165,
     "kind": "member",
     "name": "_indexSetup",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2775,7 +3414,7 @@
     }
   },
   {
-    "__docId__": 142,
+    "__docId__": 166,
     "kind": "method",
     "name": "init",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2794,7 +3433,7 @@
     }
   },
   {
-    "__docId__": 143,
+    "__docId__": 167,
     "kind": "member",
     "name": "initPromiseSync",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2811,7 +3450,7 @@
     }
   },
   {
-    "__docId__": 147,
+    "__docId__": 171,
     "kind": "method",
     "name": "_loadAndInit",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2830,7 +3469,7 @@
     }
   },
   {
-    "__docId__": 148,
+    "__docId__": 172,
     "kind": "method",
     "name": "getDumpFilename",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2863,7 +3502,7 @@
     }
   },
   {
-    "__docId__": 149,
+    "__docId__": 173,
     "kind": "method",
     "name": "loadSnapshot",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2893,7 +3532,7 @@
     }
   },
   {
-    "__docId__": 150,
+    "__docId__": 174,
     "kind": "method",
     "name": "saveSnapshot",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2915,7 +3554,7 @@
     "params": []
   },
   {
-    "__docId__": 151,
+    "__docId__": 175,
     "kind": "member",
     "name": "databaseDumpPendingPromise",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2932,7 +3571,7 @@
     }
   },
   {
-    "__docId__": 153,
+    "__docId__": 177,
     "kind": "method",
     "name": "_initIndexes",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2951,7 +3590,7 @@
     }
   },
   {
-    "__docId__": 156,
+    "__docId__": 180,
     "kind": "method",
     "name": "_createIndexes",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2966,7 +3605,7 @@
     "return": null
   },
   {
-    "__docId__": 157,
+    "__docId__": 181,
     "kind": "method",
     "name": "getIndex",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -2999,7 +3638,7 @@
     }
   },
   {
-    "__docId__": 158,
+    "__docId__": 182,
     "kind": "method",
     "name": "_createIndex",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3035,7 +3674,7 @@
     "return": null
   },
   {
-    "__docId__": 159,
+    "__docId__": 183,
     "kind": "method",
     "name": "_extractEntityKeys",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3068,7 +3707,7 @@
     }
   },
   {
-    "__docId__": 160,
+    "__docId__": 184,
     "kind": "method",
     "name": "_extractChannelLanguage",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3101,7 +3740,7 @@
     }
   },
   {
-    "__docId__": 161,
+    "__docId__": 185,
     "kind": "method",
     "name": "_indexWDWDocument",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3127,7 +3766,7 @@
     "return": null
   },
   {
-    "__docId__": 162,
+    "__docId__": 186,
     "kind": "method",
     "name": "getDocsById",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3157,7 +3796,7 @@
     }
   },
   {
-    "__docId__": 163,
+    "__docId__": 187,
     "kind": "method",
     "name": "getEntityIndex",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3200,7 +3839,7 @@
     }
   },
   {
-    "__docId__": 164,
+    "__docId__": 188,
     "kind": "method",
     "name": "getEntity",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3243,7 +3882,7 @@
     }
   },
   {
-    "__docId__": 165,
+    "__docId__": 189,
     "kind": "method",
     "name": "getEntityOne",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3286,7 +3925,7 @@
     }
   },
   {
-    "__docId__": 166,
+    "__docId__": 190,
     "kind": "method",
     "name": "getFacilityStatus",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3319,7 +3958,7 @@
     }
   },
   {
-    "__docId__": 167,
+    "__docId__": 191,
     "kind": "method",
     "name": "getByChannel",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3362,7 +4001,7 @@
     }
   },
   {
-    "__docId__": 168,
+    "__docId__": 192,
     "kind": "method",
     "name": "find",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3395,7 +4034,7 @@
     }
   },
   {
-    "__docId__": 169,
+    "__docId__": 193,
     "kind": "method",
     "name": "subscribeToChanges",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3431,7 +4070,7 @@
     "return": null
   },
   {
-    "__docId__": 170,
+    "__docId__": 194,
     "kind": "method",
     "name": "subscribeToChannel",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3467,7 +4106,7 @@
     "return": null
   },
   {
-    "__docId__": 171,
+    "__docId__": 195,
     "kind": "method",
     "name": "_pluginBulkDocs",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3506,7 +4145,7 @@
   },
   {
     "kind": "packageJSON",
-    "content": "{\n  \"name\": \"parksapi\",\n  \"type\": \"module\",\n  \"version\": \"1.0.0\",\n  \"description\": \"\",\n  \"engines\": {\n    \"npm\": \">=6\",\n    \"node\": \">=14\"\n  },\n  \"main\": \"lib/index.js\",\n  \"scripts\": {\n    \"test\": \"eslint ./lib/**\",\n    \"docs\": \"esdoc\"\n  },\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/ThemeParks/parksapi.git\"\n  },\n  \"author\": \"@cube\",\n  \"license\": \"ISC\",\n  \"bugs\": {\n    \"url\": \"https://github.com/ThemeParks/parksapi/issues\"\n  },\n  \"homepage\": \"https://github.com/ThemeParks/parksapi#readme\",\n  \"dependencies\": {\n    \"domain-match\": \"^1.0.0\",\n    \"dotenv\": \"^8.2.0\",\n    \"express\": \"^4.17.1\",\n    \"express-pouchdb\": \"^4.2.0\",\n    \"extends-classes\": \"^1.0.5\",\n    \"moment-timezone\": \"^0.5.31\",\n    \"needle\": \"^2.5.0\",\n    \"pouchdb\": \"^7.2.1\",\n    \"pouchdb-replication-stream\": \"github:pouchdb-community/pouchdb-replication-stream#56f0511\",\n    \"promise-retry\": \"^2.0.1\",\n    \"sift\": \"^13.1.10\",\n    \"sqlite3\": \"^5.0.0\"\n  },\n  \"devDependencies\": {\n    \"esdoc\": \"^1.1.0\",\n    \"esdoc-ecmascript-proposal-plugin\": \"^1.0.0\",\n    \"esdoc-standard-plugin\": \"^1.0.0\",\n    \"eslint\": \"^7.4.0\",\n    \"eslint-config-google\": \"^0.14.0\"\n  }\n}\n",
+    "content": "{\n  \"name\": \"parksapi\",\n  \"type\": \"module\",\n  \"version\": \"1.0.0\",\n  \"description\": \"\",\n  \"engines\": {\n    \"npm\": \">=6\",\n    \"node\": \">=14\"\n  },\n  \"main\": \"lib/index.js\",\n  \"scripts\": {\n    \"test\": \"eslint ./lib/**\",\n    \"docs\": \"esdoc\"\n  },\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/ThemeParks/parksapi.git\"\n  },\n  \"author\": \"@cube\",\n  \"license\": \"ISC\",\n  \"bugs\": {\n    \"url\": \"https://github.com/ThemeParks/parksapi/issues\"\n  },\n  \"homepage\": \"https://github.com/ThemeParks/parksapi#readme\",\n  \"dependencies\": {\n    \"domain-match\": \"^1.0.0\",\n    \"dotenv\": \"^8.2.0\",\n    \"moment-timezone\": \"^0.5.31\",\n    \"needle\": \"^2.5.0\",\n    \"pouchdb\": \"^7.2.1\",\n    \"pouchdb-replication-stream\": \"github:pouchdb-community/pouchdb-replication-stream#56f0511\",\n    \"promise-retry\": \"^2.0.1\",\n    \"random-useragent\": \"^0.4.0\",\n    \"sift\": \"^13.1.10\",\n    \"sqlite3\": \"^5.0.0\"\n  },\n  \"devDependencies\": {\n    \"esdoc\": \"^1.1.0\",\n    \"esdoc-ecmascript-proposal-plugin\": \"^1.0.0\",\n    \"esdoc-standard-plugin\": \"^1.0.0\",\n    \"eslint\": \"^7.4.0\",\n    \"eslint-config-google\": \"^0.14.0\"\n  }\n}\n",
     "longname": "/home/runner/work/parksapi/parksapi/package.json",
     "name": "package.json",
     "static": true,

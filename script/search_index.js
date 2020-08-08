@@ -54,6 +54,18 @@ window.esdocSearchIndex = [
     "variable"
   ],
   [
+    "parksapi/lib/cache/scopedcache.js~scopedcache",
+    "class/lib/cache/scopedCache.js~ScopedCache.html",
+    "<span>ScopedCache</span> <span class=\"search-result-import-path\">parksapi/lib/cache/scopedCache.js</span>",
+    "class"
+  ],
+  [
+    "parksapi/lib/parks/park.js~generaterandomandroiduseragent",
+    "function/index.html#static-function-generateRandomAndroidUseragent",
+    "<span>generateRandomAndroidUseragent</span> <span class=\"search-result-import-path\">parksapi/lib/parks/park.js</span>",
+    "function"
+  ],
+  [
     "parksapi/lib/cache.js~get",
     "function/index.html#static-function-get",
     "<span>get</span> <span class=\"search-result-import-path\">parksapi/lib/cache.js</span>",
@@ -384,6 +396,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/cache/cachebase.js~cachebase#_getkeys",
+    "class/lib/cache/cacheBase.js~CacheBase.html#instance-method-_getKeys",
+    "lib/cache/cacheBase.js~CacheBase#_getKeys",
+    "method"
+  ],
+  [
     "lib/cache/cachebase.js~cachebase#_set",
     "class/lib/cache/cacheBase.js~CacheBase.html#instance-method-_set",
     "lib/cache/cacheBase.js~CacheBase#_set",
@@ -399,6 +417,12 @@ window.esdocSearchIndex = [
     "lib/cache/cachebase.js~cachebase#get",
     "class/lib/cache/cacheBase.js~CacheBase.html#instance-method-get",
     "lib/cache/cacheBase.js~CacheBase#get",
+    "method"
+  ],
+  [
+    "lib/cache/cachebase.js~cachebase#getkeys",
+    "class/lib/cache/cacheBase.js~CacheBase.html#instance-method-getKeys",
+    "lib/cache/cacheBase.js~CacheBase#getKeys",
     "method"
   ],
   [
@@ -438,6 +462,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/cache/cachelevel.js~cachelevel#_getkeys",
+    "class/lib/cache/cacheLevel.js~CacheLevel.html#instance-method-_getKeys",
+    "lib/cache/cacheLevel.js~CacheLevel#_getKeys",
+    "method"
+  ],
+  [
     "lib/cache/cachelevel.js~cachelevel#_set",
     "class/lib/cache/cacheLevel.js~CacheLevel.html#instance-method-_set",
     "lib/cache/cacheLevel.js~CacheLevel#_set",
@@ -468,6 +498,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/cache/cachememory.js~cachememory#_getkeys",
+    "class/lib/cache/cacheMemory.js~CacheMemory.html#instance-method-_getKeys",
+    "lib/cache/cacheMemory.js~CacheMemory#_getKeys",
+    "method"
+  ],
+  [
     "lib/cache/cachememory.js~cachememory#_set",
     "class/lib/cache/cacheMemory.js~CacheMemory.html#instance-method-_set",
     "lib/cache/cacheMemory.js~CacheMemory#_set",
@@ -495,6 +531,12 @@ window.esdocSearchIndex = [
     "lib/cache/cachesqlite.js~cachesqlite#_get",
     "class/lib/cache/cacheSqlite.js~CacheSqlite.html#instance-method-_get",
     "lib/cache/cacheSqlite.js~CacheSqlite#_get",
+    "method"
+  ],
+  [
+    "lib/cache/cachesqlite.js~cachesqlite#_getkeys",
+    "class/lib/cache/cacheSqlite.js~CacheSqlite.html#instance-method-_getKeys",
+    "lib/cache/cacheSqlite.js~CacheSqlite#_getKeys",
     "method"
   ],
   [
@@ -531,6 +573,90 @@ window.esdocSearchIndex = [
     "lib/cache/cachesqlite.js~cachesqlite#setupdb",
     "class/lib/cache/cacheSqlite.js~CacheSqlite.html#instance-method-setupDB",
     "lib/cache/cacheSqlite.js~CacheSqlite#setupDB",
+    "method"
+  ],
+  [
+    "lib/cache/scopedcache.js",
+    "file/lib/cache/scopedCache.js.html",
+    "lib/cache/scopedCache.js",
+    "file"
+  ],
+  [
+    "lib/cache/scopedcache.js~scopedcache#cache",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-member-cache",
+    "lib/cache/scopedCache.js~ScopedCache#cache",
+    "member"
+  ],
+  [
+    "lib/cache/scopedcache.js~scopedcache#constructor",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-constructor-constructor",
+    "lib/cache/scopedCache.js~ScopedCache#constructor",
+    "method"
+  ],
+  [
+    "lib/cache/scopedcache.js~scopedcache#generatescopedkey",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-method-generateScopedKey",
+    "lib/cache/scopedCache.js~ScopedCache#generateScopedKey",
+    "method"
+  ],
+  [
+    "lib/cache/scopedcache.js~scopedcache#get",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-method-get",
+    "lib/cache/scopedCache.js~ScopedCache#get",
+    "method"
+  ],
+  [
+    "lib/cache/scopedcache.js~scopedcache#getglobal",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-method-getGlobal",
+    "lib/cache/scopedCache.js~ScopedCache#getGlobal",
+    "method"
+  ],
+  [
+    "lib/cache/scopedcache.js~scopedcache#initcache",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-method-initCache",
+    "lib/cache/scopedCache.js~ScopedCache#initCache",
+    "method"
+  ],
+  [
+    "lib/cache/scopedcache.js~scopedcache#initcachepromise",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-member-initCachePromise",
+    "lib/cache/scopedCache.js~ScopedCache#initCachePromise",
+    "member"
+  ],
+  [
+    "lib/cache/scopedcache.js~scopedcache#prefix",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-member-prefix",
+    "lib/cache/scopedCache.js~ScopedCache#prefix",
+    "member"
+  ],
+  [
+    "lib/cache/scopedcache.js~scopedcache#set",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-method-set",
+    "lib/cache/scopedCache.js~ScopedCache#set",
+    "method"
+  ],
+  [
+    "lib/cache/scopedcache.js~scopedcache#setglobal",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-method-setGlobal",
+    "lib/cache/scopedCache.js~ScopedCache#setGlobal",
+    "method"
+  ],
+  [
+    "lib/cache/scopedcache.js~scopedcache#version",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-member-version",
+    "lib/cache/scopedCache.js~ScopedCache#version",
+    "member"
+  ],
+  [
+    "lib/cache/scopedcache.js~scopedcache#wrap",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-method-wrap",
+    "lib/cache/scopedCache.js~ScopedCache#wrap",
+    "method"
+  ],
+  [
+    "lib/cache/scopedcache.js~scopedcache#wrapglobal",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-method-wrapGlobal",
+    "lib/cache/scopedCache.js~ScopedCache#wrapGlobal",
     "method"
   ],
   [
@@ -604,6 +730,12 @@ window.esdocSearchIndex = [
     "class/lib/parks/park.js~Park.html#instance-method-_updateAttractionState",
     "lib/parks/park.js~Park#_updateAttractionState",
     "method"
+  ],
+  [
+    "lib/parks/park.js~park#cache",
+    "class/lib/parks/park.js~Park.html#instance-member-cache",
+    "lib/parks/park.js~Park#cache",
+    "member"
   ],
   [
     "lib/parks/park.js~park#constructor",
