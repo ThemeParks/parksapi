@@ -31,6 +31,7 @@
     
   <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/configBase.js~ConfigBase.html">ConfigBase</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-get">get</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-parseConfig">parseConfig</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#cache">cache</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheBase.js~CacheBase.html">CacheBase</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheLevel.js~CacheLevel.html">CacheLevel</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheMemory.js~CacheMemory.html">CacheMemory</a></span></span></li>
@@ -38,8 +39,9 @@
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-ParkConstants">ParkConstants</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~DisneyDB.html">DisneyDB</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html">IndexedWDWDB</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabase">getDatabase</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabaseLocation">getDatabaseLocation</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getEntityID">getEntityID</a></span></span></li>
 </ul>
 </div>
@@ -49,6 +51,50 @@
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">// load any environment variables from .env (if it exists)
 import DotEnv from &apos;dotenv&apos;;
 DotEnv.config();
+
+/**
+ * Combine given options with environment variables
+ * @param {object} options Incoming options
+ * @return {object} Processed configuration options
+ */
+export function parseConfig(options = {}) {
+  const configKeys = Object.keys(options);
+
+  const config = {};
+
+  options.configPrefixes = [&apos;THEMEPARKS&apos;].concat(
+      options.configPrefixes || [],
+  );
+
+  // build this.config object with our settings
+  configKeys.forEach((key) =&gt; {
+    // default prefixes are either &quot;classname_&quot; or &quot;THEMEPARKS_&quot;
+    //  classes can add more with configPrefixes
+    options.configPrefixes.forEach((prefix) =&gt; {
+      const configEnvName = `${prefix}_${key}`.toUpperCase();
+
+      if (process.env[configEnvName]) {
+        console.log(`Using env variable ${configEnvName}`);
+        config[key] = process.env[configEnvName];
+        console.log(` ${key}(env.${configEnvName})=${config[key]}`);
+      }
+    });
+
+    if (config[key] === undefined) {
+      config[key] = options[key];
+    } else {
+      // convert env variable to number if the base default is a number
+      if (typeof config[key] === &apos;number&apos;) {
+        config[key] = Number(config[key]);
+      } else if (typeof config[key] === &apos;boolean&apos;) {
+        // convert any boolean configs too
+        config[key] = (config[key] === &apos;true&apos;);
+      }
+    }
+  });
+
+  return config;
+}
 
 /**
  * Base Config Object
@@ -74,43 +120,11 @@ export class ConfigBase {
    * @param {object} options Config for instantiating this object
    */
   constructor(options = {}) {
-    const config = options || {};
-    const configKeys = Object.keys(config);
-
-    this.config = {};
-
-    const className = this.constructor.name;
-
-    const configPrefixes = [className, &apos;THEMEPARKS&apos;].concat(
+    options.configPrefixes = [this.constructor.name].concat(
         options.configPrefixes || [],
     );
 
-    // build this.config object with our settings
-    configKeys.forEach((key) =&gt; {
-      // default prefixes are either &quot;classname_&quot; or &quot;THEMEPARKS_&quot;
-      //  classes can add more with configPrefixes
-      configPrefixes.forEach((prefix) =&gt; {
-        const configEnvName = `${prefix}_${key}`.toUpperCase();
-
-        if (process.env[configEnvName]) {
-          console.log(`Using env variable config for class ${className}`);
-          this.config[key] = process.env[configEnvName];
-          console.log(` ${key}(env.${configEnvName})=${this.config[key]}`);
-        }
-      });
-
-      if (this.config[key] === undefined) {
-        this.config[key] = config[key];
-      } else {
-        // convert env variable to number if the base default is a number
-        if (typeof config[key] === &apos;number&apos;) {
-          this.config[key] = Number(this.config[key]);
-        } else if (typeof config[key] === &apos;boolean&apos;) {
-          // convert any boolean configs too
-          this.config[key] = (this.config[key] === &apos;true&apos;);
-        }
-      }
-    });
+    this.config = parseConfig(options || {});
   }
 }
 

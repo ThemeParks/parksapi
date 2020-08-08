@@ -30,15 +30,15 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
-    "parksapi/lib/parks/wdw/wdwdb.js~disneydb",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html",
-    "<span>DisneyDB</span> <span class=\"search-result-import-path\">parksapi/lib/parks/wdw/wdwdb.js</span>",
-    "class"
-  ],
-  [
     "parksapi/lib/parks/wdw/waltdisneyworldbase.js~disneypark",
     "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html",
     "<span>DisneyPark</span> <span class=\"search-result-import-path\">parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "class"
+  ],
+  [
+    "parksapi/lib/parks/wdw/wdwdb.js~indexedwdwdb",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html",
+    "<span>IndexedWDWDB</span> <span class=\"search-result-import-path\">parksapi/lib/parks/wdw/wdwdb.js</span>",
     "class"
   ],
   [
@@ -66,9 +66,21 @@ window.esdocSearchIndex = [
     "function"
   ],
   [
+    "parksapi/lib/parks/wdw/wdwdb.js~getdatabaselocation",
+    "function/index.html#static-function-getDatabaseLocation",
+    "<span>getDatabaseLocation</span> <span class=\"search-result-import-path\">parksapi/lib/parks/wdw/wdwdb.js</span>",
+    "function"
+  ],
+  [
     "parksapi/lib/parks/wdw/wdwdb.js~getentityid",
     "function/index.html#static-function-getEntityID",
     "<span>getEntityID</span> <span class=\"search-result-import-path\">parksapi/lib/parks/wdw/wdwdb.js</span>",
+    "function"
+  ],
+  [
+    "parksapi/lib/configbase.js~parseconfig",
+    "function/index.html#static-function-parseConfig",
+    "<span>parseConfig</span> <span class=\"search-result-import-path\">parksapi/lib/configBase.js</span>",
     "function"
   ],
   [
@@ -720,135 +732,195 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
-    "lib/parks/wdw/wdwdb.js~disneydb#_loadandinit",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-method-_loadAndInit",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#_loadAndInit",
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#_createindex",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-_createIndex",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_createIndex",
     "method"
   ],
   [
-    "lib/parks/wdw/wdwdb.js~disneydb#_scheduledbdump",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-method-_scheduleDBDump",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#_scheduleDBDump",
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#_createindexes",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-_createIndexes",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_createIndexes",
     "method"
   ],
   [
-    "lib/parks/wdw/wdwdb.js~disneydb#constructor",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-constructor-constructor",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#constructor",
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#_extractchannellanguage",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-_extractChannelLanguage",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_extractChannelLanguage",
     "method"
   ],
   [
-    "lib/parks/wdw/wdwdb.js~disneydb#databasedumppendingpromise",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-member-databaseDumpPendingPromise",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#databaseDumpPendingPromise",
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#_extractentitykeys",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-_extractEntityKeys",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_extractEntityKeys",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#_index",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-member-_index",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_index",
     "member"
   ],
   [
-    "lib/parks/wdw/wdwdb.js~disneydb#dump",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-method-dump",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#dump",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneydb#find",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-method-find",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#find",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneydb#findbychannel",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-method-findByChannel",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#findByChannel",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneydb#findentity",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-method-findEntity",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#findEntity",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneydb#findfacilitystatus",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-method-findFacilityStatus",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#findFacilityStatus",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneydb#findindexentity",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-method-findIndexEntity",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#findIndexEntity",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneydb#findone",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-method-findOne",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#findOne",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneydb#get",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-method-get",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#get",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneydb#getdocsbyid",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-method-getDocsById",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#getDocsById",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneydb#getdumpfilename",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-method-getDumpFilename",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#getDumpFilename",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneydb#init",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-method-init",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#init",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneydb#initpromisesync",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-member-initPromiseSync",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#initPromiseSync",
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#_indexsetup",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-member-_indexSetup",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_indexSetup",
     "member"
   ],
   [
-    "lib/parks/wdw/wdwdb.js~disneydb#load",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-method-load",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#load",
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#_indexwdwdocument",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-_indexWDWDocument",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_indexWDWDocument",
     "method"
   ],
   [
-    "lib/parks/wdw/wdwdb.js~disneydb#localdb",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-member-localDB",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#localDB",
-    "member"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneydb#remotedb",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-member-remoteDB",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#remoteDB",
-    "member"
-  ],
-  [
-    "lib/parks/wdw/wdwdb.js~disneydb#subscribetochanges",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-method-subscribeToChanges",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#subscribeToChanges",
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#_initindexes",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-_initIndexes",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_initIndexes",
     "method"
   ],
   [
-    "lib/parks/wdw/wdwdb.js~disneydb#subscribetochannel",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-method-subscribeToChannel",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#subscribeToChannel",
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#_loadandinit",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-_loadAndInit",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_loadAndInit",
     "method"
   ],
   [
-    "lib/parks/wdw/wdwdb.js~disneydb#synced",
-    "class/lib/parks/wdw/wdwdb.js~DisneyDB.html#instance-member-synced",
-    "lib/parks/wdw/wdwdb.js~DisneyDB#synced",
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#_setuppromise",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-member-_setupPromise",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_setupPromise",
     "member"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#config",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-member-config",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#config",
+    "member"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#constructor",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-constructor-constructor",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#databasedumppendingpromise",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-member-databaseDumpPendingPromise",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#databaseDumpPendingPromise",
+    "member"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#find",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-find",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#find",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#getbychannel",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-getByChannel",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getByChannel",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#getdocsbyid",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-getDocsById",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getDocsById",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#getdumpfilename",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-getDumpFilename",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getDumpFilename",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#getentity",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-getEntity",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getEntity",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#getentityindex",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-getEntityIndex",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getEntityIndex",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#getentityone",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-getEntityOne",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getEntityOne",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#getfacilitystatus",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-getFacilityStatus",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getFacilityStatus",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#getindex",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-getIndex",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getIndex",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#init",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-init",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#init",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#initpromisesync",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-member-initPromiseSync",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#initPromiseSync",
+    "member"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#loadsnapshot",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-loadSnapshot",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#loadSnapshot",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#remotedb",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-member-remoteDB",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#remoteDB",
+    "member"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#replicating",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-member-replicating",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#replicating",
+    "member"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#savesnapshot",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-saveSnapshot",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#saveSnapshot",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#subscribetochanges",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-subscribeToChanges",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#subscribeToChanges",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#subscribetochannel",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-subscribeToChannel",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#subscribeToChannel",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#synced",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-member-synced",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#synced",
+    "member"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb._pluginbulkdocs",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#static-method-_pluginBulkDocs",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB._pluginBulkDocs",
+    "method"
   ]
 ]

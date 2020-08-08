@@ -31,6 +31,7 @@
     
   <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/configBase.js~ConfigBase.html">ConfigBase</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-get">get</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-parseConfig">parseConfig</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#cache">cache</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheBase.js~CacheBase.html">CacheBase</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheLevel.js~CacheLevel.html">CacheLevel</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheMemory.js~CacheMemory.html">CacheMemory</a></span></span></li>
@@ -38,15 +39,16 @@
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-ParkConstants">ParkConstants</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~DisneyDB.html">DisneyDB</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html">IndexedWDWDB</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabase">getDatabase</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabaseLocation">getDatabaseLocation</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getEntityID">getEntityID</a></span></span></li>
 </ul>
 </div>
 </nav>
 
 <div class="content" data-ice="content"><h1 data-ice="title">lib/parks/wdw/waltdisneyworldbase.js</h1>
-<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {DisneyDB, getEntityID} from &apos;./wdwdb.js&apos;;
+<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {IndexedWDWDB, getEntityID} from &apos;./wdwdb.js&apos;;
 import {Park, ParkConstants} from &apos;../park.js&apos;;
 
 let wdwDB = null;
@@ -56,7 +58,7 @@ let wdwDB = null;
  */
 export function getDatabase() {
   if (!wdwDB) {
-    wdwDB = new DisneyDB();
+    wdwDB = new IndexedWDWDB();
   }
   return wdwDB;
 }
@@ -69,9 +71,13 @@ export class DisneyPark extends Park {
    * Create a new DisneyPark object
    * @param {object} options
    */
-  constructor(options) {
+  constructor(options = {}) {
     options.resort_id = options.resort_id || &apos;&apos;;
     options.park_id = options.park_id || &apos;&apos;;
+
+    if (!options.configPrefixes) {
+      options.configPrefixes = [&apos;wdw&apos;];
+    }
 
     super(options);
 
@@ -119,7 +125,7 @@ export class DisneyPark extends Park {
     // fetch the current attraction times
     await Promise.all((
       // get all attractions with facility statuses
-      await this.db.findByChannel(this.getFacilityStatusChannelID())
+      await this.db.getByChannel(this.getFacilityStatusChannelID())
     ).map(this._processAttractionStatusUpdate.bind(this)));
   }
 
@@ -132,7 +138,7 @@ export class DisneyPark extends Park {
     const entityID = getEntityID(doc.id);
 
     // check attraction is within our park
-    const updateIndexEntry = await this.db.findIndexEntity(entityID, {
+    const updateIndexEntry = await this.db.getEntityIndex(entityID, {
       park_id: this.config.park_id,
     });
     // if we have no entries, then attraction is not in our park
@@ -177,7 +183,7 @@ export class DisneyPark extends Park {
     await this.db.init();
 
     // find a document for our attraction ID
-    const attr = await this.db.findOne(attractionID);
+    const attr = await this.db.getEntityOne(attractionID);
     if (attr) {
       // TODO - build a full document about this attraction
       return {

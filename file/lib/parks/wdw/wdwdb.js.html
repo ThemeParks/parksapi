@@ -31,6 +31,7 @@
     
   <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/configBase.js~ConfigBase.html">ConfigBase</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-get">get</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-parseConfig">parseConfig</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#cache">cache</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheBase.js~CacheBase.html">CacheBase</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheLevel.js~CacheLevel.html">CacheLevel</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheMemory.js~CacheMemory.html">CacheMemory</a></span></span></li>
@@ -38,8 +39,9 @@
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-ParkConstants">ParkConstants</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~DisneyDB.html">DisneyDB</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html">IndexedWDWDB</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabase">getDatabase</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabaseLocation">getDatabaseLocation</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getEntityID">getEntityID</a></span></span></li>
 </ul>
 </div>
@@ -49,23 +51,15 @@
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import PouchDB from &apos;pouchdb&apos;;
 import ReplicationStream from &apos;pouchdb-replication-stream&apos;;
 import sift from &apos;sift&apos;;
-
 import {promises as fs, constants as fsConstants, createReadStream, createWriteStream} from &apos;fs&apos;;
 import path from &apos;path&apos;;
 
-import ConfigBase from &apos;../../configBase.js&apos;;
-
-import expressPouchDB from &apos;express-pouchdb&apos;;
-
-// pouchdb-replication-stream allows us to &quot;seed&quot; the database with an initial database dump
-//  incredibly useful for the wdw db, which is pretty huge
-PouchDB.plugin(ReplicationStream.plugin);
-PouchDB.adapter(&apos;writableStream&apos;, ReplicationStream.adapters.writableStream);
+import {parseConfig} from &apos;../../configBase.js&apos;;
 
 /**
- * Return the entity ID of an object
- * @param {object} doc Entity Document
- * @return {string} Entity ID, or undefined if unavailable
+ * Given a document, return it&apos;s entity ID for the WDW database
+ * @param {object|string} doc CouchDB document or a document ID
+ * @return {string}
  */
 export function getEntityID(doc) {
   const docId = doc?.id || doc;
@@ -86,29 +80,23 @@ export function getEntityID(doc) {
 }
 
 /**
- * Custom implementation of PouchDB for our WDW database sync
+ * Get the LevelDOWN database location to use
+ * @param {string} name Database name
+ * @return {string}
  */
-class WDWPouchDB extends PouchDB {
-  /**
-   * Build our WDWPouchDB object (passes straight through to PouchDB())
-   * @param  {...any} args
-   */
-  constructor(...args) {
-    super(...args);
-
-    // create our WDW indexes
-    this._wdwIndex = {}; // general entityID -&gt; docs index
-    this._wdwFacilityStatusIndex = []; // facility status docs (ride times etc.)
-    this._wdwChannelIndex = {}; // documents grouped by channel
-  }
+export function getDatabaseLocation(name) {
+  return path.join(&apos;localdb&apos;, `${name}`);
 }
 
-const delay = (time) =&gt; {
-  return new Promise((resolve) =&gt; {
-    setTimeout(resolve, time);
-  });
+// internal key names for our indexes. Stored as constants to save typing these over and over
+const constants = {
+  INDEX_FACILITYSTATUS: &apos;facilityStatus&apos;,
+  INDEX_CHANNELS: &apos;channels&apos;,
+  INDEX_ENTITIES: &apos;entities&apos;,
 };
 
+// ancestors to include in our index
+//  we add these into our index objects to identify unique documents to index
 const ancestorIndexes = [
   {
     key: &apos;ancestorLandId&apos;,
@@ -128,264 +116,65 @@ const ancestorIndexes = [
   },
 ];
 
-// helper function that extracts the entity ID, type, and any other meta-data from a document using it&apos;s .id
-const extractEntityKeys = (doc) =&gt; {
-  if (!doc || !doc.id) return undefined;
-
-  // some IDs are stacked using :
-  const stack = doc.id.split(&apos;:&apos;);
-  const lowestLevelEntity = stack[stack.length - 1];
-
-  const parts = lowestLevelEntity.split(&apos;;&apos;);
-  if (parts &lt;= 1) return undefined;
-
-  // some documents can have different parents, they&apos;re the same, but different path to get there
-  const parentStackEl = stack.length &gt; 1 ? stack[stack.length - 2] : undefined;
-  const parent = parentStackEl ? extractEntityKeys({id: parentStackEl}).id : undefined;
-
-  const ret = {
-    parent,
-  };
-
-  parts.forEach((p) =&gt; {
-    const keyval = p.split(&apos;=&apos;);
-    if (keyval.length === 1) {
-      ret.id = keyval[0];
-    } else {
-      ret[keyval[0]] = keyval[1];
-    }
-  });
-
-  // if this document is in a &quot;facilitystatus&quot; channel, add an extra tag
-  //  this is so we don&apos;t collide with the actaul document for this attraction
-  //  but also so we can filter it easier later
-  const channel = doc.channels?.length ? doc.channels[0] : undefined;
-  if (channel &amp;&amp; channel.indexOf(&apos;facilitystatus&apos;) &gt;= 0) {
-    ret.facilityStatus = true;
-  }
-
-  // include channel in our index
-  ret.channel = channel;
-
-  // add any ancestor data to our index (that we a) care about and b) can find) - see ancestorIndexes
-  ancestorIndexes.forEach((ancestorIndex) =&gt; {
-    if (doc[ancestorIndex.key]) {
-      const ancestorID = getEntityID(doc[ancestorIndex.key]);
-      if (ancestorID) {
-        ret[ancestorIndex.index] = ancestorID;
-      }
-    }
-  });
-
-  return ret;
-};
-
-// figure out a document&apos;s intended language
-const extractChannelLanguage = (doc) =&gt; {
-  // pull channel from doc
-  const channel = doc.channels?.length ? doc.channels[0] : undefined;
-  if (!channel) return undefined;
-
-  // extract language from the end of the channel name
-  let lang = channel.slice(channel.lastIndexOf(&apos;.&apos;) + 1);
-
-  // channels missing any locale are assumed English International (they are using &quot;1_0&quot; or similar)
-  if (lang.indexOf(&apos;1&apos;) === 0) {
-    lang = &apos;en_intl&apos;;
-  }
-
-  return lang;
-};
-
-/**
- * @private
- * @param {*} doc
- */
-function IndexDocument(doc) {
-  const entity = extractEntityKeys(doc);
-  if (entity &amp;&amp; entity.id &amp;&amp; entity.entityType) {
-    const id = entity.id;
-    if (!this._wdwIndex[id]) {
-      this._wdwIndex[id] = [];
-    }
-
-    const newIndexEntry = {
-      ...entity,
-      language: extractChannelLanguage(doc),
-      _id: doc._id,
-    };
-
-    // special-case, index all facility status documents in another index
-    if (newIndexEntry.facilityStatus) {
-      const docExists = this._wdwFacilityStatusIndex.findIndex((x) =&gt; {
-        return x.id === newIndexEntry.id;
-      });
-      if (docExists &gt;= 0) {
-        this._wdwFacilityStatusIndex[docExists] = newIndexEntry;
-      } else {
-        this._wdwFacilityStatusIndex.push(newIndexEntry);
-      }
-    }
-
-    // index all documnets based on channel
-    const channel = doc.channels?.length ? doc.channels[0] : undefined;
-    if (channel) {
-      if (!this._wdwChannelIndex[channel]) {
-        this._wdwChannelIndex[channel] = [];
-      }
-
-      this._wdwChannelIndex[channel].push(newIndexEntry);
-    }
-
-    const newIndexKeys = Object.keys(newIndexEntry);
-
-    const findExisting = this._wdwIndex[id].findIndex((x) =&gt; {
-      // if # keys are different, not a match
-      if (Object.keys(x).length !== newIndexKeys.length) return false;
-
-      // look for any mismatches between the keys
-      const findMismatch = newIndexKeys.find((key) =&gt; {
-        // _id is supposed to be different, so ignore it regardless of if it matches or not
-        if (key === &apos;_id&apos;) return false;
-        return (newIndexEntry[key] !== x[key]);
-      });
-      return !findMismatch;
-    });
-
-    if (findExisting &lt; 0) {
-      // entry doesn&apos;t exist, add to our list
-      this._wdwIndex[id].push(newIndexEntry);
-    } else {
-      // replace existing entry that matches all the same properties
-      this._wdwIndex[id][findExisting] = newIndexEntry;
-    }
-  }
-};
-
+// Super() function to call when we setup this class as a plugin
 const pouchBulkDocs = PouchDB.prototype.bulkDocs;
 
 /**
- * @private
- * @param  {...any} args
- * @return {*}
+ * An indexed live WDW database
+ * Replicated WDW database to local disk for fast access
+ * While replicating, will build an in-memory index of entities for fast lookup
+ * Options to dump database to a single file or load a snapshot for quicker database boot ups
  */
-function WDWIndexPluginBulkDocs(...args) {
-  const body = args[0];
-  const docs = Array.isArray(body) ? body : body.docs;
-
-  docs.forEach((doc) =&gt; {
-    if (!doc._deleted) {
-      // doc not deleted, index it!
-      IndexDocument.call(this, doc);
-    } else {
-      // remove from any existing index we have for this document
-      Object.keys(this._wdwIndex).forEach((id) =&gt; {
-        const entry = this._wdwIndex[id];
-        const containsID = entry.findIndex((x) =&gt; x._id === doc._id);
-        if (containsID &gt;= 0) {
-          entry.splice(containsID, 1);
-        }
-      });
-
-      // clear out the channel index on document deletion
-      const channel = doc.channels?.length ? doc.channels[0] : undefined;
-      if (channel) {
-        const channelIndex = this._wdwChannelIndex;
-        if (channelIndex) {
-          const docIndex = channelIndex.findIndex((x) =&gt; x._id === doc._id);
-          if (docIndex &gt;= 0) {
-            channelIndex.splice(docIndex, 1);
-          }
-        }
-      }
-    }
-  });
-
-  // All documents check out. Pass them to PouchDB.
-  return pouchBulkDocs.call(this, ...args);
-}
-
-const WDWIndexPlugin = {
-  bulkDocs: WDWIndexPluginBulkDocs,
-};
-
-// plugin to our localdb so we can index entity IDs to the correct document
-WDWPouchDB.plugin(WDWIndexPlugin);
-
-/**
- * Live Database object for Disney parks using couchbase databases
- * Will syncronise databae locally before accessing, allowing fast queries
- * @class
- */
-export class DisneyDB extends ConfigBase {
+export class IndexedWDWDB extends PouchDB {
   /**
-     * Create a new DisneyDB object
-     * @param {*} options
-     */
-  constructor(options = {}) {
-    if (!options.dbName) {
-      options.dbName = &apos;wdw&apos;;
-    }
+   * Construct a new IndexedWDWDB object
+   * @param {object} opts PouchDB options object
+   * @param {string} [opts.remoteHost] Remote database to replicate
+   * @param {string} [opts.remoteUsername] Remote database username to authenticate
+   * @param {string} [opts.remotePassword] Remote database password to authenticate
+   * @param {string} [opts.dbName=&apos;wdw&apos;] Local database name
+   * @param {string} [opts.snapshot] File location of a snapshot to &apos;seed&apos; the database during startup
+   * @param {string} [opts.skipSync] Skip network replication, only use data already on disk
+   * @extends PouchDB
+   */
+  constructor(opts = {}) {
+    // default to enable auto_compaction
+    opts.auto_compaction = opts.auto_compaction || true;
 
-    // env variables can override with
-    //  env.WDWDB_HOST, env.WDWDB_USERNAME, env.WDWDB_PASSWORD etc.
-    if (!options.configPrefixes) {
-      options.configPrefixes = [&apos;wdwdb&apos;];
-    }
+    opts.remoteHost = &apos;&apos;;
+    opts.remoteUsername = &apos;&apos;;
+    opts.remotePassword = &apos;&apos;;
+    opts.dbName = opts.dbName || &apos;wdw&apos;;
+    opts.snapshot = &apos;&apos;; // optional snapshot to use when starting database
+    opts.name = opts.name || getDatabaseLocation(opts.dbName);
 
-    options.host = options.host || &apos;&apos;;
-    options.username = options.username || &apos;&apos;;
-    options.password = options.password || &apos;&apos;;
-    // TODO - get latest useragent for app
-    options.useragent = options.useragent || &apos;CouchbaseLite/1.3 (1.4.1/8a21c5927a273a038fb3b66ec29c86425e871b11)&apos;;
+    opts.configPrefixes = [&apos;WDWDB&apos;].concat(opts.configPrefixes || []);
+    const config = parseConfig(opts);
 
-    // skip replication altogether (assumes skip sync, skip dump etc.)
-    //  use this to connect directly to a live database (ideally a fully autonomous proxy of the real database)
-    options.directConnection = options.directConnection || false;
+    super(config);
+    this.config = config;
 
-    options.skipSync = options.directConnection || (options.skipSync || false);
-    options.skipDump = options.directConnection || (options.skipDump || false);
-
-    // how often to take database checkpoints (default 15 minutes)
-    options.checkpointTime = options.checkpointTime || 1000 * 60 * 15;
-
-    super(options);
-
-    // if we&apos;re using a direct connection, skip setting up the local/remote setup
-    if (this.config.directConnection) {
-      this.localDB = new WDWPouchDB(this.config.host);
-
-      // asume our remote database is fully synced
-      this.synced = true;
-    } else {
-      // create our database objects
-      this.localDB = new WDWPouchDB(`localdb/${this.config.dbName}`, {
-        auto_compaction: true,
-      });
-      this.remoteDB = new PouchDB(this.config.host, {
-        auth: {
-          username: this.config.username,
-          password: this.config.password,
-        },
+    // setup our remote host to replicate locally
+    if (this.config.remoteHost) {
+      const remoteHostOptions = {
         skip_setup: true,
-        // override user-agent header when syncing remote database
-        fetch: (url, opts) =&gt; {
-          opts.headers.set(&apos;User-Agent&apos;, this.config.useragent);
-          return PouchDB.fetch(url, opts);
-        },
-      });
-      this.synced = false;
-
-      this.initPromiseSync = null;
-
-      // start the database disk scheduler
-      this._scheduleDBDump();
-
-      // optionally hook into an Express server for a GUI
-      if (this.config.http) {
-        this.config.http.use(&apos;/db&apos;, expressPouchDB(PouchDB));
+      };
+      if (this.config.remoteUsername &amp;&amp; this.config.remotePassword) {
+        remoteHostOptions.auth = {
+          username: this.config.remoteUsername,
+          password: this.config.remotePassword,
+        };
       }
+
+      this.remoteDB = new PouchDB(this.config.remoteHost, remoteHostOptions);
     }
+
+    this.synced = false;
+    this.replicating = false;
+
+    this._index = {};
+    this._setupPromise = null;
+    this._indexSetup = false;
   }
 
   /**
@@ -404,13 +193,14 @@ export class DisneyDB extends ConfigBase {
     await this.initPromiseSync;
     this.initPromiseSync = null;
 
-    console.log(`Database ${this.config.dbName} finished setup!`);
+    console.log(`Database finished setup!`);
 
     this.synced = true;
 
     if (!this.config.skipSync &amp;&amp; this.remoteDB) {
+      this.replicating = true;
       // start rolling replicate to keep our local database in-sync
-      PouchDB.replicate(this.remoteDB, this.localDB, {
+      PouchDB.replicate(this.remoteDB, this, {
         live: true,
         retry: true,
       });
@@ -423,8 +213,21 @@ export class DisneyDB extends ConfigBase {
    * @private
    */
   async _loadAndInit() {
-    // first, try and restore from disk
-    await this.load();
+    // first, try and restore from disk (will check if an existing snapshot exists)
+    await this.loadSnapshot();
+
+    // load up our indexes
+    await this._initIndexes();
+
+    // reindex every document once we&apos;ve initialised from disk
+    //  do this before replication, since all new docs will be auto-indexed
+    const docs = await this.allDocs({
+      include_docs: true,
+    });
+    console.log(&apos;Building index...&apos;);
+    await Promise.allSettled(docs.rows.map((doc) =&gt; {
+      return this._indexWDWDocument(doc.doc);
+    }));
 
     // optionally skip replicating with remote (for local fast testing)
     if (this.config.skipSync || !this.remoteDB) {
@@ -433,8 +236,10 @@ export class DisneyDB extends ConfigBase {
 
     // then perform an initial replication from remote to local
     console.log(&apos;Performing initial replication...&apos;);
-    return await PouchDB.replicate(this.remoteDB, this.localDB, {
+    return await PouchDB.replicate(this.remoteDB, this, {
       batch_size: 500,
+    }).catch((e) =&gt; {
+      console.error(`Replication error: ${e}`);
     });
   }
 
@@ -442,7 +247,8 @@ export class DisneyDB extends ConfigBase {
    * Get the filename we use for saving backups of the database to disk
    * Used for creating simple &quot;snapshots&quot; to reduce initial sync times
    * @param {string} [postfix] Optional postfix for the filename
-   * @return{string}
+   * eg. Use postfix to generate a temporary version of a file to write to before replacing the &quot;real&quot; database
+   * @return {string}
    */
   getDumpFilename(postfix = &apos;&apos;) {
     return path.join(&apos;localdb&apos;, `${this.config.dbName}${postfix}.db`);
@@ -452,9 +258,17 @@ export class DisneyDB extends ConfigBase {
    * Restore a database backup from disk
    * Perform this after running &quot;dump()&quot; on a previous synced database
    * This will help to reduce the initial sync time for large databases
+   * @param {string} [snapshotFile] File path of the snapshot to restore into the database
+   * snapshotFile will use default saveSnapshot result location if not supplied
    */
-  async load() {
-    const dumpPath = this.getDumpFilename();
+  async loadSnapshot(snapshotFile = &apos;&apos;) {
+    if (this.synced || this.replicating) {
+      console.warn(&apos;Trying to load database snapshot when replication has already started&apos;);
+      return;
+    }
+
+    const useCustomSnapshot = !!snapshotFile;
+    const dumpPath = useCustomSnapshot ? snapshotFile : this.getDumpFilename();
 
     // if our database dump doesn&apos;t exist, then early out and we&apos;ll do a normal sync
     try {
@@ -467,23 +281,19 @@ export class DisneyDB extends ConfigBase {
 
     // otherwise, load up our database from disk
     const ws = createReadStream(dumpPath);
-    return this.localDB.load(ws, {
+    return this.load(ws, {
       batch_size: 500,
     });
   }
 
   /**
-   * Dump this live database to disk
+   * Save a snapshot of this live database to disk
    * This will be used to &quot;seed&quot; the database to speed up syncs for future runs
+   * @return {string} Path to resulting database snapshot
    */
-  async dump() {
+  async saveSnapshot() {
     if (this.databaseDumpPendingPromise) {
       return this.databaseDumpPendingPromise;
-    }
-
-    // can optionally skip ever storing database to disk
-    if (this.config.skipDump) {
-      return;
     }
 
     console.log(&apos;Dumping database to disk...&apos;);
@@ -493,7 +303,7 @@ export class DisneyDB extends ConfigBase {
 
     // dump database to our new location
     const ws = createWriteStream(dumpPathNew);
-    this.databaseDumpPendingPromise = this.localDB.dump(ws, {
+    this.databaseDumpPendingPromise = this.dump(ws, {
       batch_size: 500,
     });
     // save Promise so multiple &quot;dump()&quot; calls can stack cleanly
@@ -501,33 +311,218 @@ export class DisneyDB extends ConfigBase {
     this.databaseDumpPendingPromise = null;
 
     // rename new database dump to our final intended location
-    return fs.rename(dumpPathNew, dumpPath);
+    return fs.rename(dumpPathNew, dumpPath).then(() =&gt; {
+      // finally, return the actual path of the snapshot
+      return dumpPath;
+    });
   }
 
   /**
-   * Begin a database dump loop
-   * This will dump the database to disk every 15 minutes (override with options.checkpointTime)
-   *  to speed up initial syncs
+   * Index initialisation
+   * This function wraps taking care of creating our indexes once only
    * @private
    */
-  async _scheduleDBDump() {
-    // make sure database is initialised before writing anything to disk
-    await this.init();
-    await this.dump();
+  async _initIndexes() {
+    if (this._indexSetup) {
+      return;
+    }
 
-    // schedule another database disk write
-    await delay(this.config.checkpointTime);
-    process.nextTick(this._scheduleDBDump.bind(this));
+    if (this._setupPromise) {
+      return this._setupPromise;
+    }
+
+    this._setupPromise = this._createIndexes();
+    await this._setupPromise;
+    this._indexSetup = true;
+    return;
   }
 
   /**
-   * Get a document from this live database
-   * Will wait until database is syncronised before returning
-   * See PouchDB.get(...) for options
+   * Setup our WDW indexes
+   * @private
    */
-  async get(...args) {
-    await this.init();
-    return await this.localDB.get.apply(this, args);
+  async _createIndexes() {
+    await this._createIndex(constants.INDEX_ENTITIES);
+    await this._createIndex(constants.INDEX_CHANNELS);
+    await this._createIndex(constants.INDEX_FACILITYSTATUS, []);
+  }
+
+  /**
+   * Get the internal index object for the given index type
+   * @param {object} name Index name (see constants.INDEX_*)
+   * @return {*}
+   * @private
+   */
+  getIndex(name) {
+    return this._index[name].index;
+  }
+
+  /**
+   * Create an index object to be used by this database
+   * @param {string} name Index name
+   * @param {*} defaultIndex Index initial object state
+   * @private
+   */
+  async _createIndex(name, defaultIndex = []) {
+    this._index[name] = {
+      index: defaultIndex,
+    };
+  }
+
+  /**
+   * Given a WDW document, extract key identifiable data
+   * This is used to build a look-up index of unique document types
+   * See ancestorIndexes for some of the keys we use
+   * This is important so we can tell the difference between entities with the same ID, but different purposes
+   * eg. an entity ID can have multiple documents, one for the attraction itself, one for it&apos;s wait times, etc.
+   * These need to both be in the index under the same entity ID, but with different properties to make them distinct
+   * @param {object} doc WDW Database Document
+   * @return {object} Index object containing important identifying data
+   * @private
+   */
+  _extractEntityKeys(doc) {
+    if (!doc || !doc.id) return undefined;
+
+    // some IDs are stacked using :
+    const stack = doc.id.split(&apos;:&apos;);
+    const lowestLevelEntity = stack[stack.length - 1];
+
+    const parts = lowestLevelEntity.split(&apos;;&apos;);
+    if (parts &lt;= 1) return undefined;
+
+    // some documents can have different parents, they&apos;re the same, but different path to get there
+    const parentStackEl = stack.length &gt; 1 ? stack[stack.length - 2] : undefined;
+    const parent = parentStackEl ? this._extractEntityKeys({id: parentStackEl}).id : undefined;
+
+    const ret = {
+      parent,
+    };
+
+    parts.forEach((p) =&gt; {
+      const keyval = p.split(&apos;=&apos;);
+      if (keyval.length === 1) {
+        ret.id = keyval[0];
+      } else {
+        ret[keyval[0]] = keyval[1];
+      }
+    });
+
+    // if this document is in a &quot;facilitystatus&quot; channel, add an extra tag
+    //  this is so we don&apos;t collide with the actaul document for this attraction
+    //  but also so we can filter it easier later
+    const channel = doc.channels?.length ? doc.channels[0] : undefined;
+    if (channel &amp;&amp; channel.indexOf(&apos;facilitystatus&apos;) &gt;= 0) {
+      ret.facilityStatus = true;
+    }
+
+    // include channel in our index
+    ret.channel = channel;
+
+    // add any ancestor data to our index (that we a) care about and b) can find) - see ancestorIndexes
+    ancestorIndexes.forEach((ancestorIndex) =&gt; {
+      if (doc[ancestorIndex.key]) {
+        const ancestorID = getEntityID(doc[ancestorIndex.key]);
+        if (ancestorID) {
+          ret[ancestorIndex.index] = ancestorID;
+        }
+      }
+    });
+
+    return ret;
+  }
+
+  /**
+   * Given a WDW database document, try to return its language
+   * @param {object} doc
+   * @return {string} Language of this document. Eg. en_intl, en_us
+   * @private
+   */
+  _extractChannelLanguage(doc) {
+    // pull channel from doc
+    const channel = doc.channels?.length ? doc.channels[0] : undefined;
+    if (!channel) return undefined;
+
+    // extract language from the end of the channel name
+    let lang = channel.slice(channel.lastIndexOf(&apos;.&apos;) + 1);
+
+    // channels missing any locale are assumed English International (they are using &quot;1_0&quot; or similar)
+    if (lang.indexOf(&apos;1&apos;) === 0) {
+      lang = &apos;en_intl&apos;;
+    }
+
+    return lang;
+  }
+
+  /**
+   * Add a document to the database index
+   * Used for fast lookups of entities etc. to the correct documents
+   * @param {object} doc CouchDB document to index
+   * @private
+   */
+  async _indexWDWDocument(doc) {
+    const entity = this._extractEntityKeys(doc);
+    if (entity &amp;&amp; entity.id &amp;&amp; entity.entityType) {
+      const id = entity.id;
+
+      const newIndexEntry = {
+        ...entity,
+        language: this._extractChannelLanguage(doc),
+        _id: doc._id,
+      };
+
+      // special-case, index all facility status documents in another index
+      if (newIndexEntry.facilityStatus) {
+        const facilityIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);
+
+        const docExists = facilityIndex.findIndex((x) =&gt; {
+          return x.id === newIndexEntry.id;
+        });
+        if (docExists &gt;= 0) {
+          facilityIndex[docExists] = newIndexEntry;
+        } else {
+          facilityIndex.push(newIndexEntry);
+        }
+      }
+
+      // index all documents based on channel
+      const channel = doc.channels?.length ? doc.channels[0] : undefined;
+      if (channel) {
+        const channelIndex = this.getIndex(constants.INDEX_CHANNELS);
+        if (!channelIndex[channel]) {
+          channelIndex[channel] = [];
+        }
+        channelIndex[channel].push(newIndexEntry);
+      }
+
+      const newIndexKeys = Object.keys(newIndexEntry);
+
+      const entityIndex = this.getIndex(constants.INDEX_ENTITIES);
+      if (!entityIndex[id]) {
+        entityIndex[id] = [];
+      }
+      const findExisting = entityIndex[id].findIndex((x) =&gt; {
+        // if # keys are different, not a match
+        if (Object.keys(x).length !== newIndexKeys.length) return false;
+
+        // look for any mismatches between the keys
+        const findMismatch = newIndexKeys.find((key) =&gt; {
+          // _id is supposed to be different, so ignore it regardless of if it matches or not
+          if (key === &apos;_id&apos;) return false;
+          return (newIndexEntry[key] !== x[key]);
+        });
+        return !findMismatch;
+      });
+
+      if (findExisting &lt; 0) {
+        // entry doesn&apos;t exist, add to our list
+        entityIndex[id].push(newIndexEntry);
+      } else {
+        // replace existing entry that matches all the same properties
+        if (entityIndex[id][findExisting]._id !== newIndexEntry._id) {
+          entityIndex[id][findExisting] = newIndexEntry;
+        }
+      }
+    }
   }
 
   /**
@@ -539,7 +534,7 @@ export class DisneyDB extends ConfigBase {
 
     return (await Promise.all(ids.map((id) =&gt; {
       // fetch each document using our local DB
-      return this.localDB.get(id);
+      return this.get(id);
     }))).filter((doc) =&gt; {
       // filter our any docs that failed to be fetched (they have been deleted etc.)
       return doc !== undefined;
@@ -548,14 +543,16 @@ export class DisneyDB extends ConfigBase {
 
   /**
    * Find search index entries by ID
+   * If you want the actual document and not just the meta-index data, use getEntity() instead
    * @param {string} id
    * @param {object} [filter]
-   * @return {array&lt;object&gt;}
+   * @return {array&lt;object&gt;} Returns the index data for this entity ID
    */
-  async findIndexEntity(id, filter = {}) {
+  async getEntityIndex(id, filter = {}) {
     await this.init();
 
-    const indexEntry = this.localDB._wdwIndex[id];
+    const entityIndex = this.getIndex(constants.INDEX_ENTITIES);
+    const indexEntry = entityIndex[id];
     if (!indexEntry) return [];
 
     // filter entries by supplied filter options before resolving
@@ -566,9 +563,10 @@ export class DisneyDB extends ConfigBase {
    * Search for an entity in the WDW database
    * @param {string} id Entity ID
    * @param {object} [filter] Filter index by field
+   * @return {array&lt;object&gt;} Returns all documents for this entity ID
    */
-  async findEntity(id, filter = {}) {
-    const entities = await this.findIndexEntity(id, filter);
+  async getEntity(id, filter = {}) {
+    const entities = await this.getEntityIndex(id, filter);
 
     // resolve each index entry to our full documents
     return this.getDocsById(entities.map((entry) =&gt; {
@@ -576,14 +574,16 @@ export class DisneyDB extends ConfigBase {
     }));
   }
 
+
   /**
    * Search for an entity in the WDW database
    * Attempts to return the &quot;best candidate&quot; single document that matches the incoming ID
    * @param {string} id Entity ID
    * @param {object} [filter] Optional index filter
+   * @return {object} Returns the best candidate single document, or undefined
    */
-  async findOne(id, filter = {}) {
-    const entities = await this.findIndexEntity(id, filter);
+  async getEntityOne(id, filter = {}) {
+    const entities = await this.getEntityIndex(id, filter);
     if (entities.length === 0) return undefined;
 
     // filter to find the best document of the ones available
@@ -610,12 +610,15 @@ export class DisneyDB extends ConfigBase {
   /**
    * Get the live facility status for a given entity ID
    * @param {string} id Entity ID
+   * @return {object} Facility status document, or undefined
    */
-  async findFacilityStatus(id) {
+  async getFacilityStatus(id) {
     await this.init();
 
+    const statusIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);
+
     // look up entity ID in our facility status index
-    const indexEntity = this.localDB._wdwFacilityStatusIndex.find((x) =&gt; {
+    const indexEntity = statusIndex.find((x) =&gt; {
       return x.id === id;
     });
     if (!indexEntity) return undefined;
@@ -628,29 +631,34 @@ export class DisneyDB extends ConfigBase {
    * eg. &apos;wdw.facilitystatus.1_0&apos; to get all WDW facility status documents
    * @param {string} channel Channel ID
    * @param {object} [filter] Optional document index filter
+   * @return {array&lt;object&gt;} All documents in this channel (or empty array)
    */
-  async findByChannel(channel, filter = {}) {
+  async getByChannel(channel, filter = {}) {
     await this.init();
 
-    const channelIndex = this.localDB._wdwChannelIndex[channel];
-    if (!channelIndex) {
+    const channelIndex = this.getIndex(constants.INDEX_CHANNELS);
+
+    const channelData = channelIndex[channel];
+    if (!channelData) {
       return [];
     }
 
     // return resolved documents for the channel
-    return this.getDocsById(channelIndex.filter(sift(filter)).map((entry) =&gt; {
+    return this.getDocsById(channelData.filter(sift(filter)).map((entry) =&gt; {
       return entry._id;
     }));
   }
 
   /**
    * Return all documents in the database that match the given filter
+   * This is a slow operation! Use sparingly!
    * @param {object} [filter]
+   * @return {array&lt;object&gt;}
    */
   async find(filter = {}) {
     await this.init();
 
-    const docs = await this.localDB.allDocs({
+    const docs = await this.allDocs({
       include_docs: true,
     });
 
@@ -668,7 +676,7 @@ export class DisneyDB extends ConfigBase {
       this.subscribeToChanges({}, callback);
     } else {
       // listen to changes from now onwards, passing in our filter function
-      this.localDB.changes({
+      this.changes({
         since: &apos;now&apos;,
         live: true,
         include_docs: true,
@@ -692,9 +700,41 @@ export class DisneyDB extends ConfigBase {
       },
     }, callback);
   }
+
+  /**
+   * Plugin function to intercept bulkDocs function
+   * We index any WDW documents we find for easier lookup later
+   * @param  {...any} args bulkDocs in
+   * @private
+   */
+  static async _pluginBulkDocs(...args) {
+    await this._initIndexes();
+
+    const body = args[0];
+    const docs = Array.isArray(body) ? body : body.docs;
+
+    // index each document being added to the database
+    // TODO - do we need to handle deletion events here?
+    await Promise.allSettled(docs.map((doc) =&gt; {
+      return this._indexWDWDocument(doc);
+    }));
+
+    // All documents check out. Pass them to PouchDB.
+    return pouchBulkDocs.call(this, ...args);
+  }
 }
 
-export default DisneyDB;
+// add our plugin function
+IndexedWDWDB.plugin({
+  bulkDocs: IndexedWDWDB._pluginBulkDocs,
+});
+
+// pouchdb-replication-stream allows us to &quot;seed&quot; the database with an initial database dump
+//  incredibly useful for the wdw db, which is pretty huge
+IndexedWDWDB.plugin(ReplicationStream.plugin);
+PouchDB.adapter(&apos;writableStream&apos;, ReplicationStream.adapters.writableStream);
+
+export default IndexedWDWDB;
 </code></pre>
 
 </div>
