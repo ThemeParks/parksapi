@@ -582,6 +582,12 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
+    "lib/cache/scopedcache.js~scopedcache#_initcachepromise",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-member-_initCachePromise",
+    "lib/cache/scopedCache.js~ScopedCache#_initCachePromise",
+    "member"
+  ],
+  [
     "lib/cache/scopedcache.js~scopedcache#cache",
     "class/lib/cache/scopedCache.js~ScopedCache.html#instance-member-cache",
     "lib/cache/scopedCache.js~ScopedCache#cache",
@@ -616,12 +622,6 @@ window.esdocSearchIndex = [
     "class/lib/cache/scopedCache.js~ScopedCache.html#instance-method-initCache",
     "lib/cache/scopedCache.js~ScopedCache#initCache",
     "method"
-  ],
-  [
-    "lib/cache/scopedcache.js~scopedcache#initcachepromise",
-    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-member-initCachePromise",
-    "lib/cache/scopedCache.js~ScopedCache#initCachePromise",
-    "member"
   ],
   [
     "lib/cache/scopedcache.js~scopedcache#prefix",
@@ -714,6 +714,18 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/park.js~park#_pendingsetuppromise",
+    "class/lib/parks/park.js~Park.html#instance-member-_pendingSetupPromise",
+    "lib/parks/park.js~Park#_pendingSetupPromise",
+    "member"
+  ],
+  [
+    "lib/parks/park.js~park#_pendingupdatepromise",
+    "class/lib/parks/park.js~Park.html#instance-member-_pendingUpdatePromise",
+    "lib/parks/park.js~Park#_pendingUpdatePromise",
+    "member"
+  ],
+  [
     "lib/parks/park.js~park#_runinit",
     "class/lib/parks/park.js~Park.html#instance-method-_runInit",
     "lib/parks/park.js~Park#_runInit",
@@ -784,18 +796,6 @@ window.esdocSearchIndex = [
     "class/lib/parks/park.js~Park.html#instance-method-injectForDomain",
     "lib/parks/park.js~Park#injectForDomain",
     "method"
-  ],
-  [
-    "lib/parks/park.js~park#pendingsetuppromise",
-    "class/lib/parks/park.js~Park.html#instance-member-pendingSetupPromise",
-    "lib/parks/park.js~Park#pendingSetupPromise",
-    "member"
-  ],
-  [
-    "lib/parks/park.js~park#pendingupdatepromise",
-    "class/lib/parks/park.js~Park.html#instance-member-pendingUpdatePromise",
-    "lib/parks/park.js~Park#pendingUpdatePromise",
-    "member"
   ],
   [
     "lib/parks/park.js~park#update",

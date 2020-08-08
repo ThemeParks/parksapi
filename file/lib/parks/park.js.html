@@ -164,14 +164,14 @@ export class Park extends ConfigBase {
 
     // setup the park ready for use
     //  eg. download any large data-sets, calendars etc.
-    if (this.pendingSetupPromise) {
-      return this.pendingSetupPromise;
+    if (this._pendingSetupPromise) {
+      return this._pendingSetupPromise;
     }
 
     // call our internal init and wait on it
-    this.pendingSetupPromise = this._runInit();
-    await this.pendingSetupPromise;
-    this.pendingSetupPromise = null;
+    this._pendingSetupPromise = this._runInit();
+    await this._pendingSetupPromise;
+    this._pendingSetupPromise = null;
 
     this.initialised = true;
 
@@ -266,12 +266,12 @@ export class Park extends ConfigBase {
    * This is automatically called for you unless disableParkUpdate is set to false
    */
   async update() {
-    if (this.pendingUpdatePromise) {
-      return this.pendingUpdatePromise;
+    if (this._pendingUpdatePromise) {
+      return this._pendingUpdatePromise;
     }
 
     // start the _update call in a retry loop
-    this.pendingUpdatePromise = promiseRetry({
+    this._pendingUpdatePromise = promiseRetry({
       retries: 5,
     }, (retryFn, retryAttempt) =&gt; {
       /* if (retryAttempt &gt; 1) {
@@ -282,13 +282,13 @@ export class Park extends ConfigBase {
 
     // wait and catch the update Promise
     try {
-      await this.pendingUpdatePromise;
+      await this._pendingUpdatePromise;
     } catch (e) {
       // TODO - record park API error somewhere and continue
       console.error(e);
     }
 
-    this.pendingUpdatePromise = null;
+    this._pendingUpdatePromise = null;
   }
 
   /**
