@@ -24,7 +24,7 @@ function findEnum(fileAst, enumName) {
   traverse(fileAst, {
     VariableDeclarator: (astPath) => {
       if (astPath.node.id.name === enumName) {
-        const args = astPath?.node?.init?.arguments;
+        const args = (astPath && astPath.node && astPath.node.init && astPath.node.init.arguments) ? astPath.node.init.arguments : undefined;
         if (args && args.length) {
           args[0].properties.forEach((prop) => {
             enums.push({
