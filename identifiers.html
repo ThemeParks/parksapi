@@ -40,6 +40,7 @@
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-ParkConstants">ParkConstants</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-efteling">parks/efteling</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html">IndexedWDWDB</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabase">getDatabase</a></span></span></li>
@@ -79,9 +80,7 @@
       <div>
         
         
-        <div data-ice="description"><p>Base Config Object
-Supports classes with a single argument &quot;options&quot;
-These will be sorted into a member called &quot;this.config&quot; containing all the same keys</p>
+        <div data-ice="description"><p>Base Config Object<br>Supports classes with a single argument &quot;options&quot;<br>These will be sorted into a member called &quot;this.config&quot; containing all the same keys<br><br>Crucially, these can also be overriden through environment variables<br>For example, for a config option &quot;timeout&quot; for class Database, this could be overriden through either:<br>  env.THEMEPARKS_TIMEOUT (using a &quot;global module name&quot;)<br>  env.DATABASE_TIMEOUT (using the class name)<br><br>Classes can also add additional prefixes to the supported environment variables through:<br>  new ClassInstance({configPrefixes: [&apos;myCustomPrefix&apos;]});<br>Which would also allow env.MYCUSTOMPREFIX_TIMEOUT to be used<br><br>Note that a default value must be supplied for the environment variable to be processed<br>If the default value is a number, the environment variable will be cast to a number as well</p>
 </div>
       </div>
     </td>
@@ -178,8 +177,7 @@ These will be sorted into a member called &quot;this.config&quot; containing all
       <div>
         
         
-        <div data-ice="description"><p>Our base Cache implementation
-Extend this class with new implementations to create different cache types (in-memory, database, file system etc.)</p>
+        <div data-ice="description"><p>Our base Cache implementation<br>Extend this class with new implementations to create different cache types (in-memory, database, file system etc.)</p>
 </div>
       </div>
     </td>
@@ -405,6 +403,45 @@ Extend this class with new implementations to create different cache types (in-m
 </div>
     </div>
 <div data-ice="dirSummaryWrap">
+      <h2 data-ice="dirPath" id="parks-efteling">parks/efteling</h2>
+      <div data-ice="dirSummary"><table class="summary" data-ice="summary">
+  <thead><tr><td data-ice="title" colspan="3">summary</td></tr></thead>
+  <tbody>
+  
+  <tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          <span data-ice="kind-icon" class="kind-class">C</span>
+          
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Efteling Park Object</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+</tbody>
+</table>
+</div>
+    </div>
+<div data-ice="dirSummaryWrap">
       <h2 data-ice="dirPath" id="parks-wdw">parks/wdw</h2>
       <div data-ice="dirSummary"><table class="summary" data-ice="summary">
   <thead><tr><td data-ice="title" colspan="3">summary</td></tr></thead>
@@ -459,10 +496,7 @@ Extend this class with new implementations to create different cache types (in-m
       <div>
         
         
-        <div data-ice="description"><p>An indexed live WDW database
-Replicated WDW database to local disk for fast access
-While replicating, will build an in-memory index of entities for fast lookup
-Options to dump database to a single file or load a snapshot for quicker database boot ups</p>
+        <div data-ice="description"><p>An indexed live WDW database<br>Replicated WDW database to local disk for fast access<br>While replicating, will build an in-memory index of entities for fast lookup<br>Options to dump database to a single file or load a snapshot for quicker database boot ups</p>
 </div>
       </div>
     </td>
@@ -539,6 +573,7 @@ Options to dump database to a single file or load a snapshot for quicker databas
     <div class="identifier-dir-tree-header">Directories</div>
     <div class="identifier-dir-tree-content" data-ice="dirTree"><div style="padding-left: 0em"><a href="#cache">cache</a></div>
 <div style="padding-left: 0em"><a href="#parks">parks</a></div>
+<div style="padding-left: 1em"><a href="#parks-efteling">efteling</a></div>
 <div style="padding-left: 1em"><a href="#parks-wdw">wdw</a></div></div>
   </div>
 </div>

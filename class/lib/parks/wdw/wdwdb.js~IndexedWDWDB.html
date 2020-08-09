@@ -40,6 +40,7 @@
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-ParkConstants">ParkConstants</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-efteling">parks/efteling</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html">IndexedWDWDB</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabase">getDatabase</a></span></span></li>
@@ -75,10 +76,7 @@
 
   
   
-  <div class="description" data-ice="description"><p>An indexed live WDW database
-Replicated WDW database to local disk for fast access
-While replicating, will build an in-memory index of entities for fast lookup
-Options to dump database to a single file or load a snapshot for quicker database boot ups</p>
+  <div class="description" data-ice="description"><p>An indexed live WDW database<br>Replicated WDW database to local disk for fast access<br>While replicating, will build an in-memory index of entities for fast lookup<br>Options to dump database to a single file or load a snapshot for quicker database boot ups</p>
 </div>
   
 
@@ -151,8 +149,7 @@ Options to dump database to a single file or load a snapshot for quicker databas
       <div>
         
         
-        <div data-ice="description"><p>Plugin function to intercept bulkDocs function
-We index any WDW documents we find for easier lookup later</p>
+        <div data-ice="description"><p>Plugin function to intercept bulkDocs function<br>We index any WDW documents we find for easier lookup later</p>
 </div>
       </div>
     </td>
@@ -489,8 +486,7 @@ We index any WDW documents we find for easier lookup later</p>
       <div>
         
         
-        <div data-ice="description"><p>Return all documents in the database that match the given filter
-This is a slow operation! Use sparingly!</p>
+        <div data-ice="description"><p>Return all documents in the database that match the given filter<br>This is a slow operation! Use sparingly!</p>
 </div>
       </div>
     </td>
@@ -519,8 +515,7 @@ This is a slow operation! Use sparingly!</p>
       <div>
         
         
-        <div data-ice="description"><p>Find all documents by channel
-eg.</p>
+        <div data-ice="description"><p>Find all documents by channel<br>eg.</p>
 </div>
       </div>
     </td>
@@ -578,8 +573,7 @@ eg.</p>
       <div>
         
         
-        <div data-ice="description"><p>Get the filename we use for saving backups of the database to disk
-Used for creating simple &quot;snapshots&quot; to reduce initial sync times</p>
+        <div data-ice="description"><p>Get the filename we use for saving backups of the database to disk<br>Used for creating simple &quot;snapshots&quot; to reduce initial sync times</p>
 </div>
       </div>
     </td>
@@ -637,8 +631,7 @@ Used for creating simple &quot;snapshots&quot; to reduce initial sync times</p>
       <div>
         
         
-        <div data-ice="description"><p>Find search index entries by ID
-If you want the actual document and not just the meta-index data, use getEntity() instead</p>
+        <div data-ice="description"><p>Find search index entries by ID<br>If you want the actual document and not just the meta-index data, use getEntity() instead</p>
 </div>
       </div>
     </td>
@@ -667,8 +660,7 @@ If you want the actual document and not just the meta-index data, use getEntity(
       <div>
         
         
-        <div data-ice="description"><p>Search for an entity in the WDW database
-Attempts to return the &quot;best candidate&quot; single document that matches the incoming ID</p>
+        <div data-ice="description"><p>Search for an entity in the WDW database<br>Attempts to return the &quot;best candidate&quot; single document that matches the incoming ID</p>
 </div>
       </div>
     </td>
@@ -755,9 +747,7 @@ Attempts to return the &quot;best candidate&quot; single document that matches t
       <div>
         
         
-        <div data-ice="description"><p>Restore a database backup from disk
-Perform this after running &quot;dump()&quot; on a previous synced database
-This will help to reduce the initial sync time for large databases</p>
+        <div data-ice="description"><p>Restore a database backup from disk<br>Perform this after running &quot;dump()&quot; on a previous synced database<br>This will help to reduce the initial sync time for large databases</p>
 </div>
       </div>
     </td>
@@ -786,8 +776,7 @@ This will help to reduce the initial sync time for large databases</p>
       <div>
         
         
-        <div data-ice="description"><p>Save a snapshot of this live database to disk
-This will be used to &quot;seed&quot; the database to speed up syncs for future runs</p>
+        <div data-ice="description"><p>Save a snapshot of this live database to disk<br>This will be used to &quot;seed&quot; the database to speed up syncs for future runs</p>
 </div>
       </div>
     </td>
@@ -967,11 +956,7 @@ This will be used to &quot;seed&quot; the database to speed up syncs for future 
       <div>
         
         
-        <div data-ice="description"><p>Given a WDW document, extract key identifiable data
-This is used to build a look-up index of unique document types
-See ancestorIndexes for some of the keys we use
-This is important so we can tell the difference between entities with the same ID, but different purposes
-eg.</p>
+        <div data-ice="description"><p>Given a WDW document, extract key identifiable data<br>This is used to build a look-up index of unique document types<br>See ancestorIndexes for some of the keys we use<br>This is important so we can tell the difference between entities with the same ID, but different purposes<br>eg.</p>
 </div>
       </div>
     </td>
@@ -1000,8 +985,7 @@ eg.</p>
       <div>
         
         
-        <div data-ice="description"><p>Add a document to the database index
-Used for fast lookups of entities etc.</p>
+        <div data-ice="description"><p>Add a document to the database index<br>Used for fast lookups of entities etc.</p>
 </div>
       </div>
     </td>
@@ -1030,8 +1014,7 @@ Used for fast lookups of entities etc.</p>
       <div>
         
         
-        <div data-ice="description"><p>Index initialisation
-This function wraps taking care of creating our indexes once only</p>
+        <div data-ice="description"><p>Index initialisation<br>This function wraps taking care of creating our indexes once only</p>
 </div>
       </div>
     </td>
@@ -1060,8 +1043,7 @@ This function wraps taking care of creating our indexes once only</p>
       <div>
         
         
-        <div data-ice="description"><p>Internal function
-Loads and performs an initial sync on the database</p>
+        <div data-ice="description"><p>Internal function<br>Loads and performs an initial sync on the database</p>
 </div>
       </div>
     </td>
@@ -1202,8 +1184,7 @@ Loads and performs an initial sync on the database</p>
   
   
   
-  <div data-ice="description"><p>Plugin function to intercept bulkDocs function
-We index any WDW documents we find for easier lookup later</p>
+  <div data-ice="description"><p>Plugin function to intercept bulkDocs function<br>We index any WDW documents we find for easier lookup later</p>
 </div>
 
   
@@ -1778,8 +1759,7 @@ We index any WDW documents we find for easier lookup later</p>
   
   
   
-  <div data-ice="description"><p>Return all documents in the database that match the given filter
-This is a slow operation! Use sparingly!</p>
+  <div data-ice="description"><p>Return all documents in the database that match the given filter<br>This is a slow operation! Use sparingly!</p>
 </div>
 
   
@@ -1851,8 +1831,7 @@ This is a slow operation! Use sparingly!</p>
   
   
   
-  <div data-ice="description"><p>Find all documents by channel
-eg. &apos;wdw.facilitystatus.1_0&apos; to get all WDW facility status documents</p>
+  <div data-ice="description"><p>Find all documents by channel<br>eg. &apos;wdw.facilitystatus.1_0&apos; to get all WDW facility status documents</p>
 </div>
 
   
@@ -2005,8 +1984,7 @@ eg. &apos;wdw.facilitystatus.1_0&apos; to get all WDW facility status documents<
   
   
   
-  <div data-ice="description"><p>Get the filename we use for saving backups of the database to disk
-Used for creating simple &quot;snapshots&quot; to reduce initial sync times</p>
+  <div data-ice="description"><p>Get the filename we use for saving backups of the database to disk<br>Used for creating simple &quot;snapshots&quot; to reduce initial sync times</p>
 </div>
 
   
@@ -2161,8 +2139,7 @@ eg. Use postfix to generate a temporary version of a file to write to before rep
   
   
   
-  <div data-ice="description"><p>Find search index entries by ID
-If you want the actual document and not just the meta-index data, use getEntity() instead</p>
+  <div data-ice="description"><p>Find search index entries by ID<br>If you want the actual document and not just the meta-index data, use getEntity() instead</p>
 </div>
 
   
@@ -2241,8 +2218,7 @@ If you want the actual document and not just the meta-index data, use getEntity(
   
   
   
-  <div data-ice="description"><p>Search for an entity in the WDW database
-Attempts to return the &quot;best candidate&quot; single document that matches the incoming ID</p>
+  <div data-ice="description"><p>Search for an entity in the WDW database<br>Attempts to return the &quot;best candidate&quot; single document that matches the incoming ID</p>
 </div>
 
   
@@ -2453,9 +2429,7 @@ Attempts to return the &quot;best candidate&quot; single document that matches t
   
   
   
-  <div data-ice="description"><p>Restore a database backup from disk
-Perform this after running &quot;dump()&quot; on a previous synced database
-This will help to reduce the initial sync time for large databases</p>
+  <div data-ice="description"><p>Restore a database backup from disk<br>Perform this after running &quot;dump()&quot; on a previous synced database<br>This will help to reduce the initial sync time for large databases</p>
 </div>
 
   
@@ -2529,8 +2503,7 @@ snapshotFile will use default saveSnapshot result location if not supplied</p>
   
   
   
-  <div data-ice="description"><p>Save a snapshot of this live database to disk
-This will be used to &quot;seed&quot; the database to speed up syncs for future runs</p>
+  <div data-ice="description"><p>Save a snapshot of this live database to disk<br>This will be used to &quot;seed&quot; the database to speed up syncs for future runs</p>
 </div>
 
   
@@ -2906,12 +2879,7 @@ This will be used to &quot;seed&quot; the database to speed up syncs for future 
   
   
   
-  <div data-ice="description"><p>Given a WDW document, extract key identifiable data
-This is used to build a look-up index of unique document types
-See ancestorIndexes for some of the keys we use
-This is important so we can tell the difference between entities with the same ID, but different purposes
-eg. an entity ID can have multiple documents, one for the attraction itself, one for it&apos;s wait times, etc.
-These need to both be in the index under the same entity ID, but with different properties to make them distinct</p>
+  <div data-ice="description"><p>Given a WDW document, extract key identifiable data<br>This is used to build a look-up index of unique document types<br>See ancestorIndexes for some of the keys we use<br>This is important so we can tell the difference between entities with the same ID, but different purposes<br>eg. an entity ID can have multiple documents, one for the attraction itself, one for it&apos;s wait times, etc.<br>These need to both be in the index under the same entity ID, but with different properties to make them distinct</p>
 </div>
 
   
@@ -2985,8 +2953,7 @@ These need to both be in the index under the same entity ID, but with different 
   
   
   
-  <div data-ice="description"><p>Add a document to the database index
-Used for fast lookups of entities etc. to the correct documents</p>
+  <div data-ice="description"><p>Add a document to the database index<br>Used for fast lookups of entities etc. to the correct documents</p>
 </div>
 
   
@@ -3047,8 +3014,7 @@ Used for fast lookups of entities etc. to the correct documents</p>
   
   
   
-  <div data-ice="description"><p>Index initialisation
-This function wraps taking care of creating our indexes once only</p>
+  <div data-ice="description"><p>Index initialisation<br>This function wraps taking care of creating our indexes once only</p>
 </div>
 
   
@@ -3104,8 +3070,7 @@ This function wraps taking care of creating our indexes once only</p>
   
   
   
-  <div data-ice="description"><p>Internal function
-Loads and performs an initial sync on the database</p>
+  <div data-ice="description"><p>Internal function<br>Loads and performs an initial sync on the database</p>
 </div>
 
   

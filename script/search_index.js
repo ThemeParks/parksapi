@@ -36,6 +36,12 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "parksapi/lib/parks/efteling/efteling.js~efteling",
+    "class/lib/parks/efteling/efteling.js~Efteling.html",
+    "<span>Efteling</span> <span class=\"search-result-import-path\">parksapi/lib/parks/efteling/efteling.js</span>",
+    "class"
+  ],
+  [
     "parksapi/lib/parks/wdw/wdwdb.js~indexedwdwdb",
     "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html",
     "<span>IndexedWDWDB</span> <span class=\"search-result-import-path\">parksapi/lib/parks/wdw/wdwdb.js</span>",
@@ -676,6 +682,36 @@ window.esdocSearchIndex = [
     "file/lib/index.js.html",
     "lib/index.js",
     "file"
+  ],
+  [
+    "lib/parks/efteling/efteling.js",
+    "file/lib/parks/efteling/efteling.js.html",
+    "lib/parks/efteling/efteling.js",
+    "file"
+  ],
+  [
+    "lib/parks/efteling/efteling.js~efteling#_init",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-_init",
+    "lib/parks/efteling/efteling.js~Efteling#_init",
+    "method"
+  ],
+  [
+    "lib/parks/efteling/efteling.js~efteling#_update",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-_update",
+    "lib/parks/efteling/efteling.js~Efteling#_update",
+    "method"
+  ],
+  [
+    "lib/parks/efteling/efteling.js~efteling#constructor",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-constructor-constructor",
+    "lib/parks/efteling/efteling.js~Efteling#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/efteling/efteling.js~efteling#getpoidata",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-getPOIData",
+    "lib/parks/efteling/efteling.js~Efteling#getPOIData",
+    "method"
   ],
   [
     "lib/parks/park.js",

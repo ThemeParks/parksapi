@@ -40,6 +40,7 @@
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-ParkConstants">ParkConstants</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-efteling">parks/efteling</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html">IndexedWDWDB</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabase">getDatabase</a></span></span></li>
@@ -67,7 +68,7 @@
   
   
   <div class="flat-list" data-ice="directSubclass"><h4>Direct Subclass:</h4><div><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></div></div>
-  <div class="flat-list" data-ice="indirectSubclass"><h4>Indirect Subclass:</h4><div><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></div></div>
+  <div class="flat-list" data-ice="indirectSubclass"><h4>Indirect Subclass:</h4><div><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span>, <span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></div></div>
   
   
   
@@ -75,18 +76,7 @@
 
   
   
-  <div class="description" data-ice="description"><p>Base Config Object
-Supports classes with a single argument &quot;options&quot;
-These will be sorted into a member called &quot;this.config&quot; containing all the same keys</p>
-<p>Crucially, these can also be overriden through environment variables
-For example, for a config option &quot;timeout&quot; for class Database, this could be overriden through either:
-  env.THEMEPARKS_TIMEOUT (using a &quot;global module name&quot;)
-  env.DATABASE_TIMEOUT (using the class name)</p>
-<p>Classes can also add additional prefixes to the supported environment variables through:
-  new ClassInstance({configPrefixes: [&apos;myCustomPrefix&apos;]});
-Which would also allow env.MYCUSTOMPREFIX_TIMEOUT to be used</p>
-<p>Note that a default value must be supplied for the environment variable to be processed
-If the default value is a number, the environment variable will be cast to a number as well</p>
+  <div class="description" data-ice="description"><p>Base Config Object<br>Supports classes with a single argument &quot;options&quot;<br>These will be sorted into a member called &quot;this.config&quot; containing all the same keys<br><br>Crucially, these can also be overriden through environment variables<br>For example, for a config option &quot;timeout&quot; for class Database, this could be overriden through either:<br>  env.THEMEPARKS_TIMEOUT (using a &quot;global module name&quot;)<br>  env.DATABASE_TIMEOUT (using the class name)<br><br>Classes can also add additional prefixes to the supported environment variables through:<br>  new ClassInstance({configPrefixes: [&apos;myCustomPrefix&apos;]});<br>Which would also allow env.MYCUSTOMPREFIX_TIMEOUT to be used<br><br>Note that a default value must be supplied for the environment variable to be processed<br>If the default value is a number, the environment variable will be cast to a number as well</p>
 </div>
   
 

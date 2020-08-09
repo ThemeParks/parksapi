@@ -2,8 +2,8 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <base data-ice="baseUrl" href="../../../">
-  <title data-ice="title">lib/cache/cacheLevel.js | parksapi</title>
+  <base data-ice="baseUrl" href="../../../../">
+  <title data-ice="title">lib/parks/efteling/efteling.js | parksapi</title>
   <link type="text/css" rel="stylesheet" href="css/style.css">
   <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
   <script src="script/prettify/prettify.js"></script>
@@ -49,81 +49,120 @@
 </div>
 </nav>
 
-<div class="content" data-ice="content"><h1 data-ice="title">lib/cache/cacheLevel.js</h1>
-<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import CacheBase from &apos;./cacheBase.js&apos;;
-import level from &apos;level&apos;;
-import path from &apos;path&apos;;
+<div class="content" data-ice="content"><h1 data-ice="title">lib/parks/efteling/efteling.js</h1>
+<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {Park} from &apos;../park.js&apos;;
 
 /**
- * A cache implementation using LevelDown
- * @extends CacheBase
- * @class
+ * Efteling Park Object
  */
-export default class CacheLevel extends CacheBase {
+export class Efteling extends Park {
   /**
-   * Create new Memory cache object
+   * Create a new Efteling Park object
    * @param {object} options
    */
   constructor(options = {}) {
-    options.useMemoryCache = false;
+    options.name = options.name || &apos;Efteling&apos;;
+    options.timezone = options.timezone || &apos;Europe/Amsterdam&apos;;
+
+    options.apiKey = &apos;&apos;;
+    options.apiVersion = &apos;&apos;;
+    options.appVersion = &apos;&apos;;
+
+    options.searchUrl = options.searchUrl || &apos;https://prd-search-acs.efteling.com/2013-01-01/search&apos;;
+    options.waitTimesUrl = options.waitTimesUrl || &apos;https://api.efteling.com/app/wis/&apos;;
 
     super(options);
 
-    // setup our Level database
-    this.db = level(path.join(process.cwd(), &apos;db.cache&apos;));
-  }
+    if (!this.config.apiKey) throw new Error(&apos;Missing Efteling apiKey&apos;);
+    if (!this.config.apiVersion) throw new Error(&apos;Missing Efteling apiVersion&apos;);
+    if (!this.config.appVersion) throw new Error(&apos;Missing Efteling appVersion&apos;);
 
-  /**
-   * @inheritdoc
-   */
-  async _get(key) {
-    try {
-      const cacheEntry = await this.db.get(key);
-      if (cacheEntry !== undefined) {
-        const cacheEntryData = JSON.parse(cacheEntry);
-        const now = +new Date();
-        if (cacheEntryData.expires &gt;= now) {
-          return cacheEntryData.value;
-        }
-      }
-    } catch (err) {
-      // ignore NotFoundError, throw any other errors back up the chain
-      if (err.name !== &apos;NotFoundError&apos;) {
-        throw err;
-      }
-    }
+    this.injectForDomain(&apos;*.efteling.com&apos;, (method, url, data, options) =&gt; {
+      // all requests from the app to any efteling subdomain should send these headers
+      options.headers[&apos;x-app-version&apos;] = this.config.appVersion;
+      options.headers[&apos;x-app-name&apos;] = &apos;Efteling&apos;;
+      options.headers[&apos;x-app-id&apos;] = &apos;nl.efteling.android&apos;;
+      options.headers[&apos;x-app-platform&apos;] = &apos;Android&apos;;
+      options.headers[&apos;x-app-language&apos;] = &apos;en&apos;;
+      options.headers[&apos;x-app-timezone&apos;] = this.config.timezone;
+      // override user-agent here, rather than class-wide
+      //  any other non-Efteling API requests can use the default user-agent
+      options.headers[&apos;user-agent&apos;] = &apos;okhttp/4.4.0&apos;;
+      options.compressed = true;
+    });
 
-    return undefined;
-  }
-
-  /**
-   * @inheritdoc
-   */
-  async _set(key, value, ttl) {
-    await this.db.put(key, JSON.stringify({
-      value,
-      expires: (+ new Date()) + ttl,
-    }));
-  }
-
-  /**
-   * @inheritdoc
-   */
-  async _getKeys(prefix) {
-    return new Promise((resolve) =&gt; {
-      const keys = [];
-      const keyStream = this.db.createKeyStream();
-      keyStream.on(&apos;data&apos;, (data) =&gt; {
-        if (data.indexOf(prefix) === 0) {
-          keys.push(data);
-        }
-      });
-      keyStream.on(&apos;end&apos;, () =&gt; {
-        return resolve(keys);
-      });
+    this.injectForDomain(&apos;api.efteling.com&apos;, (method, url, data, options) =&gt; {
+      // api.efteling.com requries an API key as well as the above headers
+      options.headers[&apos;x-api-key&apos;] = this.config.apiKey;
+      options.headers[&apos;x-api-version&apos;] = this.config.apiVersion;
     });
   }
+
+  /**
+   * Get Efteling POI data
+   * This data contains general ride names, descriptions etc.
+   * Wait time data references this to get ride names
+   */
+  async getPOIData() {
+    return await this.cache.wrap(&apos;poidata&apos;, async () =&gt; {
+      // curl -H &apos;Host: prd-search-acs.efteling.com&apos; -H &apos;user-agent: okhttp/4.4.0&apos; -H &apos;x-app-version: v3.7.1&apos; -H &apos;x-app-name: Efteling&apos; -H &apos;x-app-id: nl.efteling.android&apos; -H &apos;x-app-platform: Android&apos; -H &apos;x-app-language: en&apos; -H &apos;x-app-timezone: Europe/London&apos; --compressed &apos;https://prd-search-acs.efteling.com/2013-01-01/search?q.parser=structured&amp;size=1000&amp;q=%28and%20%28phrase%20field%3Dlanguage%20%27en%27%29%29&apos;
+      const fetchedPOIData = await this.http(&apos;GET&apos;, this.config.searchUrl, {
+        &apos;size&apos;: 1000,
+        &apos;q.parser&apos;: &apos;structured&apos;,
+        &apos;q&apos;: &apos;(and (phrase field=language \&apos;en\&apos;))&apos;,
+      });
+
+      const data = fetchedPOIData?.body?.hits?.hit;
+      if (!data) {
+        console.log(fetchedPOIData.body);
+        throw new Error(&apos;Failed to fetch Efteling POI data&apos;);
+      }
+
+      const poiData = {};
+      data.forEach((hit) =&gt; {
+        if (hit.fields) {
+          // ignore non-attractions
+          if (hit.fields.category === &apos;attraction&apos;) {
+            poiData[hit.fields.id] = {
+              name: hit.fields.name,
+            };
+
+            // try to parse lat/long
+            //  edge-case: some rides have dud &quot;0.0,0.0&quot; location, ignore these
+            if (hit.fields.latlon &amp;&amp; hit.fields.latlon !== &apos;0.0,0.0&apos;) {
+              const match = /([0-9.]+),([0-9.]+)/.exec(hit.fields.latlon);
+              if (match) {
+                poiData[hit.fields.id].location = {
+                  latitude: match[1],
+                  longitude: match[2],
+                };
+              }
+            }
+          }
+        }
+      });
+
+      return poiData;
+    }, 1000 * 60 * 60 * 12 /* cache for 12 hours */);
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async _init() {
+    // make sure POI data is up-to-date
+    await this.getPOIData();
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async _update() {
+
+  }
 }
+
+export default Efteling;
 </code></pre>
 
 </div>

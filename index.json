@@ -585,7 +585,7 @@
     "export": true,
     "importPath": "parksapi/lib/cache/cacheBase.js",
     "importStyle": "CacheBase",
-    "description": "Our base Cache implementation\nExtend this class with new implementations to create different cache types (in-memory, database, file system etc.)",
+    "description": "Our base Cache implementation<br />Extend this class with new implementations to create different cache types (in-memory, database, file system etc.)",
     "lineNumber": 6,
     "unknown": [
       {
@@ -881,7 +881,7 @@
     "static": false,
     "longname": "lib/cache/cacheBase.js~CacheBase#wrap",
     "access": "public",
-    "description": "A helper \"wrap\" function that will return a cached value if present\n This will call the supplied function to fetch it if the value isn't present in the cache",
+    "description": "A helper \"wrap\" function that will return a cached value if present<br /> This will call the supplied function to fetch it if the value isn't present in the cache",
     "lineNumber": 118,
     "params": [
       {
@@ -1614,7 +1614,7 @@
     "export": true,
     "importPath": "parksapi/lib/cache/scopedCache.js",
     "importStyle": "{ScopedCache}",
-    "description": "A wrapper class for accessing the cache.\nPrefixes a string before each key to avoid conflicts.",
+    "description": "A wrapper class for accessing the cache.<br />Prefixes a string before each key to avoid conflicts.",
     "lineNumber": 7,
     "interface": false
   },
@@ -1957,7 +1957,7 @@
     "static": false,
     "longname": "lib/cache/scopedCache.js~ScopedCache#wrap",
     "access": "public",
-    "description": "A helper \"wrap\" function that will return a cached value if present\n This will call the supplied function to fetch it if the value isn't present in the cache",
+    "description": "A helper \"wrap\" function that will return a cached value if present<br /> This will call the supplied function to fetch it if the value isn't present in the cache",
     "lineNumber": 127,
     "params": [
       {
@@ -2008,7 +2008,7 @@
     "static": false,
     "longname": "lib/cache/scopedCache.js~ScopedCache#wrapGlobal",
     "access": "public",
-    "description": "A helper \"wrap\" function that will return a cached value if present (in the global scope)\n This will call the supplied function to fetch it if the value isn't present in the cache",
+    "description": "A helper \"wrap\" function that will return a cached value if present (in the global scope)<br /> This will call the supplied function to fetch it if the value isn't present in the cache",
     "lineNumber": 141,
     "params": [
       {
@@ -2094,7 +2094,7 @@
     "export": false,
     "importPath": "parksapi/lib/cache.js",
     "importStyle": null,
-    "description": "Create a new Cache Instance.\nThis function should only be called once for the lifetime of the module.",
+    "description": "Create a new Cache Instance.<br />This function should only be called once for the lifetime of the module.",
     "lineNumber": 15,
     "params": [],
     "return": {
@@ -2184,7 +2184,7 @@
     "export": true,
     "importPath": "parksapi/lib/configBase.js",
     "importStyle": "{ConfigBase}",
-    "description": "Base Config Object\nSupports classes with a single argument \"options\"\nThese will be sorted into a member called \"this.config\" containing all the same keys\n\nCrucially, these can also be overriden through environment variables\nFor example, for a config option \"timeout\" for class Database, this could be overriden through either:\n  env.THEMEPARKS_TIMEOUT (using a \"global module name\")\n  env.DATABASE_TIMEOUT (using the class name)\n\nClasses can also add additional prefixes to the supported environment variables through:\n  new ClassInstance({configPrefixes: ['myCustomPrefix']});\nWhich would also allow env.MYCUSTOMPREFIX_TIMEOUT to be used\n\nNote that a default value must be supplied for the environment variable to be processed\nIf the default value is a number, the environment variable will be cast to a number as well",
+    "description": "Base Config Object<br />Supports classes with a single argument \"options\"<br />These will be sorted into a member called \"this.config\" containing all the same keys<br /><br />Crucially, these can also be overriden through environment variables<br />For example, for a config option \"timeout\" for class Database, this could be overriden through either:<br />  env.THEMEPARKS_TIMEOUT (using a \"global module name\")<br />  env.DATABASE_TIMEOUT (using the class name)<br /><br />Classes can also add additional prefixes to the supported environment variables through:<br />  new ClassInstance({configPrefixes: ['myCustomPrefix']});<br />Which would also allow env.MYCUSTOMPREFIX_TIMEOUT to be used<br /><br />Note that a default value must be supplied for the environment variable to be processed<br />If the default value is a number, the environment variable will be cast to a number as well",
     "lineNumber": 67,
     "unknown": [
       {
@@ -2250,6 +2250,121 @@
   {
     "__docId__": 112,
     "kind": "file",
+    "name": "lib/parks/efteling/efteling.js",
+    "content": "import {Park} from '../park.js';\n\n/**\n * Efteling Park Object\n */\nexport class Efteling extends Park {\n  /**\n   * Create a new Efteling Park object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.name = options.name || 'Efteling';\n    options.timezone = options.timezone || 'Europe/Amsterdam';\n\n    options.apiKey = '';\n    options.apiVersion = '';\n    options.appVersion = '';\n\n    options.searchUrl = options.searchUrl || 'https://prd-search-acs.efteling.com/2013-01-01/search';\n    options.waitTimesUrl = options.waitTimesUrl || 'https://api.efteling.com/app/wis/';\n\n    super(options);\n\n    if (!this.config.apiKey) throw new Error('Missing Efteling apiKey');\n    if (!this.config.apiVersion) throw new Error('Missing Efteling apiVersion');\n    if (!this.config.appVersion) throw new Error('Missing Efteling appVersion');\n\n    this.injectForDomain('*.efteling.com', (method, url, data, options) => {\n      // all requests from the app to any efteling subdomain should send these headers\n      options.headers['x-app-version'] = this.config.appVersion;\n      options.headers['x-app-name'] = 'Efteling';\n      options.headers['x-app-id'] = 'nl.efteling.android';\n      options.headers['x-app-platform'] = 'Android';\n      options.headers['x-app-language'] = 'en';\n      options.headers['x-app-timezone'] = this.config.timezone;\n      // override user-agent here, rather than class-wide\n      //  any other non-Efteling API requests can use the default user-agent\n      options.headers['user-agent'] = 'okhttp/4.4.0';\n      options.compressed = true;\n    });\n\n    this.injectForDomain('api.efteling.com', (method, url, data, options) => {\n      // api.efteling.com requries an API key as well as the above headers\n      options.headers['x-api-key'] = this.config.apiKey;\n      options.headers['x-api-version'] = this.config.apiVersion;\n    });\n  }\n\n  /**\n   * Get Efteling POI data\n   * This data contains general ride names, descriptions etc.\n   * Wait time data references this to get ride names\n   */\n  async getPOIData() {\n    return await this.cache.wrap('poidata', async () => {\n      // curl -H 'Host: prd-search-acs.efteling.com' -H 'user-agent: okhttp/4.4.0' -H 'x-app-version: v3.7.1' -H 'x-app-name: Efteling' -H 'x-app-id: nl.efteling.android' -H 'x-app-platform: Android' -H 'x-app-language: en' -H 'x-app-timezone: Europe/London' --compressed 'https://prd-search-acs.efteling.com/2013-01-01/search?q.parser=structured&size=1000&q=%28and%20%28phrase%20field%3Dlanguage%20%27en%27%29%29'\n      const fetchedPOIData = await this.http('GET', this.config.searchUrl, {\n        'size': 1000,\n        'q.parser': 'structured',\n        'q': '(and (phrase field=language \\'en\\'))',\n      });\n\n      const data = fetchedPOIData?.body?.hits?.hit;\n      if (!data) {\n        console.log(fetchedPOIData.body);\n        throw new Error('Failed to fetch Efteling POI data');\n      }\n\n      const poiData = {};\n      data.forEach((hit) => {\n        if (hit.fields) {\n          // ignore non-attractions\n          if (hit.fields.category === 'attraction') {\n            poiData[hit.fields.id] = {\n              name: hit.fields.name,\n            };\n\n            // try to parse lat/long\n            //  edge-case: some rides have dud \"0.0,0.0\" location, ignore these\n            if (hit.fields.latlon && hit.fields.latlon !== '0.0,0.0') {\n              const match = /([0-9.]+),([0-9.]+)/.exec(hit.fields.latlon);\n              if (match) {\n                poiData[hit.fields.id].location = {\n                  latitude: match[1],\n                  longitude: match[2],\n                };\n              }\n            }\n          }\n        }\n      });\n\n      return poiData;\n    }, 1000 * 60 * 60 * 12 /* cache for 12 hours */);\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _init() {\n    // make sure POI data is up-to-date\n    await this.getPOIData();\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _update() {\n\n  }\n}\n\nexport default Efteling;\n",
+    "static": true,
+    "longname": "/home/runner/work/parksapi/parksapi/lib/parks/efteling/efteling.js",
+    "access": "public",
+    "description": null,
+    "lineNumber": 1
+  },
+  {
+    "__docId__": 113,
+    "kind": "class",
+    "name": "Efteling",
+    "memberof": "lib/parks/efteling/efteling.js",
+    "static": true,
+    "longname": "lib/parks/efteling/efteling.js~Efteling",
+    "access": "public",
+    "export": true,
+    "importPath": "parksapi/lib/parks/efteling/efteling.js",
+    "importStyle": "{Efteling}",
+    "description": "Efteling Park Object",
+    "lineNumber": 6,
+    "interface": false,
+    "extends": [
+      "lib/parks/park.js~Park"
+    ]
+  },
+  {
+    "__docId__": 114,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/efteling/efteling.js~Efteling",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/efteling/efteling.js~Efteling#constructor",
+    "access": "public",
+    "description": "Create a new Efteling Park object",
+    "lineNumber": 11,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "options",
+        "description": ""
+      }
+    ]
+  },
+  {
+    "__docId__": 115,
+    "kind": "method",
+    "name": "getPOIData",
+    "memberof": "lib/parks/efteling/efteling.js~Efteling",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/efteling/efteling.js~Efteling#getPOIData",
+    "access": "public",
+    "description": "Get Efteling POI data<br />This data contains general ride names, descriptions etc.<br />Wait time data references this to get ride names",
+    "lineNumber": 54,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 116,
+    "kind": "method",
+    "name": "_init",
+    "memberof": "lib/parks/efteling/efteling.js~Efteling",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/efteling/efteling.js~Efteling#_init",
+    "access": "private",
+    "description": "",
+    "lineNumber": 100,
+    "unknown": [
+      {
+        "tagName": "@inheritdoc",
+        "tagValue": ""
+      }
+    ],
+    "params": [],
+    "return": null
+  },
+  {
+    "__docId__": 117,
+    "kind": "method",
+    "name": "_update",
+    "memberof": "lib/parks/efteling/efteling.js~Efteling",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/efteling/efteling.js~Efteling#_update",
+    "access": "private",
+    "description": "",
+    "lineNumber": 108,
+    "unknown": [
+      {
+        "tagName": "@inheritdoc",
+        "tagValue": ""
+      }
+    ],
+    "params": [],
+    "return": null
+  },
+  {
+    "__docId__": 118,
+    "kind": "file",
     "name": "lib/parks/park.js",
     "content": "import promiseRetry from 'promise-retry';\nimport ConfigBase from '../configBase.js';\nimport needle from 'needle';\nimport domainMatch from 'domain-match';\nimport moment from 'moment-timezone';\nimport randomUseragent from 'random-useragent';\nimport Cache from '../cache/scopedCache.js';\n\n// quick helper function to wait x milliseconds as a Promise\nconst delay = (milliseconds) => {\n  return new Promise((resolve) => {\n    setTimeout(resolve, milliseconds);\n  });\n};\n\nexport const ParkConstants = {\n  // different queue types rides can have\n  QUEUE_STANDBY: 'STANDBY',\n  QUEUE_SINGLERIDER: 'SINGLE_RIDER',\n  QUEUE_VIRTUALQUEUE: 'VIRTUAL_QUEUE',\n  QUEUE_FASTPASS: 'FAST_PASS',\n  // attraction types\n  ATTRACTION_RIDE: 'RIDE',\n  ATTRACTION_SHOW: 'SHOW',\n  ATTRACTION_TRANSPORT: 'TRANSPORT',\n  ATTRACTION_PARADE: 'PARADE',\n  ATTRACTION_MEET_AND_GREET: 'MEET_AND_GREET',\n  // attraction statuses\n  STATUS_OPERATING: 'OPERATING',\n  STATUS_DOWN: 'DOWN',\n  STATUS_CLOSED: 'CLOSED',\n  STATUS_REFURBISHMENT: 'REFURBISHMENT',\n};\n\n/** Generate a random Android user agent for making network requests */\nexport function generateRandomAndroidUseragent() {\n  randomUseragent.getRandom((ua) => {\n    return (ua.osName === 'Android');\n  });\n}\n\n/**\n * Base Park Object\n * @class\n */\nexport class Park extends ConfigBase {\n  /**\n   * Create a new park object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    // how often to wait between updates to run another update\n    options.updateInterval = 1000 * 60 * 5; // 5 minutes\n    // disable auto-update for this object\n    //  set this if the update is being handled by an external system\n    options.disableParkUpdate = false;\n\n    // generate a random Android user-agent if we aren't supplied one\n    options.useragent = options.useragent || generateRandomAndroidUseragent();\n\n    super(options);\n\n    if (!options.name) {\n      throw new Error(`Missing name for constructed park object ${this.constructor.name}`);\n    }\n\n    if (!options.timezone) {\n      throw new Error(`Missing timezone for constructed park object ${this.constructor.name}`);\n    }\n    // validate park timezone\n    if (moment.tz.names().indexOf(options.timezone) < 0) {\n      throw new Error(`Park object ${this.constructor.name} gives an invalid timezone: ${options.timezone}`);\n    }\n\n    // create a new cache object for this park\n    this.cache = new Cache(this.constructor.name, this.config.cacheVersion || 0);\n\n    this.initialised = false;\n\n    this._attractions = [];\n\n    // any HTTP injections that have been setup\n    //  allows parks to automatically intercept HTTP requests and add auth headers etc.\n    this._httpInjections = [];\n  }\n\n  /**\n   * Get a globally unique ID for this park\n   */\n  getParkUniqueID() {\n    throw new Error(`Missing getParkUniqueID() implementation for ${this.constructor.name}`);\n  }\n\n  /**\n   * Get Park Attractions\n   */\n  async getAttractions() {\n    // park must be initialised before returning any data\n    await this.init();\n\n    return this._attractions;\n  }\n\n  /**\n   * Setup the park for use\n   * Call to ensure the object has been initialised before accessing data\n   */\n  async init() {\n    if (this.initialised) {\n      return;\n    }\n\n    // setup the park ready for use\n    //  eg. download any large data-sets, calendars etc.\n    if (this._pendingSetupPromise) {\n      return this._pendingSetupPromise;\n    }\n\n    // call our internal init and wait on it\n    this._pendingSetupPromise = this._runInit();\n    await this._pendingSetupPromise;\n    this._pendingSetupPromise = null;\n\n    this.initialised = true;\n\n    if (!this.config.disableParkUpdate) {\n      // start an update loop\n\n      // use a separate function so we can quickly loop back around\n      const scheduleUpdate = async () => {\n        // pause for our updateInterval time\n        await delay(this.config.updateInterval);\n\n        // wait for Promise to resolve, grab any catches, then continue anyway\n        this.update().then().catch().then(() => {\n          // schedule another update\n          setImmediate(scheduleUpdate.bind(this));\n        });\n      };\n\n      // start the first loop timer\n      scheduleUpdate();\n    }\n  }\n\n  /**\n   * Run all the internal stages of the init process\n   * @private\n   */\n  async _runInit() {\n    await this._init();\n\n    // run an initial update so we're fully setup with data before init() returns\n    return await this._update();\n  }\n\n  /**\n   * Build an object representing an attraction from sourced data\n   * This object should not contain any \"state\" data, just static information about the attraction\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async _buildAttractionObject(attractionID) {\n    throw new Error('Missing _buildAttractionObject Implementation', this.constructor.name);\n  }\n\n  /**\n   * Get data about a attraction from its ID\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async findAttractionByID(attractionID) {\n    // search our existing store for this attraction\n    const attraction = this._attractions.find((attr) => attr.id == attractionID);\n    if (attraction) {\n      return attraction;\n    }\n\n    // attraction wasn't found, try and add one to our store\n    const newAttraction = await this._buildAttractionObject(attractionID);\n    if (newAttraction) {\n      // default to a \"null\" state\n      //  meaning an attraction with no waiting times etc.\n      newAttraction.state = null;\n\n      // make a globally unique ID for this attraction by combining the park ID and attraction ID\n      newAttraction._id = `${this.getParkUniqueID()}_${attractionID}`;\n\n      this._attractions.push(newAttraction);\n\n      return newAttraction;\n    }\n\n    return undefined;\n  }\n\n  /**\n   * Update an attraction state\n   * @param {string} attractionID Unique Attraction ID\n   * @param {object} data New Attraction State Data\n   */\n  async _updateAttractionState(attractionID, data) {\n    if (attractionID === undefined) return;\n\n    const existingRide = await this.findAttractionByID(attractionID);\n    if (existingRide) {\n      // if we found a matching attraction, update its \"state\" property with our new data\n      existingRide.state = data;\n\n      // TODO - broadcast updated ride event\n    }\n  }\n\n  /**\n   * Update this park\n   * This is automatically called for you unless disableParkUpdate is set to false\n   */\n  async update() {\n    if (this._pendingUpdatePromise) {\n      return this._pendingUpdatePromise;\n    }\n\n    // start the _update call in a retry loop\n    this._pendingUpdatePromise = promiseRetry({\n      retries: 5,\n    }, (retryFn, retryAttempt) => {\n      /* if (retryAttempt > 1) {\n        console.error(`Making attempt ${retryAttempt} to call _update on ${this.constructor.name} class`);\n      }*/\n      return this._update().catch(retryFn);\n    });\n\n    // wait and catch the update Promise\n    try {\n      await this._pendingUpdatePromise;\n    } catch (e) {\n      // TODO - record park API error somewhere and continue\n      console.error(e);\n    }\n\n    this._pendingUpdatePromise = null;\n  }\n\n  /**\n   * Internal function\n   * Called by init() to initialise the object\n   * @private\n   * @abstract\n   */\n  async _init() {\n    // implementation should be setup in child classes\n    throw new Error('_init() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Update function the park object calls on interval to update internal state\n   * @private\n   * @abstract\n   */\n  async _update() {\n    // implementation should be setup in child classes\n    throw new Error('_update() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Register a new injection for a specific domain\n   * @param {string} domain Domain to inject for, accepts wildcards. See domain-match\n   * @param {function} func Function to call with needle request to inject extra data into.\n   * Function will take arguments: (method, URL, data, options)\n   */\n  async injectForDomain(domain, func) {\n    // add to our array of injections, this is processing by http()\n    this._httpInjections.push({\n      domain,\n      func,\n    });\n  }\n\n  /**\n   * Helper function to make an HTTP request for this park\n   * Parks can automatically add in authentication headers etc. to requests sent to this function\n   * @param {string} method HTTP method to use (GET,POST,DELETE, etc)\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options] Object containing needle-compatible HTTP options\n   */\n  async http(method, url, data = {}, options = {}) {\n    // always have a headers array\n    if (!options.headers) {\n      options.headers = {};\n    }\n\n    // inject custom standard user agent (if we have one)\n    //  do this before any custom injections so parks can optionally override this for each domain\n    if (this.config.useragent) {\n      options.headers['user-agent'] = this.config.useragent;\n    }\n\n    // check any hostname injections we have setup\n    for (let injectionIDX=0; injectionIDX<this._httpInjections.length; injectionIDX++) {\n      const injection = this._httpInjections[injectionIDX];\n\n      // check if the domain matches\n      if (domainMatch(injection.domain, url)) {\n        await injection.func(method, url, data, options);\n      }\n    }\n\n    return needle(method, url, data, options);\n  }\n}\n\nexport default Park;\n",
     "static": true,
@@ -2259,7 +2374,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 113,
+    "__docId__": 119,
     "kind": "function",
     "name": "delay",
     "memberof": "lib/parks/park.js",
@@ -2290,7 +2405,7 @@
     "ignore": true
   },
   {
-    "__docId__": 114,
+    "__docId__": 120,
     "kind": "variable",
     "name": "ParkConstants",
     "memberof": "lib/parks/park.js",
@@ -2310,7 +2425,7 @@
     }
   },
   {
-    "__docId__": 115,
+    "__docId__": 121,
     "kind": "function",
     "name": "generateRandomAndroidUseragent",
     "memberof": "lib/parks/park.js",
@@ -2328,7 +2443,7 @@
     "return": null
   },
   {
-    "__docId__": 116,
+    "__docId__": 122,
     "kind": "class",
     "name": "Park",
     "memberof": "lib/parks/park.js",
@@ -2352,7 +2467,7 @@
     ]
   },
   {
-    "__docId__": 117,
+    "__docId__": 123,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/park.js~Park",
@@ -2377,7 +2492,7 @@
     ]
   },
   {
-    "__docId__": 118,
+    "__docId__": 124,
     "kind": "member",
     "name": "cache",
     "memberof": "lib/parks/park.js~Park",
@@ -2394,7 +2509,7 @@
     }
   },
   {
-    "__docId__": 119,
+    "__docId__": 125,
     "kind": "member",
     "name": "initialised",
     "memberof": "lib/parks/park.js~Park",
@@ -2411,7 +2526,7 @@
     }
   },
   {
-    "__docId__": 120,
+    "__docId__": 126,
     "kind": "member",
     "name": "_attractions",
     "memberof": "lib/parks/park.js~Park",
@@ -2428,7 +2543,7 @@
     }
   },
   {
-    "__docId__": 121,
+    "__docId__": 127,
     "kind": "member",
     "name": "_httpInjections",
     "memberof": "lib/parks/park.js~Park",
@@ -2445,7 +2560,7 @@
     }
   },
   {
-    "__docId__": 122,
+    "__docId__": 128,
     "kind": "method",
     "name": "getParkUniqueID",
     "memberof": "lib/parks/park.js~Park",
@@ -2460,7 +2575,7 @@
     "return": null
   },
   {
-    "__docId__": 123,
+    "__docId__": 129,
     "kind": "method",
     "name": "getAttractions",
     "memberof": "lib/parks/park.js~Park",
@@ -2479,7 +2594,7 @@
     }
   },
   {
-    "__docId__": 124,
+    "__docId__": 130,
     "kind": "method",
     "name": "init",
     "memberof": "lib/parks/park.js~Park",
@@ -2488,7 +2603,7 @@
     "static": false,
     "longname": "lib/parks/park.js~Park#init",
     "access": "public",
-    "description": "Setup the park for use\nCall to ensure the object has been initialised before accessing data",
+    "description": "Setup the park for use<br />Call to ensure the object has been initialised before accessing data",
     "lineNumber": 108,
     "params": [],
     "return": {
@@ -2498,7 +2613,7 @@
     }
   },
   {
-    "__docId__": 125,
+    "__docId__": 131,
     "kind": "member",
     "name": "_pendingSetupPromise",
     "memberof": "lib/parks/park.js~Park",
@@ -2515,7 +2630,7 @@
     }
   },
   {
-    "__docId__": 128,
+    "__docId__": 134,
     "kind": "method",
     "name": "_runInit",
     "memberof": "lib/parks/park.js~Park",
@@ -2534,7 +2649,7 @@
     }
   },
   {
-    "__docId__": 129,
+    "__docId__": 135,
     "kind": "method",
     "name": "_buildAttractionObject",
     "memberof": "lib/parks/park.js~Park",
@@ -2543,7 +2658,7 @@
     "static": false,
     "longname": "lib/parks/park.js~Park#_buildAttractionObject",
     "access": "private",
-    "description": "Build an object representing an attraction from sourced data\nThis object should not contain any \"state\" data, just static information about the attraction",
+    "description": "Build an object representing an attraction from sourced data<br />This object should not contain any \"state\" data, just static information about the attraction",
     "lineNumber": 162,
     "params": [
       {
@@ -2560,7 +2675,7 @@
     "return": null
   },
   {
-    "__docId__": 130,
+    "__docId__": 136,
     "kind": "method",
     "name": "findAttractionByID",
     "memberof": "lib/parks/park.js~Park",
@@ -2590,7 +2705,7 @@
     }
   },
   {
-    "__docId__": 131,
+    "__docId__": 137,
     "kind": "method",
     "name": "_updateAttractionState",
     "memberof": "lib/parks/park.js~Park",
@@ -2626,7 +2741,7 @@
     "return": null
   },
   {
-    "__docId__": 132,
+    "__docId__": 138,
     "kind": "method",
     "name": "update",
     "memberof": "lib/parks/park.js~Park",
@@ -2635,7 +2750,7 @@
     "static": false,
     "longname": "lib/parks/park.js~Park#update",
     "access": "public",
-    "description": "Update this park\nThis is automatically called for you unless disableParkUpdate is set to false",
+    "description": "Update this park<br />This is automatically called for you unless disableParkUpdate is set to false",
     "lineNumber": 216,
     "params": [],
     "return": {
@@ -2645,7 +2760,7 @@
     }
   },
   {
-    "__docId__": 133,
+    "__docId__": 139,
     "kind": "member",
     "name": "_pendingUpdatePromise",
     "memberof": "lib/parks/park.js~Park",
@@ -2662,7 +2777,7 @@
     }
   },
   {
-    "__docId__": 135,
+    "__docId__": 141,
     "kind": "method",
     "name": "_init",
     "memberof": "lib/parks/park.js~Park",
@@ -2671,14 +2786,14 @@
     "static": false,
     "longname": "lib/parks/park.js~Park#_init",
     "access": "private",
-    "description": "Internal function\nCalled by init() to initialise the object",
+    "description": "Internal function<br />Called by init() to initialise the object",
     "lineNumber": 248,
     "abstract": true,
     "params": [],
     "return": null
   },
   {
-    "__docId__": 136,
+    "__docId__": 142,
     "kind": "method",
     "name": "_update",
     "memberof": "lib/parks/park.js~Park",
@@ -2694,7 +2809,7 @@
     "return": null
   },
   {
-    "__docId__": 137,
+    "__docId__": 143,
     "kind": "method",
     "name": "injectForDomain",
     "memberof": "lib/parks/park.js~Park",
@@ -2730,7 +2845,7 @@
     "return": null
   },
   {
-    "__docId__": 138,
+    "__docId__": 144,
     "kind": "method",
     "name": "http",
     "memberof": "lib/parks/park.js~Park",
@@ -2739,7 +2854,7 @@
     "static": false,
     "longname": "lib/parks/park.js~Park#http",
     "access": "public",
-    "description": "Helper function to make an HTTP request for this park\nParks can automatically add in authentication headers etc. to requests sent to this function",
+    "description": "Helper function to make an HTTP request for this park<br />Parks can automatically add in authentication headers etc. to requests sent to this function",
     "lineNumber": 285,
     "params": [
       {
@@ -2790,7 +2905,7 @@
     }
   },
   {
-    "__docId__": 139,
+    "__docId__": 145,
     "kind": "file",
     "name": "lib/parks/wdw/waltdisneyworldbase.js",
     "content": "import {IndexedWDWDB, getEntityID} from './wdwdb.js';\nimport {Park, ParkConstants} from '../park.js';\n\nlet wdwDB = null;\n/**\n * Get the live WDW database object\n * @return {object} wdwdb live database instance\n */\nexport function getDatabase() {\n  if (!wdwDB) {\n    wdwDB = new IndexedWDWDB();\n  }\n  return wdwDB;\n}\n\n/**\n * Base Disney Park Class\n */\nexport class DisneyPark extends Park {\n  /**\n   * Create a new DisneyPark object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.resort_id = options.resort_id || '';\n    options.park_id = options.park_id || '';\n\n    if (!options.configPrefixes) {\n      options.configPrefixes = ['wdw'];\n    }\n\n    super(options);\n\n    if (this.config.park_id === '') {\n      throw new Error(`Missing park_id for class ${this.constructor.name}`);\n    }\n    if (this.config.resort_id === '') {\n      throw new Error(`Missing resort_id for class ${this.constructor.name}`);\n    }\n\n    // get a reference to our shared live database\n    this.db = getDatabase();\n  }\n\n  /**\n   * Get a unique ID for this park\n   * @return {string}\n   */\n  getParkUniqueID() {\n    return `${this.config.resort_id}_${this.config.park_id}`;\n  }\n\n  /**\n   * Get the channel ID for the facility status live update documents\n   * @return {string}\n   */\n  getFacilityStatusChannelID() {\n    return `${this.config.resort_id}.facilitystatus.1_0`;\n  }\n\n  /**\n   *\n   */\n  async _init() {\n    console.log('Initialising...');\n\n    // make sure the shared database is initialised\n    await this.db.init();\n\n    // subscribe to any live facility status updates\n    this.db.subscribeToChannel(this.getFacilityStatusChannelID(), async (doc) => {\n      this._processAttractionStatusUpdate(doc);\n    });\n\n    // fetch the current attraction times\n    await Promise.all((\n      // get all attractions with facility statuses\n      await this.db.getByChannel(this.getFacilityStatusChannelID())\n    ).map(this._processAttractionStatusUpdate.bind(this)));\n  }\n\n  /**\n   * Process a document update from a facilitystatus channel\n   * @param {object} doc The updated document\n   */\n  async _processAttractionStatusUpdate(doc) {\n    // get our clean attraction ID\n    const entityID = getEntityID(doc.id);\n\n    // check attraction is within our park\n    const updateIndexEntry = await this.db.getEntityIndex(entityID, {\n      park_id: this.config.park_id,\n    });\n    // if we have no entries, then attraction is not in our park\n    if (updateIndexEntry.length === 0) {\n      return;\n    }\n\n    // figure out general ride status\n    let status = ParkConstants.STATUS_OPERATING;\n    if (doc.status === 'Down') {\n      status = ParkConstants.STATUS_DOWN;\n    } else if (doc.status === 'Closed') {\n      status = ParkConstants.STATUS_CLOSED;\n    } else if (doc.status === 'Refurbishment') {\n      status = ParkConstants.STATUS_REFURBISHMENT;\n    }\n\n    // build our status object\n    const state = {\n      status,\n      // all our queue types\n      // TODO - how to detect virtual queue and FastPass availability?\n      queues: [\n        {\n          type: ParkConstants.QUEUE_STANDBY,\n          waitTime: doc.waitMinutes,\n        },\n      ],\n    };\n\n    // console.log(entityID, state);\n\n    // update attraction status in base class\n    await this._updateAttractionState(entityID, state);\n  }\n\n  /**\n   * Build an attraction object from an ID\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async _buildAttractionObject(attractionID) {\n    await this.db.init();\n\n    // find a document for our attraction ID\n    const attr = await this.db.getEntityOne(attractionID);\n    if (attr) {\n      // TODO - build a full document about this attraction\n      return {\n        id: attractionID,\n        name: attr.name,\n      };\n    }\n\n    return undefined;\n  }\n\n  /**\n   *\n   */\n  async _update() {\n    // TODO - parks that don't use the live database need to implement this function\n  }\n}\n\nexport default DisneyPark;\n",
@@ -2801,7 +2916,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 140,
+    "__docId__": 146,
     "kind": "variable",
     "name": "wdwDB",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -2822,7 +2937,7 @@
     "ignore": true
   },
   {
-    "__docId__": 141,
+    "__docId__": 147,
     "kind": "function",
     "name": "getDatabase",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -2847,7 +2962,7 @@
     "params": []
   },
   {
-    "__docId__": 142,
+    "__docId__": 148,
     "kind": "class",
     "name": "DisneyPark",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -2865,7 +2980,7 @@
     ]
   },
   {
-    "__docId__": 143,
+    "__docId__": 149,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2890,7 +3005,7 @@
     ]
   },
   {
-    "__docId__": 144,
+    "__docId__": 150,
     "kind": "member",
     "name": "db",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2907,7 +3022,7 @@
     }
   },
   {
-    "__docId__": 145,
+    "__docId__": 151,
     "kind": "method",
     "name": "getParkUniqueID",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2929,7 +3044,7 @@
     "params": []
   },
   {
-    "__docId__": 146,
+    "__docId__": 152,
     "kind": "method",
     "name": "getFacilityStatusChannelID",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2951,7 +3066,7 @@
     "params": []
   },
   {
-    "__docId__": 147,
+    "__docId__": 153,
     "kind": "method",
     "name": "_init",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2966,7 +3081,7 @@
     "return": null
   },
   {
-    "__docId__": 148,
+    "__docId__": 154,
     "kind": "method",
     "name": "_processAttractionStatusUpdate",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -2992,7 +3107,7 @@
     "return": null
   },
   {
-    "__docId__": 149,
+    "__docId__": 155,
     "kind": "method",
     "name": "_buildAttractionObject",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -3022,7 +3137,7 @@
     }
   },
   {
-    "__docId__": 150,
+    "__docId__": 156,
     "kind": "method",
     "name": "_update",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -3037,7 +3152,7 @@
     "return": null
   },
   {
-    "__docId__": 151,
+    "__docId__": 157,
     "kind": "file",
     "name": "lib/parks/wdw/wdwdb.js",
     "content": "import PouchDB from 'pouchdb';\nimport ReplicationStream from 'pouchdb-replication-stream';\nimport sift from 'sift';\nimport {promises as fs, constants as fsConstants, createReadStream, createWriteStream} from 'fs';\nimport path from 'path';\n\nimport {parseConfig} from '../../configBase.js';\n\n/**\n * Given a document, return it's entity ID for the WDW database\n * @param {object|string} doc CouchDB document or a document ID\n * @return {string}\n */\nexport function getEntityID(doc) {\n  const docId = doc?.id || doc;\n\n  const stack = docId.split(':');\n  const lowestLevelEntity = stack[stack.length - 1];\n\n  const parts = lowestLevelEntity.split(';');\n  if (parts <= 1) return undefined;\n\n  return parts.find((p) => {\n    // edge-case for some documents with no attraction attached (guessing test documents)\n    if (p === 'Unassigned') return false;\n\n    const keyval = p.split('=');\n    return (keyval.length === 1);\n  });\n}\n\n// internal key names for our indexes. Stored as constants to save typing these over and over\nconst constants = {\n  INDEX_FACILITYSTATUS: 'facilityStatus',\n  INDEX_CHANNELS: 'channels',\n  INDEX_ENTITIES: 'entities',\n};\n\n// ancestors to include in our index\n//  we add these into our index objects to identify unique documents to index\nconst ancestorIndexes = [\n  {\n    key: 'ancestorLandId',\n    index: 'land_id',\n  },\n  {\n    key: 'ancestorResortId',\n    index: 'resort_id',\n  },\n  {\n    key: 'ancestorResortAreaId',\n    index: 'resort_area_id',\n  },\n  {\n    key: 'ancestorThemeParkId',\n    index: 'park_id',\n  },\n];\n\n// Super() function to call when we setup this class as a plugin\nconst pouchBulkDocs = PouchDB.prototype.bulkDocs;\n\n/**\n * An indexed live WDW database\n * Replicated WDW database to local disk for fast access\n * While replicating, will build an in-memory index of entities for fast lookup\n * Options to dump database to a single file or load a snapshot for quicker database boot ups\n */\nexport class IndexedWDWDB extends PouchDB {\n  /**\n   * Construct a new IndexedWDWDB object\n   * @param {object} opts PouchDB options object\n   * @param {string} [opts.remoteHost] Remote database to replicate\n   * @param {string} [opts.remoteUsername] Remote database username to authenticate\n   * @param {string} [opts.remotePassword] Remote database password to authenticate\n   * @param {string} [opts.dbName='wdw'] Local database name\n   * @param {string} [opts.snapshot] File location of a snapshot to 'seed' the database during startup\n   * @param {string} [opts.skipSync] Skip network replication, only use data already on disk\n   * @extends PouchDB\n   */\n  constructor(opts = {}) {\n    // default to enable auto_compaction\n    opts.auto_compaction = opts.auto_compaction || true;\n\n    opts.remoteHost = '';\n    opts.remoteUsername = '';\n    opts.remotePassword = '';\n    opts.dbName = opts.dbName || 'wdw';\n    opts.snapshot = ''; // optional snapshot to use when starting database\n    // 'name' is the config option pouchdb uses for the storage path\n    opts.name = opts.name || IndexedWDWDB.getDatabaseFilePath(opts.dbName);\n\n    opts.skipSync = opts.skipSync === undefined ? false : opts.skipSync;\n\n    opts.configPrefixes = ['WDWDB'].concat(opts.configPrefixes || []);\n    const config = parseConfig(opts);\n\n    super(config);\n    this.config = config;\n\n    // setup our remote host to replicate locally\n    if (this.config.remoteHost) {\n      const remoteHostOptions = {\n        skip_setup: true,\n      };\n      if (this.config.remoteUsername && this.config.remotePassword) {\n        remoteHostOptions.auth = {\n          username: this.config.remoteUsername,\n          password: this.config.remotePassword,\n        };\n      }\n\n      this.remoteDB = new PouchDB(this.config.remoteHost, remoteHostOptions);\n    }\n\n    this.synced = false;\n    this.replicating = false;\n\n    this._index = {};\n    this._setupPromise = null;\n    this._indexSetup = false;\n  }\n\n  /**\n * Get the LevelDOWN database location to use\n * @param {string} name Database name\n * @return {string}\n */\n  static getDatabaseFilePath(name) {\n    return path.join(process.cwd(), `db.${name}`);\n  }\n\n  /**\n   * Initialise the live database, returns once finished an initial sync\n   */\n  async init() {\n    if (this.synced) {\n      return;\n    }\n\n    if (this.initPromiseSync) return this.initPromiseSync;\n\n    // first, syncronise our database before we start rolling updates\n    this.initPromiseSync = this._loadAndInit();\n    // keep the Promise as a variable so we can keep returning it for any additional init() calls\n    await this.initPromiseSync;\n    this.initPromiseSync = null;\n\n    console.log(`Database finished setup!`);\n\n    this.synced = true;\n\n    if (!this.config.skipSync && this.remoteDB) {\n      this.replicating = true;\n      // start rolling replicate to keep our local database in-sync\n      PouchDB.replicate(this.remoteDB, this, {\n        live: true,\n        retry: true,\n      });\n    }\n  }\n\n  /**\n   * Internal function\n   * Loads and performs an initial sync on the database\n   * @private\n   */\n  async _loadAndInit() {\n    // first, try and restore from disk (will check if an existing snapshot exists)\n    await this.loadSnapshot();\n\n    // load up our indexes\n    await this._initIndexes();\n\n    // reindex every document once we've initialised from disk\n    //  do this before replication, since all new docs will be auto-indexed\n    const docs = await this.allDocs({\n      include_docs: true,\n    });\n    console.log('Building index...');\n    await Promise.allSettled(docs.rows.map((doc) => {\n      return this._indexWDWDocument(doc.doc);\n    }));\n\n    // optionally skip replicating with remote (for local fast testing)\n    if (this.config.skipSync || !this.remoteDB) {\n      return;\n    }\n\n    // then perform an initial replication from remote to local\n    console.log('Performing initial replication...');\n    return await PouchDB.replicate(this.remoteDB, this, {\n      batch_size: 500,\n    }).catch((e) => {\n      console.error(`Replication error: ${e}`);\n    });\n  }\n\n  /**\n   * Get the filename we use for saving backups of the database to disk\n   * Used for creating simple \"snapshots\" to reduce initial sync times\n   * @param {string} [postfix] Optional postfix for the filename\n   * eg. Use postfix to generate a temporary version of a file to write to before replacing the \"real\" database\n   * @return {string}\n   */\n  getDumpFilename(postfix = '') {\n    return path.join('localdb', `${this.config.dbName}${postfix}.db`);\n  }\n\n  /**\n   * Restore a database backup from disk\n   * Perform this after running \"dump()\" on a previous synced database\n   * This will help to reduce the initial sync time for large databases\n   * @param {string} [snapshotFile] File path of the snapshot to restore into the database\n   * snapshotFile will use default saveSnapshot result location if not supplied\n   */\n  async loadSnapshot(snapshotFile = '') {\n    if (this.synced || this.replicating) {\n      console.warn('Trying to load database snapshot when replication has already started');\n      return;\n    }\n\n    const useCustomSnapshot = !!snapshotFile;\n    const dumpPath = useCustomSnapshot ? snapshotFile : this.getDumpFilename();\n\n    // if our database dump doesn't exist, then early out and we'll do a normal sync\n    try {\n      await fs.access(dumpPath, fsConstants.F_OK);\n    } catch (error) {\n      return;\n    }\n\n    console.log('Restoring database from disk...');\n\n    // otherwise, load up our database from disk\n    const ws = createReadStream(dumpPath);\n    return this.load(ws, {\n      batch_size: 500,\n    });\n  }\n\n  /**\n   * Save a snapshot of this live database to disk\n   * This will be used to \"seed\" the database to speed up syncs for future runs\n   * @return {string} Path to resulting database snapshot\n   */\n  async saveSnapshot() {\n    if (this.databaseDumpPendingPromise) {\n      return this.databaseDumpPendingPromise;\n    }\n\n    console.log('Dumping database to disk...');\n\n    const dumpPath = this.getDumpFilename();\n    const dumpPathNew = this.getDumpFilename('_new');\n\n    // dump database to our new location\n    const ws = createWriteStream(dumpPathNew);\n    this.databaseDumpPendingPromise = this.dump(ws, {\n      batch_size: 500,\n    });\n    // save Promise so multiple \"dump()\" calls can stack cleanly\n    await this.databaseDumpPendingPromise;\n    this.databaseDumpPendingPromise = null;\n\n    // rename new database dump to our final intended location\n    return fs.rename(dumpPathNew, dumpPath).then(() => {\n      // finally, return the actual path of the snapshot\n      return dumpPath;\n    });\n  }\n\n  /**\n   * Index initialisation\n   * This function wraps taking care of creating our indexes once only\n   * @private\n   */\n  async _initIndexes() {\n    if (this._indexSetup) {\n      return;\n    }\n\n    if (this._setupPromise) {\n      return this._setupPromise;\n    }\n\n    this._setupPromise = this._createIndexes();\n    await this._setupPromise;\n    this._indexSetup = true;\n    return;\n  }\n\n  /**\n   * Setup our WDW indexes\n   * @private\n   */\n  async _createIndexes() {\n    await this._createIndex(constants.INDEX_ENTITIES);\n    await this._createIndex(constants.INDEX_CHANNELS);\n    await this._createIndex(constants.INDEX_FACILITYSTATUS, []);\n  }\n\n  /**\n   * Get the internal index object for the given index type\n   * @param {object} name Index name (see constants.INDEX_*)\n   * @return {*}\n   * @private\n   */\n  getIndex(name) {\n    return this._index[name].index;\n  }\n\n  /**\n   * Create an index object to be used by this database\n   * @param {string} name Index name\n   * @param {*} defaultIndex Index initial object state\n   * @private\n   */\n  async _createIndex(name, defaultIndex = []) {\n    this._index[name] = {\n      index: defaultIndex,\n    };\n  }\n\n  /**\n   * Given a WDW document, extract key identifiable data\n   * This is used to build a look-up index of unique document types\n   * See ancestorIndexes for some of the keys we use\n   * This is important so we can tell the difference between entities with the same ID, but different purposes\n   * eg. an entity ID can have multiple documents, one for the attraction itself, one for it's wait times, etc.\n   * These need to both be in the index under the same entity ID, but with different properties to make them distinct\n   * @param {object} doc WDW Database Document\n   * @return {object} Index object containing important identifying data\n   * @private\n   */\n  _extractEntityKeys(doc) {\n    if (!doc || !doc.id) return undefined;\n\n    // some IDs are stacked using :\n    const stack = doc.id.split(':');\n    const lowestLevelEntity = stack[stack.length - 1];\n\n    const parts = lowestLevelEntity.split(';');\n    if (parts <= 1) return undefined;\n\n    // some documents can have different parents, they're the same, but different path to get there\n    const parentStackEl = stack.length > 1 ? stack[stack.length - 2] : undefined;\n    const parent = parentStackEl ? this._extractEntityKeys({id: parentStackEl}).id : undefined;\n\n    const ret = {\n      parent,\n    };\n\n    parts.forEach((p) => {\n      const keyval = p.split('=');\n      if (keyval.length === 1) {\n        ret.id = keyval[0];\n      } else {\n        ret[keyval[0]] = keyval[1];\n      }\n    });\n\n    // if this document is in a \"facilitystatus\" channel, add an extra tag\n    //  this is so we don't collide with the actaul document for this attraction\n    //  but also so we can filter it easier later\n    const channel = doc.channels?.length ? doc.channels[0] : undefined;\n    if (channel && channel.indexOf('facilitystatus') >= 0) {\n      ret.facilityStatus = true;\n    }\n\n    // include channel in our index\n    ret.channel = channel;\n\n    // add any ancestor data to our index (that we a) care about and b) can find) - see ancestorIndexes\n    ancestorIndexes.forEach((ancestorIndex) => {\n      if (doc[ancestorIndex.key]) {\n        const ancestorID = getEntityID(doc[ancestorIndex.key]);\n        if (ancestorID) {\n          ret[ancestorIndex.index] = ancestorID;\n        }\n      }\n    });\n\n    return ret;\n  }\n\n  /**\n   * Given a WDW database document, try to return its language\n   * @param {object} doc\n   * @return {string} Language of this document. Eg. en_intl, en_us\n   * @private\n   */\n  _extractChannelLanguage(doc) {\n    // pull channel from doc\n    const channel = doc.channels?.length ? doc.channels[0] : undefined;\n    if (!channel) return undefined;\n\n    // extract language from the end of the channel name\n    let lang = channel.slice(channel.lastIndexOf('.') + 1);\n\n    // channels missing any locale are assumed English International (they are using \"1_0\" or similar)\n    if (lang.indexOf('1') === 0) {\n      lang = 'en_intl';\n    }\n\n    return lang;\n  }\n\n  /**\n   * Add a document to the database index\n   * Used for fast lookups of entities etc. to the correct documents\n   * @param {object} doc CouchDB document to index\n   * @private\n   */\n  async _indexWDWDocument(doc) {\n    const entity = this._extractEntityKeys(doc);\n    if (entity && entity.id && entity.entityType) {\n      const id = entity.id;\n\n      const newIndexEntry = {\n        ...entity,\n        language: this._extractChannelLanguage(doc),\n        _id: doc._id,\n      };\n\n      // special-case, index all facility status documents in another index\n      if (newIndexEntry.facilityStatus) {\n        const facilityIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);\n\n        const docExists = facilityIndex.findIndex((x) => {\n          return x.id === newIndexEntry.id;\n        });\n        if (docExists >= 0) {\n          facilityIndex[docExists] = newIndexEntry;\n        } else {\n          facilityIndex.push(newIndexEntry);\n        }\n      }\n\n      // index all documents based on channel\n      const channel = doc.channels?.length ? doc.channels[0] : undefined;\n      if (channel) {\n        const channelIndex = this.getIndex(constants.INDEX_CHANNELS);\n        if (!channelIndex[channel]) {\n          channelIndex[channel] = [];\n        }\n        channelIndex[channel].push(newIndexEntry);\n      }\n\n      const newIndexKeys = Object.keys(newIndexEntry);\n\n      const entityIndex = this.getIndex(constants.INDEX_ENTITIES);\n      if (!entityIndex[id]) {\n        entityIndex[id] = [];\n      }\n      const findExisting = entityIndex[id].findIndex((x) => {\n        // if # keys are different, not a match\n        if (Object.keys(x).length !== newIndexKeys.length) return false;\n\n        // look for any mismatches between the keys\n        const findMismatch = newIndexKeys.find((key) => {\n          // _id is supposed to be different, so ignore it regardless of if it matches or not\n          if (key === '_id') return false;\n          return (newIndexEntry[key] !== x[key]);\n        });\n        return !findMismatch;\n      });\n\n      if (findExisting < 0) {\n        // entry doesn't exist, add to our list\n        entityIndex[id].push(newIndexEntry);\n      } else {\n        // replace existing entry that matches all the same properties\n        if (entityIndex[id][findExisting]._id !== newIndexEntry._id) {\n          entityIndex[id][findExisting] = newIndexEntry;\n        }\n      }\n    }\n  }\n\n  /**\n   * Get an array of documents from an array of _id\n   * @param {array<string>} ids\n   */\n  async getDocsById(ids) {\n    await this.init();\n\n    return (await Promise.all(ids.map((id) => {\n      // fetch each document using our local DB\n      return this.get(id);\n    }))).filter((doc) => {\n      // filter our any docs that failed to be fetched (they have been deleted etc.)\n      return doc !== undefined;\n    });\n  }\n\n  /**\n   * Find search index entries by ID\n   * If you want the actual document and not just the meta-index data, use getEntity() instead\n   * @param {string} id\n   * @param {object} [filter]\n   * @return {array<object>} Returns the index data for this entity ID\n   */\n  async getEntityIndex(id, filter = {}) {\n    await this.init();\n\n    const entityIndex = this.getIndex(constants.INDEX_ENTITIES);\n    const indexEntry = entityIndex[id];\n    if (!indexEntry) return [];\n\n    // filter entries by supplied filter options before resolving\n    return indexEntry.filter(sift(filter));\n  }\n\n  /**\n   * Search for an entity in the WDW database\n   * @param {string} id Entity ID\n   * @param {object} [filter] Filter index by field\n   * @return {array<object>} Returns all documents for this entity ID\n   */\n  async getEntity(id, filter = {}) {\n    const entities = await this.getEntityIndex(id, filter);\n\n    // resolve each index entry to our full documents\n    return this.getDocsById(entities.map((entry) => {\n      return entry._id;\n    }));\n  }\n\n\n  /**\n   * Search for an entity in the WDW database\n   * Attempts to return the \"best candidate\" single document that matches the incoming ID\n   * @param {string} id Entity ID\n   * @param {object} [filter] Optional index filter\n   * @return {object} Returns the best candidate single document, or undefined\n   */\n  async getEntityOne(id, filter = {}) {\n    const entities = await this.getEntityIndex(id, filter);\n    if (entities.length === 0) return undefined;\n\n    // filter to find the best document of the ones available\n    //  prioritise language en_intl\n    const enIntl = entities.find((doc) => {\n      return doc.language === 'en_intl' && !doc.facilityStatus; // don't include facilityStatus docs by-default\n    });\n    if (enIntl) {\n      return await this.get(enIntl._id);\n    }\n\n    //  2nd priority: en_US\n    const enUS = entities.find((doc) => {\n      return doc.language === 'en_us' && !doc.facilityStatus; // don't include facilityStatus docs by-default\n    });\n    if (enUS) {\n      return await this.get(enUS._id);\n    }\n\n    // otherwise just return the first entry in out list\n    return await this.get(entities[0]._id);\n  }\n\n  /**\n   * Get the live facility status for a given entity ID\n   * @param {string} id Entity ID\n   * @return {object} Facility status document, or undefined\n   */\n  async getFacilityStatus(id) {\n    await this.init();\n\n    const statusIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);\n\n    // look up entity ID in our facility status index\n    const indexEntity = statusIndex.find((x) => {\n      return x.id === id;\n    });\n    if (!indexEntity) return undefined;\n\n    return await this.get(indexEntity._id);\n  }\n\n  /**\n   * Find all documents by channel\n   * eg. 'wdw.facilitystatus.1_0' to get all WDW facility status documents\n   * @param {string} channel Channel ID\n   * @param {object} [filter] Optional document index filter\n   * @return {array<object>} All documents in this channel (or empty array)\n   */\n  async getByChannel(channel, filter = {}) {\n    await this.init();\n\n    const channelIndex = this.getIndex(constants.INDEX_CHANNELS);\n\n    const channelData = channelIndex[channel];\n    if (!channelData) {\n      return [];\n    }\n\n    // return resolved documents for the channel\n    return this.getDocsById(channelData.filter(sift(filter)).map((entry) => {\n      return entry._id;\n    }));\n  }\n\n  /**\n   * Return all documents in the database that match the given filter\n   * This is a slow operation! Use sparingly!\n   * @param {object} [filter]\n   * @return {array<object>}\n   */\n  async find(filter = {}) {\n    await this.init();\n\n    const docs = await this.allDocs({\n      include_docs: true,\n    });\n\n    return docs.rows.map((row) => row.doc).filter(sift(filter));\n  }\n\n  /**\n   * Subscribe to all database changes with an optional mongo-style filter\n   * @param {object} [filter]\n   * @param {function} callback\n   */\n  subscribeToChanges(filter, callback) {\n    if (typeof filter === 'function') {\n      // if no filter passed in, call ourselves with an empty set\n      this.subscribeToChanges({}, callback);\n    } else {\n      // listen to changes from now onwards, passing in our filter function\n      this.changes({\n        since: 'now',\n        live: true,\n        include_docs: true,\n        filter: sift(filter),\n      }).on('change', (change) => {\n        callback(change.doc);\n      });\n    }\n  }\n\n  /**\n   * Subscribe to all changes to a channel\n   * @param {string} channel\n   * @param {function} callback\n   */\n  subscribeToChannel(channel, callback) {\n    // only return documents that contain the supplied channel\n    this.subscribeToChanges({\n      channels: {\n        $elemMatch: channel,\n      },\n    }, callback);\n  }\n\n  /**\n   * Plugin function to intercept bulkDocs function\n   * We index any WDW documents we find for easier lookup later\n   * @param  {...any} args bulkDocs in\n   * @private\n   */\n  static async _pluginBulkDocs(...args) {\n    await this._initIndexes();\n\n    const body = args[0];\n    const docs = Array.isArray(body) ? body : body.docs;\n\n    // index each document being added to the database\n    // TODO - do we need to handle deletion events here?\n    await Promise.allSettled(docs.map((doc) => {\n      return this._indexWDWDocument(doc);\n    }));\n\n    // All documents check out. Pass them to PouchDB.\n    return pouchBulkDocs.call(this, ...args);\n  }\n}\n\n// add our plugin function\nIndexedWDWDB.plugin({\n  bulkDocs: IndexedWDWDB._pluginBulkDocs,\n});\n\n// pouchdb-replication-stream allows us to \"seed\" the database with an initial database dump\n//  incredibly useful for the wdw db, which is pretty huge\nIndexedWDWDB.plugin(ReplicationStream.plugin);\nPouchDB.adapter('writableStream', ReplicationStream.adapters.writableStream);\n\nexport default IndexedWDWDB;\n",
@@ -3048,7 +3163,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 152,
+    "__docId__": 158,
     "kind": "function",
     "name": "getEntityID",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -3085,7 +3200,7 @@
     }
   },
   {
-    "__docId__": 153,
+    "__docId__": 159,
     "kind": "variable",
     "name": "constants",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -3106,7 +3221,7 @@
     "ignore": true
   },
   {
-    "__docId__": 154,
+    "__docId__": 160,
     "kind": "variable",
     "name": "ancestorIndexes",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -3127,7 +3242,7 @@
     "ignore": true
   },
   {
-    "__docId__": 155,
+    "__docId__": 161,
     "kind": "variable",
     "name": "pouchBulkDocs",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -3148,7 +3263,7 @@
     "ignore": true
   },
   {
-    "__docId__": 156,
+    "__docId__": 162,
     "kind": "class",
     "name": "IndexedWDWDB",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -3158,7 +3273,7 @@
     "export": true,
     "importPath": "parksapi/lib/parks/wdw/wdwdb.js",
     "importStyle": "{IndexedWDWDB}",
-    "description": "An indexed live WDW database\nReplicated WDW database to local disk for fast access\nWhile replicating, will build an in-memory index of entities for fast lookup\nOptions to dump database to a single file or load a snapshot for quicker database boot ups",
+    "description": "An indexed live WDW database<br />Replicated WDW database to local disk for fast access<br />While replicating, will build an in-memory index of entities for fast lookup<br />Options to dump database to a single file or load a snapshot for quicker database boot ups",
     "lineNumber": 69,
     "interface": false,
     "extends": [
@@ -3166,7 +3281,7 @@
     ]
   },
   {
-    "__docId__": 157,
+    "__docId__": 163,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3259,7 +3374,7 @@
     ]
   },
   {
-    "__docId__": 158,
+    "__docId__": 164,
     "kind": "member",
     "name": "config",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3276,7 +3391,7 @@
     }
   },
   {
-    "__docId__": 159,
+    "__docId__": 165,
     "kind": "member",
     "name": "remoteDB",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3293,7 +3408,7 @@
     }
   },
   {
-    "__docId__": 160,
+    "__docId__": 166,
     "kind": "member",
     "name": "synced",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3310,7 +3425,7 @@
     }
   },
   {
-    "__docId__": 161,
+    "__docId__": 167,
     "kind": "member",
     "name": "replicating",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3327,7 +3442,7 @@
     }
   },
   {
-    "__docId__": 162,
+    "__docId__": 168,
     "kind": "member",
     "name": "_index",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3344,7 +3459,7 @@
     }
   },
   {
-    "__docId__": 163,
+    "__docId__": 169,
     "kind": "member",
     "name": "_setupPromise",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3361,7 +3476,7 @@
     }
   },
   {
-    "__docId__": 164,
+    "__docId__": 170,
     "kind": "member",
     "name": "_indexSetup",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3378,7 +3493,7 @@
     }
   },
   {
-    "__docId__": 165,
+    "__docId__": 171,
     "kind": "method",
     "name": "getDatabaseFilePath",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3411,7 +3526,7 @@
     }
   },
   {
-    "__docId__": 166,
+    "__docId__": 172,
     "kind": "method",
     "name": "init",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3430,7 +3545,7 @@
     }
   },
   {
-    "__docId__": 167,
+    "__docId__": 173,
     "kind": "member",
     "name": "initPromiseSync",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3447,7 +3562,7 @@
     }
   },
   {
-    "__docId__": 171,
+    "__docId__": 177,
     "kind": "method",
     "name": "_loadAndInit",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3456,7 +3571,7 @@
     "static": false,
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_loadAndInit",
     "access": "private",
-    "description": "Internal function\nLoads and performs an initial sync on the database",
+    "description": "Internal function<br />Loads and performs an initial sync on the database",
     "lineNumber": 168,
     "params": [],
     "return": {
@@ -3466,7 +3581,7 @@
     }
   },
   {
-    "__docId__": 172,
+    "__docId__": 178,
     "kind": "method",
     "name": "getDumpFilename",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3475,7 +3590,7 @@
     "static": false,
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getDumpFilename",
     "access": "public",
-    "description": "Get the filename we use for saving backups of the database to disk\nUsed for creating simple \"snapshots\" to reduce initial sync times",
+    "description": "Get the filename we use for saving backups of the database to disk<br />Used for creating simple \"snapshots\" to reduce initial sync times",
     "lineNumber": 206,
     "params": [
       {
@@ -3499,7 +3614,7 @@
     }
   },
   {
-    "__docId__": 173,
+    "__docId__": 179,
     "kind": "method",
     "name": "loadSnapshot",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3508,7 +3623,7 @@
     "static": false,
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#loadSnapshot",
     "access": "public",
-    "description": "Restore a database backup from disk\nPerform this after running \"dump()\" on a previous synced database\nThis will help to reduce the initial sync time for large databases",
+    "description": "Restore a database backup from disk<br />Perform this after running \"dump()\" on a previous synced database<br />This will help to reduce the initial sync time for large databases",
     "lineNumber": 217,
     "params": [
       {
@@ -3529,7 +3644,7 @@
     }
   },
   {
-    "__docId__": 174,
+    "__docId__": 180,
     "kind": "method",
     "name": "saveSnapshot",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3538,7 +3653,7 @@
     "static": false,
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#saveSnapshot",
     "access": "public",
-    "description": "Save a snapshot of this live database to disk\nThis will be used to \"seed\" the database to speed up syncs for future runs",
+    "description": "Save a snapshot of this live database to disk<br />This will be used to \"seed\" the database to speed up syncs for future runs",
     "lineNumber": 247,
     "return": {
       "nullable": null,
@@ -3551,7 +3666,7 @@
     "params": []
   },
   {
-    "__docId__": 175,
+    "__docId__": 181,
     "kind": "member",
     "name": "databaseDumpPendingPromise",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3568,7 +3683,7 @@
     }
   },
   {
-    "__docId__": 177,
+    "__docId__": 183,
     "kind": "method",
     "name": "_initIndexes",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3577,7 +3692,7 @@
     "static": false,
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_initIndexes",
     "access": "private",
-    "description": "Index initialisation\nThis function wraps taking care of creating our indexes once only",
+    "description": "Index initialisation<br />This function wraps taking care of creating our indexes once only",
     "lineNumber": 278,
     "params": [],
     "return": {
@@ -3587,7 +3702,7 @@
     }
   },
   {
-    "__docId__": 180,
+    "__docId__": 186,
     "kind": "method",
     "name": "_createIndexes",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3602,7 +3717,7 @@
     "return": null
   },
   {
-    "__docId__": 181,
+    "__docId__": 187,
     "kind": "method",
     "name": "getIndex",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3635,7 +3750,7 @@
     }
   },
   {
-    "__docId__": 182,
+    "__docId__": 188,
     "kind": "method",
     "name": "_createIndex",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3671,7 +3786,7 @@
     "return": null
   },
   {
-    "__docId__": 183,
+    "__docId__": 189,
     "kind": "method",
     "name": "_extractEntityKeys",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3680,7 +3795,7 @@
     "static": false,
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_extractEntityKeys",
     "access": "private",
-    "description": "Given a WDW document, extract key identifiable data\nThis is used to build a look-up index of unique document types\nSee ancestorIndexes for some of the keys we use\nThis is important so we can tell the difference between entities with the same ID, but different purposes\neg. an entity ID can have multiple documents, one for the attraction itself, one for it's wait times, etc.\nThese need to both be in the index under the same entity ID, but with different properties to make them distinct",
+    "description": "Given a WDW document, extract key identifiable data<br />This is used to build a look-up index of unique document types<br />See ancestorIndexes for some of the keys we use<br />This is important so we can tell the difference between entities with the same ID, but different purposes<br />eg. an entity ID can have multiple documents, one for the attraction itself, one for it's wait times, etc.<br />These need to both be in the index under the same entity ID, but with different properties to make them distinct",
     "lineNumber": 336,
     "params": [
       {
@@ -3704,7 +3819,7 @@
     }
   },
   {
-    "__docId__": 184,
+    "__docId__": 190,
     "kind": "method",
     "name": "_extractChannelLanguage",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3737,7 +3852,7 @@
     }
   },
   {
-    "__docId__": 185,
+    "__docId__": 191,
     "kind": "method",
     "name": "_indexWDWDocument",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3746,7 +3861,7 @@
     "static": false,
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_indexWDWDocument",
     "access": "private",
-    "description": "Add a document to the database index\nUsed for fast lookups of entities etc. to the correct documents",
+    "description": "Add a document to the database index<br />Used for fast lookups of entities etc. to the correct documents",
     "lineNumber": 415,
     "params": [
       {
@@ -3763,7 +3878,7 @@
     "return": null
   },
   {
-    "__docId__": 186,
+    "__docId__": 192,
     "kind": "method",
     "name": "getDocsById",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3793,7 +3908,7 @@
     }
   },
   {
-    "__docId__": 187,
+    "__docId__": 193,
     "kind": "method",
     "name": "getEntityIndex",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3802,7 +3917,7 @@
     "static": false,
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getEntityIndex",
     "access": "public",
-    "description": "Find search index entries by ID\nIf you want the actual document and not just the meta-index data, use getEntity() instead",
+    "description": "Find search index entries by ID<br />If you want the actual document and not just the meta-index data, use getEntity() instead",
     "lineNumber": 504,
     "params": [
       {
@@ -3836,7 +3951,7 @@
     }
   },
   {
-    "__docId__": 188,
+    "__docId__": 194,
     "kind": "method",
     "name": "getEntity",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3879,7 +3994,7 @@
     }
   },
   {
-    "__docId__": 189,
+    "__docId__": 195,
     "kind": "method",
     "name": "getEntityOne",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3888,7 +4003,7 @@
     "static": false,
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getEntityOne",
     "access": "public",
-    "description": "Search for an entity in the WDW database\nAttempts to return the \"best candidate\" single document that matches the incoming ID",
+    "description": "Search for an entity in the WDW database<br />Attempts to return the \"best candidate\" single document that matches the incoming ID",
     "lineNumber": 538,
     "params": [
       {
@@ -3922,7 +4037,7 @@
     }
   },
   {
-    "__docId__": 190,
+    "__docId__": 196,
     "kind": "method",
     "name": "getFacilityStatus",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3955,7 +4070,7 @@
     }
   },
   {
-    "__docId__": 191,
+    "__docId__": 197,
     "kind": "method",
     "name": "getByChannel",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -3964,7 +4079,7 @@
     "static": false,
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getByChannel",
     "access": "public",
-    "description": "Find all documents by channel\neg. 'wdw.facilitystatus.1_0' to get all WDW facility status documents",
+    "description": "Find all documents by channel<br />eg. 'wdw.facilitystatus.1_0' to get all WDW facility status documents",
     "lineNumber": 589,
     "params": [
       {
@@ -3998,7 +4113,7 @@
     }
   },
   {
-    "__docId__": 192,
+    "__docId__": 198,
     "kind": "method",
     "name": "find",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4007,7 +4122,7 @@
     "static": false,
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#find",
     "access": "public",
-    "description": "Return all documents in the database that match the given filter\nThis is a slow operation! Use sparingly!",
+    "description": "Return all documents in the database that match the given filter<br />This is a slow operation! Use sparingly!",
     "lineNumber": 611,
     "params": [
       {
@@ -4031,7 +4146,7 @@
     }
   },
   {
-    "__docId__": 193,
+    "__docId__": 199,
     "kind": "method",
     "name": "subscribeToChanges",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4067,7 +4182,7 @@
     "return": null
   },
   {
-    "__docId__": 194,
+    "__docId__": 200,
     "kind": "method",
     "name": "subscribeToChannel",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4103,7 +4218,7 @@
     "return": null
   },
   {
-    "__docId__": 195,
+    "__docId__": 201,
     "kind": "method",
     "name": "_pluginBulkDocs",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4112,7 +4227,7 @@
     "static": true,
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB._pluginBulkDocs",
     "access": "private",
-    "description": "Plugin function to intercept bulkDocs function\nWe index any WDW documents we find for easier lookup later",
+    "description": "Plugin function to intercept bulkDocs function<br />We index any WDW documents we find for easier lookup later",
     "lineNumber": 663,
     "params": [
       {
@@ -4142,7 +4257,7 @@
   },
   {
     "kind": "packageJSON",
-    "content": "{\n  \"name\": \"parksapi\",\n  \"type\": \"module\",\n  \"version\": \"1.0.0\",\n  \"description\": \"\",\n  \"engines\": {\n    \"npm\": \">=6\",\n    \"node\": \">=14\"\n  },\n  \"main\": \"lib/index.js\",\n  \"scripts\": {\n    \"test\": \"eslint ./lib/**\",\n    \"docs\": \"esdoc\"\n  },\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/ThemeParks/parksapi.git\"\n  },\n  \"author\": \"@cube\",\n  \"license\": \"ISC\",\n  \"bugs\": {\n    \"url\": \"https://github.com/ThemeParks/parksapi/issues\"\n  },\n  \"homepage\": \"https://github.com/ThemeParks/parksapi#readme\",\n  \"dependencies\": {\n    \"domain-match\": \"^1.0.0\",\n    \"dotenv\": \"^8.2.0\",\n    \"moment-timezone\": \"^0.5.31\",\n    \"needle\": \"^2.5.0\",\n    \"pouchdb\": \"^7.2.1\",\n    \"pouchdb-replication-stream\": \"github:pouchdb-community/pouchdb-replication-stream#56f0511\",\n    \"promise-retry\": \"^2.0.1\",\n    \"random-useragent\": \"^0.4.0\",\n    \"sift\": \"^13.1.10\",\n    \"sqlite3\": \"^5.0.0\"\n  },\n  \"devDependencies\": {\n    \"esdoc\": \"^1.1.0\",\n    \"esdoc-ecmascript-proposal-plugin\": \"^1.0.0\",\n    \"esdoc-standard-plugin\": \"^1.0.0\",\n    \"eslint\": \"^7.4.0\",\n    \"eslint-config-google\": \"^0.14.0\"\n  }\n}\n",
+    "content": "{\n  \"name\": \"parksapi\",\n  \"type\": \"module\",\n  \"version\": \"1.0.0\",\n  \"description\": \"\",\n  \"engines\": {\n    \"npm\": \">=6\",\n    \"node\": \">=14\"\n  },\n  \"main\": \"lib/index.js\",\n  \"scripts\": {\n    \"test\": \"eslint ./lib/**\",\n    \"docs\": \"esdoc\"\n  },\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/ThemeParks/parksapi.git\"\n  },\n  \"author\": \"@cube\",\n  \"license\": \"ISC\",\n  \"bugs\": {\n    \"url\": \"https://github.com/ThemeParks/parksapi/issues\"\n  },\n  \"homepage\": \"https://github.com/ThemeParks/parksapi#readme\",\n  \"dependencies\": {\n    \"domain-match\": \"^1.0.0\",\n    \"dotenv\": \"^8.2.0\",\n    \"moment-timezone\": \"^0.5.31\",\n    \"needle\": \"^2.5.0\",\n    \"pouchdb\": \"^7.2.1\",\n    \"pouchdb-replication-stream\": \"github:pouchdb-community/pouchdb-replication-stream#56f0511\",\n    \"promise-retry\": \"^2.0.1\",\n    \"random-useragent\": \"^0.4.0\",\n    \"sift\": \"^13.1.10\",\n    \"sqlite3\": \"^5.0.0\"\n  },\n  \"devDependencies\": {\n    \"@babel/traverse\": \"^7.11.0\",\n    \"esdoc\": \"^1.1.0\",\n    \"esdoc-ecmascript-proposal-plugin\": \"^1.0.0\",\n    \"esdoc-standard-plugin\": \"^1.0.0\",\n    \"eslint\": \"^7.4.0\",\n    \"eslint-config-google\": \"^0.14.0\"\n  }\n}\n",
     "longname": "/home/runner/work/parksapi/parksapi/package.json",
     "name": "package.json",
     "static": true,

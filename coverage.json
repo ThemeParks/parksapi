@@ -1,7 +1,7 @@
 {
-  "coverage": "72.8%",
-  "expectCount": 125,
-  "actualCount": 91,
+  "coverage": "73.84%",
+  "expectCount": 130,
+  "actualCount": 96,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 11,
@@ -56,6 +56,11 @@
       "undocumentLines": [
         77
       ]
+    },
+    "lib/parks/efteling/efteling.js": {
+      "expectCount": 5,
+      "actualCount": 5,
+      "undocumentLines": []
     },
     "lib/parks/park.js": {
       "expectCount": 23,
