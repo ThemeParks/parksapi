@@ -54,16 +54,16 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
-    "parksapi/lib/parks/park.js~parkconstants",
-    "variable/index.html#static-variable-ParkConstants",
-    "<span>ParkConstants</span> <span class=\"search-result-import-path\">parksapi/lib/parks/park.js</span>",
-    "variable"
-  ],
-  [
     "parksapi/lib/cache/scopedcache.js~scopedcache",
     "class/lib/cache/scopedCache.js~ScopedCache.html",
     "<span>ScopedCache</span> <span class=\"search-result-import-path\">parksapi/lib/cache/scopedCache.js</span>",
     "class"
+  ],
+  [
+    "parksapi/lib/parks/parktypes.js~attractiontype",
+    "variable/index.html#static-variable-attractionType",
+    "<span>attractionType</span> <span class=\"search-result-import-path\">parksapi/lib/parks/parkTypes.js</span>",
+    "variable"
   ],
   [
     "parksapi/lib/parks/park.js~generaterandomandroiduseragent",
@@ -72,15 +72,9 @@ window.esdocSearchIndex = [
     "function"
   ],
   [
-    "parksapi/lib/cache.js~get",
-    "function/index.html#static-function-get",
-    "<span>get</span> <span class=\"search-result-import-path\">parksapi/lib/cache.js</span>",
-    "function"
-  ],
-  [
-    "parksapi/lib/parks/wdw/waltdisneyworldbase.js~getdatabase",
-    "function/index.html#static-function-getDatabase",
-    "<span>getDatabase</span> <span class=\"search-result-import-path\">parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "parksapi/lib/cache.js~getcache",
+    "function/index.html#static-function-getCache",
+    "<span>getCache</span> <span class=\"search-result-import-path\">parksapi/lib/cache.js</span>",
     "function"
   ],
   [
@@ -90,10 +84,52 @@ window.esdocSearchIndex = [
     "function"
   ],
   [
+    "parksapi/lib/parks/tags.js~getvalidtagobject",
+    "function/index.html#static-function-getValidTagObject",
+    "<span>getValidTagObject</span> <span class=\"search-result-import-path\">parksapi/lib/parks/tags.js</span>",
+    "function"
+  ],
+  [
+    "parksapi/lib/parks/tags.js~issimpletagtype",
+    "function/index.html#static-function-isSimpleTagType",
+    "<span>isSimpleTagType</span> <span class=\"search-result-import-path\">parksapi/lib/parks/tags.js</span>",
+    "function"
+  ],
+  [
+    "parksapi/lib/parks/tags.js~isvalidtag",
+    "function/index.html#static-function-isValidTag",
+    "<span>isValidTag</span> <span class=\"search-result-import-path\">parksapi/lib/parks/tags.js</span>",
+    "function"
+  ],
+  [
+    "parksapi/lib/parks/tags.js~isvalidtagtype",
+    "function/index.html#static-function-isValidTagType",
+    "<span>isValidTagType</span> <span class=\"search-result-import-path\">parksapi/lib/parks/tags.js</span>",
+    "function"
+  ],
+  [
     "parksapi/lib/configbase.js~parseconfig",
     "function/index.html#static-function-parseConfig",
     "<span>parseConfig</span> <span class=\"search-result-import-path\">parksapi/lib/configBase.js</span>",
     "function"
+  ],
+  [
+    "parksapi/lib/parks/parktypes.js~queuetype",
+    "variable/index.html#static-variable-queueType",
+    "<span>queueType</span> <span class=\"search-result-import-path\">parksapi/lib/parks/parkTypes.js</span>",
+    "variable"
+  ],
+  [
+    "parksapi/lib/parks/parktypes.js~statustype",
+    "variable/index.html#static-variable-statusType",
+    "<span>statusType</span> <span class=\"search-result-import-path\">parksapi/lib/parks/parkTypes.js</span>",
+    "variable"
+  ],
+  [
+    "parksapi/lib/parks/parktypes.js~tagtype",
+    "variable/index.html#static-variable-tagType",
+    "<span>tagType</span> <span class=\"search-result-import-path\">parksapi/lib/parks/parkTypes.js</span>",
+    "variable"
   ],
   [
     "lib/.external-ecmascript.js~array",
@@ -690,6 +726,12 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
+    "lib/parks/efteling/efteling.js~efteling#_buildattractionobject",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-_buildAttractionObject",
+    "lib/parks/efteling/efteling.js~Efteling#_buildAttractionObject",
+    "method"
+  ],
+  [
     "lib/parks/efteling/efteling.js~efteling#_init",
     "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-_init",
     "lib/parks/efteling/efteling.js~Efteling#_init",
@@ -768,12 +810,6 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
-    "lib/parks/park.js~park#_updateattractionstate",
-    "class/lib/parks/park.js~Park.html#instance-method-_updateAttractionState",
-    "lib/parks/park.js~Park#_updateAttractionState",
-    "method"
-  ],
-  [
     "lib/parks/park.js~park#cache",
     "class/lib/parks/park.js~Park.html#instance-member-cache",
     "lib/parks/park.js~Park#cache",
@@ -804,6 +840,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/park.js~park#gettimenow",
+    "class/lib/parks/park.js~Park.html#instance-method-getTimeNow",
+    "lib/parks/park.js~Park#getTimeNow",
+    "method"
+  ],
+  [
     "lib/parks/park.js~park#http",
     "class/lib/parks/park.js~Park.html#instance-method-http",
     "lib/parks/park.js~Park#http",
@@ -828,10 +870,52 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/park.js~park#removeattractiontag",
+    "class/lib/parks/park.js~Park.html#instance-method-removeAttractionTag",
+    "lib/parks/park.js~Park#removeAttractionTag",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#setattractiontag",
+    "class/lib/parks/park.js~Park.html#instance-method-setAttractionTag",
+    "lib/parks/park.js~Park#setAttractionTag",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#toggleattractiontag",
+    "class/lib/parks/park.js~Park.html#instance-method-toggleAttractionTag",
+    "lib/parks/park.js~Park#toggleAttractionTag",
+    "method"
+  ],
+  [
     "lib/parks/park.js~park#update",
     "class/lib/parks/park.js~Park.html#instance-method-update",
     "lib/parks/park.js~Park#update",
     "method"
+  ],
+  [
+    "lib/parks/park.js~park#updateattractionqueue",
+    "class/lib/parks/park.js~Park.html#instance-method-updateAttractionQueue",
+    "lib/parks/park.js~Park#updateAttractionQueue",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#updateattractionstate",
+    "class/lib/parks/park.js~Park.html#instance-method-updateAttractionState",
+    "lib/parks/park.js~Park#updateAttractionState",
+    "method"
+  ],
+  [
+    "lib/parks/parktypes.js",
+    "file/lib/parks/parkTypes.js.html",
+    "lib/parks/parkTypes.js",
+    "file"
+  ],
+  [
+    "lib/parks/tags.js",
+    "file/lib/parks/tags.js.html",
+    "lib/parks/tags.js",
+    "file"
   ],
   [
     "lib/parks/wdw/waltdisneyworldbase.js",
@@ -885,6 +969,12 @@ window.esdocSearchIndex = [
     "lib/parks/wdw/waltdisneyworldbase.js~disneypark#getparkuniqueid",
     "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-getParkUniqueID",
     "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#getParkUniqueID",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneypark.getdatabase",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#static-method-getDatabase",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.getDatabase",
     "method"
   ],
   [

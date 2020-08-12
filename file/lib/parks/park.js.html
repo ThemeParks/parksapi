@@ -30,7 +30,7 @@
   <ul>
     
   <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/configBase.js~ConfigBase.html">ConfigBase</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-get">get</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getCache">getCache</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-parseConfig">parseConfig</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#cache">cache</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheBase.js~CacheBase.html">CacheBase</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheLevel.js~CacheLevel.html">CacheLevel</a></span></span></li>
@@ -39,11 +39,17 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/scopedCache.js~ScopedCache.html">ScopedCache</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-ParkConstants">ParkConstants</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getValidTagObject">getValidTagObject</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isSimpleTagType">isSimpleTagType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTag">isValidTag</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTagType">isValidTagType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-attractionType">attractionType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-queueType">queueType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-statusType">statusType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-tagType">tagType</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-efteling">parks/efteling</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html">IndexedWDWDB</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabase">getDatabase</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getEntityID">getEntityID</a></span></span></li>
 </ul>
 </div>
@@ -57,31 +63,13 @@ import domainMatch from &apos;domain-match&apos;;
 import moment from &apos;moment-timezone&apos;;
 import randomUseragent from &apos;random-useragent&apos;;
 import Cache from &apos;../cache/scopedCache.js&apos;;
+import * as tags from &apos;./tags.js&apos;;
 
 // quick helper function to wait x milliseconds as a Promise
 const delay = (milliseconds) =&gt; {
   return new Promise((resolve) =&gt; {
     setTimeout(resolve, milliseconds);
   });
-};
-
-export const ParkConstants = {
-  // different queue types rides can have
-  QUEUE_STANDBY: &apos;STANDBY&apos;,
-  QUEUE_SINGLERIDER: &apos;SINGLE_RIDER&apos;,
-  QUEUE_VIRTUALQUEUE: &apos;VIRTUAL_QUEUE&apos;,
-  QUEUE_FASTPASS: &apos;FAST_PASS&apos;,
-  // attraction types
-  ATTRACTION_RIDE: &apos;RIDE&apos;,
-  ATTRACTION_SHOW: &apos;SHOW&apos;,
-  ATTRACTION_TRANSPORT: &apos;TRANSPORT&apos;,
-  ATTRACTION_PARADE: &apos;PARADE&apos;,
-  ATTRACTION_MEET_AND_GREET: &apos;MEET_AND_GREET&apos;,
-  // attraction statuses
-  STATUS_OPERATING: &apos;OPERATING&apos;,
-  STATUS_DOWN: &apos;DOWN&apos;,
-  STATUS_CLOSED: &apos;CLOSED&apos;,
-  STATUS_REFURBISHMENT: &apos;REFURBISHMENT&apos;,
 };
 
 /** Generate a random Android user agent for making network requests */
@@ -138,9 +126,19 @@ export class Park extends ConfigBase {
 
   /**
    * Get a globally unique ID for this park
+   * @return {string}
    */
   getParkUniqueID() {
-    throw new Error(`Missing getParkUniqueID() implementation for ${this.constructor.name}`);
+    // by default, return the class name
+    return this.constructor.name.toLowerCase();
+  }
+
+  /**
+   * Return the current time for this park in its local timezone
+   * @return {string}
+   */
+  getTimeNow() {
+    return moment().tz(this.config.timezone).format();
   }
 
   /**
@@ -200,16 +198,22 @@ export class Park extends ConfigBase {
    * @private
    */
   async _runInit() {
-    await this._init();
+    try {
+      await this._init();
+    } catch (e) {
+      console.error(&apos;Error initialising park&apos;, e);
+    }
 
     // run an initial update so we&apos;re fully setup with data before init() returns
-    return await this._update();
+    return this.update();
   }
 
   /**
    * Build an object representing an attraction from sourced data
    * This object should not contain any &quot;state&quot; data, just static information about the attraction
    * @param {string} attractionID Unique Attraction ID
+   * @return {object} Object containing at least &apos;name&apos;.
+   * Also accepts &apos;type&apos;, which is an {@link attractionType}
    */
   async _buildAttractionObject(attractionID) {
     throw new Error(&apos;Missing _buildAttractionObject Implementation&apos;, this.constructor.name);
@@ -218,46 +222,208 @@ export class Park extends ConfigBase {
   /**
    * Get data about a attraction from its ID
    * @param {string} attractionID Unique Attraction ID
+   * @return {object} The attraction object for the given ID, or undefined
    */
   async findAttractionByID(attractionID) {
+    // build a unique attraction ID by prefixing the park&apos;s unique ID
+    const uniqueAttractionID = `${this.getParkUniqueID()}_${attractionID}`;
+
     // search our existing store for this attraction
-    const attraction = this._attractions.find((attr) =&gt; attr.id == attractionID);
+    const attraction = this._attractions.find((attr) =&gt; attr.id == uniqueAttractionID);
     if (attraction) {
       return attraction;
     }
 
     // attraction wasn&apos;t found, try and add one to our store
-    const newAttraction = await this._buildAttractionObject(attractionID);
-    if (newAttraction) {
-      // default to a &quot;null&quot; state
-      //  meaning an attraction with no waiting times etc.
-      newAttraction.state = null;
+    const newAttraction = {
+      id: uniqueAttractionID,
+      rideId: attractionID, // unique attraction ID without the park prefix
+      name: undefined,
+      type: null,
+      status: {
+        status: null,
+        lastUpdated: null,
+        lastChanged: null,
+      },
+      queue: {},
+      tags: [],
+    };
 
-      // make a globally unique ID for this attraction by combining the park ID and attraction ID
-      newAttraction._id = `${this.getParkUniqueID()}_${attractionID}`;
+    // list of fields we want to accept from the park class
+    //  we don&apos;t want the park to add random fields to our attraction object
+    //  park-specific data should be added using &quot;tags&quot; instead, so our object structure is the same for all parks
+    const fieldsToCopyFromParkClass = [
+      &apos;name&apos;,
+      &apos;type&apos;,
+    ];
 
-      this._attractions.push(newAttraction);
+    // TODO - restore stored live attraction data from a cache
+    //  restore from cache *before* we build the actual attraction data
+    //  this will allow the park API to fill in any out-of-date fields with live data
 
-      return newAttraction;
+    // ask the park implementation to supply us with some basic attraction information (name, type, etc.)
+    //  we&apos;ll then inject this into our attraction object, assuming it returns successfully
+    try {
+      const builtAttractionObject = await this._buildAttractionObject(attractionID);
+      if (builtAttractionObject !== undefined &amp;&amp; !!builtAttractionObject.name) {
+        // copy fields we&apos;re interested in into our new attraction object
+        fieldsToCopyFromParkClass.forEach((key) =&gt; {
+          if (builtAttractionObject[key] !== undefined) {
+            newAttraction[key] = builtAttractionObject[key];
+          }
+        });
+
+        // add to our attractions array
+        this._attractions.push(newAttraction);
+
+        return newAttraction;
+      }
+    } catch (e) {
+      console.error(&apos;Error building attraction object:&apos;, e);
     }
 
     return undefined;
   }
 
   /**
+   * Remove a tag from a given attraction ID
+   * @param {string} attractionID
+   * @param {string} key
+   * @param {tagType} type
+   */
+  async removeAttractionTag(attractionID, key, type) {
+    const attraction = await this.findAttractionByID(attractionID);
+    if (!attraction) return;
+
+    const existingTag = attraction.tags.findIndex((t) =&gt; t.key === key &amp;&amp; t.type === type);
+    if (existingTag &gt;= 0) {
+      attraction.tags.splice(existingTag, 1);
+    }
+  }
+
+  /**
+   * Set a toggle tag for an attraction.
+   * This is different from more complex tags that expect a data structure.
+   * Use this for tags that don&apos;t have any actual value, but are just present. Eg. FastPass as a feature.
+   * @param {string} attractionID
+   * @param {tagType} type
+   * @param {boolean} value
+   */
+  async toggleAttractionTag(attractionID, type, value) {
+    if (!value) {
+      // if value is false, remove the key
+      const newTag = tags.getValidTagObject(null, type, null);
+      await this.removeAttractionTag(attractionID, newTag.key, type);
+    } else {
+      // otherwise, add our tag
+      await this.setAttractionTag(attractionID, null, type, null);
+    }
+  }
+
+  /**
+   * Set an attraction tag
+   * Used for metadata on rides, such as location, thrill level, fastpass availability etc.
+   * @param {string} attractionID Attraction ID to update
+   * @param {string} key Tag key to set
+   * @param {tagType} type Tag type to use
+   * @param {*} value Tag value to set
+   * @return {boolean} True if tag was stored successfully
+   */
+  async setAttractionTag(attractionID, key, type, value) {
+    // validate tag value
+    const newTag = tags.getValidTagObject(key, type, value);
+    if (newTag === undefined) {
+      return false;
+    }
+
+    // find attraction and apply tag to it
+    const attraction = await this.findAttractionByID(attractionID);
+    if (attraction) {
+      const existingTag = attraction.tags.findIndex((t) =&gt; t.key === newTag.key &amp;&amp; t.type === newTag.type);
+      if (existingTag &lt; 0) {
+        // push our new tag onto our attraction
+        attraction.tags.push(newTag);
+      } else {
+        // update existing tag entry
+        attraction.tags[existingTag] = newTag;
+      }
+    }
+  }
+
+  /**
    * Update an attraction state
    * @param {string} attractionID Unique Attraction ID
-   * @param {object} data New Attraction State Data
+   * @param {statusType} status New Attraction state
    */
-  async _updateAttractionState(attractionID, data) {
+  async updateAttractionState(attractionID, status) {
     if (attractionID === undefined) return;
 
     const existingRide = await this.findAttractionByID(attractionID);
     if (existingRide) {
       // if we found a matching attraction, update its &quot;state&quot; property with our new data
-      existingRide.state = data;
+      const now = this.getTimeNow();
 
-      // TODO - broadcast updated ride event
+      // last updated is always kept up-to-date, regardless of whether the data changed
+      existingRide.status.lastUpdated = now;
+
+      // only update &quot;lastChanged&quot; if the status has changed
+      const previousStatus = existingRide.status.lastChanged;
+      if (previousStatus !== status || previousStatus === null) {
+        existingRide.status.status = status;
+        existingRide.status.lastChanged = now;
+
+        // broadcast updated ride event
+        //  try to make sure we have updated everything before we fire this event
+        this.emit(&apos;attractionStatus&apos;, existingRide, previousStatus);
+      }
+
+      // TODO - write updated attraction data to cache
+    }
+  }
+
+  /**
+   * Update the queue status for an attraction
+   * @param {string} attractionID Attraction ID to update
+   * @param {number} waitTime Updated Wait Time in minutes, or null if wait time doesn&apos;t exist or isn&apos;t valid
+   * @param {queueType} queueType Type of queue to update (standup, virtual, fastpass etc.)
+   */
+  async updateAttractionQueue(attractionID, waitTime = -1, queueType = queueType.standBy) {
+    if (attractionID === undefined) return;
+
+    const existingRide = await this.findAttractionByID(attractionID);
+    if (existingRide) {
+      if (!existingRide.queue) {
+        existingRide.queue = {};
+      }
+      if (!existingRide.queue[queueType]) {
+        existingRide.queue[queueType] = {
+          waitTime: null,
+          lastUpdated: null,
+          lastChanged: null,
+        };
+      }
+
+      const queueData = existingRide.queue[queueType];
+
+      const now = this.getTimeNow();
+      // wait times must be a positive number (in minutes)
+      //  if wait time is unknown (because it is not tracker or there is some issue), waitTime should be null
+      const newWaitTime = (isNaN(waitTime) || waitTime &lt; 0) ? null : waitTime;
+      const previousWaitTime = queueData.waitTime;
+
+      // store last updated time
+      queueData.lastUpdated = now;
+
+      if (newWaitTime !== previousWaitTime || previousWaitTime === null) {
+        queueData.waitTime = newWaitTime;
+        queueData.lastChanged = now;
+
+        // broadcast updated ride event
+        //  try to make sure we have updated everything before we fire this event
+        this.emit(&apos;attractionQueue&apos;, existingRide, queueType, previousWaitTime);
+      }
+
+      // TODO - write updated attraction data to cache
     }
   }
 

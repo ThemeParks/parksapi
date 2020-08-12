@@ -30,7 +30,7 @@
   <ul>
     
   <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/configBase.js~ConfigBase.html">ConfigBase</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-get">get</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getCache">getCache</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-parseConfig">parseConfig</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#cache">cache</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheBase.js~CacheBase.html">CacheBase</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheLevel.js~CacheLevel.html">CacheLevel</a></span></span></li>
@@ -39,11 +39,17 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/scopedCache.js~ScopedCache.html">ScopedCache</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-ParkConstants">ParkConstants</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getValidTagObject">getValidTagObject</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isSimpleTagType">isSimpleTagType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTag">isValidTag</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTagType">isValidTagType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-attractionType">attractionType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-queueType">queueType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-statusType">statusType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-tagType">tagType</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-efteling">parks/efteling</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html">IndexedWDWDB</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabase">getDatabase</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getEntityID">getEntityID</a></span></span></li>
 </ul>
 </div>
@@ -51,6 +57,7 @@
 
 <div class="content" data-ice="content"><h1 data-ice="title">lib/parks/efteling/efteling.js</h1>
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {Park} from &apos;../park.js&apos;;
+import {attractionType, statusType, queueType, tagType} from &apos;../parkTypes.js&apos;;
 
 /**
  * Efteling Park Object
@@ -114,29 +121,30 @@ export class Efteling extends Park {
 
       const data = fetchedPOIData?.body?.hits?.hit;
       if (!data) {
-        console.log(fetchedPOIData.body);
         throw new Error(&apos;Failed to fetch Efteling POI data&apos;);
       }
 
       const poiData = {};
       data.forEach((hit) =&gt; {
-        if (hit.fields) {
-          // ignore non-attractions
-          if (hit.fields.category === &apos;attraction&apos;) {
-            poiData[hit.fields.id] = {
-              name: hit.fields.name,
-            };
+        // skip any entries that aren&apos;t shown in the app
+        if (hit.hide_in_app) return;
 
-            // try to parse lat/long
-            //  edge-case: some rides have dud &quot;0.0,0.0&quot; location, ignore these
-            if (hit.fields.latlon &amp;&amp; hit.fields.latlon !== &apos;0.0,0.0&apos;) {
-              const match = /([0-9.]+),([0-9.]+)/.exec(hit.fields.latlon);
-              if (match) {
-                poiData[hit.fields.id].location = {
-                  latitude: match[1],
-                  longitude: match[2],
-                };
-              }
+        if (hit.fields) {
+          poiData[hit.fields.id] = {
+            name: hit.fields.name,
+            type: hit.fields.category,
+            props: hit.fields.properties,
+          };
+
+          // try to parse lat/long
+          //  edge-case: some rides have dud &quot;0.0,0.0&quot; location, ignore these
+          if (hit.fields.latlon &amp;&amp; hit.fields.latlon !== &apos;0.0,0.0&apos;) {
+            const match = /([0-9.]+),([0-9.]+)/.exec(hit.fields.latlon);
+            if (match) {
+              poiData[hit.fields.id].location = {
+                latitude: Number(match[1]),
+                longitude: Number(match[2]),
+              };
             }
           }
         }
@@ -151,14 +159,126 @@ export class Efteling extends Park {
    */
   async _init() {
     // make sure POI data is up-to-date
-    await this.getPOIData();
+    const poi = await this.getPOIData();
+
+    // auto-populate our attractions list with all rides and shows
+    //  this makes them appear in our API output even if they have no wait time data
+    // other valid attraction types from the Efteling API:
+    //  &apos;merchandise&apos;, &apos;restaurant&apos;, &apos;fairytale&apos;, &apos;facilities-toilets&apos;, &apos;facilities-generic&apos;, &apos;eventlocation&apos;, &apos;game&apos;
+    const wantedAttractionTypes = [&apos;attraction&apos;, &apos;show&apos;];
+    await Promise.allSettled(Object.keys(poi).map(async (id) =&gt; {
+      const p = poi[id];
+      if (wantedAttractionTypes.indexOf(p.type) &gt;= 0) {
+        // request the attraction by ID so it is built, then we&apos;ll tag it with some metadata
+        const attraction = await this.findAttractionByID(id);
+        if (attraction !== undefined &amp;&amp; p.location !== undefined) {
+          // tag with attraction&apos;s location
+          await this.setAttractionTag(id, &apos;location&apos;, tagType.location, {
+            longitude: p.location.longitude,
+            latitude: p.location.latitude,
+          });
+
+          // look for any other useful tags
+          // may get wet
+          await this.toggleAttractionTag(id, tagType.mayGetWet, p.props.indexOf(&apos;wet&apos;) &gt;= 0);
+          // tag &quot;pregnant people should not ride&quot; attractions
+          await this.toggleAttractionTag(
+              id,
+              tagType.unsuitableForPregnantPeople,
+              p.props.indexOf(&apos;pregnantwomen&apos;) &gt;= 0,
+          );
+
+          // look for attraction minimum height
+          const minHeightProp = p.props.find((prop) =&gt; prop.indexOf(&apos;minimum&apos;) === 0);
+          if (minHeightProp !== undefined) {
+            const minHeightNumber = Number(minHeightProp.slice(7));
+            if (!isNaN(minHeightNumber)) {
+              await this.setAttractionTag(id, &apos;minimumHeight&apos;, tagType.minimumHeight, {
+                height: minHeightNumber,
+                unit: &apos;cm&apos;,
+              });
+            }
+          }
+        }
+      }
+    }));
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async _buildAttractionObject(attractionID) {
+    const poiData = await this.getPOIData();
+
+    const data = poiData[attractionID];
+    if (!data) return undefined;
+
+    // assign the attraction type
+    let type = attractionType.other; // default to &quot;other&quot; for attractions that don&apos;t match our types
+    if (data.type === &apos;attraction&apos;) {
+      // all attractions default to &quot;ride&quot;
+      type = attractionType.ride;
+    } else if (data.type ===&apos;show&apos;) {
+      type = attractionType.show;
+    }
+
+    return {
+      name: data.name,
+      type: type,
+    };
   }
 
   /**
    * @inheritdoc
    */
   async _update() {
+    const poiData = await this.getPOIData();
 
+    const waitTimes = await this.http(&apos;GET&apos;, this.config.waitTimesUrl, {
+      language: &apos;en&apos;,
+    });
+
+    const attractions = waitTimes?.body?.AttractionInfo;
+    if (!attractions) throw new Error(&apos;Efteling wait times response missing AttractionInfo&apos;);
+
+    await Promise.allSettled(attractions.map(async (entry) =&gt; {
+      if (entry.Type === &apos;Attraction&apos; &amp;&amp; poiData[entry.Id] !== undefined) {
+        let rideStatus = null;
+        const rideWaitTime = parseInt(entry.WaitingTime, 10);
+        const rideState = entry.State.toLowerCase();
+        // update ride with wait time data
+        if (rideState === &apos;storing&apos; || rideState === &apos;tijdelijkbuitenbedrijf&apos;) {
+          // Ride down because of an interruption
+          rideStatus = statusType.down;
+        } else if (rideState === &apos;inonderhoud&apos;) {
+          // Ride down because of maintenance/refurbishment
+          rideStatus = statusType.refurbishment;
+        } else if (rideState === &apos;gesloten&apos; || rideState === &apos;&apos;) {
+          // ride is &quot;closed&quot;
+          rideStatus = statusType.closed;
+        } else if (rideState === &apos;open&apos;) {
+          // Ride operating
+          rideStatus = statusType.operating;
+        }
+
+        if (rideStatus === null) {
+          console.log(&apos;Unknown Efteling rideStatus&apos;, JSON.stringify(rideState));
+        }
+
+        // update attraction status
+        await this.updateAttractionState(
+            entry.Id,
+            rideStatus,
+        );
+
+        // update queue status
+        await this.updateAttractionQueue(
+            entry.Id,
+            rideStatus == statusType.operating ? rideWaitTime : null,
+            queueType.standBy,
+        );
+      }
+    }));
   }
 }
 
