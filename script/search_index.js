@@ -474,6 +474,12 @@ window.esdocSearchIndex = [
     "member"
   ],
   [
+    "lib/cache/cachebase.js~cachebase#pendingcachewraps",
+    "class/lib/cache/cacheBase.js~CacheBase.html#instance-member-pendingCacheWraps",
+    "lib/cache/cacheBase.js~CacheBase#pendingCacheWraps",
+    "member"
+  ],
+  [
     "lib/cache/cachebase.js~cachebase#set",
     "class/lib/cache/cacheBase.js~CacheBase.html#instance-method-set",
     "lib/cache/cacheBase.js~CacheBase#set",

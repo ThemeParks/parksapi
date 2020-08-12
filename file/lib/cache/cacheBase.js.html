@@ -76,6 +76,9 @@ export default class CacheBase {
   }) {
     this.memoryLayerEnabled = options.useMemoryCache;
     this.memCache = {};
+
+    // stack up multiple cache wraps so they wait for a single request to finish
+    this.pendingCacheWraps = {};
   }
 
   /**
@@ -174,15 +177,29 @@ export default class CacheBase {
      *  Can be a number or a function that will return a number
      */
   async wrap(key, fn, ttl) {
-    // try and fetch the cached value
-    let cachedValue = await this.get(key);
-
-    // if not in our cache, call the supplied fetcher function
-    if (cachedValue === undefined) {
-      cachedValue = await fn();
-      // set the new value in our cache
-      await this.set(key, cachedValue, ttl);
+    // if another system is already wrapping this key, return it&apos;s pending Promise
+    if (this.pendingCacheWraps[key] !== undefined) {
+      return this.pendingCacheWraps[key];
     }
+
+    // wrap all await calls in another Promise that we store
+    //  this allows multiple calls to Wrap to stack up, and they all get the same result
+    this.pendingCacheWraps[key] = new Promise(async (resolve) =&gt; {
+    // try and fetch the cached value
+      let cachedValue = await this.get(key);
+
+      // if not in our cache, call the supplied fetcher function
+      if (cachedValue === undefined) {
+        cachedValue = await fn();
+
+        // set the new value in our cache
+        await this.set(key, cachedValue, ttl);
+      }
+
+      return resolve(cachedValue);
+    });
+    const cachedValue = await this.pendingCacheWraps[key];
+    this.pendingCacheWraps[key] = undefined;
 
     // return the fetched or calculated value
     return cachedValue;
