@@ -61,6 +61,25 @@
 import {tagType} from &apos;./parkTypes.js&apos;;
 
 /**
+ * Validate a rider height tag. Used for min/max heights
+ * @param {string} key
+ * @param {*} data
+ * @return {boolean}
+ */
+const riderHeightValidate = (key, data) =&gt; {
+  if (!validateObjectContainsOnlyGivenKeys(data, [&apos;height&apos;, &apos;unit&apos;])) {
+    return false;
+  }
+
+  const validUnits = [&apos;cm&apos;, &apos;in&apos;];
+  if (validUnits.indexOf(data.unit) &lt; 0) {
+    return false;
+  }
+
+  return !isNaN(data.height) &amp;&amp; data.height &gt;= 0;
+};
+
+/**
  * Simple tags that don&apos;t have a value entry.
  * Instead, these tags are either present or not.
  */
@@ -96,24 +115,6 @@ const validators = {
   [tagType.maximumHeight]: riderHeightValidate,
 };
 
-/**
- * Validate a rider height tag. Used for min/max heights
- * @param {string} key
- * @param {*} data
- * @return {boolean}
- */
-const riderHeightValidate = (key, data) =&gt; {
-  if (!validateObjectContainsOnlyGivenKeys(data, [&apos;height&apos;, &apos;unit&apos;])) {
-    return false;
-  }
-
-  const validUnits = [&apos;cm&apos;, &apos;in&apos;];
-  if (validUnits.indexOf(data.unit) &lt; 0) {
-    return false;
-  }
-
-  return !isNaN(data.height) &amp;&amp; data.height &gt;= 0;
-};
 
 /**
  * Given an object, validate that it only contains the given keys
