@@ -67,14 +67,14 @@
       "expectCount": 28,
       "actualCount": 20,
       "undocumentLines": [
-        12,
-        26,
-        64,
-        66,
-        68,
-        72,
-        118,
-        388
+        13,
+        27,
+        65,
+        67,
+        69,
+        73,
+        119,
+        397
       ]
     },
     "lib/parks/parkTypes.js": {
@@ -91,8 +91,8 @@
       "expectCount": 11,
       "actualCount": 9,
       "undocumentLines": [
-        4,
-        32
+        5,
+        33
       ]
     },
     "lib/parks/wdw/wdwdb.js": {

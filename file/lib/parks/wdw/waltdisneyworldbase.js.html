@@ -57,7 +57,8 @@
 
 <div class="content" data-ice="content"><h1 data-ice="title">lib/parks/wdw/waltdisneyworldbase.js</h1>
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {IndexedWDWDB, getEntityID} from &apos;./wdwdb.js&apos;;
-import {Park, ParkConstants} from &apos;../park.js&apos;;
+import {Park} from &apos;../park.js&apos;;
+import {attractionType, statusType, queueType, tagType} from &apos;../parkTypes.js&apos;;
 
 let wdwDB = null;
 
@@ -118,7 +119,7 @@ export class DisneyPark extends Park {
   }
 
   /**
-   *
+   * @inheritdoc
    */
   async _init() {
     console.log(&apos;Initialising...&apos;);
@@ -132,10 +133,8 @@ export class DisneyPark extends Park {
     });
 
     // fetch the current attraction times
-    await Promise.all((
-      // get all attractions with facility statuses
-      await this.db.getByChannel(this.getFacilityStatusChannelID())
-    ).map(this._processAttractionStatusUpdate.bind(this)));
+    const allStatusDocs = await this.db.getByChannel(this.getFacilityStatusChannelID());
+    await Promise.allSettled(allStatusDocs.map(this._processAttractionStatusUpdate.bind(this)));
   }
 
   /**
@@ -148,40 +147,32 @@ export class DisneyPark extends Park {
 
     // check attraction is within our park
     const updateIndexEntry = await this.db.getEntityIndex(entityID, {
-      park_id: this.config.park_id,
+      park_id: `${this.config.park_id}`,
     });
+
     // if we have no entries, then attraction is not in our park
     if (updateIndexEntry.length === 0) {
       return;
     }
 
     // figure out general ride status
-    let status = ParkConstants.STATUS_OPERATING;
+    let status = statusType.operating;
+
+    // TODO - if name contains &quot;Temporarily Unavailable&quot;, mark as closed?
+
     if (doc.status === &apos;Down&apos;) {
-      status = ParkConstants.STATUS_DOWN;
+      status = statusType.down;
     } else if (doc.status === &apos;Closed&apos;) {
-      status = ParkConstants.STATUS_CLOSED;
+      status = statusType.closed;
     } else if (doc.status === &apos;Refurbishment&apos;) {
-      status = ParkConstants.STATUS_REFURBISHMENT;
+      status = statusType.refurbishment;
     }
 
-    // build our status object
-    const state = {
-      status,
-      // all our queue types
-      // TODO - how to detect virtual queue and FastPass availability?
-      queues: [
-        {
-          type: ParkConstants.QUEUE_STANDBY,
-          waitTime: doc.waitMinutes,
-        },
-      ],
-    };
+    // update attraction state
+    await this.updateAttractionState(entityID, status);
 
-    // console.log(entityID, state);
-
-    // update attraction status in base class
-    await this._updateAttractionState(entityID, state);
+    // update attraction standby queue
+    await this.updateAttractionQueue(entityID, doc.waitMinutes, queueType.standBy);
   }
 
   /**
@@ -194,10 +185,12 @@ export class DisneyPark extends Park {
     // find a document for our attraction ID
     const attr = await this.db.getEntityOne(attractionID);
     if (attr) {
-      // TODO - build a full document about this attraction
       return {
-        id: attractionID,
         name: attr.name,
+        type: attractionType.ride, // TODO
+        tags: [
+          // TODO
+        ],
       };
     }
 

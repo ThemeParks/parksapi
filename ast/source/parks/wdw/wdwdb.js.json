@@ -15322,7 +15322,7 @@
                       "name": "defaultIndex"
                     },
                     "right": {
-                      "type": "ArrayExpression",
+                      "type": "ObjectExpression",
                       "start": 9664,
                       "end": 9666,
                       "loc": {
@@ -15335,7 +15335,7 @@
                           "column": 44
                         }
                       },
-                      "elements": []
+                      "properties": []
                     }
                   }
                 ],
@@ -65264,7 +65264,7 @@
     },
     {
       "type": {
-        "label": "[",
+        "label": "{",
         "beforeExpr": true,
         "startsExpr": true,
         "rightAssociative": false,
@@ -65272,8 +65272,7 @@
         "isAssign": false,
         "prefix": false,
         "postfix": false,
-        "binop": null,
-        "updateContext": null
+        "binop": null
       },
       "start": 9664,
       "end": 9665,
@@ -65290,7 +65289,7 @@
     },
     {
       "type": {
-        "label": "]",
+        "label": "}",
         "beforeExpr": false,
         "startsExpr": false,
         "rightAssociative": false,
@@ -65298,8 +65297,7 @@
         "isAssign": false,
         "prefix": false,
         "postfix": false,
-        "binop": null,
-        "updateContext": null
+        "binop": null
       },
       "start": 9665,
       "end": 9666,

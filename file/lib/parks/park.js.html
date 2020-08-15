@@ -65,6 +65,7 @@ import randomUseragent from &apos;random-useragent&apos;;
 import Cache from &apos;../cache/scopedCache.js&apos;;
 import * as tags from &apos;./tags.js&apos;;
 import HarWriter from &apos;../har.js&apos;;
+import {attractionType} from &apos;./parkTypes.js&apos;;
 
 // quick helper function to wait x milliseconds as a Promise
 const delay = (milliseconds) =&gt; {
@@ -281,6 +282,14 @@ export class Park extends ConfigBase {
 
         // add to our attractions array
         this._attractions.push(newAttraction);
+
+        // we also manually accept the &quot;tags&quot; field
+        //  add each tag to the attraction after it&apos;s added to our object above
+        if (builtAttractionObject.tags) {
+          await Promise.allSettled(builtAttractionObject.tags.map((tag) =&gt; {
+            return this.setAttractionTag(attractionID, tag.key, tag.type, tag.value);
+          }));
+        }
 
         return newAttraction;
       }

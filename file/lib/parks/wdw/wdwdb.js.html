@@ -374,7 +374,7 @@ export class IndexedWDWDB extends PouchDB {
    * @param {*} defaultIndex Index initial object state
    * @private
    */
-  async _createIndex(name, defaultIndex = []) {
+  async _createIndex(name, defaultIndex = {}) {
     this._index[name] = {
       index: defaultIndex,
     };
