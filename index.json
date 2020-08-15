@@ -2418,7 +2418,7 @@
     "__docId__": 120,
     "kind": "file",
     "name": "lib/parks/park.js",
-    "content": "import promiseRetry from 'promise-retry';\nimport ConfigBase from '../configBase.js';\nimport needle from 'needle';\nimport domainMatch from 'domain-match';\nimport moment from 'moment-timezone';\nimport randomUseragent from 'random-useragent';\nimport Cache from '../cache/scopedCache.js';\nimport * as tags from './tags.js';\nimport HarWriter from '../har.js';\nimport {attractionType} from './parkTypes.js';\n\n// quick helper function to wait x milliseconds as a Promise\nconst delay = (milliseconds) => {\n  return new Promise((resolve) => {\n    setTimeout(resolve, milliseconds);\n  });\n};\n\n/** Generate a random Android user agent for making network requests */\nexport function generateRandomAndroidUseragent() {\n  randomUseragent.getRandom((ua) => {\n    return (ua.osName === 'Android');\n  });\n}\n\n// start our har writer (if debugging)\nconst harWriter = process.env['THEMEPARKS_HAR'] ?\n  new HarWriter({filename: `${process.env['THEMEPARKS_HAR']}.har`}):\n  null;\n\n/**\n * Base Park Object\n * @class\n */\nexport class Park extends ConfigBase {\n  /**\n   * Create a new park object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    // how often to wait between updates to run another update\n    options.updateInterval = 1000 * 60 * 5; // 5 minutes\n    // disable auto-update for this object\n    //  set this if the update is being handled by an external system\n    options.disableParkUpdate = false;\n\n    // generate a random Android user-agent if we aren't supplied one\n    options.useragent = options.useragent || generateRandomAndroidUseragent();\n\n    super(options);\n\n    if (!options.name) {\n      throw new Error(`Missing name for constructed park object ${this.constructor.name}`);\n    }\n\n    if (!options.timezone) {\n      throw new Error(`Missing timezone for constructed park object ${this.constructor.name}`);\n    }\n    // validate park timezone\n    if (moment.tz.names().indexOf(options.timezone) < 0) {\n      throw new Error(`Park object ${this.constructor.name} gives an invalid timezone: ${options.timezone}`);\n    }\n\n    // create a new cache object for this park\n    this.cache = new Cache(this.constructor.name, this.config.cacheVersion || 0);\n\n    this.initialised = false;\n\n    this._attractions = [];\n\n    // any HTTP injections that have been setup\n    //  allows parks to automatically intercept HTTP requests and add auth headers etc.\n    this._httpInjections = [];\n  }\n\n  /**\n   * Get a globally unique ID for this park\n   * @return {string}\n   */\n  getParkUniqueID() {\n    // by default, return the class name\n    return this.constructor.name.toLowerCase();\n  }\n\n  /**\n   * Return the current time for this park in its local timezone\n   * @return {string}\n   */\n  getTimeNow() {\n    return moment().tz(this.config.timezone).format();\n  }\n\n  /**\n   * Get Park Attractions\n   */\n  async getAttractions() {\n    // park must be initialised before returning any data\n    await this.init();\n\n    return this._attractions;\n  }\n\n  /**\n   * Setup the park for use\n   * Call to ensure the object has been initialised before accessing data\n   */\n  async init() {\n    if (this.initialised) {\n      return;\n    }\n\n    // setup the park ready for use\n    //  eg. download any large data-sets, calendars etc.\n    if (this._pendingSetupPromise) {\n      return this._pendingSetupPromise;\n    }\n\n    // call our internal init and wait on it\n    this._pendingSetupPromise = this._runInit();\n    await this._pendingSetupPromise;\n    this._pendingSetupPromise = null;\n\n    this.initialised = true;\n\n    if (!this.config.disableParkUpdate) {\n      // start an update loop\n\n      // use a separate function so we can quickly loop back around\n      const scheduleUpdate = async () => {\n        // pause for our updateInterval time\n        await delay(this.config.updateInterval);\n\n        // wait for Promise to resolve, grab any catches, then continue anyway\n        this.update().then().catch().then(() => {\n          // schedule another update\n          setImmediate(scheduleUpdate.bind(this));\n        });\n      };\n\n      // start the first loop timer\n      scheduleUpdate();\n    }\n  }\n\n  /**\n   * Run all the internal stages of the init process\n   * @private\n   */\n  async _runInit() {\n    try {\n      await this._init();\n    } catch (e) {\n      console.error('Error initialising park', e);\n    }\n\n    // run an initial update so we're fully setup with data before init() returns\n    return this.update();\n  }\n\n  /**\n   * Build an object representing an attraction from sourced data\n   * This object should not contain any \"state\" data, just static information about the attraction\n   * @param {string} attractionID Unique Attraction ID\n   * @return {object} Object containing at least 'name'.\n   * Also accepts 'type', which is an {@link attractionType}\n   */\n  async _buildAttractionObject(attractionID) {\n    throw new Error('Missing _buildAttractionObject Implementation', this.constructor.name);\n  }\n\n  /**\n   * Get data about a attraction from its ID\n   * @param {string} attractionID Unique Attraction ID\n   * @return {object} The attraction object for the given ID, or undefined\n   */\n  async findAttractionByID(attractionID) {\n    // build a unique attraction ID by prefixing the park's unique ID\n    const uniqueAttractionID = `${this.getParkUniqueID()}_${attractionID}`;\n\n    // search our existing store for this attraction\n    const attraction = this._attractions.find((attr) => attr.id == uniqueAttractionID);\n    if (attraction) {\n      return attraction;\n    }\n\n    // attraction wasn't found, try and add one to our store\n    const newAttraction = {\n      id: uniqueAttractionID,\n      rideId: attractionID, // unique attraction ID without the park prefix\n      name: undefined,\n      type: null,\n      status: {\n        status: null,\n        lastUpdated: null,\n        lastChanged: null,\n      },\n      queue: {},\n      tags: [],\n    };\n\n    // list of fields we want to accept from the park class\n    //  we don't want the park to add random fields to our attraction object\n    //  park-specific data should be added using \"tags\" instead, so our object structure is the same for all parks\n    const fieldsToCopyFromParkClass = [\n      'name',\n      'type',\n    ];\n\n    // TODO - restore stored live attraction data from a cache\n    //  restore from cache *before* we build the actual attraction data\n    //  this will allow the park API to fill in any out-of-date fields with live data\n\n    // ask the park implementation to supply us with some basic attraction information (name, type, etc.)\n    //  we'll then inject this into our attraction object, assuming it returns successfully\n    try {\n      const builtAttractionObject = await this._buildAttractionObject(attractionID);\n      if (builtAttractionObject !== undefined && !!builtAttractionObject.name) {\n        // copy fields we're interested in into our new attraction object\n        fieldsToCopyFromParkClass.forEach((key) => {\n          if (builtAttractionObject[key] !== undefined) {\n            newAttraction[key] = builtAttractionObject[key];\n          }\n        });\n\n        // add to our attractions array\n        this._attractions.push(newAttraction);\n\n        // we also manually accept the \"tags\" field\n        //  add each tag to the attraction after it's added to our object above\n        if (builtAttractionObject.tags) {\n          await Promise.allSettled(builtAttractionObject.tags.map((tag) => {\n            return this.setAttractionTag(attractionID, tag.key, tag.type, tag.value);\n          }));\n        }\n\n        return newAttraction;\n      }\n    } catch (e) {\n      console.error('Error building attraction object:', e);\n    }\n\n    return undefined;\n  }\n\n  /**\n   * Remove a tag from a given attraction ID\n   * @param {string} attractionID\n   * @param {string} key\n   * @param {tagType} type\n   */\n  async removeAttractionTag(attractionID, key, type) {\n    const attraction = await this.findAttractionByID(attractionID);\n    if (!attraction) return;\n\n    const existingTag = attraction.tags.findIndex((t) => t.key === key && t.type === type);\n    if (existingTag >= 0) {\n      attraction.tags.splice(existingTag, 1);\n    }\n  }\n\n  /**\n   * Set a toggle tag for an attraction.\n   * This is different from more complex tags that expect a data structure.\n   * Use this for tags that don't have any actual value, but are just present. Eg. FastPass as a feature.\n   * @param {string} attractionID\n   * @param {tagType} type\n   * @param {boolean} value\n   */\n  async toggleAttractionTag(attractionID, type, value) {\n    if (!value) {\n      // if value is false, remove the key\n      const newTag = tags.getValidTagObject(null, type, null);\n      await this.removeAttractionTag(attractionID, newTag.key, type);\n    } else {\n      // otherwise, add our tag\n      await this.setAttractionTag(attractionID, null, type, null);\n    }\n  }\n\n  /**\n   * Set an attraction tag\n   * Used for metadata on rides, such as location, thrill level, fastpass availability etc.\n   * @param {string} attractionID Attraction ID to update\n   * @param {string} key Tag key to set\n   * @param {tagType} type Tag type to use\n   * @param {*} value Tag value to set\n   * @return {boolean} True if tag was stored successfully\n   */\n  async setAttractionTag(attractionID, key, type, value) {\n    // validate tag value\n    const newTag = tags.getValidTagObject(key, type, value);\n    if (newTag === undefined) {\n      return false;\n    }\n\n    // find attraction and apply tag to it\n    const attraction = await this.findAttractionByID(attractionID);\n    if (attraction) {\n      const existingTag = attraction.tags.findIndex((t) => t.key === newTag.key && t.type === newTag.type);\n      if (existingTag < 0) {\n        // push our new tag onto our attraction\n        attraction.tags.push(newTag);\n      } else {\n        // update existing tag entry\n        attraction.tags[existingTag] = newTag;\n      }\n    }\n  }\n\n  /**\n   * Update an attraction state\n   * @param {string} attractionID Unique Attraction ID\n   * @param {statusType} status New Attraction state\n   */\n  async updateAttractionState(attractionID, status) {\n    if (attractionID === undefined) return;\n\n    const existingRide = await this.findAttractionByID(attractionID);\n    if (existingRide) {\n      // if we found a matching attraction, update its \"state\" property with our new data\n      const now = this.getTimeNow();\n\n      // last updated is always kept up-to-date, regardless of whether the data changed\n      existingRide.status.lastUpdated = now;\n\n      // only update \"lastChanged\" if the status has changed\n      const previousStatus = existingRide.status.lastChanged;\n      if (previousStatus !== status || previousStatus === null) {\n        existingRide.status.status = status;\n        existingRide.status.lastChanged = now;\n\n        // broadcast updated ride event\n        //  try to make sure we have updated everything before we fire this event\n        this.emit('attractionStatus', existingRide, previousStatus);\n      }\n\n      // TODO - write updated attraction data to cache\n    }\n  }\n\n  /**\n   * Update the queue status for an attraction\n   * @param {string} attractionID Attraction ID to update\n   * @param {number} waitTime Updated Wait Time in minutes, or null if wait time doesn't exist or isn't valid\n   * @param {queueType} queueType Type of queue to update (standup, virtual, fastpass etc.)\n   */\n  async updateAttractionQueue(attractionID, waitTime = -1, queueType = queueType.standBy) {\n    if (attractionID === undefined) return;\n\n    const existingRide = await this.findAttractionByID(attractionID);\n    if (existingRide) {\n      if (!existingRide.queue) {\n        existingRide.queue = {};\n      }\n      if (!existingRide.queue[queueType]) {\n        existingRide.queue[queueType] = {\n          waitTime: null,\n          lastUpdated: null,\n          lastChanged: null,\n        };\n      }\n\n      const queueData = existingRide.queue[queueType];\n\n      const now = this.getTimeNow();\n      // wait times must be a positive number (in minutes)\n      //  if wait time is unknown (because it is not tracker or there is some issue), waitTime should be null\n      const newWaitTime = (isNaN(waitTime) || waitTime < 0) ? null : waitTime;\n      const previousWaitTime = queueData.waitTime;\n\n      // store last updated time\n      queueData.lastUpdated = now;\n\n      if (newWaitTime !== previousWaitTime || previousWaitTime === null) {\n        queueData.waitTime = newWaitTime;\n        queueData.lastChanged = now;\n\n        // broadcast updated ride event\n        //  try to make sure we have updated everything before we fire this event\n        this.emit('attractionQueue', existingRide, queueType, previousWaitTime);\n      }\n\n      // TODO - write updated attraction data to cache\n    }\n  }\n\n  /**\n   * Update this park\n   * This is automatically called for you unless disableParkUpdate is set to false\n   */\n  async update() {\n    if (this._pendingUpdatePromise) {\n      return this._pendingUpdatePromise;\n    }\n\n    // start the _update call in a retry loop\n    this._pendingUpdatePromise = promiseRetry({\n      retries: 5,\n    }, (retryFn, retryAttempt) => {\n      /* if (retryAttempt > 1) {\n        console.error(`Making attempt ${retryAttempt} to call _update on ${this.constructor.name} class`);\n      }*/\n      return this._update().catch(retryFn);\n    });\n\n    // wait and catch the update Promise\n    try {\n      await this._pendingUpdatePromise;\n    } catch (e) {\n      // TODO - record park API error somewhere and continue\n      console.error(e);\n    }\n\n    this._pendingUpdatePromise = null;\n  }\n\n  /**\n   * Internal function\n   * Called by init() to initialise the object\n   * @private\n   * @abstract\n   */\n  async _init() {\n    // implementation should be setup in child classes\n    throw new Error('_init() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Update function the park object calls on interval to update internal state\n   * @private\n   * @abstract\n   */\n  async _update() {\n    // implementation should be setup in child classes\n    throw new Error('_update() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Register a new injection for a specific domain\n   * @param {string} domain Domain to inject for, accepts wildcards. See domain-match\n   * @param {function} func Function to call with needle request to inject extra data into.\n   * Function will take arguments: (method, URL, data, options)\n   */\n  async injectForDomain(domain, func) {\n    // add to our array of injections, this is processing by http()\n    this._httpInjections.push({\n      domain,\n      func,\n    });\n  }\n\n  /**\n   * Helper function to make an HTTP request for this park\n   * Parks can automatically add in authentication headers etc. to requests sent to this function\n   * @param {string} method HTTP method to use (GET,POST,DELETE, etc)\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options] Object containing needle-compatible HTTP options\n   */\n  async http(method, url, data = {}, options = {}) {\n    // always have a headers array\n    if (!options.headers) {\n      options.headers = {};\n    }\n\n    // inject custom standard user agent (if we have one)\n    //  do this before any custom injections so parks can optionally override this for each domain\n    if (this.config.useragent) {\n      options.headers['user-agent'] = this.config.useragent;\n    }\n\n    // check any hostname injections we have setup\n    for (let injectionIDX=0; injectionIDX<this._httpInjections.length; injectionIDX++) {\n      const injection = this._httpInjections[injectionIDX];\n\n      // check if the domain matches\n      if (domainMatch(injection.domain, url)) {\n        await injection.func(method, url, data, options);\n      }\n    }\n\n    const startMs = +new Date();\n    const startTime = moment(startMs).toISOString();\n\n    return needle(method, url, data, options).then(async (resp) => {\n      // console.log(resp.req);\n      // intercept response to write to our .har file\n      if (harWriter) {\n        const timeTaken = (+new Date()) - startMs;\n\n        const objToArr = (obj) => {\n          return Object.keys(obj).map((header) => {\n            return {name: header, value: obj[header].toString()};\n          });\n        };\n\n        const entry = {\n          startedDateTime: startTime,\n          time: timeTaken,\n          request: {\n            method: method,\n            url: url,\n            httpVersion: `HTTP/${resp.httpVersion}`, // this is actually the response, TODO\n            cookies: [],\n            headers: objToArr(options.headers), // not the actual headers needle sends - TODO, how to get these?\n            queryString: method === 'GET' ? objToArr(data) : [], // TODO - parse from needle's .path\n            postData: {\n              mimeType: options.json ? 'application/json' : (options.headers['content-type'] || ''),\n              params: method !== 'GET' ? [] : [],\n              text: '',\n            },\n            headersSize: -1,\n            bodySize: -1,\n          },\n          response: {\n            status: resp.statusCode,\n            statusText: resp.statusMessage,\n            httpVersion: `HTTP/${resp.httpVersion}`,\n            cookies: [],\n            headers: objToArr(resp.headers),\n            content: {\n              size: resp.raw.length || -1,\n              mimeType: resp.headers['content-type'],\n              text: resp.raw.toString('base64'),\n              encoding: 'base64',\n            },\n            redirectURL: '',\n            headersSize: -1,\n            bodySize: -1,\n          },\n          cache: {},\n          timings: {\n            send: -1,\n            wait: -1,\n            receive: -1,\n          },\n        };\n        await harWriter.recordEntry(entry);\n      }\n\n      return resp;\n    });\n  }\n}\n\nexport default Park;\n",
+    "content": "import promiseRetry from 'promise-retry';\nimport ConfigBase from '../configBase.js';\nimport needle from 'needle';\nimport domainMatch from 'domain-match';\nimport moment from 'moment-timezone';\nimport randomUseragent from 'random-useragent';\nimport Cache from '../cache/scopedCache.js';\nimport * as tags from './tags.js';\nimport HarWriter from '../har.js';\n\n// quick helper function to wait x milliseconds as a Promise\nconst delay = (milliseconds) => {\n  return new Promise((resolve) => {\n    setTimeout(resolve, milliseconds);\n  });\n};\n\n/** Generate a random Android user agent for making network requests */\nexport function generateRandomAndroidUseragent() {\n  randomUseragent.getRandom((ua) => {\n    return (ua.osName === 'Android');\n  });\n}\n\n// start our har writer (if debugging)\nconst harWriter = process.env['THEMEPARKS_HAR'] ?\n  new HarWriter({filename: `${process.env['THEMEPARKS_HAR']}.har`}):\n  null;\n\n/**\n * Base Park Object\n * @class\n */\nexport class Park extends ConfigBase {\n  /**\n   * Create a new park object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    // how often to wait between updates to run another update\n    options.updateInterval = 1000 * 60 * 5; // 5 minutes\n    // disable auto-update for this object\n    //  set this if the update is being handled by an external system\n    options.disableParkUpdate = false;\n\n    // generate a random Android user-agent if we aren't supplied one\n    options.useragent = options.useragent || generateRandomAndroidUseragent();\n\n    super(options);\n\n    if (!options.name) {\n      throw new Error(`Missing name for constructed park object ${this.constructor.name}`);\n    }\n\n    if (!options.timezone) {\n      throw new Error(`Missing timezone for constructed park object ${this.constructor.name}`);\n    }\n    // validate park timezone\n    if (moment.tz.names().indexOf(options.timezone) < 0) {\n      throw new Error(`Park object ${this.constructor.name} gives an invalid timezone: ${options.timezone}`);\n    }\n\n    // create a new cache object for this park\n    this.cache = new Cache(this.constructor.name, this.config.cacheVersion || 0);\n\n    this.initialised = false;\n\n    this._attractions = [];\n\n    // any HTTP injections that have been setup\n    //  allows parks to automatically intercept HTTP requests and add auth headers etc.\n    this._httpInjections = [];\n  }\n\n  /**\n   * Get a globally unique ID for this park\n   * @return {string}\n   */\n  getParkUniqueID() {\n    // by default, return the class name\n    return this.constructor.name.toLowerCase();\n  }\n\n  /**\n   * Return the current time for this park in its local timezone\n   * @return {string}\n   */\n  getTimeNow() {\n    return moment().tz(this.config.timezone).format();\n  }\n\n  /**\n   * Get Park Attractions\n   */\n  async getAttractions() {\n    // park must be initialised before returning any data\n    await this.init();\n\n    return this._attractions;\n  }\n\n  /**\n   * Setup the park for use\n   * Call to ensure the object has been initialised before accessing data\n   */\n  async init() {\n    if (this.initialised) {\n      return;\n    }\n\n    // setup the park ready for use\n    //  eg. download any large data-sets, calendars etc.\n    if (this._pendingSetupPromise) {\n      return this._pendingSetupPromise;\n    }\n\n    // call our internal init and wait on it\n    this._pendingSetupPromise = this._runInit();\n    await this._pendingSetupPromise;\n    this._pendingSetupPromise = null;\n\n    this.initialised = true;\n\n    if (!this.config.disableParkUpdate) {\n      // start an update loop\n\n      // use a separate function so we can quickly loop back around\n      const scheduleUpdate = async () => {\n        // pause for our updateInterval time\n        await delay(this.config.updateInterval);\n\n        // wait for Promise to resolve, grab any catches, then continue anyway\n        this.update().then().catch().then(() => {\n          // schedule another update\n          setImmediate(scheduleUpdate.bind(this));\n        });\n      };\n\n      // start the first loop timer\n      scheduleUpdate();\n    }\n  }\n\n  /**\n   * Run all the internal stages of the init process\n   * @private\n   */\n  async _runInit() {\n    try {\n      await this._init();\n    } catch (e) {\n      console.error('Error initialising park', e);\n    }\n\n    // run an initial update so we're fully setup with data before init() returns\n    return this.update();\n  }\n\n  /**\n   * Build an object representing an attraction from sourced data\n   * This object should not contain any \"state\" data, just static information about the attraction\n   * @param {string} attractionID Unique Attraction ID\n   * @return {object} Object containing at least 'name'.\n   * Also accepts 'type', which is an {@link attractionType}\n   */\n  async _buildAttractionObject(attractionID) {\n    throw new Error('Missing _buildAttractionObject Implementation', this.constructor.name);\n  }\n\n  /**\n   * Get data about a attraction from its ID\n   * @param {string} attractionID Unique Attraction ID\n   * @return {object} The attraction object for the given ID, or undefined\n   */\n  async findAttractionByID(attractionID) {\n    // build a unique attraction ID by prefixing the park's unique ID\n    const uniqueAttractionID = `${this.getParkUniqueID()}_${attractionID}`;\n\n    // search our existing store for this attraction\n    const attraction = this._attractions.find((attr) => attr.id == uniqueAttractionID);\n    if (attraction) {\n      return attraction;\n    }\n\n    // attraction wasn't found, try and add one to our store\n    const newAttraction = {\n      id: uniqueAttractionID,\n      rideId: attractionID, // unique attraction ID without the park prefix\n      name: undefined,\n      type: null,\n      status: {\n        status: null,\n        lastUpdated: null,\n        lastChanged: null,\n      },\n      queue: {},\n      tags: [],\n    };\n\n    // list of fields we want to accept from the park class\n    //  we don't want the park to add random fields to our attraction object\n    //  park-specific data should be added using \"tags\" instead, so our object structure is the same for all parks\n    const fieldsToCopyFromParkClass = [\n      'name',\n      'type',\n    ];\n\n    // TODO - restore stored live attraction data from a cache\n    //  restore from cache *before* we build the actual attraction data\n    //  this will allow the park API to fill in any out-of-date fields with live data\n\n    // ask the park implementation to supply us with some basic attraction information (name, type, etc.)\n    //  we'll then inject this into our attraction object, assuming it returns successfully\n    try {\n      const builtAttractionObject = await this._buildAttractionObject(attractionID);\n      if (builtAttractionObject !== undefined && !!builtAttractionObject.name) {\n        // copy fields we're interested in into our new attraction object\n        fieldsToCopyFromParkClass.forEach((key) => {\n          if (builtAttractionObject[key] !== undefined) {\n            newAttraction[key] = builtAttractionObject[key];\n          }\n        });\n\n        // add to our attractions array\n        this._attractions.push(newAttraction);\n\n        // we also manually accept the \"tags\" field\n        //  add each tag to the attraction after it's added to our object above\n        if (builtAttractionObject.tags) {\n          await Promise.allSettled(builtAttractionObject.tags.map((tag) => {\n            return this.setAttractionTag(attractionID, tag.key, tag.type, tag.value);\n          }));\n        }\n\n        return newAttraction;\n      }\n    } catch (e) {\n      console.error('Error building attraction object:', e);\n    }\n\n    return undefined;\n  }\n\n  /**\n   * Remove a tag from a given attraction ID\n   * @param {string} attractionID\n   * @param {string} key\n   * @param {tagType} type\n   */\n  async removeAttractionTag(attractionID, key, type) {\n    const attraction = await this.findAttractionByID(attractionID);\n    if (!attraction) return;\n\n    const existingTag = attraction.tags.findIndex((t) => t.key === key && t.type === type);\n    if (existingTag >= 0) {\n      attraction.tags.splice(existingTag, 1);\n    }\n  }\n\n  /**\n   * Set a toggle tag for an attraction.\n   * This is different from more complex tags that expect a data structure.\n   * Use this for tags that don't have any actual value, but are just present. Eg. FastPass as a feature.\n   * @param {string} attractionID\n   * @param {tagType} type\n   * @param {boolean} value\n   */\n  async toggleAttractionTag(attractionID, type, value) {\n    if (!value) {\n      // if value is false, remove the key\n      const newTag = tags.getValidTagObject(null, type, null);\n      await this.removeAttractionTag(attractionID, newTag.key, type);\n    } else {\n      // otherwise, add our tag\n      await this.setAttractionTag(attractionID, null, type, null);\n    }\n  }\n\n  /**\n   * Set an attraction tag\n   * Used for metadata on rides, such as location, thrill level, fastpass availability etc.\n   * @param {string} attractionID Attraction ID to update\n   * @param {string} key Tag key to set\n   * @param {tagType} type Tag type to use\n   * @param {*} value Tag value to set\n   * @return {boolean} True if tag was stored successfully\n   */\n  async setAttractionTag(attractionID, key, type, value) {\n    // validate tag value\n    const newTag = tags.getValidTagObject(key, type, value);\n    if (newTag === undefined) {\n      return false;\n    }\n\n    // find attraction and apply tag to it\n    const attraction = await this.findAttractionByID(attractionID);\n    if (attraction) {\n      const existingTag = attraction.tags.findIndex((t) => t.key === newTag.key && t.type === newTag.type);\n      if (existingTag < 0) {\n        // push our new tag onto our attraction\n        attraction.tags.push(newTag);\n      } else {\n        // update existing tag entry\n        attraction.tags[existingTag] = newTag;\n      }\n    }\n  }\n\n  /**\n   * Update an attraction state\n   * @param {string} attractionID Unique Attraction ID\n   * @param {statusType} status New Attraction state\n   */\n  async updateAttractionState(attractionID, status) {\n    if (attractionID === undefined) return;\n\n    const existingRide = await this.findAttractionByID(attractionID);\n    if (existingRide) {\n      // if we found a matching attraction, update its \"state\" property with our new data\n      const now = this.getTimeNow();\n\n      // last updated is always kept up-to-date, regardless of whether the data changed\n      existingRide.status.lastUpdated = now;\n\n      // only update \"lastChanged\" if the status has changed\n      const previousStatus = existingRide.status.lastChanged;\n      if (previousStatus !== status || previousStatus === null) {\n        existingRide.status.status = status;\n        existingRide.status.lastChanged = now;\n\n        // broadcast updated ride event\n        //  try to make sure we have updated everything before we fire this event\n        this.emit('attractionStatus', existingRide, previousStatus);\n      }\n\n      // TODO - write updated attraction data to cache\n    }\n  }\n\n  /**\n   * Update the queue status for an attraction\n   * @param {string} attractionID Attraction ID to update\n   * @param {number} waitTime Updated Wait Time in minutes, or null if wait time doesn't exist or isn't valid\n   * @param {queueType} queueType Type of queue to update (standup, virtual, fastpass etc.)\n   */\n  async updateAttractionQueue(attractionID, waitTime = -1, queueType = queueType.standBy) {\n    if (attractionID === undefined) return;\n\n    const existingRide = await this.findAttractionByID(attractionID);\n    if (existingRide) {\n      if (!existingRide.queue) {\n        existingRide.queue = {};\n      }\n      if (!existingRide.queue[queueType]) {\n        existingRide.queue[queueType] = {\n          waitTime: null,\n          lastUpdated: null,\n          lastChanged: null,\n        };\n      }\n\n      const queueData = existingRide.queue[queueType];\n\n      const now = this.getTimeNow();\n      // wait times must be a positive number (in minutes)\n      //  if wait time is unknown (because it is not tracker or there is some issue), waitTime should be null\n      const newWaitTime = (isNaN(waitTime) || waitTime < 0) ? null : waitTime;\n      const previousWaitTime = queueData.waitTime;\n\n      // store last updated time\n      queueData.lastUpdated = now;\n\n      if (newWaitTime !== previousWaitTime || previousWaitTime === null) {\n        queueData.waitTime = newWaitTime;\n        queueData.lastChanged = now;\n\n        // broadcast updated ride event\n        //  try to make sure we have updated everything before we fire this event\n        this.emit('attractionQueue', existingRide, queueType, previousWaitTime);\n      }\n\n      // TODO - write updated attraction data to cache\n    }\n  }\n\n  /**\n   * Update this park\n   * This is automatically called for you unless disableParkUpdate is set to false\n   */\n  async update() {\n    if (this._pendingUpdatePromise) {\n      return this._pendingUpdatePromise;\n    }\n\n    // start the _update call in a retry loop\n    this._pendingUpdatePromise = promiseRetry({\n      retries: 5,\n    }, (retryFn, retryAttempt) => {\n      /* if (retryAttempt > 1) {\n        console.error(`Making attempt ${retryAttempt} to call _update on ${this.constructor.name} class`);\n      }*/\n      return this._update().catch(retryFn);\n    });\n\n    // wait and catch the update Promise\n    try {\n      await this._pendingUpdatePromise;\n    } catch (e) {\n      // TODO - record park API error somewhere and continue\n      console.error(e);\n    }\n\n    this._pendingUpdatePromise = null;\n  }\n\n  /**\n   * Internal function\n   * Called by init() to initialise the object\n   * @private\n   * @abstract\n   */\n  async _init() {\n    // implementation should be setup in child classes\n    throw new Error('_init() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Update function the park object calls on interval to update internal state\n   * @private\n   * @abstract\n   */\n  async _update() {\n    // implementation should be setup in child classes\n    throw new Error('_update() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Register a new injection for a specific domain\n   * @param {string} domain Domain to inject for, accepts wildcards. See domain-match\n   * @param {function} func Function to call with needle request to inject extra data into.\n   * Function will take arguments: (method, URL, data, options)\n   */\n  async injectForDomain(domain, func) {\n    // add to our array of injections, this is processing by http()\n    this._httpInjections.push({\n      domain,\n      func,\n    });\n  }\n\n  /**\n   * Helper function to make an HTTP request for this park\n   * Parks can automatically add in authentication headers etc. to requests sent to this function\n   * @param {string} method HTTP method to use (GET,POST,DELETE, etc)\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options] Object containing needle-compatible HTTP options\n   */\n  async http(method, url, data = {}, options = {}) {\n    // always have a headers array\n    if (!options.headers) {\n      options.headers = {};\n    }\n\n    // inject custom standard user agent (if we have one)\n    //  do this before any custom injections so parks can optionally override this for each domain\n    if (this.config.useragent) {\n      options.headers['user-agent'] = this.config.useragent;\n    }\n\n    // check any hostname injections we have setup\n    for (let injectionIDX=0; injectionIDX<this._httpInjections.length; injectionIDX++) {\n      const injection = this._httpInjections[injectionIDX];\n\n      // check if the domain matches\n      if (domainMatch(injection.domain, url)) {\n        await injection.func(method, url, data, options);\n      }\n    }\n\n    const startMs = +new Date();\n    const startTime = moment(startMs).toISOString();\n\n    return needle(method, url, data, options).then(async (resp) => {\n      // console.log(resp.req);\n      // intercept response to write to our .har file\n      if (harWriter) {\n        const timeTaken = (+new Date()) - startMs;\n\n        const objToArr = (obj) => {\n          return Object.keys(obj).map((header) => {\n            return {name: header, value: obj[header].toString()};\n          });\n        };\n\n        const entry = {\n          startedDateTime: startTime,\n          time: timeTaken,\n          request: {\n            method: method,\n            url: url,\n            httpVersion: `HTTP/${resp.httpVersion}`, // this is actually the response, TODO\n            cookies: [],\n            headers: objToArr(options.headers), // not the actual headers needle sends - TODO, how to get these?\n            queryString: method === 'GET' ? objToArr(data) : [], // TODO - parse from needle's .path\n            postData: {\n              mimeType: options.json ? 'application/json' : (options.headers['content-type'] || ''),\n              params: method !== 'GET' ? [] : [],\n              text: '',\n            },\n            headersSize: -1,\n            bodySize: -1,\n          },\n          response: {\n            status: resp.statusCode,\n            statusText: resp.statusMessage,\n            httpVersion: `HTTP/${resp.httpVersion}`,\n            cookies: [],\n            headers: objToArr(resp.headers),\n            content: {\n              size: resp.raw.length || -1,\n              mimeType: resp.headers['content-type'],\n              text: resp.raw.toString('base64'),\n              encoding: 'base64',\n            },\n            redirectURL: '',\n            headersSize: -1,\n            bodySize: -1,\n          },\n          cache: {},\n          timings: {\n            send: -1,\n            wait: -1,\n            receive: -1,\n          },\n        };\n        await harWriter.recordEntry(entry);\n      }\n\n      return resp;\n    });\n  }\n}\n\nexport default Park;\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/park.js",
     "access": "public",
@@ -2439,7 +2439,7 @@
     "importPath": "parksapi/lib/parks/park.js",
     "importStyle": null,
     "description": null,
-    "lineNumber": 13,
+    "lineNumber": 12,
     "undocument": true,
     "params": [
       {
@@ -2470,7 +2470,7 @@
     "importPath": "parksapi/lib/parks/park.js",
     "importStyle": "{generateRandomAndroidUseragent}",
     "description": "Generate a random Android user agent for making network requests",
-    "lineNumber": 20,
+    "lineNumber": 19,
     "params": [],
     "return": null
   },
@@ -2486,7 +2486,7 @@
     "importPath": "parksapi/lib/parks/park.js",
     "importStyle": null,
     "description": null,
-    "lineNumber": 27,
+    "lineNumber": 26,
     "undocument": true,
     "type": {
       "types": [
@@ -2507,7 +2507,7 @@
     "importPath": "parksapi/lib/parks/park.js",
     "importStyle": "{Park}",
     "description": "Base Park Object",
-    "lineNumber": 35,
+    "lineNumber": 34,
     "unknown": [
       {
         "tagName": "@class",
@@ -2530,7 +2530,7 @@
     "longname": "lib/parks/park.js~Park#constructor",
     "access": "public",
     "description": "Create a new park object",
-    "lineNumber": 40,
+    "lineNumber": 39,
     "params": [
       {
         "nullable": null,
@@ -2553,7 +2553,7 @@
     "longname": "lib/parks/park.js~Park#cache",
     "access": "public",
     "description": null,
-    "lineNumber": 65,
+    "lineNumber": 64,
     "undocument": true,
     "type": {
       "types": [
@@ -2570,7 +2570,7 @@
     "longname": "lib/parks/park.js~Park#initialised",
     "access": "public",
     "description": null,
-    "lineNumber": 67,
+    "lineNumber": 66,
     "undocument": true,
     "type": {
       "types": [
@@ -2587,7 +2587,7 @@
     "longname": "lib/parks/park.js~Park#_attractions",
     "access": "private",
     "description": null,
-    "lineNumber": 69,
+    "lineNumber": 68,
     "undocument": true,
     "type": {
       "types": [
@@ -2604,7 +2604,7 @@
     "longname": "lib/parks/park.js~Park#_httpInjections",
     "access": "private",
     "description": null,
-    "lineNumber": 73,
+    "lineNumber": 72,
     "undocument": true,
     "type": {
       "types": [
@@ -2623,7 +2623,7 @@
     "longname": "lib/parks/park.js~Park#getParkUniqueID",
     "access": "public",
     "description": "Get a globally unique ID for this park",
-    "lineNumber": 80,
+    "lineNumber": 79,
     "return": {
       "nullable": null,
       "types": [
@@ -2645,7 +2645,7 @@
     "longname": "lib/parks/park.js~Park#getTimeNow",
     "access": "public",
     "description": "Return the current time for this park in its local timezone",
-    "lineNumber": 89,
+    "lineNumber": 88,
     "return": {
       "nullable": null,
       "types": [
@@ -2667,7 +2667,7 @@
     "longname": "lib/parks/park.js~Park#getAttractions",
     "access": "public",
     "description": "Get Park Attractions",
-    "lineNumber": 96,
+    "lineNumber": 95,
     "params": [],
     "return": {
       "types": [
@@ -2686,7 +2686,7 @@
     "longname": "lib/parks/park.js~Park#init",
     "access": "public",
     "description": "Setup the park for use<br />Call to ensure the object has been initialised before accessing data",
-    "lineNumber": 107,
+    "lineNumber": 106,
     "params": [],
     "return": {
       "types": [
@@ -2703,7 +2703,7 @@
     "longname": "lib/parks/park.js~Park#_pendingSetupPromise",
     "access": "private",
     "description": null,
-    "lineNumber": 119,
+    "lineNumber": 118,
     "undocument": true,
     "type": {
       "types": [
@@ -2722,7 +2722,7 @@
     "longname": "lib/parks/park.js~Park#_runInit",
     "access": "private",
     "description": "Run all the internal stages of the init process",
-    "lineNumber": 149,
+    "lineNumber": 148,
     "params": [],
     "return": {
       "types": [
@@ -2741,7 +2741,7 @@
     "longname": "lib/parks/park.js~Park#_buildAttractionObject",
     "access": "private",
     "description": "Build an object representing an attraction from sourced data<br />This object should not contain any \"state\" data, just static information about the attraction",
-    "lineNumber": 167,
+    "lineNumber": 166,
     "params": [
       {
         "nullable": null,
@@ -2774,7 +2774,7 @@
     "longname": "lib/parks/park.js~Park#findAttractionByID",
     "access": "public",
     "description": "Get data about a attraction from its ID",
-    "lineNumber": 176,
+    "lineNumber": 175,
     "params": [
       {
         "nullable": null,
@@ -2807,7 +2807,7 @@
     "longname": "lib/parks/park.js~Park#removeAttractionTag",
     "access": "public",
     "description": "Remove a tag from a given attraction ID",
-    "lineNumber": 251,
+    "lineNumber": 250,
     "params": [
       {
         "nullable": null,
@@ -2853,7 +2853,7 @@
     "longname": "lib/parks/park.js~Park#toggleAttractionTag",
     "access": "public",
     "description": "Set a toggle tag for an attraction.<br />This is different from more complex tags that expect a data structure.<br />Use this for tags that don't have any actual value, but are just present. Eg. FastPass as a feature.",
-    "lineNumber": 269,
+    "lineNumber": 268,
     "params": [
       {
         "nullable": null,
@@ -2899,7 +2899,7 @@
     "longname": "lib/parks/park.js~Park#setAttractionTag",
     "access": "public",
     "description": "Set an attraction tag<br />Used for metadata on rides, such as location, thrill level, fastpass availability etc.",
-    "lineNumber": 289,
+    "lineNumber": 288,
     "params": [
       {
         "nullable": null,
@@ -2962,7 +2962,7 @@
     "longname": "lib/parks/park.js~Park#updateAttractionState",
     "access": "public",
     "description": "Update an attraction state",
-    "lineNumber": 315,
+    "lineNumber": 314,
     "params": [
       {
         "nullable": null,
@@ -2998,7 +2998,7 @@
     "longname": "lib/parks/park.js~Park#updateAttractionQueue",
     "access": "public",
     "description": "Update the queue status for an attraction",
-    "lineNumber": 347,
+    "lineNumber": 346,
     "params": [
       {
         "nullable": null,
@@ -3044,7 +3044,7 @@
     "longname": "lib/parks/park.js~Park#update",
     "access": "public",
     "description": "Update this park<br />This is automatically called for you unless disableParkUpdate is set to false",
-    "lineNumber": 391,
+    "lineNumber": 390,
     "params": [],
     "return": {
       "types": [
@@ -3061,7 +3061,7 @@
     "longname": "lib/parks/park.js~Park#_pendingUpdatePromise",
     "access": "private",
     "description": null,
-    "lineNumber": 397,
+    "lineNumber": 396,
     "undocument": true,
     "type": {
       "types": [
@@ -3080,7 +3080,7 @@
     "longname": "lib/parks/park.js~Park#_init",
     "access": "private",
     "description": "Internal function<br />Called by init() to initialise the object",
-    "lineNumber": 423,
+    "lineNumber": 422,
     "abstract": true,
     "params": [],
     "return": null
@@ -3096,7 +3096,7 @@
     "longname": "lib/parks/park.js~Park#_update",
     "access": "private",
     "description": "Update function the park object calls on interval to update internal state",
-    "lineNumber": 433,
+    "lineNumber": 432,
     "abstract": true,
     "params": [],
     "return": null
@@ -3112,7 +3112,7 @@
     "longname": "lib/parks/park.js~Park#injectForDomain",
     "access": "public",
     "description": "Register a new injection for a specific domain",
-    "lineNumber": 444,
+    "lineNumber": 443,
     "params": [
       {
         "nullable": null,
@@ -3148,7 +3148,7 @@
     "longname": "lib/parks/park.js~Park#http",
     "access": "public",
     "description": "Helper function to make an HTTP request for this park<br />Parks can automatically add in authentication headers etc. to requests sent to this function",
-    "lineNumber": 460,
+    "lineNumber": 459,
     "params": [
       {
         "nullable": null,
@@ -3641,7 +3641,7 @@
     "__docId__": 166,
     "kind": "file",
     "name": "lib/parks/wdw/waltdisneyworldbase.js",
-    "content": "import {IndexedWDWDB, getEntityID} from './wdwdb.js';\nimport {Park} from '../park.js';\nimport {attractionType, statusType, queueType, tagType} from '../parkTypes.js';\n\nlet wdwDB = null;\n\n/**\n * Base Disney Park Class\n */\nexport class DisneyPark extends Park {\n  /**\n   * Create a new DisneyPark object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.resort_id = options.resort_id || '';\n    options.park_id = options.park_id || '';\n\n    if (!options.configPrefixes) {\n      options.configPrefixes = ['wdw'];\n    }\n\n    super(options);\n\n    if (this.config.park_id === '') {\n      throw new Error(`Missing park_id for class ${this.constructor.name}`);\n    }\n    if (this.config.resort_id === '') {\n      throw new Error(`Missing resort_id for class ${this.constructor.name}`);\n    }\n\n    // get a reference to our shared live database\n    this.db = DisneyPark.getDatabase();\n  }\n\n  /**\n * Get the live WDW database object\n * @return {object} wdwdb live database instance\n */\n  static getDatabase() {\n    if (!wdwDB) {\n      wdwDB = new IndexedWDWDB();\n    }\n    return wdwDB;\n  }\n\n  /**\n   * Get a unique ID for this park\n   * @return {string}\n   */\n  getParkUniqueID() {\n    return `${this.config.resort_id}_${this.config.park_id}`;\n  }\n\n  /**\n   * Get the channel ID for the facility status live update documents\n   * @return {string}\n   */\n  getFacilityStatusChannelID() {\n    return `${this.config.resort_id}.facilitystatus.1_0`;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _init() {\n    console.log('Initialising...');\n\n    // make sure the shared database is initialised\n    await this.db.init();\n\n    // subscribe to any live facility status updates\n    this.db.subscribeToChannel(this.getFacilityStatusChannelID(), async (doc) => {\n      this._processAttractionStatusUpdate(doc);\n    });\n\n    // fetch the current attraction times\n    const allStatusDocs = await this.db.getByChannel(this.getFacilityStatusChannelID());\n    await Promise.allSettled(allStatusDocs.map(this._processAttractionStatusUpdate.bind(this)));\n  }\n\n  /**\n   * Process a document update from a facilitystatus channel\n   * @param {object} doc The updated document\n   */\n  async _processAttractionStatusUpdate(doc) {\n    // get our clean attraction ID\n    const entityID = getEntityID(doc.id);\n\n    // check attraction is within our park\n    const updateIndexEntry = await this.db.getEntityIndex(entityID, {\n      park_id: `${this.config.park_id}`,\n    });\n\n    // if we have no entries, then attraction is not in our park\n    if (updateIndexEntry.length === 0) {\n      return;\n    }\n\n    // figure out general ride status\n    let status = statusType.operating;\n\n    // TODO - if name contains \"Temporarily Unavailable\", mark as closed?\n\n    if (doc.status === 'Down') {\n      status = statusType.down;\n    } else if (doc.status === 'Closed') {\n      status = statusType.closed;\n    } else if (doc.status === 'Refurbishment') {\n      status = statusType.refurbishment;\n    }\n\n    // update attraction state\n    await this.updateAttractionState(entityID, status);\n\n    // update attraction standby queue\n    await this.updateAttractionQueue(entityID, doc.waitMinutes, queueType.standBy);\n  }\n\n  /**\n   * Build an attraction object from an ID\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async _buildAttractionObject(attractionID) {\n    await this.db.init();\n\n    // find a document for our attraction ID\n    const attr = await this.db.getEntityOne(attractionID);\n    if (attr) {\n      return {\n        name: attr.name,\n        type: attractionType.ride, // TODO\n        tags: [\n          // TODO\n        ],\n      };\n    }\n\n    return undefined;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _update() {\n    // TODO - parks that don't use the live database need to implement this function\n  }\n}\n\nexport default DisneyPark;\n",
+    "content": "import {IndexedWDWDB, getEntityID} from './wdwdb.js';\nimport {Park} from '../park.js';\nimport {attractionType, statusType, queueType} from '../parkTypes.js';\n\nlet wdwDB = null;\n\n/**\n * Base Disney Park Class\n */\nexport class DisneyPark extends Park {\n  /**\n   * Create a new DisneyPark object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.resort_id = options.resort_id || '';\n    options.park_id = options.park_id || '';\n\n    if (!options.configPrefixes) {\n      options.configPrefixes = ['wdw'];\n    }\n\n    super(options);\n\n    if (this.config.park_id === '') {\n      throw new Error(`Missing park_id for class ${this.constructor.name}`);\n    }\n    if (this.config.resort_id === '') {\n      throw new Error(`Missing resort_id for class ${this.constructor.name}`);\n    }\n\n    // get a reference to our shared live database\n    this.db = DisneyPark.getDatabase();\n  }\n\n  /**\n * Get the live WDW database object\n * @return {object} wdwdb live database instance\n */\n  static getDatabase() {\n    if (!wdwDB) {\n      wdwDB = new IndexedWDWDB();\n    }\n    return wdwDB;\n  }\n\n  /**\n   * Get a unique ID for this park\n   * @return {string}\n   */\n  getParkUniqueID() {\n    return `${this.config.resort_id}_${this.config.park_id}`;\n  }\n\n  /**\n   * Get the channel ID for the facility status live update documents\n   * @return {string}\n   */\n  getFacilityStatusChannelID() {\n    return `${this.config.resort_id}.facilitystatus.1_0`;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _init() {\n    console.log('Initialising...');\n\n    // make sure the shared database is initialised\n    await this.db.init();\n\n    // subscribe to any live facility status updates\n    this.db.subscribeToChannel(this.getFacilityStatusChannelID(), async (doc) => {\n      this._processAttractionStatusUpdate(doc);\n    });\n\n    // fetch the current attraction times\n    const allStatusDocs = await this.db.getByChannel(this.getFacilityStatusChannelID());\n    await Promise.allSettled(allStatusDocs.map(this._processAttractionStatusUpdate.bind(this)));\n  }\n\n  /**\n   * Process a document update from a facilitystatus channel\n   * @param {object} doc The updated document\n   */\n  async _processAttractionStatusUpdate(doc) {\n    // get our clean attraction ID\n    const entityID = getEntityID(doc.id);\n\n    // check attraction is within our park\n    const updateIndexEntry = await this.db.getEntityIndex(entityID, {\n      park_id: `${this.config.park_id}`,\n    });\n\n    // if we have no entries, then attraction is not in our park\n    if (updateIndexEntry.length === 0) {\n      return;\n    }\n\n    // figure out general ride status\n    let status = statusType.operating;\n\n    // TODO - if name contains \"Temporarily Unavailable\", mark as closed?\n\n    if (doc.status === 'Down') {\n      status = statusType.down;\n    } else if (doc.status === 'Closed') {\n      status = statusType.closed;\n    } else if (doc.status === 'Refurbishment') {\n      status = statusType.refurbishment;\n    }\n\n    // update attraction state\n    await this.updateAttractionState(entityID, status);\n\n    // update attraction standby queue\n    await this.updateAttractionQueue(entityID, doc.waitMinutes, queueType.standBy);\n  }\n\n  /**\n   * Build an attraction object from an ID\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async _buildAttractionObject(attractionID) {\n    await this.db.init();\n\n    // find a document for our attraction ID\n    const attr = await this.db.getEntityOne(attractionID);\n    if (attr) {\n      return {\n        name: attr.name,\n        type: attractionType.ride, // TODO\n        tags: [\n          // TODO\n        ],\n      };\n    }\n\n    return undefined;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _update() {\n    // TODO - parks that don't use the live database need to implement this function\n  }\n}\n\nexport default DisneyPark;\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/wdw/waltdisneyworldbase.js",
     "access": "public",

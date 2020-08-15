@@ -67,14 +67,14 @@
       "expectCount": 28,
       "actualCount": 20,
       "undocumentLines": [
-        13,
-        27,
-        65,
-        67,
-        69,
-        73,
-        119,
-        397
+        12,
+        26,
+        64,
+        66,
+        68,
+        72,
+        118,
+        396
       ]
     },
     "lib/parks/parkTypes.js": {
