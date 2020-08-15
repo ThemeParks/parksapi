@@ -6,3 +6,6 @@ out
 docs
 db.*
 .env
+test*.js
+*.har
+.vscode
