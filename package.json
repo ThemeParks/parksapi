@@ -1,5 +1,5 @@
 {
-  "name": "parksapi",
+  "name": "@themeparks/parksapi",
   "type": "module",
   "version": "1.0.0",
   "description": "",
@@ -8,6 +8,12 @@
     "node": ">=14"
   },
   "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./park": "./lib/parks/park.js",
+    "./parkTypes": "./lib/parks/parkTypes.js",
+    "./cache/": "./lib/cache/"
+  },
   "scripts": {
     "test": "eslint ./lib/**",
     "docs": "esdoc"
@@ -15,6 +21,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ThemeParks/parksapi.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.jamie.holdings"
   },
   "author": "@cube",
   "license": "ISC",
