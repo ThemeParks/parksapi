@@ -1,7 +1,7 @@
 {
-  "coverage": "77.84%",
-  "expectCount": 158,
-  "actualCount": 123,
+  "coverage": "78.39%",
+  "expectCount": 162,
+  "actualCount": 127,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 12,
@@ -88,8 +88,8 @@
       "undocumentLines": []
     },
     "lib/parks/wdw/waltdisneyworldbase.js": {
-      "expectCount": 19,
-      "actualCount": 17,
+      "expectCount": 23,
+      "actualCount": 21,
       "undocumentLines": [
         5,
         67

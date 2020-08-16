@@ -1020,9 +1020,21 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldanimalkingdom#getparkuniqueid",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom.html#instance-method-getParkUniqueID",
+    "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom#getParkUniqueID",
+    "method"
+  ],
+  [
     "lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldepcot#constructor",
     "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot.html#instance-constructor-constructor",
     "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldepcot#getparkuniqueid",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot.html#instance-method-getParkUniqueID",
+    "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot#getParkUniqueID",
     "method"
   ],
   [
@@ -1032,9 +1044,21 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldhollywoodstudios#getparkuniqueid",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios.html#instance-method-getParkUniqueID",
+    "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios#getParkUniqueID",
+    "method"
+  ],
+  [
     "lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldmagickingdom#constructor",
     "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom.html#instance-constructor-constructor",
     "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldmagickingdom#getparkuniqueid",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom.html#instance-method-getParkUniqueID",
+    "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom#getParkUniqueID",
     "method"
   ],
   [

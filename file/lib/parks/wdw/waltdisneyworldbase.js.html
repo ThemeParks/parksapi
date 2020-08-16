@@ -62,7 +62,7 @@
 <div class="content" data-ice="content"><h1 data-ice="title">lib/parks/wdw/waltdisneyworldbase.js</h1>
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {IndexedWDWDB, getEntityID} from &apos;./wdwdb.js&apos;;
 import {Park} from &apos;../park.js&apos;;
-import {attractionType, statusType, queueType} from &apos;../parkTypes.js&apos;;
+import {attractionType, statusType, queueType, tagType} from &apos;../parkTypes.js&apos;;
 
 let wdwDB = null;
 
@@ -187,12 +187,40 @@ export class DisneyPark extends Park {
     // find a document for our attraction ID
     const attr = await this.db.getEntityOne(attractionID);
     if (attr) {
+      const tags = [];
+
+      // pregnant persons advisory
+      if (!!attr.facets.find((f) =&gt; f.id === &apos;expectant-mothers&apos;)) {
+        tags.push({
+          type: tagType.unsuitableForPregnantPeople,
+          value: true,
+        });
+      }
+      // fast pass
+      if (!!attr.fastPassPlus) {
+        tags.push({
+          type: tagType.fastPass,
+          value: true,
+        });
+      }
+      // TODO - min height
+
+      if (attr.longitude &amp;&amp; attr.latitude) {
+        // ride location tag
+        tags.push({
+          id: &apos;location&apos;,
+          type: tagType.location,
+          value: {
+            longitude: Number(attr.longitude),
+            latitude: Number(attr.latitude),
+          },
+        });
+      }
+
       return {
         name: attr.name,
-        type: attractionType.ride, // TODO
-        tags: [
-          // TODO
-        ],
+        type: attractionType.ride, // TODO - sort attraction types
+        tags,
       };
     }
 
@@ -217,12 +245,19 @@ export class WaltDisneyWorldMagicKingdom extends DisneyPark {
    * @inheritdoc
    */
   constructor(options = {}) {
-    options.park_id = &apos;80007998&apos;;
+    options.park_id = &apos;80007798&apos;;
     options.resort_id = &apos;wdw&apos;;
     options.name = &apos;Walt Disney World - Magic Kingdom&apos;;
     options.timezone = &apos;America/New_York&apos;;
 
     super(options);
+  }
+
+  /**
+   * @inheritdoc
+   */
+  getParkUniqueID() {
+    return &apos;WaltDisneyWorldMagicKingdom&apos;;
   }
 }
 
@@ -241,6 +276,13 @@ export class WaltDisneyWorldEpcot extends DisneyPark {
 
     super(options);
   }
+
+  /**
+   * @inheritdoc
+   */
+  getParkUniqueID() {
+    return &apos;WaltDisneyWorldEpcot&apos;;
+  }
 }
 
 /**
@@ -258,6 +300,13 @@ export class WaltDisneyWorldHollywoodStudios extends DisneyPark {
 
     super(options);
   }
+
+  /**
+   * @inheritdoc
+   */
+  getParkUniqueID() {
+    return &apos;WaltDisneyWorldHollywoodStudios&apos;;
+  }
 }
 
 /**
@@ -274,6 +323,13 @@ export class WaltDisneyWorldAnimalKingdom extends DisneyPark {
     options.timezone = &apos;America/New_York&apos;;
 
     super(options);
+  }
+
+  /**
+   * @inheritdoc
+   */
+  getParkUniqueID() {
+    return &apos;WaltDisneyWorldAnimalKingdom&apos;;
   }
 }
 </code></pre>

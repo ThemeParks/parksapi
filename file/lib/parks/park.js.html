@@ -393,7 +393,7 @@ export class Park extends ConfigBase {
       existingRide.status.lastUpdated = now;
 
       // only update &quot;lastChanged&quot; if the status has changed
-      const previousStatus = existingRide.status.lastChanged;
+      const previousStatus = existingRide.status.status;
       if (previousStatus !== status || previousStatus === null) {
         existingRide.status.status = status;
         existingRide.status.lastChanged = now;
