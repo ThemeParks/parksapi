@@ -2260,7 +2260,7 @@
     "__docId__": 112,
     "kind": "file",
     "name": "lib/index.js",
-    "content": "import Efteling from './parks/efteling/efteling.js';\nimport {\n  WaltDisneyWorldMagicKingdom,\n  WaltDisneyWorldEpcot,\n  WaltDisneyWorldHollywoodStudios,\n  WaltDisneyWorldAnimalKingdom,\n} from './parks/wdw/waltdisneyworldbase.js';\n\nexport default {\n  parks: [\n    WaltDisneyWorldMagicKingdom,\n    WaltDisneyWorldEpcot,\n    WaltDisneyWorldHollywoodStudios,\n    WaltDisneyWorldAnimalKingdom,\n    Efteling,\n  ],\n};\n",
+    "content": "import Efteling from './parks/efteling/efteling.js';\nimport {\n  WaltDisneyWorldMagicKingdom,\n  WaltDisneyWorldEpcot,\n  WaltDisneyWorldHollywoodStudios,\n  WaltDisneyWorldAnimalKingdom,\n} from './parks/wdw/waltdisneyworldbase.js';\n\nexport default {\n  parks: {\n    WaltDisneyWorldMagicKingdom,\n    WaltDisneyWorldEpcot,\n    WaltDisneyWorldHollywoodStudios,\n    WaltDisneyWorldAnimalKingdom,\n    Efteling,\n  },\n  allParks: [\n    WaltDisneyWorldMagicKingdom,\n    WaltDisneyWorldEpcot,\n    WaltDisneyWorldHollywoodStudios,\n    WaltDisneyWorldAnimalKingdom,\n    Efteling,\n  ],\n};\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/index.js",
     "access": "public",
