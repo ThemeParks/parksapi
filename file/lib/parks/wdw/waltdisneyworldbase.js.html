@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <base data-ice="baseUrl" href="../../../../">
-  <title data-ice="title">lib/parks/wdw/waltdisneyworldbase.js | parksapi</title>
+  <title data-ice="title">lib/parks/wdw/waltdisneyworldbase.js | @themeparks/parksapi</title>
   <link type="text/css" rel="stylesheet" href="css/style.css">
   <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
   <script src="script/prettify/prettify.js"></script>
@@ -49,6 +49,10 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-tagType">tagType</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-efteling">parks/efteling</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom.html">WaltDisneyWorldAnimalKingdom</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot.html">WaltDisneyWorldEpcot</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios.html">WaltDisneyWorldHollywoodStudios</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom.html">WaltDisneyWorldMagicKingdom</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html">IndexedWDWDB</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getEntityID">getEntityID</a></span></span></li>
 </ul>
@@ -86,9 +90,6 @@ export class DisneyPark extends Park {
     if (this.config.resort_id === &apos;&apos;) {
       throw new Error(`Missing resort_id for class ${this.constructor.name}`);
     }
-
-    // get a reference to our shared live database
-    this.db = DisneyPark.getDatabase();
   }
 
   /**
@@ -123,6 +124,9 @@ export class DisneyPark extends Park {
    */
   async _init() {
     console.log(&apos;Initialising...&apos;);
+
+    // get a reference to our shared live database
+    this.db = DisneyPark.getDatabase();
 
     // make sure the shared database is initialised
     await this.db.init();
@@ -180,8 +184,6 @@ export class DisneyPark extends Park {
    * @param {string} attractionID Unique Attraction ID
    */
   async _buildAttractionObject(attractionID) {
-    await this.db.init();
-
     // find a document for our attraction ID
     const attr = await this.db.getEntityOne(attractionID);
     if (attr) {
@@ -206,6 +208,74 @@ export class DisneyPark extends Park {
 }
 
 export default DisneyPark;
+
+/**
+ * Walt Disney World - Magic Kingdom
+ */
+export class WaltDisneyWorldMagicKingdom extends DisneyPark {
+  /**
+   * @inheritdoc
+   */
+  constructor(options = {}) {
+    options.park_id = &apos;80007998&apos;;
+    options.resort_id = &apos;wdw&apos;;
+    options.name = &apos;Walt Disney World - Magic Kingdom&apos;;
+    options.timezone = &apos;America/New_York&apos;;
+
+    super(options);
+  }
+}
+
+/**
+ * Walt Disney World - Epcot
+ */
+export class WaltDisneyWorldEpcot extends DisneyPark {
+  /**
+   * @inheritdoc
+   */
+  constructor(options = {}) {
+    options.park_id = &apos;80007838&apos;;
+    options.resort_id = &apos;wdw&apos;;
+    options.name = &apos;Walt Disney World - Epcot&apos;;
+    options.timezone = &apos;America/New_York&apos;;
+
+    super(options);
+  }
+}
+
+/**
+ * Walt Disney World - Hollywood Studios
+ */
+export class WaltDisneyWorldHollywoodStudios extends DisneyPark {
+  /**
+   * @inheritdoc
+   */
+  constructor(options = {}) {
+    options.park_id = &apos;80007998&apos;;
+    options.resort_id = &apos;wdw&apos;;
+    options.name = &apos;Walt Disney World - Hollywood Studios&apos;;
+    options.timezone = &apos;America/New_York&apos;;
+
+    super(options);
+  }
+}
+
+/**
+ * Walt Disney World - Animal Kingdom
+ */
+export class WaltDisneyWorldAnimalKingdom extends DisneyPark {
+  /**
+   * @inheritdoc
+   */
+  constructor(options = {}) {
+    options.park_id = &apos;80007823&apos;;
+    options.resort_id = &apos;wdw&apos;;
+    options.name = &apos;Walt Disney World - Animal Kingdom&apos;;
+    options.timezone = &apos;America/New_York&apos;;
+
+    super(options);
+  }
+}
 </code></pre>
 
 </div>

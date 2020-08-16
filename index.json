@@ -583,7 +583,7 @@
     "longname": "lib/cache/cacheBase.js~CacheBase",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/cache/cacheBase.js",
+    "importPath": "@themeparks/parksapi/lib/cache/cacheBase.js",
     "importStyle": "CacheBase",
     "description": "Our base Cache implementation<br />Extend this class with new implementations to create different cache types (in-memory, database, file system etc.)",
     "lineNumber": 6,
@@ -994,7 +994,7 @@
     "longname": "lib/cache/cacheLevel.js~CacheLevel",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/cache/cacheLevel.js",
+    "importPath": "@themeparks/parksapi/lib/cache/cacheLevel.js",
     "importStyle": "CacheLevel",
     "description": "A cache implementation using LevelDown",
     "lineNumber": 10,
@@ -1175,7 +1175,7 @@
     "longname": "lib/cache/cacheMemory.js~CacheMemory",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/cache/cacheMemory.js",
+    "importPath": "@themeparks/parksapi/lib/cache/cacheMemory.js",
     "importStyle": "CacheMemory",
     "description": "A basic in-memory cache implementation",
     "lineNumber": 8,
@@ -1356,7 +1356,7 @@
     "longname": "lib/cache/cacheSqlite.js~CacheSqlite",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/cache/cacheSqlite.js",
+    "importPath": "@themeparks/parksapi/lib/cache/cacheSqlite.js",
     "importStyle": "CacheSqlite",
     "description": "Caching implementation using SQLite",
     "lineNumber": 10,
@@ -1629,7 +1629,7 @@
     "longname": "lib/cache/scopedCache.js~ScopedCache",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/cache/scopedCache.js",
+    "importPath": "@themeparks/parksapi/lib/cache/scopedCache.js",
     "importStyle": "{ScopedCache}",
     "description": "A wrapper class for accessing the cache.<br />Prefixes a string before each key to avoid conflicts.",
     "lineNumber": 7,
@@ -2086,7 +2086,7 @@
     "longname": "lib/cache.js~CacheInstance",
     "access": "public",
     "export": false,
-    "importPath": "parksapi/lib/cache.js",
+    "importPath": "@themeparks/parksapi/lib/cache.js",
     "importStyle": null,
     "description": null,
     "lineNumber": 9,
@@ -2109,7 +2109,7 @@
     "longname": "lib/cache.js~createCacheInstance",
     "access": "public",
     "export": false,
-    "importPath": "parksapi/lib/cache.js",
+    "importPath": "@themeparks/parksapi/lib/cache.js",
     "importStyle": null,
     "description": "Create a new Cache Instance.<br />This function should only be called once for the lifetime of the module.",
     "lineNumber": 15,
@@ -2132,7 +2132,7 @@
     "longname": "lib/cache.js~getCache",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/cache.js",
+    "importPath": "@themeparks/parksapi/lib/cache.js",
     "importStyle": "{getCache}",
     "description": "Get the configured Cache implementation",
     "lineNumber": 23,
@@ -2165,7 +2165,7 @@
     "longname": "lib/configBase.js~parseConfig",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/configBase.js",
+    "importPath": "@themeparks/parksapi/lib/configBase.js",
     "importStyle": "{parseConfig}",
     "description": "Combine given options with environment variables",
     "lineNumber": 12,
@@ -2199,7 +2199,7 @@
     "longname": "lib/configBase.js~ConfigBase",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/configBase.js",
+    "importPath": "@themeparks/parksapi/lib/configBase.js",
     "importStyle": "{ConfigBase}",
     "description": "Base Config Object<br />Supports classes with a single argument \"options\"<br />These will be sorted into a member called \"this.config\" containing all the same keys<br /><br />Crucially, these can also be overriden through environment variables<br />For example, for a config option \"timeout\" for class Database, this could be overriden through either:<br />  env.THEMEPARKS_TIMEOUT (using a \"global module name\")<br />  env.DATABASE_TIMEOUT (using the class name)<br /><br />Classes can also add additional prefixes to the supported environment variables through:<br />  new ClassInstance({configPrefixes: ['myCustomPrefix']});<br />Which would also allow env.MYCUSTOMPREFIX_TIMEOUT to be used<br /><br />Note that a default value must be supplied for the environment variable to be processed<br />If the default value is a number, the environment variable will be cast to a number as well",
     "lineNumber": 69,
@@ -2260,7 +2260,7 @@
     "__docId__": 112,
     "kind": "file",
     "name": "lib/index.js",
-    "content": "",
+    "content": "import Efteling from './parks/efteling/efteling.js';\nimport {\n  WaltDisneyWorldMagicKingdom,\n  WaltDisneyWorldEpcot,\n  WaltDisneyWorldHollywoodStudios,\n  WaltDisneyWorldAnimalKingdom,\n} from './parks/wdw/waltdisneyworldbase.js';\n\nexport default {\n  parks: [\n    WaltDisneyWorldMagicKingdom,\n    WaltDisneyWorldEpcot,\n    WaltDisneyWorldHollywoodStudios,\n    WaltDisneyWorldAnimalKingdom,\n    Efteling,\n  ],\n};\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/index.js",
     "access": "public",
@@ -2287,7 +2287,7 @@
     "longname": "lib/parks/efteling/efteling.js~Efteling",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/parks/efteling/efteling.js",
+    "importPath": "@themeparks/parksapi/lib/parks/efteling/efteling.js",
     "importStyle": "{Efteling}",
     "description": "Efteling Park Object",
     "lineNumber": 7,
@@ -2418,7 +2418,7 @@
     "__docId__": 120,
     "kind": "file",
     "name": "lib/parks/park.js",
-    "content": "import promiseRetry from 'promise-retry';\nimport ConfigBase from '../configBase.js';\nimport needle from 'needle';\nimport domainMatch from 'domain-match';\nimport moment from 'moment-timezone';\nimport randomUseragent from 'random-useragent';\nimport Cache from '../cache/scopedCache.js';\nimport * as tags from './tags.js';\nimport HarWriter from '../har.js';\n\n// quick helper function to wait x milliseconds as a Promise\nconst delay = (milliseconds) => {\n  return new Promise((resolve) => {\n    setTimeout(resolve, milliseconds);\n  });\n};\n\n/** Generate a random Android user agent for making network requests */\nexport function generateRandomAndroidUseragent() {\n  randomUseragent.getRandom((ua) => {\n    return (ua.osName === 'Android');\n  });\n}\n\n// start our har writer (if debugging)\nconst harWriter = process.env['THEMEPARKS_HAR'] ?\n  new HarWriter({filename: `${process.env['THEMEPARKS_HAR']}.har`}):\n  null;\n\n/**\n * Base Park Object\n * @class\n */\nexport class Park extends ConfigBase {\n  /**\n   * Create a new park object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    // how often to wait between updates to run another update\n    options.updateInterval = 1000 * 60 * 5; // 5 minutes\n    // disable auto-update for this object\n    //  set this if the update is being handled by an external system\n    options.disableParkUpdate = false;\n\n    // generate a random Android user-agent if we aren't supplied one\n    options.useragent = options.useragent || generateRandomAndroidUseragent();\n\n    super(options);\n\n    if (!options.name) {\n      throw new Error(`Missing name for constructed park object ${this.constructor.name}`);\n    }\n\n    if (!options.timezone) {\n      throw new Error(`Missing timezone for constructed park object ${this.constructor.name}`);\n    }\n    // validate park timezone\n    if (moment.tz.names().indexOf(options.timezone) < 0) {\n      throw new Error(`Park object ${this.constructor.name} gives an invalid timezone: ${options.timezone}`);\n    }\n\n    // create a new cache object for this park\n    this.cache = new Cache(this.constructor.name, this.config.cacheVersion || 0);\n\n    this.initialised = false;\n\n    this._attractions = [];\n\n    // any HTTP injections that have been setup\n    //  allows parks to automatically intercept HTTP requests and add auth headers etc.\n    this._httpInjections = [];\n  }\n\n  /**\n   * Get a globally unique ID for this park\n   * @return {string}\n   */\n  getParkUniqueID() {\n    // by default, return the class name\n    return this.constructor.name.toLowerCase();\n  }\n\n  /**\n   * Return the current time for this park in its local timezone\n   * @return {string}\n   */\n  getTimeNow() {\n    return moment().tz(this.config.timezone).format();\n  }\n\n  /**\n   * Get Park Attractions\n   */\n  async getAttractions() {\n    // park must be initialised before returning any data\n    await this.init();\n\n    return this._attractions;\n  }\n\n  /**\n   * Setup the park for use\n   * Call to ensure the object has been initialised before accessing data\n   */\n  async init() {\n    if (this.initialised) {\n      return;\n    }\n\n    // setup the park ready for use\n    //  eg. download any large data-sets, calendars etc.\n    if (this._pendingSetupPromise) {\n      return this._pendingSetupPromise;\n    }\n\n    // call our internal init and wait on it\n    this._pendingSetupPromise = this._runInit();\n    await this._pendingSetupPromise;\n    this._pendingSetupPromise = null;\n\n    this.initialised = true;\n\n    if (!this.config.disableParkUpdate) {\n      // start an update loop\n\n      // use a separate function so we can quickly loop back around\n      const scheduleUpdate = async () => {\n        // pause for our updateInterval time\n        await delay(this.config.updateInterval);\n\n        // wait for Promise to resolve, grab any catches, then continue anyway\n        this.update().then().catch().then(() => {\n          // schedule another update\n          setImmediate(scheduleUpdate.bind(this));\n        });\n      };\n\n      // start the first loop timer\n      scheduleUpdate();\n    }\n  }\n\n  /**\n   * Run all the internal stages of the init process\n   * @private\n   */\n  async _runInit() {\n    try {\n      await this._init();\n    } catch (e) {\n      console.error('Error initialising park', e);\n    }\n\n    // run an initial update so we're fully setup with data before init() returns\n    return this.update();\n  }\n\n  /**\n   * Build an object representing an attraction from sourced data\n   * This object should not contain any \"state\" data, just static information about the attraction\n   * @param {string} attractionID Unique Attraction ID\n   * @return {object} Object containing at least 'name'.\n   * Also accepts 'type', which is an {@link attractionType}\n   */\n  async _buildAttractionObject(attractionID) {\n    throw new Error('Missing _buildAttractionObject Implementation', this.constructor.name);\n  }\n\n  /**\n   * Get data about a attraction from its ID\n   * @param {string} attractionID Unique Attraction ID\n   * @return {object} The attraction object for the given ID, or undefined\n   */\n  async findAttractionByID(attractionID) {\n    // build a unique attraction ID by prefixing the park's unique ID\n    const uniqueAttractionID = `${this.getParkUniqueID()}_${attractionID}`;\n\n    // search our existing store for this attraction\n    const attraction = this._attractions.find((attr) => attr.id == uniqueAttractionID);\n    if (attraction) {\n      return attraction;\n    }\n\n    // attraction wasn't found, try and add one to our store\n    const newAttraction = {\n      id: uniqueAttractionID,\n      rideId: attractionID, // unique attraction ID without the park prefix\n      name: undefined,\n      type: null,\n      status: {\n        status: null,\n        lastUpdated: null,\n        lastChanged: null,\n      },\n      queue: {},\n      tags: [],\n    };\n\n    // list of fields we want to accept from the park class\n    //  we don't want the park to add random fields to our attraction object\n    //  park-specific data should be added using \"tags\" instead, so our object structure is the same for all parks\n    const fieldsToCopyFromParkClass = [\n      'name',\n      'type',\n    ];\n\n    // TODO - restore stored live attraction data from a cache\n    //  restore from cache *before* we build the actual attraction data\n    //  this will allow the park API to fill in any out-of-date fields with live data\n\n    // ask the park implementation to supply us with some basic attraction information (name, type, etc.)\n    //  we'll then inject this into our attraction object, assuming it returns successfully\n    try {\n      const builtAttractionObject = await this._buildAttractionObject(attractionID);\n      if (builtAttractionObject !== undefined && !!builtAttractionObject.name) {\n        // copy fields we're interested in into our new attraction object\n        fieldsToCopyFromParkClass.forEach((key) => {\n          if (builtAttractionObject[key] !== undefined) {\n            newAttraction[key] = builtAttractionObject[key];\n          }\n        });\n\n        // add to our attractions array\n        this._attractions.push(newAttraction);\n\n        // we also manually accept the \"tags\" field\n        //  add each tag to the attraction after it's added to our object above\n        if (builtAttractionObject.tags) {\n          await Promise.allSettled(builtAttractionObject.tags.map((tag) => {\n            return this.setAttractionTag(attractionID, tag.key, tag.type, tag.value);\n          }));\n        }\n\n        return newAttraction;\n      }\n    } catch (e) {\n      console.error('Error building attraction object:', e);\n    }\n\n    return undefined;\n  }\n\n  /**\n   * Remove a tag from a given attraction ID\n   * @param {string} attractionID\n   * @param {string} key\n   * @param {tagType} type\n   */\n  async removeAttractionTag(attractionID, key, type) {\n    const attraction = await this.findAttractionByID(attractionID);\n    if (!attraction) return;\n\n    const existingTag = attraction.tags.findIndex((t) => t.key === key && t.type === type);\n    if (existingTag >= 0) {\n      attraction.tags.splice(existingTag, 1);\n    }\n  }\n\n  /**\n   * Set a toggle tag for an attraction.\n   * This is different from more complex tags that expect a data structure.\n   * Use this for tags that don't have any actual value, but are just present. Eg. FastPass as a feature.\n   * @param {string} attractionID\n   * @param {tagType} type\n   * @param {boolean} value\n   */\n  async toggleAttractionTag(attractionID, type, value) {\n    if (!value) {\n      // if value is false, remove the key\n      const newTag = tags.getValidTagObject(null, type, null);\n      await this.removeAttractionTag(attractionID, newTag.key, type);\n    } else {\n      // otherwise, add our tag\n      await this.setAttractionTag(attractionID, null, type, null);\n    }\n  }\n\n  /**\n   * Set an attraction tag\n   * Used for metadata on rides, such as location, thrill level, fastpass availability etc.\n   * @param {string} attractionID Attraction ID to update\n   * @param {string} key Tag key to set\n   * @param {tagType} type Tag type to use\n   * @param {*} value Tag value to set\n   * @return {boolean} True if tag was stored successfully\n   */\n  async setAttractionTag(attractionID, key, type, value) {\n    // validate tag value\n    const newTag = tags.getValidTagObject(key, type, value);\n    if (newTag === undefined) {\n      return false;\n    }\n\n    // find attraction and apply tag to it\n    const attraction = await this.findAttractionByID(attractionID);\n    if (attraction) {\n      const existingTag = attraction.tags.findIndex((t) => t.key === newTag.key && t.type === newTag.type);\n      if (existingTag < 0) {\n        // push our new tag onto our attraction\n        attraction.tags.push(newTag);\n      } else {\n        // update existing tag entry\n        attraction.tags[existingTag] = newTag;\n      }\n    }\n  }\n\n  /**\n   * Update an attraction state\n   * @param {string} attractionID Unique Attraction ID\n   * @param {statusType} status New Attraction state\n   */\n  async updateAttractionState(attractionID, status) {\n    if (attractionID === undefined) return;\n\n    const existingRide = await this.findAttractionByID(attractionID);\n    if (existingRide) {\n      // if we found a matching attraction, update its \"state\" property with our new data\n      const now = this.getTimeNow();\n\n      // last updated is always kept up-to-date, regardless of whether the data changed\n      existingRide.status.lastUpdated = now;\n\n      // only update \"lastChanged\" if the status has changed\n      const previousStatus = existingRide.status.lastChanged;\n      if (previousStatus !== status || previousStatus === null) {\n        existingRide.status.status = status;\n        existingRide.status.lastChanged = now;\n\n        // broadcast updated ride event\n        //  try to make sure we have updated everything before we fire this event\n        this.emit('attractionStatus', existingRide, previousStatus);\n      }\n\n      // TODO - write updated attraction data to cache\n    }\n  }\n\n  /**\n   * Update the queue status for an attraction\n   * @param {string} attractionID Attraction ID to update\n   * @param {number} waitTime Updated Wait Time in minutes, or null if wait time doesn't exist or isn't valid\n   * @param {queueType} queueType Type of queue to update (standup, virtual, fastpass etc.)\n   */\n  async updateAttractionQueue(attractionID, waitTime = -1, queueType = queueType.standBy) {\n    if (attractionID === undefined) return;\n\n    const existingRide = await this.findAttractionByID(attractionID);\n    if (existingRide) {\n      if (!existingRide.queue) {\n        existingRide.queue = {};\n      }\n      if (!existingRide.queue[queueType]) {\n        existingRide.queue[queueType] = {\n          waitTime: null,\n          lastUpdated: null,\n          lastChanged: null,\n        };\n      }\n\n      const queueData = existingRide.queue[queueType];\n\n      const now = this.getTimeNow();\n      // wait times must be a positive number (in minutes)\n      //  if wait time is unknown (because it is not tracker or there is some issue), waitTime should be null\n      const newWaitTime = (isNaN(waitTime) || waitTime < 0) ? null : waitTime;\n      const previousWaitTime = queueData.waitTime;\n\n      // store last updated time\n      queueData.lastUpdated = now;\n\n      if (newWaitTime !== previousWaitTime || previousWaitTime === null) {\n        queueData.waitTime = newWaitTime;\n        queueData.lastChanged = now;\n\n        // broadcast updated ride event\n        //  try to make sure we have updated everything before we fire this event\n        this.emit('attractionQueue', existingRide, queueType, previousWaitTime);\n      }\n\n      // TODO - write updated attraction data to cache\n    }\n  }\n\n  /**\n   * Update this park\n   * This is automatically called for you unless disableParkUpdate is set to false\n   */\n  async update() {\n    if (this._pendingUpdatePromise) {\n      return this._pendingUpdatePromise;\n    }\n\n    // start the _update call in a retry loop\n    this._pendingUpdatePromise = promiseRetry({\n      retries: 5,\n    }, (retryFn, retryAttempt) => {\n      /* if (retryAttempt > 1) {\n        console.error(`Making attempt ${retryAttempt} to call _update on ${this.constructor.name} class`);\n      }*/\n      return this._update().catch(retryFn);\n    });\n\n    // wait and catch the update Promise\n    try {\n      await this._pendingUpdatePromise;\n    } catch (e) {\n      // TODO - record park API error somewhere and continue\n      console.error(e);\n    }\n\n    this._pendingUpdatePromise = null;\n  }\n\n  /**\n   * Internal function\n   * Called by init() to initialise the object\n   * @private\n   * @abstract\n   */\n  async _init() {\n    // implementation should be setup in child classes\n    throw new Error('_init() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Update function the park object calls on interval to update internal state\n   * @private\n   * @abstract\n   */\n  async _update() {\n    // implementation should be setup in child classes\n    throw new Error('_update() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Register a new injection for a specific domain\n   * @param {string} domain Domain to inject for, accepts wildcards. See domain-match\n   * @param {function} func Function to call with needle request to inject extra data into.\n   * Function will take arguments: (method, URL, data, options)\n   */\n  async injectForDomain(domain, func) {\n    // add to our array of injections, this is processing by http()\n    this._httpInjections.push({\n      domain,\n      func,\n    });\n  }\n\n  /**\n   * Helper function to make an HTTP request for this park\n   * Parks can automatically add in authentication headers etc. to requests sent to this function\n   * @param {string} method HTTP method to use (GET,POST,DELETE, etc)\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options] Object containing needle-compatible HTTP options\n   */\n  async http(method, url, data = {}, options = {}) {\n    // always have a headers array\n    if (!options.headers) {\n      options.headers = {};\n    }\n\n    // inject custom standard user agent (if we have one)\n    //  do this before any custom injections so parks can optionally override this for each domain\n    if (this.config.useragent) {\n      options.headers['user-agent'] = this.config.useragent;\n    }\n\n    // check any hostname injections we have setup\n    for (let injectionIDX=0; injectionIDX<this._httpInjections.length; injectionIDX++) {\n      const injection = this._httpInjections[injectionIDX];\n\n      // check if the domain matches\n      if (domainMatch(injection.domain, url)) {\n        await injection.func(method, url, data, options);\n      }\n    }\n\n    const startMs = +new Date();\n    const startTime = moment(startMs).toISOString();\n\n    return needle(method, url, data, options).then(async (resp) => {\n      // console.log(resp.req);\n      // intercept response to write to our .har file\n      if (harWriter) {\n        const timeTaken = (+new Date()) - startMs;\n\n        const objToArr = (obj) => {\n          return Object.keys(obj).map((header) => {\n            return {name: header, value: obj[header].toString()};\n          });\n        };\n\n        const entry = {\n          startedDateTime: startTime,\n          time: timeTaken,\n          request: {\n            method: method,\n            url: url,\n            httpVersion: `HTTP/${resp.httpVersion}`, // this is actually the response, TODO\n            cookies: [],\n            headers: objToArr(options.headers), // not the actual headers needle sends - TODO, how to get these?\n            queryString: method === 'GET' ? objToArr(data) : [], // TODO - parse from needle's .path\n            postData: {\n              mimeType: options.json ? 'application/json' : (options.headers['content-type'] || ''),\n              params: method !== 'GET' ? [] : [],\n              text: '',\n            },\n            headersSize: -1,\n            bodySize: -1,\n          },\n          response: {\n            status: resp.statusCode,\n            statusText: resp.statusMessage,\n            httpVersion: `HTTP/${resp.httpVersion}`,\n            cookies: [],\n            headers: objToArr(resp.headers),\n            content: {\n              size: resp.raw.length || -1,\n              mimeType: resp.headers['content-type'],\n              text: resp.raw.toString('base64'),\n              encoding: 'base64',\n            },\n            redirectURL: '',\n            headersSize: -1,\n            bodySize: -1,\n          },\n          cache: {},\n          timings: {\n            send: -1,\n            wait: -1,\n            receive: -1,\n          },\n        };\n        await harWriter.recordEntry(entry);\n      }\n\n      return resp;\n    });\n  }\n}\n\nexport default Park;\n",
+    "content": "import promiseRetry from 'promise-retry';\nimport ConfigBase from '../configBase.js';\nimport needle from 'needle';\nimport domainMatch from 'domain-match';\nimport moment from 'moment-timezone';\nimport randomUseragent from 'random-useragent';\nimport Cache from '../cache/scopedCache.js';\nimport * as tags from './tags.js';\nimport HarWriter from '../har.js';\n\n// quick helper function to wait x milliseconds as a Promise\nconst delay = (milliseconds) => {\n  return new Promise((resolve) => {\n    setTimeout(resolve, milliseconds);\n  });\n};\n\n/** Generate a random Android user agent for making network requests */\nexport function generateRandomAndroidUseragent() {\n  randomUseragent.getRandom((ua) => {\n    return (ua.osName === 'Android');\n  });\n}\n\n// start our har writer (if debugging)\nconst harWriter = process.env['THEMEPARKS_HAR'] ?\n  new HarWriter({filename: `${process.env['THEMEPARKS_HAR']}.har`}):\n  null;\n\n/**\n * Base Park Object\n * @class\n */\nexport class Park extends ConfigBase {\n  /**\n   * Create a new park object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    // how often to wait between updates to run another update\n    options.updateInterval = 1000 * 60 * 5; // 5 minutes\n    // disable auto-update for this object\n    //  set this if the update is being handled by an external system\n    options.disableParkUpdate = false;\n\n    // generate a random Android user-agent if we aren't supplied one\n    options.useragent = options.useragent || generateRandomAndroidUseragent();\n\n    super(options);\n\n    if (!options.name) {\n      throw new Error(`Missing name for constructed park object ${this.constructor.name}`);\n    }\n\n    if (!options.timezone) {\n      throw new Error(`Missing timezone for constructed park object ${this.constructor.name}`);\n    }\n    // validate park timezone\n    if (moment.tz.names().indexOf(options.timezone) < 0) {\n      throw new Error(`Park object ${this.constructor.name} gives an invalid timezone: ${options.timezone}`);\n    }\n\n    // create a new cache object for this park\n    this.cache = new Cache(this.constructor.name, this.config.cacheVersion || 0);\n\n    this.initialised = false;\n\n    this._attractions = [];\n\n    // any HTTP injections that have been setup\n    //  allows parks to automatically intercept HTTP requests and add auth headers etc.\n    this._httpInjections = [];\n  }\n\n  /**\n   * Get a globally unique ID for this park\n   * @return {string}\n   */\n  getParkUniqueID() {\n    // by default, return the class name\n    return this.constructor.name.toLowerCase();\n  }\n\n  /**\n   * Return the current time for this park in its local timezone\n   * @return {string}\n   */\n  getTimeNow() {\n    return moment().tz(this.config.timezone).format();\n  }\n\n  /**\n   * Get park's human-friendly name string\n   * @return {string}\n   */\n  get name() {\n    return this.config.name;\n  }\n\n  /**\n   * Get Park Attractions\n   */\n  async getAttractions() {\n    // park must be initialised before returning any data\n    await this.init();\n\n    return this._attractions;\n  }\n\n  /**\n   * Setup the park for use\n   * Call to ensure the object has been initialised before accessing data\n   */\n  async init() {\n    if (this.initialised) {\n      return;\n    }\n\n    // setup the park ready for use\n    //  eg. download any large data-sets, calendars etc.\n    if (this._pendingSetupPromise) {\n      return this._pendingSetupPromise;\n    }\n\n    // call our internal init and wait on it\n    this._pendingSetupPromise = this._runInit();\n    await this._pendingSetupPromise;\n    this._pendingSetupPromise = null;\n\n    this.initialised = true;\n\n    if (!this.config.disableParkUpdate) {\n      // start an update loop\n\n      // use a separate function so we can quickly loop back around\n      const scheduleUpdate = async () => {\n        // pause for our updateInterval time\n        await delay(this.config.updateInterval);\n\n        // wait for Promise to resolve, grab any catches, then continue anyway\n        this.update().then().catch().then(() => {\n          // schedule another update\n          setImmediate(scheduleUpdate.bind(this));\n        });\n      };\n\n      // start the first loop timer\n      scheduleUpdate();\n    }\n  }\n\n  /**\n   * Run all the internal stages of the init process\n   * @private\n   */\n  async _runInit() {\n    try {\n      await this._init();\n    } catch (e) {\n      console.error('Error initialising park', e);\n    }\n\n    // run an initial update so we're fully setup with data before init() returns\n    return this.update();\n  }\n\n  /**\n   * Build an object representing an attraction from sourced data\n   * This object should not contain any \"state\" data, just static information about the attraction\n   * @param {string} attractionID Unique Attraction ID\n   * @return {object} Object containing at least 'name'.\n   * Also accepts 'type', which is an {@link attractionType}\n   */\n  async _buildAttractionObject(attractionID) {\n    throw new Error('Missing _buildAttractionObject Implementation', this.constructor.name);\n  }\n\n  /**\n   * Get data about a attraction from its ID\n   * @param {string} attractionID Unique Attraction ID\n   * @return {object} The attraction object for the given ID, or undefined\n   */\n  async findAttractionByID(attractionID) {\n    // build a unique attraction ID by prefixing the park's unique ID\n    const uniqueAttractionID = `${this.getParkUniqueID()}_${attractionID}`;\n\n    // search our existing store for this attraction\n    const attraction = this._attractions.find((attr) => attr.id == uniqueAttractionID);\n    if (attraction) {\n      return attraction;\n    }\n\n    // attraction wasn't found, try and add one to our store\n    const newAttraction = {\n      id: uniqueAttractionID,\n      rideId: attractionID, // unique attraction ID without the park prefix\n      name: undefined,\n      type: null,\n      status: {\n        status: null,\n        lastUpdated: null,\n        lastChanged: null,\n      },\n      queue: {},\n      tags: [],\n    };\n\n    // list of fields we want to accept from the park class\n    //  we don't want the park to add random fields to our attraction object\n    //  park-specific data should be added using \"tags\" instead, so our object structure is the same for all parks\n    const fieldsToCopyFromParkClass = [\n      'name',\n      'type',\n    ];\n\n    // TODO - restore stored live attraction data from a cache\n    //  restore from cache *before* we build the actual attraction data\n    //  this will allow the park API to fill in any out-of-date fields with live data\n\n    // ask the park implementation to supply us with some basic attraction information (name, type, etc.)\n    //  we'll then inject this into our attraction object, assuming it returns successfully\n    try {\n      const builtAttractionObject = await this._buildAttractionObject(attractionID);\n      if (builtAttractionObject !== undefined && !!builtAttractionObject.name) {\n        // copy fields we're interested in into our new attraction object\n        fieldsToCopyFromParkClass.forEach((key) => {\n          if (builtAttractionObject[key] !== undefined) {\n            newAttraction[key] = builtAttractionObject[key];\n          }\n        });\n\n        // add to our attractions array\n        this._attractions.push(newAttraction);\n\n        // we also manually accept the \"tags\" field\n        //  add each tag to the attraction after it's added to our object above\n        if (builtAttractionObject.tags) {\n          await Promise.allSettled(builtAttractionObject.tags.map((tag) => {\n            return this.setAttractionTag(attractionID, tag.key, tag.type, tag.value);\n          }));\n        }\n\n        return newAttraction;\n      }\n    } catch (e) {\n      console.error('Error building attraction object:', e);\n    }\n\n    return undefined;\n  }\n\n  /**\n   * Remove a tag from a given attraction ID\n   * @param {string} attractionID\n   * @param {string} key\n   * @param {tagType} type\n   */\n  async removeAttractionTag(attractionID, key, type) {\n    const attraction = await this.findAttractionByID(attractionID);\n    if (!attraction) return;\n\n    const existingTag = attraction.tags.findIndex((t) => t.key === key && t.type === type);\n    if (existingTag >= 0) {\n      attraction.tags.splice(existingTag, 1);\n    }\n  }\n\n  /**\n   * Set a toggle tag for an attraction.\n   * This is different from more complex tags that expect a data structure.\n   * Use this for tags that don't have any actual value, but are just present. Eg. FastPass as a feature.\n   * @param {string} attractionID\n   * @param {tagType} type\n   * @param {boolean} value\n   */\n  async toggleAttractionTag(attractionID, type, value) {\n    if (!value) {\n      // if value is false, remove the key\n      const newTag = tags.getValidTagObject(null, type, null);\n      await this.removeAttractionTag(attractionID, newTag.key, type);\n    } else {\n      // otherwise, add our tag\n      await this.setAttractionTag(attractionID, null, type, null);\n    }\n  }\n\n  /**\n   * Set an attraction tag\n   * Used for metadata on rides, such as location, thrill level, fastpass availability etc.\n   * @param {string} attractionID Attraction ID to update\n   * @param {string} key Tag key to set\n   * @param {tagType} type Tag type to use\n   * @param {*} value Tag value to set\n   * @return {boolean} True if tag was stored successfully\n   */\n  async setAttractionTag(attractionID, key, type, value) {\n    // validate tag value\n    const newTag = tags.getValidTagObject(key, type, value);\n    if (newTag === undefined) {\n      return false;\n    }\n\n    // find attraction and apply tag to it\n    const attraction = await this.findAttractionByID(attractionID);\n    if (attraction) {\n      const existingTag = attraction.tags.findIndex((t) => t.key === newTag.key && t.type === newTag.type);\n      if (existingTag < 0) {\n        // push our new tag onto our attraction\n        attraction.tags.push(newTag);\n      } else {\n        // update existing tag entry\n        attraction.tags[existingTag] = newTag;\n      }\n    }\n  }\n\n  /**\n   * Update an attraction state\n   * @param {string} attractionID Unique Attraction ID\n   * @param {statusType} status New Attraction state\n   */\n  async updateAttractionState(attractionID, status) {\n    if (attractionID === undefined) return;\n\n    const existingRide = await this.findAttractionByID(attractionID);\n    if (existingRide) {\n      // if we found a matching attraction, update its \"state\" property with our new data\n      const now = this.getTimeNow();\n\n      // last updated is always kept up-to-date, regardless of whether the data changed\n      existingRide.status.lastUpdated = now;\n\n      // only update \"lastChanged\" if the status has changed\n      const previousStatus = existingRide.status.lastChanged;\n      if (previousStatus !== status || previousStatus === null) {\n        existingRide.status.status = status;\n        existingRide.status.lastChanged = now;\n\n        // broadcast updated ride event\n        //  try to make sure we have updated everything before we fire this event\n        this.emit('attractionStatus', existingRide, previousStatus);\n      }\n\n      // TODO - write updated attraction data to cache\n    }\n  }\n\n  /**\n   * Update the queue status for an attraction\n   * @param {string} attractionID Attraction ID to update\n   * @param {number} waitTime Updated Wait Time in minutes, or null if wait time doesn't exist or isn't valid\n   * @param {queueType} queueType Type of queue to update (standup, virtual, fastpass etc.)\n   */\n  async updateAttractionQueue(attractionID, waitTime = -1, queueType = queueType.standBy) {\n    if (attractionID === undefined) return;\n\n    const existingRide = await this.findAttractionByID(attractionID);\n    if (existingRide) {\n      if (!existingRide.queue) {\n        existingRide.queue = {};\n      }\n      if (!existingRide.queue[queueType]) {\n        existingRide.queue[queueType] = {\n          waitTime: null,\n          lastUpdated: null,\n          lastChanged: null,\n        };\n      }\n\n      const queueData = existingRide.queue[queueType];\n\n      const now = this.getTimeNow();\n      // wait times must be a positive number (in minutes)\n      //  if wait time is unknown (because it is not tracker or there is some issue), waitTime should be null\n      const newWaitTime = (isNaN(waitTime) || waitTime < 0) ? null : waitTime;\n      const previousWaitTime = queueData.waitTime;\n\n      // store last updated time\n      queueData.lastUpdated = now;\n\n      if (newWaitTime !== previousWaitTime || previousWaitTime === null) {\n        queueData.waitTime = newWaitTime;\n        queueData.lastChanged = now;\n\n        // broadcast updated ride event\n        //  try to make sure we have updated everything before we fire this event\n        this.emit('attractionQueue', existingRide, queueType, previousWaitTime);\n      }\n\n      // TODO - write updated attraction data to cache\n    }\n  }\n\n  /**\n   * Update this park\n   * This is automatically called for you unless disableParkUpdate is set to false\n   */\n  async update() {\n    if (this._pendingUpdatePromise) {\n      return this._pendingUpdatePromise;\n    }\n\n    // start the _update call in a retry loop\n    this._pendingUpdatePromise = promiseRetry({\n      retries: 5,\n    }, (retryFn, retryAttempt) => {\n      /* if (retryAttempt > 1) {\n        console.error(`Making attempt ${retryAttempt} to call _update on ${this.constructor.name} class`);\n      }*/\n      return this._update().catch(retryFn);\n    });\n\n    // wait and catch the update Promise\n    try {\n      await this._pendingUpdatePromise;\n    } catch (e) {\n      // TODO - record park API error somewhere and continue\n      console.error(e);\n    }\n\n    this._pendingUpdatePromise = null;\n  }\n\n  /**\n   * Internal function\n   * Called by init() to initialise the object\n   * @private\n   * @abstract\n   */\n  async _init() {\n    // implementation should be setup in child classes\n    throw new Error('_init() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Update function the park object calls on interval to update internal state\n   * @private\n   * @abstract\n   */\n  async _update() {\n    // implementation should be setup in child classes\n    throw new Error('_update() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Register a new injection for a specific domain\n   * @param {string} domain Domain to inject for, accepts wildcards. See domain-match\n   * @param {function} func Function to call with needle request to inject extra data into.\n   * Function will take arguments: (method, URL, data, options)\n   */\n  async injectForDomain(domain, func) {\n    // add to our array of injections, this is processing by http()\n    this._httpInjections.push({\n      domain,\n      func,\n    });\n  }\n\n  /**\n   * Helper function to make an HTTP request for this park\n   * Parks can automatically add in authentication headers etc. to requests sent to this function\n   * @param {string} method HTTP method to use (GET,POST,DELETE, etc)\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options] Object containing needle-compatible HTTP options\n   */\n  async http(method, url, data = {}, options = {}) {\n    // always have a headers array\n    if (!options.headers) {\n      options.headers = {};\n    }\n\n    // inject custom standard user agent (if we have one)\n    //  do this before any custom injections so parks can optionally override this for each domain\n    if (this.config.useragent) {\n      options.headers['user-agent'] = this.config.useragent;\n    }\n\n    // check any hostname injections we have setup\n    for (let injectionIDX=0; injectionIDX<this._httpInjections.length; injectionIDX++) {\n      const injection = this._httpInjections[injectionIDX];\n\n      // check if the domain matches\n      if (domainMatch(injection.domain, url)) {\n        await injection.func(method, url, data, options);\n      }\n    }\n\n    const startMs = +new Date();\n    const startTime = moment(startMs).toISOString();\n\n    return needle(method, url, data, options).then(async (resp) => {\n      // console.log(resp.req);\n      // intercept response to write to our .har file\n      if (harWriter) {\n        const timeTaken = (+new Date()) - startMs;\n\n        const objToArr = (obj) => {\n          return Object.keys(obj).map((header) => {\n            return {name: header, value: obj[header].toString()};\n          });\n        };\n\n        const entry = {\n          startedDateTime: startTime,\n          time: timeTaken,\n          request: {\n            method: method,\n            url: url,\n            httpVersion: `HTTP/${resp.httpVersion}`, // this is actually the response, TODO\n            cookies: [],\n            headers: objToArr(options.headers), // not the actual headers needle sends - TODO, how to get these?\n            queryString: method === 'GET' ? objToArr(data) : [], // TODO - parse from needle's .path\n            postData: {\n              mimeType: options.json ? 'application/json' : (options.headers['content-type'] || ''),\n              params: method !== 'GET' ? [] : [],\n              text: '',\n            },\n            headersSize: -1,\n            bodySize: -1,\n          },\n          response: {\n            status: resp.statusCode,\n            statusText: resp.statusMessage,\n            httpVersion: `HTTP/${resp.httpVersion}`,\n            cookies: [],\n            headers: objToArr(resp.headers),\n            content: {\n              size: resp.raw.length || -1,\n              mimeType: resp.headers['content-type'],\n              text: resp.raw.toString('base64'),\n              encoding: 'base64',\n            },\n            redirectURL: '',\n            headersSize: -1,\n            bodySize: -1,\n          },\n          cache: {},\n          timings: {\n            send: -1,\n            wait: -1,\n            receive: -1,\n          },\n        };\n        await harWriter.recordEntry(entry);\n      }\n\n      return resp;\n    });\n  }\n}\n\nexport default Park;\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/park.js",
     "access": "public",
@@ -2436,7 +2436,7 @@
     "longname": "lib/parks/park.js~delay",
     "access": "public",
     "export": false,
-    "importPath": "parksapi/lib/parks/park.js",
+    "importPath": "@themeparks/parksapi/lib/parks/park.js",
     "importStyle": null,
     "description": null,
     "lineNumber": 12,
@@ -2467,7 +2467,7 @@
     "longname": "lib/parks/park.js~generateRandomAndroidUseragent",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/parks/park.js",
+    "importPath": "@themeparks/parksapi/lib/parks/park.js",
     "importStyle": "{generateRandomAndroidUseragent}",
     "description": "Generate a random Android user agent for making network requests",
     "lineNumber": 19,
@@ -2483,7 +2483,7 @@
     "longname": "lib/parks/park.js~harWriter",
     "access": "public",
     "export": false,
-    "importPath": "parksapi/lib/parks/park.js",
+    "importPath": "@themeparks/parksapi/lib/parks/park.js",
     "importStyle": null,
     "description": null,
     "lineNumber": 26,
@@ -2504,7 +2504,7 @@
     "longname": "lib/parks/park.js~Park",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/parks/park.js",
+    "importPath": "@themeparks/parksapi/lib/parks/park.js",
     "importStyle": "{Park}",
     "description": "Base Park Object",
     "lineNumber": 34,
@@ -2658,6 +2658,32 @@
   },
   {
     "__docId__": 132,
+    "kind": "get",
+    "name": "name",
+    "memberof": "lib/parks/park.js~Park",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/park.js~Park#name",
+    "access": "public",
+    "description": "Get park's human-friendly name string",
+    "lineNumber": 96,
+    "return": {
+      "nullable": null,
+      "types": [
+        "string"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 133,
     "kind": "method",
     "name": "getAttractions",
     "memberof": "lib/parks/park.js~Park",
@@ -2667,26 +2693,7 @@
     "longname": "lib/parks/park.js~Park#getAttractions",
     "access": "public",
     "description": "Get Park Attractions",
-    "lineNumber": 95,
-    "params": [],
-    "return": {
-      "types": [
-        "*"
-      ]
-    }
-  },
-  {
-    "__docId__": 133,
-    "kind": "method",
-    "name": "init",
-    "memberof": "lib/parks/park.js~Park",
-    "generator": false,
-    "async": true,
-    "static": false,
-    "longname": "lib/parks/park.js~Park#init",
-    "access": "public",
-    "description": "Setup the park for use<br />Call to ensure the object has been initialised before accessing data",
-    "lineNumber": 106,
+    "lineNumber": 103,
     "params": [],
     "return": {
       "types": [
@@ -2696,6 +2703,25 @@
   },
   {
     "__docId__": 134,
+    "kind": "method",
+    "name": "init",
+    "memberof": "lib/parks/park.js~Park",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/park.js~Park#init",
+    "access": "public",
+    "description": "Setup the park for use<br />Call to ensure the object has been initialised before accessing data",
+    "lineNumber": 114,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 135,
     "kind": "member",
     "name": "_pendingSetupPromise",
     "memberof": "lib/parks/park.js~Park",
@@ -2703,7 +2729,7 @@
     "longname": "lib/parks/park.js~Park#_pendingSetupPromise",
     "access": "private",
     "description": null,
-    "lineNumber": 118,
+    "lineNumber": 126,
     "undocument": true,
     "type": {
       "types": [
@@ -2712,7 +2738,7 @@
     }
   },
   {
-    "__docId__": 137,
+    "__docId__": 138,
     "kind": "method",
     "name": "_runInit",
     "memberof": "lib/parks/park.js~Park",
@@ -2722,7 +2748,7 @@
     "longname": "lib/parks/park.js~Park#_runInit",
     "access": "private",
     "description": "Run all the internal stages of the init process",
-    "lineNumber": 148,
+    "lineNumber": 156,
     "params": [],
     "return": {
       "types": [
@@ -2731,7 +2757,7 @@
     }
   },
   {
-    "__docId__": 138,
+    "__docId__": 139,
     "kind": "method",
     "name": "_buildAttractionObject",
     "memberof": "lib/parks/park.js~Park",
@@ -2741,7 +2767,7 @@
     "longname": "lib/parks/park.js~Park#_buildAttractionObject",
     "access": "private",
     "description": "Build an object representing an attraction from sourced data<br />This object should not contain any \"state\" data, just static information about the attraction",
-    "lineNumber": 166,
+    "lineNumber": 174,
     "params": [
       {
         "nullable": null,
@@ -2764,7 +2790,7 @@
     }
   },
   {
-    "__docId__": 139,
+    "__docId__": 140,
     "kind": "method",
     "name": "findAttractionByID",
     "memberof": "lib/parks/park.js~Park",
@@ -2774,7 +2800,7 @@
     "longname": "lib/parks/park.js~Park#findAttractionByID",
     "access": "public",
     "description": "Get data about a attraction from its ID",
-    "lineNumber": 175,
+    "lineNumber": 183,
     "params": [
       {
         "nullable": null,
@@ -2797,7 +2823,7 @@
     }
   },
   {
-    "__docId__": 140,
+    "__docId__": 141,
     "kind": "method",
     "name": "removeAttractionTag",
     "memberof": "lib/parks/park.js~Park",
@@ -2807,7 +2833,7 @@
     "longname": "lib/parks/park.js~Park#removeAttractionTag",
     "access": "public",
     "description": "Remove a tag from a given attraction ID",
-    "lineNumber": 250,
+    "lineNumber": 258,
     "params": [
       {
         "nullable": null,
@@ -2843,7 +2869,7 @@
     "return": null
   },
   {
-    "__docId__": 141,
+    "__docId__": 142,
     "kind": "method",
     "name": "toggleAttractionTag",
     "memberof": "lib/parks/park.js~Park",
@@ -2853,7 +2879,7 @@
     "longname": "lib/parks/park.js~Park#toggleAttractionTag",
     "access": "public",
     "description": "Set a toggle tag for an attraction.<br />This is different from more complex tags that expect a data structure.<br />Use this for tags that don't have any actual value, but are just present. Eg. FastPass as a feature.",
-    "lineNumber": 268,
+    "lineNumber": 276,
     "params": [
       {
         "nullable": null,
@@ -2889,7 +2915,7 @@
     "return": null
   },
   {
-    "__docId__": 142,
+    "__docId__": 143,
     "kind": "method",
     "name": "setAttractionTag",
     "memberof": "lib/parks/park.js~Park",
@@ -2899,7 +2925,7 @@
     "longname": "lib/parks/park.js~Park#setAttractionTag",
     "access": "public",
     "description": "Set an attraction tag<br />Used for metadata on rides, such as location, thrill level, fastpass availability etc.",
-    "lineNumber": 288,
+    "lineNumber": 296,
     "params": [
       {
         "nullable": null,
@@ -2952,7 +2978,7 @@
     }
   },
   {
-    "__docId__": 143,
+    "__docId__": 144,
     "kind": "method",
     "name": "updateAttractionState",
     "memberof": "lib/parks/park.js~Park",
@@ -2962,7 +2988,7 @@
     "longname": "lib/parks/park.js~Park#updateAttractionState",
     "access": "public",
     "description": "Update an attraction state",
-    "lineNumber": 314,
+    "lineNumber": 322,
     "params": [
       {
         "nullable": null,
@@ -2988,7 +3014,7 @@
     "return": null
   },
   {
-    "__docId__": 144,
+    "__docId__": 145,
     "kind": "method",
     "name": "updateAttractionQueue",
     "memberof": "lib/parks/park.js~Park",
@@ -2998,7 +3024,7 @@
     "longname": "lib/parks/park.js~Park#updateAttractionQueue",
     "access": "public",
     "description": "Update the queue status for an attraction",
-    "lineNumber": 346,
+    "lineNumber": 354,
     "params": [
       {
         "nullable": null,
@@ -3034,7 +3060,7 @@
     "return": null
   },
   {
-    "__docId__": 145,
+    "__docId__": 146,
     "kind": "method",
     "name": "update",
     "memberof": "lib/parks/park.js~Park",
@@ -3044,7 +3070,7 @@
     "longname": "lib/parks/park.js~Park#update",
     "access": "public",
     "description": "Update this park<br />This is automatically called for you unless disableParkUpdate is set to false",
-    "lineNumber": 390,
+    "lineNumber": 398,
     "params": [],
     "return": {
       "types": [
@@ -3053,7 +3079,7 @@
     }
   },
   {
-    "__docId__": 146,
+    "__docId__": 147,
     "kind": "member",
     "name": "_pendingUpdatePromise",
     "memberof": "lib/parks/park.js~Park",
@@ -3061,7 +3087,7 @@
     "longname": "lib/parks/park.js~Park#_pendingUpdatePromise",
     "access": "private",
     "description": null,
-    "lineNumber": 396,
+    "lineNumber": 404,
     "undocument": true,
     "type": {
       "types": [
@@ -3070,7 +3096,7 @@
     }
   },
   {
-    "__docId__": 148,
+    "__docId__": 149,
     "kind": "method",
     "name": "_init",
     "memberof": "lib/parks/park.js~Park",
@@ -3080,13 +3106,13 @@
     "longname": "lib/parks/park.js~Park#_init",
     "access": "private",
     "description": "Internal function<br />Called by init() to initialise the object",
-    "lineNumber": 422,
+    "lineNumber": 430,
     "abstract": true,
     "params": [],
     "return": null
   },
   {
-    "__docId__": 149,
+    "__docId__": 150,
     "kind": "method",
     "name": "_update",
     "memberof": "lib/parks/park.js~Park",
@@ -3096,13 +3122,13 @@
     "longname": "lib/parks/park.js~Park#_update",
     "access": "private",
     "description": "Update function the park object calls on interval to update internal state",
-    "lineNumber": 432,
+    "lineNumber": 440,
     "abstract": true,
     "params": [],
     "return": null
   },
   {
-    "__docId__": 150,
+    "__docId__": 151,
     "kind": "method",
     "name": "injectForDomain",
     "memberof": "lib/parks/park.js~Park",
@@ -3112,7 +3138,7 @@
     "longname": "lib/parks/park.js~Park#injectForDomain",
     "access": "public",
     "description": "Register a new injection for a specific domain",
-    "lineNumber": 443,
+    "lineNumber": 451,
     "params": [
       {
         "nullable": null,
@@ -3138,7 +3164,7 @@
     "return": null
   },
   {
-    "__docId__": 151,
+    "__docId__": 152,
     "kind": "method",
     "name": "http",
     "memberof": "lib/parks/park.js~Park",
@@ -3148,7 +3174,7 @@
     "longname": "lib/parks/park.js~Park#http",
     "access": "public",
     "description": "Helper function to make an HTTP request for this park<br />Parks can automatically add in authentication headers etc. to requests sent to this function",
-    "lineNumber": 459,
+    "lineNumber": 467,
     "params": [
       {
         "nullable": null,
@@ -3198,7 +3224,7 @@
     }
   },
   {
-    "__docId__": 152,
+    "__docId__": 153,
     "kind": "file",
     "name": "lib/parks/parkTypes.js",
     "content": "\n/**\n * Possible types of queue\n * @enum\n */\nexport const queueType = Object.freeze({\n  standBy: 'STANDBY',\n  singleRider: 'SINGLE_RIDER',\n  virtual: 'VIRTUAL',\n  fastPass: 'FAST_PASS',\n});\n\n/**\n * Status an attraction can be in (Operating, Down, etc.)\n * @enum\n */\nexport const statusType = Object.freeze({\n  operating: 'OPERATING',\n  down: 'DOWN',\n  closed: 'CLOSED',\n  refurbishment: 'REFURBISHMENT',\n});\n\n/**\n * All known attraction types (ride, show, etc.)\n * @enum\n */\nexport const attractionType = Object.freeze({\n  ride: 'RIDE',\n  show: 'SHOW',\n  transport: 'TRANSPORT',\n  parade: 'PARADE',\n  meetAndGreet: 'MEET_AND_GREET',\n  other: 'OTHER',\n});\n\n/**\n * All possible Tag types for attractions\n * @enum\n */\nexport const tagType = Object.freeze({\n  location: 'LOCATION',\n  fastPass: 'FASTPASS',\n  mayGetWet: 'MAY_GET_WET',\n  unsuitableForPregnantPeople: 'UNSUITABLE_PREGNANT',\n  minimumHeight: 'MINIMUM_HEIGHT',\n  maximumHeight: 'MAXIMUM_HEIGHT',\n});\n",
@@ -3209,7 +3235,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 153,
+    "__docId__": 154,
     "kind": "variable",
     "name": "queueType",
     "memberof": "lib/parks/parkTypes.js",
@@ -3217,35 +3243,10 @@
     "longname": "lib/parks/parkTypes.js~queueType",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/parks/parkTypes.js",
+    "importPath": "@themeparks/parksapi/lib/parks/parkTypes.js",
     "importStyle": "{queueType}",
-    "description": "Possible types of queue<br /><ul><li>queueType.standBy</li><li>queueType.singleRider</li><li>queueType.virtual</li><li>queueType.fastPass</li></ul>",
+    "description": "Possible types of queue",
     "lineNumber": 6,
-    "unknown": [
-      {
-        "tagName": "@enum",
-        "tagValue": ""
-      }
-    ],
-    "type": {
-      "types": [
-        "*"
-      ]
-    }
-  },
-  {
-    "__docId__": 154,
-    "kind": "variable",
-    "name": "statusType",
-    "memberof": "lib/parks/parkTypes.js",
-    "static": true,
-    "longname": "lib/parks/parkTypes.js~statusType",
-    "access": "public",
-    "export": true,
-    "importPath": "parksapi/lib/parks/parkTypes.js",
-    "importStyle": "{statusType}",
-    "description": "Status an attraction can be in (Operating, Down, etc.)<br /><ul><li>statusType.operating</li><li>statusType.down</li><li>statusType.closed</li><li>statusType.refurbishment</li></ul>",
-    "lineNumber": 17,
     "unknown": [
       {
         "tagName": "@enum",
@@ -3261,16 +3262,16 @@
   {
     "__docId__": 155,
     "kind": "variable",
-    "name": "attractionType",
+    "name": "statusType",
     "memberof": "lib/parks/parkTypes.js",
     "static": true,
-    "longname": "lib/parks/parkTypes.js~attractionType",
+    "longname": "lib/parks/parkTypes.js~statusType",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/parks/parkTypes.js",
-    "importStyle": "{attractionType}",
-    "description": "All known attraction types (ride, show, etc.)<br /><ul><li>attractionType.ride</li><li>attractionType.show</li><li>attractionType.transport</li><li>attractionType.parade</li><li>attractionType.meetAndGreet</li><li>attractionType.other</li></ul>",
-    "lineNumber": 28,
+    "importPath": "@themeparks/parksapi/lib/parks/parkTypes.js",
+    "importStyle": "{statusType}",
+    "description": "Status an attraction can be in (Operating, Down, etc.)",
+    "lineNumber": 17,
     "unknown": [
       {
         "tagName": "@enum",
@@ -3286,16 +3287,16 @@
   {
     "__docId__": 156,
     "kind": "variable",
-    "name": "tagType",
+    "name": "attractionType",
     "memberof": "lib/parks/parkTypes.js",
     "static": true,
-    "longname": "lib/parks/parkTypes.js~tagType",
+    "longname": "lib/parks/parkTypes.js~attractionType",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/parks/parkTypes.js",
-    "importStyle": "{tagType}",
-    "description": "All possible Tag types for attractions<br /><ul><li>tagType.location</li><li>tagType.fastPass</li><li>tagType.mayGetWet</li><li>tagType.unsuitableForPregnantPeople</li><li>tagType.minimumHeight</li><li>tagType.maximumHeight</li></ul>",
-    "lineNumber": 41,
+    "importPath": "@themeparks/parksapi/lib/parks/parkTypes.js",
+    "importStyle": "{attractionType}",
+    "description": "All known attraction types (ride, show, etc.)",
+    "lineNumber": 28,
     "unknown": [
       {
         "tagName": "@enum",
@@ -3310,6 +3311,31 @@
   },
   {
     "__docId__": 157,
+    "kind": "variable",
+    "name": "tagType",
+    "memberof": "lib/parks/parkTypes.js",
+    "static": true,
+    "longname": "lib/parks/parkTypes.js~tagType",
+    "access": "public",
+    "export": true,
+    "importPath": "@themeparks/parksapi/lib/parks/parkTypes.js",
+    "importStyle": "{tagType}",
+    "description": "All possible Tag types for attractions",
+    "lineNumber": 41,
+    "unknown": [
+      {
+        "tagName": "@enum",
+        "tagValue": ""
+      }
+    ],
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 158,
     "kind": "file",
     "name": "lib/parks/tags.js",
     "content": "// this file handles storing different tag types\n\nimport {tagType} from './parkTypes.js';\n\n/**\n * Validate a rider height tag. Used for min/max heights\n * @param {string} key\n * @param {*} data\n * @return {boolean}\n */\nconst riderHeightValidate = (key, data) => {\n  if (!validateObjectContainsOnlyGivenKeys(data, ['height', 'unit'])) {\n    return false;\n  }\n\n  const validUnits = ['cm', 'in'];\n  if (validUnits.indexOf(data.unit) < 0) {\n    return false;\n  }\n\n  return !isNaN(data.height) && data.height >= 0;\n};\n\n/**\n * Simple tags that don't have a value entry.\n * Instead, these tags are either present or not.\n */\nconst simpleTags = {\n  [tagType.fastPass]: true,\n  [tagType.mayGetWet]: true,\n  [tagType.unsuitablePregnantPeople]: true,\n};\n\n/**\n * Each tag type must have a validator function to confirm the incoming tag value is correct\n */\nconst validators = {\n  // Location tags\n  [tagType.location]: (key, data) => {\n    // make sure we have our longitude and latitude keys\n    if (!validateObjectContainsOnlyGivenKeys(data, ['longitude', 'latitude'])) {\n      return false;\n    }\n\n    // make sure our keys are valid numbers\n    if (isNaN(data.longitude) || isNaN(data.latitude)) {\n      return false;\n    }\n\n    return true;\n  },\n  // minimum height allowed to ride\n  //  must contain \"height\" as a number, and a \"unit\" which can be 'cm' (centimeters) or 'in' (inches)\n  [tagType.minimumHeight]: riderHeightValidate,\n  // maximum height allowed to ride\n  //  must contain \"height\" as a number, and a \"unit\" which can be 'cm' (centimeters) or 'in' (inches)\n  [tagType.maximumHeight]: riderHeightValidate,\n};\n\n\n/**\n * Given an object, validate that it only contains the given keys\n * Will return false if the object is missing any keys, or has additional keys not listed\n * @param {object} data\n * @param {array<string>} keys\n * @return {boolean}\n */\nfunction validateObjectContainsOnlyGivenKeys(data, keys) {\n  // make sure our input is an object\n  if (typeof data !== 'object' || data === null) return false;\n\n  // make sure our incoming keys is an array\n  keys = [].concat(keys);\n\n  // get the keys of our incoming object\n  const dataKeys = Object.keys(data);\n  // early bail if we have a different number of keys\n  if (dataKeys.length !== keys.length) return false;\n\n  // filter all our keys against our data key\n  // TODO - this may get slow for large objects, look to optimise\n  const matchingKeys = keys.filter((key) => {\n    return dataKeys.indexOf(key) >= 0;\n  });\n  // if our filtered keys is still the same length, we have all the keys we want\n  return (matchingKeys.length === dataKeys.length);\n}\n\n/**\n * Is the supplied tag type supported?\n * @param {tagType} type\n * @return {boolean}\n */\nexport function isValidTagType(type) {\n  return validators[type] !== undefined || simpleTags[type] !== undefined;\n}\n\n/**\n * Is the given type a \"simple tag\" (one with no actual value)\n * @param {tagType} type\n * @return {boolean}\n */\nexport function isSimpleTagType(type) {\n  return simpleTags[type] !== undefined;\n}\n\n/**\n * Validate a tag value based on its type\n * @param {string} key Tag name - some tags must have a valid name\n * @param {tagType} type The type for this tag entry\n * @param {*} value The tag data to validate matches this tag format's data structure\n * @return {boolean}\n */\nexport function isValidTag(key, type, value) {\n  if (!isValidTagType(type)) {\n    return false;\n  }\n\n  // simple tags don't need to run a validator\n  if (isSimpleTagType(type)) {\n    return true;\n  }\n\n  // run tag validator to confirm we are a valid tag\n  const validator = validators[type];\n  return (validator(key, value));\n}\n\n/**\n * Given a tag key, type, and value - parse, validate, and return the full expected tag object\n * @param {string} key Tag name - some tags must have a valid name\n * @param {tagType} type The type for this tag entry\n * @param {*} value The tag data to validate matches this tag format's data structure\n * @return {object} The tag object to use, or undefined if it isn't valid\n */\nexport function getValidTagObject(key, type, value) {\n  if (!isValidTag(key, type, value)) {\n    return undefined;\n  }\n\n  // return data structure based on tag type\n  if (isSimpleTagType(type)) {\n    return {\n      type,\n    };\n  } else {\n    return {\n      key,\n      value,\n      type,\n    };\n  }\n}\n",
@@ -3320,7 +3346,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 158,
+    "__docId__": 159,
     "kind": "function",
     "name": "riderHeightValidate",
     "memberof": "lib/parks/tags.js",
@@ -3330,7 +3356,7 @@
     "longname": "lib/parks/tags.js~riderHeightValidate",
     "access": "public",
     "export": false,
-    "importPath": "parksapi/lib/parks/tags.js",
+    "importPath": "@themeparks/parksapi/lib/parks/tags.js",
     "importStyle": null,
     "description": "Validate a rider height tag. Used for min/max heights",
     "lineNumber": 11,
@@ -3367,7 +3393,7 @@
     "ignore": true
   },
   {
-    "__docId__": 159,
+    "__docId__": 160,
     "kind": "variable",
     "name": "simpleTags",
     "memberof": "lib/parks/tags.js",
@@ -3375,7 +3401,7 @@
     "longname": "lib/parks/tags.js~simpleTags",
     "access": "public",
     "export": false,
-    "importPath": "parksapi/lib/parks/tags.js",
+    "importPath": "@themeparks/parksapi/lib/parks/tags.js",
     "importStyle": null,
     "description": "Simple tags that don't have a value entry.<br />Instead, these tags are either present or not.",
     "lineNumber": 28,
@@ -3387,7 +3413,7 @@
     "ignore": true
   },
   {
-    "__docId__": 160,
+    "__docId__": 161,
     "kind": "variable",
     "name": "validators",
     "memberof": "lib/parks/tags.js",
@@ -3395,7 +3421,7 @@
     "longname": "lib/parks/tags.js~validators",
     "access": "public",
     "export": false,
-    "importPath": "parksapi/lib/parks/tags.js",
+    "importPath": "@themeparks/parksapi/lib/parks/tags.js",
     "importStyle": null,
     "description": "Each tag type must have a validator function to confirm the incoming tag value is correct",
     "lineNumber": 37,
@@ -3407,7 +3433,7 @@
     "ignore": true
   },
   {
-    "__docId__": 161,
+    "__docId__": 162,
     "kind": "function",
     "name": "validateObjectContainsOnlyGivenKeys",
     "memberof": "lib/parks/tags.js",
@@ -3417,7 +3443,7 @@
     "longname": "lib/parks/tags.js~validateObjectContainsOnlyGivenKeys",
     "access": "public",
     "export": false,
-    "importPath": "parksapi/lib/parks/tags.js",
+    "importPath": "@themeparks/parksapi/lib/parks/tags.js",
     "importStyle": null,
     "description": "Given an object, validate that it only contains the given keys<br />Will return false if the object is missing any keys, or has additional keys not listed",
     "lineNumber": 68,
@@ -3454,7 +3480,7 @@
     "ignore": true
   },
   {
-    "__docId__": 162,
+    "__docId__": 163,
     "kind": "function",
     "name": "isValidTagType",
     "memberof": "lib/parks/tags.js",
@@ -3464,7 +3490,7 @@
     "longname": "lib/parks/tags.js~isValidTagType",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/parks/tags.js",
+    "importPath": "@themeparks/parksapi/lib/parks/tags.js",
     "importStyle": "{isValidTagType}",
     "description": "Is the supplied tag type supported?",
     "lineNumber": 94,
@@ -3490,7 +3516,7 @@
     }
   },
   {
-    "__docId__": 163,
+    "__docId__": 164,
     "kind": "function",
     "name": "isSimpleTagType",
     "memberof": "lib/parks/tags.js",
@@ -3500,7 +3526,7 @@
     "longname": "lib/parks/tags.js~isSimpleTagType",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/parks/tags.js",
+    "importPath": "@themeparks/parksapi/lib/parks/tags.js",
     "importStyle": "{isSimpleTagType}",
     "description": "Is the given type a \"simple tag\" (one with no actual value)",
     "lineNumber": 103,
@@ -3526,7 +3552,7 @@
     }
   },
   {
-    "__docId__": 164,
+    "__docId__": 165,
     "kind": "function",
     "name": "isValidTag",
     "memberof": "lib/parks/tags.js",
@@ -3536,7 +3562,7 @@
     "longname": "lib/parks/tags.js~isValidTag",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/parks/tags.js",
+    "importPath": "@themeparks/parksapi/lib/parks/tags.js",
     "importStyle": "{isValidTag}",
     "description": "Validate a tag value based on its type",
     "lineNumber": 114,
@@ -3582,7 +3608,7 @@
     }
   },
   {
-    "__docId__": 165,
+    "__docId__": 166,
     "kind": "function",
     "name": "getValidTagObject",
     "memberof": "lib/parks/tags.js",
@@ -3592,7 +3618,7 @@
     "longname": "lib/parks/tags.js~getValidTagObject",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/parks/tags.js",
+    "importPath": "@themeparks/parksapi/lib/parks/tags.js",
     "importStyle": "{getValidTagObject}",
     "description": "Given a tag key, type, and value - parse, validate, and return the full expected tag object",
     "lineNumber": 136,
@@ -3638,10 +3664,10 @@
     }
   },
   {
-    "__docId__": 166,
+    "__docId__": 167,
     "kind": "file",
     "name": "lib/parks/wdw/waltdisneyworldbase.js",
-    "content": "import {IndexedWDWDB, getEntityID} from './wdwdb.js';\nimport {Park} from '../park.js';\nimport {attractionType, statusType, queueType} from '../parkTypes.js';\n\nlet wdwDB = null;\n\n/**\n * Base Disney Park Class\n */\nexport class DisneyPark extends Park {\n  /**\n   * Create a new DisneyPark object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.resort_id = options.resort_id || '';\n    options.park_id = options.park_id || '';\n\n    if (!options.configPrefixes) {\n      options.configPrefixes = ['wdw'];\n    }\n\n    super(options);\n\n    if (this.config.park_id === '') {\n      throw new Error(`Missing park_id for class ${this.constructor.name}`);\n    }\n    if (this.config.resort_id === '') {\n      throw new Error(`Missing resort_id for class ${this.constructor.name}`);\n    }\n\n    // get a reference to our shared live database\n    this.db = DisneyPark.getDatabase();\n  }\n\n  /**\n * Get the live WDW database object\n * @return {object} wdwdb live database instance\n */\n  static getDatabase() {\n    if (!wdwDB) {\n      wdwDB = new IndexedWDWDB();\n    }\n    return wdwDB;\n  }\n\n  /**\n   * Get a unique ID for this park\n   * @return {string}\n   */\n  getParkUniqueID() {\n    return `${this.config.resort_id}_${this.config.park_id}`;\n  }\n\n  /**\n   * Get the channel ID for the facility status live update documents\n   * @return {string}\n   */\n  getFacilityStatusChannelID() {\n    return `${this.config.resort_id}.facilitystatus.1_0`;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _init() {\n    console.log('Initialising...');\n\n    // make sure the shared database is initialised\n    await this.db.init();\n\n    // subscribe to any live facility status updates\n    this.db.subscribeToChannel(this.getFacilityStatusChannelID(), async (doc) => {\n      this._processAttractionStatusUpdate(doc);\n    });\n\n    // fetch the current attraction times\n    const allStatusDocs = await this.db.getByChannel(this.getFacilityStatusChannelID());\n    await Promise.allSettled(allStatusDocs.map(this._processAttractionStatusUpdate.bind(this)));\n  }\n\n  /**\n   * Process a document update from a facilitystatus channel\n   * @param {object} doc The updated document\n   */\n  async _processAttractionStatusUpdate(doc) {\n    // get our clean attraction ID\n    const entityID = getEntityID(doc.id);\n\n    // check attraction is within our park\n    const updateIndexEntry = await this.db.getEntityIndex(entityID, {\n      park_id: `${this.config.park_id}`,\n    });\n\n    // if we have no entries, then attraction is not in our park\n    if (updateIndexEntry.length === 0) {\n      return;\n    }\n\n    // figure out general ride status\n    let status = statusType.operating;\n\n    // TODO - if name contains \"Temporarily Unavailable\", mark as closed?\n\n    if (doc.status === 'Down') {\n      status = statusType.down;\n    } else if (doc.status === 'Closed') {\n      status = statusType.closed;\n    } else if (doc.status === 'Refurbishment') {\n      status = statusType.refurbishment;\n    }\n\n    // update attraction state\n    await this.updateAttractionState(entityID, status);\n\n    // update attraction standby queue\n    await this.updateAttractionQueue(entityID, doc.waitMinutes, queueType.standBy);\n  }\n\n  /**\n   * Build an attraction object from an ID\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async _buildAttractionObject(attractionID) {\n    await this.db.init();\n\n    // find a document for our attraction ID\n    const attr = await this.db.getEntityOne(attractionID);\n    if (attr) {\n      return {\n        name: attr.name,\n        type: attractionType.ride, // TODO\n        tags: [\n          // TODO\n        ],\n      };\n    }\n\n    return undefined;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _update() {\n    // TODO - parks that don't use the live database need to implement this function\n  }\n}\n\nexport default DisneyPark;\n",
+    "content": "import {IndexedWDWDB, getEntityID} from './wdwdb.js';\nimport {Park} from '../park.js';\nimport {attractionType, statusType, queueType} from '../parkTypes.js';\n\nlet wdwDB = null;\n\n/**\n * Base Disney Park Class\n */\nexport class DisneyPark extends Park {\n  /**\n   * Create a new DisneyPark object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.resort_id = options.resort_id || '';\n    options.park_id = options.park_id || '';\n\n    if (!options.configPrefixes) {\n      options.configPrefixes = ['wdw'];\n    }\n\n    super(options);\n\n    if (this.config.park_id === '') {\n      throw new Error(`Missing park_id for class ${this.constructor.name}`);\n    }\n    if (this.config.resort_id === '') {\n      throw new Error(`Missing resort_id for class ${this.constructor.name}`);\n    }\n  }\n\n  /**\n * Get the live WDW database object\n * @return {object} wdwdb live database instance\n */\n  static getDatabase() {\n    if (!wdwDB) {\n      wdwDB = new IndexedWDWDB();\n    }\n    return wdwDB;\n  }\n\n  /**\n   * Get a unique ID for this park\n   * @return {string}\n   */\n  getParkUniqueID() {\n    return `${this.config.resort_id}_${this.config.park_id}`;\n  }\n\n  /**\n   * Get the channel ID for the facility status live update documents\n   * @return {string}\n   */\n  getFacilityStatusChannelID() {\n    return `${this.config.resort_id}.facilitystatus.1_0`;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _init() {\n    console.log('Initialising...');\n\n    // get a reference to our shared live database\n    this.db = DisneyPark.getDatabase();\n\n    // make sure the shared database is initialised\n    await this.db.init();\n\n    // subscribe to any live facility status updates\n    this.db.subscribeToChannel(this.getFacilityStatusChannelID(), async (doc) => {\n      this._processAttractionStatusUpdate(doc);\n    });\n\n    // fetch the current attraction times\n    const allStatusDocs = await this.db.getByChannel(this.getFacilityStatusChannelID());\n    await Promise.allSettled(allStatusDocs.map(this._processAttractionStatusUpdate.bind(this)));\n  }\n\n  /**\n   * Process a document update from a facilitystatus channel\n   * @param {object} doc The updated document\n   */\n  async _processAttractionStatusUpdate(doc) {\n    // get our clean attraction ID\n    const entityID = getEntityID(doc.id);\n\n    // check attraction is within our park\n    const updateIndexEntry = await this.db.getEntityIndex(entityID, {\n      park_id: `${this.config.park_id}`,\n    });\n\n    // if we have no entries, then attraction is not in our park\n    if (updateIndexEntry.length === 0) {\n      return;\n    }\n\n    // figure out general ride status\n    let status = statusType.operating;\n\n    // TODO - if name contains \"Temporarily Unavailable\", mark as closed?\n\n    if (doc.status === 'Down') {\n      status = statusType.down;\n    } else if (doc.status === 'Closed') {\n      status = statusType.closed;\n    } else if (doc.status === 'Refurbishment') {\n      status = statusType.refurbishment;\n    }\n\n    // update attraction state\n    await this.updateAttractionState(entityID, status);\n\n    // update attraction standby queue\n    await this.updateAttractionQueue(entityID, doc.waitMinutes, queueType.standBy);\n  }\n\n  /**\n   * Build an attraction object from an ID\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async _buildAttractionObject(attractionID) {\n    // find a document for our attraction ID\n    const attr = await this.db.getEntityOne(attractionID);\n    if (attr) {\n      return {\n        name: attr.name,\n        type: attractionType.ride, // TODO\n        tags: [\n          // TODO\n        ],\n      };\n    }\n\n    return undefined;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _update() {\n    // TODO - parks that don't use the live database need to implement this function\n  }\n}\n\nexport default DisneyPark;\n\n/**\n * Walt Disney World - Magic Kingdom\n */\nexport class WaltDisneyWorldMagicKingdom extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = '80007998';\n    options.resort_id = 'wdw';\n    options.name = 'Walt Disney World - Magic Kingdom';\n    options.timezone = 'America/New_York';\n\n    super(options);\n  }\n}\n\n/**\n * Walt Disney World - Epcot\n */\nexport class WaltDisneyWorldEpcot extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = '80007838';\n    options.resort_id = 'wdw';\n    options.name = 'Walt Disney World - Epcot';\n    options.timezone = 'America/New_York';\n\n    super(options);\n  }\n}\n\n/**\n * Walt Disney World - Hollywood Studios\n */\nexport class WaltDisneyWorldHollywoodStudios extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = '80007998';\n    options.resort_id = 'wdw';\n    options.name = 'Walt Disney World - Hollywood Studios';\n    options.timezone = 'America/New_York';\n\n    super(options);\n  }\n}\n\n/**\n * Walt Disney World - Animal Kingdom\n */\nexport class WaltDisneyWorldAnimalKingdom extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = '80007823';\n    options.resort_id = 'wdw';\n    options.name = 'Walt Disney World - Animal Kingdom';\n    options.timezone = 'America/New_York';\n\n    super(options);\n  }\n}\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/wdw/waltdisneyworldbase.js",
     "access": "public",
@@ -3649,7 +3675,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 167,
+    "__docId__": 168,
     "kind": "variable",
     "name": "wdwDB",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -3657,7 +3683,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~wdwDB",
     "access": "public",
     "export": false,
-    "importPath": "parksapi/lib/parks/wdw/waltdisneyworldbase.js",
+    "importPath": "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js",
     "importStyle": null,
     "description": null,
     "lineNumber": 5,
@@ -3670,7 +3696,7 @@
     "ignore": true
   },
   {
-    "__docId__": 168,
+    "__docId__": 169,
     "kind": "class",
     "name": "DisneyPark",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -3678,7 +3704,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/parks/wdw/waltdisneyworldbase.js",
+    "importPath": "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js",
     "importStyle": "{DisneyPark}",
     "description": "Base Disney Park Class",
     "lineNumber": 10,
@@ -3688,7 +3714,7 @@
     ]
   },
   {
-    "__docId__": 169,
+    "__docId__": 170,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -3713,23 +3739,6 @@
     ]
   },
   {
-    "__docId__": 170,
-    "kind": "member",
-    "name": "db",
-    "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
-    "static": false,
-    "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#db",
-    "access": "public",
-    "description": null,
-    "lineNumber": 33,
-    "undocument": true,
-    "type": {
-      "types": [
-        "*"
-      ]
-    }
-  },
-  {
     "__docId__": 171,
     "kind": "method",
     "name": "getDatabase",
@@ -3740,7 +3749,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.getDatabase",
     "access": "public",
     "description": "Get the live WDW database object",
-    "lineNumber": 40,
+    "lineNumber": 37,
     "return": {
       "nullable": null,
       "types": [
@@ -3762,7 +3771,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#getParkUniqueID",
     "access": "public",
     "description": "Get a unique ID for this park",
-    "lineNumber": 51,
+    "lineNumber": 48,
     "return": {
       "nullable": null,
       "types": [
@@ -3784,7 +3793,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#getFacilityStatusChannelID",
     "access": "public",
     "description": "Get the channel ID for the facility status live update documents",
-    "lineNumber": 59,
+    "lineNumber": 56,
     "return": {
       "nullable": null,
       "types": [
@@ -3806,7 +3815,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_init",
     "access": "private",
     "description": "",
-    "lineNumber": 66,
+    "lineNumber": 63,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -3818,6 +3827,23 @@
   },
   {
     "__docId__": 175,
+    "kind": "member",
+    "name": "db",
+    "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
+    "static": false,
+    "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#db",
+    "access": "public",
+    "description": null,
+    "lineNumber": 67,
+    "undocument": true,
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 176,
     "kind": "method",
     "name": "_processAttractionStatusUpdate",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -3843,7 +3869,7 @@
     "return": null
   },
   {
-    "__docId__": 176,
+    "__docId__": 177,
     "kind": "method",
     "name": "_buildAttractionObject",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -3873,7 +3899,7 @@
     }
   },
   {
-    "__docId__": 177,
+    "__docId__": 178,
     "kind": "method",
     "name": "_update",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark",
@@ -3883,7 +3909,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_update",
     "access": "private",
     "description": "",
-    "lineNumber": 145,
+    "lineNumber": 143,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -3894,7 +3920,155 @@
     "return": null
   },
   {
-    "__docId__": 178,
+    "__docId__": 179,
+    "kind": "class",
+    "name": "WaltDisneyWorldMagicKingdom",
+    "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
+    "static": true,
+    "longname": "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom",
+    "access": "public",
+    "export": true,
+    "importPath": "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js",
+    "importStyle": "{WaltDisneyWorldMagicKingdom}",
+    "description": "Walt Disney World - Magic Kingdom",
+    "lineNumber": 153,
+    "interface": false,
+    "extends": [
+      "DisneyPark"
+    ]
+  },
+  {
+    "__docId__": 180,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom#constructor",
+    "access": "public",
+    "description": "",
+    "lineNumber": 157,
+    "unknown": [
+      {
+        "tagName": "@inheritdoc",
+        "tagValue": ""
+      }
+    ]
+  },
+  {
+    "__docId__": 181,
+    "kind": "class",
+    "name": "WaltDisneyWorldEpcot",
+    "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
+    "static": true,
+    "longname": "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot",
+    "access": "public",
+    "export": true,
+    "importPath": "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js",
+    "importStyle": "{WaltDisneyWorldEpcot}",
+    "description": "Walt Disney World - Epcot",
+    "lineNumber": 170,
+    "interface": false,
+    "extends": [
+      "DisneyPark"
+    ]
+  },
+  {
+    "__docId__": 182,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot#constructor",
+    "access": "public",
+    "description": "",
+    "lineNumber": 174,
+    "unknown": [
+      {
+        "tagName": "@inheritdoc",
+        "tagValue": ""
+      }
+    ]
+  },
+  {
+    "__docId__": 183,
+    "kind": "class",
+    "name": "WaltDisneyWorldHollywoodStudios",
+    "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
+    "static": true,
+    "longname": "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios",
+    "access": "public",
+    "export": true,
+    "importPath": "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js",
+    "importStyle": "{WaltDisneyWorldHollywoodStudios}",
+    "description": "Walt Disney World - Hollywood Studios",
+    "lineNumber": 187,
+    "interface": false,
+    "extends": [
+      "DisneyPark"
+    ]
+  },
+  {
+    "__docId__": 184,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios#constructor",
+    "access": "public",
+    "description": "",
+    "lineNumber": 191,
+    "unknown": [
+      {
+        "tagName": "@inheritdoc",
+        "tagValue": ""
+      }
+    ]
+  },
+  {
+    "__docId__": 185,
+    "kind": "class",
+    "name": "WaltDisneyWorldAnimalKingdom",
+    "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
+    "static": true,
+    "longname": "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom",
+    "access": "public",
+    "export": true,
+    "importPath": "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js",
+    "importStyle": "{WaltDisneyWorldAnimalKingdom}",
+    "description": "Walt Disney World - Animal Kingdom",
+    "lineNumber": 204,
+    "interface": false,
+    "extends": [
+      "DisneyPark"
+    ]
+  },
+  {
+    "__docId__": 186,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom#constructor",
+    "access": "public",
+    "description": "",
+    "lineNumber": 208,
+    "unknown": [
+      {
+        "tagName": "@inheritdoc",
+        "tagValue": ""
+      }
+    ]
+  },
+  {
+    "__docId__": 187,
     "kind": "file",
     "name": "lib/parks/wdw/wdwdb.js",
     "content": "import PouchDB from 'pouchdb';\nimport ReplicationStream from 'pouchdb-replication-stream';\nimport sift from 'sift';\nimport {promises as fs, constants as fsConstants, createReadStream, createWriteStream} from 'fs';\nimport path from 'path';\n\nimport {parseConfig} from '../../configBase.js';\n\n/**\n * Given a document, return it's entity ID for the WDW database\n * @param {object|string} doc CouchDB document or a document ID\n * @return {string}\n */\nexport function getEntityID(doc) {\n  const docId = doc?.id || doc;\n\n  const stack = docId.split(':');\n  const lowestLevelEntity = stack[stack.length - 1];\n\n  const parts = lowestLevelEntity.split(';');\n  if (parts <= 1) return undefined;\n\n  return parts.find((p) => {\n    // edge-case for some documents with no attraction attached (guessing test documents)\n    if (p === 'Unassigned') return false;\n\n    const keyval = p.split('=');\n    return (keyval.length === 1);\n  });\n}\n\n// internal key names for our indexes. Stored as constants to save typing these over and over\nconst constants = {\n  INDEX_FACILITYSTATUS: 'facilityStatus',\n  INDEX_CHANNELS: 'channels',\n  INDEX_ENTITIES: 'entities',\n};\n\n// ancestors to include in our index\n//  we add these into our index objects to identify unique documents to index\nconst ancestorIndexes = [\n  {\n    key: 'ancestorLandId',\n    index: 'land_id',\n  },\n  {\n    key: 'ancestorResortId',\n    index: 'resort_id',\n  },\n  {\n    key: 'ancestorResortAreaId',\n    index: 'resort_area_id',\n  },\n  {\n    key: 'ancestorThemeParkId',\n    index: 'park_id',\n  },\n];\n\n// Super() function to call when we setup this class as a plugin\nconst pouchBulkDocs = PouchDB.prototype.bulkDocs;\n\n/**\n * An indexed live WDW database\n * Replicated WDW database to local disk for fast access\n * While replicating, will build an in-memory index of entities for fast lookup\n * Options to dump database to a single file or load a snapshot for quicker database boot ups\n */\nexport class IndexedWDWDB extends PouchDB {\n  /**\n   * Construct a new IndexedWDWDB object\n   * @param {object} opts PouchDB options object\n   * @param {string} [opts.remoteHost] Remote database to replicate\n   * @param {string} [opts.remoteUsername] Remote database username to authenticate\n   * @param {string} [opts.remotePassword] Remote database password to authenticate\n   * @param {string} [opts.dbName='wdw'] Local database name\n   * @param {string} [opts.snapshot] File location of a snapshot to 'seed' the database during startup\n   * @param {string} [opts.skipSync] Skip network replication, only use data already on disk\n   * @extends PouchDB\n   */\n  constructor(opts = {}) {\n    // default to enable auto_compaction\n    opts.auto_compaction = opts.auto_compaction || true;\n\n    opts.remoteHost = '';\n    opts.remoteUsername = '';\n    opts.remotePassword = '';\n    opts.dbName = opts.dbName || 'wdw';\n    opts.snapshot = ''; // optional snapshot to use when starting database\n    // 'name' is the config option pouchdb uses for the storage path\n    opts.name = opts.name || IndexedWDWDB.getDatabaseFilePath(opts.dbName);\n\n    opts.skipSync = opts.skipSync === undefined ? false : opts.skipSync;\n\n    opts.configPrefixes = ['WDWDB'].concat(opts.configPrefixes || []);\n    const config = parseConfig(opts);\n\n    super(config);\n    this.config = config;\n\n    // setup our remote host to replicate locally\n    if (this.config.remoteHost) {\n      const remoteHostOptions = {\n        skip_setup: true,\n      };\n      if (this.config.remoteUsername && this.config.remotePassword) {\n        remoteHostOptions.auth = {\n          username: this.config.remoteUsername,\n          password: this.config.remotePassword,\n        };\n      }\n\n      this.remoteDB = new PouchDB(this.config.remoteHost, remoteHostOptions);\n    }\n\n    this.synced = false;\n    this.replicating = false;\n\n    this._index = {};\n    this._setupPromise = null;\n    this._indexSetup = false;\n  }\n\n  /**\n * Get the LevelDOWN database location to use\n * @param {string} name Database name\n * @return {string}\n */\n  static getDatabaseFilePath(name) {\n    return path.join(process.cwd(), `db.${name}`);\n  }\n\n  /**\n   * Initialise the live database, returns once finished an initial sync\n   */\n  async init() {\n    if (this.synced) {\n      return;\n    }\n\n    if (this.initPromiseSync) return this.initPromiseSync;\n\n    // first, syncronise our database before we start rolling updates\n    this.initPromiseSync = this._loadAndInit();\n    // keep the Promise as a variable so we can keep returning it for any additional init() calls\n    await this.initPromiseSync;\n    this.initPromiseSync = null;\n\n    console.log(`Database finished setup!`);\n\n    this.synced = true;\n\n    if (!this.config.skipSync && this.remoteDB) {\n      this.replicating = true;\n      // start rolling replicate to keep our local database in-sync\n      PouchDB.replicate(this.remoteDB, this, {\n        live: true,\n        retry: true,\n      });\n    }\n  }\n\n  /**\n   * Internal function\n   * Loads and performs an initial sync on the database\n   * @private\n   */\n  async _loadAndInit() {\n    // first, try and restore from disk (will check if an existing snapshot exists)\n    await this.loadSnapshot();\n\n    // load up our indexes\n    await this._initIndexes();\n\n    // reindex every document once we've initialised from disk\n    //  do this before replication, since all new docs will be auto-indexed\n    const docs = await this.allDocs({\n      include_docs: true,\n    });\n    console.log('Building index...');\n    await Promise.allSettled(docs.rows.map((doc) => {\n      return this._indexWDWDocument(doc.doc);\n    }));\n\n    // optionally skip replicating with remote (for local fast testing)\n    if (this.config.skipSync || !this.remoteDB) {\n      return;\n    }\n\n    // then perform an initial replication from remote to local\n    console.log('Performing initial replication...');\n    return await PouchDB.replicate(this.remoteDB, this, {\n      batch_size: 500,\n    }).catch((e) => {\n      console.error(`Replication error: ${e}`);\n    });\n  }\n\n  /**\n   * Get the filename we use for saving backups of the database to disk\n   * Used for creating simple \"snapshots\" to reduce initial sync times\n   * @param {string} [postfix] Optional postfix for the filename\n   * eg. Use postfix to generate a temporary version of a file to write to before replacing the \"real\" database\n   * @return {string}\n   */\n  getDumpFilename(postfix = '') {\n    return path.join('localdb', `${this.config.dbName}${postfix}.db`);\n  }\n\n  /**\n   * Restore a database backup from disk\n   * Perform this after running \"dump()\" on a previous synced database\n   * This will help to reduce the initial sync time for large databases\n   * @param {string} [snapshotFile] File path of the snapshot to restore into the database\n   * snapshotFile will use default saveSnapshot result location if not supplied\n   */\n  async loadSnapshot(snapshotFile = '') {\n    if (this.synced || this.replicating) {\n      console.warn('Trying to load database snapshot when replication has already started');\n      return;\n    }\n\n    const useCustomSnapshot = !!snapshotFile;\n    const dumpPath = useCustomSnapshot ? snapshotFile : this.getDumpFilename();\n\n    // if our database dump doesn't exist, then early out and we'll do a normal sync\n    try {\n      await fs.access(dumpPath, fsConstants.F_OK);\n    } catch (error) {\n      return;\n    }\n\n    console.log('Restoring database from disk...');\n\n    // otherwise, load up our database from disk\n    const ws = createReadStream(dumpPath);\n    return this.load(ws, {\n      batch_size: 500,\n    });\n  }\n\n  /**\n   * Save a snapshot of this live database to disk\n   * This will be used to \"seed\" the database to speed up syncs for future runs\n   * @return {string} Path to resulting database snapshot\n   */\n  async saveSnapshot() {\n    if (this.databaseDumpPendingPromise) {\n      return this.databaseDumpPendingPromise;\n    }\n\n    console.log('Dumping database to disk...');\n\n    const dumpPath = this.getDumpFilename();\n    const dumpPathNew = this.getDumpFilename('_new');\n\n    // dump database to our new location\n    const ws = createWriteStream(dumpPathNew);\n    this.databaseDumpPendingPromise = this.dump(ws, {\n      batch_size: 500,\n    });\n    // save Promise so multiple \"dump()\" calls can stack cleanly\n    await this.databaseDumpPendingPromise;\n    this.databaseDumpPendingPromise = null;\n\n    // rename new database dump to our final intended location\n    return fs.rename(dumpPathNew, dumpPath).then(() => {\n      // finally, return the actual path of the snapshot\n      return dumpPath;\n    });\n  }\n\n  /**\n   * Index initialisation\n   * This function wraps taking care of creating our indexes once only\n   * @private\n   */\n  async _initIndexes() {\n    if (this._indexSetup) {\n      return;\n    }\n\n    if (this._setupPromise) {\n      return this._setupPromise;\n    }\n\n    this._setupPromise = this._createIndexes();\n    await this._setupPromise;\n    this._indexSetup = true;\n    return;\n  }\n\n  /**\n   * Setup our WDW indexes\n   * @private\n   */\n  async _createIndexes() {\n    await this._createIndex(constants.INDEX_ENTITIES);\n    await this._createIndex(constants.INDEX_CHANNELS);\n    await this._createIndex(constants.INDEX_FACILITYSTATUS, []);\n  }\n\n  /**\n   * Get the internal index object for the given index type\n   * @param {object} name Index name (see constants.INDEX_*)\n   * @return {*}\n   * @private\n   */\n  getIndex(name) {\n    return this._index[name].index;\n  }\n\n  /**\n   * Create an index object to be used by this database\n   * @param {string} name Index name\n   * @param {*} defaultIndex Index initial object state\n   * @private\n   */\n  async _createIndex(name, defaultIndex = {}) {\n    this._index[name] = {\n      index: defaultIndex,\n    };\n  }\n\n  /**\n   * Given a WDW document, extract key identifiable data\n   * This is used to build a look-up index of unique document types\n   * See ancestorIndexes for some of the keys we use\n   * This is important so we can tell the difference between entities with the same ID, but different purposes\n   * eg. an entity ID can have multiple documents, one for the attraction itself, one for it's wait times, etc.\n   * These need to both be in the index under the same entity ID, but with different properties to make them distinct\n   * @param {object} doc WDW Database Document\n   * @return {object} Index object containing important identifying data\n   * @private\n   */\n  _extractEntityKeys(doc) {\n    if (!doc || !doc.id) return undefined;\n\n    // some IDs are stacked using :\n    const stack = doc.id.split(':');\n    const lowestLevelEntity = stack[stack.length - 1];\n\n    const parts = lowestLevelEntity.split(';');\n    if (parts <= 1) return undefined;\n\n    // some documents can have different parents, they're the same, but different path to get there\n    const parentStackEl = stack.length > 1 ? stack[stack.length - 2] : undefined;\n    const parent = parentStackEl ? this._extractEntityKeys({id: parentStackEl}).id : undefined;\n\n    const ret = {\n      parent,\n    };\n\n    parts.forEach((p) => {\n      const keyval = p.split('=');\n      if (keyval.length === 1) {\n        ret.id = keyval[0];\n      } else {\n        ret[keyval[0]] = keyval[1];\n      }\n    });\n\n    // if this document is in a \"facilitystatus\" channel, add an extra tag\n    //  this is so we don't collide with the actaul document for this attraction\n    //  but also so we can filter it easier later\n    const channel = doc.channels?.length ? doc.channels[0] : undefined;\n    if (channel && channel.indexOf('facilitystatus') >= 0) {\n      ret.facilityStatus = true;\n    }\n\n    // include channel in our index\n    ret.channel = channel;\n\n    // add any ancestor data to our index (that we a) care about and b) can find) - see ancestorIndexes\n    ancestorIndexes.forEach((ancestorIndex) => {\n      if (doc[ancestorIndex.key]) {\n        const ancestorID = getEntityID(doc[ancestorIndex.key]);\n        if (ancestorID) {\n          ret[ancestorIndex.index] = ancestorID;\n        }\n      }\n    });\n\n    return ret;\n  }\n\n  /**\n   * Given a WDW database document, try to return its language\n   * @param {object} doc\n   * @return {string} Language of this document. Eg. en_intl, en_us\n   * @private\n   */\n  _extractChannelLanguage(doc) {\n    // pull channel from doc\n    const channel = doc.channels?.length ? doc.channels[0] : undefined;\n    if (!channel) return undefined;\n\n    // extract language from the end of the channel name\n    let lang = channel.slice(channel.lastIndexOf('.') + 1);\n\n    // channels missing any locale are assumed English International (they are using \"1_0\" or similar)\n    if (lang.indexOf('1') === 0) {\n      lang = 'en_intl';\n    }\n\n    return lang;\n  }\n\n  /**\n   * Add a document to the database index\n   * Used for fast lookups of entities etc. to the correct documents\n   * @param {object} doc CouchDB document to index\n   * @private\n   */\n  async _indexWDWDocument(doc) {\n    const entity = this._extractEntityKeys(doc);\n    if (entity && entity.id && entity.entityType) {\n      const id = entity.id;\n\n      const newIndexEntry = {\n        ...entity,\n        language: this._extractChannelLanguage(doc),\n        _id: doc._id,\n      };\n\n      // special-case, index all facility status documents in another index\n      if (newIndexEntry.facilityStatus) {\n        const facilityIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);\n\n        const docExists = facilityIndex.findIndex((x) => {\n          return x.id === newIndexEntry.id;\n        });\n        if (docExists >= 0) {\n          facilityIndex[docExists] = newIndexEntry;\n        } else {\n          facilityIndex.push(newIndexEntry);\n        }\n      }\n\n      // index all documents based on channel\n      const channel = doc.channels?.length ? doc.channels[0] : undefined;\n      if (channel) {\n        const channelIndex = this.getIndex(constants.INDEX_CHANNELS);\n        if (!channelIndex[channel]) {\n          channelIndex[channel] = [];\n        }\n        channelIndex[channel].push(newIndexEntry);\n      }\n\n      const newIndexKeys = Object.keys(newIndexEntry);\n\n      const entityIndex = this.getIndex(constants.INDEX_ENTITIES);\n      if (!entityIndex[id]) {\n        entityIndex[id] = [];\n      }\n      const findExisting = entityIndex[id].findIndex((x) => {\n        // if # keys are different, not a match\n        if (Object.keys(x).length !== newIndexKeys.length) return false;\n\n        // look for any mismatches between the keys\n        const findMismatch = newIndexKeys.find((key) => {\n          // _id is supposed to be different, so ignore it regardless of if it matches or not\n          if (key === '_id') return false;\n          return (newIndexEntry[key] !== x[key]);\n        });\n        return !findMismatch;\n      });\n\n      if (findExisting < 0) {\n        // entry doesn't exist, add to our list\n        entityIndex[id].push(newIndexEntry);\n      } else {\n        // replace existing entry that matches all the same properties\n        if (entityIndex[id][findExisting]._id !== newIndexEntry._id) {\n          entityIndex[id][findExisting] = newIndexEntry;\n        }\n      }\n    }\n  }\n\n  /**\n   * Get an array of documents from an array of _id\n   * @param {array<string>} ids\n   */\n  async getDocsById(ids) {\n    await this.init();\n\n    return (await Promise.all(ids.map((id) => {\n      // fetch each document using our local DB\n      return this.get(id);\n    }))).filter((doc) => {\n      // filter our any docs that failed to be fetched (they have been deleted etc.)\n      return doc !== undefined;\n    });\n  }\n\n  /**\n   * Find search index entries by ID\n   * If you want the actual document and not just the meta-index data, use getEntity() instead\n   * @param {string} id\n   * @param {object} [filter]\n   * @return {array<object>} Returns the index data for this entity ID\n   */\n  async getEntityIndex(id, filter = {}) {\n    await this.init();\n\n    const entityIndex = this.getIndex(constants.INDEX_ENTITIES);\n    const indexEntry = entityIndex[id];\n    if (!indexEntry) return [];\n\n    // filter entries by supplied filter options before resolving\n    return indexEntry.filter(sift(filter));\n  }\n\n  /**\n   * Search for an entity in the WDW database\n   * @param {string} id Entity ID\n   * @param {object} [filter] Filter index by field\n   * @return {array<object>} Returns all documents for this entity ID\n   */\n  async getEntity(id, filter = {}) {\n    const entities = await this.getEntityIndex(id, filter);\n\n    // resolve each index entry to our full documents\n    return this.getDocsById(entities.map((entry) => {\n      return entry._id;\n    }));\n  }\n\n\n  /**\n   * Search for an entity in the WDW database\n   * Attempts to return the \"best candidate\" single document that matches the incoming ID\n   * @param {string} id Entity ID\n   * @param {object} [filter] Optional index filter\n   * @return {object} Returns the best candidate single document, or undefined\n   */\n  async getEntityOne(id, filter = {}) {\n    const entities = await this.getEntityIndex(id, filter);\n    if (entities.length === 0) return undefined;\n\n    // filter to find the best document of the ones available\n    //  prioritise language en_intl\n    const enIntl = entities.find((doc) => {\n      return doc.language === 'en_intl' && !doc.facilityStatus; // don't include facilityStatus docs by-default\n    });\n    if (enIntl) {\n      return await this.get(enIntl._id);\n    }\n\n    //  2nd priority: en_US\n    const enUS = entities.find((doc) => {\n      return doc.language === 'en_us' && !doc.facilityStatus; // don't include facilityStatus docs by-default\n    });\n    if (enUS) {\n      return await this.get(enUS._id);\n    }\n\n    // otherwise just return the first entry in out list\n    return await this.get(entities[0]._id);\n  }\n\n  /**\n   * Get the live facility status for a given entity ID\n   * @param {string} id Entity ID\n   * @return {object} Facility status document, or undefined\n   */\n  async getFacilityStatus(id) {\n    await this.init();\n\n    const statusIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);\n\n    // look up entity ID in our facility status index\n    const indexEntity = statusIndex.find((x) => {\n      return x.id === id;\n    });\n    if (!indexEntity) return undefined;\n\n    return await this.get(indexEntity._id);\n  }\n\n  /**\n   * Find all documents by channel\n   * eg. 'wdw.facilitystatus.1_0' to get all WDW facility status documents\n   * @param {string} channel Channel ID\n   * @param {object} [filter] Optional document index filter\n   * @return {array<object>} All documents in this channel (or empty array)\n   */\n  async getByChannel(channel, filter = {}) {\n    await this.init();\n\n    const channelIndex = this.getIndex(constants.INDEX_CHANNELS);\n\n    const channelData = channelIndex[channel];\n    if (!channelData) {\n      return [];\n    }\n\n    // return resolved documents for the channel\n    return this.getDocsById(channelData.filter(sift(filter)).map((entry) => {\n      return entry._id;\n    }));\n  }\n\n  /**\n   * Return all documents in the database that match the given filter\n   * This is a slow operation! Use sparingly!\n   * @param {object} [filter]\n   * @return {array<object>}\n   */\n  async find(filter = {}) {\n    await this.init();\n\n    const docs = await this.allDocs({\n      include_docs: true,\n    });\n\n    return docs.rows.map((row) => row.doc).filter(sift(filter));\n  }\n\n  /**\n   * Subscribe to all database changes with an optional mongo-style filter\n   * @param {object} [filter]\n   * @param {function} callback\n   */\n  subscribeToChanges(filter, callback) {\n    if (typeof filter === 'function') {\n      // if no filter passed in, call ourselves with an empty set\n      this.subscribeToChanges({}, callback);\n    } else {\n      // listen to changes from now onwards, passing in our filter function\n      this.changes({\n        since: 'now',\n        live: true,\n        include_docs: true,\n        filter: sift(filter),\n      }).on('change', (change) => {\n        callback(change.doc);\n      });\n    }\n  }\n\n  /**\n   * Subscribe to all changes to a channel\n   * @param {string} channel\n   * @param {function} callback\n   */\n  subscribeToChannel(channel, callback) {\n    // only return documents that contain the supplied channel\n    this.subscribeToChanges({\n      channels: {\n        $elemMatch: channel,\n      },\n    }, callback);\n  }\n\n  /**\n   * Plugin function to intercept bulkDocs function\n   * We index any WDW documents we find for easier lookup later\n   * @param  {...any} args bulkDocs in\n   * @private\n   */\n  static async _pluginBulkDocs(...args) {\n    await this._initIndexes();\n\n    const body = args[0];\n    const docs = Array.isArray(body) ? body : body.docs;\n\n    // index each document being added to the database\n    // TODO - do we need to handle deletion events here?\n    await Promise.allSettled(docs.map((doc) => {\n      return this._indexWDWDocument(doc);\n    }));\n\n    // All documents check out. Pass them to PouchDB.\n    return pouchBulkDocs.call(this, ...args);\n  }\n}\n\n// add our plugin function\nIndexedWDWDB.plugin({\n  bulkDocs: IndexedWDWDB._pluginBulkDocs,\n});\n\n// pouchdb-replication-stream allows us to \"seed\" the database with an initial database dump\n//  incredibly useful for the wdw db, which is pretty huge\nIndexedWDWDB.plugin(ReplicationStream.plugin);\nPouchDB.adapter('writableStream', ReplicationStream.adapters.writableStream);\n\nexport default IndexedWDWDB;\n",
@@ -3905,7 +4079,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 179,
+    "__docId__": 188,
     "kind": "function",
     "name": "getEntityID",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -3915,7 +4089,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~getEntityID",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/parks/wdw/wdwdb.js",
+    "importPath": "@themeparks/parksapi/lib/parks/wdw/wdwdb.js",
     "importStyle": "{getEntityID}",
     "description": "Given a document, return it's entity ID for the WDW database",
     "lineNumber": 14,
@@ -3942,7 +4116,7 @@
     }
   },
   {
-    "__docId__": 180,
+    "__docId__": 189,
     "kind": "variable",
     "name": "constants",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -3950,7 +4124,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~constants",
     "access": "public",
     "export": false,
-    "importPath": "parksapi/lib/parks/wdw/wdwdb.js",
+    "importPath": "@themeparks/parksapi/lib/parks/wdw/wdwdb.js",
     "importStyle": null,
     "description": null,
     "lineNumber": 33,
@@ -3963,7 +4137,7 @@
     "ignore": true
   },
   {
-    "__docId__": 181,
+    "__docId__": 190,
     "kind": "variable",
     "name": "ancestorIndexes",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -3971,7 +4145,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~ancestorIndexes",
     "access": "public",
     "export": false,
-    "importPath": "parksapi/lib/parks/wdw/wdwdb.js",
+    "importPath": "@themeparks/parksapi/lib/parks/wdw/wdwdb.js",
     "importStyle": null,
     "description": null,
     "lineNumber": 41,
@@ -3984,7 +4158,7 @@
     "ignore": true
   },
   {
-    "__docId__": 182,
+    "__docId__": 191,
     "kind": "variable",
     "name": "pouchBulkDocs",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -3992,7 +4166,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~pouchBulkDocs",
     "access": "public",
     "export": false,
-    "importPath": "parksapi/lib/parks/wdw/wdwdb.js",
+    "importPath": "@themeparks/parksapi/lib/parks/wdw/wdwdb.js",
     "importStyle": null,
     "description": null,
     "lineNumber": 61,
@@ -4005,7 +4179,7 @@
     "ignore": true
   },
   {
-    "__docId__": 183,
+    "__docId__": 192,
     "kind": "class",
     "name": "IndexedWDWDB",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -4013,7 +4187,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
     "access": "public",
     "export": true,
-    "importPath": "parksapi/lib/parks/wdw/wdwdb.js",
+    "importPath": "@themeparks/parksapi/lib/parks/wdw/wdwdb.js",
     "importStyle": "{IndexedWDWDB}",
     "description": "An indexed live WDW database<br />Replicated WDW database to local disk for fast access<br />While replicating, will build an in-memory index of entities for fast lookup<br />Options to dump database to a single file or load a snapshot for quicker database boot ups",
     "lineNumber": 69,
@@ -4023,7 +4197,7 @@
     ]
   },
   {
-    "__docId__": 184,
+    "__docId__": 193,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4116,7 +4290,7 @@
     ]
   },
   {
-    "__docId__": 185,
+    "__docId__": 194,
     "kind": "member",
     "name": "config",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4133,7 +4307,7 @@
     }
   },
   {
-    "__docId__": 186,
+    "__docId__": 195,
     "kind": "member",
     "name": "remoteDB",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4150,7 +4324,7 @@
     }
   },
   {
-    "__docId__": 187,
+    "__docId__": 196,
     "kind": "member",
     "name": "synced",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4167,7 +4341,7 @@
     }
   },
   {
-    "__docId__": 188,
+    "__docId__": 197,
     "kind": "member",
     "name": "replicating",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4184,7 +4358,7 @@
     }
   },
   {
-    "__docId__": 189,
+    "__docId__": 198,
     "kind": "member",
     "name": "_index",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4201,7 +4375,7 @@
     }
   },
   {
-    "__docId__": 190,
+    "__docId__": 199,
     "kind": "member",
     "name": "_setupPromise",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4218,7 +4392,7 @@
     }
   },
   {
-    "__docId__": 191,
+    "__docId__": 200,
     "kind": "member",
     "name": "_indexSetup",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4235,7 +4409,7 @@
     }
   },
   {
-    "__docId__": 192,
+    "__docId__": 201,
     "kind": "method",
     "name": "getDatabaseFilePath",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4268,7 +4442,7 @@
     }
   },
   {
-    "__docId__": 193,
+    "__docId__": 202,
     "kind": "method",
     "name": "init",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4287,7 +4461,7 @@
     }
   },
   {
-    "__docId__": 194,
+    "__docId__": 203,
     "kind": "member",
     "name": "initPromiseSync",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4304,7 +4478,7 @@
     }
   },
   {
-    "__docId__": 198,
+    "__docId__": 207,
     "kind": "method",
     "name": "_loadAndInit",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4323,7 +4497,7 @@
     }
   },
   {
-    "__docId__": 199,
+    "__docId__": 208,
     "kind": "method",
     "name": "getDumpFilename",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4356,7 +4530,7 @@
     }
   },
   {
-    "__docId__": 200,
+    "__docId__": 209,
     "kind": "method",
     "name": "loadSnapshot",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4386,7 +4560,7 @@
     }
   },
   {
-    "__docId__": 201,
+    "__docId__": 210,
     "kind": "method",
     "name": "saveSnapshot",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4408,7 +4582,7 @@
     "params": []
   },
   {
-    "__docId__": 202,
+    "__docId__": 211,
     "kind": "member",
     "name": "databaseDumpPendingPromise",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4425,7 +4599,7 @@
     }
   },
   {
-    "__docId__": 204,
+    "__docId__": 213,
     "kind": "method",
     "name": "_initIndexes",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4444,7 +4618,7 @@
     }
   },
   {
-    "__docId__": 207,
+    "__docId__": 216,
     "kind": "method",
     "name": "_createIndexes",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4459,7 +4633,7 @@
     "return": null
   },
   {
-    "__docId__": 208,
+    "__docId__": 217,
     "kind": "method",
     "name": "getIndex",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4492,7 +4666,7 @@
     }
   },
   {
-    "__docId__": 209,
+    "__docId__": 218,
     "kind": "method",
     "name": "_createIndex",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4528,7 +4702,7 @@
     "return": null
   },
   {
-    "__docId__": 210,
+    "__docId__": 219,
     "kind": "method",
     "name": "_extractEntityKeys",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4561,7 +4735,7 @@
     }
   },
   {
-    "__docId__": 211,
+    "__docId__": 220,
     "kind": "method",
     "name": "_extractChannelLanguage",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4594,7 +4768,7 @@
     }
   },
   {
-    "__docId__": 212,
+    "__docId__": 221,
     "kind": "method",
     "name": "_indexWDWDocument",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4620,7 +4794,7 @@
     "return": null
   },
   {
-    "__docId__": 213,
+    "__docId__": 222,
     "kind": "method",
     "name": "getDocsById",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4650,7 +4824,7 @@
     }
   },
   {
-    "__docId__": 214,
+    "__docId__": 223,
     "kind": "method",
     "name": "getEntityIndex",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4693,7 +4867,7 @@
     }
   },
   {
-    "__docId__": 215,
+    "__docId__": 224,
     "kind": "method",
     "name": "getEntity",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4736,7 +4910,7 @@
     }
   },
   {
-    "__docId__": 216,
+    "__docId__": 225,
     "kind": "method",
     "name": "getEntityOne",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4779,7 +4953,7 @@
     }
   },
   {
-    "__docId__": 217,
+    "__docId__": 226,
     "kind": "method",
     "name": "getFacilityStatus",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4812,7 +4986,7 @@
     }
   },
   {
-    "__docId__": 218,
+    "__docId__": 227,
     "kind": "method",
     "name": "getByChannel",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4855,7 +5029,7 @@
     }
   },
   {
-    "__docId__": 219,
+    "__docId__": 228,
     "kind": "method",
     "name": "find",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4888,7 +5062,7 @@
     }
   },
   {
-    "__docId__": 220,
+    "__docId__": 229,
     "kind": "method",
     "name": "subscribeToChanges",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4924,7 +5098,7 @@
     "return": null
   },
   {
-    "__docId__": 221,
+    "__docId__": 230,
     "kind": "method",
     "name": "subscribeToChannel",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4960,7 +5134,7 @@
     "return": null
   },
   {
-    "__docId__": 222,
+    "__docId__": 231,
     "kind": "method",
     "name": "_pluginBulkDocs",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -4999,7 +5173,7 @@
   },
   {
     "kind": "packageJSON",
-    "content": "{\n  \"name\": \"parksapi\",\n  \"type\": \"module\",\n  \"version\": \"1.0.0\",\n  \"description\": \"\",\n  \"engines\": {\n    \"npm\": \">=6\",\n    \"node\": \">=14\"\n  },\n  \"main\": \"lib/index.js\",\n  \"scripts\": {\n    \"test\": \"eslint ./lib/**\",\n    \"docs\": \"esdoc\"\n  },\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/ThemeParks/parksapi.git\"\n  },\n  \"author\": \"@cube\",\n  \"license\": \"ISC\",\n  \"bugs\": {\n    \"url\": \"https://github.com/ThemeParks/parksapi/issues\"\n  },\n  \"homepage\": \"https://github.com/ThemeParks/parksapi#readme\",\n  \"dependencies\": {\n    \"domain-match\": \"^1.0.0\",\n    \"dotenv\": \"^8.2.0\",\n    \"moment-timezone\": \"^0.5.31\",\n    \"needle\": \"^2.5.0\",\n    \"pouchdb\": \"^7.2.1\",\n    \"pouchdb-replication-stream\": \"github:pouchdb-community/pouchdb-replication-stream#56f0511\",\n    \"promise-retry\": \"^2.0.1\",\n    \"random-useragent\": \"^0.4.0\",\n    \"sift\": \"^13.1.10\",\n    \"sqlite3\": \"^5.0.0\"\n  },\n  \"devDependencies\": {\n    \"@babel/traverse\": \"^7.11.0\",\n    \"esdoc\": \"^1.1.0\",\n    \"esdoc-ecmascript-proposal-plugin\": \"^1.0.0\",\n    \"esdoc-standard-plugin\": \"^1.0.0\",\n    \"eslint\": \"^7.4.0\",\n    \"eslint-config-google\": \"^0.14.0\"\n  }\n}\n",
+    "content": "{\n  \"name\": \"@themeparks/parksapi\",\n  \"type\": \"module\",\n  \"version\": \"1.1.3\",\n  \"description\": \"\",\n  \"engines\": {\n    \"npm\": \">=6\",\n    \"node\": \">=14\"\n  },\n  \"main\": \"lib/index.js\",\n  \"exports\": {\n    \".\": \"./lib/index.js\",\n    \"./park\": \"./lib/parks/park.js\",\n    \"./parkTypes\": \"./lib/parks/parkTypes.js\",\n    \"./cache/\": \"./lib/cache/\"\n  },\n  \"scripts\": {\n    \"test\": \"eslint ./lib/**\",\n    \"docs\": \"esdoc\"\n  },\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/ThemeParks/parksapi.git\"\n  },\n  \"publishConfig\": {\n    \"registry\": \"https://npm.jamie.holdings\"\n  },\n  \"author\": \"@cube\",\n  \"license\": \"ISC\",\n  \"bugs\": {\n    \"url\": \"https://github.com/ThemeParks/parksapi/issues\"\n  },\n  \"homepage\": \"https://github.com/ThemeParks/parksapi#readme\",\n  \"dependencies\": {\n    \"domain-match\": \"^1.0.0\",\n    \"dotenv\": \"^8.2.0\",\n    \"moment-timezone\": \"^0.5.31\",\n    \"needle\": \"^2.5.0\",\n    \"pouchdb\": \"^7.2.1\",\n    \"pouchdb-replication-stream\": \"github:pouchdb-community/pouchdb-replication-stream#56f0511\",\n    \"promise-retry\": \"^2.0.1\",\n    \"random-useragent\": \"^0.4.0\",\n    \"sift\": \"^13.1.10\",\n    \"sqlite3\": \"^5.0.0\"\n  },\n  \"devDependencies\": {\n    \"@babel/traverse\": \"^7.11.0\",\n    \"esdoc\": \"^1.1.0\",\n    \"esdoc-ecmascript-proposal-plugin\": \"^1.0.0\",\n    \"esdoc-standard-plugin\": \"^1.0.0\",\n    \"eslint\": \"^7.4.0\",\n    \"eslint-config-google\": \"^0.14.0\"\n  }\n}\n",
     "longname": "/home/runner/work/parksapi/parksapi/package.json",
     "name": "package.json",
     "static": true,

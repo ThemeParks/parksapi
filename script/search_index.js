@@ -1,134 +1,158 @@
 window.esdocSearchIndex = [
   [
-    "parksapi/lib/cache/cachebase.js~cachebase",
+    "@themeparks/parksapi/lib/cache/cachebase.js~cachebase",
     "class/lib/cache/cacheBase.js~CacheBase.html",
-    "<span>CacheBase</span> <span class=\"search-result-import-path\">parksapi/lib/cache/cacheBase.js</span>",
+    "<span>CacheBase</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/cache/cacheBase.js</span>",
     "class"
   ],
   [
-    "parksapi/lib/cache/cachelevel.js~cachelevel",
+    "@themeparks/parksapi/lib/cache/cachelevel.js~cachelevel",
     "class/lib/cache/cacheLevel.js~CacheLevel.html",
-    "<span>CacheLevel</span> <span class=\"search-result-import-path\">parksapi/lib/cache/cacheLevel.js</span>",
+    "<span>CacheLevel</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/cache/cacheLevel.js</span>",
     "class"
   ],
   [
-    "parksapi/lib/cache/cachememory.js~cachememory",
+    "@themeparks/parksapi/lib/cache/cachememory.js~cachememory",
     "class/lib/cache/cacheMemory.js~CacheMemory.html",
-    "<span>CacheMemory</span> <span class=\"search-result-import-path\">parksapi/lib/cache/cacheMemory.js</span>",
+    "<span>CacheMemory</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/cache/cacheMemory.js</span>",
     "class"
   ],
   [
-    "parksapi/lib/cache/cachesqlite.js~cachesqlite",
+    "@themeparks/parksapi/lib/cache/cachesqlite.js~cachesqlite",
     "class/lib/cache/cacheSqlite.js~CacheSqlite.html",
-    "<span>CacheSqlite</span> <span class=\"search-result-import-path\">parksapi/lib/cache/cacheSqlite.js</span>",
+    "<span>CacheSqlite</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/cache/cacheSqlite.js</span>",
     "class"
   ],
   [
-    "parksapi/lib/configbase.js~configbase",
+    "@themeparks/parksapi/lib/configbase.js~configbase",
     "class/lib/configBase.js~ConfigBase.html",
-    "<span>ConfigBase</span> <span class=\"search-result-import-path\">parksapi/lib/configBase.js</span>",
+    "<span>ConfigBase</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/configBase.js</span>",
     "class"
   ],
   [
-    "parksapi/lib/parks/wdw/waltdisneyworldbase.js~disneypark",
+    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~disneypark",
     "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html",
-    "<span>DisneyPark</span> <span class=\"search-result-import-path\">parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "<span>DisneyPark</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
     "class"
   ],
   [
-    "parksapi/lib/parks/efteling/efteling.js~efteling",
+    "@themeparks/parksapi/lib/parks/efteling/efteling.js~efteling",
     "class/lib/parks/efteling/efteling.js~Efteling.html",
-    "<span>Efteling</span> <span class=\"search-result-import-path\">parksapi/lib/parks/efteling/efteling.js</span>",
+    "<span>Efteling</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/efteling/efteling.js</span>",
     "class"
   ],
   [
-    "parksapi/lib/parks/wdw/wdwdb.js~indexedwdwdb",
+    "@themeparks/parksapi/lib/parks/wdw/wdwdb.js~indexedwdwdb",
     "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html",
-    "<span>IndexedWDWDB</span> <span class=\"search-result-import-path\">parksapi/lib/parks/wdw/wdwdb.js</span>",
+    "<span>IndexedWDWDB</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/wdwdb.js</span>",
     "class"
   ],
   [
-    "parksapi/lib/parks/park.js~park",
+    "@themeparks/parksapi/lib/parks/park.js~park",
     "class/lib/parks/park.js~Park.html",
-    "<span>Park</span> <span class=\"search-result-import-path\">parksapi/lib/parks/park.js</span>",
+    "<span>Park</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/park.js</span>",
     "class"
   ],
   [
-    "parksapi/lib/cache/scopedcache.js~scopedcache",
+    "@themeparks/parksapi/lib/cache/scopedcache.js~scopedcache",
     "class/lib/cache/scopedCache.js~ScopedCache.html",
-    "<span>ScopedCache</span> <span class=\"search-result-import-path\">parksapi/lib/cache/scopedCache.js</span>",
+    "<span>ScopedCache</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/cache/scopedCache.js</span>",
     "class"
   ],
   [
-    "parksapi/lib/parks/parktypes.js~attractiontype",
+    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldanimalkingdom",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom.html",
+    "<span>WaltDisneyWorldAnimalKingdom</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldepcot",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot.html",
+    "<span>WaltDisneyWorldEpcot</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldhollywoodstudios",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios.html",
+    "<span>WaltDisneyWorldHollywoodStudios</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldmagickingdom",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom.html",
+    "<span>WaltDisneyWorldMagicKingdom</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/parktypes.js~attractiontype",
     "variable/index.html#static-variable-attractionType",
-    "<span>attractionType</span> <span class=\"search-result-import-path\">parksapi/lib/parks/parkTypes.js</span>",
+    "<span>attractionType</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/parkTypes.js</span>",
     "variable"
   ],
   [
-    "parksapi/lib/parks/park.js~generaterandomandroiduseragent",
+    "@themeparks/parksapi/lib/parks/park.js~generaterandomandroiduseragent",
     "function/index.html#static-function-generateRandomAndroidUseragent",
-    "<span>generateRandomAndroidUseragent</span> <span class=\"search-result-import-path\">parksapi/lib/parks/park.js</span>",
+    "<span>generateRandomAndroidUseragent</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/park.js</span>",
     "function"
   ],
   [
-    "parksapi/lib/cache.js~getcache",
+    "@themeparks/parksapi/lib/cache.js~getcache",
     "function/index.html#static-function-getCache",
-    "<span>getCache</span> <span class=\"search-result-import-path\">parksapi/lib/cache.js</span>",
+    "<span>getCache</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/cache.js</span>",
     "function"
   ],
   [
-    "parksapi/lib/parks/wdw/wdwdb.js~getentityid",
+    "@themeparks/parksapi/lib/parks/wdw/wdwdb.js~getentityid",
     "function/index.html#static-function-getEntityID",
-    "<span>getEntityID</span> <span class=\"search-result-import-path\">parksapi/lib/parks/wdw/wdwdb.js</span>",
+    "<span>getEntityID</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/wdwdb.js</span>",
     "function"
   ],
   [
-    "parksapi/lib/parks/tags.js~getvalidtagobject",
+    "@themeparks/parksapi/lib/parks/tags.js~getvalidtagobject",
     "function/index.html#static-function-getValidTagObject",
-    "<span>getValidTagObject</span> <span class=\"search-result-import-path\">parksapi/lib/parks/tags.js</span>",
+    "<span>getValidTagObject</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/tags.js</span>",
     "function"
   ],
   [
-    "parksapi/lib/parks/tags.js~issimpletagtype",
+    "@themeparks/parksapi/lib/parks/tags.js~issimpletagtype",
     "function/index.html#static-function-isSimpleTagType",
-    "<span>isSimpleTagType</span> <span class=\"search-result-import-path\">parksapi/lib/parks/tags.js</span>",
+    "<span>isSimpleTagType</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/tags.js</span>",
     "function"
   ],
   [
-    "parksapi/lib/parks/tags.js~isvalidtag",
+    "@themeparks/parksapi/lib/parks/tags.js~isvalidtag",
     "function/index.html#static-function-isValidTag",
-    "<span>isValidTag</span> <span class=\"search-result-import-path\">parksapi/lib/parks/tags.js</span>",
+    "<span>isValidTag</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/tags.js</span>",
     "function"
   ],
   [
-    "parksapi/lib/parks/tags.js~isvalidtagtype",
+    "@themeparks/parksapi/lib/parks/tags.js~isvalidtagtype",
     "function/index.html#static-function-isValidTagType",
-    "<span>isValidTagType</span> <span class=\"search-result-import-path\">parksapi/lib/parks/tags.js</span>",
+    "<span>isValidTagType</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/tags.js</span>",
     "function"
   ],
   [
-    "parksapi/lib/configbase.js~parseconfig",
+    "@themeparks/parksapi/lib/configbase.js~parseconfig",
     "function/index.html#static-function-parseConfig",
-    "<span>parseConfig</span> <span class=\"search-result-import-path\">parksapi/lib/configBase.js</span>",
+    "<span>parseConfig</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/configBase.js</span>",
     "function"
   ],
   [
-    "parksapi/lib/parks/parktypes.js~queuetype",
+    "@themeparks/parksapi/lib/parks/parktypes.js~queuetype",
     "variable/index.html#static-variable-queueType",
-    "<span>queueType</span> <span class=\"search-result-import-path\">parksapi/lib/parks/parkTypes.js</span>",
+    "<span>queueType</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/parkTypes.js</span>",
     "variable"
   ],
   [
-    "parksapi/lib/parks/parktypes.js~statustype",
+    "@themeparks/parksapi/lib/parks/parktypes.js~statustype",
     "variable/index.html#static-variable-statusType",
-    "<span>statusType</span> <span class=\"search-result-import-path\">parksapi/lib/parks/parkTypes.js</span>",
+    "<span>statusType</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/parkTypes.js</span>",
     "variable"
   ],
   [
-    "parksapi/lib/parks/parktypes.js~tagtype",
+    "@themeparks/parksapi/lib/parks/parktypes.js~tagtype",
     "variable/index.html#static-variable-tagType",
-    "<span>tagType</span> <span class=\"search-result-import-path\">parksapi/lib/parks/parkTypes.js</span>",
+    "<span>tagType</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/parkTypes.js</span>",
     "variable"
   ],
   [
@@ -876,6 +900,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/park.js~park#name",
+    "class/lib/parks/park.js~Park.html#instance-get-name",
+    "lib/parks/park.js~Park#name",
+    "member"
+  ],
+  [
     "lib/parks/park.js~park#removeattractiontag",
     "class/lib/parks/park.js~Park.html#instance-method-removeAttractionTag",
     "lib/parks/park.js~Park#removeAttractionTag",
@@ -981,6 +1011,30 @@ window.esdocSearchIndex = [
     "lib/parks/wdw/waltdisneyworldbase.js~disneypark.getdatabase",
     "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#static-method-getDatabase",
     "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.getDatabase",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldanimalkingdom#constructor",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom.html#instance-constructor-constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldepcot#constructor",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot.html#instance-constructor-constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldhollywoodstudios#constructor",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios.html#instance-constructor-constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldmagickingdom#constructor",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom.html#instance-constructor-constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom#constructor",
     "method"
   ],
   [
