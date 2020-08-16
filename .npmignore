@@ -1,0 +1,10 @@
+node_modules
+localdb
+*.db
+*.db-journal
+out
+docs
+db.*
+test*.js
+*.har
+.*
