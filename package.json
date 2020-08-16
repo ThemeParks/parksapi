@@ -1,7 +1,7 @@
 {
   "name": "@themeparks/parksapi",
   "type": "module",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "",
   "engines": {
     "npm": ">=6",
