@@ -45,6 +45,7 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTagType">isValidTagType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-attractionType">attractionType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-queueType">queueType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-scheduleType">scheduleType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-statusType">statusType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-tagType">tagType</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-efteling">parks/efteling</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></span></li>
@@ -62,7 +63,8 @@
 <div class="content" data-ice="content"><h1 data-ice="title">lib/parks/wdw/waltdisneyworldbase.js</h1>
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {IndexedWDWDB, getEntityID} from &apos;./wdwdb.js&apos;;
 import {Park} from &apos;../park.js&apos;;
-import {attractionType, statusType, queueType, tagType} from &apos;../parkTypes.js&apos;;
+import {attractionType, statusType, queueType, tagType, scheduleType} from &apos;../parkTypes.js&apos;;
+import moment from &apos;moment-timezone&apos;;
 
 let wdwDB = null;
 
@@ -233,6 +235,40 @@ export class DisneyPark extends Park {
   async _update() {
     // TODO - parks that don&apos;t use the live database need to implement this function
   }
+
+  /**
+   * Return the operating hours for the supplied date
+   * @param {moment} date
+   */
+  async _getOperatingHoursForDate(date) {
+    // TODO - wrap/cache this in Park so we don&apos;t keep fetching this date all the time
+    const dateCalendar = await this.db.getByChannel(
+        `${this.config.resort_id}.calendar.1_0`,
+        {
+          &apos;id&apos;: date.format(&apos;DD-MM&apos;),
+        },
+    );
+
+    if (dateCalendar.length &gt;= 1) {
+      const calendar = dateCalendar[0];
+      const parkHours = calendar.parkHours.find((h) =&gt; {
+        return getEntityID(h.facilityId) === this.config.park_id;
+      });
+      if (parkHours) {
+        // TODO - build up our opening hours data for this park
+        //  include magic hours etc.?
+        return [
+          {
+            openingTime: moment(parkHours.startTime).tz(this.config.timezone).format(),
+            closingTime: moment(parkHours.endTime).tz(this.config.timezone).format(),
+            type: scheduleType.operating,
+          },
+        ];
+      }
+    }
+
+    return undefined;
+  }
 }
 
 export default DisneyPark;
@@ -245,7 +281,7 @@ export class WaltDisneyWorldMagicKingdom extends DisneyPark {
    * @inheritdoc
    */
   constructor(options = {}) {
-    options.park_id = &apos;80007798&apos;;
+    options.park_id = &apos;80007944&apos;;
     options.resort_id = &apos;wdw&apos;;
     options.name = &apos;Walt Disney World - Magic Kingdom&apos;;
     options.timezone = &apos;America/New_York&apos;;

@@ -45,6 +45,7 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTagType">isValidTagType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-attractionType">attractionType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-queueType">queueType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-scheduleType">scheduleType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-statusType">statusType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-tagType">tagType</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-efteling">parks/efteling</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></span></li>
@@ -502,6 +503,106 @@ export class Park extends ConfigBase {
   async _update() {
     // implementation should be setup in child classes
     throw new Error(&apos;_update() needs an implementation&apos;, this.constructor.name);
+  }
+
+  /**
+   * Given a moment date, return an array of opening hours for this park, or undefined
+   * Each entry should contain openingTime, closingTime, and type (of scheduleType)
+   * @param {moment} date
+   * @private
+   * @abstract
+   */
+  async _getOperatingHoursForDate(date) {
+    // implementation should be setup in child classes
+    throw new Error(&apos;_getOperatingHoursForDate() needs an implementation&apos;, this.constructor.name);
+  }
+
+  /**
+   * Get Operating Calendar for this park
+   * @return{object} Object keyed to dates in YYYY-MM-DD format.
+   * Each date entry will contain an array of operating hours.
+   */
+  async getCalendar() {
+    // cache the full calendar to avoid recalculating it constantly
+    return this.cache.wrap(&apos;calendar&apos;, async () =&gt; {
+      // make sure the park is initialised before continuing
+      await this.init();
+
+      // populate from yesterday onwards (if the API even gives us yesterday)
+      //  try to catch weird edge-cases where we&apos;re just past midnight but the park is still open
+      const yesterday = moment().tz(this.config.timezone).subtract(1, &apos;days&apos;);
+      // populate forward up to 60 days
+      const endFillDate = yesterday.clone().add(60 + 1, &apos;days&apos;);
+
+      const dates = {};
+      // get calendar by looping over each date
+      for (let date = yesterday; date.isSameOrBefore(endFillDate); date.add(1, &apos;day&apos;)) {
+        const hours = await this._getOperatingHoursForDate(date);
+        if (hours !== undefined) {
+          dates[date.format(&apos;YYYY-MM-DD&apos;)] = hours;
+        }
+      }
+
+      return dates;
+    }, 1000 * 60 * 60 * 6); // cache for 6 hours
+  }
+
+  /**
+   * Get the current park date, taking into consideration park hours past midnight etc.
+   * Eg. if the park is open past midnight, return yesterday&apos;s date.
+   * @return{string} Date in YYYY-MM-DD format
+   */
+  async getActiveParkDate() {
+    const calendar = await this.getCalendar();
+
+    const nowInPark = moment(this.getTimeNow()).tz(this.config.timezone);
+    // check yesterday, today, and tomorrow to find any park hours that we&apos;re currently in
+    //  (including any extra hours etc.)
+    //  we will fall-back to the current date if none of these match
+    const isInParkHours = [
+      nowInPark.clone().add(-1, &apos;day&apos;),
+      nowInPark,
+      nowInPark.clone().add(1, &apos;day&apos;),
+    ].map((date) =&gt; {
+      // build array of our park calendar entries
+      return {
+        date,
+        data: calendar[date.format(&apos;YYYY-MM-DD&apos;)],
+      };
+    }).filter((parkHours) =&gt; {
+      // filter out any park hours that doesn&apos;t include the current time
+      if (!parkHours.data) return false;
+      const isInAnyParkHours = parkHours.data.find((hours) =&gt; {
+        return (nowInPark.isBetween(moment(hours.openingTime), moment(hours.closingTime)));
+      });
+      return !!isInAnyParkHours;
+    });
+
+    if (isInParkHours.length === 0) {
+      // just return today&apos;s calendar
+      return nowInPark.format(&apos;YYYY-MM-DD&apos;);
+    }
+    // otherwise return the hours that we currently match
+    return isInParkHours[0].date.format(&apos;YYYY-MM-DD&apos;);
+  }
+
+  /**
+   * Get the park opening hours for today
+   */
+  async getCalendarForToday() {
+    const todaysDate = await this.getActiveParkDate();
+    const calendar = await this.getCalendar();
+    return calendar[todaysDate];
+  }
+
+  /**
+   * Get the park opening hours for tomorrow
+   */
+  async getCalendarForTomorrow() {
+    const todaysDate = await this.getActiveParkDate();
+    const tomorrow = moment(todaysDate, &apos;YYYY-MM-DD&apos;).add(1, &apos;day&apos;);
+    const calendar = await this.getCalendar();
+    return calendar[tomorrow.format(&apos;YYYY-MM-DD&apos;)];
   }
 
   /**

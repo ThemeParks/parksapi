@@ -45,6 +45,7 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTagType">isValidTagType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-attractionType">attractionType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-queueType">queueType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-scheduleType">scheduleType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-statusType">statusType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-tagType">tagType</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-efteling">parks/efteling</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></span></li>
@@ -213,12 +214,61 @@ export class IndexedWDWDB extends PouchDB {
     this.synced = true;
 
     if (!this.config.skipSync &amp;&amp; this.remoteDB) {
-      this.replicating = true;
-      // start rolling replicate to keep our local database in-sync
-      PouchDB.replicate(this.remoteDB, this, {
+      this._replicate();
+    }
+  }
+
+  /**
+   * Start database replication
+   * @private
+   */
+  _replicate() {
+    if (this.replicating) return;
+    this.replicating = true;
+
+    let noChangeTimeout = null;
+    let replicationHandle = null;
+
+    const noChangeTimer = 5; // how many minutes before killing and restarting replication
+
+    // function to reboot the replicate based on various possible failure states
+    const rebootReplicator = (err) =&gt; {
+      if (noChangeTimeout) {
+        clearTimeout(noChangeTimeout);
+      }
+      if (replicationHandle) {
+        replicationHandle.cancel();
+        replicationHandle = null;
+      }
+
+      if (err) {
+        console.error(&apos;Replication Error!&apos;, new Date(), err);
+      }
+
+      console.log(&apos;Restarting replicator...&apos;);
+      this.replicating = false;
+      setTimeout(this._replicate.bind(this), 1000);
+    };
+
+    try {
+      replicationHandle = PouchDB.replicate(this.remoteDB, this, {
         live: true,
         retry: true,
+      }).on(&apos;change&apos;, () =&gt; {
+        // reset a timer whenever we get a change
+        //  if the timer is ever first, we will restart the replicator
+        if (noChangeTimeout) {
+          clearTimeout(noChangeTimeout);
+        }
+        noChangeTimeout = setTimeout(() =&gt; {
+          rebootReplicator();
+        }, 1000 * 60 * noChangeTimer);
+        console.log(&apos;.&apos;);
+      }).on(&apos;error&apos;, (e) =&gt; {
+        rebootReplicator(e);
       });
+    } catch (e) {
+      rebootReplicator(e);
     }
   }
 
@@ -412,6 +462,11 @@ export class IndexedWDWDB extends PouchDB {
     const ret = {
       parent,
     };
+
+    // special case for calendars
+    if (doc.channels[0].indexOf(&apos;.calendar.&apos;) &gt;= 0) {
+      ret.entityType = &apos;calendar&apos;;
+    }
 
     parts.forEach((p) =&gt; {
       const keyval = p.split(&apos;=&apos;);

@@ -144,6 +144,12 @@ window.esdocSearchIndex = [
     "variable"
   ],
   [
+    "@themeparks/parksapi/lib/parks/parktypes.js~scheduletype",
+    "variable/index.html#static-variable-scheduleType",
+    "<span>scheduleType</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/parkTypes.js</span>",
+    "variable"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/parktypes.js~statustype",
     "variable/index.html#static-variable-statusType",
     "<span>statusType</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/parkTypes.js</span>",
@@ -804,6 +810,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/park.js~park#_getoperatinghoursfordate",
+    "class/lib/parks/park.js~Park.html#instance-method-_getOperatingHoursForDate",
+    "lib/parks/park.js~Park#_getOperatingHoursForDate",
+    "method"
+  ],
+  [
     "lib/parks/park.js~park#_httpinjections",
     "class/lib/parks/park.js~Park.html#instance-member-_httpInjections",
     "lib/parks/park.js~Park#_httpInjections",
@@ -858,9 +870,33 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/park.js~park#getactiveparkdate",
+    "class/lib/parks/park.js~Park.html#instance-method-getActiveParkDate",
+    "lib/parks/park.js~Park#getActiveParkDate",
+    "method"
+  ],
+  [
     "lib/parks/park.js~park#getattractions",
     "class/lib/parks/park.js~Park.html#instance-method-getAttractions",
     "lib/parks/park.js~Park#getAttractions",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#getcalendar",
+    "class/lib/parks/park.js~Park.html#instance-method-getCalendar",
+    "lib/parks/park.js~Park#getCalendar",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#getcalendarfortoday",
+    "class/lib/parks/park.js~Park.html#instance-method-getCalendarForToday",
+    "lib/parks/park.js~Park#getCalendarForToday",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#getcalendarfortomorrow",
+    "class/lib/parks/park.js~Park.html#instance-method-getCalendarForTomorrow",
+    "lib/parks/park.js~Park#getCalendarForTomorrow",
     "method"
   ],
   [
@@ -963,6 +999,12 @@ window.esdocSearchIndex = [
     "lib/parks/wdw/waltdisneyworldbase.js~disneypark#_buildattractionobject",
     "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_buildAttractionObject",
     "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_buildAttractionObject",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#_getoperatinghoursfordate",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_getOperatingHoursForDate",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_getOperatingHoursForDate",
     "method"
   ],
   [
@@ -1119,6 +1161,12 @@ window.esdocSearchIndex = [
     "lib/parks/wdw/wdwdb.js~indexedwdwdb#_loadandinit",
     "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-_loadAndInit",
     "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_loadAndInit",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#_replicate",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-_replicate",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_replicate",
     "method"
   ],
   [
