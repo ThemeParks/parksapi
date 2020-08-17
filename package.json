@@ -32,7 +32,6 @@
   },
   "homepage": "https://github.com/ThemeParks/parksapi#readme",
   "dependencies": {
-    "domain-match": "^1.0.0",
     "dotenv": "^8.2.0",
     "moment-timezone": "^0.5.31",
     "needle": "^2.5.0",
