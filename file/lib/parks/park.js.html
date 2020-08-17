@@ -64,12 +64,13 @@
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import promiseRetry from &apos;promise-retry&apos;;
 import ConfigBase from &apos;../configBase.js&apos;;
 import needle from &apos;needle&apos;;
-import domainMatch from &apos;domain-match&apos;;
 import moment from &apos;moment-timezone&apos;;
 import randomUseragent from &apos;random-useragent&apos;;
 import Cache from &apos;../cache/scopedCache.js&apos;;
 import * as tags from &apos;./tags.js&apos;;
 import HarWriter from &apos;../har.js&apos;;
+import sift from &apos;sift&apos;;
+import {URL} from &apos;url&apos;;
 
 // quick helper function to wait x milliseconds as a Promise
 const delay = (milliseconds) =&gt; {
@@ -133,6 +134,10 @@ export class Park extends ConfigBase {
     // any HTTP injections that have been setup
     //  allows parks to automatically intercept HTTP requests and add auth headers etc.
     this._httpInjections = [];
+
+    // track the park&apos;s current date
+    //  we&apos;ll fire an event whenever this changes
+    this._currentDate = null;
   }
 
   /**
@@ -395,7 +400,7 @@ export class Park extends ConfigBase {
 
       // only update &quot;lastChanged&quot; if the status has changed
       const previousStatus = existingRide.status.status;
-      if (previousStatus !== status || previousStatus === null) {
+      if (previousStatus !== status || existingRide.status.lastChanged === null) {
         existingRide.status.status = status;
         existingRide.status.lastChanged = now;
 
@@ -441,7 +446,7 @@ export class Park extends ConfigBase {
       // store last updated time
       queueData.lastUpdated = now;
 
-      if (newWaitTime !== previousWaitTime || previousWaitTime === null) {
+      if (newWaitTime !== previousWaitTime || queueData.lastChanged === null) {
         queueData.waitTime = newWaitTime;
         queueData.lastChanged = now;
 
@@ -452,6 +457,15 @@ export class Park extends ConfigBase {
 
       // TODO - write updated attraction data to cache
     }
+  }
+
+  /**
+   * Called after each successful update, handle any clean-up or extra work here
+   * @private
+   */
+  async postUpdate() {
+    // check if our date has changed
+    await this._checkDate();
   }
 
   /**
@@ -466,10 +480,7 @@ export class Park extends ConfigBase {
     // start the _update call in a retry loop
     this._pendingUpdatePromise = promiseRetry({
       retries: 5,
-    }, (retryFn, retryAttempt) =&gt; {
-      /* if (retryAttempt &gt; 1) {
-        console.error(`Making attempt ${retryAttempt} to call _update on ${this.constructor.name} class`);
-      }*/
+    }, (retryFn) =&gt; {
       return this._update().catch(retryFn);
     });
 
@@ -482,6 +493,36 @@ export class Park extends ConfigBase {
     }
 
     this._pendingUpdatePromise = null;
+
+    setImmediate(this.postUpdate.bind(this));
+  }
+
+  /**
+   * Called when the park&apos;s date changes
+   * Eg. when passing midnight in the park&apos;s local timezone
+   *  or if late opening hours finish the morning after (eg. open until 2am, will be called just after 2am)
+   * @param {string} newDate Current Park Date
+   * @param {string} oldDate The previous date for this park before the update (can be null if park just initialised)
+   * @abstract
+   */
+  async _dateRefresh(newDate, oldDate) {}
+
+  /**
+   * Check if the park&apos;s &quot;active date&quot; has changed
+   */
+  async _checkDate() {
+    const todaysDate = await this.getActiveParkDate();
+    if (this._currentDate !== todaysDate) {
+      // store the previous date and update the current date immediately
+      //  this makes sure the park object is in the correct state before firing the newDate events
+      const originalDate = this._currentDate;
+      this._currentDate = todaysDate;
+
+      // broadcast event when the park&apos;s day changes
+      //  we can use this to update ride schedules etc.
+      this._dateRefresh(todaysDate, originalDate);
+      this.emit(&apos;newDate&apos;, todaysDate, originalDate);
+    }
   }
 
   /**
@@ -523,11 +564,11 @@ export class Park extends ConfigBase {
    * Each date entry will contain an array of operating hours.
    */
   async getCalendar() {
+    // make sure the park is initialised before continuing
+    await this.init();
+
     // cache the full calendar to avoid recalculating it constantly
     return this.cache.wrap(&apos;calendar&apos;, async () =&gt; {
-      // make sure the park is initialised before continuing
-      await this.init();
-
       // populate from yesterday onwards (if the API even gives us yesterday)
       //  try to catch weird edge-cases where we&apos;re just past midnight but the park is still open
       const yesterday = moment().tz(this.config.timezone).subtract(1, &apos;days&apos;);
@@ -607,14 +648,14 @@ export class Park extends ConfigBase {
 
   /**
    * Register a new injection for a specific domain
-   * @param {string} domain Domain to inject for, accepts wildcards. See domain-match
+   * @param {object} filter Mongo-type query to use to match a URL
    * @param {function} func Function to call with needle request to inject extra data into.
    * Function will take arguments: (method, URL, data, options)
    */
-  async injectForDomain(domain, func) {
+  async injectForDomain(filter, func) {
     // add to our array of injections, this is processing by http()
     this._httpInjections.push({
-      domain,
+      filter: sift(filter),
       func,
     });
   }
@@ -644,7 +685,7 @@ export class Park extends ConfigBase {
       const injection = this._httpInjections[injectionIDX];
 
       // check if the domain matches
-      if (domainMatch(injection.domain, url)) {
+      if (injection.filter(new URL(url))) {
         await injection.func(method, url, data, options);
       }
     }

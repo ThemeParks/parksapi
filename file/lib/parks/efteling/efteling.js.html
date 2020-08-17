@@ -62,7 +62,7 @@
 
 <div class="content" data-ice="content"><h1 data-ice="title">lib/parks/efteling/efteling.js</h1>
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {Park} from &apos;../park.js&apos;;
-import {attractionType, statusType, queueType, tagType} from &apos;../parkTypes.js&apos;;
+import {attractionType, statusType, queueType, tagType, scheduleType} from &apos;../parkTypes.js&apos;;
 
 /**
  * Efteling Park Object
@@ -92,7 +92,17 @@ export class Efteling extends Park {
     if (!this.config.apiVersion) throw new Error(&apos;Missing Efteling apiVersion&apos;);
     if (!this.config.appVersion) throw new Error(&apos;Missing Efteling appVersion&apos;);
 
-    this.injectForDomain(&apos;*.efteling.com&apos;, (method, url, data, options) =&gt; {
+    this.injectForDomain({
+      // match either of the API domains
+      $or: [
+        {
+          hostname: &apos;api.efteling.com&apos;,
+        },
+        {
+          hostname: &apos;prd-search-acs.efteling.com&apos;,
+        },
+      ],
+    }, (method, url, data, options) =&gt; {
       // all requests from the app to any efteling subdomain should send these headers
       options.headers[&apos;x-app-version&apos;] = this.config.appVersion;
       options.headers[&apos;x-app-name&apos;] = &apos;Efteling&apos;;
@@ -106,7 +116,10 @@ export class Efteling extends Park {
       options.compressed = true;
     });
 
-    this.injectForDomain(&apos;api.efteling.com&apos;, (method, url, data, options) =&gt; {
+    this.injectForDomain({
+      // only use these headers for the main API domain
+      hostname: &apos;api.efteling.com&apos;,
+    }, (method, url, data, options) =&gt; {
       // api.efteling.com requries an API key as well as the above headers
       options.headers[&apos;x-api-key&apos;] = this.config.apiKey;
       options.headers[&apos;x-api-version&apos;] = this.config.apiVersion;
@@ -269,7 +282,7 @@ export class Efteling extends Park {
         } else if (rideState === &apos;inonderhoud&apos;) {
           // Ride down because of maintenance/refurbishment
           rideStatus = statusType.refurbishment;
-        } else if (rideState === &apos;gesloten&apos; || rideState === &apos;&apos;) {
+        } else if (rideState === &apos;gesloten&apos; || rideState === &apos;&apos; || rideState === &apos;wachtrijgesloten&apos;) {
           // ride is &quot;closed&quot;
           rideStatus = statusType.closed;
         } else if (rideState === &apos;open&apos;) {
@@ -307,6 +320,58 @@ export class Efteling extends Park {
         }
       }
     }));
+  }
+
+  /**
+   * Get calendar data for the given month and year
+   * @param {string} month
+   * @param {string} year
+   * @return {array&lt;object&gt;}
+   */
+  async getCalendarMonth(month, year) {
+    return await this.cache.wrap(`calendar_${year}_${month}`, async () =&gt; {
+      const data = await this.http(
+          &apos;GET&apos;,
+          `https://www.efteling.com/service/cached/getpoiinfo/en/${year}/${month}`,
+          null,
+          {
+            headers: {
+              &apos;X-Requested-With&apos;: &apos;XMLHttpRequest&apos;,
+              &apos;referer&apos;: &apos;https://www.efteling.com/en/park/opening-hours?app=true&apos;,
+              &apos;cookie&apos;: &apos;website#lang=en&apos;,
+            },
+            json: true,
+          },
+      );
+
+      if (!data?.body?.OpeningHours) throw new Error(`Unable to find opening hours for Efteling ${data.body}`);
+
+      return data.body;
+    }, 1000 * 60 * 60 * 12); // 12 hours
+  }
+
+  /**
+   * Return the operating hours for the supplied date
+   * @param {moment} date
+   */
+  async _getOperatingHoursForDate(date) {
+    const cal = await this.getCalendarMonth(date.format(&apos;M&apos;), date.format(&apos;YYYY&apos;));
+    if (cal === undefined) return undefined;
+
+    const dateFormatted = date.format(&apos;YYYY-MM-DD&apos;);
+    const data = cal.OpeningHours.find((x) =&gt; x.Date === dateFormatted);
+    if (data) {
+      return data.OpeningHours.map((d) =&gt; {
+        const open = d.Open.split(&apos;:&apos;).map(Number);
+        const close = d.Close.split(&apos;:&apos;).map(Number);
+        return {
+          openingTime: date.clone().set(&apos;hour&apos;, open[0]).set(&apos;minute&apos;, open[1]).format(),
+          closingTime: date.clone().set(&apos;hour&apos;, close[0]).set(&apos;minute&apos;, close[1]).format(),
+          type: scheduleType.operating,
+        };
+      });
+    }
+    return undefined;
   }
 }
 

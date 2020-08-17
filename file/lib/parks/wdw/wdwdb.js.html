@@ -263,7 +263,6 @@ export class IndexedWDWDB extends PouchDB {
         noChangeTimeout = setTimeout(() =&gt; {
           rebootReplicator();
         }, 1000 * 60 * noChangeTimer);
-        console.log(&apos;.&apos;);
       }).on(&apos;error&apos;, (e) =&gt; {
         rebootReplicator(e);
       });

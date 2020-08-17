@@ -1,7 +1,7 @@
 {
-  "coverage": "79.41%",
-  "expectCount": 170,
-  "actualCount": 135,
+  "coverage": "79.54%",
+  "expectCount": 176,
+  "actualCount": 140,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 12,
@@ -59,22 +59,23 @@
       ]
     },
     "lib/parks/efteling/efteling.js": {
-      "expectCount": 6,
-      "actualCount": 6,
+      "expectCount": 8,
+      "actualCount": 8,
       "undocumentLines": []
     },
     "lib/parks/park.js": {
-      "expectCount": 34,
-      "actualCount": 26,
+      "expectCount": 38,
+      "actualCount": 29,
       "undocumentLines": [
-        12,
-        26,
-        64,
-        66,
-        68,
-        72,
-        126,
-        404
+        13,
+        27,
+        65,
+        67,
+        69,
+        73,
+        77,
+        131,
+        418
       ]
     },
     "lib/parks/parkTypes.js": {
@@ -110,7 +111,7 @@
         120,
         121,
         144,
-        308
+        307
       ]
     }
   }

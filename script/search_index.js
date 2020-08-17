@@ -768,6 +768,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/efteling/efteling.js~efteling#_getoperatinghoursfordate",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-_getOperatingHoursForDate",
+    "lib/parks/efteling/efteling.js~Efteling#_getOperatingHoursForDate",
+    "method"
+  ],
+  [
     "lib/parks/efteling/efteling.js~efteling#_init",
     "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-_init",
     "lib/parks/efteling/efteling.js~Efteling#_init",
@@ -783,6 +789,12 @@ window.esdocSearchIndex = [
     "lib/parks/efteling/efteling.js~efteling#constructor",
     "class/lib/parks/efteling/efteling.js~Efteling.html#instance-constructor-constructor",
     "lib/parks/efteling/efteling.js~Efteling#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/efteling/efteling.js~efteling#getcalendarmonth",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-getCalendarMonth",
+    "lib/parks/efteling/efteling.js~Efteling#getCalendarMonth",
     "method"
   ],
   [
@@ -807,6 +819,24 @@ window.esdocSearchIndex = [
     "lib/parks/park.js~park#_buildattractionobject",
     "class/lib/parks/park.js~Park.html#instance-method-_buildAttractionObject",
     "lib/parks/park.js~Park#_buildAttractionObject",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#_checkdate",
+    "class/lib/parks/park.js~Park.html#instance-method-_checkDate",
+    "lib/parks/park.js~Park#_checkDate",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#_currentdate",
+    "class/lib/parks/park.js~Park.html#instance-member-_currentDate",
+    "lib/parks/park.js~Park#_currentDate",
+    "member"
+  ],
+  [
+    "lib/parks/park.js~park#_daterefresh",
+    "class/lib/parks/park.js~Park.html#instance-method-_dateRefresh",
+    "lib/parks/park.js~Park#_dateRefresh",
     "method"
   ],
   [
@@ -940,6 +970,12 @@ window.esdocSearchIndex = [
     "class/lib/parks/park.js~Park.html#instance-get-name",
     "lib/parks/park.js~Park#name",
     "member"
+  ],
+  [
+    "lib/parks/park.js~park#postupdate",
+    "class/lib/parks/park.js~Park.html#instance-method-postUpdate",
+    "lib/parks/park.js~Park#postUpdate",
+    "method"
   ],
   [
     "lib/parks/park.js~park#removeattractiontag",
