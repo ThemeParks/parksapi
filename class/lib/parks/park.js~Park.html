@@ -32,6 +32,8 @@
   <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/configBase.js~ConfigBase.html">ConfigBase</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getCache">getCache</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-parseConfig">parseConfig</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-reusePromise">reusePromise</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-reusePromiseForever">reusePromiseForever</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#cache">cache</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheBase.js~CacheBase.html">CacheBase</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheLevel.js~CacheLevel.html">CacheLevel</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheMemory.js~CacheMemory.html">CacheMemory</a></span></span></li>
@@ -50,6 +52,8 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-tagType">tagType</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-efteling">parks/efteling</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure.html">DisneylandResortCaliforniaAdventure</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortMagicKingdom.html">DisneylandResortMagicKingdom</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom.html">WaltDisneyWorldAnimalKingdom</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot.html">WaltDisneyWorldEpcot</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios.html">WaltDisneyWorldHollywoodStudios</a></span></span></li>
@@ -61,13 +65,13 @@
 </nav>
 
 <div class="content" data-ice="content"><div class="header-notice">
-  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import {Park} from &apos;<span><a href="file/lib/parks/park.js.html#lineNumber35">@themeparks/parksapi/lib/parks/park.js</a></span>&apos;</code></pre></div>
+  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import {Park} from &apos;<span><a href="file/lib/parks/park.js.html#lineNumber36">@themeparks/parksapi/lib/parks/park.js</a></span>&apos;</code></pre></div>
   <span data-ice="access">public</span>
   <span data-ice="kind">class</span>
   
   
   
-  <span data-ice="source">| <span><a href="file/lib/parks/park.js.html#lineNumber35">source</a></span></span>
+  <span data-ice="source">| <span><a href="file/lib/parks/park.js.html#lineNumber36">source</a></span></span>
 </div>
 
 <div class="self-detail detail">
@@ -79,7 +83,7 @@
   
   <div class="flat-list" data-ice="extendsChain"><h4>Extends:</h4><div><span>events~EventEmitter</span> &#x2192; <span><a href="class/lib/configBase.js~ConfigBase.html">ConfigBase</a></span> &#x2192; Park</div></div>
   <div class="flat-list" data-ice="directSubclass"><h4>Direct Subclass:</h4><div><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span>, <span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></div></div>
-  <div class="flat-list" data-ice="indirectSubclass"><h4>Indirect Subclass:</h4><div><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom.html">WaltDisneyWorldAnimalKingdom</a></span>, <span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot.html">WaltDisneyWorldEpcot</a></span>, <span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios.html">WaltDisneyWorldHollywoodStudios</a></span>, <span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom.html">WaltDisneyWorldMagicKingdom</a></span></div></div>
+  <div class="flat-list" data-ice="indirectSubclass"><h4>Indirect Subclass:</h4><div><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure.html">DisneylandResortCaliforniaAdventure</a></span>, <span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortMagicKingdom.html">DisneylandResortMagicKingdom</a></span>, <span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom.html">WaltDisneyWorldAnimalKingdom</a></span>, <span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot.html">WaltDisneyWorldEpcot</a></span>, <span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios.html">WaltDisneyWorldHollywoodStudios</a></span>, <span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom.html">WaltDisneyWorldMagicKingdom</a></span></div></div>
   
   
   
@@ -157,6 +161,34 @@
           
           
           <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-member-cache">cache</a></span></span><span class="code" data-ice="signature">: <span>*</span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-member-hasRunUpdate">hasRunUpdate</a></span></span><span class="code" data-ice="signature">: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean">boolean</a></span></span>
         </p>
       </div>
       <div>
@@ -317,62 +349,6 @@
       
     </td>
   </tr>
-<tr data-ice="target">
-    <td>
-      <span class="access" data-ice="access">private</span>
-      
-      
-      
-      <span class="override" data-ice="override"></span>
-    </td>
-    <td>
-      <div>
-        <p>
-          
-          
-          
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-member-_pendingSetupPromise">_pendingSetupPromise</a></span></span><span class="code" data-ice="signature">: <span>*</span></span>
-        </p>
-      </div>
-      <div>
-        
-        
-        
-      </div>
-    </td>
-    <td>
-      
-      
-    </td>
-  </tr>
-<tr data-ice="target">
-    <td>
-      <span class="access" data-ice="access">private</span>
-      
-      
-      
-      <span class="override" data-ice="override"></span>
-    </td>
-    <td>
-      <div>
-        <p>
-          
-          
-          
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-member-_pendingUpdatePromise">_pendingUpdatePromise</a></span></span><span class="code" data-ice="signature">: <span>*</span></span>
-        </p>
-      </div>
-      <div>
-        
-        
-        
-      </div>
-    </td>
-    <td>
-      
-      
-    </td>
-  </tr>
 </tbody>
 </table>
 </div>
@@ -381,6 +357,35 @@
   <tbody>
   
   <tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-ensureReady">ensureReady</a></span></span><span class="code" data-ice="signature">(): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise">Promise</a></span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Awaits until park is initalised and has run at least one update.</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
     <td>
       <span class="access" data-ice="access">public</span>
       
@@ -424,6 +429,35 @@
           <span data-ice="async">async</span>
           
           <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-getActiveParkDate">getActiveParkDate</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Get the current park date, taking into consideration park hours past midnight etc.</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-getActiveParkDateMoment">getActiveParkDateMoment</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
         </p>
       </div>
       <div>
@@ -566,6 +600,64 @@
       <div>
         <p>
           
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-getNextOpeningTime">getNextOpeningTime</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Return the number of milliseconds until the next time the park is open.</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-getNextOpeningTimeMomentDuration">getNextOpeningTimeMomentDuration</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Return the time until the park is open.</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
           
           
           <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-getParkUniqueID">getParkUniqueID</a></span></span><span class="code" data-ice="signature">(): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></span>
@@ -598,6 +690,35 @@
           
           
           <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-getTimeNow">getTimeNow</a></span></span><span class="code" data-ice="signature">(): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Return the current time for this park in its local timezone</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-getTimeNowMoment">getTimeNowMoment</a></span></span><span class="code" data-ice="signature">(): <span>moment</span></span>
         </p>
       </div>
       <div>
@@ -1038,13 +1159,42 @@
           
           <span data-ice="async">async</span>
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-_runInit">_runInit</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-_runInit">_runInit</a></span></span><span class="code" data-ice="signature">()</span>
         </p>
       </div>
       <div>
         
         
         <div data-ice="description"><p>Run all the internal stages of the init process</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">private</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-_runUpdate">_runUpdate</a></span></span><span class="code" data-ice="signature">()</span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Internal method to actually run our update</p>
 </div>
       </div>
     </td>
@@ -1167,7 +1317,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber40">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber41">source</a></span></span>
     </span>
   </h3>
 
@@ -1230,7 +1380,50 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber65">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber66">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  
+
+  
+
+  <div data-ice="properties">
+</div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-member-hasRunUpdate">
+    <span class="access" data-ice="access">public</span>
+    
+    
+    
+    
+    
+    <span class="code" data-ice="name">hasRunUpdate</span><span class="code" data-ice="signature">: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean">boolean</a></span></span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber69">source</a></span></span>
     </span>
   </h3>
 
@@ -1273,7 +1466,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber67">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber68">source</a></span></span>
     </span>
   </h3>
 
@@ -1316,7 +1509,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber101">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber111">source</a></span></span>
     </span>
   </h3>
 
@@ -1374,7 +1567,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber69">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber71">source</a></span></span>
     </span>
   </h3>
 
@@ -1417,7 +1610,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber77">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber79">source</a></span></span>
     </span>
   </h3>
 
@@ -1460,93 +1653,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber73">source</a></span></span>
-    </span>
-  </h3>
-
-  
-  
-  
-  
-
-  
-
-  <div data-ice="properties">
-</div>
-
-  
-
-  
-
-  
-
-  
-
-  
-
-  
-
-  
-
-  
-  
-</div>
-<div class="detail" data-ice="detail">
-  <h3 data-ice="anchor" id="instance-member-_pendingSetupPromise">
-    <span class="access" data-ice="access">private</span>
-    
-    
-    
-    
-    
-    <span class="code" data-ice="name">_pendingSetupPromise</span><span class="code" data-ice="signature">: <span>*</span></span>
-    <span class="right-info">
-      
-      
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber131">source</a></span></span>
-    </span>
-  </h3>
-
-  
-  
-  
-  
-
-  
-
-  <div data-ice="properties">
-</div>
-
-  
-
-  
-
-  
-
-  
-
-  
-
-  
-
-  
-
-  
-  
-</div>
-<div class="detail" data-ice="detail">
-  <h3 data-ice="anchor" id="instance-member-_pendingUpdatePromise">
-    <span class="access" data-ice="access">private</span>
-    
-    
-    
-    
-    
-    <span class="code" data-ice="name">_pendingUpdatePromise</span><span class="code" data-ice="signature">: <span>*</span></span>
-    <span class="right-info">
-      
-      
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber418">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber75">source</a></span></span>
     </span>
   </h3>
 
@@ -1581,6 +1688,62 @@
 <div data-ice="methodDetails"><h2 data-ice="title">Public Methods</h2>
 
 <div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-ensureReady">
+    <span class="access" data-ice="access">public</span>
+    
+    
+    
+    <span data-ice="async">async</span>
+    
+    <span class="code" data-ice="name">ensureReady</span><span class="code" data-ice="signature">(): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise">Promise</a></span></span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber168">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Awaits until park is initalised and has run at least one update.</p>
+</div>
+
+  
+
+  <div data-ice="properties">
+</div>
+
+  <div class="return-params" data-ice="returnParams">
+    <h4>Return:</h4>
+    <table>
+      <tbody>
+        <tr>
+          <td class="return-type code" data-ice="returnType"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise">Promise</a></span></td>
+          
+        </tr>
+      </tbody>
+    </table>
+    <div data-ice="returnProperties">
+</div>
+  </div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
   <h3 data-ice="anchor" id="instance-method-findAttractionByID">
     <span class="access" data-ice="access">public</span>
     
@@ -1592,7 +1755,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber188">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber192">source</a></span></span>
     </span>
   </h3>
 
@@ -1666,7 +1829,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber533">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber616">source</a></span></span>
     </span>
   </h3>
 
@@ -1674,6 +1837,62 @@
   
   
   <div data-ice="description"><p>Get the current park date, taking into consideration park hours past midnight etc.<br>Eg. if the park is open past midnight, return yesterday&apos;s date.<br>@return{string} Date in YYYY-MM-DD format</p>
+</div>
+
+  
+
+  <div data-ice="properties">
+</div>
+
+  <div class="return-params" data-ice="returnParams">
+    <h4>Return:</h4>
+    <table>
+      <tbody>
+        <tr>
+          <td class="return-type code" data-ice="returnType"><span>*</span></td>
+          
+        </tr>
+      </tbody>
+    </table>
+    <div data-ice="returnProperties">
+</div>
+  </div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-getActiveParkDateMoment">
+    <span class="access" data-ice="access">public</span>
+    
+    
+    
+    <span data-ice="async">async</span>
+    
+    <span class="code" data-ice="name">getActiveParkDateMoment</span><span class="code" data-ice="signature">(): <span>*</span></span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber577">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Get the current park date, taking into consideration park hours past midnight etc.<br>Eg. if the park is open past midnight, return yesterday&apos;s date.<br>@return{moment} Park&apos;s &quot;active date&quot; as a Moment object</p>
 </div>
 
   
@@ -1722,7 +1941,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber108">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber118">source</a></span></span>
     </span>
   </h3>
 
@@ -1778,7 +1997,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber503">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber509">source</a></span></span>
     </span>
   </h3>
 
@@ -1834,7 +2053,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber570">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber623">source</a></span></span>
     </span>
   </h3>
 
@@ -1890,7 +2109,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber579">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber632">source</a></span></span>
     </span>
   </h3>
 
@@ -1898,6 +2117,118 @@
   
   
   <div data-ice="description"><p>Get the park opening hours for tomorrow</p>
+</div>
+
+  
+
+  <div data-ice="properties">
+</div>
+
+  <div class="return-params" data-ice="returnParams">
+    <h4>Return:</h4>
+    <table>
+      <tbody>
+        <tr>
+          <td class="return-type code" data-ice="returnType"><span>*</span></td>
+          
+        </tr>
+      </tbody>
+    </table>
+    <div data-ice="returnProperties">
+</div>
+  </div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-getNextOpeningTime">
+    <span class="access" data-ice="access">public</span>
+    
+    
+    
+    <span data-ice="async">async</span>
+    
+    <span class="code" data-ice="name">getNextOpeningTime</span><span class="code" data-ice="signature">(): <span>*</span></span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber539">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Return the number of milliseconds until the next time the park is open.<br>Will return 0 if park is already open.<br>@return{number} Milliseconds until the park is open</p>
+</div>
+
+  
+
+  <div data-ice="properties">
+</div>
+
+  <div class="return-params" data-ice="returnParams">
+    <h4>Return:</h4>
+    <table>
+      <tbody>
+        <tr>
+          <td class="return-type code" data-ice="returnType"><span>*</span></td>
+          
+        </tr>
+      </tbody>
+    </table>
+    <div data-ice="returnProperties">
+</div>
+  </div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-getNextOpeningTimeMomentDuration">
+    <span class="access" data-ice="access">public</span>
+    
+    
+    
+    <span data-ice="async">async</span>
+    
+    <span class="code" data-ice="name">getNextOpeningTimeMomentDuration</span><span class="code" data-ice="signature">(): <span>*</span></span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber565">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Return the time until the park is open.<br>@return{momentDuration} Time until park opens as a Moment Duration.<br>Zero if already open, or null if unable to find time</p>
 </div>
 
   
@@ -1946,7 +2277,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber84">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber86">source</a></span></span>
     </span>
   </h3>
 
@@ -2002,7 +2333,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber93">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber103">source</a></span></span>
     </span>
   </h3>
 
@@ -2047,6 +2378,62 @@
   
 </div>
 <div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-getTimeNowMoment">
+    <span class="access" data-ice="access">public</span>
+    
+    
+    
+    
+    
+    <span class="code" data-ice="name">getTimeNowMoment</span><span class="code" data-ice="signature">(): <span>moment</span></span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber95">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Return the current time for this park in its local timezone</p>
+</div>
+
+  
+
+  <div data-ice="properties">
+</div>
+
+  <div class="return-params" data-ice="returnParams">
+    <h4>Return:</h4>
+    <table>
+      <tbody>
+        <tr>
+          <td class="return-type code" data-ice="returnType"><span>moment</span></td>
+          
+        </tr>
+      </tbody>
+    </table>
+    <div data-ice="returnProperties">
+</div>
+  </div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
   <h3 data-ice="anchor" id="instance-method-http">
     <span class="access" data-ice="access">public</span>
     
@@ -2058,7 +2445,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber608">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber661">source</a></span></span>
     </span>
   </h3>
 
@@ -2152,7 +2539,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber119">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber128">source</a></span></span>
     </span>
   </h3>
 
@@ -2208,7 +2595,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber592">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber645">source</a></span></span>
     </span>
   </h3>
 
@@ -2277,7 +2664,7 @@ Function will take arguments: (method, URL, data, options)</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber263">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber267">source</a></span></span>
     </span>
   </h3>
 
@@ -2349,7 +2736,7 @@ Function will take arguments: (method, URL, data, options)</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber301">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber305">source</a></span></span>
     </span>
   </h3>
 
@@ -2444,7 +2831,7 @@ Function will take arguments: (method, URL, data, options)</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber281">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber285">source</a></span></span>
     </span>
   </h3>
 
@@ -2516,7 +2903,7 @@ Function will take arguments: (method, URL, data, options)</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber412">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber416">source</a></span></span>
     </span>
   </h3>
 
@@ -2572,7 +2959,7 @@ Function will take arguments: (method, URL, data, options)</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber359">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber363">source</a></span></span>
     </span>
   </h3>
 
@@ -2647,7 +3034,7 @@ Function will take arguments: (method, URL, data, options)</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber327">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber331">source</a></span></span>
     </span>
   </h3>
 
@@ -2717,7 +3104,7 @@ Function will take arguments: (method, URL, data, options)</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber179">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber183">source</a></span></span>
     </span>
   </h3>
 
@@ -2792,7 +3179,7 @@ Also accepts &apos;type&apos;, which is an <span><a href="variable/index.html#st
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber450">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber456">source</a></span></span>
     </span>
   </h3>
 
@@ -2836,7 +3223,7 @@ Also accepts &apos;type&apos;, which is an <span><a href="variable/index.html#st
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber445">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber451">source</a></span></span>
     </span>
   </h3>
 
@@ -2904,7 +3291,7 @@ Also accepts &apos;type&apos;, which is an <span><a href="variable/index.html#st
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber493">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber499">source</a></span></span>
     </span>
   </h3>
 
@@ -2964,7 +3351,7 @@ Also accepts &apos;type&apos;, which is an <span><a href="variable/index.html#st
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber471">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber477">source</a></span></span>
     </span>
   </h3>
 
@@ -3004,11 +3391,11 @@ Also accepts &apos;type&apos;, which is an <span><a href="variable/index.html#st
     
     <span data-ice="async">async</span>
     
-    <span class="code" data-ice="name">_runInit</span><span class="code" data-ice="signature">(): <span>*</span></span>
+    <span class="code" data-ice="name">_runInit</span><span class="code" data-ice="signature">()</span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber161">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber136">source</a></span></span>
     </span>
   </h3>
 
@@ -3023,19 +3410,51 @@ Also accepts &apos;type&apos;, which is an <span><a href="variable/index.html#st
   <div data-ice="properties">
 </div>
 
-  <div class="return-params" data-ice="returnParams">
-    <h4>Return:</h4>
-    <table>
-      <tbody>
-        <tr>
-          <td class="return-type code" data-ice="returnType"><span>*</span></td>
-          
-        </tr>
-      </tbody>
-    </table>
-    <div data-ice="returnProperties">
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
 </div>
-  </div>
+<div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-_runUpdate">
+    <span class="access" data-ice="access">private</span>
+    
+    
+    
+    <span data-ice="async">async</span>
+    
+    <span class="code" data-ice="name">_runUpdate</span><span class="code" data-ice="signature">()</span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber424">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Internal method to actually run our update</p>
+</div>
+
+  
+
+  <div data-ice="properties">
+</div>
+
+  
 
   
 
@@ -3064,7 +3483,7 @@ Also accepts &apos;type&apos;, which is an <span><a href="variable/index.html#st
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber481">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber487">source</a></span></span>
     </span>
   </h3>
 
@@ -3108,7 +3527,7 @@ Also accepts &apos;type&apos;, which is an <span><a href="variable/index.html#st
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber403">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber407">source</a></span></span>
     </span>
   </h3>
 

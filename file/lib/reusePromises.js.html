@@ -2,8 +2,8 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <base data-ice="baseUrl" href="../../../">
-  <title data-ice="title">lib/cache/scopedCache.js | @themeparks/parksapi</title>
+  <base data-ice="baseUrl" href="../../">
+  <title data-ice="title">lib/reusePromises.js | @themeparks/parksapi</title>
   <link type="text/css" rel="stylesheet" href="css/style.css">
   <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
   <script src="script/prettify/prettify.js"></script>
@@ -64,154 +64,113 @@
 </div>
 </nav>
 
-<div class="content" data-ice="content"><h1 data-ice="title">lib/cache/scopedCache.js</h1>
-<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {getCache} from &apos;../cache.js&apos;;
+<div class="content" data-ice="content"><h1 data-ice="title">lib/reusePromises.js</h1>
+<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">/**
+ * Module that wraps re-using the same Promise multiple times.
+ * This allows a function to be called multiple times before returning, but only return once.
+ * Useful for latent network requests,
+ *  such as requesting a document from multiple sources, but only making one HTTP request.
+ */
+
+const activeFunctions = [];
 
 /**
- * A wrapper class for accessing the cache.
- * Prefixes a string before each key to avoid conflicts.
+ * Find the active function with these arguments
+ * @param {*} self
+ * @param {function} fn
+ * @param {string} argsSerialised
+ * @return {number}
+ * @private
  */
-export class ScopedCache {
-  /**
-   * Create a new ScopedCache object by passing in the key prefix descired
-   * @param {string} keyPrefix
-   * @param {number} [version] Cache version, bump this to invalidate existing cache entries for a scope
-   */
-  constructor(keyPrefix, version = 0) {
-    this.prefix = keyPrefix;
-    this.version = version;
-
-    this.cache = null;
-  }
-
-  /**
-   * Initialise the cache for this scope
-   */
-  async initCache() {
-    if (this.cache) {
-      return this.cache;
-    }
-
-    if (this._initCachePromise) {
-      return this._initCachePromise;
-    }
-
-    this._initCachePromise = (async () =&gt; {
-      this.cache = await getCache();
-
-      // check and flush cache if version mismatch
-      const cacheVersion = await this.get(&apos;%%version%%&apos;);
-      if (cacheVersion !== undefined &amp;&amp; cacheVersion != this.version) {
-        // find all cache entries with this scope, and remove them
-        const keys = await this.cache.getKeys(`${this.prefix}_`);
-
-        await Promise.allSettled(keys.map((key) =&gt; {
-          // set expire date to 1 millisecond ago (this basically deletes it)
-          return this.setGlobal(key, {}, -1);
-        }));
-      }
-
-      // set our new cache version with a very very long ttl
-      await this.set(&apos;%%version%%&apos;, this.version, Number.MAX_SAFE_INTEGER);
-    })();
-    await this._initCachePromise;
-    this._initCachePromise = null;
-
-    return this.cache;
-  }
-
-  /**
-   * Generate a scoped key by adding our prefix to the incoming key
-   * @param {string} inKey
-   * @return {string} Scoped key
-   */
-  generateScopedKey(inKey) {
-    return `${this.prefix}_${inKey}`;
-  }
-
-  /**
-     * Get a cached object
-     * @public
-     * @async
-     * @param {string} key Unique key name for this cache entry
-     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present
-     */
-  async get(key) {
-    return this.getGlobal(this.generateScopedKey(key));
-  }
-
-  /**
-     * Get a cached object from the global cache (skipping the scope prefix)
-     * @public
-     * @async
-     * @param {string} key Unique key name for this cache entry
-     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present
-     */
-  async getGlobal(key) {
-    const cache = await this.initCache();
-    return cache.get(key);
-  }
-
-  /**
-     * Set a key in our cache
-     * @public
-     * @async
-     * @param {string} key Unique key name for this cache entry
-     * @param {Object} value
-     * @param {(Function|number)} [ttl=3600000] How long the cache entry should last in milliseconds
-     *  Can be a number or a function that will return a number
-     *  Default 1 hour
-     */
-  async set(key, value, ttl = 3600000) {
-    return this.setGlobal(this.generateScopedKey(key), value, ttl);
-  }
-
-  /**
-     * Set a key in our global cache, skipping the scoped prefix
-     * @public
-     * @async
-     * @param {string} key Unique key name for this cache entry
-     * @param {Object} value
-     * @param {(Function|number)} [ttl=3600000] How long the cache entry should last in milliseconds
-     *  Can be a number or a function that will return a number
-     *  Default 1 hour
-     */
-  async setGlobal(key, value, ttl = 3600000) {
-    const cache = await this.initCache();
-    return cache.set(key, value, ttl);
-  }
-
-  /**
-     * A helper &quot;wrap&quot; function that will return a cached value if present
-     *  This will call the supplied function to fetch it if the value isn&apos;t present in the cache
-     * @public
-     * @async
-     * @param {string} key Unique key name for this cache entry
-     * @param {function} fn Fetch function that will be called if the cache entry is not present
-     * @param {(function|number)} [ttl] How long the cache entry should last in milliseconds
-     *  Can be a number or a function that will return a number
-     */
-  async wrap(key, fn, ttl) {
-    return this.wrapGlobal(this.generateScopedKey(key), fn, ttl);
-  }
-
-  /**
-     * A helper &quot;wrap&quot; function that will return a cached value if present (in the global scope)
-     *  This will call the supplied function to fetch it if the value isn&apos;t present in the cache
-     * @public
-     * @async
-     * @param {string} key Unique key name for this cache entry
-     * @param {function} fn Fetch function that will be called if the cache entry is not present
-     * @param {(function|number)} [ttl] How long the cache entry should last in milliseconds
-     *  Can be a number or a function that will return a number
-     */
-  async wrapGlobal(key, fn, ttl) {
-    const cache = await this.initCache();
-    return cache.wrap(key, fn, ttl);
-  }
+function findActiveFunctionIndex(self, fn, argsSerialised) {
+  return activeFunctions.findIndex((x) =&gt; {
+    return x.self === self &amp;&amp; x.fn === fn &amp;&amp; x.args === argsSerialised;
+  });
 }
 
-export default ScopedCache;
+/**
+ * Reuse a function until it resolves
+ * @param {*} self
+ * @param {function} fn
+ * @param  {...any} args Arguments to pass to the function
+ * @return {Promise}
+ */
+export function reusePromise(self, fn, ...args) {
+  return _reusePromise(false, self, fn, ...args);
+}
+
+/**
+ * Reuse a function, returning it&apos;s result forever
+ * @param {*} self
+ * @param {function} fn
+ * @param  {...any} args Arguments to pass to the function
+ * @return {Promise}
+ */
+export function reusePromiseForever(self, fn, ...args) {
+  return _reusePromise(true, self, fn, ...args);
+}
+
+/**
+ * Internal call to run a Promise once time (and optionally keep result forever)
+ * @param {boolean} useResultForever
+ * @param {*} self
+ * @param {function} fn
+ * @param  {...any} args
+ * @return {Promise}
+ * @private
+ */
+function _reusePromise(useResultForever, self, fn, ...args) {
+  // search for existing promise that hasn&apos;t resolved yet
+  const argsSerialise = JSON.stringify(args);
+  const existingFunctionIndex = findActiveFunctionIndex(self, fn, argsSerialise);
+  const existingFunction = existingFunctionIndex &gt;= 0 ? activeFunctions[existingFunctionIndex] : undefined;
+  if (existingFunction) {
+    if (existingFunction.resolved) {
+      return existingFunction.value;
+    }
+    return existingFunction.promise;
+  }
+
+  const cleanupPendingFunction = () =&gt; {
+    const pendingFunctionIDX = findActiveFunctionIndex(self, fn, argsSerialise);
+    if (pendingFunctionIDX &gt;= 0) {
+      if (!useResultForever) {
+      // clean up pending Promise
+        activeFunctions.splice(pendingFunctionIDX, 1);
+      }
+    }
+  };
+
+  // didn&apos;t find a pending existing promise, make a new one!
+  const newPromise = fn.apply(self || null, args).then((value) =&gt; {
+    // clean up our pending Promise
+    if (!useResultForever) {
+      cleanupPendingFunction();
+    } else {
+      const pendingFunctionIDX = findActiveFunctionIndex(self, fn, argsSerialise);
+      if (pendingFunctionIDX &gt;= 0) {
+      // store result so we can re-use it for future calls
+        activeFunctions[pendingFunctionIDX].resolved = true;
+        activeFunctions[pendingFunctionIDX].value = value;
+      }
+    }
+
+    return value;
+  }).catch((err) =&gt; {
+    cleanupPendingFunction();
+    throw err;
+  });
+  activeFunctions.push({
+    fn,
+    self,
+    args: argsSerialise,
+    promise: newPromise,
+    resolved: false,
+  });
+  return newPromise;
+}
+
+export default reusePromise;
 </code></pre>
 
 </div>

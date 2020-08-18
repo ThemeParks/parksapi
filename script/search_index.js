@@ -36,6 +36,18 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~disneylandresortcaliforniaadventure",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure.html",
+    "<span>DisneylandResortCaliforniaAdventure</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~disneylandresortmagickingdom",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortMagicKingdom.html",
+    "<span>DisneylandResortMagicKingdom</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "class"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/efteling/efteling.js~efteling",
     "class/lib/parks/efteling/efteling.js~Efteling.html",
     "<span>Efteling</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/efteling/efteling.js</span>",
@@ -142,6 +154,18 @@ window.esdocSearchIndex = [
     "variable/index.html#static-variable-queueType",
     "<span>queueType</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/parkTypes.js</span>",
     "variable"
+  ],
+  [
+    "@themeparks/parksapi/lib/reusepromises.js~reusepromise",
+    "function/index.html#static-function-reusePromise",
+    "<span>reusePromise</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/reusePromises.js</span>",
+    "function"
+  ],
+  [
+    "@themeparks/parksapi/lib/reusepromises.js~reusepromiseforever",
+    "function/index.html#static-function-reusePromiseForever",
+    "<span>reusePromiseForever</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/reusePromises.js</span>",
+    "function"
   ],
   [
     "@themeparks/parksapi/lib/parks/parktypes.js~scheduletype",
@@ -858,21 +882,15 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
-    "lib/parks/park.js~park#_pendingsetuppromise",
-    "class/lib/parks/park.js~Park.html#instance-member-_pendingSetupPromise",
-    "lib/parks/park.js~Park#_pendingSetupPromise",
-    "member"
-  ],
-  [
-    "lib/parks/park.js~park#_pendingupdatepromise",
-    "class/lib/parks/park.js~Park.html#instance-member-_pendingUpdatePromise",
-    "lib/parks/park.js~Park#_pendingUpdatePromise",
-    "member"
-  ],
-  [
     "lib/parks/park.js~park#_runinit",
     "class/lib/parks/park.js~Park.html#instance-method-_runInit",
     "lib/parks/park.js~Park#_runInit",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#_runupdate",
+    "class/lib/parks/park.js~Park.html#instance-method-_runUpdate",
+    "lib/parks/park.js~Park#_runUpdate",
     "method"
   ],
   [
@@ -894,6 +912,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/park.js~park#ensureready",
+    "class/lib/parks/park.js~Park.html#instance-method-ensureReady",
+    "lib/parks/park.js~Park#ensureReady",
+    "method"
+  ],
+  [
     "lib/parks/park.js~park#findattractionbyid",
     "class/lib/parks/park.js~Park.html#instance-method-findAttractionByID",
     "lib/parks/park.js~Park#findAttractionByID",
@@ -903,6 +927,12 @@ window.esdocSearchIndex = [
     "lib/parks/park.js~park#getactiveparkdate",
     "class/lib/parks/park.js~Park.html#instance-method-getActiveParkDate",
     "lib/parks/park.js~Park#getActiveParkDate",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#getactiveparkdatemoment",
+    "class/lib/parks/park.js~Park.html#instance-method-getActiveParkDateMoment",
+    "lib/parks/park.js~Park#getActiveParkDateMoment",
     "method"
   ],
   [
@@ -930,6 +960,18 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/park.js~park#getnextopeningtime",
+    "class/lib/parks/park.js~Park.html#instance-method-getNextOpeningTime",
+    "lib/parks/park.js~Park#getNextOpeningTime",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#getnextopeningtimemomentduration",
+    "class/lib/parks/park.js~Park.html#instance-method-getNextOpeningTimeMomentDuration",
+    "lib/parks/park.js~Park#getNextOpeningTimeMomentDuration",
+    "method"
+  ],
+  [
     "lib/parks/park.js~park#getparkuniqueid",
     "class/lib/parks/park.js~Park.html#instance-method-getParkUniqueID",
     "lib/parks/park.js~Park#getParkUniqueID",
@@ -940,6 +982,18 @@ window.esdocSearchIndex = [
     "class/lib/parks/park.js~Park.html#instance-method-getTimeNow",
     "lib/parks/park.js~Park#getTimeNow",
     "method"
+  ],
+  [
+    "lib/parks/park.js~park#gettimenowmoment",
+    "class/lib/parks/park.js~Park.html#instance-method-getTimeNowMoment",
+    "lib/parks/park.js~Park#getTimeNowMoment",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#hasrunupdate",
+    "class/lib/parks/park.js~Park.html#instance-member-hasRunUpdate",
+    "lib/parks/park.js~Park#hasRunUpdate",
+    "member"
   ],
   [
     "lib/parks/park.js~park#http",
@@ -1089,6 +1143,30 @@ window.esdocSearchIndex = [
     "lib/parks/wdw/waltdisneyworldbase.js~disneypark.getdatabase",
     "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#static-method-getDatabase",
     "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.getDatabase",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneylandresortcaliforniaadventure#constructor",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure.html#instance-constructor-constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneylandresortcaliforniaadventure#getparkuniqueid",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure.html#instance-method-getParkUniqueID",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure#getParkUniqueID",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneylandresortmagickingdom#constructor",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortMagicKingdom.html#instance-constructor-constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortMagicKingdom#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneylandresortmagickingdom#getparkuniqueid",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortMagicKingdom.html#instance-method-getParkUniqueID",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortMagicKingdom#getParkUniqueID",
     "method"
   ],
   [
@@ -1348,5 +1426,11 @@ window.esdocSearchIndex = [
     "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#static-method-getDatabaseFilePath",
     "lib/parks/wdw/wdwdb.js~IndexedWDWDB.getDatabaseFilePath",
     "method"
+  ],
+  [
+    "lib/reusepromises.js",
+    "file/lib/reusePromises.js.html",
+    "lib/reusePromises.js",
+    "file"
   ]
 ]

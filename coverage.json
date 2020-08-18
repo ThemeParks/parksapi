@@ -1,7 +1,7 @@
 {
-  "coverage": "79.54%",
-  "expectCount": 176,
-  "actualCount": 140,
+  "coverage": "81.77%",
+  "expectCount": 192,
+  "actualCount": 157,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 12,
@@ -64,18 +64,17 @@
       "undocumentLines": []
     },
     "lib/parks/park.js": {
-      "expectCount": 38,
-      "actualCount": 29,
+      "expectCount": 43,
+      "actualCount": 35,
       "undocumentLines": [
-        13,
-        27,
-        65,
-        67,
+        14,
+        28,
+        66,
+        68,
         69,
-        73,
-        77,
-        131,
-        418
+        71,
+        75,
+        79
       ]
     },
     "lib/parks/parkTypes.js": {
@@ -89,8 +88,8 @@
       "undocumentLines": []
     },
     "lib/parks/wdw/waltdisneyworldbase.js": {
-      "expectCount": 24,
-      "actualCount": 22,
+      "expectCount": 30,
+      "actualCount": 28,
       "undocumentLines": [
         6,
         68
@@ -111,8 +110,13 @@
         120,
         121,
         144,
-        307
+        317
       ]
+    },
+    "lib/reusePromises.js": {
+      "expectCount": 5,
+      "actualCount": 5,
+      "undocumentLines": []
     }
   }
 }

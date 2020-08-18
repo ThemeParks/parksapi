@@ -32,6 +32,8 @@
   <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/configBase.js~ConfigBase.html">ConfigBase</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getCache">getCache</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-parseConfig">parseConfig</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-reusePromise">reusePromise</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-reusePromiseForever">reusePromiseForever</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#cache">cache</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheBase.js~CacheBase.html">CacheBase</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheLevel.js~CacheLevel.html">CacheLevel</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheMemory.js~CacheMemory.html">CacheMemory</a></span></span></li>
@@ -50,6 +52,8 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-tagType">tagType</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-efteling">parks/efteling</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure.html">DisneylandResortCaliforniaAdventure</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortMagicKingdom.html">DisneylandResortMagicKingdom</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom.html">WaltDisneyWorldAnimalKingdom</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot.html">WaltDisneyWorldEpcot</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios.html">WaltDisneyWorldHollywoodStudios</a></span></span></li>
@@ -71,6 +75,7 @@ import * as tags from &apos;./tags.js&apos;;
 import HarWriter from &apos;../har.js&apos;;
 import sift from &apos;sift&apos;;
 import {URL} from &apos;url&apos;;
+import {reusePromise, reusePromiseForever} from &apos;../reusePromises.js&apos;;
 
 // quick helper function to wait x milliseconds as a Promise
 const delay = (milliseconds) =&gt; {
@@ -128,6 +133,7 @@ export class Park extends ConfigBase {
     this.cache = new Cache(this.constructor.name, this.config.cacheVersion || 0);
 
     this.initialised = false;
+    this.hasRunUpdate = false;
 
     this._attractions = [];
 
@@ -151,10 +157,18 @@ export class Park extends ConfigBase {
 
   /**
    * Return the current time for this park in its local timezone
+   * @return {moment}
+   */
+  getTimeNowMoment() {
+    return moment().tz(this.config.timezone);
+  }
+
+  /**
+   * Return the current time for this park in its local timezone
    * @return {string}
    */
   getTimeNow() {
-    return moment().tz(this.config.timezone).format();
+    return this.getTimeNowMoment().format();
   }
 
   /**
@@ -169,8 +183,7 @@ export class Park extends ConfigBase {
    * Get Park Attractions
    */
   async getAttractions() {
-    // park must be initialised before returning any data
-    await this.init();
+    await this.ensureReady();
 
     return this._attractions;
   }
@@ -180,41 +193,7 @@ export class Park extends ConfigBase {
    * Call to ensure the object has been initialised before accessing data
    */
   async init() {
-    if (this.initialised) {
-      return;
-    }
-
-    // setup the park ready for use
-    //  eg. download any large data-sets, calendars etc.
-    if (this._pendingSetupPromise) {
-      return this._pendingSetupPromise;
-    }
-
-    // call our internal init and wait on it
-    this._pendingSetupPromise = this._runInit();
-    await this._pendingSetupPromise;
-    this._pendingSetupPromise = null;
-
-    this.initialised = true;
-
-    if (!this.config.disableParkUpdate) {
-      // start an update loop
-
-      // use a separate function so we can quickly loop back around
-      const scheduleUpdate = async () =&gt; {
-        // pause for our updateInterval time
-        await delay(this.config.updateInterval);
-
-        // wait for Promise to resolve, grab any catches, then continue anyway
-        this.update().then().catch().then(() =&gt; {
-          // schedule another update
-          setImmediate(scheduleUpdate.bind(this));
-        });
-      };
-
-      // start the first loop timer
-      scheduleUpdate();
-    }
+    return reusePromiseForever(this, this._runInit);
   }
 
   /**
@@ -224,12 +203,41 @@ export class Park extends ConfigBase {
   async _runInit() {
     try {
       await this._init();
+      this.initialised = true;
+
+      if (!this.config.disableParkUpdate) {
+        // start an update loop
+
+        // use a separate function so we can quickly loop back around
+        const scheduleUpdate = async () =&gt; {
+          // pause for our updateInterval time
+          await delay(this.config.updateInterval);
+
+          // wait for Promise to resolve, grab any catches, then continue anyway
+          this.update().then().catch().then(() =&gt; {
+            // schedule another update
+            setImmediate(scheduleUpdate.bind(this));
+          });
+        };
+
+        // start the first loop timer
+        scheduleUpdate();
+      }
     } catch (e) {
       console.error(&apos;Error initialising park&apos;, e);
     }
+  }
 
-    // run an initial update so we&apos;re fully setup with data before init() returns
-    return this.update();
+  /**
+   * Awaits until park is initalised and has run at least one update.
+   * @return {Promise}
+   */
+  async ensureReady() {
+    await this.init();
+
+    if (!this.hasRunUpdate) {
+      await this.update();
+    }
   }
 
   /**
@@ -473,28 +481,30 @@ export class Park extends ConfigBase {
    * This is automatically called for you unless disableParkUpdate is set to false
    */
   async update() {
-    if (this._pendingUpdatePromise) {
-      return this._pendingUpdatePromise;
-    }
+    return reusePromise(this, this._runUpdate);
+  }
 
-    // start the _update call in a retry loop
-    this._pendingUpdatePromise = promiseRetry({
-      retries: 5,
-    }, (retryFn) =&gt; {
-      return this._update().catch(retryFn);
-    });
-
+  /**
+   * Internal method to actually run our update
+   * @private
+   */
+  async _runUpdate() {
     // wait and catch the update Promise
     try {
-      await this._pendingUpdatePromise;
+    // start the _update call in a retry loop
+      await promiseRetry({
+        retries: 5,
+      }, (retryFn) =&gt; {
+        return this._update().catch(retryFn);
+      });
     } catch (e) {
       // TODO - record park API error somewhere and continue
       console.error(e);
     }
 
-    this._pendingUpdatePromise = null;
+    this.hasRunUpdate = true;
 
-    setImmediate(this.postUpdate.bind(this));
+    await this.postUpdate();
   }
 
   /**
@@ -520,7 +530,7 @@ export class Park extends ConfigBase {
 
       // broadcast event when the park&apos;s day changes
       //  we can use this to update ride schedules etc.
-      this._dateRefresh(todaysDate, originalDate);
+      await this._dateRefresh(todaysDate, originalDate);
       this.emit(&apos;newDate&apos;, todaysDate, originalDate);
     }
   }
@@ -589,11 +599,49 @@ export class Park extends ConfigBase {
   }
 
   /**
+   * Return the number of milliseconds until the next time the park is open.
+   * Will return 0 if park is already open.
+   * @return{number} Milliseconds until the park is open
+   */
+  async getNextOpeningTime() {
+    const calendar = await this.getCalendar();
+    const now = this.getTimeNowMoment();
+
+    const dates = Object.keys(calendar);
+    const nextOpeningTime = dates.reduce((p, date) =&gt; {
+      return Math.min(p, calendar[date].reduce((p2, time) =&gt; {
+        const msUntilOpening = moment(time.openingTime).diff(now);
+        // if the opening time is in the past, is the closing time in the future?
+        if (msUntilOpening &lt;= 0) {
+          if (moment(time.closingTime).diff(now) &gt; 0) {
+            return 0;
+          }
+        }
+        return Math.min(p2, msUntilOpening);
+      }, Number.MAX_SAFE_INTEGER));
+    }, Number.MAX_SAFE_INTEGER);
+
+    return nextOpeningTime === Number.MAX_SAFE_INTEGER ? null : nextOpeningTime;
+  }
+
+  /**
+   * Return the time until the park is open.
+   * @return{momentDuration} Time until park opens as a Moment Duration.
+   * Zero if already open, or null if unable to find time
+   */
+  async getNextOpeningTimeMomentDuration() {
+    const ms = await this.getNextOpeningTime();
+
+    if (ms === null) return null;
+    return moment.duration(ms, &apos;milliseconds&apos;);
+  }
+
+  /**
    * Get the current park date, taking into consideration park hours past midnight etc.
    * Eg. if the park is open past midnight, return yesterday&apos;s date.
-   * @return{string} Date in YYYY-MM-DD format
+   * @return{moment} Park&apos;s &quot;active date&quot; as a Moment object
    */
-  async getActiveParkDate() {
+  async getActiveParkDateMoment() {
     const calendar = await this.getCalendar();
 
     const nowInPark = moment(this.getTimeNow()).tz(this.config.timezone);
@@ -621,10 +669,19 @@ export class Park extends ConfigBase {
 
     if (isInParkHours.length === 0) {
       // just return today&apos;s calendar
-      return nowInPark.format(&apos;YYYY-MM-DD&apos;);
+      return nowInPark;
     }
     // otherwise return the hours that we currently match
-    return isInParkHours[0].date.format(&apos;YYYY-MM-DD&apos;);
+    return isInParkHours[0].date;
+  }
+
+  /**
+   * Get the current park date, taking into consideration park hours past midnight etc.
+   * Eg. if the park is open past midnight, return yesterday&apos;s date.
+   * @return{string} Date in YYYY-MM-DD format
+   */
+  async getActiveParkDate() {
+    return (await this.getActiveParkDateMoment()).format(&apos;YYYY-MM-DD&apos;);
   }
 
   /**

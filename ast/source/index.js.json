@@ -1,28 +1,28 @@
 {
   "type": "File",
   "start": 0,
-  "end": 573,
+  "end": 794,
   "loc": {
     "start": {
       "line": 1,
       "column": 0
     },
     "end": {
-      "line": 25,
+      "line": 31,
       "column": 0
     }
   },
   "program": {
     "type": "Program",
     "start": 0,
-    "end": 573,
+    "end": 794,
     "loc": {
       "start": {
         "line": 1,
         "column": 0
       },
       "end": {
-        "line": 25,
+        "line": 31,
         "column": 0
       }
     },
@@ -100,14 +100,14 @@
       {
         "type": "ImportDeclaration",
         "start": 53,
-        "end": 228,
+        "end": 299,
         "loc": {
           "start": {
             "line": 2,
             "column": 0
           },
           "end": {
-            "line": 7,
+            "line": 9,
             "column": 44
           }
         },
@@ -307,19 +307,117 @@
               },
               "name": "WaltDisneyWorldAnimalKingdom"
             }
+          },
+          {
+            "type": "ImportSpecifier",
+            "start": 186,
+            "end": 214,
+            "loc": {
+              "start": {
+                "line": 7,
+                "column": 2
+              },
+              "end": {
+                "line": 7,
+                "column": 30
+              }
+            },
+            "imported": {
+              "type": "Identifier",
+              "start": 186,
+              "end": 214,
+              "loc": {
+                "start": {
+                  "line": 7,
+                  "column": 2
+                },
+                "end": {
+                  "line": 7,
+                  "column": 30
+                },
+                "identifierName": "DisneylandResortMagicKingdom"
+              },
+              "name": "DisneylandResortMagicKingdom"
+            },
+            "local": {
+              "type": "Identifier",
+              "start": 186,
+              "end": 214,
+              "loc": {
+                "start": {
+                  "line": 7,
+                  "column": 2
+                },
+                "end": {
+                  "line": 7,
+                  "column": 30
+                },
+                "identifierName": "DisneylandResortMagicKingdom"
+              },
+              "name": "DisneylandResortMagicKingdom"
+            }
+          },
+          {
+            "type": "ImportSpecifier",
+            "start": 218,
+            "end": 253,
+            "loc": {
+              "start": {
+                "line": 8,
+                "column": 2
+              },
+              "end": {
+                "line": 8,
+                "column": 37
+              }
+            },
+            "imported": {
+              "type": "Identifier",
+              "start": 218,
+              "end": 253,
+              "loc": {
+                "start": {
+                  "line": 8,
+                  "column": 2
+                },
+                "end": {
+                  "line": 8,
+                  "column": 37
+                },
+                "identifierName": "DisneylandResortCaliforniaAdventure"
+              },
+              "name": "DisneylandResortCaliforniaAdventure"
+            },
+            "local": {
+              "type": "Identifier",
+              "start": 218,
+              "end": 253,
+              "loc": {
+                "start": {
+                  "line": 8,
+                  "column": 2
+                },
+                "end": {
+                  "line": 8,
+                  "column": 37
+                },
+                "identifierName": "DisneylandResortCaliforniaAdventure"
+              },
+              "name": "DisneylandResortCaliforniaAdventure"
+            }
           }
         ],
         "source": {
           "type": "StringLiteral",
-          "start": 191,
-          "end": 227,
+          "start": 262,
+          "end": 298,
           "loc": {
             "start": {
-              "line": 7,
+              "line": 9,
               "column": 7
             },
             "end": {
-              "line": 7,
+              "line": 9,
               "column": 43
             }
           },
@@ -332,44 +430,44 @@
       },
       {
         "type": "ExportDefaultDeclaration",
-        "start": 230,
-        "end": 572,
+        "start": 301,
+        "end": 793,
         "loc": {
           "start": {
-            "line": 9,
+            "line": 11,
             "column": 0
           },
           "end": {
-            "line": 24,
+            "line": 30,
             "column": 2
           }
         },
         "declaration": {
           "type": "ObjectExpression",
-          "start": 245,
-          "end": 571,
+          "start": 316,
+          "end": 792,
           "loc": {
             "start": {
-              "line": 9,
+              "line": 11,
               "column": 15
             },
             "end": {
-              "line": 24,
+              "line": 30,
               "column": 1
             }
           },
           "properties": [
             {
               "type": "ObjectProperty",
-              "start": 249,
-              "end": 405,
+              "start": 320,
+              "end": 551,
               "loc": {
                 "start": {
-                  "line": 10,
+                  "line": 12,
                   "column": 2
                 },
                 "end": {
-                  "line": 16,
+                  "line": 20,
                   "column": 3
                 }
               },
@@ -378,15 +476,15 @@
               "computed": false,
               "key": {
                 "type": "Identifier",
-                "start": 249,
-                "end": 254,
+                "start": 320,
+                "end": 325,
                 "loc": {
                   "start": {
-                    "line": 10,
+                    "line": 12,
                     "column": 2
                   },
                   "end": {
-                    "line": 10,
+                    "line": 12,
                     "column": 7
                   },
                   "identifierName": "parks"
@@ -395,30 +493,30 @@
               },
               "value": {
                 "type": "ObjectExpression",
-                "start": 256,
-                "end": 405,
+                "start": 327,
+                "end": 551,
                 "loc": {
                   "start": {
-                    "line": 10,
+                    "line": 12,
                     "column": 9
                   },
                   "end": {
-                    "line": 16,
+                    "line": 20,
                     "column": 3
                   }
                 },
                 "properties": [
                   {
                     "type": "ObjectProperty",
-                    "start": 262,
-                    "end": 289,
+                    "start": 333,
+                    "end": 360,
                     "loc": {
                       "start": {
-                        "line": 11,
+                        "line": 13,
                         "column": 4
                       },
                       "end": {
-                        "line": 11,
+                        "line": 13,
                         "column": 31
                       }
                     },
@@ -427,15 +525,15 @@
                     "computed": false,
                     "key": {
                       "type": "Identifier",
-                      "start": 262,
-                      "end": 289,
+                      "start": 333,
+                      "end": 360,
                       "loc": {
                         "start": {
-                          "line": 11,
+                          "line": 13,
                           "column": 4
                         },
                         "end": {
-                          "line": 11,
+                          "line": 13,
                           "column": 31
                         },
                         "identifierName": "WaltDisneyWorldMagicKingdom"
@@ -444,15 +542,15 @@
                     },
                     "value": {
                       "type": "Identifier",
-                      "start": 262,
-                      "end": 289,
+                      "start": 333,
+                      "end": 360,
                       "loc": {
                         "start": {
-                          "line": 11,
+                          "line": 13,
                           "column": 4
                         },
                         "end": {
-                          "line": 11,
+                          "line": 13,
                           "column": 31
                         },
                         "identifierName": "WaltDisneyWorldMagicKingdom"
@@ -465,117 +563,7 @@
                   },
                   {
                     "type": "ObjectProperty",
-                    "start": 295,
-                    "end": 315,
-                    "loc": {
-                      "start": {
-                        "line": 12,
-                        "column": 4
-                      },
-                      "end": {
-                        "line": 12,
-                        "column": 24
-                      }
-                    },
-                    "method": false,
-                    "shorthand": true,
-                    "computed": false,
-                    "key": {
-                      "type": "Identifier",
-                      "start": 295,
-                      "end": 315,
-                      "loc": {
-                        "start": {
-                          "line": 12,
-                          "column": 4
-                        },
-                        "end": {
-                          "line": 12,
-                          "column": 24
-                        },
-                        "identifierName": "WaltDisneyWorldEpcot"
-                      },
-                      "name": "WaltDisneyWorldEpcot"
-                    },
-                    "value": {
-                      "type": "Identifier",
-                      "start": 295,
-                      "end": 315,
-                      "loc": {
-                        "start": {
-                          "line": 12,
-                          "column": 4
-                        },
-                        "end": {
-                          "line": 12,
-                          "column": 24
-                        },
-                        "identifierName": "WaltDisneyWorldEpcot"
-                      },
-                      "name": "WaltDisneyWorldEpcot"
-                    },
-                    "extra": {
-                      "shorthand": true
-                    }
-                  },
-                  {
-                    "type": "ObjectProperty",
-                    "start": 321,
-                    "end": 352,
-                    "loc": {
-                      "start": {
-                        "line": 13,
-                        "column": 4
-                      },
-                      "end": {
-                        "line": 13,
-                        "column": 35
-                      }
-                    },
-                    "method": false,
-                    "shorthand": true,
-                    "computed": false,
-                    "key": {
-                      "type": "Identifier",
-                      "start": 321,
-                      "end": 352,
-                      "loc": {
-                        "start": {
-                          "line": 13,
-                          "column": 4
-                        },
-                        "end": {
-                          "line": 13,
-                          "column": 35
-                        },
-                        "identifierName": "WaltDisneyWorldHollywoodStudios"
-                      },
-                      "name": "WaltDisneyWorldHollywoodStudios"
-                    },
-                    "value": {
-                      "type": "Identifier",
-                      "start": 321,
-                      "end": 352,
-                      "loc": {
-                        "start": {
-                          "line": 13,
-                          "column": 4
-                        },
-                        "end": {
-                          "line": 13,
-                          "column": 35
-                        },
-                        "identifierName": "WaltDisneyWorldHollywoodStudios"
-                      },
-                      "name": "WaltDisneyWorldHollywoodStudios"
-                    },
-                    "extra": {
-                      "shorthand": true
-                    }
-                  },
-                  {
-                    "type": "ObjectProperty",
-                    "start": 358,
+                    "start": 366,
                     "end": 386,
                     "loc": {
                       "start": {
@@ -584,6 +572,116 @@
                       },
                       "end": {
                         "line": 14,
+                        "column": 24
+                      }
+                    },
+                    "method": false,
+                    "shorthand": true,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 366,
+                      "end": 386,
+                      "loc": {
+                        "start": {
+                          "line": 14,
+                          "column": 4
+                        },
+                        "end": {
+                          "line": 14,
+                          "column": 24
+                        },
+                        "identifierName": "WaltDisneyWorldEpcot"
+                      },
+                      "name": "WaltDisneyWorldEpcot"
+                    },
+                    "value": {
+                      "type": "Identifier",
+                      "start": 366,
+                      "end": 386,
+                      "loc": {
+                        "start": {
+                          "line": 14,
+                          "column": 4
+                        },
+                        "end": {
+                          "line": 14,
+                          "column": 24
+                        },
+                        "identifierName": "WaltDisneyWorldEpcot"
+                      },
+                      "name": "WaltDisneyWorldEpcot"
+                    },
+                    "extra": {
+                      "shorthand": true
+                    }
+                  },
+                  {
+                    "type": "ObjectProperty",
+                    "start": 392,
+                    "end": 423,
+                    "loc": {
+                      "start": {
+                        "line": 15,
+                        "column": 4
+                      },
+                      "end": {
+                        "line": 15,
+                        "column": 35
+                      }
+                    },
+                    "method": false,
+                    "shorthand": true,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 392,
+                      "end": 423,
+                      "loc": {
+                        "start": {
+                          "line": 15,
+                          "column": 4
+                        },
+                        "end": {
+                          "line": 15,
+                          "column": 35
+                        },
+                        "identifierName": "WaltDisneyWorldHollywoodStudios"
+                      },
+                      "name": "WaltDisneyWorldHollywoodStudios"
+                    },
+                    "value": {
+                      "type": "Identifier",
+                      "start": 392,
+                      "end": 423,
+                      "loc": {
+                        "start": {
+                          "line": 15,
+                          "column": 4
+                        },
+                        "end": {
+                          "line": 15,
+                          "column": 35
+                        },
+                        "identifierName": "WaltDisneyWorldHollywoodStudios"
+                      },
+                      "name": "WaltDisneyWorldHollywoodStudios"
+                    },
+                    "extra": {
+                      "shorthand": true
+                    }
+                  },
+                  {
+                    "type": "ObjectProperty",
+                    "start": 429,
+                    "end": 457,
+                    "loc": {
+                      "start": {
+                        "line": 16,
+                        "column": 4
+                      },
+                      "end": {
+                        "line": 16,
                         "column": 32
                       }
                     },
@@ -592,15 +690,15 @@
                     "computed": false,
                     "key": {
                       "type": "Identifier",
-                      "start": 358,
-                      "end": 386,
+                      "start": 429,
+                      "end": 457,
                       "loc": {
                         "start": {
-                          "line": 14,
+                          "line": 16,
                           "column": 4
                         },
                         "end": {
-                          "line": 14,
+                          "line": 16,
                           "column": 32
                         },
                         "identifierName": "WaltDisneyWorldAnimalKingdom"
@@ -609,15 +707,15 @@
                     },
                     "value": {
                       "type": "Identifier",
-                      "start": 358,
-                      "end": 386,
+                      "start": 429,
+                      "end": 457,
                       "loc": {
                         "start": {
-                          "line": 14,
+                          "line": 16,
                           "column": 4
                         },
                         "end": {
-                          "line": 14,
+                          "line": 16,
                           "column": 32
                         },
                         "identifierName": "WaltDisneyWorldAnimalKingdom"
@@ -630,15 +728,125 @@
                   },
                   {
                     "type": "ObjectProperty",
-                    "start": 392,
-                    "end": 400,
+                    "start": 463,
+                    "end": 491,
                     "loc": {
                       "start": {
-                        "line": 15,
+                        "line": 17,
                         "column": 4
                       },
                       "end": {
-                        "line": 15,
+                        "line": 17,
+                        "column": 32
+                      }
+                    },
+                    "method": false,
+                    "shorthand": true,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 463,
+                      "end": 491,
+                      "loc": {
+                        "start": {
+                          "line": 17,
+                          "column": 4
+                        },
+                        "end": {
+                          "line": 17,
+                          "column": 32
+                        },
+                        "identifierName": "DisneylandResortMagicKingdom"
+                      },
+                      "name": "DisneylandResortMagicKingdom"
+                    },
+                    "value": {
+                      "type": "Identifier",
+                      "start": 463,
+                      "end": 491,
+                      "loc": {
+                        "start": {
+                          "line": 17,
+                          "column": 4
+                        },
+                        "end": {
+                          "line": 17,
+                          "column": 32
+                        },
+                        "identifierName": "DisneylandResortMagicKingdom"
+                      },
+                      "name": "DisneylandResortMagicKingdom"
+                    },
+                    "extra": {
+                      "shorthand": true
+                    }
+                  },
+                  {
+                    "type": "ObjectProperty",
+                    "start": 497,
+                    "end": 532,
+                    "loc": {
+                      "start": {
+                        "line": 18,
+                        "column": 4
+                      },
+                      "end": {
+                        "line": 18,
+                        "column": 39
+                      }
+                    },
+                    "method": false,
+                    "shorthand": true,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 497,
+                      "end": 532,
+                      "loc": {
+                        "start": {
+                          "line": 18,
+                          "column": 4
+                        },
+                        "end": {
+                          "line": 18,
+                          "column": 39
+                        },
+                        "identifierName": "DisneylandResortCaliforniaAdventure"
+                      },
+                      "name": "DisneylandResortCaliforniaAdventure"
+                    },
+                    "value": {
+                      "type": "Identifier",
+                      "start": 497,
+                      "end": 532,
+                      "loc": {
+                        "start": {
+                          "line": 18,
+                          "column": 4
+                        },
+                        "end": {
+                          "line": 18,
+                          "column": 39
+                        },
+                        "identifierName": "DisneylandResortCaliforniaAdventure"
+                      },
+                      "name": "DisneylandResortCaliforniaAdventure"
+                    },
+                    "extra": {
+                      "shorthand": true
+                    }
+                  },
+                  {
+                    "type": "ObjectProperty",
+                    "start": 538,
+                    "end": 546,
+                    "loc": {
+                      "start": {
+                        "line": 19,
+                        "column": 4
+                      },
+                      "end": {
+                        "line": 19,
                         "column": 12
                       }
                     },
@@ -647,15 +855,15 @@
                     "computed": false,
                     "key": {
                       "type": "Identifier",
-                      "start": 392,
-                      "end": 400,
+                      "start": 538,
+                      "end": 546,
                       "loc": {
                         "start": {
-                          "line": 15,
+                          "line": 19,
                           "column": 4
                         },
                         "end": {
-                          "line": 15,
+                          "line": 19,
                           "column": 12
                         },
                         "identifierName": "Efteling"
@@ -664,15 +872,15 @@
                     },
                     "value": {
                       "type": "Identifier",
-                      "start": 392,
-                      "end": 400,
+                      "start": 538,
+                      "end": 546,
                       "loc": {
                         "start": {
-                          "line": 15,
+                          "line": 19,
                           "column": 4
                         },
                         "end": {
-                          "line": 15,
+                          "line": 19,
                           "column": 12
                         },
                         "identifierName": "Efteling"
@@ -688,15 +896,15 @@
             },
             {
               "type": "ObjectProperty",
-              "start": 409,
-              "end": 568,
+              "start": 555,
+              "end": 789,
               "loc": {
                 "start": {
-                  "line": 17,
+                  "line": 21,
                   "column": 2
                 },
                 "end": {
-                  "line": 23,
+                  "line": 29,
                   "column": 3
                 }
               },
@@ -705,15 +913,15 @@
               "computed": false,
               "key": {
                 "type": "Identifier",
-                "start": 409,
-                "end": 417,
+                "start": 555,
+                "end": 563,
                 "loc": {
                   "start": {
-                    "line": 17,
+                    "line": 21,
                     "column": 2
                   },
                   "end": {
-                    "line": 17,
+                    "line": 21,
                     "column": 10
                   },
                   "identifierName": "allParks"
@@ -722,30 +930,30 @@
               },
               "value": {
                 "type": "ArrayExpression",
-                "start": 419,
-                "end": 568,
+                "start": 565,
+                "end": 789,
                 "loc": {
                   "start": {
-                    "line": 17,
+                    "line": 21,
                     "column": 12
                   },
                   "end": {
-                    "line": 23,
+                    "line": 29,
                     "column": 3
                   }
                 },
                 "elements": [
                   {
                     "type": "Identifier",
-                    "start": 425,
-                    "end": 452,
+                    "start": 571,
+                    "end": 598,
                     "loc": {
                       "start": {
-                        "line": 18,
+                        "line": 22,
                         "column": 4
                       },
                       "end": {
-                        "line": 18,
+                        "line": 22,
                         "column": 31
                       },
                       "identifierName": "WaltDisneyWorldMagicKingdom"
@@ -754,15 +962,15 @@
                   },
                   {
                     "type": "Identifier",
-                    "start": 458,
-                    "end": 478,
+                    "start": 604,
+                    "end": 624,
                     "loc": {
                       "start": {
-                        "line": 19,
+                        "line": 23,
                         "column": 4
                       },
                       "end": {
-                        "line": 19,
+                        "line": 23,
                         "column": 24
                       },
                       "identifierName": "WaltDisneyWorldEpcot"
@@ -771,15 +979,15 @@
                   },
                   {
                     "type": "Identifier",
-                    "start": 484,
-                    "end": 515,
+                    "start": 630,
+                    "end": 661,
                     "loc": {
                       "start": {
-                        "line": 20,
+                        "line": 24,
                         "column": 4
                       },
                       "end": {
-                        "line": 20,
+                        "line": 24,
                         "column": 35
                       },
                       "identifierName": "WaltDisneyWorldHollywoodStudios"
@@ -788,15 +996,15 @@
                   },
                   {
                     "type": "Identifier",
-                    "start": 521,
-                    "end": 549,
+                    "start": 667,
+                    "end": 695,
                     "loc": {
                       "start": {
-                        "line": 21,
+                        "line": 25,
                         "column": 4
                       },
                       "end": {
-                        "line": 21,
+                        "line": 25,
                         "column": 32
                       },
                       "identifierName": "WaltDisneyWorldAnimalKingdom"
@@ -805,15 +1013,49 @@
                   },
                   {
                     "type": "Identifier",
-                    "start": 555,
-                    "end": 563,
+                    "start": 701,
+                    "end": 729,
                     "loc": {
                       "start": {
-                        "line": 22,
+                        "line": 26,
                         "column": 4
                       },
                       "end": {
-                        "line": 22,
+                        "line": 26,
+                        "column": 32
+                      },
+                      "identifierName": "DisneylandResortMagicKingdom"
+                    },
+                    "name": "DisneylandResortMagicKingdom"
+                  },
+                  {
+                    "type": "Identifier",
+                    "start": 735,
+                    "end": 770,
+                    "loc": {
+                      "start": {
+                        "line": 27,
+                        "column": 4
+                      },
+                      "end": {
+                        "line": 27,
+                        "column": 39
+                      },
+                      "identifierName": "DisneylandResortCaliforniaAdventure"
+                    },
+                    "name": "DisneylandResortCaliforniaAdventure"
+                  },
+                  {
+                    "type": "Identifier",
+                    "start": 776,
+                    "end": 784,
+                    "loc": {
+                      "start": {
+                        "line": 28,
+                        "column": 4
+                      },
+                      "end": {
+                        "line": 28,
                         "column": 12
                       },
                       "identifierName": "Efteling"
@@ -1229,6 +1471,110 @@
     },
     {
       "type": {
+        "label": "name",
+        "beforeExpr": false,
+        "startsExpr": true,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null
+      },
+      "value": "DisneylandResortMagicKingdom",
+      "start": 186,
+      "end": 214,
+      "loc": {
+        "start": {
+          "line": 7,
+          "column": 2
+        },
+        "end": {
+          "line": 7,
+          "column": 30
+        }
+      }
+    },
+    {
+      "type": {
+        "label": ",",
+        "beforeExpr": true,
+        "startsExpr": false,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null,
+        "updateContext": null
+      },
+      "start": 214,
+      "end": 215,
+      "loc": {
+        "start": {
+          "line": 7,
+          "column": 30
+        },
+        "end": {
+          "line": 7,
+          "column": 31
+        }
+      }
+    },
+    {
+      "type": {
+        "label": "name",
+        "beforeExpr": false,
+        "startsExpr": true,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null
+      },
+      "value": "DisneylandResortCaliforniaAdventure",
+      "start": 218,
+      "end": 253,
+      "loc": {
+        "start": {
+          "line": 8,
+          "column": 2
+        },
+        "end": {
+          "line": 8,
+          "column": 37
+        }
+      }
+    },
+    {
+      "type": {
+        "label": ",",
+        "beforeExpr": true,
+        "startsExpr": false,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null,
+        "updateContext": null
+      },
+      "start": 253,
+      "end": 254,
+      "loc": {
+        "start": {
+          "line": 8,
+          "column": 37
+        },
+        "end": {
+          "line": 8,
+          "column": 38
+        }
+      }
+    },
+    {
+      "type": {
         "label": "}",
         "beforeExpr": false,
         "startsExpr": false,
@@ -1239,15 +1585,15 @@
         "postfix": false,
         "binop": null
       },
-      "start": 184,
-      "end": 185,
+      "start": 255,
+      "end": 256,
       "loc": {
         "start": {
-          "line": 7,
+          "line": 9,
           "column": 0
         },
         "end": {
-          "line": 7,
+          "line": 9,
           "column": 1
         }
       }
@@ -1265,15 +1611,15 @@
         "binop": null
       },
       "value": "from",
-      "start": 186,
-      "end": 190,
+      "start": 257,
+      "end": 261,
       "loc": {
         "start": {
-          "line": 7,
+          "line": 9,
           "column": 2
         },
         "end": {
-          "line": 7,
+          "line": 9,
           "column": 6
         }
       }
@@ -1292,15 +1638,15 @@
         "updateContext": null
       },
       "value": "./parks/wdw/waltdisneyworldbase.js",
-      "start": 191,
-      "end": 227,
+      "start": 262,
+      "end": 298,
       "loc": {
         "start": {
-          "line": 7,
+          "line": 9,
           "column": 7
         },
         "end": {
-          "line": 7,
+          "line": 9,
           "column": 43
         }
       }
@@ -1318,15 +1664,15 @@
         "binop": null,
         "updateContext": null
       },
-      "start": 227,
-      "end": 228,
+      "start": 298,
+      "end": 299,
       "loc": {
         "start": {
-          "line": 7,
+          "line": 9,
           "column": 43
         },
         "end": {
-          "line": 7,
+          "line": 9,
           "column": 44
         }
       }
@@ -1346,15 +1692,15 @@
         "updateContext": null
       },
       "value": "export",
-      "start": 230,
-      "end": 236,
+      "start": 301,
+      "end": 307,
       "loc": {
         "start": {
-          "line": 9,
+          "line": 11,
           "column": 0
         },
         "end": {
-          "line": 9,
+          "line": 11,
           "column": 6
         }
       }
@@ -1374,15 +1720,15 @@
         "updateContext": null
       },
       "value": "default",
-      "start": 237,
-      "end": 244,
+      "start": 308,
+      "end": 315,
       "loc": {
         "start": {
-          "line": 9,
+          "line": 11,
           "column": 7
         },
         "end": {
-          "line": 9,
+          "line": 11,
           "column": 14
         }
       }
@@ -1399,15 +1745,15 @@
         "postfix": false,
         "binop": null
       },
-      "start": 245,
-      "end": 246,
+      "start": 316,
+      "end": 317,
       "loc": {
         "start": {
-          "line": 9,
+          "line": 11,
           "column": 15
         },
         "end": {
-          "line": 9,
+          "line": 11,
           "column": 16
         }
       }
@@ -1425,15 +1771,15 @@
         "binop": null
       },
       "value": "parks",
-      "start": 249,
-      "end": 254,
+      "start": 320,
+      "end": 325,
       "loc": {
         "start": {
-          "line": 10,
+          "line": 12,
           "column": 2
         },
         "end": {
-          "line": 10,
+          "line": 12,
           "column": 7
         }
       }
@@ -1451,15 +1797,15 @@
         "binop": null,
         "updateContext": null
       },
-      "start": 254,
-      "end": 255,
+      "start": 325,
+      "end": 326,
       "loc": {
         "start": {
-          "line": 10,
+          "line": 12,
           "column": 7
         },
         "end": {
-          "line": 10,
+          "line": 12,
           "column": 8
         }
       }
@@ -1476,15 +1822,15 @@
         "postfix": false,
         "binop": null
       },
-      "start": 256,
-      "end": 257,
+      "start": 327,
+      "end": 328,
       "loc": {
         "start": {
-          "line": 10,
+          "line": 12,
           "column": 9
         },
         "end": {
-          "line": 10,
+          "line": 12,
           "column": 10
         }
       }
@@ -1502,15 +1848,15 @@
         "binop": null
       },
       "value": "WaltDisneyWorldMagicKingdom",
-      "start": 262,
-      "end": 289,
+      "start": 333,
+      "end": 360,
       "loc": {
         "start": {
-          "line": 11,
+          "line": 13,
           "column": 4
         },
         "end": {
-          "line": 11,
+          "line": 13,
           "column": 31
         }
       }
@@ -1528,15 +1874,15 @@
         "binop": null,
         "updateContext": null
       },
-      "start": 289,
-      "end": 290,
+      "start": 360,
+      "end": 361,
       "loc": {
         "start": {
-          "line": 11,
+          "line": 13,
           "column": 31
         },
         "end": {
-          "line": 11,
+          "line": 13,
           "column": 32
         }
       }
@@ -1554,111 +1900,7 @@
         "binop": null
       },
       "value": "WaltDisneyWorldEpcot",
-      "start": 295,
-      "end": 315,
-      "loc": {
-        "start": {
-          "line": 12,
-          "column": 4
-        },
-        "end": {
-          "line": 12,
-          "column": 24
-        }
-      }
-    },
-    {
-      "type": {
-        "label": ",",
-        "beforeExpr": true,
-        "startsExpr": false,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null,
-        "updateContext": null
-      },
-      "start": 315,
-      "end": 316,
-      "loc": {
-        "start": {
-          "line": 12,
-          "column": 24
-        },
-        "end": {
-          "line": 12,
-          "column": 25
-        }
-      }
-    },
-    {
-      "type": {
-        "label": "name",
-        "beforeExpr": false,
-        "startsExpr": true,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null
-      },
-      "value": "WaltDisneyWorldHollywoodStudios",
-      "start": 321,
-      "end": 352,
-      "loc": {
-        "start": {
-          "line": 13,
-          "column": 4
-        },
-        "end": {
-          "line": 13,
-          "column": 35
-        }
-      }
-    },
-    {
-      "type": {
-        "label": ",",
-        "beforeExpr": true,
-        "startsExpr": false,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null,
-        "updateContext": null
-      },
-      "start": 352,
-      "end": 353,
-      "loc": {
-        "start": {
-          "line": 13,
-          "column": 35
-        },
-        "end": {
-          "line": 13,
-          "column": 36
-        }
-      }
-    },
-    {
-      "type": {
-        "label": "name",
-        "beforeExpr": false,
-        "startsExpr": true,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null
-      },
-      "value": "WaltDisneyWorldAnimalKingdom",
-      "start": 358,
+      "start": 366,
       "end": 386,
       "loc": {
         "start": {
@@ -1667,7 +1909,7 @@
         },
         "end": {
           "line": 14,
-          "column": 32
+          "column": 24
         }
       }
     },
@@ -1689,295 +1931,10 @@
       "loc": {
         "start": {
           "line": 14,
-          "column": 32
+          "column": 24
         },
         "end": {
           "line": 14,
-          "column": 33
-        }
-      }
-    },
-    {
-      "type": {
-        "label": "name",
-        "beforeExpr": false,
-        "startsExpr": true,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null
-      },
-      "value": "Efteling",
-      "start": 392,
-      "end": 400,
-      "loc": {
-        "start": {
-          "line": 15,
-          "column": 4
-        },
-        "end": {
-          "line": 15,
-          "column": 12
-        }
-      }
-    },
-    {
-      "type": {
-        "label": ",",
-        "beforeExpr": true,
-        "startsExpr": false,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null,
-        "updateContext": null
-      },
-      "start": 400,
-      "end": 401,
-      "loc": {
-        "start": {
-          "line": 15,
-          "column": 12
-        },
-        "end": {
-          "line": 15,
-          "column": 13
-        }
-      }
-    },
-    {
-      "type": {
-        "label": "}",
-        "beforeExpr": false,
-        "startsExpr": false,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null
-      },
-      "start": 404,
-      "end": 405,
-      "loc": {
-        "start": {
-          "line": 16,
-          "column": 2
-        },
-        "end": {
-          "line": 16,
-          "column": 3
-        }
-      }
-    },
-    {
-      "type": {
-        "label": ",",
-        "beforeExpr": true,
-        "startsExpr": false,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null,
-        "updateContext": null
-      },
-      "start": 405,
-      "end": 406,
-      "loc": {
-        "start": {
-          "line": 16,
-          "column": 3
-        },
-        "end": {
-          "line": 16,
-          "column": 4
-        }
-      }
-    },
-    {
-      "type": {
-        "label": "name",
-        "beforeExpr": false,
-        "startsExpr": true,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null
-      },
-      "value": "allParks",
-      "start": 409,
-      "end": 417,
-      "loc": {
-        "start": {
-          "line": 17,
-          "column": 2
-        },
-        "end": {
-          "line": 17,
-          "column": 10
-        }
-      }
-    },
-    {
-      "type": {
-        "label": ":",
-        "beforeExpr": true,
-        "startsExpr": false,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null,
-        "updateContext": null
-      },
-      "start": 417,
-      "end": 418,
-      "loc": {
-        "start": {
-          "line": 17,
-          "column": 10
-        },
-        "end": {
-          "line": 17,
-          "column": 11
-        }
-      }
-    },
-    {
-      "type": {
-        "label": "[",
-        "beforeExpr": true,
-        "startsExpr": true,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null,
-        "updateContext": null
-      },
-      "start": 419,
-      "end": 420,
-      "loc": {
-        "start": {
-          "line": 17,
-          "column": 12
-        },
-        "end": {
-          "line": 17,
-          "column": 13
-        }
-      }
-    },
-    {
-      "type": {
-        "label": "name",
-        "beforeExpr": false,
-        "startsExpr": true,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null
-      },
-      "value": "WaltDisneyWorldMagicKingdom",
-      "start": 425,
-      "end": 452,
-      "loc": {
-        "start": {
-          "line": 18,
-          "column": 4
-        },
-        "end": {
-          "line": 18,
-          "column": 31
-        }
-      }
-    },
-    {
-      "type": {
-        "label": ",",
-        "beforeExpr": true,
-        "startsExpr": false,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null,
-        "updateContext": null
-      },
-      "start": 452,
-      "end": 453,
-      "loc": {
-        "start": {
-          "line": 18,
-          "column": 31
-        },
-        "end": {
-          "line": 18,
-          "column": 32
-        }
-      }
-    },
-    {
-      "type": {
-        "label": "name",
-        "beforeExpr": false,
-        "startsExpr": true,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null
-      },
-      "value": "WaltDisneyWorldEpcot",
-      "start": 458,
-      "end": 478,
-      "loc": {
-        "start": {
-          "line": 19,
-          "column": 4
-        },
-        "end": {
-          "line": 19,
-          "column": 24
-        }
-      }
-    },
-    {
-      "type": {
-        "label": ",",
-        "beforeExpr": true,
-        "startsExpr": false,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null,
-        "updateContext": null
-      },
-      "start": 478,
-      "end": 479,
-      "loc": {
-        "start": {
-          "line": 19,
-          "column": 24
-        },
-        "end": {
-          "line": 19,
           "column": 25
         }
       }
@@ -1995,15 +1952,15 @@
         "binop": null
       },
       "value": "WaltDisneyWorldHollywoodStudios",
-      "start": 484,
-      "end": 515,
+      "start": 392,
+      "end": 423,
       "loc": {
         "start": {
-          "line": 20,
+          "line": 15,
           "column": 4
         },
         "end": {
-          "line": 20,
+          "line": 15,
           "column": 35
         }
       }
@@ -2021,15 +1978,15 @@
         "binop": null,
         "updateContext": null
       },
-      "start": 515,
-      "end": 516,
+      "start": 423,
+      "end": 424,
       "loc": {
         "start": {
-          "line": 20,
+          "line": 15,
           "column": 35
         },
         "end": {
-          "line": 20,
+          "line": 15,
           "column": 36
         }
       }
@@ -2047,15 +2004,15 @@
         "binop": null
       },
       "value": "WaltDisneyWorldAnimalKingdom",
-      "start": 521,
-      "end": 549,
+      "start": 429,
+      "end": 457,
       "loc": {
         "start": {
-          "line": 21,
+          "line": 16,
           "column": 4
         },
         "end": {
-          "line": 21,
+          "line": 16,
           "column": 32
         }
       }
@@ -2073,15 +2030,15 @@
         "binop": null,
         "updateContext": null
       },
-      "start": 549,
-      "end": 550,
+      "start": 457,
+      "end": 458,
       "loc": {
         "start": {
-          "line": 21,
+          "line": 16,
           "column": 32
         },
         "end": {
-          "line": 21,
+          "line": 16,
           "column": 33
         }
       }
@@ -2098,16 +2055,120 @@
         "postfix": false,
         "binop": null
       },
-      "value": "Efteling",
-      "start": 555,
-      "end": 563,
+      "value": "DisneylandResortMagicKingdom",
+      "start": 463,
+      "end": 491,
       "loc": {
         "start": {
-          "line": 22,
+          "line": 17,
           "column": 4
         },
         "end": {
-          "line": 22,
+          "line": 17,
+          "column": 32
+        }
+      }
+    },
+    {
+      "type": {
+        "label": ",",
+        "beforeExpr": true,
+        "startsExpr": false,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null,
+        "updateContext": null
+      },
+      "start": 491,
+      "end": 492,
+      "loc": {
+        "start": {
+          "line": 17,
+          "column": 32
+        },
+        "end": {
+          "line": 17,
+          "column": 33
+        }
+      }
+    },
+    {
+      "type": {
+        "label": "name",
+        "beforeExpr": false,
+        "startsExpr": true,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null
+      },
+      "value": "DisneylandResortCaliforniaAdventure",
+      "start": 497,
+      "end": 532,
+      "loc": {
+        "start": {
+          "line": 18,
+          "column": 4
+        },
+        "end": {
+          "line": 18,
+          "column": 39
+        }
+      }
+    },
+    {
+      "type": {
+        "label": ",",
+        "beforeExpr": true,
+        "startsExpr": false,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null,
+        "updateContext": null
+      },
+      "start": 532,
+      "end": 533,
+      "loc": {
+        "start": {
+          "line": 18,
+          "column": 39
+        },
+        "end": {
+          "line": 18,
+          "column": 40
+        }
+      }
+    },
+    {
+      "type": {
+        "label": "name",
+        "beforeExpr": false,
+        "startsExpr": true,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null
+      },
+      "value": "Efteling",
+      "start": 538,
+      "end": 546,
+      "loc": {
+        "start": {
+          "line": 19,
+          "column": 4
+        },
+        "end": {
+          "line": 19,
           "column": 12
         }
       }
@@ -2125,15 +2186,508 @@
         "binop": null,
         "updateContext": null
       },
+      "start": 546,
+      "end": 547,
+      "loc": {
+        "start": {
+          "line": 19,
+          "column": 12
+        },
+        "end": {
+          "line": 19,
+          "column": 13
+        }
+      }
+    },
+    {
+      "type": {
+        "label": "}",
+        "beforeExpr": false,
+        "startsExpr": false,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null
+      },
+      "start": 550,
+      "end": 551,
+      "loc": {
+        "start": {
+          "line": 20,
+          "column": 2
+        },
+        "end": {
+          "line": 20,
+          "column": 3
+        }
+      }
+    },
+    {
+      "type": {
+        "label": ",",
+        "beforeExpr": true,
+        "startsExpr": false,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null,
+        "updateContext": null
+      },
+      "start": 551,
+      "end": 552,
+      "loc": {
+        "start": {
+          "line": 20,
+          "column": 3
+        },
+        "end": {
+          "line": 20,
+          "column": 4
+        }
+      }
+    },
+    {
+      "type": {
+        "label": "name",
+        "beforeExpr": false,
+        "startsExpr": true,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null
+      },
+      "value": "allParks",
+      "start": 555,
+      "end": 563,
+      "loc": {
+        "start": {
+          "line": 21,
+          "column": 2
+        },
+        "end": {
+          "line": 21,
+          "column": 10
+        }
+      }
+    },
+    {
+      "type": {
+        "label": ":",
+        "beforeExpr": true,
+        "startsExpr": false,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null,
+        "updateContext": null
+      },
       "start": 563,
       "end": 564,
       "loc": {
         "start": {
-          "line": 22,
+          "line": 21,
+          "column": 10
+        },
+        "end": {
+          "line": 21,
+          "column": 11
+        }
+      }
+    },
+    {
+      "type": {
+        "label": "[",
+        "beforeExpr": true,
+        "startsExpr": true,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null,
+        "updateContext": null
+      },
+      "start": 565,
+      "end": 566,
+      "loc": {
+        "start": {
+          "line": 21,
           "column": 12
         },
         "end": {
+          "line": 21,
+          "column": 13
+        }
+      }
+    },
+    {
+      "type": {
+        "label": "name",
+        "beforeExpr": false,
+        "startsExpr": true,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null
+      },
+      "value": "WaltDisneyWorldMagicKingdom",
+      "start": 571,
+      "end": 598,
+      "loc": {
+        "start": {
           "line": 22,
+          "column": 4
+        },
+        "end": {
+          "line": 22,
+          "column": 31
+        }
+      }
+    },
+    {
+      "type": {
+        "label": ",",
+        "beforeExpr": true,
+        "startsExpr": false,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null,
+        "updateContext": null
+      },
+      "start": 598,
+      "end": 599,
+      "loc": {
+        "start": {
+          "line": 22,
+          "column": 31
+        },
+        "end": {
+          "line": 22,
+          "column": 32
+        }
+      }
+    },
+    {
+      "type": {
+        "label": "name",
+        "beforeExpr": false,
+        "startsExpr": true,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null
+      },
+      "value": "WaltDisneyWorldEpcot",
+      "start": 604,
+      "end": 624,
+      "loc": {
+        "start": {
+          "line": 23,
+          "column": 4
+        },
+        "end": {
+          "line": 23,
+          "column": 24
+        }
+      }
+    },
+    {
+      "type": {
+        "label": ",",
+        "beforeExpr": true,
+        "startsExpr": false,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null,
+        "updateContext": null
+      },
+      "start": 624,
+      "end": 625,
+      "loc": {
+        "start": {
+          "line": 23,
+          "column": 24
+        },
+        "end": {
+          "line": 23,
+          "column": 25
+        }
+      }
+    },
+    {
+      "type": {
+        "label": "name",
+        "beforeExpr": false,
+        "startsExpr": true,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null
+      },
+      "value": "WaltDisneyWorldHollywoodStudios",
+      "start": 630,
+      "end": 661,
+      "loc": {
+        "start": {
+          "line": 24,
+          "column": 4
+        },
+        "end": {
+          "line": 24,
+          "column": 35
+        }
+      }
+    },
+    {
+      "type": {
+        "label": ",",
+        "beforeExpr": true,
+        "startsExpr": false,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null,
+        "updateContext": null
+      },
+      "start": 661,
+      "end": 662,
+      "loc": {
+        "start": {
+          "line": 24,
+          "column": 35
+        },
+        "end": {
+          "line": 24,
+          "column": 36
+        }
+      }
+    },
+    {
+      "type": {
+        "label": "name",
+        "beforeExpr": false,
+        "startsExpr": true,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null
+      },
+      "value": "WaltDisneyWorldAnimalKingdom",
+      "start": 667,
+      "end": 695,
+      "loc": {
+        "start": {
+          "line": 25,
+          "column": 4
+        },
+        "end": {
+          "line": 25,
+          "column": 32
+        }
+      }
+    },
+    {
+      "type": {
+        "label": ",",
+        "beforeExpr": true,
+        "startsExpr": false,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null,
+        "updateContext": null
+      },
+      "start": 695,
+      "end": 696,
+      "loc": {
+        "start": {
+          "line": 25,
+          "column": 32
+        },
+        "end": {
+          "line": 25,
+          "column": 33
+        }
+      }
+    },
+    {
+      "type": {
+        "label": "name",
+        "beforeExpr": false,
+        "startsExpr": true,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null
+      },
+      "value": "DisneylandResortMagicKingdom",
+      "start": 701,
+      "end": 729,
+      "loc": {
+        "start": {
+          "line": 26,
+          "column": 4
+        },
+        "end": {
+          "line": 26,
+          "column": 32
+        }
+      }
+    },
+    {
+      "type": {
+        "label": ",",
+        "beforeExpr": true,
+        "startsExpr": false,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null,
+        "updateContext": null
+      },
+      "start": 729,
+      "end": 730,
+      "loc": {
+        "start": {
+          "line": 26,
+          "column": 32
+        },
+        "end": {
+          "line": 26,
+          "column": 33
+        }
+      }
+    },
+    {
+      "type": {
+        "label": "name",
+        "beforeExpr": false,
+        "startsExpr": true,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null
+      },
+      "value": "DisneylandResortCaliforniaAdventure",
+      "start": 735,
+      "end": 770,
+      "loc": {
+        "start": {
+          "line": 27,
+          "column": 4
+        },
+        "end": {
+          "line": 27,
+          "column": 39
+        }
+      }
+    },
+    {
+      "type": {
+        "label": ",",
+        "beforeExpr": true,
+        "startsExpr": false,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null,
+        "updateContext": null
+      },
+      "start": 770,
+      "end": 771,
+      "loc": {
+        "start": {
+          "line": 27,
+          "column": 39
+        },
+        "end": {
+          "line": 27,
+          "column": 40
+        }
+      }
+    },
+    {
+      "type": {
+        "label": "name",
+        "beforeExpr": false,
+        "startsExpr": true,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null
+      },
+      "value": "Efteling",
+      "start": 776,
+      "end": 784,
+      "loc": {
+        "start": {
+          "line": 28,
+          "column": 4
+        },
+        "end": {
+          "line": 28,
+          "column": 12
+        }
+      }
+    },
+    {
+      "type": {
+        "label": ",",
+        "beforeExpr": true,
+        "startsExpr": false,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null,
+        "updateContext": null
+      },
+      "start": 784,
+      "end": 785,
+      "loc": {
+        "start": {
+          "line": 28,
+          "column": 12
+        },
+        "end": {
+          "line": 28,
           "column": 13
         }
       }
@@ -2151,15 +2705,15 @@
         "binop": null,
         "updateContext": null
       },
-      "start": 567,
-      "end": 568,
+      "start": 788,
+      "end": 789,
       "loc": {
         "start": {
-          "line": 23,
+          "line": 29,
           "column": 2
         },
         "end": {
-          "line": 23,
+          "line": 29,
           "column": 3
         }
       }
@@ -2177,15 +2731,15 @@
         "binop": null,
         "updateContext": null
       },
-      "start": 568,
-      "end": 569,
+      "start": 789,
+      "end": 790,
       "loc": {
         "start": {
-          "line": 23,
+          "line": 29,
           "column": 3
         },
         "end": {
-          "line": 23,
+          "line": 29,
           "column": 4
         }
       }
@@ -2202,15 +2756,15 @@
         "postfix": false,
         "binop": null
       },
-      "start": 570,
-      "end": 571,
+      "start": 791,
+      "end": 792,
       "loc": {
         "start": {
-          "line": 24,
+          "line": 30,
           "column": 0
         },
         "end": {
-          "line": 24,
+          "line": 30,
           "column": 1
         }
       }
@@ -2228,15 +2782,15 @@
         "binop": null,
         "updateContext": null
       },
-      "start": 571,
-      "end": 572,
+      "start": 792,
+      "end": 793,
       "loc": {
         "start": {
-          "line": 24,
+          "line": 30,
           "column": 1
         },
         "end": {
-          "line": 24,
+          "line": 30,
           "column": 2
         }
       }
@@ -2254,15 +2808,15 @@
         "binop": null,
         "updateContext": null
       },
-      "start": 573,
-      "end": 573,
+      "start": 794,
+      "end": 794,
       "loc": {
         "start": {
-          "line": 25,
+          "line": 31,
           "column": 0
         },
         "end": {
-          "line": 25,
+          "line": 31,
           "column": 0
         }
       }
