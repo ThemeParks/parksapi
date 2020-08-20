@@ -81,6 +81,11 @@ import {parseConfig} from &apos;../../configBase.js&apos;;
 export function getEntityID(doc) {
   const docId = doc?.id || doc;
 
+  if (!docId) {
+    console.error(&apos;Unable to find ID from&apos;, JSON.stringify(doc));
+    return undefined;
+  }
+
   const stack = docId.split(&apos;:&apos;);
   const lowestLevelEntity = stack[stack.length - 1];
 

@@ -615,6 +615,9 @@ export class Park extends ConfigBase {
         if (msUntilOpening &lt;= 0) {
           if (moment(time.closingTime).diff(now) &gt; 0) {
             return 0;
+          } else {
+            // otherwise this entire time block is in the past, ignore it
+            return p2;
           }
         }
         return Math.min(p2, msUntilOpening);
