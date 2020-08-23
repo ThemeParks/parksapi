@@ -36,6 +36,24 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "@themeparks/parksapi/lib/parks/dlp/disneylandparis.js~disneylandparismagickingdom",
+    "class/lib/parks/dlp/disneylandparis.js~DisneylandParisMagicKingdom.html",
+    "<span>DisneylandParisMagicKingdom</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/dlp/disneylandparis.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/dlp/disneylandparis.js~disneylandparispark",
+    "class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html",
+    "<span>DisneylandParisPark</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/dlp/disneylandparis.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/dlp/disneylandparis.js~disneylandpariswaltdisneystudios",
+    "class/lib/parks/dlp/disneylandparis.js~DisneylandParisWaltDisneyStudios.html",
+    "<span>DisneylandParisWaltDisneyStudios</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/dlp/disneylandparis.js</span>",
+    "class"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~disneylandresortcaliforniaadventure",
     "class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure.html",
     "<span>DisneylandResortCaliforniaAdventure</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
@@ -786,6 +804,66 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
+    "lib/parks/dlp/disneylandparis.js",
+    "file/lib/parks/dlp/disneylandparis.js.html",
+    "lib/parks/dlp/disneylandparis.js",
+    "file"
+  ],
+  [
+    "lib/parks/dlp/disneylandparis.js~disneylandparismagickingdom#constructor",
+    "class/lib/parks/dlp/disneylandparis.js~DisneylandParisMagicKingdom.html#instance-constructor-constructor",
+    "lib/parks/dlp/disneylandparis.js~DisneylandParisMagicKingdom#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/dlp/disneylandparis.js~disneylandparispark#_buildattractionobject",
+    "class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html#instance-method-_buildAttractionObject",
+    "lib/parks/dlp/disneylandparis.js~DisneylandParisPark#_buildAttractionObject",
+    "method"
+  ],
+  [
+    "lib/parks/dlp/disneylandparis.js~disneylandparispark#_getoperatinghoursfordate",
+    "class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html#instance-method-_getOperatingHoursForDate",
+    "lib/parks/dlp/disneylandparis.js~DisneylandParisPark#_getOperatingHoursForDate",
+    "method"
+  ],
+  [
+    "lib/parks/dlp/disneylandparis.js~disneylandparispark#_init",
+    "class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html#instance-method-_init",
+    "lib/parks/dlp/disneylandparis.js~DisneylandParisPark#_init",
+    "method"
+  ],
+  [
+    "lib/parks/dlp/disneylandparis.js~disneylandparispark#_update",
+    "class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html#instance-method-_update",
+    "lib/parks/dlp/disneylandparis.js~DisneylandParisPark#_update",
+    "method"
+  ],
+  [
+    "lib/parks/dlp/disneylandparis.js~disneylandparispark#constructor",
+    "class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html#instance-constructor-constructor",
+    "lib/parks/dlp/disneylandparis.js~DisneylandParisPark#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/dlp/disneylandparis.js~disneylandparispark#getparkdata",
+    "class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html#instance-method-getParkData",
+    "lib/parks/dlp/disneylandparis.js~DisneylandParisPark#getParkData",
+    "method"
+  ],
+  [
+    "lib/parks/dlp/disneylandparis.js~disneylandparispark#shutdown",
+    "class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html#instance-method-shutdown",
+    "lib/parks/dlp/disneylandparis.js~DisneylandParisPark#shutdown",
+    "method"
+  ],
+  [
+    "lib/parks/dlp/disneylandparis.js~disneylandpariswaltdisneystudios#constructor",
+    "class/lib/parks/dlp/disneylandparis.js~DisneylandParisWaltDisneyStudios.html#instance-constructor-constructor",
+    "lib/parks/dlp/disneylandparis.js~DisneylandParisWaltDisneyStudios#constructor",
+    "method"
+  ],
+  [
     "lib/parks/efteling/efteling.js",
     "file/lib/parks/efteling/efteling.js.html",
     "lib/parks/efteling/efteling.js",
@@ -1071,6 +1149,12 @@ window.esdocSearchIndex = [
     "lib/parks/park.js~park#setattractiontag",
     "class/lib/parks/park.js~Park.html#instance-method-setAttractionTag",
     "lib/parks/park.js~Park#setAttractionTag",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#shutdown",
+    "class/lib/parks/park.js~Park.html#instance-method-shutdown",
+    "lib/parks/park.js~Park#shutdown",
     "method"
   ],
   [

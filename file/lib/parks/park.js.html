@@ -50,6 +50,9 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-scheduleType">scheduleType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-statusType">statusType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-tagType">tagType</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-dlp">parks/dlp</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisMagicKingdom.html">DisneylandParisMagicKingdom</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html">DisneylandParisPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisWaltDisneyStudios.html">DisneylandParisWaltDisneyStudios</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-efteling">parks/efteling</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure.html">DisneylandResortCaliforniaAdventure</a></span></span></li>
@@ -147,12 +150,21 @@ export class Park extends ConfigBase {
   }
 
   /**
+   * Call this to shutdown the park object.
+   * This is an async call, so wait until it has resolved to continue.
+   */
+  async shutdown() {
+    // disable any park updates
+    this.config.disableParkUpdate = true;
+  }
+
+  /**
    * Get a globally unique ID for this park
    * @return {string}
    */
   getParkUniqueID() {
     // by default, return the class name
-    return this.constructor.name.toLowerCase();
+    return this.constructor.name;
   }
 
   /**
@@ -213,8 +225,13 @@ export class Park extends ConfigBase {
           // pause for our updateInterval time
           await delay(this.config.updateInterval);
 
+          // if our udpates get disabled during our timer, then skip and exit our
+          if (this.config.disableParkUpdate) return;
+
           // wait for Promise to resolve, grab any catches, then continue anyway
           this.update().then().catch().then(() =&gt; {
+            if (this.config.disableParkUpdate) return;
+
             // schedule another update
             setImmediate(scheduleUpdate.bind(this));
           });
@@ -342,14 +359,14 @@ export class Park extends ConfigBase {
       });
     }
 
-    // add to our attractions array
-    this._attractions.push(newAttraction);
-
     // ask the park implementation to supply us with some basic attraction information (name, type, etc.)
     //  we&apos;ll then inject this into our attraction object, assuming it returns successfully
     try {
       const builtAttractionObject = await this._buildAttractionObject(attractionID);
       if (builtAttractionObject !== undefined &amp;&amp; !!builtAttractionObject.name) {
+        // add to our attractions array once we&apos;ve got a valid attraction (not undefined) from child class
+        this._attractions.push(newAttraction);
+
         // copy fields we&apos;re interested in into our new attraction object
         fieldsToCopyFromParkClass.forEach((key) =&gt; {
           if (builtAttractionObject[key] !== undefined) {

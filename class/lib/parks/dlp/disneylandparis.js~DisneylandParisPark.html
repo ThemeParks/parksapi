@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <base data-ice="baseUrl" href="../../../../">
-  <title data-ice="title">WaltDisneyWorldEpcot | @themeparks/parksapi</title>
+  <title data-ice="title">DisneylandParisPark | @themeparks/parksapi</title>
   <link type="text/css" rel="stylesheet" href="css/style.css">
   <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
   <script src="script/prettify/prettify.js"></script>
@@ -68,24 +68,24 @@
 </nav>
 
 <div class="content" data-ice="content"><div class="header-notice">
-  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import {WaltDisneyWorldEpcot} from &apos;<span><a href="file/lib/parks/wdw/waltdisneyworldbase.js.html#lineNumber241">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</a></span>&apos;</code></pre></div>
+  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import {DisneylandParisPark} from &apos;<span><a href="file/lib/parks/dlp/disneylandparis.js.html#lineNumber116">@themeparks/parksapi/lib/parks/dlp/disneylandparis.js</a></span>&apos;</code></pre></div>
   <span data-ice="access">public</span>
   <span data-ice="kind">class</span>
   
   
   
-  <span data-ice="source">| <span><a href="file/lib/parks/wdw/waltdisneyworldbase.js.html#lineNumber241">source</a></span></span>
+  <span data-ice="source">| <span><a href="file/lib/parks/dlp/disneylandparis.js.html#lineNumber116">source</a></span></span>
 </div>
 
 <div class="self-detail detail">
-  <h1 data-ice="name">WaltDisneyWorldEpcot</h1>
+  <h1 data-ice="name">DisneylandParisPark</h1>
 
   
 
   
   
-  <div class="flat-list" data-ice="extendsChain"><h4>Extends:</h4><div><span>events~EventEmitter</span> &#x2192; <span><a href="class/lib/configBase.js~ConfigBase.html">ConfigBase</a></span> &#x2192; <span><a href="class/lib/parks/park.js~Park.html">Park</a></span> &#x2192; <span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span> &#x2192; WaltDisneyWorldEpcot</div></div>
-  
+  <div class="flat-list" data-ice="extendsChain"><h4>Extends:</h4><div><span>events~EventEmitter</span> &#x2192; <span><a href="class/lib/configBase.js~ConfigBase.html">ConfigBase</a></span> &#x2192; <span><a href="class/lib/parks/park.js~Park.html">Park</a></span> &#x2192; DisneylandParisPark</div></div>
+  <div class="flat-list" data-ice="directSubclass"><h4>Direct Subclass:</h4><div><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisMagicKingdom.html">DisneylandParisMagicKingdom</a></span>, <span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisWaltDisneyStudios.html">DisneylandParisWaltDisneyStudios</a></span></div></div>
   
   
   
@@ -94,7 +94,7 @@
 
   
   
-  <div class="description" data-ice="description"><p>Walt Disney World - Epcot</p>
+  <div class="description" data-ice="description"><p>Disneyland Paris Park Object</p>
 </div>
   
 
@@ -127,13 +127,14 @@
           
           
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot.html#instance-constructor-constructor">constructor</a></span></span><span class="code" data-ice="signature">()</span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html#instance-constructor-constructor">constructor</a></span></span><span class="code" data-ice="signature">(options: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span>)</span>
         </p>
       </div>
       <div>
         
         
-        
+        <div data-ice="description"><p>Create a new DisneylandParisPark object</p>
+</div>
       </div>
     </td>
     <td>
@@ -161,9 +162,156 @@
       <div>
         <p>
           
+          <span data-ice="async">async</span>
           
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html#instance-method-getParkData">getParkData</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Get data for our park attractions</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot.html#instance-method-getParkUniqueID">getParkUniqueID</a></span></span><span class="code" data-ice="signature">(): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></span>
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html#instance-method-shutdown">shutdown</a></span></span><span class="code" data-ice="signature">()</span>
+        </p>
+      </div>
+      <div>
+        
+        
+        
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+</tbody>
+</table>
+<table class="summary" data-ice="summary">
+  <thead><tr><td data-ice="title" colspan="3">Private Methods</td></tr></thead>
+  <tbody>
+  
+  <tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">private</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html#instance-method-_buildAttractionObject">_buildAttractionObject</a></span></span><span class="code" data-ice="signature">(attractionID: <span>*</span>): {&quot;name&quot;: <span>*</span>, &quot;type&quot;: <span>*</span>, &quot;tags&quot;: <span>*</span>}</span>
+        </p>
+      </div>
+      <div>
+        
+        
+        
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">private</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html#instance-method-_getOperatingHoursForDate">_getOperatingHoursForDate</a></span></span><span class="code" data-ice="signature">(date: <span>*</span>): <span>*</span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">private</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html#instance-method-_init">_init</a></span></span><span class="code" data-ice="signature">()</span>
+        </p>
+      </div>
+      <div>
+        
+        
+        
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">private</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html#instance-method-_update">_update</a></span></span><span class="code" data-ice="signature">()</span>
         </p>
       </div>
       <div>
@@ -1463,271 +1611,6 @@
   </tr>
 </tbody>
 </table>
-
-<table class="summary" data-ice="summary">
-  <thead><tr><td data-ice="title" colspan="3"><span class="toggle closed"></span> From class <span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></td></tr></thead>
-  <tbody>
-  
-  <tr data-ice="target">
-    <td>
-      <span class="access" data-ice="access">public</span>
-      <span data-ice="static">static</span>
-      
-      
-      <span class="override" data-ice="override"></span>
-    </td>
-    <td>
-      <div>
-        <p>
-          
-          
-          
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#static-method-getDatabase">getDatabase</a></span></span><span class="code" data-ice="signature">(): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span></span>
-        </p>
-      </div>
-      <div>
-        
-        
-        <div data-ice="description"><p>Get the live WDW database object</p>
-</div>
-      </div>
-    </td>
-    <td>
-      
-      
-    </td>
-  </tr>
-<tr data-ice="target">
-    <td>
-      <span class="access" data-ice="access">public</span>
-      
-      
-      
-      <span class="override" data-ice="override"></span>
-    </td>
-    <td>
-      <div>
-        <p>
-          
-          
-          
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-member-db">db</a></span></span><span class="code" data-ice="signature">: <span>*</span></span>
-        </p>
-      </div>
-      <div>
-        
-        
-        
-      </div>
-    </td>
-    <td>
-      
-      
-    </td>
-  </tr>
-<tr data-ice="target">
-    <td>
-      <span class="access" data-ice="access">public</span>
-      
-      
-      
-      <span class="override" data-ice="override"></span>
-    </td>
-    <td>
-      <div>
-        <p>
-          
-          
-          
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-getFacilityStatusChannelID">getFacilityStatusChannelID</a></span></span><span class="code" data-ice="signature">(): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></span>
-        </p>
-      </div>
-      <div>
-        
-        
-        <div data-ice="description"><p>Get the channel ID for the facility status live update documents</p>
-</div>
-      </div>
-    </td>
-    <td>
-      
-      
-    </td>
-  </tr>
-<tr data-ice="target">
-    <td>
-      <span class="access" data-ice="access">public</span>
-      
-      
-      
-      <span class="override" data-ice="override"></span>
-    </td>
-    <td>
-      <div>
-        <p>
-          
-          
-          
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-getParkUniqueID">getParkUniqueID</a></span></span><span class="code" data-ice="signature">(): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></span>
-        </p>
-      </div>
-      <div>
-        
-        
-        <div data-ice="description"><p>Get a unique ID for this park</p>
-</div>
-      </div>
-    </td>
-    <td>
-      
-      
-    </td>
-  </tr>
-<tr data-ice="target">
-    <td>
-      <span class="access" data-ice="access">private</span>
-      
-      
-      
-      <span class="override" data-ice="override"></span>
-    </td>
-    <td>
-      <div>
-        <p>
-          
-          <span data-ice="async">async</span>
-          
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_buildAttractionObject">_buildAttractionObject</a></span></span><span class="code" data-ice="signature">(attractionID: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>): <span>*</span></span>
-        </p>
-      </div>
-      <div>
-        
-        
-        <div data-ice="description"><p>Build an attraction object from an ID</p>
-</div>
-      </div>
-    </td>
-    <td>
-      
-      
-    </td>
-  </tr>
-<tr data-ice="target">
-    <td>
-      <span class="access" data-ice="access">private</span>
-      
-      
-      
-      <span class="override" data-ice="override"></span>
-    </td>
-    <td>
-      <div>
-        <p>
-          
-          <span data-ice="async">async</span>
-          
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_getOperatingHoursForDate">_getOperatingHoursForDate</a></span></span><span class="code" data-ice="signature">(date: <span>moment</span>): <span>*</span></span>
-        </p>
-      </div>
-      <div>
-        
-        
-        <div data-ice="description"><p>Return the operating hours for the supplied date</p>
-</div>
-      </div>
-    </td>
-    <td>
-      
-      
-    </td>
-  </tr>
-<tr data-ice="target">
-    <td>
-      <span class="access" data-ice="access">private</span>
-      
-      
-      
-      <span class="override" data-ice="override"></span>
-    </td>
-    <td>
-      <div>
-        <p>
-          
-          <span data-ice="async">async</span>
-          
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_init">_init</a></span></span><span class="code" data-ice="signature">()</span>
-        </p>
-      </div>
-      <div>
-        
-        
-        
-      </div>
-    </td>
-    <td>
-      
-      
-    </td>
-  </tr>
-<tr data-ice="target">
-    <td>
-      <span class="access" data-ice="access">private</span>
-      
-      
-      
-      <span class="override" data-ice="override"></span>
-    </td>
-    <td>
-      <div>
-        <p>
-          
-          <span data-ice="async">async</span>
-          
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_processAttractionStatusUpdate">_processAttractionStatusUpdate</a></span></span><span class="code" data-ice="signature">(doc: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span>)</span>
-        </p>
-      </div>
-      <div>
-        
-        
-        <div data-ice="description"><p>Process a document update from a facilitystatus channel</p>
-</div>
-      </div>
-    </td>
-    <td>
-      
-      
-    </td>
-  </tr>
-<tr data-ice="target">
-    <td>
-      <span class="access" data-ice="access">private</span>
-      
-      
-      
-      <span class="override" data-ice="override"></span>
-    </td>
-    <td>
-      <div>
-        <p>
-          
-          <span data-ice="async">async</span>
-          
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_update">_update</a></span></span><span class="code" data-ice="signature">()</span>
-        </p>
-      </div>
-      <div>
-        
-        
-        
-      </div>
-    </td>
-    <td>
-      
-      
-    </td>
-  </tr>
-</tbody>
-</table>
 </div>
 
 
@@ -1742,23 +1625,39 @@
     
     
     
-    <span class="code" data-ice="name">constructor</span><span class="code" data-ice="signature">()</span>
+    <span class="code" data-ice="name">constructor</span><span class="code" data-ice="signature">(options: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span>)</span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/waltdisneyworldbase.js.html#lineNumber245">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/dlp/disneylandparis.js.html#lineNumber121">source</a></span></span>
     </span>
   </h3>
 
   
   
   
-  <div data-ice="description"><p>Create a new DisneyPark object</p>
+  <div data-ice="description"><p>Create a new DisneylandParisPark object</p>
 </div>
 
-  <div data-ice="override"><h4>Override:</h4><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-constructor-constructor">DisneyPark#constructor</a></span></div>
+  <div data-ice="override"><h4>Override:</h4><span><a href="class/lib/parks/park.js~Park.html#instance-constructor-constructor">Park#constructor</a></span></div>
 
-  <div data-ice="properties">
+  <div data-ice="properties"><div data-ice="properties">
+  <h4 data-ice="title">Params:</h4>
+  <table class="params">
+    <thead>
+    <tr><td>Name</td><td>Type</td><td>Attribute</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+    
+    <tr data-ice="property" data-depth="0">
+      <td data-ice="name" class="code" data-depth="0">options</td>
+      <td data-ice="type" class="code"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span></td>
+      <td data-ice="appendix"></td>
+      <td data-ice="description"></td>
+    </tr>
+</tbody>
+  </table>
+</div>
 </div>
 
   
@@ -1783,28 +1682,28 @@
 <div data-ice="methodDetails"><h2 data-ice="title">Public Methods</h2>
 
 <div class="detail" data-ice="detail">
-  <h3 data-ice="anchor" id="instance-method-getParkUniqueID">
+  <h3 data-ice="anchor" id="instance-method-getParkData">
     <span class="access" data-ice="access">public</span>
     
     
     
+    <span data-ice="async">async</span>
     
-    
-    <span class="code" data-ice="name">getParkUniqueID</span><span class="code" data-ice="signature">(): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></span>
+    <span class="code" data-ice="name">getParkData</span><span class="code" data-ice="signature">(): <span>*</span></span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/waltdisneyworldbase.js.html#lineNumber257">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/dlp/disneylandparis.js.html#lineNumber177">source</a></span></span>
     </span>
   </h3>
 
   
   
   
-  <div data-ice="description"><p>Get a unique ID for this park</p>
+  <div data-ice="description"><p>Get data for our park attractions</p>
 </div>
 
-  <div data-ice="override"><h4>Override:</h4><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-getParkUniqueID">DisneyPark#getParkUniqueID</a></span></div>
+  
 
   <div data-ice="properties">
 </div>
@@ -1814,7 +1713,7 @@
     <table>
       <tbody>
         <tr>
-          <td class="return-type code" data-ice="returnType"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></td>
+          <td class="return-type code" data-ice="returnType"><span>*</span></td>
           
         </tr>
       </tbody>
@@ -1822,6 +1721,284 @@
     <div data-ice="returnProperties">
 </div>
   </div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-shutdown">
+    <span class="access" data-ice="access">public</span>
+    
+    
+    
+    <span data-ice="async">async</span>
+    
+    <span class="code" data-ice="name">shutdown</span><span class="code" data-ice="signature">()</span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/dlp/disneylandparis.js.html#lineNumber164">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Call this to shutdown the park object.<br>This is an async call, so wait until it has resolved to continue.</p>
+</div>
+
+  <div data-ice="override"><h4>Override:</h4><span><a href="class/lib/parks/park.js~Park.html#instance-method-shutdown">Park#shutdown</a></span></div>
+
+  <div data-ice="properties">
+</div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<h2 data-ice="title">Private Methods</h2>
+
+<div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-_buildAttractionObject">
+    <span class="access" data-ice="access">private</span>
+    
+    
+    
+    <span data-ice="async">async</span>
+    
+    <span class="code" data-ice="name">_buildAttractionObject</span><span class="code" data-ice="signature">(attractionID: <span>*</span>): {&quot;name&quot;: <span>*</span>, &quot;type&quot;: <span>*</span>, &quot;tags&quot;: <span>*</span>}</span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/dlp/disneylandparis.js.html#lineNumber201">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Build an object representing an attraction from sourced data<br>This object should not contain any &quot;state&quot; data, just static information about the attraction</p>
+</div>
+
+  <div data-ice="override"><h4>Override:</h4><span><a href="class/lib/parks/park.js~Park.html#instance-method-_buildAttractionObject">Park#_buildAttractionObject</a></span></div>
+
+  <div data-ice="properties"><div data-ice="properties">
+  <h4 data-ice="title">Params:</h4>
+  <table class="params">
+    <thead>
+    <tr><td>Name</td><td>Type</td><td>Attribute</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+    
+    <tr data-ice="property" data-depth="0">
+      <td data-ice="name" class="code" data-depth="0">attractionID</td>
+      <td data-ice="type" class="code"><span>*</span></td>
+      <td data-ice="appendix"></td>
+      <td data-ice="description"></td>
+    </tr>
+</tbody>
+  </table>
+</div>
+</div>
+
+  <div class="return-params" data-ice="returnParams">
+    <h4>Return:</h4>
+    <table>
+      <tbody>
+        <tr>
+          <td class="return-type code" data-ice="returnType">{&quot;name&quot;: <span>*</span>, &quot;type&quot;: <span>*</span>, &quot;tags&quot;: <span>*</span>}</td>
+          
+        </tr>
+      </tbody>
+    </table>
+    <div data-ice="returnProperties">
+</div>
+  </div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-_getOperatingHoursForDate">
+    <span class="access" data-ice="access">private</span>
+    
+    
+    
+    <span data-ice="async">async</span>
+    
+    <span class="code" data-ice="name">_getOperatingHoursForDate</span><span class="code" data-ice="signature">(date: <span>*</span>): <span>*</span></span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/dlp/disneylandparis.js.html#lineNumber341">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Given a moment date, return an array of opening hours for this park, or undefined<br>Each entry should contain openingTime, closingTime, and type (of scheduleType)</p>
+</div>
+
+  <div data-ice="override"><h4>Override:</h4><span><a href="class/lib/parks/park.js~Park.html#instance-method-_getOperatingHoursForDate">Park#_getOperatingHoursForDate</a></span></div>
+
+  <div data-ice="properties"><div data-ice="properties">
+  <h4 data-ice="title">Params:</h4>
+  <table class="params">
+    <thead>
+    <tr><td>Name</td><td>Type</td><td>Attribute</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+    
+    <tr data-ice="property" data-depth="0">
+      <td data-ice="name" class="code" data-depth="0">date</td>
+      <td data-ice="type" class="code"><span>*</span></td>
+      <td data-ice="appendix"></td>
+      <td data-ice="description"></td>
+    </tr>
+</tbody>
+  </table>
+</div>
+</div>
+
+  <div class="return-params" data-ice="returnParams">
+    <h4>Return:</h4>
+    <table>
+      <tbody>
+        <tr>
+          <td class="return-type code" data-ice="returnType"><span>*</span></td>
+          
+        </tr>
+      </tbody>
+    </table>
+    <div data-ice="returnProperties">
+</div>
+  </div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-_init">
+    <span class="access" data-ice="access">private</span>
+    
+    
+    
+    <span data-ice="async">async</span>
+    
+    <span class="code" data-ice="name">_init</span><span class="code" data-ice="signature">()</span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/dlp/disneylandparis.js.html#lineNumber195">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Internal function<br>Called by init() to initialise the object</p>
+</div>
+
+  <div data-ice="override"><h4>Override:</h4><span><a href="class/lib/parks/park.js~Park.html#instance-method-_init">Park#_init</a></span></div>
+
+  <div data-ice="properties">
+</div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-_update">
+    <span class="access" data-ice="access">private</span>
+    
+    
+    
+    <span data-ice="async">async</span>
+    
+    <span class="code" data-ice="name">_update</span><span class="code" data-ice="signature">()</span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/dlp/disneylandparis.js.html#lineNumber290">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Update function the park object calls on interval to update internal state</p>
+</div>
+
+  <div data-ice="override"><h4>Override:</h4><span><a href="class/lib/parks/park.js~Park.html#instance-method-_update">Park#_update</a></span></div>
+
+  <div data-ice="properties">
+</div>
+
+  
 
   
 
