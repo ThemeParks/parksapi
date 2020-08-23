@@ -1613,7 +1613,7 @@
     "__docId__": 86,
     "kind": "file",
     "name": "lib/cache/scopedCache.js",
-    "content": "import {getCache} from '../cache.js';\nimport {reusePromiseForever} from '../reusePromises.js';\n\n/**\n * A wrapper class for accessing the cache.\n * Prefixes a string before each key to avoid conflicts.\n */\nexport class ScopedCache {\n  /**\n   * Create a new ScopedCache object by passing in the key prefix descired\n   * @param {string} keyPrefix\n   * @param {number} [version] Cache version, bump this to invalidate existing cache entries for a scope\n   */\n  constructor(keyPrefix, version = 0) {\n    this.prefix = keyPrefix;\n    this.version = version;\n\n    this.cache = null;\n  }\n\n  /**\n   * Initialise the cache for this scope\n   */\n  async initCache() {\n    return await reusePromiseForever(this, this._initCache);\n  }\n\n  /**\n   * Internal cache initialisation\n   */\n  async _initCache() {\n    console.log('Making cache...');\n    if (this.cache) {\n      return this.cache;\n    }\n\n    this.cache = await getCache();\n\n    // check and flush cache if version mismatch\n    const cacheVersion = await this.cache.get(this.generateScopedKey('%%version%%'));\n    if (cacheVersion !== undefined && cacheVersion != this.version) {\n      // find all cache entries with this scope, and remove them\n      const keys = await this.cache.getKeys(`${this.prefix}_`);\n\n      await Promise.allSettled(keys.map((key) => {\n        // set expire date to 1 millisecond ago (this basically deletes it)\n        return this.cache.setGlobal(key, {}, -1);\n      }));\n    }\n\n    // set our new cache version with a very very long ttl\n    await this.cache.set('%%version%%', this.generateScopedKey(this.version), Number.MAX_SAFE_INTEGER);\n    this._initCachePromise = null;\n\n    return this.cache;\n  }\n\n  /**\n   * Generate a scoped key by adding our prefix to the incoming key\n   * @param {string} inKey\n   * @return {string} Scoped key\n   */\n  generateScopedKey(inKey) {\n    return `${this.prefix}_${inKey}`;\n  }\n\n  /**\n     * Get a cached object\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present\n     */\n  async get(key) {\n    return this.getGlobal(this.generateScopedKey(key));\n  }\n\n  /**\n     * Get a cached object from the global cache (skipping the scope prefix)\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present\n     */\n  async getGlobal(key) {\n    const cache = await this.initCache();\n    return cache.get(key);\n  }\n\n  /**\n     * Set a key in our cache\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {Object} value\n     * @param {(Function|number)} [ttl=3600000] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     *  Default 1 hour\n     */\n  async set(key, value, ttl = 3600000) {\n    return this.setGlobal(this.generateScopedKey(key), value, ttl);\n  }\n\n  /**\n     * Set a key in our global cache, skipping the scoped prefix\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {Object} value\n     * @param {(Function|number)} [ttl=3600000] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     *  Default 1 hour\n     */\n  async setGlobal(key, value, ttl = 3600000) {\n    const cache = await this.initCache();\n    return cache.set(key, value, ttl);\n  }\n\n  /**\n     * A helper \"wrap\" function that will return a cached value if present\n     *  This will call the supplied function to fetch it if the value isn't present in the cache\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {function} fn Fetch function that will be called if the cache entry is not present\n     * @param {(function|number)} [ttl] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     */\n  async wrap(key, fn, ttl) {\n    return this.wrapGlobal(this.generateScopedKey(key), fn, ttl);\n  }\n\n  /**\n     * A helper \"wrap\" function that will return a cached value if present (in the global scope)\n     *  This will call the supplied function to fetch it if the value isn't present in the cache\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {function} fn Fetch function that will be called if the cache entry is not present\n     * @param {(function|number)} [ttl] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     */\n  async wrapGlobal(key, fn, ttl) {\n    const cache = await this.initCache();\n    return cache.wrap(key, fn, ttl);\n  }\n}\n\nexport default ScopedCache;\n",
+    "content": "import {getCache} from '../cache.js';\nimport {reusePromiseForever} from '../reusePromises.js';\n\n/**\n * A wrapper class for accessing the cache.\n * Prefixes a string before each key to avoid conflicts.\n */\nexport class ScopedCache {\n  /**\n   * Create a new ScopedCache object by passing in the key prefix descired\n   * @param {string} keyPrefix\n   * @param {number} [version] Cache version, bump this to invalidate existing cache entries for a scope\n   */\n  constructor(keyPrefix, version = 0) {\n    this.prefix = keyPrefix;\n    this.version = version;\n\n    this.cache = null;\n  }\n\n  /**\n   * Initialise the cache for this scope\n   */\n  async initCache() {\n    return await reusePromiseForever(this, this._initCache);\n  }\n\n  /**\n   * Internal cache initialisation\n   */\n  async _initCache() {\n    if (this.cache) {\n      return this.cache;\n    }\n\n    this.cache = await getCache();\n\n    // check and flush cache if version mismatch\n    const cacheVersion = await this.cache.get(this.generateScopedKey('%%version%%'));\n    if (cacheVersion !== undefined && cacheVersion != this.version) {\n      // find all cache entries with this scope, and remove them\n      const keys = await this.cache.getKeys(`${this.prefix}_`);\n\n      await Promise.allSettled(keys.map((key) => {\n        // set expire date to 1 millisecond ago (this basically deletes it)\n        return this.cache.setGlobal(key, {}, -1);\n      }));\n    }\n\n    // set our new cache version with a very very long ttl\n    await this.cache.set('%%version%%', this.generateScopedKey(this.version), Number.MAX_SAFE_INTEGER);\n    this._initCachePromise = null;\n\n    return this.cache;\n  }\n\n  /**\n   * Generate a scoped key by adding our prefix to the incoming key\n   * @param {string} inKey\n   * @return {string} Scoped key\n   */\n  generateScopedKey(inKey) {\n    return `${this.prefix}_${inKey}`;\n  }\n\n  /**\n     * Get a cached object\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present\n     */\n  async get(key) {\n    return this.getGlobal(this.generateScopedKey(key));\n  }\n\n  /**\n     * Get a cached object from the global cache (skipping the scope prefix)\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @return {(Object|undefined)} Returns the object in the cache, or undefined if not present\n     */\n  async getGlobal(key) {\n    const cache = await this.initCache();\n    return cache.get(key);\n  }\n\n  /**\n     * Set a key in our cache\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {Object} value\n     * @param {(Function|number)} [ttl=3600000] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     *  Default 1 hour\n     */\n  async set(key, value, ttl = 3600000) {\n    return this.setGlobal(this.generateScopedKey(key), value, ttl);\n  }\n\n  /**\n     * Set a key in our global cache, skipping the scoped prefix\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {Object} value\n     * @param {(Function|number)} [ttl=3600000] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     *  Default 1 hour\n     */\n  async setGlobal(key, value, ttl = 3600000) {\n    const cache = await this.initCache();\n    return cache.set(key, value, ttl);\n  }\n\n  /**\n     * A helper \"wrap\" function that will return a cached value if present\n     *  This will call the supplied function to fetch it if the value isn't present in the cache\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {function} fn Fetch function that will be called if the cache entry is not present\n     * @param {(function|number)} [ttl] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     */\n  async wrap(key, fn, ttl) {\n    return this.wrapGlobal(this.generateScopedKey(key), fn, ttl);\n  }\n\n  /**\n     * A helper \"wrap\" function that will return a cached value if present (in the global scope)\n     *  This will call the supplied function to fetch it if the value isn't present in the cache\n     * @public\n     * @async\n     * @param {string} key Unique key name for this cache entry\n     * @param {function} fn Fetch function that will be called if the cache entry is not present\n     * @param {(function|number)} [ttl] How long the cache entry should last in milliseconds\n     *  Can be a number or a function that will return a number\n     */\n  async wrapGlobal(key, fn, ttl) {\n    const cache = await this.initCache();\n    return cache.wrap(key, fn, ttl);\n  }\n}\n\nexport default ScopedCache;\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/cache/scopedCache.js",
     "access": "public",
@@ -1768,7 +1768,7 @@
     "longname": "lib/cache/scopedCache.js~ScopedCache#_initCachePromise",
     "access": "private",
     "description": null,
-    "lineNumber": 53,
+    "lineNumber": 52,
     "undocument": true,
     "type": {
       "types": [
@@ -1787,7 +1787,7 @@
     "longname": "lib/cache/scopedCache.js~ScopedCache#generateScopedKey",
     "access": "public",
     "description": "Generate a scoped key by adding our prefix to the incoming key",
-    "lineNumber": 63,
+    "lineNumber": 62,
     "params": [
       {
         "nullable": null,
@@ -1820,7 +1820,7 @@
     "longname": "lib/cache/scopedCache.js~ScopedCache#get",
     "access": "public",
     "description": "Get a cached object",
-    "lineNumber": 74,
+    "lineNumber": 73,
     "params": [
       {
         "nullable": null,
@@ -1854,7 +1854,7 @@
     "longname": "lib/cache/scopedCache.js~ScopedCache#getGlobal",
     "access": "public",
     "description": "Get a cached object from the global cache (skipping the scope prefix)",
-    "lineNumber": 85,
+    "lineNumber": 84,
     "params": [
       {
         "nullable": null,
@@ -1888,7 +1888,7 @@
     "longname": "lib/cache/scopedCache.js~ScopedCache#set",
     "access": "public",
     "description": "Set a key in our cache",
-    "lineNumber": 100,
+    "lineNumber": 99,
     "params": [
       {
         "nullable": null,
@@ -1941,7 +1941,7 @@
     "longname": "lib/cache/scopedCache.js~ScopedCache#setGlobal",
     "access": "public",
     "description": "Set a key in our global cache, skipping the scoped prefix",
-    "lineNumber": 114,
+    "lineNumber": 113,
     "params": [
       {
         "nullable": null,
@@ -1994,7 +1994,7 @@
     "longname": "lib/cache/scopedCache.js~ScopedCache#wrap",
     "access": "public",
     "description": "A helper \"wrap\" function that will return a cached value if present<br /> This will call the supplied function to fetch it if the value isn't present in the cache",
-    "lineNumber": 129,
+    "lineNumber": 128,
     "params": [
       {
         "nullable": null,
@@ -2045,7 +2045,7 @@
     "longname": "lib/cache/scopedCache.js~ScopedCache#wrapGlobal",
     "access": "public",
     "description": "A helper \"wrap\" function that will return a cached value if present (in the global scope)<br /> This will call the supplied function to fetch it if the value isn't present in the cache",
-    "lineNumber": 143,
+    "lineNumber": 142,
     "params": [
       {
         "nullable": null,
