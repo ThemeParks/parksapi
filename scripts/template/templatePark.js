@@ -18,10 +18,16 @@ export class SamplePark extends Park {
     //  event if it is just an empty string
     // we will validate our inputs after running super, which will populate outr this.config object
     //  with any overridden configs from environment variables
-    options.apiKey = '';
+    options.apiKey = options.apiKey || '';
+    // note the "||", this is a common trick in JavaScript to accept the incoming "apiKey"
+    //  (if it is a valid option), or set it to some other value (in this case, '')
+    // be careful doing this with values expected to be booleans!
 
     // bump cache to invalidate the POI data that has been updated
     // options.cacheVersion = 1;
+
+    // any custom environment variable prefixes we want to use for this park (optional)
+    // options.configPrefixes = ['SAMPLEPARK'].concat(options.configPrefixes || []);
 
     super(options);
 
