@@ -318,16 +318,18 @@ export class DisneylandParisPark extends Park {
         // skip attractions for &quot;any height&quot;
         if (height.id === &apos;anyHeight&apos;) return;
 
-        const heightVal = /([\d\.]+)/.exec(height.value);
+        const heightVal = /([\d\.]+)\s+(\w+)/.exec(height.value);
         if (heightVal) {
+          const unit = heightVal[2];
           tags.push({
             type: tagType.minimumHeight,
             key: height.id,
             value: {
-              height: Number(heightVal[1]) * 100,
+              height: Number(heightVal[1]) * (unit === &apos;m&apos; ? 100 : 1),
               unit: &apos;cm&apos;,
             },
           });
+          console.log(tags);
         }
       });
     }
