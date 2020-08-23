@@ -678,6 +678,12 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
+    "lib/cache/scopedcache.js~scopedcache#_initcache",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-method-_initCache",
+    "lib/cache/scopedCache.js~ScopedCache#_initCache",
+    "method"
+  ],
+  [
     "lib/cache/scopedcache.js~scopedcache#_initcachepromise",
     "class/lib/cache/scopedCache.js~ScopedCache.html#instance-member-_initCachePromise",
     "lib/cache/scopedCache.js~ScopedCache#_initCachePromise",
@@ -864,6 +870,18 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/park.js~park#_findattractionbyid",
+    "class/lib/parks/park.js~Park.html#instance-method-_findAttractionByID",
+    "lib/parks/park.js~Park#_findAttractionByID",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#_getattractionbyidinternal",
+    "class/lib/parks/park.js~Park.html#instance-method-_getAttractionByIDInternal",
+    "lib/parks/park.js~Park#_getAttractionByIDInternal",
+    "method"
+  ],
+  [
     "lib/parks/park.js~park#_getoperatinghoursfordate",
     "class/lib/parks/park.js~Park.html#instance-method-_getOperatingHoursForDate",
     "lib/parks/park.js~Park#_getOperatingHoursForDate",
@@ -904,6 +922,12 @@ window.esdocSearchIndex = [
     "class/lib/parks/park.js~Park.html#instance-member-cache",
     "lib/parks/park.js~Park#cache",
     "member"
+  ],
+  [
+    "lib/parks/park.js~park#cacheattractionobject",
+    "class/lib/parks/park.js~Park.html#instance-method-cacheAttractionObject",
+    "lib/parks/park.js~Park#cacheAttractionObject",
+    "method"
   ],
   [
     "lib/parks/park.js~park#constructor",

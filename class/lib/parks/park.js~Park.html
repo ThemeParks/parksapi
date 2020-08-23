@@ -370,6 +370,35 @@
           
           <span data-ice="async">async</span>
           
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-cacheAttractionObject">cacheAttractionObject</a></span></span><span class="code" data-ice="signature">(attractionID: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>)</span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Cache an attraction</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
           <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-ensureReady">ensureReady</a></span></span><span class="code" data-ice="signature">(): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise">Promise</a></span></span>
         </p>
       </div>
@@ -863,7 +892,7 @@
           
           <span data-ice="async">async</span>
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-setAttractionTag">setAttractionTag</a></span></span><span class="code" data-ice="signature">(attractionID: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, key: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, type: <span><a href="variable/index.html#static-variable-tagType">tagType</a></span>, value: <span>*</span>): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean">boolean</a></span></span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-setAttractionTag">setAttractionTag</a></span></span><span class="code" data-ice="signature">(attractionID: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span> | <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span>, key: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, type: <span><a href="variable/index.html#static-variable-tagType">tagType</a></span>, value: <span>*</span>): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean">boolean</a></span></span>
         </p>
       </div>
       <div>
@@ -1079,6 +1108,64 @@
         
         
         <div data-ice="description"><p>Called when the park&apos;s date changes<br>Eg. when passing midnight in the park&apos;s local timezone<br> or if late opening hours finish the morning after (eg.</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">private</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-_findAttractionByID">_findAttractionByID</a></span></span><span class="code" data-ice="signature">(attractionID: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Get data about a attraction from its ID</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">private</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-_getAttractionByIDInternal">_getAttractionByIDInternal</a></span></span><span class="code" data-ice="signature">(attractionID: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Get the attraction object for a given ID (skips all generation/safety checks etc,)</p>
 </div>
       </div>
     </td>
@@ -1688,6 +1775,67 @@
 <div data-ice="methodDetails"><h2 data-ice="title">Public Methods</h2>
 
 <div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-cacheAttractionObject">
+    <span class="access" data-ice="access">public</span>
+    
+    
+    
+    <span data-ice="async">async</span>
+    
+    <span class="code" data-ice="name">cacheAttractionObject</span><span class="code" data-ice="signature">(attractionID: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>)</span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber180">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Cache an attraction</p>
+</div>
+
+  
+
+  <div data-ice="properties"><div data-ice="properties">
+  <h4 data-ice="title">Params:</h4>
+  <table class="params">
+    <thead>
+    <tr><td>Name</td><td>Type</td><td>Attribute</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+    
+    <tr data-ice="property" data-depth="0">
+      <td data-ice="name" class="code" data-depth="0">attractionID</td>
+      <td data-ice="type" class="code"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></td>
+      <td data-ice="appendix"></td>
+      <td data-ice="description"><p>ID of the attraction to be cached</p>
+</td>
+    </tr>
+</tbody>
+  </table>
+</div>
+</div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
   <h3 data-ice="anchor" id="instance-method-ensureReady">
     <span class="access" data-ice="access">public</span>
     
@@ -1755,7 +1903,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber192">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber222">source</a></span></span>
     </span>
   </h3>
 
@@ -1829,7 +1977,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber619">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber676">source</a></span></span>
     </span>
   </h3>
 
@@ -1885,7 +2033,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber580">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber637">source</a></span></span>
     </span>
   </h3>
 
@@ -1997,7 +2145,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber509">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber566">source</a></span></span>
     </span>
   </h3>
 
@@ -2053,7 +2201,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber626">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber683">source</a></span></span>
     </span>
   </h3>
 
@@ -2109,7 +2257,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber635">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber692">source</a></span></span>
     </span>
   </h3>
 
@@ -2165,7 +2313,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber539">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber596">source</a></span></span>
     </span>
   </h3>
 
@@ -2221,7 +2369,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber568">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber625">source</a></span></span>
     </span>
   </h3>
 
@@ -2445,7 +2593,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber664">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber721">source</a></span></span>
     </span>
   </h3>
 
@@ -2595,7 +2743,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber648">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber705">source</a></span></span>
     </span>
   </h3>
 
@@ -2664,7 +2812,7 @@ Function will take arguments: (method, URL, data, options)</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber267">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber319">source</a></span></span>
     </span>
   </h3>
 
@@ -2732,11 +2880,11 @@ Function will take arguments: (method, URL, data, options)</p>
     
     <span data-ice="async">async</span>
     
-    <span class="code" data-ice="name">setAttractionTag</span><span class="code" data-ice="signature">(attractionID: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, key: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, type: <span><a href="variable/index.html#static-variable-tagType">tagType</a></span>, value: <span>*</span>): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean">boolean</a></span></span>
+    <span class="code" data-ice="name">setAttractionTag</span><span class="code" data-ice="signature">(attractionID: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span> | <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span>, key: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, type: <span><a href="variable/index.html#static-variable-tagType">tagType</a></span>, value: <span>*</span>): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean">boolean</a></span></span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber305">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber359">source</a></span></span>
     </span>
   </h3>
 
@@ -2758,9 +2906,9 @@ Function will take arguments: (method, URL, data, options)</p>
     
     <tr data-ice="property" data-depth="0">
       <td data-ice="name" class="code" data-depth="0">attractionID</td>
-      <td data-ice="type" class="code"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></td>
+      <td data-ice="type" class="code"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span> | <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span></td>
       <td data-ice="appendix"></td>
-      <td data-ice="description"><p>Attraction ID to update</p>
+      <td data-ice="description"><p>Attraction ID to update (or the actual object)</p>
 </td>
     </tr>
 <tr data-ice="property" data-depth="0">
@@ -2831,7 +2979,7 @@ Function will take arguments: (method, URL, data, options)</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber285">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber338">source</a></span></span>
     </span>
   </h3>
 
@@ -2903,7 +3051,7 @@ Function will take arguments: (method, URL, data, options)</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber416">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber473">source</a></span></span>
     </span>
   </h3>
 
@@ -2959,7 +3107,7 @@ Function will take arguments: (method, URL, data, options)</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber363">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber419">source</a></span></span>
     </span>
   </h3>
 
@@ -3034,7 +3182,7 @@ Function will take arguments: (method, URL, data, options)</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber331">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber386">source</a></span></span>
     </span>
   </h3>
 
@@ -3104,7 +3252,7 @@ Function will take arguments: (method, URL, data, options)</p>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber183">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber198">source</a></span></span>
     </span>
   </h3>
 
@@ -3179,7 +3327,7 @@ Also accepts &apos;type&apos;, which is an <span><a href="variable/index.html#st
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber456">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber513">source</a></span></span>
     </span>
   </h3>
 
@@ -3223,7 +3371,7 @@ Also accepts &apos;type&apos;, which is an <span><a href="variable/index.html#st
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber451">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber508">source</a></span></span>
     </span>
   </h3>
 
@@ -3280,6 +3428,152 @@ Also accepts &apos;type&apos;, which is an <span><a href="variable/index.html#st
   
 </div>
 <div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-_findAttractionByID">
+    <span class="access" data-ice="access">private</span>
+    
+    
+    
+    <span data-ice="async">async</span>
+    
+    <span class="code" data-ice="name">_findAttractionByID</span><span class="code" data-ice="signature">(attractionID: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span></span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber233">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Get data about a attraction from its ID</p>
+</div>
+
+  
+
+  <div data-ice="properties"><div data-ice="properties">
+  <h4 data-ice="title">Params:</h4>
+  <table class="params">
+    <thead>
+    <tr><td>Name</td><td>Type</td><td>Attribute</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+    
+    <tr data-ice="property" data-depth="0">
+      <td data-ice="name" class="code" data-depth="0">attractionID</td>
+      <td data-ice="type" class="code"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></td>
+      <td data-ice="appendix"></td>
+      <td data-ice="description"><p>Unique Attraction ID</p>
+</td>
+    </tr>
+</tbody>
+  </table>
+</div>
+</div>
+
+  <div class="return-params" data-ice="returnParams">
+    <h4>Return:</h4>
+    <table>
+      <tbody>
+        <tr>
+          <td class="return-type code" data-ice="returnType"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span></td>
+          <td class="return-desc" data-ice="returnDescription"><p>The attraction object for the given ID, or undefined</p>
+</td>
+        </tr>
+      </tbody>
+    </table>
+    <div data-ice="returnProperties">
+</div>
+  </div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-_getAttractionByIDInternal">
+    <span class="access" data-ice="access">private</span>
+    
+    
+    
+    
+    
+    <span class="code" data-ice="name">_getAttractionByIDInternal</span><span class="code" data-ice="signature">(attractionID: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span></span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber208">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Get the attraction object for a given ID (skips all generation/safety checks etc,)</p>
+</div>
+
+  
+
+  <div data-ice="properties"><div data-ice="properties">
+  <h4 data-ice="title">Params:</h4>
+  <table class="params">
+    <thead>
+    <tr><td>Name</td><td>Type</td><td>Attribute</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+    
+    <tr data-ice="property" data-depth="0">
+      <td data-ice="name" class="code" data-depth="0">attractionID</td>
+      <td data-ice="type" class="code"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></td>
+      <td data-ice="appendix"></td>
+      <td data-ice="description"></td>
+    </tr>
+</tbody>
+  </table>
+</div>
+</div>
+
+  <div class="return-params" data-ice="returnParams">
+    <h4>Return:</h4>
+    <table>
+      <tbody>
+        <tr>
+          <td class="return-type code" data-ice="returnType"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span></td>
+          
+        </tr>
+      </tbody>
+    </table>
+    <div data-ice="returnProperties">
+</div>
+  </div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
   <h3 data-ice="anchor" id="instance-method-_getOperatingHoursForDate">
     <span class="access" data-ice="access">private</span>
     
@@ -3291,7 +3585,7 @@ Also accepts &apos;type&apos;, which is an <span><a href="variable/index.html#st
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber499">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber556">source</a></span></span>
     </span>
   </h3>
 
@@ -3351,7 +3645,7 @@ Also accepts &apos;type&apos;, which is an <span><a href="variable/index.html#st
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber477">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber534">source</a></span></span>
     </span>
   </h3>
 
@@ -3439,7 +3733,7 @@ Also accepts &apos;type&apos;, which is an <span><a href="variable/index.html#st
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber424">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber481">source</a></span></span>
     </span>
   </h3>
 
@@ -3483,7 +3777,7 @@ Also accepts &apos;type&apos;, which is an <span><a href="variable/index.html#st
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber487">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber544">source</a></span></span>
     </span>
   </h3>
 
@@ -3527,7 +3821,7 @@ Also accepts &apos;type&apos;, which is an <span><a href="variable/index.html#st
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber407">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/park.js.html#lineNumber464">source</a></span></span>
     </span>
   </h3>
 

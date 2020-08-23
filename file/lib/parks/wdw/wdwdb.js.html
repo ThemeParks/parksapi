@@ -82,7 +82,7 @@ export function getEntityID(doc) {
   const docId = doc?.id || doc;
 
   if (!docId) {
-    console.error(&apos;Unable to find ID from&apos;, JSON.stringify(doc));
+    console.trace(&apos;Unable to find ID from&apos;, JSON.stringify(doc));
     return undefined;
   }
 

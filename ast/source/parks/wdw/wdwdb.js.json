@@ -997,9 +997,9 @@
                                 "line": 18,
                                 "column": 17
                               },
-                              "identifierName": "error"
+                              "identifierName": "trace"
                             },
-                            "name": "error"
+                            "name": "trace"
                           },
                           "computed": false
                         },
@@ -41785,7 +41785,7 @@
         "postfix": false,
         "binop": null
       },
-      "value": "error",
+      "value": "trace",
       "start": 541,
       "end": 546,
       "loc": {

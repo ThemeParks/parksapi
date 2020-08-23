@@ -66,6 +66,7 @@
 
 <div class="content" data-ice="content"><h1 data-ice="title">lib/cache/scopedCache.js</h1>
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {getCache} from &apos;../cache.js&apos;;
+import {reusePromiseForever} from &apos;../reusePromises.js&apos;;
 
 /**
  * A wrapper class for accessing the cache.
@@ -88,33 +89,34 @@ export class ScopedCache {
    * Initialise the cache for this scope
    */
   async initCache() {
+    return await reusePromiseForever(this, this._initCache);
+  }
+
+  /**
+   * Internal cache initialisation
+   */
+  async _initCache() {
+    console.log(&apos;Making cache...&apos;);
     if (this.cache) {
       return this.cache;
     }
 
-    if (this._initCachePromise) {
-      return this._initCachePromise;
+    this.cache = await getCache();
+
+    // check and flush cache if version mismatch
+    const cacheVersion = await this.cache.get(this.generateScopedKey(&apos;%%version%%&apos;));
+    if (cacheVersion !== undefined &amp;&amp; cacheVersion != this.version) {
+      // find all cache entries with this scope, and remove them
+      const keys = await this.cache.getKeys(`${this.prefix}_`);
+
+      await Promise.allSettled(keys.map((key) =&gt; {
+        // set expire date to 1 millisecond ago (this basically deletes it)
+        return this.cache.setGlobal(key, {}, -1);
+      }));
     }
 
-    this._initCachePromise = (async () =&gt; {
-      this.cache = await getCache();
-
-      // check and flush cache if version mismatch
-      const cacheVersion = await this.get(&apos;%%version%%&apos;);
-      if (cacheVersion !== undefined &amp;&amp; cacheVersion != this.version) {
-        // find all cache entries with this scope, and remove them
-        const keys = await this.cache.getKeys(`${this.prefix}_`);
-
-        await Promise.allSettled(keys.map((key) =&gt; {
-          // set expire date to 1 millisecond ago (this basically deletes it)
-          return this.setGlobal(key, {}, -1);
-        }));
-      }
-
-      // set our new cache version with a very very long ttl
-      await this.set(&apos;%%version%%&apos;, this.version, Number.MAX_SAFE_INTEGER);
-    })();
-    await this._initCachePromise;
+    // set our new cache version with a very very long ttl
+    await this.cache.set(&apos;%%version%%&apos;, this.generateScopedKey(this.version), Number.MAX_SAFE_INTEGER);
     this._initCachePromise = null;
 
     return this.cache;
