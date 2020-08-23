@@ -1,7 +1,7 @@
 {
-  "coverage": "82.14%",
-  "expectCount": 196,
-  "actualCount": 161,
+  "coverage": "82.23%",
+  "expectCount": 197,
+  "actualCount": 162,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 12,
@@ -64,8 +64,8 @@
       "undocumentLines": []
     },
     "lib/parks/park.js": {
-      "expectCount": 46,
-      "actualCount": 38,
+      "expectCount": 47,
+      "actualCount": 39,
       "undocumentLines": [
         14,
         28,

@@ -626,6 +626,20 @@ export class Park extends ConfigBase {
   }
 
   /**
+   * Get the operating hours for the supplied date
+   * Will return undefined if the park API cannot return data for this date
+   *  (park is closed, too far in future, too far in past, etc.)
+   * @param {moment} date A momentjs object
+   * @return {object}
+   */
+  async getOperatingHoursForDate(date) {
+    // cache each calendar date to avoid recalculating it all the time
+    return this.cache.wrap(&apos;calendar&apos;, async () =&gt; {
+      return await this._getOperatingHoursForDate(date);
+    }, 1000 * 60 * 60 * 6); // cache for 6 hours
+  }
+
+  /**
    * Get Operating Calendar for this park
    * @return{object} Object keyed to dates in YYYY-MM-DD format.
    * Each date entry will contain an array of operating hours.
@@ -634,25 +648,32 @@ export class Park extends ConfigBase {
     // make sure the park is initialised before continuing
     await this.init();
 
-    // cache the full calendar to avoid recalculating it constantly
-    return this.cache.wrap(&apos;calendar&apos;, async () =&gt; {
-      // populate from yesterday onwards (if the API even gives us yesterday)
-      //  try to catch weird edge-cases where we&apos;re just past midnight but the park is still open
-      const yesterday = moment().tz(this.config.timezone).subtract(1, &apos;days&apos;);
-      // populate forward up to 60 days
-      const endFillDate = yesterday.clone().add(60 + 1, &apos;days&apos;);
+    // populate from yesterday onwards (if the API even gives us yesterday)
+    //  try to catch weird edge-cases where we&apos;re just past midnight but the park is still open
+    const yesterday = moment().tz(this.config.timezone).subtract(1, &apos;days&apos;);
+    // populate forward up to 60 days
+    const endFillDate = yesterday.clone().add(60 + 1, &apos;days&apos;);
 
-      const dates = {};
-      // get calendar by looping over each date
-      for (let date = yesterday; date.isSameOrBefore(endFillDate); date.add(1, &apos;day&apos;)) {
-        const hours = await this._getOperatingHoursForDate(date);
-        if (hours !== undefined) {
-          dates[date.format(&apos;YYYY-MM-DD&apos;)] = hours;
+    const now = this.getTimeNowMoment();
+
+    const dates = {};
+    // get calendar by looping over each date
+    for (let date = yesterday; date.isSameOrBefore(endFillDate); date.add(1, &apos;day&apos;)) {
+      const hours = await this._getOperatingHoursForDate(date);
+      if (hours !== undefined) {
+        // ignore if we&apos;re not within the operating hours AND the date is in the past
+        //  this will strip out yesterday once we&apos;ve left that day&apos;s opening hours
+        const isInsideAnyDateHours = hours.find((h) =&gt; {
+          return now.isBetween(h.openingTime, h.closingTime);
+        });
+        if (now.isAfter(date, &apos;day&apos;) &amp;&amp; isInsideAnyDateHours === undefined) {
+          continue;
         }
+        dates[date.format(&apos;YYYY-MM-DD&apos;)] = hours;
       }
+    }
 
-      return dates;
-    }, 1000 * 60 * 60 * 6); // cache for 6 hours
+    return dates;
   }
 
   /**

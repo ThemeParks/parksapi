@@ -996,6 +996,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/park.js~park#getoperatinghoursfordate",
+    "class/lib/parks/park.js~Park.html#instance-method-getOperatingHoursForDate",
+    "lib/parks/park.js~Park#getOperatingHoursForDate",
+    "method"
+  ],
+  [
     "lib/parks/park.js~park#getparkuniqueid",
     "class/lib/parks/park.js~Park.html#instance-method-getParkUniqueID",
     "lib/parks/park.js~Park#getParkUniqueID",
