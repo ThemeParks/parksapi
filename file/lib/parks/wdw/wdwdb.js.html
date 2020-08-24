@@ -545,12 +545,48 @@ export class IndexedWDWDB extends PouchDB {
   }
 
   /**
+   * Remove all indexes referencing docID from the given index
+   * @param {object} index
+   * @param {string} docID
+   */
+  _removeFromArrayIndex(index, docID) {
+    Object.keys(index).forEach((key) =&gt; {
+      const indexIDs = index[key].map(
+          (x, idx) =&gt; {
+            return x._id === docID ? idx : undefined;
+          }).
+          filter((x) =&gt; x !== undefined);
+
+      indexIDs.forEach((idx) =&gt; {
+        index[key].splice(idx, 1);
+      });
+    });
+  }
+
+  /**
    * Add a document to the database index
    * Used for fast lookups of entities etc. to the correct documents
    * @param {object} doc CouchDB document to index
    * @private
    */
   async _indexWDWDocument(doc) {
+    if (doc._deleted) {
+      // remove document from all indexes
+
+      // facility status
+      //  quick hack to turn the facility status index into the same type as the others so I can reuse my code
+      const facilityIndexObject = {index: this.getIndex(constants.INDEX_FACILITYSTATUS)};
+      this._removeFromArrayIndex(facilityIndexObject, doc._id);
+
+      // channels
+      this._removeFromArrayIndex(this.getIndex(constants.INDEX_CHANNELS), doc._id);
+
+      // entity index
+      this._removeFromArrayIndex(this.getIndex(constants.INDEX_ENTITIES), doc._id);
+
+      return;
+    }
+
     const entity = this._extractEntityKeys(doc);
     if (entity &amp;&amp; entity.id &amp;&amp; entity.entityType) {
       const id = entity.id;
@@ -805,7 +841,6 @@ export class IndexedWDWDB extends PouchDB {
     const docs = Array.isArray(body) ? body : body.docs;
 
     // index each document being added to the database
-    // TODO - do we need to handle deletion events here?
     await Promise.allSettled(docs.map((doc) =&gt; {
       return this._indexWDWDocument(doc);
     }));

@@ -132,8 +132,6 @@ export class DisneyPark extends Park {
    * @inheritdoc
    */
   async _init() {
-    console.log(&apos;Initialising...&apos;);
-
     // get a reference to our shared live database
     this.db = DisneyPark.getDatabase();
 
@@ -171,6 +169,10 @@ export class DisneyPark extends Park {
     // figure out general ride status
     let status = statusType.operating;
 
+    // if our status document contains singleRider, then tag it
+    //  this is only available in live data, so we have to do it in our update
+    await this.toggleAttractionTag(entityID, tagType.singleRider, !!doc.singleRider);
+
     // TODO - if name contains &quot;Temporarily Unavailable&quot;, mark as closed?
 
     if (doc.status === &apos;Down&apos;) {
@@ -186,6 +188,9 @@ export class DisneyPark extends Park {
 
     // update attraction standby queue
     await this.updateAttractionQueue(entityID, doc.waitMinutes, queueType.standBy);
+
+    // if the ride has a single rider queue, record one with &quot;null&quot; to say it exists, we just don&apos;t it&apos;s length
+    await this.updateAttractionQueue(entityID, !!doc.singleRider ? null : undefined, queueType.singleRider);
   }
 
   /**
@@ -217,7 +222,7 @@ export class DisneyPark extends Park {
       if (attr.longitude &amp;&amp; attr.latitude) {
         // ride location tag
         tags.push({
-          id: &apos;location&apos;,
+          key: &apos;location&apos;,
           type: tagType.location,
           value: {
             longitude: Number(attr.longitude),

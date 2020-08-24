@@ -193,6 +193,8 @@ export function isValidTag(key, type, value) {
     return true;
   }
 
+  if (key === undefined) return false;
+
   // run tag validator to confirm we are a valid tag
   const validator = validators[type];
   return (validator(key, value));

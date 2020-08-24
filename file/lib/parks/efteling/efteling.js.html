@@ -222,6 +222,14 @@ export class Efteling extends Park {
               p.props.indexOf(&apos;pregnantwomen&apos;) &gt;= 0,
           );
 
+          // single rider queue available?
+          await this.setAttractionTag(
+              id,
+              null,
+              tagType.singleRider,
+              !!p.singleRiderId,
+          );
+
           // look for attraction minimum height
           const minHeightProp = p.props.find((prop) =&gt; prop.indexOf(&apos;minimum&apos;) === 0);
           if (minHeightProp !== undefined) {

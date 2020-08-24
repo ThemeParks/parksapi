@@ -918,6 +918,12 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
+    "lib/parks/park.js~park#_archive",
+    "class/lib/parks/park.js~Park.html#instance-method-_archive",
+    "lib/parks/park.js~Park#_archive",
+    "method"
+  ],
+  [
     "lib/parks/park.js~park#_attractions",
     "class/lib/parks/park.js~Park.html#instance-member-_attractions",
     "lib/parks/park.js~Park#_attractions",
@@ -966,6 +972,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/park.js~park#_hasofflinedata",
+    "class/lib/parks/park.js~Park.html#instance-member-_hasOfflineData",
+    "lib/parks/park.js~Park#_hasOfflineData",
+    "member"
+  ],
+  [
     "lib/parks/park.js~park#_httpinjections",
     "class/lib/parks/park.js~Park.html#instance-member-_httpInjections",
     "lib/parks/park.js~Park#_httpInjections",
@@ -976,6 +988,30 @@ window.esdocSearchIndex = [
     "class/lib/parks/park.js~Park.html#instance-method-_init",
     "lib/parks/park.js~Park#_init",
     "method"
+  ],
+  [
+    "lib/parks/park.js~park#_offlinecalendar",
+    "class/lib/parks/park.js~Park.html#instance-member-_offlineCalendar",
+    "lib/parks/park.js~Park#_offlineCalendar",
+    "member"
+  ],
+  [
+    "lib/parks/park.js~park#_offlinepromise",
+    "class/lib/parks/park.js~Park.html#instance-member-_offlinePromise",
+    "lib/parks/park.js~Park#_offlinePromise",
+    "member"
+  ],
+  [
+    "lib/parks/park.js~park#_offlinepromiseresolve",
+    "class/lib/parks/park.js~Park.html#instance-member-_offlinePromiseResolve",
+    "lib/parks/park.js~Park#_offlinePromiseResolve",
+    "member"
+  ],
+  [
+    "lib/parks/park.js~park#_pendingtags",
+    "class/lib/parks/park.js~Park.html#instance-member-_pendingTags",
+    "lib/parks/park.js~Park#_pendingTags",
+    "member"
   ],
   [
     "lib/parks/park.js~park#_runinit",
@@ -1134,6 +1170,12 @@ window.esdocSearchIndex = [
     "member"
   ],
   [
+    "lib/parks/park.js~park#offline",
+    "class/lib/parks/park.js~Park.html#instance-get-offline",
+    "lib/parks/park.js~Park#offline",
+    "member"
+  ],
+  [
     "lib/parks/park.js~park#postupdate",
     "class/lib/parks/park.js~Park.html#instance-method-postUpdate",
     "lib/parks/park.js~Park#postUpdate",
@@ -1143,6 +1185,12 @@ window.esdocSearchIndex = [
     "lib/parks/park.js~park#removeattractiontag",
     "class/lib/parks/park.js~Park.html#instance-method-removeAttractionTag",
     "lib/parks/park.js~Park#removeAttractionTag",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#serialise",
+    "class/lib/parks/park.js~Park.html#instance-method-serialise",
+    "lib/parks/park.js~Park#serialise",
     "method"
   ],
   [
@@ -1389,6 +1437,12 @@ window.esdocSearchIndex = [
     "lib/parks/wdw/wdwdb.js~indexedwdwdb#_loadandinit",
     "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-_loadAndInit",
     "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_loadAndInit",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#_removefromarrayindex",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-_removeFromArrayIndex",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_removeFromArrayIndex",
     "method"
   ],
   [

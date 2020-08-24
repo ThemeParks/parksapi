@@ -79,6 +79,11 @@ import HarWriter from &apos;../har.js&apos;;
 import sift from &apos;sift&apos;;
 import {URL} from &apos;url&apos;;
 import {reusePromise, reusePromiseForever} from &apos;../reusePromises.js&apos;;
+import zlib from &apos;zlib&apos;;
+import util from &apos;util&apos;;
+
+const zDecompress = util.promisify(zlib.unzip);
+const zCompress = util.promisify(zlib.deflate);
 
 // quick helper function to wait x milliseconds as a Promise
 const delay = (milliseconds) =&gt; {
@@ -115,6 +120,9 @@ export class Park extends ConfigBase {
     //  set this if the update is being handled by an external system
     options.disableParkUpdate = false;
 
+    // offline mode, never request any data, rely on manually serialised data to run
+    options.offline = options.offline || false;
+
     // generate a random Android user-agent if we aren&apos;t supplied one
     options.useragent = options.useragent || generateRandomAndroidUseragent();
 
@@ -137,8 +145,15 @@ export class Park extends ConfigBase {
 
     this.initialised = false;
     this.hasRunUpdate = false;
+    this._pendingTags = {};
 
     this._attractions = [];
+
+    // use this for any &quot;offline mode&quot; Park objects using pure-cache data
+    this._hasOfflineData = false;
+    this._offlineCalendar = null;
+    this._offlinePromise = null;
+    this._offlinePromiseResolve = null;
 
     // any HTTP injections that have been setup
     //  allows parks to automatically intercept HTTP requests and add auth headers etc.
@@ -147,6 +162,78 @@ export class Park extends ConfigBase {
     // track the park&apos;s current date
     //  we&apos;ll fire an event whenever this changes
     this._currentDate = null;
+  }
+
+  /**
+   * Is this Park object operating offline?
+   */
+  get offline() {
+    return !!this.config.offline;
+  }
+
+  /**
+   * Archive any data that is needed for serialisation of this Park.
+   * @param {object} ar The archive object to write/load data to/from
+   * @param {boolean} saving Is this archive saving or loading?
+   * @private
+   */
+  _archive(ar, saving = true) {}
+
+  /**
+   * Serialise this Park object
+   * @param {object} bundle Bundle to read/write from/to
+   * @param {boolean} saving Whether we are saving or loading during this serialise operation
+   * @param {object} [options]
+   */
+  async serialise(bundle = {}, saving = true, options = {
+    version: 1,
+  }) {
+    if (saving) {
+      // === Saving ===
+      // default options
+      bundle.version = options.version;
+      bundle.ar = {};
+
+      // save basic Park data
+      bundle.ar.attractions = await this.getAttractions();
+      bundle.ar.calendar = await this.getCalendar();
+    } else {
+      // === Loading ===
+      // decompress/load the data
+      const bundleBuffer = await zDecompress(bundle);
+      bundle = JSON.parse(bundleBuffer.toString(&apos;utf8&apos;));
+
+      const version = bundle.version || 0;
+      // check we understand this bundle version
+      if (version !== 1) {
+        throw new Error(&apos;Unable to load serialised bundle version&apos;, version);
+      }
+
+      // load basic Park data
+      this._attractions = bundle.ar.attractions;
+      this._offlineCalendar = bundle.ar.calendar;
+    }
+
+    // call any custom archive operations for this park
+    this._archive(bundle, saving);
+
+    if (saving) {
+      // pack and gz to buffer
+      const bundleData = JSON.stringify(bundle);
+      return await zCompress(bundleData);
+    }
+
+    // after loading, run any postUpdate functions
+    this.postUpdate();
+
+    this._hasOfflineData = true;
+
+    // check if any process if waiting for offline data to be ready
+    if (this._offlinePromiseResolve !== null) {
+      this._offlinePromiseResolve();
+      this._offlinePromiseResolve = null;
+      this._offlinePromise = null;
+    }
   }
 
   /**
@@ -213,11 +300,18 @@ export class Park extends ConfigBase {
    * @private
    */
   async _runInit() {
+    // skip init if we&apos;re offline
+    if (this.offline) {
+      this.initialised = true;
+      this.hasRunUpdate = true;
+      return;
+    }
+
     try {
       await this._init();
       this.initialised = true;
 
-      if (!this.config.disableParkUpdate) {
+      if (!this.config.disableParkUpdate &amp;&amp; !this.offline) {
         // start an update loop
 
         // use a separate function so we can quickly loop back around
@@ -254,6 +348,15 @@ export class Park extends ConfigBase {
 
     if (!this.hasRunUpdate) {
       await this.update();
+    }
+
+    if (this.offline &amp;&amp; !this._hasOfflineData) {
+      if (this._offlinePromise === null) {
+        this._offlinePromise = new Promise((resolve) =&gt; {
+          this._offlinePromiseResolve = resolve;
+        });
+      }
+      return this._offlinePromise;
     }
   }
 
@@ -374,13 +477,14 @@ export class Park extends ConfigBase {
           }
         });
 
+        const tags = (this._pendingTags[attractionID] || []).concat(builtAttractionObject.tags || []);
+        delete this._pendingTags[attractionID];
+
         // we also manually accept the &quot;tags&quot; field
         //  add each tag to the attraction after it&apos;s added to our object above
-        if (builtAttractionObject.tags) {
-          await Promise.allSettled(builtAttractionObject.tags.map((tag) =&gt; {
-            return this.setAttractionTag(attractionID, tag.key, tag.type, tag.value);
-          }));
-        }
+        await Promise.allSettled(tags.map((tag) =&gt; {
+          return this.setAttractionTag(attractionID, tag.key, tag.type, tag.value);
+        }));
 
         // cache attraction object so it can be restored quickly on future app intialisations
         await this.cacheAttractionObject(attractionID);
@@ -420,15 +524,7 @@ export class Park extends ConfigBase {
    * @param {boolean} value
    */
   async toggleAttractionTag(attractionID, type, value) {
-    if (!value) {
-      // if value is false, remove the key
-      const newTag = tags.getValidTagObject(null, type, null);
-      await this.removeAttractionTag(attractionID, newTag.key, type);
-    } else {
-      // otherwise, add our tag
-      await this.setAttractionTag(attractionID, null, type, null);
-    }
-    await this.cacheAttractionObject(attractionID);
+    return await this.setAttractionTag(attractionID, null, type, value);
   }
 
   /**
@@ -464,8 +560,16 @@ export class Park extends ConfigBase {
         // update existing tag entry
         attraction.tags[existingTag] = newTag;
       }
+      await this.cacheAttractionObject(attractionID);
+      return true;
+    } else {
+      // attraction isn&apos;t valid. Push to our pending array to process when/if it does become valid
+      this._pendingTags[attractionID] = [{key, type, value}].concat(
+          this._pendingTags[attractionID] || [],
+      );
     }
-    await this.cacheAttractionObject(attractionID);
+
+    return false;
   }
 
   /**
@@ -504,9 +608,10 @@ export class Park extends ConfigBase {
    * Update the queue status for an attraction
    * @param {string} attractionID Attraction ID to update
    * @param {number} waitTime Updated Wait Time in minutes, or null if wait time doesn&apos;t exist or isn&apos;t valid
+   * Set waitTime to undefined to remove this queue type from the attraction
    * @param {queueType} queueType Type of queue to update (standup, virtual, fastpass etc.)
    */
-  async updateAttractionQueue(attractionID, waitTime = -1, queueType = queueType.standBy) {
+  async updateAttractionQueue(attractionID, waitTime = undefined, queueType = queueType.standBy) {
     if (attractionID === undefined) return;
 
     const existingRide = await this.findAttractionByID(attractionID);
@@ -514,6 +619,24 @@ export class Park extends ConfigBase {
       if (!existingRide.queue) {
         existingRide.queue = {};
       }
+
+      // edge-case, if we supply undefined, the queue has been removed
+      //  (or never existed and we&apos;re just double-checking it&apos;s not present)
+      if (waitTime === undefined) {
+        if (existingRide.queue[queueType] !== undefined) {
+          const previousWaitTime = existingRide.queue[queueType].waitTime;
+          delete existingRide.queue[queueType];
+
+          // fire event anyway, the queue has technically been updated (it&apos;s just not present at all now)
+          this.emit(&apos;attractionQueue&apos;, existingRide, queueType, previousWaitTime);
+
+          await this.cacheAttractionObject(attractionID);
+        }
+
+        // don&apos;t continue operations, early exit here
+        return;
+      }
+
       if (!existingRide.queue[queueType]) {
         existingRide.queue[queueType] = {
           waitTime: null,
@@ -668,6 +791,10 @@ export class Park extends ConfigBase {
    * Each date entry will contain an array of operating hours.
    */
   async getCalendar() {
+    if (this._offlineCalendar !== null) {
+      return this._offlineCalendar;
+    }
+
     // make sure the park is initialised before continuing
     await this.init();
 
@@ -830,6 +957,12 @@ export class Park extends ConfigBase {
    * @param {object} [options] Object containing needle-compatible HTTP options
    */
   async http(method, url, data = {}, options = {}) {
+    if (this.offline) {
+      // TODO - log these instances somewhere, should never be making HTTP requests in offline mode
+      console.trace(`[OFFLINE] Skipping HTTP request ${method} ${url}`);
+      return;
+    }
+
     // always have a headers array
     if (!options.headers) {
       options.headers = {};
@@ -842,11 +975,20 @@ export class Park extends ConfigBase {
     }
 
     // check any hostname injections we have setup
+    const urlObj = new URL(url);
+    const urlFilter = {
+      protocol: urlObj.protocol,
+      host: urlObj.host,
+      hostname: urlObj.hostname,
+      pathname: urlObj.pathname,
+      search: urlObj.search,
+      hash: urlObj.hash,
+    };
     for (let injectionIDX=0; injectionIDX&lt;this._httpInjections.length; injectionIDX++) {
       const injection = this._httpInjections[injectionIDX];
 
       // check if the domain matches
-      if (injection.filter(new URL(url))) {
+      if (injection.filter(urlFilter)) {
         await injection.func(method, url, data, options);
       }
     }
