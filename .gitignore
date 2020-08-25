@@ -9,3 +9,4 @@ db.*
 test*.js
 *.har
 .vscode
+*.themepark
