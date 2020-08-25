@@ -366,6 +366,12 @@ export class DisneylandParisPark extends Park {
     // TODO - throw error
     if (data === undefined) return;
 
+    if (!Array.isArray(data)) {
+      console.trace(&apos;data is not an array&apos;, data);
+      this.emit(&apos;error&apos;, new Error(`getResortWaitTimes didn&apos;t return an Array ${JSON.stringify(data)}`));
+      return;
+    }
+
     // filter for wait times for our park (the above returns wait times for both parks)
     const internalParkID = `0/P/${this.config.parkId}`;
     const waitTimes = data.filter((x) =&gt; x.parkId === internalParkID &amp;&amp; x.type === &apos;Attraction&apos;);

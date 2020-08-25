@@ -458,6 +458,9 @@ export class Park extends ConfigBase {
     if (cachedAttraction !== undefined) {
       Object.keys(cachedAttraction).forEach((key) =&gt; {
         // TODO - do we need to do anyhting special here for sub-fields?
+        if (key === &apos;tags&apos;) {
+          // TODO - re-validate tags
+        }
         newAttraction[key] = cachedAttraction[key];
       });
     }
@@ -492,6 +495,7 @@ export class Park extends ConfigBase {
         return newAttraction;
       }
     } catch (e) {
+      this.emit(&apos;error&apos;, e);
       console.error(&apos;Error building attraction object:&apos;, e);
     }
 
@@ -701,13 +705,20 @@ export class Park extends ConfigBase {
         return this._update().catch(retryFn);
       });
     } catch (e) {
-      // TODO - record park API error somewhere and continue
-      console.error(e);
+      // emit error and print to screen
+      console.error(&apos;Error running _update()&apos;, e);
+      this.emit(&apos;error&apos;, e);
+      return;
     }
 
     this.hasRunUpdate = true;
 
-    await this.postUpdate();
+    try {
+      await this.postUpdate();
+    } catch (e) {
+      console.error(&apos;Error running postUpdate()&apos;, e);
+      this.emit(&apos;error&apos;, e);
+    }
   }
 
   /**
@@ -780,7 +791,7 @@ export class Park extends ConfigBase {
    */
   async getOperatingHoursForDate(date) {
     // cache each calendar date to avoid recalculating it all the time
-    return this.cache.wrap(&apos;calendar&apos;, async () =&gt; {
+    return this.cache.wrap(`calendar_${date.format(&apos;YYYY-MM-DD&apos;)}`, async () =&gt; {
       return await this._getOperatingHoursForDate(date);
     }, 1000 * 60 * 60 * 6); // cache for 6 hours
   }
@@ -795,35 +806,42 @@ export class Park extends ConfigBase {
       return this._offlineCalendar;
     }
 
-    // make sure the park is initialised before continuing
-    await this.init();
+    try {
+      // make sure the park is initialised before continuing
+      await this.init();
 
-    // populate from yesterday onwards (if the API even gives us yesterday)
-    //  try to catch weird edge-cases where we&apos;re just past midnight but the park is still open
-    const yesterday = moment().tz(this.config.timezone).subtract(1, &apos;days&apos;);
-    // populate forward up to 60 days
-    const endFillDate = yesterday.clone().add(60 + 1, &apos;days&apos;);
+      // populate from yesterday onwards (if the API even gives us yesterday)
+      //  try to catch weird edge-cases where we&apos;re just past midnight but the park is still open
+      const yesterday = moment().tz(this.config.timezone).subtract(1, &apos;days&apos;);
+      // populate forward up to 60 days
+      const endFillDate = yesterday.clone().add(60 + 1, &apos;days&apos;);
 
-    const now = this.getTimeNowMoment();
+      const now = this.getTimeNowMoment();
 
-    const dates = {};
-    // get calendar by looping over each date
-    for (let date = yesterday; date.isSameOrBefore(endFillDate); date.add(1, &apos;day&apos;)) {
-      const hours = await this._getOperatingHoursForDate(date);
-      if (hours !== undefined) {
-        // ignore if we&apos;re not within the operating hours AND the date is in the past
-        //  this will strip out yesterday once we&apos;ve left that day&apos;s opening hours
-        const isInsideAnyDateHours = hours.find((h) =&gt; {
-          return now.isBetween(h.openingTime, h.closingTime);
-        });
-        if (now.isAfter(date, &apos;day&apos;) &amp;&amp; isInsideAnyDateHours === undefined) {
-          continue;
+      const dates = {};
+      // get calendar by looping over each date
+      for (let date = yesterday; date.isSameOrBefore(endFillDate); date.add(1, &apos;day&apos;)) {
+        const hours = await this.getOperatingHoursForDate(date);
+        if (hours !== undefined) {
+          // ignore if we&apos;re not within the operating hours AND the date is in the past
+          //  this will strip out yesterday once we&apos;ve left that day&apos;s opening hours
+          const isInsideAnyDateHours = hours.find((h) =&gt; {
+            return now.isBetween(h.openingTime, h.closingTime);
+          });
+          if (now.isAfter(date, &apos;day&apos;) &amp;&amp; isInsideAnyDateHours === undefined) {
+            continue;
+          }
+          dates[date.format(&apos;YYYY-MM-DD&apos;)] = hours;
         }
-        dates[date.format(&apos;YYYY-MM-DD&apos;)] = hours;
       }
+
+      return dates;
+    } catch (err) {
+      console.error(&apos;Error getting calendar&apos;, err);
+      this.emit(&apos;error&apos;, err);
     }
 
-    return dates;
+    return undefined;
   }
 
   /**
@@ -853,6 +871,27 @@ export class Park extends ConfigBase {
     }, Number.MAX_SAFE_INTEGER);
 
     return nextOpeningTime === Number.MAX_SAFE_INTEGER ? null : nextOpeningTime;
+  }
+
+  /**
+   * Return the number of milliseconds until closing time. Or 0 if already closed.
+   * @return {number}
+   */
+  async getNextClosingTime() {
+    const today = await this.getCalendarForToday();
+    if (today !== undefined) {
+      const now = this.getTimeNowMoment();
+      const closingTime = today.reduce((p, hours) =&gt; {
+        if (!now.isBetween(hours.openingTime, hours.closingTime)) {
+          return 0;
+        }
+
+        return Math.max(moment(hours.closingTime).diff(now), p);
+      }, 0);
+
+      return closingTime;
+    }
+    return 0;
   }
 
   /**

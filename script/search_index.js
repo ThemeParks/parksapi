@@ -1098,6 +1098,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/park.js~park#getnextclosingtime",
+    "class/lib/parks/park.js~Park.html#instance-method-getNextClosingTime",
+    "lib/parks/park.js~Park#getNextClosingTime",
+    "method"
+  ],
+  [
     "lib/parks/park.js~park#getnextopeningtime",
     "class/lib/parks/park.js~Park.html#instance-method-getNextOpeningTime",
     "lib/parks/park.js~Park#getNextOpeningTime",
