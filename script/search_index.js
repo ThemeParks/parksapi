@@ -858,6 +858,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/dlp/disneylandparis.js~disneylandparispark#waitapierrorcount",
+    "class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html#instance-member-waitApiErrorCount",
+    "lib/parks/dlp/disneylandparis.js~DisneylandParisPark#waitApiErrorCount",
+    "member"
+  ],
+  [
     "lib/parks/dlp/disneylandparis.js~disneylandpariswaltdisneystudios#constructor",
     "class/lib/parks/dlp/disneylandparis.js~DisneylandParisWaltDisneyStudios.html#instance-constructor-constructor",
     "lib/parks/dlp/disneylandparis.js~DisneylandParisWaltDisneyStudios#constructor",

@@ -363,14 +363,35 @@ export class DisneylandParisPark extends Park {
       parkDataController = this;
     }
     const data = await getResortWaitTimes();
-    // TODO - throw error
-    if (data === undefined) return;
+    if (data === undefined) {
+      throw new Error(`getResortWaitTimes() returned undefined`);
+    }
 
     if (!Array.isArray(data)) {
-      console.trace(&apos;data is not an array&apos;, data);
-      this.emit(&apos;error&apos;, new Error(`getResortWaitTimes didn&apos;t return an Array ${JSON.stringify(data)}`));
+      // DLP API usually goes offline briefly every night around midnight (local Paris time)
+      //  catch and ignore unless errors go on for significant time
+
+      // increment API error by 1
+      if (this.waitApiErrorCount === undefined) this.waitApiErrorCount = 0;
+      this.waitApiErrorCount++;
+
+      // get whether we think the park should be open right now
+      const isParkOpen = (await this.getNextOpeningTime()) === 0;
+
+      // if we get at least 12 errors in a row when updating, emit an error
+      if (isParkOpen || this.waitApiErrorCount &gt;= 12) {
+        const errorMessage = data?.message;
+        console.trace(&apos;Error communicating with DLP Wait Time API&apos;, errorMessage);
+        this.emit(&apos;error&apos;, new Error(`getResortWaitTimes didn&apos;t return an Array ${JSON.stringify(data)}`));
+        return;
+      }
+
+      // early-out our update loop
       return;
     }
+
+    // reset our API error counter if we get this far
+    this.waitApiErrorCount = 0;
 
     // filter for wait times for our park (the above returns wait times for both parks)
     const internalParkID = `0/P/${this.config.parkId}`;
