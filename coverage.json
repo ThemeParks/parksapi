@@ -1,7 +1,7 @@
 {
-  "coverage": "80.61%",
-  "expectCount": 227,
-  "actualCount": 183,
+  "coverage": "80.26%",
+  "expectCount": 223,
+  "actualCount": 179,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 12,
@@ -78,18 +78,18 @@
         15,
         16,
         19,
-        33,
-        74,
-        76,
+        36,
         77,
-        78,
+        79,
         80,
+        81,
         83,
-        84,
-        85,
         86,
-        90,
-        94
+        87,
+        88,
+        89,
+        93,
+        97
       ]
     },
     "lib/parks/parkTypes.js": {
@@ -103,8 +103,8 @@
       "undocumentLines": []
     },
     "lib/parks/wdw/waltdisneyworldbase.js": {
-      "expectCount": 30,
-      "actualCount": 28,
+      "expectCount": 26,
+      "actualCount": 24,
       "undocumentLines": [
         6,
         66

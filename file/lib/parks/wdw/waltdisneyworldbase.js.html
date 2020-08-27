@@ -57,6 +57,7 @@
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure.html">DisneylandResortCaliforniaAdventure</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortMagicKingdom.html">DisneylandResortMagicKingdom</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~HongKongDisneylandPark.html">HongKongDisneylandPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom.html">WaltDisneyWorldAnimalKingdom</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot.html">WaltDisneyWorldEpcot</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios.html">WaltDisneyWorldHollywoodStudios</a></span></span></li>
@@ -183,6 +184,16 @@ export class DisneyPark extends Park {
       status = statusType.refurbishment;
     }
 
+    if (status == statusType.operating) {
+      // override status if the lastUpdate is really out-of-date
+      const statusUpdateTime = moment(doc.lastUpdate);
+      const now = this.getTimeNowMoment();
+      if (now.diff(statusUpdateTime, &apos;days&apos;) &gt; 2) {
+        status = statusType.closed;
+        doc.waitMinutes = null;
+      }
+    }
+
     // update attraction state
     await this.updateAttractionState(entityID, status);
 
@@ -300,13 +311,6 @@ export class WaltDisneyWorldMagicKingdom extends DisneyPark {
 
     super(options);
   }
-
-  /**
-   * @inheritdoc
-   */
-  getParkUniqueID() {
-    return &apos;WaltDisneyWorldMagicKingdom&apos;;
-  }
 }
 
 /**
@@ -323,13 +327,6 @@ export class WaltDisneyWorldEpcot extends DisneyPark {
     options.timezone = &apos;America/New_York&apos;;
 
     super(options);
-  }
-
-  /**
-   * @inheritdoc
-   */
-  getParkUniqueID() {
-    return &apos;WaltDisneyWorldEpcot&apos;;
   }
 }
 
@@ -348,13 +345,6 @@ export class WaltDisneyWorldHollywoodStudios extends DisneyPark {
 
     super(options);
   }
-
-  /**
-   * @inheritdoc
-   */
-  getParkUniqueID() {
-    return &apos;WaltDisneyWorldHollywoodStudios&apos;;
-  }
 }
 
 /**
@@ -371,13 +361,6 @@ export class WaltDisneyWorldAnimalKingdom extends DisneyPark {
     options.timezone = &apos;America/New_York&apos;;
 
     super(options);
-  }
-
-  /**
-   * @inheritdoc
-   */
-  getParkUniqueID() {
-    return &apos;WaltDisneyWorldAnimalKingdom&apos;;
   }
 }
 
@@ -396,13 +379,6 @@ export class DisneylandResortMagicKingdom extends DisneyPark {
 
     super(options);
   }
-
-  /**
-   * @inheritdoc
-   */
-  getParkUniqueID() {
-    return &apos;DisneylandResortMagicKingdom&apos;;
-  }
 }
 
 /**
@@ -420,12 +396,22 @@ export class DisneylandResortCaliforniaAdventure extends DisneyPark {
 
     super(options);
   }
+}
 
+/**
+ * Hong Kong Disneyland
+ */
+export class HongKongDisneylandPark extends DisneyPark {
   /**
    * @inheritdoc
    */
-  getParkUniqueID() {
-    return &apos;DisneylandResortCaliforniaAdventure&apos;;
+  constructor(options = {}) {
+    options.park_id = &apos;desHongKongDisneyland&apos;;
+    options.resort_id = &apos;hkdl&apos;;
+    options.name = &apos;Hong Kong Disneyland - Hong Kong Disneyland Park&apos;;
+    options.timezone = &apos;Asia/Hong_Kong&apos;;
+
+    super(options);
   }
 }
 </code></pre>
