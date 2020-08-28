@@ -1,7 +1,7 @@
 {
-  "coverage": "80.26%",
-  "expectCount": 223,
-  "actualCount": 179,
+  "coverage": "81.43%",
+  "expectCount": 237,
+  "actualCount": 193,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 12,
@@ -102,12 +102,17 @@
       "actualCount": 8,
       "undocumentLines": []
     },
+    "lib/parks/tdr/tokyodisneyresort.js": {
+      "expectCount": 15,
+      "actualCount": 15,
+      "undocumentLines": []
+    },
     "lib/parks/wdw/waltdisneyworldbase.js": {
-      "expectCount": 26,
-      "actualCount": 24,
+      "expectCount": 25,
+      "actualCount": 23,
       "undocumentLines": [
         6,
-        66
+        58
       ]
     },
     "lib/parks/wdw/wdwdb.js": {

@@ -96,6 +96,24 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html",
+    "<span>TokyoDisneyResortPark</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js~tokyodisneysea",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneySea.html",
+    "<span>TokyoDisneySea</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js~tokyodisneyland",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyland.html",
+    "<span>TokyoDisneyland</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js</span>",
+    "class"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldanimalkingdom",
     "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom.html",
     "<span>WaltDisneyWorldAnimalKingdom</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
@@ -1260,6 +1278,84 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
+    "lib/parks/tdr/tokyodisneyresort.js",
+    "file/lib/parks/tdr/tokyodisneyresort.js.html",
+    "lib/parks/tdr/tokyodisneyresort.js",
+    "file"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#_buildattractionobject",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-_buildAttractionObject",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_buildAttractionObject",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#_getoperatinghoursfordate",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-_getOperatingHoursForDate",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_getOperatingHoursForDate",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#_init",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-_init",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_init",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#_update",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-_update",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_update",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#constructor",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-constructor-constructor",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#fetchallfacilitiesdata",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchAllFacilitiesData",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchAllFacilitiesData",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#fetchcalendar",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchCalendar",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchCalendar",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#fetchdeviceid",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchDeviceID",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchDeviceID",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#fetchfacilitiesdata",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchFacilitiesData",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchFacilitiesData",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#fetchlatestversion",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchLatestVersion",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchLatestVersion",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneysea#constructor",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneySea.html#instance-constructor-constructor",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneySea#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyland#constructor",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyland.html#instance-constructor-constructor",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyland#constructor",
+    "method"
+  ],
+  [
     "lib/parks/wdw/waltdisneyworldbase.js",
     "file/lib/parks/wdw/waltdisneyworldbase.js.html",
     "lib/parks/wdw/waltdisneyworldbase.js",
@@ -1311,12 +1407,6 @@ window.esdocSearchIndex = [
     "lib/parks/wdw/waltdisneyworldbase.js~disneypark#getfacilitystatuschannelid",
     "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-getFacilityStatusChannelID",
     "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#getFacilityStatusChannelID",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#getparkuniqueid",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-getParkUniqueID",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#getParkUniqueID",
     "method"
   ],
   [

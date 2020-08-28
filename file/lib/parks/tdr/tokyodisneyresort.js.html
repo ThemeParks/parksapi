@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <base data-ice="baseUrl" href="../../../../">
+  <title data-ice="title">lib/parks/tdr/tokyodisneyresort.js | @themeparks/parksapi</title>
+  <link type="text/css" rel="stylesheet" href="css/style.css">
+  <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
+  <script src="script/prettify/prettify.js"></script>
+  <script src="script/manual.js"></script>
+</head>
+<body class="layout-container" data-ice="rootContainer">
+
+<header>
+  <a href="./">Home</a>
+  
+  <a href="identifiers.html">Reference</a>
+  <a href="source.html">Source</a>
+  
+  <div class="search-box">
+  <span>
+    <img src="./image/search.png">
+    <span class="search-input-edge"></span><input class="search-input"><span class="search-input-edge"></span>
+  </span>
+    <ul class="search-result"></ul>
+  </div>
+<a style="position:relative; top:3px;" href="https://github.com/ThemeParks/parksapi"><img width="20px" src="./image/github.png"></a></header>
+
+<nav class="navigation" data-ice="nav"><div>
+  <ul>
+    
+  <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/configBase.js~ConfigBase.html">ConfigBase</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getCache">getCache</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-parseConfig">parseConfig</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-reusePromise">reusePromise</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-reusePromiseForever">reusePromiseForever</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#cache">cache</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheBase.js~CacheBase.html">CacheBase</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheLevel.js~CacheLevel.html">CacheLevel</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheMemory.js~CacheMemory.html">CacheMemory</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheSqlite.js~CacheSqlite.html">CacheSqlite</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/scopedCache.js~ScopedCache.html">ScopedCache</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getValidTagObject">getValidTagObject</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isSimpleTagType">isSimpleTagType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTag">isValidTag</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTagType">isValidTagType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-attractionType">attractionType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-queueType">queueType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-scheduleType">scheduleType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-statusType">statusType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-tagType">tagType</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-dlp">parks/dlp</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisMagicKingdom.html">DisneylandParisMagicKingdom</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html">DisneylandParisPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisWaltDisneyStudios.html">DisneylandParisWaltDisneyStudios</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-efteling">parks/efteling</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-tdr">parks/tdr</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html">TokyoDisneyResortPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneySea.html">TokyoDisneySea</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyland.html">TokyoDisneyland</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure.html">DisneylandResortCaliforniaAdventure</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortMagicKingdom.html">DisneylandResortMagicKingdom</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~HongKongDisneylandPark.html">HongKongDisneylandPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom.html">WaltDisneyWorldAnimalKingdom</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot.html">WaltDisneyWorldEpcot</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios.html">WaltDisneyWorldHollywoodStudios</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom.html">WaltDisneyWorldMagicKingdom</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html">IndexedWDWDB</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getEntityID">getEntityID</a></span></span></li>
+</ul>
+</div>
+</nav>
+
+<div class="content" data-ice="content"><h1 data-ice="title">lib/parks/tdr/tokyodisneyresort.js</h1>
+<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {Park} from &apos;../park.js&apos;;
+import {attractionType, statusType, queueType, tagType, scheduleType} from &apos;../parkTypes.js&apos;;
+import moment from &apos;moment-timezone&apos;;
+
+/**
+ * TokyoDisneyResortPark Object
+ */
+export class TokyoDisneyResortPark extends Park {
+  /**
+   * Create a new TokyoDisneyResortPark object
+   * @param {object} options
+   */
+  constructor(options = {}) {
+    options.name = options.name || &apos;Tokyo Disney Resort Park&apos;;
+    options.timezone = options.timezone || &apos;Asia/Tokyo&apos;;
+
+    options.apiKey = options.apiKey || &apos;&apos;;
+    options.apiAuth = options.apiAuth || &apos;&apos;;
+    options.apiOS = options.apiOS || &apos;&apos;;
+    options.apiBase = options.apiBase || &apos;&apos;;
+    options.apiVersion = options.apiVersion || &apos;&apos;;
+    options.parkId = options.parkId || &apos;&apos;;
+
+    // any custom environment variable prefixes we want to use for this park (optional)
+    options.configPrefixes = [&apos;TDR&apos;].concat(options.configPrefixes || []);
+
+    super(options);
+
+    if (!this.config.apiKey) throw new Error(&apos;Missing TDR apiKey&apos;);
+    if (!this.config.apiAuth) throw new Error(&apos;Missing TDR apiAuth&apos;);
+    if (!this.config.apiOS) throw new Error(&apos;Missing TDR apiOS&apos;);
+    if (!this.config.apiBase) throw new Error(&apos;Missing TDR apiBase&apos;);
+    if (!this.config.apiVersion) throw new Error(&apos;Missing TDR apiVersion&apos;);
+    if (!this.config.parkId) throw new Error(&apos;Missing TDR parkId&apos;);
+
+    // some convenience strings
+    this.config.parkIdLower = this.config.parkId.toLowerCase();
+    this.config.parkIdUpper = this.config.parkId.toUpperCase();
+
+    this.injectForDomain({
+      hostname: new URL(this.config.apiBase).hostname,
+    }, async (method, url, data, options) =&gt; {
+      const appVersion = await this.fetchLatestVersion();
+
+      options.headers[&apos;user-agent&apos;] = `TokyoDisneyResortApp/${appVersion} Android/${this.config.apiOS}`;
+      options.headers[&apos;x-api-key&apos;] = this.config.apiKey;
+      options.headers[&apos;X-PORTAL-LANGUAGE&apos;] = &apos;en-US&apos;;
+      options.headers[&apos;X-PORTAL-OS-VERSION&apos;] = `Android ${this.config.apiOS}`;
+      options.headers[&apos;X-PORTAL-APP-VERSION&apos;] = appVersion;
+      options.headers[&apos;X-PORTAL-DEVICE-NAME&apos;] = &apos;OnePlus5&apos;;
+      options.headers.connection = &apos;keep-alive&apos;;
+      options.headers[&apos;Accept-Encoding&apos;] = &apos;gzip&apos;;
+      options.headers.Accept = &apos;application/json&apos;;
+      options.headers[&apos;Content-Type&apos;] = &apos;application/json&apos;;
+
+      if (!options.ignoreDeviceID) {
+        const deviceID = await this.fetchDeviceID();
+        options.headers[&apos;X-PORTAL-DEVICE-ID&apos;] = deviceID;
+        options.headers[&apos;X-PORTAL-AUTH&apos;] = this.config.apiAuth;
+      }
+    });
+  }
+
+  /**
+   * Fetch the current app version on the Google Play store
+   * @return {string}
+   */
+  async fetchLatestVersion() {
+    let cacheTime = 1000 * 60 * 60 * 12; // 12 hours by-default
+    return await this.cache.wrapGlobal(&apos;tdr_appversion&apos;, async () =&gt; {
+      const resp = await this.http(&apos;GET&apos;,
+          &apos;https://play.google.com/store/apps/details&apos;,
+          {
+            id: &apos;jp.tokyodisneyresort.portalapp&apos;,
+          },
+      );
+
+      const regexVersionNumber = /Current Version.*(\d+\.\d+\.\d+)&lt;\/span&gt;/;
+      const match = regexVersionNumber.exec(resp.body);
+      if (match) {
+        // update API version
+        return match[1];
+      }
+
+      // if we didn&apos;t match, reduce the cache time so we can try again
+      cacheTime = 1000 * 60 * 30; // 30 minutes
+      return this.config.apiVersion;
+    }, () =&gt; {
+      return cacheTime;
+    });
+  }
+
+  /**
+   * Return or fetch a device ID to use for API calls
+   */
+  async fetchDeviceID() {
+    return await this.cache.wrapGlobal(&apos;tdr_device_id&apos;, async () =&gt; {
+      const resp = await this.http(
+          &apos;POST&apos;,
+          `${this.config.apiBase}/rest/v1/devices`,
+          undefined,
+          {
+            ignoreDeviceID: true,
+          },
+      );
+
+      return resp.body.deviceId;
+    }, 1000 * 60 * 60 * 24 * 10); // use for 10 days
+  }
+
+  /**
+   * Get the latest facilities data for the entire resort
+   */
+  async fetchAllFacilitiesData() {
+    return await this.cache.wrapGlobal(&apos;tdr_facilities&apos;, async () =&gt; {
+      const headers = {};
+      const lastModifiedTime = await this.cache.getGlobal(&apos;tdr_facilities_last_modified&apos;);
+      if (lastModifiedTime !== undefined) {
+        headers[&apos;If-Modified-Since&apos;] = lastModifiedTime;
+      }
+
+      const resp = await this.http(&apos;GET&apos;, `${this.config.apiBase}/rest/v2/facilities`, undefined, {
+        headers,
+      });
+
+      // store in a separate long-term cache so we can keep using it if the server data hasn&apos;t changed
+      if (resp.statusCode !== 304) {
+        // transform data into an array with &quot;facilityType&quot;, rather than a nested object
+        const data = [];
+        Object.keys(resp.body).forEach((key) =&gt; {
+          resp.body[key].forEach((x) =&gt; {
+            data.push({
+              facilityType: key,
+              ...x,
+            });
+          });
+        });
+
+        await this.cache.setGlobal(&apos;tdr_facilities_data&apos;, data, Number.MAX_SAFE_INTEGER);
+        await this.cache.setGlobal(
+            &apos;tdr_facilities_last_modified&apos;,
+            resp.headers[&apos;Last-Modified&apos;],
+            Number.MAX_SAFE_INTEGER,
+        );
+        return data;
+      }
+
+      return await this.cache.getGlobal(&apos;tdr_facilities_data&apos;);
+    }, 1000 * 60 * 60 * 2); // check every 2 hours
+  }
+
+  /**
+   * Get facilities data for this park
+   */
+  async fetchFacilitiesData() {
+    return await this.cache.wrap(&apos;facilities&apos;, async () =&gt; {
+      const resortData = await this.fetchAllFacilitiesData();
+      return resortData.filter((x) =&gt; x.parkType === this.config.parkIdUpper);
+    }, 1000 * 60 * 15); // cache each park&apos;s facility data for 15 minutes, to avoid filtering too often
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async _init() {
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async _buildAttractionObject(attractionID) {
+    const facilityData = await this.fetchFacilitiesData();
+    const attr = facilityData.find((x) =&gt; x.facilityCode == attractionID);
+    if (attr === undefined) return undefined;
+
+    const tags = [];
+
+    tags.push({
+      type: tagType.fastPass,
+      value: !!attr.fastpass,
+    });
+
+    tags.push({
+      type: tagType.singleRider,
+      value: !!attr.filters.find((x) =&gt; x.type === &apos;SINGLE_RIDER&apos;),
+    });
+
+    const heightUppper = attr.restrictions.find((x) =&gt; x.type === &apos;LOWER_HEIGHT&apos;);
+    if (heightUppper !== undefined) {
+      const heightMin = /(\d+)\s*cm/.exec(heightUppper.name);
+      if (heightMin) {
+        tags.push({
+          key: &apos;minimumHeight&apos;,
+          type: tagType.minimumHeight,
+          value: {
+            unit: &apos;cm&apos;,
+            height: Number(heightMin[1]),
+          },
+        });
+      }
+    }
+
+    const heightLower = attr.restrictions.find((x) =&gt; x.type === &apos;UPPER_HEIGHT&apos;);
+    if (heightLower !== undefined) {
+      const heightMax = /(\d+)\s*cm/.exec(heightLower.name);
+      if (heightMax) {
+        tags.push({
+          key: &apos;maximumHeight&apos;,
+          type: tagType.maximumHeight,
+          value: {
+            unit: &apos;cm&apos;,
+            height: Number(heightMax[1]),
+          },
+        });
+      }
+    }
+
+    tags.push({
+      type: tagType.unsuitableForPregnantPeople,
+      value: attr.filters.find((x) =&gt; x === &apos;EXPECTANT_MOTHER&apos;) === undefined,
+    });
+
+    return {
+      name: attr.nameKana,
+      type: attr.facilityType === &apos;attractions&apos; ? attractionType.ride : attractionType.other,
+      tags,
+    };
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async _update() {
+    const resp = await this.http(
+        &apos;GET&apos;,
+        `${this.config.apiBase}/rest/v2/facilities/conditions`,
+    );
+
+    await Promise.allSettled(resp.body.attractions.map(async (attr) =&gt; {
+      let status = attr.standbyTime ? statusType.operating : statusType.closed;
+      switch (attr.facilityStatus) {
+        case &apos;CANCEL&apos;:
+          status = statusType.closed;
+          break;
+        case &apos;CLOSE_NOTICE&apos;:
+          status = statusType.down;
+          break;
+        case &apos;OPEN&apos;:
+          status = statusType.operating;
+          break;
+      }
+
+      await this.updateAttractionState(attr.facilityCode, status);
+      await this.updateAttractionQueue(
+          attr.facilityCode,
+        status == statusType.operating ? attr.standbyTime : null,
+        queueType.standBy,
+      );
+    }));
+  }
+
+  /**
+   * Fetch the upcoming calendar
+   */
+  async fetchCalendar() {
+    return await this.cache.wrapGlobal(&apos;tdr_calendar&apos;, async () =&gt; {
+      const cal = await this.http(
+          &apos;GET&apos;,
+          `${this.config.apiBase}/rest/v1/parks/calendars`,
+      );
+
+      return cal.body;
+    }, 1000 * 60 * 60 * 12);
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async _getOperatingHoursForDate(date) {
+    const cal = await this.fetchCalendar();
+
+    const dateString = date.format(&apos;YYYY-MM-DD&apos;);
+    const targetDate = cal.find((x) =&gt; {
+      return x.parkType === this.config.parkIdUpper &amp;&amp;
+        x.closedDay === false &amp;&amp;
+        x.undecided === false &amp;&amp;
+        x.date === dateString;
+    });
+    if (targetDate) {
+      const hours = [];
+      const momentParseFormat = &apos;YYYY-MM-DDTHH:mm&apos;;
+
+      hours.push({
+        openingTime: moment.tz(
+            `${dateString}T${targetDate.openTime}`,
+            momentParseFormat,
+            this.config.timezone).format(),
+        closingTime: moment.tz(
+            `${dateString}T${targetDate.closeTime}`,
+            momentParseFormat,
+            this.config.timezone).format(),
+        type: scheduleType.operating,
+      });
+
+      // &quot;sp&quot; opening times, i.e, magic hours
+      if (targetDate.spOpenTime &amp;&amp; targetDate.spCloseTime) {
+        hours.push({
+          openingTime: moment.tz(
+              `${dateString}T${targetDate.spOpenTime}`,
+              momentParseFormat,
+              this.config.timezone).format(),
+          closingTime: moment.tz(
+              `${dateString}T${targetDate.spCloseTime}`,
+              momentParseFormat,
+              this.config.timezone).format(),
+          type: scheduleType.extraHours,
+        });
+      }
+
+      return hours;
+    }
+
+    return undefined;
+  }
+}
+
+export default TokyoDisneyResortPark;
+
+/**
+ * Tokyo Disneyland
+ */
+export class TokyoDisneyland extends TokyoDisneyResortPark {
+  /**
+   * Construct new TokyoDisneyland Object
+   * @param {object} options
+   */
+  constructor(options = {}) {
+    options.name = &apos;Tokyo Disney Resort - Tokyo Disneyland&apos;;
+    options.parkId = &apos;tdl&apos;;
+
+    super(options);
+  }
+}
+
+/**
+ * Tokyo DisneySea
+ */
+export class TokyoDisneySea extends TokyoDisneyResortPark {
+  /**
+   * Construct new TokyoDisneySea Object
+   * @param {object} options
+   */
+  constructor(options = {}) {
+    options.name = &apos;Tokyo Disney Resort - Tokyo DisneySea&apos;;
+    options.parkId = &apos;tds&apos;;
+
+    super(options);
+  }
+}
+</code></pre>
+
+</div>
+
+<footer class="footer">
+  Generated by <a href="https://esdoc.org">ESDoc<span data-ice="esdocVersion">(1.1.0)</span><img src="./image/esdoc-logo-mini-black.png"></a>
+</footer>
+
+<script src="script/search_index.js"></script>
+<script src="script/search.js"></script>
+<script src="script/pretty-print.js"></script>
+<script src="script/inherited-summary.js"></script>
+<script src="script/test-summary.js"></script>
+<script src="script/inner-link.js"></script>
+<script src="script/patch-for-local.js"></script>
+</body>
+</html>

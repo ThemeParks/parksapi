@@ -54,6 +54,9 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html">DisneylandParisPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisWaltDisneyStudios.html">DisneylandParisWaltDisneyStudios</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-efteling">parks/efteling</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-tdr">parks/tdr</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html">TokyoDisneyResortPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneySea.html">TokyoDisneySea</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyland.html">TokyoDisneyland</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure.html">DisneylandResortCaliforniaAdventure</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortMagicKingdom.html">DisneylandResortMagicKingdom</a></span></span></li>
@@ -486,7 +489,7 @@ export class IndexedWDWDB extends PouchDB {
     };
 
     // special case for calendars
-    if (doc.channels[0].indexOf(&apos;.calendar.&apos;) &gt;= 0) {
+    if (doc.channels.find((x) =&gt; x.indexOf(&apos;.calendar.&apos;) &gt;= 0) !== undefined) {
       ret.entityType = &apos;calendar&apos;;
     }
 
@@ -502,13 +505,17 @@ export class IndexedWDWDB extends PouchDB {
     // if this document is in a &quot;facilitystatus&quot; channel, add an extra tag
     //  this is so we don&apos;t collide with the actaul document for this attraction
     //  but also so we can filter it easier later
-    const channel = doc.channels?.length ? doc.channels[0] : undefined;
-    if (channel &amp;&amp; channel.indexOf(&apos;facilitystatus&apos;) &gt;= 0) {
+    const facilityStatus = doc.channels &amp;&amp; (doc.channels.find((x) =&gt; x.indexOf(&apos;facilitystatus&apos;) &gt;= 0) !== undefined);
+    if (facilityStatus) {
       ret.facilityStatus = true;
     }
 
-    // include channel in our index
-    ret.channel = channel;
+    // include channels in our index
+    if (doc.channels) {
+      const channels = JSON.parse(JSON.stringify(doc.channels));
+      channels.sort();
+      ret.channel = channels.join(&apos;,&apos;);
+    }
 
     // add any ancestor data to our index (that we a) care about and b) can find) - see ancestorIndexes
     ancestorIndexes.forEach((ancestorIndex) =&gt; {
@@ -531,18 +538,20 @@ export class IndexedWDWDB extends PouchDB {
    */
   _extractChannelLanguage(doc) {
     // pull channel from doc
-    const channel = doc.channels?.length ? doc.channels[0] : undefined;
-    if (!channel) return undefined;
+    if (!doc.channels) return undefined;
 
-    // extract language from the end of the channel name
-    let lang = channel.slice(channel.lastIndexOf(&apos;.&apos;) + 1);
+    const langs = doc.channels.map((x) =&gt; {
+      // extract last \.* from the end of the channel name
+      // language-specific channels end with &quot;en_us&quot; or something
+      // channels without locale end with a version number eg. &quot;1_0&quot;
+      return x.slice(x.lastIndexOf(&apos;.&apos;) + 1);
+    }).filter((x) =&gt; {
+      // check each one to see the language tag starts with a version number
+      return isNaN(Number(x.slice(0, 1)));
+    });
 
-    // channels missing any locale are assumed English International (they are using &quot;1_0&quot; or similar)
-    if (lang.indexOf(&apos;1&apos;) === 0) {
-      lang = &apos;en_intl&apos;;
-    }
-
-    return lang;
+    // default to &apos;en_intl&apos; if we cannot find a language in our channels
+    return langs[0] || &apos;en_intl&apos;;
   }
 
   /**
@@ -613,13 +622,14 @@ export class IndexedWDWDB extends PouchDB {
       }
 
       // index all documents based on channel
-      const channel = doc.channels?.length ? doc.channels[0] : undefined;
-      if (channel) {
+      if (doc.channels) {
         const channelIndex = this.getIndex(constants.INDEX_CHANNELS);
-        if (!channelIndex[channel]) {
-          channelIndex[channel] = [];
-        }
-        channelIndex[channel].push(newIndexEntry);
+        doc.channels.forEach((channel) =&gt; {
+          if (!channelIndex[channel]) {
+            channelIndex[channel] = [];
+          }
+          channelIndex[channel].push(newIndexEntry);
+        });
       }
 
       const newIndexKeys = Object.keys(newIndexEntry);
