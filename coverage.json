@@ -1,7 +1,7 @@
 {
-  "coverage": "81.43%",
-  "expectCount": 237,
-  "actualCount": 193,
+  "coverage": "81.25%",
+  "expectCount": 240,
+  "actualCount": 195,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 12,
@@ -72,29 +72,34 @@
       "undocumentLines": []
     },
     "lib/parks/park.js": {
-      "expectCount": 59,
-      "actualCount": 44,
+      "expectCount": 58,
+      "actualCount": 43,
       "undocumentLines": [
         15,
         16,
         19,
         36,
-        77,
-        79,
-        80,
-        81,
-        83,
-        86,
-        87,
-        88,
-        89,
-        93,
-        97
+        62,
+        64,
+        65,
+        66,
+        68,
+        71,
+        72,
+        73,
+        74,
+        78,
+        82
       ]
     },
     "lib/parks/parkTypes.js": {
       "expectCount": 5,
       "actualCount": 5,
+      "undocumentLines": []
+    },
+    "lib/parks/place.js": {
+      "expectCount": 3,
+      "actualCount": 3,
       "undocumentLines": []
     },
     "lib/parks/tags.js": {
@@ -116,21 +121,22 @@
       ]
     },
     "lib/parks/wdw/wdwdb.js": {
-      "expectCount": 40,
+      "expectCount": 41,
       "actualCount": 28,
       "undocumentLines": [
-        38,
-        46,
-        66,
-        104,
-        118,
-        121,
-        122,
-        124,
-        125,
-        126,
-        149,
-        322
+        12,
+        43,
+        51,
+        71,
+        111,
+        148,
+        151,
+        152,
+        154,
+        155,
+        156,
+        179,
+        352
       ]
     },
     "lib/reusePromises.js": {

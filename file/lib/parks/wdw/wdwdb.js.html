@@ -40,6 +40,7 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheSqlite.js~CacheSqlite.html">CacheSqlite</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/scopedCache.js~ScopedCache.html">ScopedCache</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/place.js~Place.html">Place</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getValidTagObject">getValidTagObject</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isSimpleTagType">isSimpleTagType</a></span></span></li>
@@ -77,8 +78,13 @@ import ReplicationStream from &apos;pouchdb-replication-stream&apos;;
 import sift from &apos;sift&apos;;
 import {promises as fs, constants as fsConstants, createReadStream, createWriteStream} from &apos;fs&apos;;
 import path from &apos;path&apos;;
+import nodefetch from &apos;node-fetch&apos;;
+import toughcookie from &apos;tough-cookie&apos;;
+import fetchcookie from &apos;fetch-cookie&apos;;
 
 import {parseConfig} from &apos;../../configBase.js&apos;;
+
+const fetch = fetchcookie(nodefetch, new toughcookie.CookieJar());
 
 /**
  * Given a document, return it&apos;s entity ID for the WDW database
@@ -171,6 +177,8 @@ export class IndexedWDWDB extends PouchDB {
 
     opts.skipSync = opts.skipSync === undefined ? false : opts.skipSync;
 
+    opts.restartTimeout = opts.restartTimeout || 5;
+
     opts.configPrefixes = [&apos;WDWDB&apos;].concat(opts.configPrefixes || []);
     const config = parseConfig(opts);
 
@@ -186,6 +194,29 @@ export class IndexedWDWDB extends PouchDB {
         remoteHostOptions.auth = {
           username: this.config.remoteUsername,
           password: this.config.remotePassword,
+        };
+
+        let fetchCookie = null;
+
+        remoteHostOptions.fetch = (url, args) =&gt; {
+          args.headers.set(&apos;user-agent&apos;, &apos;CouchbaseLite/2.7.1-6 (Java; Android 9; ONEPLUS A5000) CE/release, Commit/2fb25069+ Core/2.7.1 (6)&apos;);
+
+          args.compress = true;
+
+          if (fetchCookie !== null) {
+            args.headers.set(&apos;cookie&apos;, fetchCookie);
+          }
+
+          // console.log(url);
+
+          return fetch(url, args).then(async (resp) =&gt; {
+            // intercept and remember cookie
+            const cookie = resp.headers.get(&apos;set-cookie&apos;);
+            if (cookie) {
+              fetchCookie = cookie.split(&apos;;&apos;)[0];
+            }
+            return resp;
+          });
         };
       }
 
@@ -245,7 +276,7 @@ export class IndexedWDWDB extends PouchDB {
     let noChangeTimeout = null;
     let replicationHandle = null;
 
-    const noChangeTimer = 5; // how many minutes before killing and restarting replication
+    const noChangeTimer = Number(this.config.restartTimeout) || 5; // how many minutes before killing and restarting replication
 
     // function to reboot the replicate based on various possible failure states
     const rebootReplicator = (err) =&gt; {

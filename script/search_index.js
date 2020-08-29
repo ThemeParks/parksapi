@@ -90,6 +90,12 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "@themeparks/parksapi/lib/parks/place.js~place",
+    "class/lib/parks/place.js~Place.html",
+    "<span>Place</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/place.js</span>",
+    "class"
+  ],
+  [
     "@themeparks/parksapi/lib/cache/scopedcache.js~scopedcache",
     "class/lib/cache/scopedCache.js~ScopedCache.html",
     "<span>ScopedCache</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/cache/scopedCache.js</span>",
@@ -1206,12 +1212,6 @@ window.esdocSearchIndex = [
     "member"
   ],
   [
-    "lib/parks/park.js~park#offline",
-    "class/lib/parks/park.js~Park.html#instance-get-offline",
-    "lib/parks/park.js~Park#offline",
-    "member"
-  ],
-  [
     "lib/parks/park.js~park#postupdate",
     "class/lib/parks/park.js~Park.html#instance-method-postUpdate",
     "lib/parks/park.js~Park#postUpdate",
@@ -1270,6 +1270,24 @@ window.esdocSearchIndex = [
     "file/lib/parks/parkTypes.js.html",
     "lib/parks/parkTypes.js",
     "file"
+  ],
+  [
+    "lib/parks/place.js",
+    "file/lib/parks/place.js.html",
+    "lib/parks/place.js",
+    "file"
+  ],
+  [
+    "lib/parks/place.js~place#constructor",
+    "class/lib/parks/place.js~Place.html#instance-constructor-constructor",
+    "lib/parks/place.js~Place#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/place.js~place#offline",
+    "class/lib/parks/place.js~Place.html#instance-get-offline",
+    "lib/parks/place.js~Place#offline",
+    "member"
   ],
   [
     "lib/parks/tags.js",

@@ -40,6 +40,7 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheSqlite.js~CacheSqlite.html">CacheSqlite</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/scopedCache.js~ScopedCache.html">ScopedCache</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/place.js~Place.html">Place</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getValidTagObject">getValidTagObject</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isSimpleTagType">isSimpleTagType</a></span></span></li>
@@ -73,7 +74,7 @@
 
 <div class="content" data-ice="content"><h1 data-ice="title">lib/parks/park.js</h1>
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import promiseRetry from &apos;promise-retry&apos;;
-import ConfigBase from &apos;../configBase.js&apos;;
+import Place from &apos;./place.js&apos;;
 import needle from &apos;needle&apos;;
 import moment from &apos;moment-timezone&apos;;
 import randomUseragent from &apos;random-useragent&apos;;
@@ -115,7 +116,7 @@ const harWriter = process.env[&apos;THEMEPARKS_HAR&apos;] ?
  * Base Park Object
  * @class
  */
-export class Park extends ConfigBase {
+export class Park extends Place {
   /**
    * Create a new park object
    * @param {object} options
@@ -127,25 +128,10 @@ export class Park extends ConfigBase {
     //  set this if the update is being handled by an external system
     options.disableParkUpdate = false;
 
-    // offline mode, never request any data, rely on manually serialised data to run
-    options.offline = options.offline || false;
-
     // generate a random Android user-agent if we aren&apos;t supplied one
     options.useragent = options.useragent || generateRandomAndroidUseragent();
 
     super(options);
-
-    if (!options.name) {
-      throw new Error(`Missing name for constructed park object ${this.constructor.name}`);
-    }
-
-    if (!options.timezone) {
-      throw new Error(`Missing timezone for constructed park object ${this.constructor.name}`);
-    }
-    // validate park timezone
-    if (moment.tz.names().indexOf(options.timezone) &lt; 0) {
-      throw new Error(`Park object ${this.constructor.name} gives an invalid timezone: ${options.timezone}`);
-    }
 
     // create a new cache object for this park
     this.cache = new Cache(this.constructor.name, this.config.cacheVersion || 0);
@@ -169,13 +155,6 @@ export class Park extends ConfigBase {
     // track the park&apos;s current date
     //  we&apos;ll fire an event whenever this changes
     this._currentDate = null;
-  }
-
-  /**
-   * Is this Park object operating offline?
-   */
-  get offline() {
-    return !!this.config.offline;
   }
 
   /**
