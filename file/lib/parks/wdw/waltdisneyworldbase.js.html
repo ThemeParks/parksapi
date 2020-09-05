@@ -270,7 +270,9 @@ export class DisneyPark extends Park {
     if (dateCalendar.length &gt;= 1) {
       const calendar = dateCalendar[0];
       const parkHours = calendar.parkHours.find((h) =&gt; {
-        return getEntityID(h.facilityId) === this.config.park_id &amp;&amp; h.scheduleType !== &apos;Closed&apos;;
+        return getEntityID(h.facilityId) === this.config.park_id &amp;&amp;
+          h.scheduleType !== &apos;Closed&apos; &amp;&amp;
+          h.scheduleType.indexOf(&apos;blockout&apos;) &lt; 0; // ignore annual pass blockouts;
       });
 
       if (parkHours) {

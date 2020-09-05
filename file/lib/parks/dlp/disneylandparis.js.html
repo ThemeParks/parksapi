@@ -207,6 +207,8 @@ export class DisneylandParisPark extends Park {
 
     options.configPrefixes = [&apos;DLP&apos;].concat(options.configPrefixes || []);
 
+    options.cacheVersion = 2;
+
     super(options);
 
     if (!this.config.apiKey) throw new Error(&apos;Missing Disneyland Paris apiKey&apos;);
@@ -458,8 +460,8 @@ export class DisneylandParisPark extends Park {
 
     return parkDate.schedules.map((hours) =&gt; {
       return {
-        openingTime: moment(`${dateString}T${hours.startTime}`, momentParseFormat).tz(this.config.timezone).format(),
-        closingTime: moment(`${dateString}T${hours.endTime}`, momentParseFormat).tz(this.config.timezone).format(),
+        openingTime: moment.tz(`${dateString}T${hours.startTime}`, momentParseFormat, this.config.timezone).format(),
+        closingTime: moment.tz(`${dateString}T${hours.endTime}`, momentParseFormat, this.config.timezone).format(),
         // our graphql query only wants types of &quot;OPERATING&quot; or &quot;EXTRA_MAGIC_HOURS&quot;, so we can ternery op this
         type: hours.status === &apos;EXTRA_MAGIC_HOURS&apos; ? scheduleType.extraHours : scheduleType.operating,
       };
