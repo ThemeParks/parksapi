@@ -39,8 +39,8 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheMemory.js~CacheMemory.html">CacheMemory</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheSqlite.js~CacheSqlite.html">CacheSqlite</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/scopedCache.js~ScopedCache.html">ScopedCache</a></span></span></li>
-<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/place.js~Place.html">Place</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/entity.js~Entity.html">Entity</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getValidTagObject">getValidTagObject</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isSimpleTagType">isSimpleTagType</a></span></span></li>
@@ -74,21 +74,11 @@
 
 <div class="content" data-ice="content"><h1 data-ice="title">lib/parks/park.js</h1>
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import promiseRetry from &apos;promise-retry&apos;;
-import Place from &apos;./place.js&apos;;
-import needle from &apos;needle&apos;;
+import Entity from &apos;./entity.js&apos;;
 import moment from &apos;moment-timezone&apos;;
-import randomUseragent from &apos;random-useragent&apos;;
 import Cache from &apos;../cache/scopedCache.js&apos;;
 import * as tags from &apos;./tags.js&apos;;
-import HarWriter from &apos;../har.js&apos;;
-import sift from &apos;sift&apos;;
-import {URL} from &apos;url&apos;;
 import {reusePromise, reusePromiseForever} from &apos;../reusePromises.js&apos;;
-import zlib from &apos;zlib&apos;;
-import util from &apos;util&apos;;
-
-const zDecompress = util.promisify(zlib.unzip);
-const zCompress = util.promisify(zlib.deflate);
 
 // quick helper function to wait x milliseconds as a Promise
 const delay = (milliseconds) =&gt; {
@@ -98,25 +88,10 @@ const delay = (milliseconds) =&gt; {
 };
 
 /**
- * Generate a random Android user agent for making network requests
- * @return {string}
- */
-export function generateRandomAndroidUseragent() {
-  return randomUseragent.getRandom((ua) =&gt; {
-    return (ua.osName === &apos;Android&apos;);
-  });
-}
-
-// start our har writer (if debugging)
-const harWriter = process.env[&apos;THEMEPARKS_HAR&apos;] ?
-  new HarWriter({filename: `${process.env[&apos;THEMEPARKS_HAR&apos;]}.har`}):
-  null;
-
-/**
  * Base Park Object
  * @class
  */
-export class Park extends Place {
+export class Park extends Entity {
   /**
    * Create a new park object
    * @param {object} options
@@ -127,9 +102,6 @@ export class Park extends Place {
     // disable auto-update for this object
     //  set this if the update is being handled by an external system
     options.disableParkUpdate = false;
-
-    // generate a random Android user-agent if we aren&apos;t supplied one
-    options.useragent = options.useragent || generateRandomAndroidUseragent();
 
     super(options);
 
@@ -142,84 +114,13 @@ export class Park extends Place {
 
     this._attractions = [];
 
-    // use this for any &quot;offline mode&quot; Park objects using pure-cache data
-    this._hasOfflineData = false;
-    this._offlineCalendar = null;
-    this._offlinePromise = null;
-    this._offlinePromiseResolve = null;
-
-    // any HTTP injections that have been setup
-    //  allows parks to automatically intercept HTTP requests and add auth headers etc.
-    this._httpInjections = [];
-
     // track the park&apos;s current date
     //  we&apos;ll fire an event whenever this changes
     this._currentDate = null;
-  }
 
-  /**
-   * Archive any data that is needed for serialisation of this Park.
-   * @param {object} ar The archive object to write/load data to/from
-   * @param {boolean} saving Is this archive saving or loading?
-   * @private
-   */
-  _archive(ar, saving = true) {}
-
-  /**
-   * Serialise this Park object
-   * @param {object} bundle Bundle to read/write from/to
-   * @param {boolean} saving Whether we are saving or loading during this serialise operation
-   * @param {object} [options]
-   */
-  async serialise(bundle = {}, saving = true, options = {
-    version: 1,
-  }) {
-    if (saving) {
-      // === Saving ===
-      // default options
-      bundle.version = options.version;
-      bundle.ar = {};
-
-      // save basic Park data
-      bundle.ar.attractions = await this.getAttractions();
-      bundle.ar.calendar = await this.getCalendar();
-    } else {
-      // === Loading ===
-      // decompress/load the data
-      const bundleBuffer = await zDecompress(bundle);
-      bundle = JSON.parse(bundleBuffer.toString(&apos;utf8&apos;));
-
-      const version = bundle.version || 0;
-      // check we understand this bundle version
-      if (version !== 1) {
-        throw new Error(&apos;Unable to load serialised bundle version&apos;, version);
-      }
-
-      // load basic Park data
-      this._attractions = bundle.ar.attractions;
-      this._offlineCalendar = bundle.ar.calendar;
-    }
-
-    // call any custom archive operations for this park
-    this._archive(bundle, saving);
-
-    if (saving) {
-      // pack and gz to buffer
-      const bundleData = JSON.stringify(bundle);
-      return await zCompress(bundleData);
-    }
-
-    // after loading, run any postUpdate functions
-    this.postUpdate();
-
-    this._hasOfflineData = true;
-
-    // check if any process if waiting for offline data to be ready
-    if (this._offlinePromiseResolve !== null) {
-      this._offlinePromiseResolve();
-      this._offlinePromiseResolve = null;
-      this._offlinePromise = null;
-    }
+    // make attractions and calendar functions work offline
+    this.registerOfflineFunction(&apos;getAttractions&apos;);
+    this.registerOfflineFunction(&apos;getCalendar&apos;);
   }
 
   /**
@@ -236,32 +137,7 @@ export class Park extends Place {
    * @return {string}
    */
   getParkUniqueID() {
-    // by default, return the class name
-    return this.constructor.name;
-  }
-
-  /**
-   * Return the current time for this park in its local timezone
-   * @return {moment}
-   */
-  getTimeNowMoment() {
-    return moment().tz(this.config.timezone);
-  }
-
-  /**
-   * Return the current time for this park in its local timezone
-   * @return {string}
-   */
-  getTimeNow() {
-    return this.getTimeNowMoment().format();
-  }
-
-  /**
-   * Get park&apos;s human-friendly name string
-   * @return {string}
-   */
-  get name() {
-    return this.config.name;
+    return this.getUniqueID();
   }
 
   /**
@@ -279,6 +155,13 @@ export class Park extends Place {
    */
   async init() {
     return reusePromiseForever(this, this._runInit);
+  }
+
+  /**
+   * @inheritdocs
+   */
+  async _postOfflineLoad() {
+    await this.postUpdate();
   }
 
   /**
@@ -336,14 +219,7 @@ export class Park extends Place {
       await this.update();
     }
 
-    if (this.offline &amp;&amp; !this._hasOfflineData) {
-      if (this._offlinePromise === null) {
-        this._offlinePromise = new Promise((resolve) =&gt; {
-          this._offlinePromiseResolve = resolve;
-        });
-      }
-      return this._offlinePromise;
-    }
+    await this.ensureHasOfflineData();
   }
 
   /**
@@ -788,10 +664,6 @@ export class Park extends Place {
    * Each date entry will contain an array of operating hours.
    */
   async getCalendar() {
-    if (this._offlineCalendar !== null) {
-      return this._offlineCalendar;
-    }
-
     try {
       // make sure the park is initialised before continuing
       await this.init();
@@ -957,131 +829,6 @@ export class Park extends Place {
     const tomorrow = moment(todaysDate, &apos;YYYY-MM-DD&apos;).add(1, &apos;day&apos;);
     const calendar = await this.getCalendar();
     return calendar[tomorrow.format(&apos;YYYY-MM-DD&apos;)];
-  }
-
-  /**
-   * Register a new injection for a specific domain
-   * @param {object} filter Mongo-type query to use to match a URL
-   * @param {function} func Function to call with needle request to inject extra data into.
-   * Function will take arguments: (method, URL, data, options)
-   */
-  async injectForDomain(filter, func) {
-    // add to our array of injections, this is processing by http()
-    this._httpInjections.push({
-      filter: sift(filter),
-      func,
-    });
-  }
-
-  /**
-   * Helper function to make an HTTP request for this park
-   * Parks can automatically add in authentication headers etc. to requests sent to this function
-   * @param {string} method HTTP method to use (GET,POST,DELETE, etc)
-   * @param {string} url URL to request
-   * @param {object} [data] data to send. Will become querystring for GET, body for POST
-   * @param {object} [options] Object containing needle-compatible HTTP options
-   */
-  async http(method, url, data = {}, options = {}) {
-    if (this.offline) {
-      // TODO - log these instances somewhere, should never be making HTTP requests in offline mode
-      console.trace(`[OFFLINE] Skipping HTTP request ${method} ${url}`);
-      return;
-    }
-
-    // always have a headers array
-    if (!options.headers) {
-      options.headers = {};
-    }
-
-    // default to accepting compressed data
-    options.compressed = options.compressed === undefined ? true : options.compressed;
-
-    // inject custom standard user agent (if we have one)
-    //  do this before any custom injections so parks can optionally override this for each domain
-    if (this.config.useragent) {
-      options.headers[&apos;user-agent&apos;] = this.config.useragent;
-    }
-
-    // check any hostname injections we have setup
-    const urlObj = new URL(url);
-    const urlFilter = {
-      protocol: urlObj.protocol,
-      host: urlObj.host,
-      hostname: urlObj.hostname,
-      pathname: urlObj.pathname,
-      search: urlObj.search,
-      hash: urlObj.hash,
-    };
-    for (let injectionIDX=0; injectionIDX&lt;this._httpInjections.length; injectionIDX++) {
-      const injection = this._httpInjections[injectionIDX];
-
-      // check if the domain matches
-      if (injection.filter(urlFilter)) {
-        await injection.func(method, url, data, options);
-      }
-    }
-
-    const startMs = +new Date();
-    const startTime = moment(startMs).toISOString();
-
-    return needle(method, url, data, options).then(async (resp) =&gt; {
-      // console.log(resp.req);
-      // intercept response to write to our .har file
-      if (harWriter) {
-        const timeTaken = (+new Date()) - startMs;
-
-        const objToArr = (obj) =&gt; {
-          return Object.keys(obj).map((header) =&gt; {
-            return {name: header, value: obj[header].toString()};
-          });
-        };
-
-        const entry = {
-          startedDateTime: startTime,
-          time: timeTaken,
-          request: {
-            method: method,
-            url: url,
-            httpVersion: `HTTP/${resp.httpVersion}`, // this is actually the response, TODO
-            cookies: [],
-            headers: objToArr(options.headers), // not the actual headers needle sends - TODO, how to get these?
-            queryString: method === &apos;GET&apos; ? objToArr(data) : [], // TODO - parse from needle&apos;s .path
-            postData: {
-              mimeType: options.json ? &apos;application/json&apos; : (options.headers[&apos;content-type&apos;] || &apos;&apos;),
-              params: method !== &apos;GET&apos; ? [] : [],
-              text: &apos;&apos;,
-            },
-            headersSize: -1,
-            bodySize: -1,
-          },
-          response: {
-            status: resp.statusCode,
-            statusText: resp.statusMessage,
-            httpVersion: `HTTP/${resp.httpVersion}`,
-            cookies: [],
-            headers: objToArr(resp.headers),
-            content: {
-              size: resp.raw.length || -1,
-              mimeType: resp.headers[&apos;content-type&apos;],
-              text: resp.raw.toString(&apos;base64&apos;),
-              encoding: &apos;base64&apos;,
-            },
-            redirectURL: &apos;&apos;,
-            headersSize: -1,
-            bodySize: -1,
-          },
-          cache: {},
-          timings: {
-            send: -1,
-            wait: -1,
-            receive: -1,
-          },
-        };
-        await harWriter.recordEntry(entry);
-      }
-
-      return resp;
-    });
   }
 }
 

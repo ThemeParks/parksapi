@@ -39,8 +39,8 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheMemory.js~CacheMemory.html">CacheMemory</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheSqlite.js~CacheSqlite.html">CacheSqlite</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/scopedCache.js~ScopedCache.html">ScopedCache</a></span></span></li>
-<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/place.js~Place.html">Place</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/entity.js~Entity.html">Entity</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getValidTagObject">getValidTagObject</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isSimpleTagType">isSimpleTagType</a></span></span></li>
@@ -78,13 +78,8 @@ import ReplicationStream from &apos;pouchdb-replication-stream&apos;;
 import sift from &apos;sift&apos;;
 import {promises as fs, constants as fsConstants, createReadStream, createWriteStream} from &apos;fs&apos;;
 import path from &apos;path&apos;;
-import nodefetch from &apos;node-fetch&apos;;
-import toughcookie from &apos;tough-cookie&apos;;
-import fetchcookie from &apos;fetch-cookie&apos;;
 
 import {parseConfig} from &apos;../../configBase.js&apos;;
-
-const fetch = fetchcookie(nodefetch, new toughcookie.CookieJar());
 
 /**
  * Given a document, return it&apos;s entity ID for the WDW database
@@ -252,7 +247,7 @@ export class IndexedWDWDB extends PouchDB {
 
     let noChangeTimeout = null;
     let replicationHandle = null;
-    
+
     // how many minutes before killing and restarting replication
     const noChangeTimer = Number(this.config.restartTimeout) || 5;
 

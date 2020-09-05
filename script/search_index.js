@@ -72,6 +72,12 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "@themeparks/parksapi/lib/parks/entity.js~entity",
+    "class/lib/parks/entity.js~Entity.html",
+    "<span>Entity</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/entity.js</span>",
+    "class"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~hongkongdisneylandpark",
     "class/lib/parks/wdw/waltdisneyworldbase.js~HongKongDisneylandPark.html",
     "<span>HongKongDisneylandPark</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
@@ -87,12 +93,6 @@ window.esdocSearchIndex = [
     "@themeparks/parksapi/lib/parks/park.js~park",
     "class/lib/parks/park.js~Park.html",
     "<span>Park</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/park.js</span>",
-    "class"
-  ],
-  [
-    "@themeparks/parksapi/lib/parks/place.js~place",
-    "class/lib/parks/place.js~Place.html",
-    "<span>Place</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/place.js</span>",
     "class"
   ],
   [
@@ -150,9 +150,9 @@ window.esdocSearchIndex = [
     "variable"
   ],
   [
-    "@themeparks/parksapi/lib/parks/park.js~generaterandomandroiduseragent",
+    "@themeparks/parksapi/lib/parks/entity.js~generaterandomandroiduseragent",
     "function/index.html#static-function-generateRandomAndroidUseragent",
-    "<span>generateRandomAndroidUseragent</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/park.js</span>",
+    "<span>generateRandomAndroidUseragent</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/entity.js</span>",
     "function"
   ],
   [
@@ -948,16 +948,130 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/entity.js",
+    "file/lib/parks/entity.js.html",
+    "lib/parks/entity.js",
+    "file"
+  ],
+  [
+    "lib/parks/entity.js~entity#[functionname]",
+    "class/lib/parks/entity.js~Entity.html#instance-member-[functionName]",
+    "lib/parks/entity.js~Entity#[functionName]",
+    "member"
+  ],
+  [
+    "lib/parks/entity.js~entity#_hasofflinedata",
+    "class/lib/parks/entity.js~Entity.html#instance-member-_hasOfflineData",
+    "lib/parks/entity.js~Entity#_hasOfflineData",
+    "member"
+  ],
+  [
+    "lib/parks/entity.js~entity#_httpinjections",
+    "class/lib/parks/entity.js~Entity.html#instance-member-_httpInjections",
+    "lib/parks/entity.js~Entity#_httpInjections",
+    "member"
+  ],
+  [
+    "lib/parks/entity.js~entity#_offlinedata",
+    "class/lib/parks/entity.js~Entity.html#instance-member-_offlineData",
+    "lib/parks/entity.js~Entity#_offlineData",
+    "member"
+  ],
+  [
+    "lib/parks/entity.js~entity#_offlinefunctions",
+    "class/lib/parks/entity.js~Entity.html#instance-member-_offlineFunctions",
+    "lib/parks/entity.js~Entity#_offlineFunctions",
+    "member"
+  ],
+  [
+    "lib/parks/entity.js~entity#_offlinepromise",
+    "class/lib/parks/entity.js~Entity.html#instance-member-_offlinePromise",
+    "lib/parks/entity.js~Entity#_offlinePromise",
+    "member"
+  ],
+  [
+    "lib/parks/entity.js~entity#_offlinepromiseresolve",
+    "class/lib/parks/entity.js~Entity.html#instance-member-_offlinePromiseResolve",
+    "lib/parks/entity.js~Entity#_offlinePromiseResolve",
+    "member"
+  ],
+  [
+    "lib/parks/entity.js~entity#_postofflineload",
+    "class/lib/parks/entity.js~Entity.html#instance-method-_postOfflineLoad",
+    "lib/parks/entity.js~Entity#_postOfflineLoad",
+    "method"
+  ],
+  [
+    "lib/parks/entity.js~entity#constructor",
+    "class/lib/parks/entity.js~Entity.html#instance-constructor-constructor",
+    "lib/parks/entity.js~Entity#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/entity.js~entity#ensurehasofflinedata",
+    "class/lib/parks/entity.js~Entity.html#instance-method-ensureHasOfflineData",
+    "lib/parks/entity.js~Entity#ensureHasOfflineData",
+    "method"
+  ],
+  [
+    "lib/parks/entity.js~entity#gettimenow",
+    "class/lib/parks/entity.js~Entity.html#instance-method-getTimeNow",
+    "lib/parks/entity.js~Entity#getTimeNow",
+    "method"
+  ],
+  [
+    "lib/parks/entity.js~entity#gettimenowmoment",
+    "class/lib/parks/entity.js~Entity.html#instance-method-getTimeNowMoment",
+    "lib/parks/entity.js~Entity#getTimeNowMoment",
+    "method"
+  ],
+  [
+    "lib/parks/entity.js~entity#getuniqueid",
+    "class/lib/parks/entity.js~Entity.html#instance-method-getUniqueID",
+    "lib/parks/entity.js~Entity#getUniqueID",
+    "method"
+  ],
+  [
+    "lib/parks/entity.js~entity#http",
+    "class/lib/parks/entity.js~Entity.html#instance-method-http",
+    "lib/parks/entity.js~Entity#http",
+    "method"
+  ],
+  [
+    "lib/parks/entity.js~entity#injectfordomain",
+    "class/lib/parks/entity.js~Entity.html#instance-method-injectForDomain",
+    "lib/parks/entity.js~Entity#injectForDomain",
+    "method"
+  ],
+  [
+    "lib/parks/entity.js~entity#name",
+    "class/lib/parks/entity.js~Entity.html#instance-get-name",
+    "lib/parks/entity.js~Entity#name",
+    "member"
+  ],
+  [
+    "lib/parks/entity.js~entity#offline",
+    "class/lib/parks/entity.js~Entity.html#instance-get-offline",
+    "lib/parks/entity.js~Entity#offline",
+    "member"
+  ],
+  [
+    "lib/parks/entity.js~entity#registerofflinefunction",
+    "class/lib/parks/entity.js~Entity.html#instance-method-registerOfflineFunction",
+    "lib/parks/entity.js~Entity#registerOfflineFunction",
+    "method"
+  ],
+  [
+    "lib/parks/entity.js~entity#serialise",
+    "class/lib/parks/entity.js~Entity.html#instance-method-serialise",
+    "lib/parks/entity.js~Entity#serialise",
+    "method"
+  ],
+  [
     "lib/parks/park.js",
     "file/lib/parks/park.js.html",
     "lib/parks/park.js",
     "file"
-  ],
-  [
-    "lib/parks/park.js~park#_archive",
-    "class/lib/parks/park.js~Park.html#instance-method-_archive",
-    "lib/parks/park.js~Park#_archive",
-    "method"
   ],
   [
     "lib/parks/park.js~park#_attractions",
@@ -1008,46 +1122,22 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
-    "lib/parks/park.js~park#_hasofflinedata",
-    "class/lib/parks/park.js~Park.html#instance-member-_hasOfflineData",
-    "lib/parks/park.js~Park#_hasOfflineData",
-    "member"
-  ],
-  [
-    "lib/parks/park.js~park#_httpinjections",
-    "class/lib/parks/park.js~Park.html#instance-member-_httpInjections",
-    "lib/parks/park.js~Park#_httpInjections",
-    "member"
-  ],
-  [
     "lib/parks/park.js~park#_init",
     "class/lib/parks/park.js~Park.html#instance-method-_init",
     "lib/parks/park.js~Park#_init",
     "method"
   ],
   [
-    "lib/parks/park.js~park#_offlinecalendar",
-    "class/lib/parks/park.js~Park.html#instance-member-_offlineCalendar",
-    "lib/parks/park.js~Park#_offlineCalendar",
-    "member"
-  ],
-  [
-    "lib/parks/park.js~park#_offlinepromise",
-    "class/lib/parks/park.js~Park.html#instance-member-_offlinePromise",
-    "lib/parks/park.js~Park#_offlinePromise",
-    "member"
-  ],
-  [
-    "lib/parks/park.js~park#_offlinepromiseresolve",
-    "class/lib/parks/park.js~Park.html#instance-member-_offlinePromiseResolve",
-    "lib/parks/park.js~Park#_offlinePromiseResolve",
-    "member"
-  ],
-  [
     "lib/parks/park.js~park#_pendingtags",
     "class/lib/parks/park.js~Park.html#instance-member-_pendingTags",
     "lib/parks/park.js~Park#_pendingTags",
     "member"
+  ],
+  [
+    "lib/parks/park.js~park#_postofflineload",
+    "class/lib/parks/park.js~Park.html#instance-method-_postOfflineLoad",
+    "lib/parks/park.js~Park#_postOfflineLoad",
+    "method"
   ],
   [
     "lib/parks/park.js~park#_runinit",
@@ -1164,28 +1254,10 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
-    "lib/parks/park.js~park#gettimenow",
-    "class/lib/parks/park.js~Park.html#instance-method-getTimeNow",
-    "lib/parks/park.js~Park#getTimeNow",
-    "method"
-  ],
-  [
-    "lib/parks/park.js~park#gettimenowmoment",
-    "class/lib/parks/park.js~Park.html#instance-method-getTimeNowMoment",
-    "lib/parks/park.js~Park#getTimeNowMoment",
-    "method"
-  ],
-  [
     "lib/parks/park.js~park#hasrunupdate",
     "class/lib/parks/park.js~Park.html#instance-member-hasRunUpdate",
     "lib/parks/park.js~Park#hasRunUpdate",
     "member"
-  ],
-  [
-    "lib/parks/park.js~park#http",
-    "class/lib/parks/park.js~Park.html#instance-method-http",
-    "lib/parks/park.js~Park#http",
-    "method"
   ],
   [
     "lib/parks/park.js~park#init",
@@ -1200,18 +1272,6 @@ window.esdocSearchIndex = [
     "member"
   ],
   [
-    "lib/parks/park.js~park#injectfordomain",
-    "class/lib/parks/park.js~Park.html#instance-method-injectForDomain",
-    "lib/parks/park.js~Park#injectForDomain",
-    "method"
-  ],
-  [
-    "lib/parks/park.js~park#name",
-    "class/lib/parks/park.js~Park.html#instance-get-name",
-    "lib/parks/park.js~Park#name",
-    "member"
-  ],
-  [
     "lib/parks/park.js~park#postupdate",
     "class/lib/parks/park.js~Park.html#instance-method-postUpdate",
     "lib/parks/park.js~Park#postUpdate",
@@ -1221,12 +1281,6 @@ window.esdocSearchIndex = [
     "lib/parks/park.js~park#removeattractiontag",
     "class/lib/parks/park.js~Park.html#instance-method-removeAttractionTag",
     "lib/parks/park.js~Park#removeAttractionTag",
-    "method"
-  ],
-  [
-    "lib/parks/park.js~park#serialise",
-    "class/lib/parks/park.js~Park.html#instance-method-serialise",
-    "lib/parks/park.js~Park#serialise",
     "method"
   ],
   [
@@ -1270,24 +1324,6 @@ window.esdocSearchIndex = [
     "file/lib/parks/parkTypes.js.html",
     "lib/parks/parkTypes.js",
     "file"
-  ],
-  [
-    "lib/parks/place.js",
-    "file/lib/parks/place.js.html",
-    "lib/parks/place.js",
-    "file"
-  ],
-  [
-    "lib/parks/place.js~place#constructor",
-    "class/lib/parks/place.js~Place.html#instance-constructor-constructor",
-    "lib/parks/place.js~Place#constructor",
-    "method"
-  ],
-  [
-    "lib/parks/place.js~place#offline",
-    "class/lib/parks/place.js~Place.html#instance-get-offline",
-    "lib/parks/place.js~Place#offline",
-    "member"
   ],
   [
     "lib/parks/tags.js",
