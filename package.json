@@ -34,6 +34,7 @@
   "homepage": "https://github.com/ThemeParks/parksapi#readme",
   "dependencies": {
     "dotenv": "^8.2.0",
+    "egoroof-blowfish": "^2.2.2",
     "fetch-cookie": "^0.10.1",
     "json-diff": "^0.5.4",
     "moment-timezone": "^0.5.31",
