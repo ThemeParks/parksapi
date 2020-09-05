@@ -1,37 +1,30 @@
 {
-  "coverage": "81.22%",
-  "expectCount": 245,
-  "actualCount": 199,
+  "coverage": "81.94%",
+  "expectCount": 288,
+  "actualCount": 236,
   "files": {
     "lib/cache/cacheBase.js": {
-      "expectCount": 12,
-      "actualCount": 9,
+      "expectCount": 14,
+      "actualCount": 10,
       "undocumentLines": [
         19,
         20,
-        23
+        23,
+        25
       ]
     },
     "lib/cache/cacheLevel.js": {
-      "expectCount": 6,
-      "actualCount": 5,
+      "expectCount": 7,
+      "actualCount": 6,
       "undocumentLines": [
         21
       ]
     },
     "lib/cache/cacheMemory.js": {
-      "expectCount": 6,
-      "actualCount": 5,
+      "expectCount": 7,
+      "actualCount": 6,
       "undocumentLines": [
         19
-      ]
-    },
-    "lib/cache/cacheSqlite.js": {
-      "expectCount": 9,
-      "actualCount": 7,
-      "undocumentLines": [
-        26,
-        28
       ]
     },
     "lib/cache/scopedCache.js": {
@@ -58,6 +51,15 @@
         81
       ]
     },
+    "lib/parks/database.js": {
+      "expectCount": 12,
+      "actualCount": 9,
+      "undocumentLines": [
+        7,
+        20,
+        22
+      ]
+    },
     "lib/parks/dlp/disneylandparis.js": {
       "expectCount": 17,
       "actualCount": 15,
@@ -72,38 +74,64 @@
       "undocumentLines": []
     },
     "lib/parks/entity.js": {
-      "expectCount": 24,
-      "actualCount": 14,
+      "expectCount": 21,
+      "actualCount": 12,
       "undocumentLines": [
-        11,
-        12,
-        25,
-        60,
-        63,
-        64,
-        65,
-        66,
-        67,
-        122
+        7,
+        8,
+        39,
+        45,
+        46,
+        47,
+        48,
+        49,
+        104
+      ]
+    },
+    "lib/parks/europa/europapark.js": {
+      "expectCount": 12,
+      "actualCount": 12,
+      "undocumentLines": []
+    },
+    "lib/parks/europa/europaparkdb.js": {
+      "expectCount": 11,
+      "actualCount": 10,
+      "undocumentLines": [
+        67
+      ]
+    },
+    "lib/parks/http.js": {
+      "expectCount": 4,
+      "actualCount": 3,
+      "undocumentLines": [
+        19
       ]
     },
     "lib/parks/park.js": {
       "expectCount": 43,
       "actualCount": 36,
       "undocumentLines": [
-        9,
-        34,
-        36,
+        10,
+        35,
         37,
         38,
-        40,
-        44
+        39,
+        41,
+        45
       ]
     },
     "lib/parks/parkTypes.js": {
       "expectCount": 5,
       "actualCount": 5,
       "undocumentLines": []
+    },
+    "lib/parks/resort.js": {
+      "expectCount": 7,
+      "actualCount": 5,
+      "undocumentLines": [
+        17,
+        20
+      ]
     },
     "lib/parks/tags.js": {
       "expectCount": 8,
@@ -115,12 +143,24 @@
       "actualCount": 15,
       "undocumentLines": []
     },
+    "lib/parks/types.js": {
+      "expectCount": 1,
+      "actualCount": 1,
+      "undocumentLines": []
+    },
     "lib/parks/wdw/waltdisneyworldbase.js": {
       "expectCount": 25,
       "actualCount": 23,
       "undocumentLines": [
         6,
         58
+      ]
+    },
+    "lib/parks/wdw/wdwdatabase.js": {
+      "expectCount": 4,
+      "actualCount": 3,
+      "undocumentLines": [
+        15
       ]
     },
     "lib/parks/wdw/wdwdb.js": {

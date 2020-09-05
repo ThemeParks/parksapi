@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <base data-ice="baseUrl" href="../../../../">
+  <title data-ice="title">lib/parks/europa/europapark.js | @themeparks/parksapi</title>
+  <link type="text/css" rel="stylesheet" href="css/style.css">
+  <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
+  <script src="script/prettify/prettify.js"></script>
+  <script src="script/manual.js"></script>
+</head>
+<body class="layout-container" data-ice="rootContainer">
+
+<header>
+  <a href="./">Home</a>
+  
+  <a href="identifiers.html">Reference</a>
+  <a href="source.html">Source</a>
+  
+  <div class="search-box">
+  <span>
+    <img src="./image/search.png">
+    <span class="search-input-edge"></span><input class="search-input"><span class="search-input-edge"></span>
+  </span>
+    <ul class="search-result"></ul>
+  </div>
+<a style="position:relative; top:3px;" href="https://github.com/ThemeParks/parksapi"><img width="20px" src="./image/github.png"></a></header>
+
+<nav class="navigation" data-ice="nav"><div>
+  <ul>
+    
+  <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/configBase.js~ConfigBase.html">ConfigBase</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getCache">getCache</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-parseConfig">parseConfig</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-reusePromise">reusePromise</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-reusePromiseForever">reusePromiseForever</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#cache">cache</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheBase.js~CacheBase.html">CacheBase</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheLevel.js~CacheLevel.html">CacheLevel</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheMemory.js~CacheMemory.html">CacheMemory</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/scopedCache.js~ScopedCache.html">ScopedCache</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/database.js~Database.html">Database</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/entity.js~Entity.html">Entity</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/resort.js~Resort.html">Resort</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-HTTP">HTTP</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getValidTagObject">getValidTagObject</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isSimpleTagType">isSimpleTagType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTag">isValidTag</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTagType">isValidTagType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-attractionType">attractionType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-queueType">queueType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-scheduleType">scheduleType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-statusType">statusType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-tagType">tagType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-entityType">entityType</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-dlp">parks/dlp</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisMagicKingdom.html">DisneylandParisMagicKingdom</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html">DisneylandParisPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisWaltDisneyStudios.html">DisneylandParisWaltDisneyStudios</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-efteling">parks/efteling</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-europa">parks/europa</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/europa/europapark.js~EuropaPark.html">EuropaPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/europa/europapark.js~EuropaParkBase.html">EuropaParkBase</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/europa/europapark.js~Rulantica.html">Rulantica</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/europa/europapark.js~Yullbe.html">Yullbe</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/europa/europaparkdb.js~DatabaseEuropaPark.html">DatabaseEuropaPark</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-tdr">parks/tdr</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html">TokyoDisneyResortPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneySea.html">TokyoDisneySea</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyland.html">TokyoDisneyland</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure.html">DisneylandResortCaliforniaAdventure</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortMagicKingdom.html">DisneylandResortMagicKingdom</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~HongKongDisneylandPark.html">HongKongDisneylandPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom.html">WaltDisneyWorldAnimalKingdom</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot.html">WaltDisneyWorldEpcot</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios.html">WaltDisneyWorldHollywoodStudios</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom.html">WaltDisneyWorldMagicKingdom</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdatabase.js~DatabaseWDW.html">DatabaseWDW</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html">IndexedWDWDB</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getEntityID">getEntityID</a></span></span></li>
+</ul>
+</div>
+</nav>
+
+<div class="content" data-ice="content"><h1 data-ice="title">lib/parks/europa/europapark.js</h1>
+<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import EuropaParkDB from &apos;./europaparkdb.js&apos;;
+import Park from &apos;../park.js&apos;;
+import {statusType, queueType, scheduleType} from &apos;../parkTypes.js&apos;;
+import moment from &apos;moment-timezone&apos;;
+
+/**
+ * Europa Park Base Class
+ */
+export class EuropaParkBase extends Park {
+  /**
+   * @inheritdoc
+   * @param {object} options
+   */
+  constructor(options = {}) {
+    options.timezone = &apos;Europe/Berlin&apos;;
+
+    options.parkId = options.parkId || &apos;&apos;;
+
+    super(options);
+
+    if (!this.config.parkId) throw new Error(&apos;Missing Europa Park Id&apos;);
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async _init() {
+    // add all park attractions
+    const db = EuropaParkDB.get();
+    const attractions = await db.getEntities({
+      // filter entities by our park ID
+      &apos;_src.scopes&apos;: {
+        $elemMatch: this.config.parkId,
+      },
+    });
+
+    // force inject each attraction so it appears in the attraction list, even if it has no wait times
+    await Promise.allSettled(attractions.map(async (a) =&gt; {
+      await this.findAttractionByID(a.id);
+    }));
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async _buildAttractionObject(attractionID) {
+    const db = EuropaParkDB.get();
+    return await db.findEntity({
+      &apos;id&apos;: `${attractionID}`,
+      // filter entities by our park ID
+      &apos;_src.scopes&apos;: {
+        $elemMatch: this.config.parkId,
+      },
+    });
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async _update() {
+    const db = EuropaParkDB.get();
+    const waits = await db.getWaitingTimes();
+
+    // just push all wait times, let our _buildAttractionObject filter out ones for other parks
+    await Promise.allSettled(waits.waitingtimes.map(async (wait) =&gt; {
+      let status = statusType.operating;
+      let queue = queueType.standBy;
+      // if time == 90, wait time is reported as 90+ in-app
+      // time == 91, virtual queue is open
+      // time == 999, down
+      // time == 222, closed refurb
+      // time == 333, closed
+      // time == 444, closed becaue weather
+      // time == 555, closed because ice
+      // time == 666, virtual queue is &quot;temporarily full&quot;
+      // time == 777, virtual queue is completely full
+      switch (wait.time) {
+        case 999:
+        case 444: // weather
+        case 555: // ice
+          status = statusType.down;
+          break;
+        case 222:
+          status = statusType.refurbishment;
+          break;
+        case 333:
+          status = statusType.closed;
+          break;
+        case 666:
+        case 777:
+        case 91:
+          queue = queueType.returnTime;
+          // we have a virtual queue!
+          // TODO - how do we store return time queues?
+          /* await this.updateAttractionQueue(attr.code, {
+              nextAvailableStart: &apos;&apos;,
+              nextAvailableEnd: &apos;&apos;,
+            }, queueType.returnTime);*/
+          break;
+      }
+
+      await this.updateAttractionState(wait.code, status);
+
+      if (queue == queueType.standBy) {
+        await this.updateAttractionQueue(wait.code, wait.time &lt;= 90 ? wait.time : null, queue);
+      } else {
+        // TODO - handle return time queues
+      }
+    }));
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async _getOperatingHoursForDate(date) {
+    const db = EuropaParkDB.get();
+
+    const cal = await db.getCalendar();
+    const parkTimes = cal.seasons.filter(
+        // filter opening hours for actual opening times (ignore closed times)
+        // filter by scopes including our park Id
+        (x) =&gt; !x.closed &amp;&amp; x.scopes.indexOf(this.config.parkId) &gt;= 0,
+    ).find(
+        // find valid season for the supplied date
+        (x) =&gt; date.isBetween(x.startAt, x.endAt, &apos;day&apos;),
+    );
+
+    if (parkTimes !== undefined) {
+      const times = [];
+
+      const buildDateString = (inDate) =&gt; {
+        return moment.tz(inDate, this.config.timezone).set({
+          year: date.year(),
+          month: date.month(),
+          date: date.date(),
+        }).format();
+      };
+
+      times.push({
+        openingTime: buildDateString(parkTimes.startAt),
+        closingTime: buildDateString(parkTimes.endAt),
+        type: scheduleType.operating,
+      });
+
+      // hotel extra hours
+      if (parkTimes.hotelStartAt &amp;&amp; parkTimes.hotelEndAt) {
+        times.push({
+          openingTime: buildDateString(parkTimes.hotelStartAt),
+          closingTime: buildDateString(parkTimes.hotelEndAt),
+          type: scheduleType.extraHours,
+          description: &apos;Open To Hotel Guests&apos;,
+        });
+      }
+
+      return times;
+    }
+
+    return undefined;
+  }
+}
+
+/**
+ * Europa Park
+ */
+export class EuropaPark extends EuropaParkBase {
+  /**
+   * @inheritdoc
+   */
+  constructor(options = {}) {
+    options.name = &apos;Europa-Park&apos;;
+    options.parkId = &apos;europapark&apos;;
+    super(options);
+  }
+}
+
+/**
+ * Rulantica
+ */
+export class Rulantica extends EuropaParkBase {
+  /**
+   * @inheritdoc
+   */
+  constructor(options = {}) {
+    options.name = &apos;Rulantica&apos;;
+    options.parkId = &apos;rulantica&apos;;
+    super(options);
+  }
+}
+
+/**
+ * Yullbe
+ */
+export class Yullbe extends EuropaParkBase {
+  /**
+   * @inheritdoc
+   */
+  constructor(options = {}) {
+    options.name = &apos;Yullbe&apos;;
+    options.parkId = &apos;yullbe&apos;;
+    super(options);
+  }
+}
+
+export default EuropaParkBase;
+
+</code></pre>
+
+</div>
+
+<footer class="footer">
+  Generated by <a href="https://esdoc.org">ESDoc<span data-ice="esdocVersion">(1.1.0)</span><img src="./image/esdoc-logo-mini-black.png"></a>
+</footer>
+
+<script src="script/search_index.js"></script>
+<script src="script/search.js"></script>
+<script src="script/pretty-print.js"></script>
+<script src="script/inherited-summary.js"></script>
+<script src="script/test-summary.js"></script>
+<script src="script/inner-link.js"></script>
+<script src="script/patch-for-local.js"></script>
+</body>
+</html>

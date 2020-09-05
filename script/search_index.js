@@ -18,15 +18,27 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
-    "@themeparks/parksapi/lib/cache/cachesqlite.js~cachesqlite",
-    "class/lib/cache/cacheSqlite.js~CacheSqlite.html",
-    "<span>CacheSqlite</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/cache/cacheSqlite.js</span>",
-    "class"
-  ],
-  [
     "@themeparks/parksapi/lib/configbase.js~configbase",
     "class/lib/configBase.js~ConfigBase.html",
     "<span>ConfigBase</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/configBase.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/database.js~database",
+    "class/lib/parks/database.js~Database.html",
+    "<span>Database</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/database.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/europa/europaparkdb.js~databaseeuropapark",
+    "class/lib/parks/europa/europaparkdb.js~DatabaseEuropaPark.html",
+    "<span>DatabaseEuropaPark</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/europa/europaparkdb.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/wdw/wdwdatabase.js~databasewdw",
+    "class/lib/parks/wdw/wdwdatabase.js~DatabaseWDW.html",
+    "<span>DatabaseWDW</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/wdwdatabase.js</span>",
     "class"
   ],
   [
@@ -78,6 +90,24 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "@themeparks/parksapi/lib/parks/europa/europapark.js~europapark",
+    "class/lib/parks/europa/europapark.js~EuropaPark.html",
+    "<span>EuropaPark</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/europa/europapark.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/europa/europapark.js~europaparkbase",
+    "class/lib/parks/europa/europapark.js~EuropaParkBase.html",
+    "<span>EuropaParkBase</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/europa/europapark.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/http.js~http",
+    "function/index.html#static-function-HTTP",
+    "<span>HTTP</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/http.js</span>",
+    "function"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~hongkongdisneylandpark",
     "class/lib/parks/wdw/waltdisneyworldbase.js~HongKongDisneylandPark.html",
     "<span>HongKongDisneylandPark</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
@@ -93,6 +123,18 @@ window.esdocSearchIndex = [
     "@themeparks/parksapi/lib/parks/park.js~park",
     "class/lib/parks/park.js~Park.html",
     "<span>Park</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/park.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/resort.js~resort",
+    "class/lib/parks/resort.js~Resort.html",
+    "<span>Resort</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/resort.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/europa/europapark.js~rulantica",
+    "class/lib/parks/europa/europapark.js~Rulantica.html",
+    "<span>Rulantica</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/europa/europapark.js</span>",
     "class"
   ],
   [
@@ -144,15 +186,27 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "@themeparks/parksapi/lib/parks/europa/europapark.js~yullbe",
+    "class/lib/parks/europa/europapark.js~Yullbe.html",
+    "<span>Yullbe</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/europa/europapark.js</span>",
+    "class"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/parktypes.js~attractiontype",
     "variable/index.html#static-variable-attractionType",
     "<span>attractionType</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/parkTypes.js</span>",
     "variable"
   ],
   [
-    "@themeparks/parksapi/lib/parks/entity.js~generaterandomandroiduseragent",
+    "@themeparks/parksapi/lib/parks/types.js~entitytype",
+    "variable/index.html#static-variable-entityType",
+    "<span>entityType</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/types.js</span>",
+    "variable"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/http.js~generaterandomandroiduseragent",
     "function/index.html#static-function-generateRandomAndroidUseragent",
-    "<span>generateRandomAndroidUseragent</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/entity.js</span>",
+    "<span>generateRandomAndroidUseragent</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/http.js</span>",
     "function"
   ],
   [
@@ -528,6 +582,12 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
+    "lib/cache/cachebase.js~cachebase#_del",
+    "class/lib/cache/cacheBase.js~CacheBase.html#instance-method-_del",
+    "lib/cache/cacheBase.js~CacheBase#_del",
+    "method"
+  ],
+  [
     "lib/cache/cachebase.js~cachebase#_get",
     "class/lib/cache/cacheBase.js~CacheBase.html#instance-method-_get",
     "lib/cache/cacheBase.js~CacheBase#_get",
@@ -550,6 +610,12 @@ window.esdocSearchIndex = [
     "class/lib/cache/cacheBase.js~CacheBase.html#instance-constructor-constructor",
     "lib/cache/cacheBase.js~CacheBase#constructor",
     "method"
+  ],
+  [
+    "lib/cache/cachebase.js~cachebase#failedcachewraps",
+    "class/lib/cache/cacheBase.js~CacheBase.html#instance-member-failedCacheWraps",
+    "lib/cache/cacheBase.js~CacheBase#failedCacheWraps",
+    "member"
   ],
   [
     "lib/cache/cachebase.js~cachebase#get",
@@ -600,6 +666,12 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
+    "lib/cache/cachelevel.js~cachelevel#_del",
+    "class/lib/cache/cacheLevel.js~CacheLevel.html#instance-method-_del",
+    "lib/cache/cacheLevel.js~CacheLevel#_del",
+    "method"
+  ],
+  [
     "lib/cache/cachelevel.js~cachelevel#_get",
     "class/lib/cache/cacheLevel.js~CacheLevel.html#instance-method-_get",
     "lib/cache/cacheLevel.js~CacheLevel#_get",
@@ -636,6 +708,12 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
+    "lib/cache/cachememory.js~cachememory#_del",
+    "class/lib/cache/cacheMemory.js~CacheMemory.html#instance-method-_del",
+    "lib/cache/cacheMemory.js~CacheMemory#_del",
+    "method"
+  ],
+  [
     "lib/cache/cachememory.js~cachememory#_get",
     "class/lib/cache/cacheMemory.js~CacheMemory.html#instance-method-_get",
     "lib/cache/cacheMemory.js~CacheMemory#_get",
@@ -663,60 +741,6 @@ window.esdocSearchIndex = [
     "lib/cache/cachememory.js~cachememory#constructor",
     "class/lib/cache/cacheMemory.js~CacheMemory.html#instance-constructor-constructor",
     "lib/cache/cacheMemory.js~CacheMemory#constructor",
-    "method"
-  ],
-  [
-    "lib/cache/cachesqlite.js",
-    "file/lib/cache/cacheSqlite.js.html",
-    "lib/cache/cacheSqlite.js",
-    "file"
-  ],
-  [
-    "lib/cache/cachesqlite.js~cachesqlite#_get",
-    "class/lib/cache/cacheSqlite.js~CacheSqlite.html#instance-method-_get",
-    "lib/cache/cacheSqlite.js~CacheSqlite#_get",
-    "method"
-  ],
-  [
-    "lib/cache/cachesqlite.js~cachesqlite#_getkeys",
-    "class/lib/cache/cacheSqlite.js~CacheSqlite.html#instance-method-_getKeys",
-    "lib/cache/cacheSqlite.js~CacheSqlite#_getKeys",
-    "method"
-  ],
-  [
-    "lib/cache/cachesqlite.js~cachesqlite#_set",
-    "class/lib/cache/cacheSqlite.js~CacheSqlite.html#instance-method-_set",
-    "lib/cache/cacheSqlite.js~CacheSqlite#_set",
-    "method"
-  ],
-  [
-    "lib/cache/cachesqlite.js~cachesqlite#constructor",
-    "class/lib/cache/cacheSqlite.js~CacheSqlite.html#instance-constructor-constructor",
-    "lib/cache/cacheSqlite.js~CacheSqlite#constructor",
-    "method"
-  ],
-  [
-    "lib/cache/cachesqlite.js~cachesqlite#db",
-    "class/lib/cache/cacheSqlite.js~CacheSqlite.html#instance-member-db",
-    "lib/cache/cacheSqlite.js~CacheSqlite#db",
-    "member"
-  ],
-  [
-    "lib/cache/cachesqlite.js~cachesqlite#init",
-    "class/lib/cache/cacheSqlite.js~CacheSqlite.html#instance-member-init",
-    "lib/cache/cacheSqlite.js~CacheSqlite#init",
-    "member"
-  ],
-  [
-    "lib/cache/cachesqlite.js~cachesqlite#runquery",
-    "class/lib/cache/cacheSqlite.js~CacheSqlite.html#instance-method-runQuery",
-    "lib/cache/cacheSqlite.js~CacheSqlite#runQuery",
-    "method"
-  ],
-  [
-    "lib/cache/cachesqlite.js~cachesqlite#setupdb",
-    "class/lib/cache/cacheSqlite.js~CacheSqlite.html#instance-method-setupDB",
-    "lib/cache/cacheSqlite.js~CacheSqlite#setupDB",
     "method"
   ],
   [
@@ -832,6 +856,72 @@ window.esdocSearchIndex = [
     "file/lib/index.js.html",
     "lib/index.js",
     "file"
+  ],
+  [
+    "lib/parks/database.js",
+    "file/lib/parks/database.js.html",
+    "lib/parks/database.js",
+    "file"
+  ],
+  [
+    "lib/parks/database.js~database#_getentities",
+    "class/lib/parks/database.js~Database.html#instance-method-_getEntities",
+    "lib/parks/database.js~Database#_getEntities",
+    "method"
+  ],
+  [
+    "lib/parks/database.js~database#_init",
+    "class/lib/parks/database.js~Database.html#instance-method-_init",
+    "lib/parks/database.js~Database#_init",
+    "method"
+  ],
+  [
+    "lib/parks/database.js~database#cache",
+    "class/lib/parks/database.js~Database.html#instance-member-cache",
+    "lib/parks/database.js~Database#cache",
+    "member"
+  ],
+  [
+    "lib/parks/database.js~database#constructor",
+    "class/lib/parks/database.js~Database.html#instance-constructor-constructor",
+    "lib/parks/database.js~Database#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/database.js~database#findentity",
+    "class/lib/parks/database.js~Database.html#instance-method-findEntity",
+    "lib/parks/database.js~Database#findEntity",
+    "method"
+  ],
+  [
+    "lib/parks/database.js~database#getentities",
+    "class/lib/parks/database.js~Database.html#instance-method-getEntities",
+    "lib/parks/database.js~Database#getEntities",
+    "method"
+  ],
+  [
+    "lib/parks/database.js~database#getentitiybyid",
+    "class/lib/parks/database.js~Database.html#instance-method-getEntitiyById",
+    "lib/parks/database.js~Database#getEntitiyById",
+    "method"
+  ],
+  [
+    "lib/parks/database.js~database#http",
+    "class/lib/parks/database.js~Database.html#instance-member-http",
+    "lib/parks/database.js~Database#http",
+    "member"
+  ],
+  [
+    "lib/parks/database.js~database#init",
+    "class/lib/parks/database.js~Database.html#instance-method-init",
+    "lib/parks/database.js~Database#init",
+    "method"
+  ],
+  [
+    "lib/parks/database.js~database.get",
+    "class/lib/parks/database.js~Database.html#static-method-get",
+    "lib/parks/database.js~Database.get",
+    "method"
   ],
   [
     "lib/parks/dlp/disneylandparis.js",
@@ -966,12 +1056,6 @@ window.esdocSearchIndex = [
     "member"
   ],
   [
-    "lib/parks/entity.js~entity#_httpinjections",
-    "class/lib/parks/entity.js~Entity.html#instance-member-_httpInjections",
-    "lib/parks/entity.js~Entity#_httpInjections",
-    "member"
-  ],
-  [
     "lib/parks/entity.js~entity#_offlinedata",
     "class/lib/parks/entity.js~Entity.html#instance-member-_offlineData",
     "lib/parks/entity.js~Entity#_offlineData",
@@ -1033,9 +1117,9 @@ window.esdocSearchIndex = [
   ],
   [
     "lib/parks/entity.js~entity#http",
-    "class/lib/parks/entity.js~Entity.html#instance-method-http",
+    "class/lib/parks/entity.js~Entity.html#instance-member-http",
     "lib/parks/entity.js~Entity#http",
-    "method"
+    "member"
   ],
   [
     "lib/parks/entity.js~entity#injectfordomain",
@@ -1066,6 +1150,132 @@ window.esdocSearchIndex = [
     "class/lib/parks/entity.js~Entity.html#instance-method-serialise",
     "lib/parks/entity.js~Entity#serialise",
     "method"
+  ],
+  [
+    "lib/parks/europa/europapark.js",
+    "file/lib/parks/europa/europapark.js.html",
+    "lib/parks/europa/europapark.js",
+    "file"
+  ],
+  [
+    "lib/parks/europa/europapark.js~europapark#constructor",
+    "class/lib/parks/europa/europapark.js~EuropaPark.html#instance-constructor-constructor",
+    "lib/parks/europa/europapark.js~EuropaPark#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europapark.js~europaparkbase#_buildattractionobject",
+    "class/lib/parks/europa/europapark.js~EuropaParkBase.html#instance-method-_buildAttractionObject",
+    "lib/parks/europa/europapark.js~EuropaParkBase#_buildAttractionObject",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europapark.js~europaparkbase#_getoperatinghoursfordate",
+    "class/lib/parks/europa/europapark.js~EuropaParkBase.html#instance-method-_getOperatingHoursForDate",
+    "lib/parks/europa/europapark.js~EuropaParkBase#_getOperatingHoursForDate",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europapark.js~europaparkbase#_init",
+    "class/lib/parks/europa/europapark.js~EuropaParkBase.html#instance-method-_init",
+    "lib/parks/europa/europapark.js~EuropaParkBase#_init",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europapark.js~europaparkbase#_update",
+    "class/lib/parks/europa/europapark.js~EuropaParkBase.html#instance-method-_update",
+    "lib/parks/europa/europapark.js~EuropaParkBase#_update",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europapark.js~europaparkbase#constructor",
+    "class/lib/parks/europa/europapark.js~EuropaParkBase.html#instance-constructor-constructor",
+    "lib/parks/europa/europapark.js~EuropaParkBase#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europapark.js~rulantica#constructor",
+    "class/lib/parks/europa/europapark.js~Rulantica.html#instance-constructor-constructor",
+    "lib/parks/europa/europapark.js~Rulantica#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europapark.js~yullbe#constructor",
+    "class/lib/parks/europa/europapark.js~Yullbe.html#instance-constructor-constructor",
+    "lib/parks/europa/europapark.js~Yullbe#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europaparkdb.js",
+    "file/lib/parks/europa/europaparkdb.js.html",
+    "lib/parks/europa/europaparkdb.js",
+    "file"
+  ],
+  [
+    "lib/parks/europa/europaparkdb.js~databaseeuropapark#_getentities",
+    "class/lib/parks/europa/europaparkdb.js~DatabaseEuropaPark.html#instance-method-_getEntities",
+    "lib/parks/europa/europaparkdb.js~DatabaseEuropaPark#_getEntities",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europaparkdb.js~databaseeuropapark#_init",
+    "class/lib/parks/europa/europaparkdb.js~DatabaseEuropaPark.html#instance-method-_init",
+    "lib/parks/europa/europaparkdb.js~DatabaseEuropaPark#_init",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europaparkdb.js~databaseeuropapark#bf",
+    "class/lib/parks/europa/europaparkdb.js~DatabaseEuropaPark.html#instance-member-bf",
+    "lib/parks/europa/europaparkdb.js~DatabaseEuropaPark#bf",
+    "member"
+  ],
+  [
+    "lib/parks/europa/europaparkdb.js~databaseeuropapark#constructor",
+    "class/lib/parks/europa/europaparkdb.js~DatabaseEuropaPark.html#instance-constructor-constructor",
+    "lib/parks/europa/europaparkdb.js~DatabaseEuropaPark#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europaparkdb.js~databaseeuropapark#getcalendar",
+    "class/lib/parks/europa/europaparkdb.js~DatabaseEuropaPark.html#instance-method-getCalendar",
+    "lib/parks/europa/europaparkdb.js~DatabaseEuropaPark#getCalendar",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europaparkdb.js~databaseeuropapark#getconfig",
+    "class/lib/parks/europa/europaparkdb.js~DatabaseEuropaPark.html#instance-method-getConfig",
+    "lib/parks/europa/europaparkdb.js~DatabaseEuropaPark#getConfig",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europaparkdb.js~databaseeuropapark#getfirebaseid",
+    "class/lib/parks/europa/europaparkdb.js~DatabaseEuropaPark.html#instance-method-getFirebaseID",
+    "lib/parks/europa/europaparkdb.js~DatabaseEuropaPark#getFirebaseID",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europaparkdb.js~databaseeuropapark#getparkdata",
+    "class/lib/parks/europa/europaparkdb.js~DatabaseEuropaPark.html#instance-method-getParkData",
+    "lib/parks/europa/europaparkdb.js~DatabaseEuropaPark#getParkData",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europaparkdb.js~databaseeuropapark#gettoken",
+    "class/lib/parks/europa/europaparkdb.js~DatabaseEuropaPark.html#instance-method-getToken",
+    "lib/parks/europa/europaparkdb.js~DatabaseEuropaPark#getToken",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europaparkdb.js~databaseeuropapark#getwaitingtimes",
+    "class/lib/parks/europa/europaparkdb.js~DatabaseEuropaPark.html#instance-method-getWaitingTimes",
+    "lib/parks/europa/europaparkdb.js~DatabaseEuropaPark#getWaitingTimes",
+    "method"
+  ],
+  [
+    "lib/parks/http.js",
+    "file/lib/parks/http.js.html",
+    "lib/parks/http.js",
+    "file"
   ],
   [
     "lib/parks/park.js",
@@ -1326,6 +1536,48 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
+    "lib/parks/resort.js",
+    "file/lib/parks/resort.js.html",
+    "lib/parks/resort.js",
+    "file"
+  ],
+  [
+    "lib/parks/resort.js~resort#_newparkoptions",
+    "class/lib/parks/resort.js~Resort.html#instance-member-_newParkOptions",
+    "lib/parks/resort.js~Resort#_newParkOptions",
+    "member"
+  ],
+  [
+    "lib/parks/resort.js~resort#_parks",
+    "class/lib/parks/resort.js~Resort.html#instance-member-_parks",
+    "lib/parks/resort.js~Resort#_parks",
+    "member"
+  ],
+  [
+    "lib/parks/resort.js~resort#addpark",
+    "class/lib/parks/resort.js~Resort.html#instance-method-addPark",
+    "lib/parks/resort.js~Resort#addPark",
+    "method"
+  ],
+  [
+    "lib/parks/resort.js~resort#addparkclass",
+    "class/lib/parks/resort.js~Resort.html#instance-method-addParkClass",
+    "lib/parks/resort.js~Resort#addParkClass",
+    "method"
+  ],
+  [
+    "lib/parks/resort.js~resort#constructor",
+    "class/lib/parks/resort.js~Resort.html#instance-constructor-constructor",
+    "lib/parks/resort.js~Resort#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/resort.js~resort#getparks",
+    "class/lib/parks/resort.js~Resort.html#instance-method-getParks",
+    "lib/parks/resort.js~Resort#getParks",
+    "method"
+  ],
+  [
     "lib/parks/tags.js",
     "file/lib/parks/tags.js.html",
     "lib/parks/tags.js",
@@ -1408,6 +1660,12 @@ window.esdocSearchIndex = [
     "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyland.html#instance-constructor-constructor",
     "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyland#constructor",
     "method"
+  ],
+  [
+    "lib/parks/types.js",
+    "file/lib/parks/types.js.html",
+    "lib/parks/types.js",
+    "file"
   ],
   [
     "lib/parks/wdw/waltdisneyworldbase.js",
@@ -1510,6 +1768,30 @@ window.esdocSearchIndex = [
     "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom.html#instance-constructor-constructor",
     "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom#constructor",
     "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdatabase.js",
+    "file/lib/parks/wdw/wdwdatabase.js.html",
+    "lib/parks/wdw/wdwdatabase.js",
+    "file"
+  ],
+  [
+    "lib/parks/wdw/wdwdatabase.js~databasewdw#_getentities",
+    "class/lib/parks/wdw/wdwdatabase.js~DatabaseWDW.html#instance-method-_getEntities",
+    "lib/parks/wdw/wdwdatabase.js~DatabaseWDW#_getEntities",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdatabase.js~databasewdw#constructor",
+    "class/lib/parks/wdw/wdwdatabase.js~DatabaseWDW.html#instance-constructor-constructor",
+    "lib/parks/wdw/wdwdatabase.js~DatabaseWDW#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdatabase.js~databasewdw#db",
+    "class/lib/parks/wdw/wdwdatabase.js~DatabaseWDW.html#instance-member-db",
+    "lib/parks/wdw/wdwdatabase.js~DatabaseWDW#db",
+    "member"
   ],
   [
     "lib/parks/wdw/wdwdb.js",
