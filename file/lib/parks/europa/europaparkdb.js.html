@@ -86,7 +86,7 @@
 import crypto from &apos;crypto&apos;;
 import {URL} from &apos;url&apos;;
 import {entityType} from &apos;../types.js&apos;;
-import {tagType} from &apos;../parkTypes.js&apos;;
+import {tagType, attractionType} from &apos;../parkTypes.js&apos;;
 import Blowfish from &apos;egoroof-blowfish&apos;;
 
 /**
@@ -302,6 +302,8 @@ export class DatabaseEuropaPark extends Database {
     const poiData = await this.getParkData();
 
     const ret = poiData.map((poi) =&gt; {
+      if (poi.code === undefined || poi.code === null) return undefined;
+
       if (poi.type !== &apos;attraction&apos;) return undefined;
 
       // &quot;queueing&quot; entries are pretend entities for virtual queues
@@ -366,7 +368,8 @@ export class DatabaseEuropaPark extends Database {
       return {
         id: `${poi.code}`,
         name: poi.name,
-        type: entityType.attraction,
+        type: attractionType.ride,
+        entityType: entityType.attraction,
         tags,
         _src: {
           ...poi,
