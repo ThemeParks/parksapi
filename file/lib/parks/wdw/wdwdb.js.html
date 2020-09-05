@@ -195,29 +195,6 @@ export class IndexedWDWDB extends PouchDB {
           username: this.config.remoteUsername,
           password: this.config.remotePassword,
         };
-
-        let fetchCookie = null;
-
-        remoteHostOptions.fetch = (url, args) =&gt; {
-          args.headers.set(&apos;user-agent&apos;, &apos;CouchbaseLite/2.7.1-6 (Java; Android 9; ONEPLUS A5000) CE/release, Commit/2fb25069+ Core/2.7.1 (6)&apos;);
-
-          args.compress = true;
-
-          if (fetchCookie !== null) {
-            args.headers.set(&apos;cookie&apos;, fetchCookie);
-          }
-
-          // console.log(url);
-
-          return fetch(url, args).then(async (resp) =&gt; {
-            // intercept and remember cookie
-            const cookie = resp.headers.get(&apos;set-cookie&apos;);
-            if (cookie) {
-              fetchCookie = cookie.split(&apos;;&apos;)[0];
-            }
-            return resp;
-          });
-        };
       }
 
       this.remoteDB = new PouchDB(this.config.remoteHost, remoteHostOptions);
@@ -275,8 +252,9 @@ export class IndexedWDWDB extends PouchDB {
 
     let noChangeTimeout = null;
     let replicationHandle = null;
-
-    const noChangeTimer = Number(this.config.restartTimeout) || 5; // how many minutes before killing and restarting replication
+    
+    // how many minutes before killing and restarting replication
+    const noChangeTimer = Number(this.config.restartTimeout) || 5;
 
     // function to reboot the replicate based on various possible failure states
     const rebootReplicator = (err) =&gt; {
