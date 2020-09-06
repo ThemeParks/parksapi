@@ -1,7 +1,7 @@
 {
-  "coverage": "81.94%",
-  "expectCount": 288,
-  "actualCount": 236,
+  "coverage": "82%",
+  "expectCount": 289,
+  "actualCount": 237,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 14,
@@ -132,6 +132,11 @@
         17,
         20
       ]
+    },
+    "lib/parks/sieve.js": {
+      "expectCount": 1,
+      "actualCount": 1,
+      "undocumentLines": []
     },
     "lib/parks/tags.js": {
       "expectCount": 8,

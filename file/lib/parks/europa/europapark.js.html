@@ -44,6 +44,7 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/resort.js~Resort.html">Resort</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-HTTP">HTTP</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-Sieve">Sieve</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getValidTagObject">getValidTagObject</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isSimpleTagType">isSimpleTagType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTag">isValidTag</a></span></span></li>
@@ -114,7 +115,9 @@ export class EuropaParkBase extends Park {
     const attractions = await db.getEntities({
       // filter entities by our park ID
       &apos;_src.scopes&apos;: {
-        $elemMatch: this.config.parkId,
+        $elemMatch: {
+          $eq: this.config.parkId,
+        },
       },
     });
 
@@ -133,7 +136,9 @@ export class EuropaParkBase extends Park {
       &apos;id&apos;: `${attractionID}`,
       // filter entities by our park ID
       &apos;_src.scopes&apos;: {
-        $elemMatch: this.config.parkId,
+        $elemMatch: {
+          $eq: this.config.parkId,
+        },
       },
     });
   }

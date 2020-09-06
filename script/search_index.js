@@ -144,6 +144,12 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "@themeparks/parksapi/lib/parks/sieve.js~sieve",
+    "function/index.html#static-function-Sieve",
+    "<span>Sieve</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/sieve.js</span>",
+    "function"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark",
     "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html",
     "<span>TokyoDisneyResortPark</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js</span>",
@@ -1576,6 +1582,12 @@ window.esdocSearchIndex = [
     "class/lib/parks/resort.js~Resort.html#instance-method-getParks",
     "lib/parks/resort.js~Resort#getParks",
     "method"
+  ],
+  [
+    "lib/parks/sieve.js",
+    "file/lib/parks/sieve.js.html",
+    "lib/parks/sieve.js",
+    "file"
   ],
   [
     "lib/parks/tags.js",

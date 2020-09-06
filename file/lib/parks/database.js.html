@@ -44,6 +44,7 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/resort.js~Resort.html">Resort</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-HTTP">HTTP</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-Sieve">Sieve</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getValidTagObject">getValidTagObject</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isSimpleTagType">isSimpleTagType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTag">isValidTag</a></span></span></li>
@@ -83,7 +84,7 @@
 
 <div class="content" data-ice="content"><h1 data-ice="title">lib/parks/database.js</h1>
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import ConfigBase from &apos;../configBase.js&apos;;
-import sift from &apos;sift&apos;;
+import sieve from &apos;./sieve.js&apos;;
 import {reusePromise, reusePromiseForever} from &apos;../reusePromises.js&apos;;
 import HTTP from &apos;./http.js&apos;;
 import Cache from &apos;../cache/scopedCache.js&apos;;
@@ -145,7 +146,7 @@ export class Database extends ConfigBase {
       return reusePromise(this, this._getEntities);
     }, 1000 * 60); // cache for a minute for faster access
 
-    const filterFn = sift(filter);
+    const filterFn = sieve(filter);
     return entities.filter(filterFn);
   }
 
@@ -155,7 +156,7 @@ export class Database extends ConfigBase {
    */
   async findEntity(filter = {}) {
     const ents = await this.getEntities();
-    const filterFn = sift(filter);
+    const filterFn = sieve(filter);
     return ents.find(filterFn);
   }
 
