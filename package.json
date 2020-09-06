@@ -37,6 +37,7 @@
     "egoroof-blowfish": "^2.2.2",
     "fetch-cookie": "^0.10.1",
     "json-diff": "^0.5.4",
+    "mingo": "^3.0.6",
     "moment-timezone": "^0.5.31",
     "needle": "^2.5.0",
     "node-fetch": "^2.6.0",
