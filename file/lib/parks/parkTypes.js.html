@@ -51,6 +51,7 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTagType">isValidTagType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-attractionType">attractionType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-queueType">queueType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-returnTimeState">returnTimeState</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-scheduleType">scheduleType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-statusType">statusType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-tagType">tagType</a></span></span></li>
@@ -101,6 +102,19 @@ export const queueType = Object.freeze({
   //  &quot;boarding groups&quot; are called in sequence when capacity allows
   // eg. Rise of the Resistance at Disney
   boardingGroup: &apos;BOARDING_GROUP&apos;,
+});
+
+/**
+ * Possible types of state for a return time queue
+ * @enum
+ */
+export const returnTimeState = Object.freeze({
+  // there are places still available
+  available: &apos;AVAILABLE&apos;,
+  // more slots will be available later
+  temporarilyFull: &apos;TEMP_FULL&apos;,
+  // all slots have been reserved for the day
+  finished: &apos;FINISHED&apos;,
 });
 
 /**

@@ -264,6 +264,12 @@ window.esdocSearchIndex = [
     "variable"
   ],
   [
+    "@themeparks/parksapi/lib/parks/parktypes.js~returntimestate",
+    "variable/index.html#static-variable-returnTimeState",
+    "<span>returnTimeState</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/parkTypes.js</span>",
+    "variable"
+  ],
+  [
     "@themeparks/parksapi/lib/reusepromises.js~reusepromise",
     "function/index.html#static-function-reusePromise",
     "<span>reusePromise</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/reusePromises.js</span>",
@@ -1198,6 +1204,12 @@ window.esdocSearchIndex = [
     "class/lib/parks/europa/europapark.js~EuropaParkBase.html#instance-constructor-constructor",
     "lib/parks/europa/europapark.js~EuropaParkBase#constructor",
     "method"
+  ],
+  [
+    "lib/parks/europa/europapark.js~europaparkbase#db",
+    "class/lib/parks/europa/europapark.js~EuropaParkBase.html#instance-get-db",
+    "lib/parks/europa/europapark.js~EuropaParkBase#db",
+    "member"
   ],
   [
     "lib/parks/europa/europapark.js~rulantica#constructor",

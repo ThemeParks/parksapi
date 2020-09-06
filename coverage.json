@@ -1,7 +1,7 @@
 {
-  "coverage": "82%",
-  "expectCount": 289,
-  "actualCount": 237,
+  "coverage": "82.13%",
+  "expectCount": 291,
+  "actualCount": 239,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 14,
@@ -89,8 +89,8 @@
       ]
     },
     "lib/parks/europa/europapark.js": {
-      "expectCount": 12,
-      "actualCount": 12,
+      "expectCount": 13,
+      "actualCount": 13,
       "undocumentLines": []
     },
     "lib/parks/europa/europaparkdb.js": {
@@ -121,8 +121,8 @@
       ]
     },
     "lib/parks/parkTypes.js": {
-      "expectCount": 5,
-      "actualCount": 5,
+      "expectCount": 6,
+      "actualCount": 6,
       "undocumentLines": []
     },
     "lib/parks/resort.js": {
