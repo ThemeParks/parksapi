@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <base data-ice="baseUrl" href="../../../../">
-  <title data-ice="title">TokyoDisneyResortPark | @themeparks/parksapi</title>
+  <title data-ice="title">UniversalParkBase | @themeparks/parksapi</title>
   <link type="text/css" rel="stylesheet" href="css/style.css">
   <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
   <script src="script/prettify/prettify.js"></script>
@@ -88,24 +88,24 @@
 </nav>
 
 <div class="content" data-ice="content"><div class="header-notice">
-  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import {TokyoDisneyResortPark} from &apos;<span><a href="file/lib/parks/tdr/tokyodisneyresort.js.html#lineNumber8">@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js</a></span>&apos;</code></pre></div>
+  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import {UniversalParkBase} from &apos;<span><a href="file/lib/parks/universal/universalstudios.js.html#lineNumber10">@themeparks/parksapi/lib/parks/universal/universalstudios.js</a></span>&apos;</code></pre></div>
   <span data-ice="access">public</span>
   <span data-ice="kind">class</span>
   
   
   
-  <span data-ice="source">| <span><a href="file/lib/parks/tdr/tokyodisneyresort.js.html#lineNumber8">source</a></span></span>
+  <span data-ice="source">| <span><a href="file/lib/parks/universal/universalstudios.js.html#lineNumber10">source</a></span></span>
 </div>
 
 <div class="self-detail detail">
-  <h1 data-ice="name">TokyoDisneyResortPark</h1>
+  <h1 data-ice="name">UniversalParkBase</h1>
 
   
 
   
   
-  <div class="flat-list" data-ice="extendsChain"><h4>Extends:</h4><div><span>events~EventEmitter</span> &#x2192; <span><a href="class/lib/configBase.js~ConfigBase.html">ConfigBase</a></span> &#x2192; <span><a href="class/lib/parks/entity.js~Entity.html">Entity</a></span> &#x2192; <span><a href="class/lib/parks/park.js~Park.html">Park</a></span> &#x2192; TokyoDisneyResortPark</div></div>
-  <div class="flat-list" data-ice="directSubclass"><h4>Direct Subclass:</h4><div><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneySea.html">TokyoDisneySea</a></span>, <span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyland.html">TokyoDisneyland</a></span></div></div>
+  <div class="flat-list" data-ice="extendsChain"><h4>Extends:</h4><div><span>events~EventEmitter</span> &#x2192; <span><a href="class/lib/configBase.js~ConfigBase.html">ConfigBase</a></span> &#x2192; <span><a href="class/lib/parks/entity.js~Entity.html">Entity</a></span> &#x2192; <span><a href="class/lib/parks/park.js~Park.html">Park</a></span> &#x2192; UniversalParkBase</div></div>
+  <div class="flat-list" data-ice="directSubclass"><h4>Direct Subclass:</h4><div><span><a href="class/lib/parks/universal/universalstudios.js~UniversalIslandsOfAdventure.html">UniversalIslandsOfAdventure</a></span>, <span><a href="class/lib/parks/universal/universalstudios.js~UniversalStudios.html">UniversalStudios</a></span>, <span><a href="class/lib/parks/universal/universalstudios.js~UniversalStudiosFlorida.html">UniversalStudiosFlorida</a></span></div></div>
   
   
   
@@ -114,7 +114,7 @@
 
   
   
-  <div class="description" data-ice="description"><p>TokyoDisneyResortPark Object</p>
+  <div class="description" data-ice="description"><p>Sample Park Object</p>
 </div>
   
 
@@ -147,13 +147,13 @@
           
           
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-constructor-constructor">constructor</a></span></span><span class="code" data-ice="signature">(options: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span>)</span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-constructor-constructor">constructor</a></span></span><span class="code" data-ice="signature">(options: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span>)</span>
         </p>
       </div>
       <div>
         
         
-        <div data-ice="description"><p>Create a new TokyoDisneyResortPark object</p>
+        <div data-ice="description"><p>Create a new Sample Park object</p>
 </div>
       </div>
     </td>
@@ -184,13 +184,13 @@
           
           <span data-ice="async">async</span>
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchAllFacilitiesData">fetchAllFacilitiesData</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-getLatestOpeningHours">getLatestOpeningHours</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
         </p>
       </div>
       <div>
         
         
-        <div data-ice="description"><p>Get the latest facilities data for the entire resort</p>
+        <div data-ice="description"><p>Get the latest raw opening hours for this park</p>
 </div>
       </div>
     </td>
@@ -213,13 +213,13 @@
           
           <span data-ice="async">async</span>
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchCalendar">fetchCalendar</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-getPOI">getPOI</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
         </p>
       </div>
       <div>
         
         
-        <div data-ice="description"><p>Fetch the upcoming calendar</p>
+        <div data-ice="description"><p>Get all park POI data</p>
 </div>
       </div>
     </td>
@@ -242,13 +242,13 @@
           
           <span data-ice="async">async</span>
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchDeviceID">fetchDeviceID</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-getServiceToken">getServiceToken</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
         </p>
       </div>
       <div>
         
         
-        <div data-ice="description"><p>Return or fetch a device ID to use for API calls</p>
+        <div data-ice="description"><p>Get a service auth token for Universal</p>
 </div>
       </div>
     </td>
@@ -271,13 +271,13 @@
           
           <span data-ice="async">async</span>
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchFacilitiesData">fetchFacilitiesData</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-getVirtualQueueStates">getVirtualQueueStates</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
         </p>
       </div>
       <div>
         
         
-        <div data-ice="description"><p>Get facilities data for this park</p>
+        <div data-ice="description"><p>Get the current state of virtual queues for the resort</p>
 </div>
       </div>
     </td>
@@ -300,13 +300,42 @@
           
           <span data-ice="async">async</span>
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchLatestVersion">fetchLatestVersion</a></span></span><span class="code" data-ice="signature">(): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-getVirtualQueueTimeForRide">getVirtualQueueTimeForRide</a></span></span><span class="code" data-ice="signature">(queueId: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">number</a></span>): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span></span>
         </p>
       </div>
       <div>
         
         
-        <div data-ice="description"><p>Fetch the current app version on the Google Play store</p>
+        <div data-ice="description"><p>Get current state for a virtual queue</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-getWaitingTimes">getWaitingTimes</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Fetch raw waiting times data</p>
 </div>
       </div>
     </td>
@@ -335,7 +364,7 @@
           
           <span data-ice="async">async</span>
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-_buildAttractionObject">_buildAttractionObject</a></span></span><span class="code" data-ice="signature">(attractionID: <span>*</span>): {&quot;name&quot;: <span>*</span>, &quot;type&quot;: <span>*</span>, &quot;tags&quot;: <span>*</span>}</span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-_buildAttractionObject">_buildAttractionObject</a></span></span><span class="code" data-ice="signature">(attractionID: <span>*</span>): {&quot;name&quot;: <span>*</span>, &quot;type&quot;: <span>*</span>, &quot;tags&quot;: <span>*</span>}</span>
         </p>
       </div>
       <div>
@@ -363,7 +392,7 @@
           
           <span data-ice="async">async</span>
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-_getOperatingHoursForDate">_getOperatingHoursForDate</a></span></span><span class="code" data-ice="signature">(date: <span>*</span>): <span>*</span></span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-_getOperatingHoursForDate">_getOperatingHoursForDate</a></span></span><span class="code" data-ice="signature">(date: <span>*</span>): <span>*</span></span>
         </p>
       </div>
       <div>
@@ -391,7 +420,7 @@
           
           <span data-ice="async">async</span>
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-_init">_init</a></span></span><span class="code" data-ice="signature">()</span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-_init">_init</a></span></span><span class="code" data-ice="signature">()</span>
         </p>
       </div>
       <div>
@@ -419,7 +448,7 @@
           
           <span data-ice="async">async</span>
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-_update">_update</a></span></span><span class="code" data-ice="signature">()</span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-_update">_update</a></span></span><span class="code" data-ice="signature">()</span>
         </p>
       </div>
       <div>
@@ -2142,14 +2171,14 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/tdr/tokyodisneyresort.js.html#lineNumber13">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/universal/universalstudios.js.html#lineNumber15">source</a></span></span>
     </span>
   </h3>
 
   
   
   
-  <div data-ice="description"><p>Create a new TokyoDisneyResortPark object</p>
+  <div data-ice="description"><p>Create a new Sample Park object</p>
 </div>
 
   <div data-ice="override"><h4>Override:</h4><span><a href="class/lib/parks/park.js~Park.html#instance-constructor-constructor">Park#constructor</a></span></div>
@@ -2195,25 +2224,25 @@
 <div data-ice="methodDetails"><h2 data-ice="title">Public Methods</h2>
 
 <div class="detail" data-ice="detail">
-  <h3 data-ice="anchor" id="instance-method-fetchAllFacilitiesData">
+  <h3 data-ice="anchor" id="instance-method-getLatestOpeningHours">
     <span class="access" data-ice="access">public</span>
     
     
     
     <span data-ice="async">async</span>
     
-    <span class="code" data-ice="name">fetchAllFacilitiesData</span><span class="code" data-ice="signature">(): <span>*</span></span>
+    <span class="code" data-ice="name">getLatestOpeningHours</span><span class="code" data-ice="signature">(): <span>*</span></span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/tdr/tokyodisneyresort.js.html#lineNumber114">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/universal/universalstudios.js.html#lineNumber327">source</a></span></span>
     </span>
   </h3>
 
   
   
   
-  <div data-ice="description"><p>Get the latest facilities data for the entire resort</p>
+  <div data-ice="description"><p>Get the latest raw opening hours for this park</p>
 </div>
 
   
@@ -2251,25 +2280,25 @@
   
 </div>
 <div class="detail" data-ice="detail">
-  <h3 data-ice="anchor" id="instance-method-fetchCalendar">
+  <h3 data-ice="anchor" id="instance-method-getPOI">
     <span class="access" data-ice="access">public</span>
     
     
     
     <span data-ice="async">async</span>
     
-    <span class="code" data-ice="name">fetchCalendar</span><span class="code" data-ice="signature">(): <span>*</span></span>
+    <span class="code" data-ice="name">getPOI</span><span class="code" data-ice="signature">(): <span>*</span></span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/tdr/tokyodisneyresort.js.html#lineNumber283">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/universal/universalstudios.js.html#lineNumber112">source</a></span></span>
     </span>
   </h3>
 
   
   
   
-  <div data-ice="description"><p>Fetch the upcoming calendar</p>
+  <div data-ice="description"><p>Get all park POI data</p>
 </div>
 
   
@@ -2307,25 +2336,25 @@
   
 </div>
 <div class="detail" data-ice="detail">
-  <h3 data-ice="anchor" id="instance-method-fetchDeviceID">
+  <h3 data-ice="anchor" id="instance-method-getServiceToken">
     <span class="access" data-ice="access">public</span>
     
     
     
     <span data-ice="async">async</span>
     
-    <span class="code" data-ice="name">fetchDeviceID</span><span class="code" data-ice="signature">(): <span>*</span></span>
+    <span class="code" data-ice="name">getServiceToken</span><span class="code" data-ice="signature">(): <span>*</span></span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/tdr/tokyodisneyresort.js.html#lineNumber96">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/universal/universalstudios.js.html#lineNumber71">source</a></span></span>
     </span>
   </h3>
 
   
   
   
-  <div data-ice="description"><p>Return or fetch a device ID to use for API calls</p>
+  <div data-ice="description"><p>Get a service auth token for Universal</p>
 </div>
 
   
@@ -2363,25 +2392,25 @@
   
 </div>
 <div class="detail" data-ice="detail">
-  <h3 data-ice="anchor" id="instance-method-fetchFacilitiesData">
+  <h3 data-ice="anchor" id="instance-method-getVirtualQueueStates">
     <span class="access" data-ice="access">public</span>
     
     
     
     <span data-ice="async">async</span>
     
-    <span class="code" data-ice="name">fetchFacilitiesData</span><span class="code" data-ice="signature">(): <span>*</span></span>
+    <span class="code" data-ice="name">getVirtualQueueStates</span><span class="code" data-ice="signature">(): <span>*</span></span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/tdr/tokyodisneyresort.js.html#lineNumber155">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/universal/universalstudios.js.html#lineNumber188">source</a></span></span>
     </span>
   </h3>
 
   
   
   
-  <div data-ice="description"><p>Get facilities data for this park</p>
+  <div data-ice="description"><p>Get the current state of virtual queues for the resort</p>
 </div>
 
   
@@ -2419,25 +2448,99 @@
   
 </div>
 <div class="detail" data-ice="detail">
-  <h3 data-ice="anchor" id="instance-method-fetchLatestVersion">
+  <h3 data-ice="anchor" id="instance-method-getVirtualQueueTimeForRide">
     <span class="access" data-ice="access">public</span>
     
     
     
     <span data-ice="async">async</span>
     
-    <span class="code" data-ice="name">fetchLatestVersion</span><span class="code" data-ice="signature">(): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></span>
+    <span class="code" data-ice="name">getVirtualQueueTimeForRide</span><span class="code" data-ice="signature">(queueId: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">number</a></span>): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span></span>
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/tdr/tokyodisneyresort.js.html#lineNumber68">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/universal/universalstudios.js.html#lineNumber205">source</a></span></span>
     </span>
   </h3>
 
   
   
   
-  <div data-ice="description"><p>Fetch the current app version on the Google Play store</p>
+  <div data-ice="description"><p>Get current state for a virtual queue</p>
+</div>
+
+  
+
+  <div data-ice="properties"><div data-ice="properties">
+  <h4 data-ice="title">Params:</h4>
+  <table class="params">
+    <thead>
+    <tr><td>Name</td><td>Type</td><td>Attribute</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+    
+    <tr data-ice="property" data-depth="0">
+      <td data-ice="name" class="code" data-depth="0">queueId</td>
+      <td data-ice="type" class="code"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number">number</a></span></td>
+      <td data-ice="appendix"></td>
+      <td data-ice="description"></td>
+    </tr>
+</tbody>
+  </table>
+</div>
+</div>
+
+  <div class="return-params" data-ice="returnParams">
+    <h4>Return:</h4>
+    <table>
+      <tbody>
+        <tr>
+          <td class="return-type code" data-ice="returnType"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span></td>
+          <td class="return-desc" data-ice="returnDescription"><p>Object containing startTime and endTime as a moment object.
+Or undefined if there are no times available.</p>
+</td>
+        </tr>
+      </tbody>
+    </table>
+    <div data-ice="returnProperties">
+</div>
+  </div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-getWaitingTimes">
+    <span class="access" data-ice="access">public</span>
+    
+    
+    
+    <span data-ice="async">async</span>
+    
+    <span class="code" data-ice="name">getWaitingTimes</span><span class="code" data-ice="signature">(): <span>*</span></span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/universal/universalstudios.js.html#lineNumber237">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Fetch raw waiting times data</p>
 </div>
 
   
@@ -2450,7 +2553,7 @@
     <table>
       <tbody>
         <tr>
-          <td class="return-type code" data-ice="returnType"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></td>
+          <td class="return-type code" data-ice="returnType"><span>*</span></td>
           
         </tr>
       </tbody>
@@ -2488,7 +2591,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/tdr/tokyodisneyresort.js.html#lineNumber171">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/universal/universalstudios.js.html#lineNumber124">source</a></span></span>
     </span>
   </h3>
 
@@ -2560,7 +2663,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/tdr/tokyodisneyresort.js.html#lineNumber297">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/universal/universalstudios.js.html#lineNumber340">source</a></span></span>
     </span>
   </h3>
 
@@ -2632,7 +2735,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/tdr/tokyodisneyresort.js.html#lineNumber165">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/universal/universalstudios.js.html#lineNumber106">source</a></span></span>
     </span>
   </h3>
 
@@ -2676,7 +2779,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/tdr/tokyodisneyresort.js.html#lineNumber233">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/universal/universalstudios.js.html#lineNumber250">source</a></span></span>
     </span>
   </h3>
 

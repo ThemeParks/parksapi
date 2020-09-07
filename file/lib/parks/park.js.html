@@ -68,6 +68,10 @@
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-tdr">parks/tdr</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html">TokyoDisneyResortPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneySea.html">TokyoDisneySea</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyland.html">TokyoDisneyland</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-universal">parks/universal</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalIslandsOfAdventure.html">UniversalIslandsOfAdventure</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalParkBase.html">UniversalParkBase</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalStudios.html">UniversalStudios</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalStudiosFlorida.html">UniversalStudiosFlorida</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html">DisneyPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure.html">DisneylandResortCaliforniaAdventure</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortMagicKingdom.html">DisneylandResortMagicKingdom</a></span></span></li>
@@ -535,7 +539,7 @@ export class Park extends Entity {
           // default return time state
           existingRide.queue[type].returnStart = null;
           existingRide.queue[type].returnEnd = null;
-          existingRide.queue[type].state = returnTimeState.finished;
+          existingRide.queue[type].state = null;
         }
       }
 
@@ -564,8 +568,8 @@ export class Park extends Entity {
         // handle &quot;return time&quot; style queue updates
         // validate incoming data
         if (
-          !queueValue.returnStart ||
-          !queueValue.returnEnd ||
+          queueValue.returnStart === undefined ||
+          queueValue.returnEnd === undefined ||
           Object.values(returnTimeState).indexOf(queueValue.state) &lt; 0
         ) {
           this.emit(
@@ -576,8 +580,10 @@ export class Park extends Entity {
         }
 
         // make sure we&apos;re moment formatted strings
-        queueValue.returnStart = moment.tz(queueValue.returnStart, this.config.timezone).format();
-        queueValue.returnEnd = moment.tz(queueValue.returnEnd, this.config.timezone).format();
+        queueValue.returnStart = queueValue.returnStart === null ? null :
+          moment.tz(queueValue.returnStart, this.config.timezone).format();
+        queueValue.returnEnd = queueValue.returnEnd === null ? null :
+          moment.tz(queueValue.returnEnd, this.config.timezone).format();
 
         const originalReturnTime = {
           returnStart: queueData?.returnStart,
@@ -602,8 +608,6 @@ export class Park extends Entity {
           // broadcast updated ride event
           this.emit(&apos;attractionQueue&apos;, existingRide, type, originalReturnTime);
         }
-
-        return;
       } else if (type == queueType.boardingGroup) {
         // TODO - handle baording group style queues
         return;

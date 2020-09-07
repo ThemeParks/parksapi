@@ -168,6 +168,30 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "@themeparks/parksapi/lib/parks/universal/universalstudios.js~universalislandsofadventure",
+    "class/lib/parks/universal/universalstudios.js~UniversalIslandsOfAdventure.html",
+    "<span>UniversalIslandsOfAdventure</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/universal/universalstudios.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/universal/universalstudios.js~universalparkbase",
+    "class/lib/parks/universal/universalstudios.js~UniversalParkBase.html",
+    "<span>UniversalParkBase</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/universal/universalstudios.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/universal/universalstudios.js~universalstudios",
+    "class/lib/parks/universal/universalstudios.js~UniversalStudios.html",
+    "<span>UniversalStudios</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/universal/universalstudios.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/universal/universalstudios.js~universalstudiosflorida",
+    "class/lib/parks/universal/universalstudios.js~UniversalStudiosFlorida.html",
+    "<span>UniversalStudiosFlorida</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/universal/universalstudios.js</span>",
+    "class"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldanimalkingdom",
     "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom.html",
     "<span>WaltDisneyWorldAnimalKingdom</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
@@ -1690,6 +1714,96 @@ window.esdocSearchIndex = [
     "file/lib/parks/types.js.html",
     "lib/parks/types.js",
     "file"
+  ],
+  [
+    "lib/parks/universal/universalstudios.js",
+    "file/lib/parks/universal/universalstudios.js.html",
+    "lib/parks/universal/universalstudios.js",
+    "file"
+  ],
+  [
+    "lib/parks/universal/universalstudios.js~universalislandsofadventure#constructor",
+    "class/lib/parks/universal/universalstudios.js~UniversalIslandsOfAdventure.html#instance-constructor-constructor",
+    "lib/parks/universal/universalstudios.js~UniversalIslandsOfAdventure#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universalstudios.js~universalparkbase#_buildattractionobject",
+    "class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-_buildAttractionObject",
+    "lib/parks/universal/universalstudios.js~UniversalParkBase#_buildAttractionObject",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universalstudios.js~universalparkbase#_getoperatinghoursfordate",
+    "class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-_getOperatingHoursForDate",
+    "lib/parks/universal/universalstudios.js~UniversalParkBase#_getOperatingHoursForDate",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universalstudios.js~universalparkbase#_init",
+    "class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-_init",
+    "lib/parks/universal/universalstudios.js~UniversalParkBase#_init",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universalstudios.js~universalparkbase#_update",
+    "class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-_update",
+    "lib/parks/universal/universalstudios.js~UniversalParkBase#_update",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universalstudios.js~universalparkbase#constructor",
+    "class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-constructor-constructor",
+    "lib/parks/universal/universalstudios.js~UniversalParkBase#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universalstudios.js~universalparkbase#getlatestopeninghours",
+    "class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-getLatestOpeningHours",
+    "lib/parks/universal/universalstudios.js~UniversalParkBase#getLatestOpeningHours",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universalstudios.js~universalparkbase#getpoi",
+    "class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-getPOI",
+    "lib/parks/universal/universalstudios.js~UniversalParkBase#getPOI",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universalstudios.js~universalparkbase#getservicetoken",
+    "class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-getServiceToken",
+    "lib/parks/universal/universalstudios.js~UniversalParkBase#getServiceToken",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universalstudios.js~universalparkbase#getvirtualqueuestates",
+    "class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-getVirtualQueueStates",
+    "lib/parks/universal/universalstudios.js~UniversalParkBase#getVirtualQueueStates",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universalstudios.js~universalparkbase#getvirtualqueuetimeforride",
+    "class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-getVirtualQueueTimeForRide",
+    "lib/parks/universal/universalstudios.js~UniversalParkBase#getVirtualQueueTimeForRide",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universalstudios.js~universalparkbase#getwaitingtimes",
+    "class/lib/parks/universal/universalstudios.js~UniversalParkBase.html#instance-method-getWaitingTimes",
+    "lib/parks/universal/universalstudios.js~UniversalParkBase#getWaitingTimes",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universalstudios.js~universalstudios#constructor",
+    "class/lib/parks/universal/universalstudios.js~UniversalStudios.html#instance-constructor-constructor",
+    "lib/parks/universal/universalstudios.js~UniversalStudios#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universalstudios.js~universalstudiosflorida#constructor",
+    "class/lib/parks/universal/universalstudios.js~UniversalStudiosFlorida.html#instance-constructor-constructor",
+    "lib/parks/universal/universalstudios.js~UniversalStudiosFlorida#constructor",
+    "method"
   ],
   [
     "lib/parks/wdw/waltdisneyworldbase.js",

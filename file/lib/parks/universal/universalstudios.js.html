@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <base data-ice="baseUrl" href="../../../../">
-  <title data-ice="title">lib/parks/efteling/efteling.js | @themeparks/parksapi</title>
+  <title data-ice="title">lib/parks/universal/universalstudios.js | @themeparks/parksapi</title>
   <link type="text/css" rel="stylesheet" href="css/style.css">
   <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
   <script src="script/prettify/prettify.js"></script>
@@ -87,335 +87,431 @@
 </div>
 </nav>
 
-<div class="content" data-ice="content"><h1 data-ice="title">lib/parks/efteling/efteling.js</h1>
+<div class="content" data-ice="content"><h1 data-ice="title">lib/parks/universal/universalstudios.js</h1>
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {Park} from &apos;../park.js&apos;;
-import {attractionType, statusType, queueType, tagType, scheduleType} from &apos;../parkTypes.js&apos;;
+import {attractionType, statusType, queueType, tagType, scheduleType, returnTimeState} from &apos;../parkTypes.js&apos;;
+import moment from &apos;moment-timezone&apos;;
+import crypto from &apos;crypto&apos;;
+import {URL} from &apos;url&apos;;
 
 /**
- * Efteling Park Object
+ * Sample Park Object
  */
-export class Efteling extends Park {
+export class UniversalParkBase extends Park {
   /**
-   * Create a new Efteling Park object
+   * Create a new Sample Park object
    * @param {object} options
    */
   constructor(options = {}) {
-    options.name = options.name || &apos;Efteling&apos;;
-    options.timezone = options.timezone || &apos;Europe/Amsterdam&apos;;
+    options.name = options.name || &apos;Universal Park&apos;;
+    options.timezone = options.timezone || &apos;America/New_York&apos;;
 
-    options.apiKey = &apos;&apos;;
-    options.apiVersion = &apos;&apos;;
-    options.appVersion = &apos;&apos;;
+    options.secretKey = options.secretKey || &apos;&apos;;
+    options.appKey = options.appKey || &apos;&apos;;
+    options.venueID = options.venueID || &apos;&apos;;
+    options.city = options.city || &apos;&apos;;
+    options.vQueueURL = options.venueID || &apos;&apos;;
+    options.baseURL = options.baseURL || &apos;&apos;;
+    options.contentID = options.contentID || &apos;&apos;;
 
-    options.searchUrl = options.searchUrl || &apos;https://prd-search-acs.efteling.com/2013-01-01/search&apos;;
-    options.waitTimesUrl = options.waitTimesUrl || &apos;https://api.efteling.com/app/wis/&apos;;
-
-    // bump cache to invalidate the POI data that has been updated
-    options.cacheVersion = 1;
+    // any custom environment variable prefixes we want to use for this park (optional)
+    options.configPrefixes = [&apos;UNIVERSALSTUDIOS&apos;].concat(options.configPrefixes || []);
 
     super(options);
 
-    if (!this.config.apiKey) throw new Error(&apos;Missing Efteling apiKey&apos;);
-    if (!this.config.apiVersion) throw new Error(&apos;Missing Efteling apiVersion&apos;);
-    if (!this.config.appVersion) throw new Error(&apos;Missing Efteling appVersion&apos;);
+    // here we can validate the resulting this.config object
+    if (!this.config.secretKey) throw new Error(&apos;Missing Universal secretKey&apos;);
+    if (!this.config.appKey) throw new Error(&apos;Missing Universal appKey&apos;);
+    if (!this.config.venueID) throw new Error(&apos;Missing Universal venueID&apos;);
+    this.config.venueID = Number(this.config.venueID);
+    if (!this.config.city) throw new Error(&apos;Missing Universal city&apos;);
+    if (!this.config.vQueueURL) throw new Error(&apos;Missing Universal vQueueURL&apos;);
+    if (!this.config.baseURL) throw new Error(&apos;Missing Universal baseURL&apos;);
+    if (!this.config.contentID) throw new Error(&apos;Missing Universal contentID&apos;);
 
-    this.injectForDomain({
-      // match either of the API domains
-      $or: [
-        {
-          hostname: &apos;api.efteling.com&apos;,
-        },
-        {
-          hostname: &apos;prd-search-acs.efteling.com&apos;,
-        },
-      ],
-    }, (method, url, data, options) =&gt; {
-      // all requests from the app to any efteling subdomain should send these headers
-      options.headers[&apos;x-app-version&apos;] = this.config.appVersion;
-      options.headers[&apos;x-app-name&apos;] = &apos;Efteling&apos;;
-      options.headers[&apos;x-app-id&apos;] = &apos;nl.efteling.android&apos;;
-      options.headers[&apos;x-app-platform&apos;] = &apos;Android&apos;;
-      options.headers[&apos;x-app-language&apos;] = &apos;en&apos;;
-      options.headers[&apos;x-app-timezone&apos;] = this.config.timezone;
-      // override user-agent here, rather than class-wide
-      //  any other non-Efteling API requests can use the default user-agent
-      options.headers[&apos;user-agent&apos;] = &apos;okhttp/4.4.0&apos;;
-      options.compressed = true;
+    const baseURLHostname = new URL(this.config.baseURL).hostname;
+
+    this.http.injectForDomain({
+      hostname: baseURLHostname,
+    }, async (method, url, data, options) =&gt; {
+      options.headers[&apos;X-UNIWebService-ApiKey&apos;] = this.config.appKey;
+      if (!options.loginRequest) {
+        const token = await this.getServiceToken();
+        options.headers[&apos;X-UNIWebService-Token&apos;] = token;
+      }
     });
 
-    this.injectForDomain({
-      // only use these headers for the main API domain
-      hostname: &apos;api.efteling.com&apos;,
-    }, (method, url, data, options) =&gt; {
-      // api.efteling.com requries an API key as well as the above headers
-      options.headers[&apos;x-api-key&apos;] = this.config.apiKey;
-      options.headers[&apos;x-api-version&apos;] = this.config.apiVersion;
+    // listen to unauthorised responses, to generate a new token
+    this.http.injectForDomainResponse({
+      hostname: baseURLHostname,
+    }, async (response) =&gt; {
+      if (response.statusCode === 401) {
+        // clear out our token and try again
+        await this.cache.set(&apos;servicetoken&apos;, undefined, -1);
+        return undefined;
+      }
+
+      return response;
     });
   }
 
   /**
-   * Get Efteling POI data
-   * This data contains general ride names, descriptions etc.
-   * Wait time data references this to get ride names
+   * Get a service auth token for Universal
    */
-  async getPOIData() {
-    return await this.cache.wrap(&apos;poidata&apos;, async () =&gt; {
-      // curl -H &apos;Host: prd-search-acs.efteling.com&apos; -H &apos;user-agent: okhttp/4.4.0&apos; -H &apos;x-app-version: v3.7.1&apos; -H &apos;x-app-name: Efteling&apos; -H &apos;x-app-id: nl.efteling.android&apos; -H &apos;x-app-platform: Android&apos; -H &apos;x-app-language: en&apos; -H &apos;x-app-timezone: Europe/London&apos; --compressed &apos;https://prd-search-acs.efteling.com/2013-01-01/search?q.parser=structured&amp;size=1000&amp;q=%28and%20%28phrase%20field%3Dlanguage%20%27en%27%29%29&apos;
-      const fetchedPOIData = await this.http(&apos;GET&apos;, this.config.searchUrl, {
-        &apos;size&apos;: 1000,
-        &apos;q.parser&apos;: &apos;structured&apos;,
-        &apos;q&apos;: &apos;(and (phrase field=language \&apos;en\&apos;))&apos;,
+  async getServiceToken() {
+    let tokenExpiration = null;
+    return await this.cache.wrap(&apos;servicetoken&apos;, async () =&gt; {
+      // create signature to get access token
+      const today = `${moment.utc().format(&apos;ddd, DD MMM YYYY HH:mm:ss&apos;)} GMT`;
+      const signatureBuilder = crypto.createHmac(&apos;sha256&apos;, this.config.secretKey);
+      signatureBuilder.update(`${this.config.appKey}\n${today}\n`);
+      // generate hash from signature builder
+      //  also convert trailing equal signs to unicode. because. I don&apos;t know
+      const signature = signatureBuilder.digest(&apos;base64&apos;).replace(/=$/, &apos;\u003d&apos;);
+
+      const resp = await this.http(&apos;POST&apos;, `${this.config.baseURL}?city=${this.config.city}`, {
+        apikey: this.config.appKey,
+        signature,
+      }, {
+        headers: {
+          &apos;Date&apos;: today,
+        },
+        loginRequest: true,
+        json: true,
       });
 
-      const data = fetchedPOIData?.body?.hits?.hit;
-      if (!data) {
-        throw new Error(&apos;Failed to fetch Efteling POI data&apos;);
-      }
+      // remember the expiration time
+      const expireTime = resp.body.TokenExpirationUnix * 1000;
+      tokenExpiration = Math.max(+new Date() + (1000 * 60 * 60), expireTime - (+new Date()) - (1000 * 60 * 60 * 12));
 
-      const poiData = {};
-      data.forEach((hit) =&gt; {
-        // skip any entries that aren&apos;t shown in the app
-        if (hit.hide_in_app) return;
-
-        if (hit.fields) {
-          poiData[hit.fields.id] = {
-            name: hit.fields.name,
-            type: hit.fields.category,
-            props: hit.fields.properties,
-          };
-
-          // try to parse lat/long
-          //  edge-case: some rides have dud &quot;0.0,0.0&quot; location, ignore these
-          if (hit.fields.latlon &amp;&amp; hit.fields.latlon !== &apos;0.0,0.0&apos;) {
-            const match = /([0-9.]+),([0-9.]+)/.exec(hit.fields.latlon);
-            if (match) {
-              poiData[hit.fields.id].location = {
-                latitude: Number(match[1]),
-                longitude: Number(match[2]),
-              };
-            }
-          }
-
-          // check for any alternative versions of the ride
-          //  this is usually the single rider line, though one is a &quot;boatride&quot;
-          if (hit.fields.alternateid &amp;&amp; hit.fields.alternatetype === &apos;singlerider&apos;) {
-            poiData[hit.fields.id].singleRiderId = hit.fields.alternateid;
-          }
-        }
-      });
-
-      return poiData;
-    }, 1000 * 60 * 60 * 12 /* cache for 12 hours */);
+      return resp.body.Token;
+    }, () =&gt; {
+      return tokenExpiration;
+    });
   }
 
   /**
    * @inheritdoc
    */
   async _init() {
-    // make sure POI data is up-to-date
-    const poi = await this.getPOIData();
+  }
 
-    // auto-populate our attractions list with all rides and shows
-    //  this makes them appear in our API output even if they have no wait time data
-    // other valid attraction types from the Efteling API:
-    //  &apos;merchandise&apos;, &apos;restaurant&apos;, &apos;fairytale&apos;, &apos;facilities-toilets&apos;, &apos;facilities-generic&apos;, &apos;eventlocation&apos;, &apos;game&apos;
-    const wantedAttractionTypes = [&apos;attraction&apos;, &apos;show&apos;];
-    await Promise.allSettled(Object.keys(poi).map(async (id) =&gt; {
-      const p = poi[id];
-      if (wantedAttractionTypes.indexOf(p.type) &gt;= 0) {
-        // request the attraction by ID so it is built, then we&apos;ll tag it with some metadata
-        const attraction = await this.findAttractionByID(id);
-        if (attraction !== undefined &amp;&amp; p.location !== undefined) {
-          // tag with attraction&apos;s location
-          await this.setAttractionTag(id, &apos;location&apos;, tagType.location, {
-            longitude: p.location.longitude,
-            latitude: p.location.latitude,
-          });
-
-          // look for any other useful tags
-          // may get wet
-          await this.toggleAttractionTag(id, tagType.mayGetWet, p.props.indexOf(&apos;wet&apos;) &gt;= 0);
-          // tag &quot;pregnant people should not ride&quot; attractions
-          await this.toggleAttractionTag(
-              id,
-              tagType.unsuitableForPregnantPeople,
-              p.props.indexOf(&apos;pregnantwomen&apos;) &gt;= 0,
-          );
-
-          // single rider queue available?
-          await this.setAttractionTag(
-              id,
-              null,
-              tagType.singleRider,
-              !!p.singleRiderId,
-          );
-
-          // look for attraction minimum height
-          const minHeightProp = p.props.find((prop) =&gt; prop.indexOf(&apos;minimum&apos;) === 0);
-          if (minHeightProp !== undefined) {
-            const minHeightNumber = Number(minHeightProp.slice(7));
-            if (!isNaN(minHeightNumber)) {
-              await this.setAttractionTag(id, &apos;minimumHeight&apos;, tagType.minimumHeight, {
-                height: minHeightNumber,
-                unit: &apos;cm&apos;,
-              });
-            }
-          }
-        }
-      }
-    }));
+  /**
+   * Get all park POI data
+   */
+  async getPOI() {
+    return await this.cache.wrapGlobal(`universalstudios_${this.config.city}_poi`, async () =&gt; {
+      const data = await this.http(&apos;GET&apos;, `${this.config.baseURL}/pointsOfInterest`, {
+        city: this.config.city,
+      });
+      return data.body.Rides;
+    }, 1000 * 60 * 60 * 12); // 12 hours
   }
 
   /**
    * @inheritdoc
    */
   async _buildAttractionObject(attractionID) {
-    const poiData = await this.getPOIData();
+    const data = await this.getPOI();
+    const ride = data.find((x) =&gt; `${x.Id}` === attractionID &amp;&amp; x.VenueId === this.config.venueID);
+    if (ride === undefined) return undefined;
 
-    const data = poiData[attractionID];
-    if (!data) return undefined;
+    const tags = [];
 
-    // assign the attraction type
-    let type = attractionType.other; // default to &quot;other&quot; for attractions that don&apos;t match our types
-    if (data.type === &apos;attraction&apos;) {
-      // all attractions default to &quot;ride&quot;
-      type = attractionType.ride;
-    } else if (data.type ===&apos;show&apos;) {
-      type = attractionType.show;
+    if (ride.Longitude &amp;&amp; ride.Latitude) {
+      tags.push({
+        key: &apos;location&apos;,
+        type: tagType.location,
+        value: {
+          longitude: ride.Longitude,
+          latitude: ride.Latitude,
+        },
+      });
     }
 
+    if (ride.MinHeightInInches) {
+      tags.push({
+        key: &apos;minimumHeight&apos;,
+        type: tagType.minimumHeight,
+        value: {
+          unit: &apos;in&apos;,
+          height: ride.MinHeightInInches,
+        },
+      });
+    }
+    if (ride.MaxHeightInInches) {
+      tags.push({
+        key: &apos;maximumHeight&apos;,
+        type: tagType.maximumHeight,
+        value: {
+          unit: &apos;in&apos;,
+          height: ride.MaxHeightInInches,
+        },
+      });
+    }
+
+    tags.push({
+      type: tagType.singleRider,
+      value: !!ride.HasSingleRiderLine,
+    });
+
+    tags.push({
+      type: tagType.fastPass,
+      value: !!ride.ExpressPassAccepted,
+    });
+
+    tags.push({
+      type: tagType.childSwap,
+      value: !!ride.HasChildSwap,
+    });
+
     return {
-      name: data.name,
-      type: type,
+      name: ride.MblDisplayName,
+      type: attractionType.ride,
+      tags,
     };
+  }
+
+  /**
+   * Get the current state of virtual queues for the resort
+   */
+  async getVirtualQueueStates() {
+    return await this.cache.wrap(`universalstudios_${this.config.city}_vqueuestate`, async () =&gt; {
+      const virtualData = await this.http(&apos;GET&apos;, `${this.config.baseURL}/Queues`, {
+        city: this.config.city,
+        page: 1,
+        pageSize: &apos;all&apos;,
+      });
+      return virtualData.body;
+    }, 1000 * 60); // 1 minute
+  }
+
+  /**
+   * Get current state for a virtual queue
+   * @param {number} queueId
+   * @return {object} Object containing startTime and endTime as a moment object.
+   * Or undefined if there are no times available.
+   */
+  async getVirtualQueueTimeForRide(queueId) {
+    return await this.cache.wrap(`vqueue_${queueId}`, async () =&gt; {
+      const todaysDate = (await this.getActiveParkDateMoment()).format(&apos;MM/DD/YYYY&apos;);
+      const res = await this.http(
+          &apos;GET&apos;,
+          `${this.config.baseURL}/${this.config.vQueueURL}/${queueId}`, {
+            page: 1,
+            pageSize: &apos;all&apos;,
+            city: this.config.city,
+            appTimeForToday: todaysDate,
+          });
+
+      // find and return the earliest appointment time available
+      const earliestTime = res.body.AppointmentTimes.reduce((p, x) =&gt; {
+        const startTime = moment.tz(x.StartTime, this.config.timezone);
+        if (p === undefined || startTime.isBefore(p.startTime)) {
+          const endTime = moment.tz(x.EndTime, this.config.timezone);
+          return {
+            startTime,
+            endTime,
+          };
+        }
+        return p;
+      }, undefined);
+
+      return earliestTime;
+    }, 1000 * 60); // 1 minute
+  }
+
+  /**
+   * Fetch raw waiting times data
+   */
+  async getWaitingTimes() {
+    return await this.cache.wrapGlobal(`universalstudios_${this.config.city}_waittimes`, async () =&gt; {
+      const resp = await this.http(&apos;GET&apos;, `${this.config.baseURL}/pointsofinterest/rides/waittimes`, {
+        city: this.config.city,
+        pageSize: &apos;All&apos;,
+      });
+      return resp.body;
+    }, 1000 * 60); // cache for 1 minute
   }
 
   /**
    * @inheritdoc
    */
   async _update() {
-    const poiData = await this.getPOIData();
+    const data = await this.getWaitingTimes();
 
-    const waitTimes = await this.http(&apos;GET&apos;, this.config.waitTimesUrl, {
-      language: &apos;en&apos;,
-    });
+    await Promise.allSettled(data.Results.filter(
+        (x) =&gt; x.ContentId.indexOf(this.config.contentID) === 0,
+    ).map(async (ride) =&gt; {
+      let queue = queueType.standBy;
+      let status = statusType.operating;
+      let postWaitTime = Math.max(0, ride.Value);
+      switch (ride.Value) {
+        case -50:
+          // wait time unknown
+          //  app just displays nothing for the ride status when -50
+          postWaitTime = null;
+          break;
+        case -9:
+          // this is a virtual line update, so bail out
+          queue = queueType.returnTime;
+          break;
+        case -8:
+          // not open yet
+          status = statusType.closed;
+          postWaitTime = null;
+          break;
+        case -7:
+          // &quot;ride now&quot;
+          break;
+        case -6:
+        case -5:
+          // &quot;closed inside of operating hours&quot;, not sure what that means, but it&apos;s closed
+          status = statusType.closed;
+          postWaitTime = null;
+          break;
+        case -4:
+        case -3:
+          // bad weather
+          status = statusType.down;
+          postWaitTime = null;
+          break;
+      }
 
-    const attractions = waitTimes?.body?.AttractionInfo;
-    if (!attractions) throw new Error(&apos;Efteling wait times response missing AttractionInfo&apos;);
-
-    await Promise.allSettled(attractions.map(async (entry) =&gt; {
-      if (entry.Type !== &apos;Attraction&apos;) return;
-
-      if (poiData[entry.Id] !== undefined) {
-        let rideStatus = null;
-        const rideWaitTime = parseInt(entry.WaitingTime, 10);
-        const rideState = entry.State.toLowerCase();
-        // update ride with wait time data
-        if (rideState === &apos;storing&apos; || rideState === &apos;tijdelijkbuitenbedrijf&apos;) {
-          // Ride down because of an interruption
-          rideStatus = statusType.down;
-        } else if (rideState === &apos;inonderhoud&apos;) {
-          // Ride down because of maintenance/refurbishment
-          rideStatus = statusType.refurbishment;
-        } else if (rideState === &apos;gesloten&apos; || rideState === &apos;&apos; || rideState === &apos;wachtrijgesloten&apos;) {
-          // ride is &quot;closed&quot;
-          rideStatus = statusType.closed;
-        } else if (rideState === &apos;open&apos;) {
-          // Ride operating
-          rideStatus = statusType.operating;
-        }
-
-        if (rideStatus === null) {
-          console.log(&apos;Unknown Efteling rideStatus&apos;, JSON.stringify(rideState));
-        }
-
-        // update attraction status
-        await this.updateAttractionState(
-            entry.Id,
-            rideStatus,
-        );
-
-        // update queue status
-        await this.updateAttractionQueue(
-            entry.Id,
-            rideStatus == statusType.operating ? rideWaitTime : null,
-            queueType.standBy,
-        );
+      await this.updateAttractionState(ride.Key, status);
+      if (queue == queueType.standBy) {
+        await this.updateAttractionQueue(ride.Key, postWaitTime, queueType.standBy);
       } else {
-        // if we don&apos;t have POI data for this attraction, check for single rider IDs and update the main attraction
-        const singleRiderPOI = Object.keys(poiData).find((k) =&gt; {
-          return poiData[k].singleRiderId &amp;&amp; poiData[k].singleRiderId === entry.Id;
-        });
+        await this.updateAttractionQueue(ride.Key, undefined, queueType.standBy);
+      }
+    }));
 
-        if (singleRiderPOI !== undefined) {
-          // we have found a matching single-rider entry!
-          //  update the singleRider queue time
-          const rideWaitTime = parseInt(entry.WaitingTime, 10);
-          await this.updateAttractionQueue(singleRiderPOI, rideWaitTime, queueType.singleRider);
-        }
+    // also fetch virtual lines status
+    const virtualData = await this.getVirtualQueueStates();
+    await Promise.allSettled(virtualData.Results.map(async (ride) =&gt; {
+      // check the right this virtual queue is for is in this park
+      const actual = await this.findAttractionByID(ride.QueueEntityId);
+      if (actual === undefined) return;
+
+      if (ride.IsEnabled) {
+        // get next available slot
+        const nextSlot = await this.getVirtualQueueTimeForRide(ride.Id);
+
+        // update return time queue with slot data
+        await this.updateAttractionQueue(ride.QueueEntityId, {
+          returnStart: nextSlot === undefined ? null : nextSlot.startTime,
+          returnEnd: nextSlot === undefined ? null : nextSlot.endTime,
+          // TODO - can we tell the difference between temporarily full and finished for the day?
+          state: nextSlot === undefined ? returnTimeState.temporarilyFull : returnTimeState.available,
+        }, queueType.returnTime);
+      } else {
+        // virtual queue not enable, ensure return time queue type is not shown
+        await this.updateAttractionQueue(ride.QueueEntityId, undefined, queueType.returnTime);
       }
     }));
   }
 
   /**
-   * Get calendar data for the given month and year
-   * @param {string} month
-   * @param {string} year
-   * @return {array&lt;object&gt;}
+   * Get the latest raw opening hours for this park
    */
-  async getCalendarMonth(month, year) {
-    return await this.cache.wrap(`calendar_${year}_${month}`, async () =&gt; {
-      const data = await this.http(
-          &apos;GET&apos;,
-          `https://www.efteling.com/service/cached/getpoiinfo/en/${year}/${month}`,
-          null,
-          {
-            headers: {
-              &apos;X-Requested-With&apos;: &apos;XMLHttpRequest&apos;,
-              &apos;referer&apos;: &apos;https://www.efteling.com/en/park/opening-hours?app=true&apos;,
-              &apos;cookie&apos;: &apos;website#lang=en&apos;,
-            },
-            json: true,
-          },
-      );
-
-      // Efteling returns 400 once the month is in the past
-      if (data.statusCode === 400) {
-        return undefined;
-      }
-
-      if (!data?.body?.OpeningHours) throw new Error(`Unable to find opening hours for Efteling ${data.body}`);
-
-      return data.body;
-    }, 1000 * 60 * 60 * 12); // 12 hours
+  async getLatestOpeningHours() {
+    return await this.cache.wrap(&apos;calendar_data&apos;, async () =&gt; {
+      const now = this.getTimeNowMoment();
+      const cal = await this.http(&apos;GET&apos;, `${this.config.baseURL}/venues/${this.config.venueID}/hours`, {
+        endDate: now.clone().add(120, &apos;days&apos;).format(&apos;MM/DD/YYYY&apos;),
+      });
+      return cal.body;
+    }, 1000 * 60 * 60 * 24); // 1 day
   }
 
   /**
-   * Return the operating hours for the supplied date
-   * @param {moment} date
+   * @inheritdoc
    */
   async _getOperatingHoursForDate(date) {
-    const cal = await this.getCalendarMonth(date.format(&apos;M&apos;), date.format(&apos;YYYY&apos;));
-    if (cal === undefined) return undefined;
-
+    const cal = await this.getLatestOpeningHours();
     const dateFormatted = date.format(&apos;YYYY-MM-DD&apos;);
-    const data = cal.OpeningHours.find((x) =&gt; x.Date === dateFormatted);
-    if (data) {
-      return data.OpeningHours.map((d) =&gt; {
-        const open = d.Open.split(&apos;:&apos;).map(Number);
-        const close = d.Close.split(&apos;:&apos;).map(Number);
-        return {
-          openingTime: date.clone().set(&apos;hour&apos;, open[0]).set(&apos;minute&apos;, open[1]).format(),
-          closingTime: date.clone().set(&apos;hour&apos;, close[0]).set(&apos;minute&apos;, close[1]).format(),
-          type: scheduleType.operating,
-        };
+    const todaysCal = cal.find((x) =&gt; x.Date === dateFormatted);
+    if (todaysCal === undefined) return undefined;
+
+    if (todaysCal.VenueStatus === &apos;Closed&apos;) return undefined;
+
+    const ret = [];
+    ret.push({
+      openingTime: todaysCal.OpenTimeString,
+      closingTime: todaysCal.CloseTimeString,
+      type: scheduleType.operating,
+    });
+
+    if (todaysCal.EarlyEntryString) {
+      // extra hours
+      ret.push({
+        openingTime: todaysCal.EarlyEntryString,
+        closingTime: todaysCal.OpenTimeString,
+        type: scheduleType.extraHours,
       });
     }
-    return undefined;
+
+    // TODO - handle todaysCal.SpecialEntryString (when these exist)
+    if (todaysCal.SpecialEntryString) {
+      this.emit(&apos;error&apos;, new Error(`Unknown Universal SpecialEntryString ${todaysCal.SpecialEntryString}`));
+    }
+
+    return ret;
   }
 }
 
-export default Efteling;
+export default UniversalParkBase;
+
+/**
+ * Universal Studios Florida Park
+ */
+export class UniversalStudiosFlorida extends UniversalParkBase {
+  /**
+   * @inheritdoc
+   */
+  constructor(options = {}) {
+    options.name = &apos;Universal Studios Florida&apos;;
+    options.venueID = 10010;
+    options.city = &apos;orlando&apos;;
+    options.contentID = &apos;com.uo.usf&apos;;
+
+    super(options);
+  }
+}
+
+/**
+ * Islands Of Adventure Park
+ */
+export class UniversalIslandsOfAdventure extends UniversalParkBase {
+  /**
+   * @inheritdoc
+   */
+  constructor(options = {}) {
+    options.name = &apos;Universal\&apos;s Islands Of Adventure&apos;;
+    options.venueID = 10000;
+    options.city = &apos;orlando&apos;;
+    options.contentID = &apos;com.uo.ioa&apos;;
+
+    super(options);
+  }
+}
+
+/**
+ * Universal Studios Hollywood
+ */
+export class UniversalStudios extends UniversalParkBase {
+  /**
+   * @inheritdoc
+   */
+  constructor(options = {}) {
+    options.name = &apos;Universal Studios&apos;;
+    options.venueID = 13825;
+    options.city = &apos;hollywood&apos;;
+    options.contentID = &apos;com.uo.us&apos;;
+
+    super(options);
+  }
+}
 </code></pre>
 
 </div>
