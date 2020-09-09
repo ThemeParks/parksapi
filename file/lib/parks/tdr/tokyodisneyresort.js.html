@@ -130,7 +130,7 @@ export class TokyoDisneyResortPark extends Park {
     this.injectForDomain({
       hostname: new URL(this.config.apiBase).hostname,
     }, async (method, url, data, options) =&gt; {
-      const appVersion = await this.fetchLatestVersion();
+      const appVersion = (await this.fetchLatestVersion()) || this.config.apiVersion;
 
       options.headers[&apos;user-agent&apos;] = `TokyoDisneyResortApp/${appVersion} Android/${this.config.apiOS}`;
       options.headers[&apos;x-api-key&apos;] = this.config.apiKey;
@@ -167,7 +167,7 @@ export class TokyoDisneyResortPark extends Park {
 
       const regexVersionNumber = /Current Version.*(\d+\.\d+\.\d+)&lt;\/span&gt;/;
       const match = regexVersionNumber.exec(resp.body);
-      if (match) {
+      if (match &amp;&amp; match[1]) {
         // update API version
         return match[1];
       }

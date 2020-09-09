@@ -311,7 +311,7 @@ export class Efteling extends Park {
         const rideWaitTime = parseInt(entry.WaitingTime, 10);
         const rideState = entry.State.toLowerCase();
         // update ride with wait time data
-        if (rideState === &apos;storing&apos; || rideState === &apos;tijdelijkbuitenbedrijf&apos;) {
+        if (rideState === &apos;storing&apos; || rideState === &apos;tijdelijkbuitenbedrijf&apos; || rideState === &apos;buitenbedrijf&apos;) {
           // Ride down because of an interruption
           rideStatus = statusType.down;
         } else if (rideState === &apos;inonderhoud&apos;) {
@@ -326,6 +326,7 @@ export class Efteling extends Park {
         }
 
         if (rideStatus === null) {
+          this.emit(&apos;error&apos;, new Error(`Unknown Efteling rideStatus ${JSON.stringify(rideState)}`));
           console.log(&apos;Unknown Efteling rideStatus&apos;, JSON.stringify(rideState));
         }
 
