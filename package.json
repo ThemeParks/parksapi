@@ -40,7 +40,7 @@
     "mingo": "^3.0.6",
     "moment-timezone": "^0.5.31",
     "needle": "^2.5.0",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^2.6.1",
     "pouchdb": "^7.2.1",
     "pouchdb-replication-stream": "github:pouchdb-community/pouchdb-replication-stream#56f0511",
     "promise-retry": "^2.0.1",
