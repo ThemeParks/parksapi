@@ -97,7 +97,7 @@
       "expectCount": 11,
       "actualCount": 10,
       "undocumentLines": [
-        67
+        66
       ]
     },
     "lib/parks/http.js": {
@@ -121,8 +121,8 @@
       ]
     },
     "lib/parks/parkTypes.js": {
-      "expectCount": 6,
-      "actualCount": 6,
+      "expectCount": 7,
+      "actualCount": 7,
       "undocumentLines": []
     },
     "lib/parks/resort.js": {
@@ -146,11 +146,6 @@
     "lib/parks/tdr/tokyodisneyresort.js": {
       "expectCount": 15,
       "actualCount": 15,
-      "undocumentLines": []
-    },
-    "lib/parks/types.js": {
-      "expectCount": 1,
-      "actualCount": 1,
       "undocumentLines": []
     },
     "lib/parks/universal/universalstudios.js": {

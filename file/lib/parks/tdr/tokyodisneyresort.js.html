@@ -50,12 +50,12 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTag">isValidTag</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTagType">isValidTagType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-attractionType">attractionType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-entityType">entityType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-queueType">queueType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-returnTimeState">returnTimeState</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-scheduleType">scheduleType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-statusType">statusType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-tagType">tagType</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-entityType">entityType</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-dlp">parks/dlp</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisMagicKingdom.html">DisneylandParisMagicKingdom</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html">DisneylandParisPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisWaltDisneyStudios.html">DisneylandParisWaltDisneyStudios</a></span></span></li>
@@ -91,6 +91,7 @@
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {Park} from &apos;../park.js&apos;;
 import {attractionType, statusType, queueType, tagType, scheduleType} from &apos;../parkTypes.js&apos;;
 import moment from &apos;moment-timezone&apos;;
+import randomUseragent from &apos;random-useragent&apos;;
 
 /**
  * TokyoDisneyResortPark Object
@@ -149,6 +150,19 @@ export class TokyoDisneyResortPark extends Park {
         options.headers[&apos;X-PORTAL-AUTH&apos;] = this.config.apiAuth;
       }
     });
+
+    this.http.injectForDomainResponse({
+      hostname: new URL(this.config.apiBase).hostname,
+    }, async (resp) =&gt; {
+      if (resp.statusCode === 400) {
+        console.log(&apos;TDR version invalid, fetch again...&apos;);
+        // force a store version update if we get a 400 error
+        await this.cache.setGlobal(&apos;tdr_appversion&apos;, undefined, -1);
+        return undefined;
+      }
+
+      return resp;
+    });
   }
 
   /**
@@ -158,10 +172,19 @@ export class TokyoDisneyResortPark extends Park {
   async fetchLatestVersion() {
     let cacheTime = 1000 * 60 * 60 * 12; // 12 hours by-default
     return await this.cache.wrapGlobal(&apos;tdr_appversion&apos;, async () =&gt; {
+      const ua = randomUseragent.getRandom((ua) =&gt; {
+        return (ua.osName === &apos;Windows&apos;);
+      });
       const resp = await this.http(&apos;GET&apos;,
           &apos;https://play.google.com/store/apps/details&apos;,
           {
             id: &apos;jp.tokyodisneyresort.portalapp&apos;,
+            hl: &apos;en&apos;,
+          },
+          {
+            headers: {
+              &apos;User-Agent&apos;: ua,
+            },
           },
       );
 

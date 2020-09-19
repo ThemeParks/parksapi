@@ -50,12 +50,12 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTag">isValidTag</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTagType">isValidTagType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-attractionType">attractionType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-entityType">entityType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-queueType">queueType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-returnTimeState">returnTimeState</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-scheduleType">scheduleType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-statusType">statusType</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-tagType">tagType</a></span></span></li>
-<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-entityType">entityType</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-dlp">parks/dlp</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisMagicKingdom.html">DisneylandParisMagicKingdom</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisPark.html">DisneylandParisPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/dlp/disneylandparis.js~DisneylandParisWaltDisneyStudios.html">DisneylandParisWaltDisneyStudios</a></span></span></li>
@@ -90,7 +90,7 @@
 <div class="content" data-ice="content"><h1 data-ice="title">lib/parks/wdw/waltdisneyworldbase.js</h1>
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {IndexedWDWDB, getEntityID} from &apos;./wdwdb.js&apos;;
 import {Park} from &apos;../park.js&apos;;
-import {attractionType, statusType, queueType, tagType, scheduleType} from &apos;../parkTypes.js&apos;;
+import {attractionType, statusType, queueType, tagType, scheduleType, entityType} from &apos;../parkTypes.js&apos;;
 import moment from &apos;moment-timezone&apos;;
 
 let wdwDB = null;
@@ -252,9 +252,16 @@ export class DisneyPark extends Park {
         });
       }
 
+      let attrEntityType = entityType.attraction;
+
+      if (attr.type.toLowerCase() === &apos;restaurant&apos;) {
+        attrEntityType = entityType.restaurant;
+      }
+
       return {
         name: attr.name,
-        type: attractionType.ride, // TODO - sort attraction types
+        entityType: attrEntityType,
+        type: attr.type === &apos;Attraction&apos; ? attractionType.ride : attractionType.other, // TODO - sort attraction types
         tags,
       };
     }

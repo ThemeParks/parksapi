@@ -228,9 +228,9 @@ window.esdocSearchIndex = [
     "variable"
   ],
   [
-    "@themeparks/parksapi/lib/parks/types.js~entitytype",
+    "@themeparks/parksapi/lib/parks/parktypes.js~entitytype",
     "variable/index.html#static-variable-entityType",
-    "<span>entityType</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/types.js</span>",
+    "<span>entityType</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/parkTypes.js</span>",
     "variable"
   ],
   [
@@ -1708,12 +1708,6 @@ window.esdocSearchIndex = [
     "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyland.html#instance-constructor-constructor",
     "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyland#constructor",
     "method"
-  ],
-  [
-    "lib/parks/types.js",
-    "file/lib/parks/types.js.html",
-    "lib/parks/types.js",
-    "file"
   ],
   [
     "lib/parks/universal/universalstudios.js",
