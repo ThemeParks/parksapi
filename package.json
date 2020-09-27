@@ -13,6 +13,7 @@
     "./park": "./lib/parks/park.js",
     "./parkTypes": "./lib/parks/parkTypes.js",
     "./cache/": "./lib/cache/",
+    "./cache": "./lib/cache.js",
     "./tags": "./lib/parks/tags.js"
   },
   "scripts": {
