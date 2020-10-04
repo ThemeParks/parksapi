@@ -170,37 +170,19 @@ export class TokyoDisneyResortPark extends Park {
    * @return {string}
    */
   async fetchLatestVersion() {
-    let cacheTime = 1000 * 60 * 60 * 12; // 12 hours by-default
-    return await this.cache.wrapGlobal(&apos;tdr_appversion&apos;, async () =&gt; {
-      const ua = randomUseragent.getRandom((ua) =&gt; {
-        return (ua.osName === &apos;Windows&apos;);
-      });
-      const resp = await this.http(&apos;GET&apos;,
-          &apos;https://play.google.com/store/apps/details&apos;,
-          {
-            id: &apos;jp.tokyodisneyresort.portalapp&apos;,
-            hl: &apos;en&apos;,
-          },
-          {
-            headers: {
-              &apos;User-Agent&apos;: ua,
-            },
-          },
-      );
-
-      const regexVersionNumber = /Current Version.*(\d+\.\d+\.\d+)&lt;\/span&gt;/;
-      const match = regexVersionNumber.exec(resp.body);
-      if (match &amp;&amp; match[1]) {
-        // update API version
-        return match[1];
-      }
-
-      // if we didn&apos;t match, reduce the cache time so we can try again
-      cacheTime = 1000 * 60 * 30; // 30 minutes
-      return this.config.apiVersion;
-    }, () =&gt; {
-      return cacheTime;
-    });
+    return await this.cache.wrapGlobal(
+        &apos;tdr_appversion&apos;,
+        async () =&gt; {
+          // use the themeparks.wiki appstore watcher API
+          const resp = await this.http(
+              &apos;GET&apos;,
+              &apos;https://appwatch.themeparks.wiki/latest/jp.tokyodisneyresort.portalapp&apos;,
+              {},
+          );
+          return resp.body.version;
+        },
+        1000 * 60 * 60 * 2,
+    );
   }
 
   /**

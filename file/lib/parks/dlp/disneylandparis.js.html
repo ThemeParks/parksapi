@@ -451,7 +451,16 @@ export class DisneylandParisPark extends Park {
               null,
             queueType.singleRider,
         );
+      } else {
+        // remove single rider queue if it is no longer valid
+        await this.updateAttractionQueue(
+            time.entityId,
+            undefined,
+            queueType.singleRider,
+        );
       }
+
+      // TODO - handle virtual queues (valid October 6th)
     }));
   }
 
