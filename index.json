@@ -6011,7 +6011,7 @@
     "__docId__": 282,
     "kind": "file",
     "name": "lib/parks/tdr/tokyodisneyresort.js",
-    "content": "import {Park} from '../park.js';\nimport {attractionType, statusType, queueType, tagType, scheduleType} from '../parkTypes.js';\nimport moment from 'moment-timezone';\nimport randomUseragent from 'random-useragent';\n\n/**\n * TokyoDisneyResortPark Object\n */\nexport class TokyoDisneyResortPark extends Park {\n  /**\n   * Create a new TokyoDisneyResortPark object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.name = options.name || 'Tokyo Disney Resort Park';\n    options.timezone = options.timezone || 'Asia/Tokyo';\n\n    options.apiKey = options.apiKey || '';\n    options.apiAuth = options.apiAuth || '';\n    options.apiOS = options.apiOS || '';\n    options.apiBase = options.apiBase || '';\n    options.apiVersion = options.apiVersion || '';\n    options.parkId = options.parkId || '';\n\n    // any custom environment variable prefixes we want to use for this park (optional)\n    options.configPrefixes = ['TDR'].concat(options.configPrefixes || []);\n\n    super(options);\n\n    if (!this.config.apiKey) throw new Error('Missing TDR apiKey');\n    if (!this.config.apiAuth) throw new Error('Missing TDR apiAuth');\n    if (!this.config.apiOS) throw new Error('Missing TDR apiOS');\n    if (!this.config.apiBase) throw new Error('Missing TDR apiBase');\n    if (!this.config.apiVersion) throw new Error('Missing TDR apiVersion');\n    if (!this.config.parkId) throw new Error('Missing TDR parkId');\n\n    // some convenience strings\n    this.config.parkIdLower = this.config.parkId.toLowerCase();\n    this.config.parkIdUpper = this.config.parkId.toUpperCase();\n\n    this.injectForDomain({\n      hostname: new URL(this.config.apiBase).hostname,\n    }, async (method, url, data, options) => {\n      const appVersion = (await this.fetchLatestVersion()) || this.config.apiVersion;\n\n      options.headers['user-agent'] = `TokyoDisneyResortApp/${appVersion} Android/${this.config.apiOS}`;\n      options.headers['x-api-key'] = this.config.apiKey;\n      options.headers['X-PORTAL-LANGUAGE'] = 'en-US';\n      options.headers['X-PORTAL-OS-VERSION'] = `Android ${this.config.apiOS}`;\n      options.headers['X-PORTAL-APP-VERSION'] = appVersion;\n      options.headers['X-PORTAL-DEVICE-NAME'] = 'OnePlus5';\n      options.headers.connection = 'keep-alive';\n      options.headers['Accept-Encoding'] = 'gzip';\n      options.headers.Accept = 'application/json';\n      options.headers['Content-Type'] = 'application/json';\n\n      if (!options.ignoreDeviceID) {\n        const deviceID = await this.fetchDeviceID();\n        options.headers['X-PORTAL-DEVICE-ID'] = deviceID;\n        options.headers['X-PORTAL-AUTH'] = this.config.apiAuth;\n      }\n    });\n\n    this.http.injectForDomainResponse({\n      hostname: new URL(this.config.apiBase).hostname,\n    }, async (resp) => {\n      if (resp.statusCode === 400) {\n        console.log('TDR version invalid, fetch again...');\n        // force a store version update if we get a 400 error\n        await this.cache.setGlobal('tdr_appversion', undefined, -1);\n        return undefined;\n      }\n\n      return resp;\n    });\n  }\n\n  /**\n   * Fetch the current app version on the Google Play store\n   * @return {string}\n   */\n  async fetchLatestVersion() {\n    return await this.cache.wrapGlobal(\n        'tdr_appversion',\n        async () => {\n          // use the themeparks.wiki appstore watcher API\n          const resp = await this.http(\n              'GET',\n              'https://appwatch.themeparks.wiki/latest/jp.tokyodisneyresort.portalapp',\n              {},\n          );\n          return resp.body.version;\n        },\n        1000 * 60 * 60 * 2,\n    );\n  }\n\n  /**\n   * Return or fetch a device ID to use for API calls\n   */\n  async fetchDeviceID() {\n    return await this.cache.wrapGlobal('tdr_device_id', async () => {\n      const resp = await this.http(\n          'POST',\n          `${this.config.apiBase}/rest/v1/devices`,\n          undefined,\n          {\n            ignoreDeviceID: true,\n          },\n      );\n\n      return resp.body.deviceId;\n    }, 1000 * 60 * 60 * 24 * 10); // use for 10 days\n  }\n\n  /**\n   * Get the latest facilities data for the entire resort\n   */\n  async fetchAllFacilitiesData() {\n    return await this.cache.wrapGlobal('tdr_facilities', async () => {\n      const headers = {};\n      const lastModifiedTime = await this.cache.getGlobal('tdr_facilities_last_modified');\n      if (lastModifiedTime !== undefined) {\n        headers['If-Modified-Since'] = lastModifiedTime;\n      }\n\n      const resp = await this.http('GET', `${this.config.apiBase}/rest/v2/facilities`, undefined, {\n        headers,\n      });\n\n      // store in a separate long-term cache so we can keep using it if the server data hasn't changed\n      if (resp.statusCode !== 304) {\n        // transform data into an array with \"facilityType\", rather than a nested object\n        const data = [];\n        Object.keys(resp.body).forEach((key) => {\n          resp.body[key].forEach((x) => {\n            data.push({\n              facilityType: key,\n              ...x,\n            });\n          });\n        });\n\n        await this.cache.setGlobal('tdr_facilities_data', data, Number.MAX_SAFE_INTEGER);\n        await this.cache.setGlobal(\n            'tdr_facilities_last_modified',\n            resp.headers['Last-Modified'],\n            Number.MAX_SAFE_INTEGER,\n        );\n        return data;\n      }\n\n      return await this.cache.getGlobal('tdr_facilities_data');\n    }, 1000 * 60 * 60 * 2); // check every 2 hours\n  }\n\n  /**\n   * Get facilities data for this park\n   */\n  async fetchFacilitiesData() {\n    return await this.cache.wrap('facilities', async () => {\n      const resortData = await this.fetchAllFacilitiesData();\n      return resortData.filter((x) => x.parkType === this.config.parkIdUpper);\n    }, 1000 * 60 * 15); // cache each park's facility data for 15 minutes, to avoid filtering too often\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _init() {\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _buildAttractionObject(attractionID) {\n    const facilityData = await this.fetchFacilitiesData();\n    const attr = facilityData.find((x) => x.facilityCode == attractionID);\n    if (attr === undefined) return undefined;\n\n    const tags = [];\n\n    tags.push({\n      type: tagType.fastPass,\n      value: !!attr.fastpass,\n    });\n\n    tags.push({\n      type: tagType.singleRider,\n      value: !!attr.filters.find((x) => x.type === 'SINGLE_RIDER'),\n    });\n\n    const heightUppper = attr.restrictions.find((x) => x.type === 'LOWER_HEIGHT');\n    if (heightUppper !== undefined) {\n      const heightMin = /(\\d+)\\s*cm/.exec(heightUppper.name);\n      if (heightMin) {\n        tags.push({\n          key: 'minimumHeight',\n          type: tagType.minimumHeight,\n          value: {\n            unit: 'cm',\n            height: Number(heightMin[1]),\n          },\n        });\n      }\n    }\n\n    const heightLower = attr.restrictions.find((x) => x.type === 'UPPER_HEIGHT');\n    if (heightLower !== undefined) {\n      const heightMax = /(\\d+)\\s*cm/.exec(heightLower.name);\n      if (heightMax) {\n        tags.push({\n          key: 'maximumHeight',\n          type: tagType.maximumHeight,\n          value: {\n            unit: 'cm',\n            height: Number(heightMax[1]),\n          },\n        });\n      }\n    }\n\n    tags.push({\n      type: tagType.unsuitableForPregnantPeople,\n      value: attr.filters.find((x) => x === 'EXPECTANT_MOTHER') === undefined,\n    });\n\n    return {\n      name: attr.nameKana,\n      type: attr.facilityType === 'attractions' ? attractionType.ride : attractionType.other,\n      tags,\n    };\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _update() {\n    const resp = await this.http(\n        'GET',\n        `${this.config.apiBase}/rest/v2/facilities/conditions`,\n    );\n\n    const attractions = resp.body?.attractions;\n    if (!attractions) {\n      if (resp.body.errors) {\n        const maintenance = resp.body.errors.find((x) => x.code === 'error.systemMaintenance');\n        if (maintenance) {\n          // down for maintenance!\n          const now = this.getTimeNowMoment();\n          if (now.isBetween(maintenance.startAt, maintenance.endAt)) {\n            const endsIn = now.diff(maintenance.endAt, 'minutes');\n            console.log(`Tokyo Disney Resort API in maintenance. Ends in ${Math.abs(endsIn)} minutes`);\n          }\n        } else {\n          this.emit('error', new Error(`Invalid response from TDR ${JSON.stringify(resp.body)}`));\n        }\n      }\n      return;\n    }\n\n    await Promise.allSettled(resp.body.attractions.map(async (attr) => {\n      let status = attr.standbyTime ? statusType.operating : statusType.closed;\n      switch (attr.facilityStatus) {\n        case 'CANCEL':\n          status = statusType.closed;\n          break;\n        case 'CLOSE_NOTICE':\n          status = statusType.down;\n          break;\n        case 'OPEN':\n          status = statusType.operating;\n          break;\n      }\n\n      await this.updateAttractionState(attr.facilityCode, status);\n      await this.updateAttractionQueue(\n          attr.facilityCode,\n        status == statusType.operating ? attr.standbyTime : null,\n        queueType.standBy,\n      );\n    }));\n  }\n\n  /**\n   * Fetch the upcoming calendar\n   */\n  async fetchCalendar() {\n    return await this.cache.wrapGlobal('tdr_calendar', async () => {\n      const cal = await this.http(\n          'GET',\n          `${this.config.apiBase}/rest/v1/parks/calendars`,\n      );\n\n      return cal.body;\n    }, 1000 * 60 * 60 * 12);\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _getOperatingHoursForDate(date) {\n    const cal = await this.fetchCalendar();\n\n    if (!Array.isArray(cal)) return undefined;\n\n    const dateString = date.format('YYYY-MM-DD');\n    const targetDate = cal.find((x) => {\n      return x.parkType === this.config.parkIdUpper &&\n        x.closedDay === false &&\n        x.undecided === false &&\n        x.date === dateString;\n    });\n    if (targetDate) {\n      const hours = [];\n      const momentParseFormat = 'YYYY-MM-DDTHH:mm';\n\n      hours.push({\n        openingTime: moment.tz(\n            `${dateString}T${targetDate.openTime}`,\n            momentParseFormat,\n            this.config.timezone).format(),\n        closingTime: moment.tz(\n            `${dateString}T${targetDate.closeTime}`,\n            momentParseFormat,\n            this.config.timezone).format(),\n        type: scheduleType.operating,\n      });\n\n      // \"sp\" opening times, i.e, magic hours\n      if (targetDate.spOpenTime && targetDate.spCloseTime) {\n        hours.push({\n          openingTime: moment.tz(\n              `${dateString}T${targetDate.spOpenTime}`,\n              momentParseFormat,\n              this.config.timezone).format(),\n          closingTime: moment.tz(\n              `${dateString}T${targetDate.spCloseTime}`,\n              momentParseFormat,\n              this.config.timezone).format(),\n          type: scheduleType.extraHours,\n        });\n      }\n\n      return hours;\n    }\n\n    return undefined;\n  }\n}\n\nexport default TokyoDisneyResortPark;\n\n/**\n * Tokyo Disneyland\n */\nexport class TokyoDisneyland extends TokyoDisneyResortPark {\n  /**\n   * Construct new TokyoDisneyland Object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.name = 'Tokyo Disney Resort - Tokyo Disneyland';\n    options.parkId = 'tdl';\n\n    super(options);\n  }\n}\n\n/**\n * Tokyo DisneySea\n */\nexport class TokyoDisneySea extends TokyoDisneyResortPark {\n  /**\n   * Construct new TokyoDisneySea Object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.name = 'Tokyo Disney Resort - Tokyo DisneySea';\n    options.parkId = 'tds';\n\n    super(options);\n  }\n}\n",
+    "content": "import {Park} from '../park.js';\nimport {attractionType, statusType, queueType, tagType, scheduleType} from '../parkTypes.js';\nimport moment from 'moment-timezone';\n\n/**\n * TokyoDisneyResortPark Object\n */\nexport class TokyoDisneyResortPark extends Park {\n  /**\n   * Create a new TokyoDisneyResortPark object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.name = options.name || 'Tokyo Disney Resort Park';\n    options.timezone = options.timezone || 'Asia/Tokyo';\n\n    options.apiKey = options.apiKey || '';\n    options.apiAuth = options.apiAuth || '';\n    options.apiOS = options.apiOS || '';\n    options.apiBase = options.apiBase || '';\n    options.apiVersion = options.apiVersion || '';\n    options.parkId = options.parkId || '';\n\n    // any custom environment variable prefixes we want to use for this park (optional)\n    options.configPrefixes = ['TDR'].concat(options.configPrefixes || []);\n\n    super(options);\n\n    if (!this.config.apiKey) throw new Error('Missing TDR apiKey');\n    if (!this.config.apiAuth) throw new Error('Missing TDR apiAuth');\n    if (!this.config.apiOS) throw new Error('Missing TDR apiOS');\n    if (!this.config.apiBase) throw new Error('Missing TDR apiBase');\n    if (!this.config.apiVersion) throw new Error('Missing TDR apiVersion');\n    if (!this.config.parkId) throw new Error('Missing TDR parkId');\n\n    // some convenience strings\n    this.config.parkIdLower = this.config.parkId.toLowerCase();\n    this.config.parkIdUpper = this.config.parkId.toUpperCase();\n\n    this.injectForDomain({\n      hostname: new URL(this.config.apiBase).hostname,\n    }, async (method, url, data, options) => {\n      const appVersion = (await this.fetchLatestVersion()) || this.config.apiVersion;\n\n      options.headers['user-agent'] = `TokyoDisneyResortApp/${appVersion} Android/${this.config.apiOS}`;\n      options.headers['x-api-key'] = this.config.apiKey;\n      options.headers['X-PORTAL-LANGUAGE'] = 'en-US';\n      options.headers['X-PORTAL-OS-VERSION'] = `Android ${this.config.apiOS}`;\n      options.headers['X-PORTAL-APP-VERSION'] = appVersion;\n      options.headers['X-PORTAL-DEVICE-NAME'] = 'OnePlus5';\n      options.headers.connection = 'keep-alive';\n      options.headers['Accept-Encoding'] = 'gzip';\n      options.headers.Accept = 'application/json';\n      options.headers['Content-Type'] = 'application/json';\n\n      if (!options.ignoreDeviceID) {\n        const deviceID = await this.fetchDeviceID();\n        options.headers['X-PORTAL-DEVICE-ID'] = deviceID;\n        options.headers['X-PORTAL-AUTH'] = this.config.apiAuth;\n      }\n    });\n\n    this.http.injectForDomainResponse({\n      hostname: new URL(this.config.apiBase).hostname,\n    }, async (resp) => {\n      if (resp.statusCode === 400) {\n        console.log('TDR version invalid, fetch again...');\n        // force a store version update if we get a 400 error\n        await this.cache.setGlobal('tdr_appversion', undefined, -1);\n        return undefined;\n      }\n\n      return resp;\n    });\n  }\n\n  /**\n   * Fetch the current app version on the Google Play store\n   * @return {string}\n   */\n  async fetchLatestVersion() {\n    return await this.cache.wrapGlobal(\n        'tdr_appversion',\n        async () => {\n          // use the themeparks.wiki appstore watcher API\n          const resp = await this.http(\n              'GET',\n              'https://appwatch.themeparks.wiki/latest/jp.tokyodisneyresort.portalapp',\n              {},\n          );\n          return resp.body.version;\n        },\n        1000 * 60 * 60 * 2,\n    );\n  }\n\n  /**\n   * Return or fetch a device ID to use for API calls\n   */\n  async fetchDeviceID() {\n    return await this.cache.wrapGlobal('tdr_device_id', async () => {\n      const resp = await this.http(\n          'POST',\n          `${this.config.apiBase}/rest/v1/devices`,\n          undefined,\n          {\n            ignoreDeviceID: true,\n          },\n      );\n\n      return resp.body.deviceId;\n    }, 1000 * 60 * 60 * 24 * 10); // use for 10 days\n  }\n\n  /**\n   * Get the latest facilities data for the entire resort\n   */\n  async fetchAllFacilitiesData() {\n    return await this.cache.wrapGlobal('tdr_facilities', async () => {\n      const headers = {};\n      const lastModifiedTime = await this.cache.getGlobal('tdr_facilities_last_modified');\n      if (lastModifiedTime !== undefined) {\n        headers['If-Modified-Since'] = lastModifiedTime;\n      }\n\n      const resp = await this.http('GET', `${this.config.apiBase}/rest/v2/facilities`, undefined, {\n        headers,\n      });\n\n      // store in a separate long-term cache so we can keep using it if the server data hasn't changed\n      if (resp.statusCode !== 304) {\n        // transform data into an array with \"facilityType\", rather than a nested object\n        const data = [];\n        Object.keys(resp.body).forEach((key) => {\n          resp.body[key].forEach((x) => {\n            data.push({\n              facilityType: key,\n              ...x,\n            });\n          });\n        });\n\n        await this.cache.setGlobal('tdr_facilities_data', data, Number.MAX_SAFE_INTEGER);\n        await this.cache.setGlobal(\n            'tdr_facilities_last_modified',\n            resp.headers['Last-Modified'],\n            Number.MAX_SAFE_INTEGER,\n        );\n        return data;\n      }\n\n      return await this.cache.getGlobal('tdr_facilities_data');\n    }, 1000 * 60 * 60 * 2); // check every 2 hours\n  }\n\n  /**\n   * Get facilities data for this park\n   */\n  async fetchFacilitiesData() {\n    return await this.cache.wrap('facilities', async () => {\n      const resortData = await this.fetchAllFacilitiesData();\n      return resortData.filter((x) => x.parkType === this.config.parkIdUpper);\n    }, 1000 * 60 * 15); // cache each park's facility data for 15 minutes, to avoid filtering too often\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _init() {\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _buildAttractionObject(attractionID) {\n    const facilityData = await this.fetchFacilitiesData();\n    const attr = facilityData.find((x) => x.facilityCode == attractionID);\n    if (attr === undefined) return undefined;\n\n    const tags = [];\n\n    tags.push({\n      type: tagType.fastPass,\n      value: !!attr.fastpass,\n    });\n\n    tags.push({\n      type: tagType.singleRider,\n      value: !!attr.filters.find((x) => x.type === 'SINGLE_RIDER'),\n    });\n\n    const heightUppper = attr.restrictions.find((x) => x.type === 'LOWER_HEIGHT');\n    if (heightUppper !== undefined) {\n      const heightMin = /(\\d+)\\s*cm/.exec(heightUppper.name);\n      if (heightMin) {\n        tags.push({\n          key: 'minimumHeight',\n          type: tagType.minimumHeight,\n          value: {\n            unit: 'cm',\n            height: Number(heightMin[1]),\n          },\n        });\n      }\n    }\n\n    const heightLower = attr.restrictions.find((x) => x.type === 'UPPER_HEIGHT');\n    if (heightLower !== undefined) {\n      const heightMax = /(\\d+)\\s*cm/.exec(heightLower.name);\n      if (heightMax) {\n        tags.push({\n          key: 'maximumHeight',\n          type: tagType.maximumHeight,\n          value: {\n            unit: 'cm',\n            height: Number(heightMax[1]),\n          },\n        });\n      }\n    }\n\n    tags.push({\n      type: tagType.unsuitableForPregnantPeople,\n      value: attr.filters.find((x) => x === 'EXPECTANT_MOTHER') === undefined,\n    });\n\n    return {\n      name: attr.nameKana,\n      type: attr.facilityType === 'attractions' ? attractionType.ride : attractionType.other,\n      tags,\n    };\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _update() {\n    const resp = await this.http(\n        'GET',\n        `${this.config.apiBase}/rest/v2/facilities/conditions`,\n    );\n\n    const attractions = resp.body?.attractions;\n    if (!attractions) {\n      if (resp.body.errors) {\n        const maintenance = resp.body.errors.find((x) => x.code === 'error.systemMaintenance');\n        if (maintenance) {\n          // down for maintenance!\n          const now = this.getTimeNowMoment();\n          if (now.isBetween(maintenance.startAt, maintenance.endAt)) {\n            const endsIn = now.diff(maintenance.endAt, 'minutes');\n            console.log(`Tokyo Disney Resort API in maintenance. Ends in ${Math.abs(endsIn)} minutes`);\n          }\n        } else {\n          this.emit('error', new Error(`Invalid response from TDR ${JSON.stringify(resp.body)}`));\n        }\n      }\n      return;\n    }\n\n    await Promise.allSettled(resp.body.attractions.map(async (attr) => {\n      let status = attr.standbyTime ? statusType.operating : statusType.closed;\n      switch (attr.facilityStatus) {\n        case 'CANCEL':\n          status = statusType.closed;\n          break;\n        case 'CLOSE_NOTICE':\n          status = statusType.down;\n          break;\n        case 'OPEN':\n          status = statusType.operating;\n          break;\n      }\n\n      await this.updateAttractionState(attr.facilityCode, status);\n      await this.updateAttractionQueue(\n          attr.facilityCode,\n        status == statusType.operating ? attr.standbyTime : null,\n        queueType.standBy,\n      );\n    }));\n  }\n\n  /**\n   * Fetch the upcoming calendar\n   */\n  async fetchCalendar() {\n    return await this.cache.wrapGlobal('tdr_calendar', async () => {\n      const cal = await this.http(\n          'GET',\n          `${this.config.apiBase}/rest/v1/parks/calendars`,\n      );\n\n      return cal.body;\n    }, 1000 * 60 * 60 * 12);\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _getOperatingHoursForDate(date) {\n    const cal = await this.fetchCalendar();\n\n    if (!Array.isArray(cal)) return undefined;\n\n    const dateString = date.format('YYYY-MM-DD');\n    const targetDate = cal.find((x) => {\n      return x.parkType === this.config.parkIdUpper &&\n        x.closedDay === false &&\n        x.undecided === false &&\n        x.date === dateString;\n    });\n    if (targetDate) {\n      const hours = [];\n      const momentParseFormat = 'YYYY-MM-DDTHH:mm';\n\n      hours.push({\n        openingTime: moment.tz(\n            `${dateString}T${targetDate.openTime}`,\n            momentParseFormat,\n            this.config.timezone).format(),\n        closingTime: moment.tz(\n            `${dateString}T${targetDate.closeTime}`,\n            momentParseFormat,\n            this.config.timezone).format(),\n        type: scheduleType.operating,\n      });\n\n      // \"sp\" opening times, i.e, magic hours\n      if (targetDate.spOpenTime && targetDate.spCloseTime) {\n        hours.push({\n          openingTime: moment.tz(\n              `${dateString}T${targetDate.spOpenTime}`,\n              momentParseFormat,\n              this.config.timezone).format(),\n          closingTime: moment.tz(\n              `${dateString}T${targetDate.spCloseTime}`,\n              momentParseFormat,\n              this.config.timezone).format(),\n          type: scheduleType.extraHours,\n        });\n      }\n\n      return hours;\n    }\n\n    return undefined;\n  }\n}\n\nexport default TokyoDisneyResortPark;\n\n/**\n * Tokyo Disneyland\n */\nexport class TokyoDisneyland extends TokyoDisneyResortPark {\n  /**\n   * Construct new TokyoDisneyland Object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.name = 'Tokyo Disney Resort - Tokyo Disneyland';\n    options.parkId = 'tdl';\n\n    super(options);\n  }\n}\n\n/**\n * Tokyo DisneySea\n */\nexport class TokyoDisneySea extends TokyoDisneyResortPark {\n  /**\n   * Construct new TokyoDisneySea Object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.name = 'Tokyo Disney Resort - Tokyo DisneySea';\n    options.parkId = 'tds';\n\n    super(options);\n  }\n}\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/tdr/tokyodisneyresort.js",
     "access": "public",
@@ -6030,7 +6030,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js",
     "importStyle": "{TokyoDisneyResortPark}",
     "description": "TokyoDisneyResortPark Object",
-    "lineNumber": 9,
+    "lineNumber": 8,
     "interface": false,
     "extends": [
       "lib/parks/park.js~Park"
@@ -6047,7 +6047,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#constructor",
     "access": "public",
     "description": "Create a new TokyoDisneyResortPark object",
-    "lineNumber": 14,
+    "lineNumber": 13,
     "params": [
       {
         "nullable": null,
@@ -6072,7 +6072,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchLatestVersion",
     "access": "public",
     "description": "Fetch the current app version on the Google Play store",
-    "lineNumber": 82,
+    "lineNumber": 81,
     "return": {
       "nullable": null,
       "types": [
@@ -6094,7 +6094,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchDeviceID",
     "access": "public",
     "description": "Return or fetch a device ID to use for API calls",
-    "lineNumber": 101,
+    "lineNumber": 100,
     "params": [],
     "return": {
       "types": [
@@ -6113,7 +6113,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchAllFacilitiesData",
     "access": "public",
     "description": "Get the latest facilities data for the entire resort",
-    "lineNumber": 119,
+    "lineNumber": 118,
     "params": [],
     "return": {
       "types": [
@@ -6132,7 +6132,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchFacilitiesData",
     "access": "public",
     "description": "Get facilities data for this park",
-    "lineNumber": 160,
+    "lineNumber": 159,
     "params": [],
     "return": {
       "types": [
@@ -6151,7 +6151,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_init",
     "access": "private",
     "description": "",
-    "lineNumber": 170,
+    "lineNumber": 169,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -6172,7 +6172,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_buildAttractionObject",
     "access": "private",
     "description": "",
-    "lineNumber": 176,
+    "lineNumber": 175,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -6204,7 +6204,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_update",
     "access": "private",
     "description": "",
-    "lineNumber": 238,
+    "lineNumber": 237,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -6225,7 +6225,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchCalendar",
     "access": "public",
     "description": "Fetch the upcoming calendar",
-    "lineNumber": 288,
+    "lineNumber": 287,
     "params": [],
     "return": {
       "types": [
@@ -6244,7 +6244,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_getOperatingHoursForDate",
     "access": "private",
     "description": "",
-    "lineNumber": 302,
+    "lineNumber": 301,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -6277,7 +6277,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js",
     "importStyle": "{TokyoDisneyland}",
     "description": "Tokyo Disneyland",
-    "lineNumber": 357,
+    "lineNumber": 356,
     "interface": false,
     "extends": [
       "TokyoDisneyResortPark"
@@ -6294,7 +6294,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyland#constructor",
     "access": "public",
     "description": "Construct new TokyoDisneyland Object",
-    "lineNumber": 362,
+    "lineNumber": 361,
     "params": [
       {
         "nullable": null,
@@ -6320,7 +6320,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js",
     "importStyle": "{TokyoDisneySea}",
     "description": "Tokyo DisneySea",
-    "lineNumber": 373,
+    "lineNumber": 372,
     "interface": false,
     "extends": [
       "TokyoDisneyResortPark"
@@ -6337,7 +6337,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneySea#constructor",
     "access": "public",
     "description": "Construct new TokyoDisneySea Object",
-    "lineNumber": 378,
+    "lineNumber": 377,
     "params": [
       {
         "nullable": null,
