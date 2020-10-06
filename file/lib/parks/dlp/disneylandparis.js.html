@@ -90,7 +90,7 @@
 <div class="content" data-ice="content"><h1 data-ice="title">lib/parks/dlp/disneylandparis.js</h1>
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {v4 as uuid} from &apos;uuid&apos;;
 import {Park} from &apos;../park.js&apos;;
-import {attractionType, statusType, queueType, tagType, scheduleType} from &apos;../parkTypes.js&apos;;
+import {attractionType, statusType, queueType, tagType, scheduleType, returnTimeState} from &apos;../parkTypes.js&apos;;
 import {reusePromise} from &apos;../../reusePromises.js&apos;;
 import moment from &apos;moment-timezone&apos;;
 
@@ -201,6 +201,19 @@ async function getResortWaitTimes() {
 }
 
 /**
+ * Get the virtual queue status for the resort
+ */
+async function getResortVirtualQueues() {
+  if (parkDataController === undefined) {
+    return undefined;
+  }
+
+  return await parkDataController.cache.wrapGlobal(`dlp_virtualqueues`, async () =&gt; {
+    return (await parkDataController.http(&apos;GET&apos;, parkDataController.config.standbyApiBase)).body;
+  }, 1000 * 30); // 30 seconds
+}
+
+/**
  * Disneyland Paris Park Object
  */
 export class DisneylandParisPark extends Park {
@@ -218,6 +231,10 @@ export class DisneylandParisPark extends Park {
     options.parkId = options.parkId || &apos;&apos;;
     options.language = options.language || &apos;en-gb&apos;;
 
+    options.standbyApiBase = options.standbyApiBase || &apos;&apos;;
+    options.standbyApiKey = options.standbyApiKey || &apos;&apos;;
+    options.standbyApiAuth = options.standbyApiAuth || &apos;&apos;;
+
     options.useragent = options.useragent || &apos;okhttp/3.12.1&apos;;
 
     options.configPrefixes = [&apos;DLP&apos;].concat(options.configPrefixes || []);
@@ -229,6 +246,10 @@ export class DisneylandParisPark extends Park {
     if (!this.config.apiKey) throw new Error(&apos;Missing Disneyland Paris apiKey&apos;);
     if (!this.config.apiBase) throw new Error(&apos;Missing Disneyland Paris apiBase&apos;);
     if (!this.config.apiBaseWaitTimes) throw new Error(&apos;Missing Disneyland Paris apiBaseWaitTimes&apos;);
+
+    if (!this.config.standbyApiBase) throw new Error(&apos;Missing Disneyland Paris standbyApiBase&apos;);
+    if (!this.config.standbyApiKey) throw new Error(&apos;Missing Disneyland Paris standbyApiKey&apos;);
+    if (!this.config.standbyApiAuth) throw new Error(&apos;Missing Disneyland Paris standbyApiAuth&apos;);
 
     if (!this.config.parkId) throw new Error(&apos;Missing Disneyland Paris Park ID&apos;);
 
@@ -246,6 +267,15 @@ export class DisneylandParisPark extends Park {
       hostname: new URL(this.config.apiBaseWaitTimes).hostname,
     }, async (method, url, data, options) =&gt; {
       options.headers[&apos;x-api-key&apos;] = this.config.apiKey,
+      options.headers.accept = &apos;application/json, text/plain, */*&apos;;
+    });
+
+    // virtual queue domain
+    this.injectForDomain({
+      hostname: new URL(this.config.standbyApiBase).hostname,
+    }, async (method, url, data, options) =&gt; {
+      options.headers[&apos;x-api-key&apos;] = this.config.standbyApiKey,
+      options.headers[&apos;authorization&apos;] = `BEARER ${this.config.standbyApiAuth}`,
       options.headers.accept = &apos;application/json, text/plain, */*&apos;;
     });
   }
@@ -389,6 +419,12 @@ export class DisneylandParisPark extends Park {
       throw new Error(`getResortWaitTimes() returned undefined`);
     }
 
+    // fetch virtual queue states too (ignore errors if it fails)
+    let vQData = await getResortVirtualQueues();
+    if (vQData === undefined) {
+      vQData = [];
+    }
+
     if (!Array.isArray(data)) {
       // DLP API usually goes offline briefly every night around midnight (local Paris time)
       //  catch and ignore unless errors go on for significant time
@@ -441,6 +477,27 @@ export class DisneylandParisPark extends Park {
         isNaN(waitTimeMinutes) ? null : waitTimeMinutes,
         queueType.standBy,
       );
+
+      // look for virtual queues for this ride
+      const rideVQueue = vQData.find((x) =&gt; x.attractionId == time.entityId);
+      if (rideVQueue !== undefined) {
+        await this.updateAttractionQueue(
+            time.entityId,
+            {
+              returnStart: moment.tz(rideVQueue.timeSlotStartDatetime, &apos;YYYY-MM-DD HH:mm&apos;, this.config.timezone),
+              returnEnd: moment.tz(rideVQueue.timeSlotEndDatetime, &apos;YYYY-MM-DD HH:mm&apos;, this.config.timezone),
+              state: rideVQueue.uiStatus === &apos;Available&apos; ? returnTimeState.available : returnTimeState.finished,
+            },
+            queueType.returnTime,
+        );
+      } else {
+        // no vqueue, make sure it is not present on the attraction at all
+        await this.updateAttractionQueue(
+            time.entityId,
+            undefined,
+            queueType.returnTime,
+        );
+      }
 
       // single rider line?
       if (time.singleRider?.isAvailable === true) {

@@ -1,7 +1,7 @@
 {
-  "coverage": "83.17%",
-  "expectCount": 309,
-  "actualCount": 257,
+  "coverage": "83.22%",
+  "expectCount": 310,
+  "actualCount": 258,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 14,
@@ -61,11 +61,11 @@
       ]
     },
     "lib/parks/dlp/disneylandparis.js": {
-      "expectCount": 17,
-      "actualCount": 15,
+      "expectCount": 18,
+      "actualCount": 16,
       "undocumentLines": [
         7,
-        307
+        343
       ]
     },
     "lib/parks/efteling/efteling.js": {
