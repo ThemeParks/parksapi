@@ -1,7 +1,7 @@
 {
-  "coverage": "83.22%",
-  "expectCount": 310,
-  "actualCount": 258,
+  "coverage": "82.99%",
+  "expectCount": 294,
+  "actualCount": 244,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 14,
@@ -58,14 +58,6 @@
         7,
         20,
         22
-      ]
-    },
-    "lib/parks/dlp/disneylandparis.js": {
-      "expectCount": 18,
-      "actualCount": 16,
-      "undocumentLines": [
-        7,
-        343
       ]
     },
     "lib/parks/efteling/efteling.js": {
@@ -149,8 +141,8 @@
       "undocumentLines": []
     },
     "lib/parks/universal/universalstudios.js": {
-      "expectCount": 18,
-      "actualCount": 18,
+      "expectCount": 20,
+      "actualCount": 20,
       "undocumentLines": []
     },
     "lib/parks/wdw/waltdisneyworldbase.js": {
