@@ -129,6 +129,11 @@ export class Entity extends ConfigBase {
       this.http.useragent = this.config.useragent;
     }
 
+    // debug log all HTTP requests
+    this.http.injectForDomain({hostname: {$exists: true}}, (method, url) =&gt; {
+      this.log(method, url);
+    });
+
     // offline function data
     this._offlineFunctions = [];
     this._offlineData = {};
@@ -142,7 +147,7 @@ export class Entity extends ConfigBase {
    * @param  {...any} args Message to debug log
    */
   log(...args) {
-    console.log(this.getUniqueID(), ...args);
+    console.log(`[\x1b[32m${this.getUniqueID()}\x1b[0m]`, ...args);
   }
 
   /**
