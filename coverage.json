@@ -1,7 +1,7 @@
 {
-  "coverage": "82.99%",
-  "expectCount": 294,
-  "actualCount": 244,
+  "coverage": "83.05%",
+  "expectCount": 295,
+  "actualCount": 245,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 14,
@@ -66,8 +66,8 @@
       "undocumentLines": []
     },
     "lib/parks/entity.js": {
-      "expectCount": 21,
-      "actualCount": 12,
+      "expectCount": 22,
+      "actualCount": 13,
       "undocumentLines": [
         7,
         8,
@@ -77,7 +77,7 @@
         47,
         48,
         49,
-        104
+        112
       ]
     },
     "lib/parks/europa/europapark.js": {

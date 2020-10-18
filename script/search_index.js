@@ -1086,6 +1086,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/entity.js~entity#log",
+    "class/lib/parks/entity.js~Entity.html#instance-method-log",
+    "lib/parks/entity.js~Entity#log",
+    "method"
+  ],
+  [
     "lib/parks/entity.js~entity#name",
     "class/lib/parks/entity.js~Entity.html#instance-get-name",
     "lib/parks/entity.js~Entity#name",

@@ -138,6 +138,14 @@ export class Entity extends ConfigBase {
   }
 
   /**
+   * Debug log
+   * @param  {...any} args Message to debug log
+   */
+  log(...args) {
+    console.log(this.getUniqueID(), ...args);
+  }
+
+  /**
    * Get a globally unique ID for this entity
    * @return {string}
    */
