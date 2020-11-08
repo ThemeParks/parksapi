@@ -127,6 +127,7 @@ const constants = {
   INDEX_FACILITYSTATUS: &apos;facilityStatus&apos;,
   INDEX_CHANNELS: &apos;channels&apos;,
   INDEX_ENTITIES: &apos;entities&apos;,
+  INDEX_CHILDREN: &apos;children&apos;,
 };
 
 // ancestors to include in our index
@@ -455,6 +456,7 @@ export class IndexedWDWDB extends PouchDB {
     await this._createIndex(constants.INDEX_ENTITIES);
     await this._createIndex(constants.INDEX_CHANNELS);
     await this._createIndex(constants.INDEX_FACILITYSTATUS, []);
+    await this._createIndex(constants.INDEX_CHILDREN);
   }
 
   /**
@@ -614,6 +616,17 @@ export class IndexedWDWDB extends PouchDB {
       // entity index
       this._removeFromArrayIndex(this.getIndex(constants.INDEX_ENTITIES), doc._id);
 
+      // ancestor data
+      //  look through all ancestor index items and remove this document
+      const childIndex = this.getIndex(constants.INDEX_CHILDREN);
+      const indexIDs = Object.keys(childIndex);
+      indexIDs.forEach((index) =&gt; {
+        const idx = childIndex[index].indexOf(doc._id);
+        if (idx &gt;= 0) {
+          childIndex[index].splice(idx, 1);
+        }
+      });
+
       return;
     }
 
@@ -650,6 +663,25 @@ export class IndexedWDWDB extends PouchDB {
           }
           channelIndex[channel].push(newIndexEntry);
         });
+      }
+
+      // index ancestors (so we can find all children of a given entity)
+      const locs = doc?.relatedLocations;
+      if (locs) {
+        const ancestors = locs ? locs.map((x) =&gt; x.ancestors || []).flat() : [];
+        const childrenIndex = this.getIndex(constants.INDEX_CHILDREN);
+        for (let i=0; i&lt;ancestors.length; i++) {
+          const entity = getEntityID(ancestors[i].id);
+          if (entity) {
+            // found entity ID for this ancestor, create or update an entry for it
+            if (childrenIndex[entity] === undefined) {
+              childrenIndex[entity] = [];
+            }
+            if (childrenIndex[entity].indexOf(doc._id) &lt; 0) {
+              childrenIndex[entity].push(doc._id);
+            }
+          }
+        }
       }
 
       const newIndexKeys = Object.keys(newIndexEntry);
@@ -715,6 +747,19 @@ export class IndexedWDWDB extends PouchDB {
 
     // filter entries by supplied filter options before resolving
     return indexEntry.filter(sift(filter));
+  }
+
+  /**
+   * Return an array of children document IDs for a given entity ID
+   * @param {string} id
+   */
+  async getDocChildren(id) {
+    await this.init();
+
+    const childrenIndex = this.getIndex(constants.INDEX_CHILDREN);
+    const children = childrenIndex[id];
+    if (!children) return [];
+    return children;
   }
 
   /**

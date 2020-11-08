@@ -1,7 +1,7 @@
 {
-  "coverage": "83.05%",
-  "expectCount": 295,
-  "actualCount": 245,
+  "coverage": "83.1%",
+  "expectCount": 296,
+  "actualCount": 246,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 14,
@@ -161,21 +161,21 @@
       ]
     },
     "lib/parks/wdw/wdwdb.js": {
-      "expectCount": 40,
-      "actualCount": 28,
+      "expectCount": 41,
+      "actualCount": 29,
       "undocumentLines": [
         38,
-        46,
-        66,
-        106,
-        123,
-        126,
+        47,
+        67,
+        107,
+        124,
         127,
-        129,
+        128,
         130,
         131,
-        154,
-        328
+        132,
+        155,
+        329
       ]
     },
     "lib/reusePromises.js": {

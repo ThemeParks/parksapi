@@ -146,6 +146,9 @@ export class TokyoDisneyResortPark extends Park {
         options.headers[&apos;X-PORTAL-DEVICE-ID&apos;] = deviceID;
         options.headers[&apos;X-PORTAL-AUTH&apos;] = this.config.apiAuth;
       }
+
+      // we handle auth/500 errors ourselves for TDR
+      options.ignoreErrors = true;
     });
 
     this.http.injectForDomainResponse({
@@ -156,6 +159,22 @@ export class TokyoDisneyResortPark extends Park {
         // force a store version update if we get a 400 error
         await this.cache.setGlobal(&apos;tdr_appversion&apos;, undefined, -1);
         return undefined;
+      }
+
+      if (resp.statusCode === 503) {
+        const maintenance = resp.body.errors.find((x) =&gt; x.code === &apos;error.systemMaintenance&apos;);
+        if (maintenance) {
+          // down for maintenance!
+          const now = this.getTimeNowMoment();
+          if (now.isBetween(maintenance.startAt, maintenance.endAt)) {
+            const endsIn = now.diff(maintenance.endAt, &apos;minutes&apos;);
+            this.log(`Tokyo Disney Resort API in maintenance. Ends in ${Math.abs(endsIn)} minutes`);
+            // return original response to avoid refetching again and again and again
+            return resp;
+          }
+        } else {
+          this.emit(&apos;error&apos;, new Error(`Invalid response from TDR ${JSON.stringify(resp.body)}`));
+        }
       }
 
       return resp;
@@ -328,25 +347,12 @@ export class TokyoDisneyResortPark extends Park {
         `${this.config.apiBase}/rest/v2/facilities/conditions`,
     );
 
-    const attractions = resp.body?.attractions;
+    const attractions = resp?.body?.attractions;
     if (!attractions) {
-      if (resp.body.errors) {
-        const maintenance = resp.body.errors.find((x) =&gt; x.code === &apos;error.systemMaintenance&apos;);
-        if (maintenance) {
-          // down for maintenance!
-          const now = this.getTimeNowMoment();
-          if (now.isBetween(maintenance.startAt, maintenance.endAt)) {
-            const endsIn = now.diff(maintenance.endAt, &apos;minutes&apos;);
-            console.log(`Tokyo Disney Resort API in maintenance. Ends in ${Math.abs(endsIn)} minutes`);
-          }
-        } else {
-          this.emit(&apos;error&apos;, new Error(`Invalid response from TDR ${JSON.stringify(resp.body)}`));
-        }
-      }
       return;
     }
 
-    await Promise.allSettled(resp.body.attractions.map(async (attr) =&gt; {
+    await Promise.allSettled(attractions.map(async (attr) =&gt; {
       let status = attr.standbyTime ? statusType.operating : statusType.closed;
       switch (attr.facilityStatus) {
         case &apos;CANCEL&apos;:

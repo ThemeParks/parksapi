@@ -5645,7 +5645,7 @@
     "__docId__": 264,
     "kind": "file",
     "name": "lib/parks/tdr/tokyodisneyresort.js",
-    "content": "import {Park} from '../park.js';\nimport {attractionType, statusType, queueType, tagType, scheduleType} from '../parkTypes.js';\nimport moment from 'moment-timezone';\n\n/**\n * TokyoDisneyResortPark Object\n */\nexport class TokyoDisneyResortPark extends Park {\n  /**\n   * Create a new TokyoDisneyResortPark object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.name = options.name || 'Tokyo Disney Resort Park';\n    options.timezone = options.timezone || 'Asia/Tokyo';\n\n    options.apiKey = options.apiKey || '';\n    options.apiAuth = options.apiAuth || '';\n    options.apiOS = options.apiOS || '';\n    options.apiBase = options.apiBase || '';\n    options.apiVersion = options.apiVersion || '';\n    options.parkId = options.parkId || '';\n\n    // any custom environment variable prefixes we want to use for this park (optional)\n    options.configPrefixes = ['TDR'].concat(options.configPrefixes || []);\n\n    super(options);\n\n    if (!this.config.apiKey) throw new Error('Missing TDR apiKey');\n    if (!this.config.apiAuth) throw new Error('Missing TDR apiAuth');\n    if (!this.config.apiOS) throw new Error('Missing TDR apiOS');\n    if (!this.config.apiBase) throw new Error('Missing TDR apiBase');\n    if (!this.config.apiVersion) throw new Error('Missing TDR apiVersion');\n    if (!this.config.parkId) throw new Error('Missing TDR parkId');\n\n    // some convenience strings\n    this.config.parkIdLower = this.config.parkId.toLowerCase();\n    this.config.parkIdUpper = this.config.parkId.toUpperCase();\n\n    this.injectForDomain({\n      hostname: new URL(this.config.apiBase).hostname,\n    }, async (method, url, data, options) => {\n      const appVersion = (await this.fetchLatestVersion()) || this.config.apiVersion;\n\n      options.headers['user-agent'] = `TokyoDisneyResortApp/${appVersion} Android/${this.config.apiOS}`;\n      options.headers['x-api-key'] = this.config.apiKey;\n      options.headers['X-PORTAL-LANGUAGE'] = 'en-US';\n      options.headers['X-PORTAL-OS-VERSION'] = `Android ${this.config.apiOS}`;\n      options.headers['X-PORTAL-APP-VERSION'] = appVersion;\n      options.headers['X-PORTAL-DEVICE-NAME'] = 'OnePlus5';\n      options.headers.connection = 'keep-alive';\n      options.headers['Accept-Encoding'] = 'gzip';\n      options.headers.Accept = 'application/json';\n      options.headers['Content-Type'] = 'application/json';\n\n      if (!options.ignoreDeviceID) {\n        const deviceID = await this.fetchDeviceID();\n        options.headers['X-PORTAL-DEVICE-ID'] = deviceID;\n        options.headers['X-PORTAL-AUTH'] = this.config.apiAuth;\n      }\n    });\n\n    this.http.injectForDomainResponse({\n      hostname: new URL(this.config.apiBase).hostname,\n    }, async (resp) => {\n      if (resp.statusCode === 400) {\n        console.log('TDR version invalid, fetch again...');\n        // force a store version update if we get a 400 error\n        await this.cache.setGlobal('tdr_appversion', undefined, -1);\n        return undefined;\n      }\n\n      return resp;\n    });\n  }\n\n  /**\n   * Fetch the current app version on the Google Play store\n   * @return {string}\n   */\n  async fetchLatestVersion() {\n    return await this.cache.wrapGlobal(\n        'tdr_appversion',\n        async () => {\n          // use the themeparks.wiki appstore watcher API\n          const resp = await this.http(\n              'GET',\n              'https://appwatch.themeparks.wiki/latest/jp.tokyodisneyresort.portalapp',\n              {},\n          );\n          return resp.body.version;\n        },\n        1000 * 60 * 60 * 2,\n    );\n  }\n\n  /**\n   * Return or fetch a device ID to use for API calls\n   */\n  async fetchDeviceID() {\n    return await this.cache.wrapGlobal('tdr_device_id', async () => {\n      const resp = await this.http(\n          'POST',\n          `${this.config.apiBase}/rest/v1/devices`,\n          undefined,\n          {\n            ignoreDeviceID: true,\n          },\n      );\n\n      return resp.body.deviceId;\n    }, 1000 * 60 * 60 * 24 * 10); // use for 10 days\n  }\n\n  /**\n   * Get the latest facilities data for the entire resort\n   */\n  async fetchAllFacilitiesData() {\n    return await this.cache.wrapGlobal('tdr_facilities', async () => {\n      const headers = {};\n      const lastModifiedTime = await this.cache.getGlobal('tdr_facilities_last_modified');\n      if (lastModifiedTime !== undefined) {\n        headers['If-Modified-Since'] = lastModifiedTime;\n      }\n\n      const resp = await this.http('GET', `${this.config.apiBase}/rest/v2/facilities`, undefined, {\n        headers,\n      });\n\n      // store in a separate long-term cache so we can keep using it if the server data hasn't changed\n      if (resp.statusCode !== 304) {\n        // transform data into an array with \"facilityType\", rather than a nested object\n        const data = [];\n        Object.keys(resp.body).forEach((key) => {\n          resp.body[key].forEach((x) => {\n            data.push({\n              facilityType: key,\n              ...x,\n            });\n          });\n        });\n\n        await this.cache.setGlobal('tdr_facilities_data', data, Number.MAX_SAFE_INTEGER);\n        await this.cache.setGlobal(\n            'tdr_facilities_last_modified',\n            resp.headers['Last-Modified'],\n            Number.MAX_SAFE_INTEGER,\n        );\n        return data;\n      }\n\n      return await this.cache.getGlobal('tdr_facilities_data');\n    }, 1000 * 60 * 60 * 2); // check every 2 hours\n  }\n\n  /**\n   * Get facilities data for this park\n   */\n  async fetchFacilitiesData() {\n    return await this.cache.wrap('facilities', async () => {\n      const resortData = await this.fetchAllFacilitiesData();\n      return resortData.filter((x) => x.parkType === this.config.parkIdUpper);\n    }, 1000 * 60 * 15); // cache each park's facility data for 15 minutes, to avoid filtering too often\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _init() {\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _buildAttractionObject(attractionID) {\n    const facilityData = await this.fetchFacilitiesData();\n    const attr = facilityData.find((x) => x.facilityCode == attractionID);\n    if (attr === undefined) return undefined;\n\n    const tags = [];\n\n    tags.push({\n      type: tagType.fastPass,\n      value: !!attr.fastpass,\n    });\n\n    tags.push({\n      type: tagType.singleRider,\n      value: !!attr.filters.find((x) => x.type === 'SINGLE_RIDER'),\n    });\n\n    const heightUppper = attr.restrictions.find((x) => x.type === 'LOWER_HEIGHT');\n    if (heightUppper !== undefined) {\n      const heightMin = /(\\d+)\\s*cm/.exec(heightUppper.name);\n      if (heightMin) {\n        tags.push({\n          key: 'minimumHeight',\n          type: tagType.minimumHeight,\n          value: {\n            unit: 'cm',\n            height: Number(heightMin[1]),\n          },\n        });\n      }\n    }\n\n    const heightLower = attr.restrictions.find((x) => x.type === 'UPPER_HEIGHT');\n    if (heightLower !== undefined) {\n      const heightMax = /(\\d+)\\s*cm/.exec(heightLower.name);\n      if (heightMax) {\n        tags.push({\n          key: 'maximumHeight',\n          type: tagType.maximumHeight,\n          value: {\n            unit: 'cm',\n            height: Number(heightMax[1]),\n          },\n        });\n      }\n    }\n\n    tags.push({\n      type: tagType.unsuitableForPregnantPeople,\n      value: attr.filters.find((x) => x === 'EXPECTANT_MOTHER') === undefined,\n    });\n\n    return {\n      name: attr.nameKana,\n      type: attr.facilityType === 'attractions' ? attractionType.ride : attractionType.other,\n      tags,\n    };\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _update() {\n    const resp = await this.http(\n        'GET',\n        `${this.config.apiBase}/rest/v2/facilities/conditions`,\n    );\n\n    const attractions = resp.body?.attractions;\n    if (!attractions) {\n      if (resp.body.errors) {\n        const maintenance = resp.body.errors.find((x) => x.code === 'error.systemMaintenance');\n        if (maintenance) {\n          // down for maintenance!\n          const now = this.getTimeNowMoment();\n          if (now.isBetween(maintenance.startAt, maintenance.endAt)) {\n            const endsIn = now.diff(maintenance.endAt, 'minutes');\n            console.log(`Tokyo Disney Resort API in maintenance. Ends in ${Math.abs(endsIn)} minutes`);\n          }\n        } else {\n          this.emit('error', new Error(`Invalid response from TDR ${JSON.stringify(resp.body)}`));\n        }\n      }\n      return;\n    }\n\n    await Promise.allSettled(resp.body.attractions.map(async (attr) => {\n      let status = attr.standbyTime ? statusType.operating : statusType.closed;\n      switch (attr.facilityStatus) {\n        case 'CANCEL':\n          status = statusType.closed;\n          break;\n        case 'CLOSE_NOTICE':\n          status = statusType.down;\n          break;\n        case 'OPEN':\n          status = statusType.operating;\n          break;\n      }\n\n      await this.updateAttractionState(attr.facilityCode, status);\n      await this.updateAttractionQueue(\n          attr.facilityCode,\n        status == statusType.operating ? attr.standbyTime : null,\n        queueType.standBy,\n      );\n    }));\n  }\n\n  /**\n   * Fetch the upcoming calendar\n   */\n  async fetchCalendar() {\n    return await this.cache.wrapGlobal('tdr_calendar', async () => {\n      const cal = await this.http(\n          'GET',\n          `${this.config.apiBase}/rest/v1/parks/calendars`,\n      );\n\n      return cal.body;\n    }, 1000 * 60 * 60 * 12);\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _getOperatingHoursForDate(date) {\n    const cal = await this.fetchCalendar();\n\n    if (!Array.isArray(cal)) return undefined;\n\n    const dateString = date.format('YYYY-MM-DD');\n    const targetDate = cal.find((x) => {\n      return x.parkType === this.config.parkIdUpper &&\n        x.closedDay === false &&\n        x.undecided === false &&\n        x.date === dateString;\n    });\n    if (targetDate) {\n      const hours = [];\n      const momentParseFormat = 'YYYY-MM-DDTHH:mm';\n\n      hours.push({\n        openingTime: moment.tz(\n            `${dateString}T${targetDate.openTime}`,\n            momentParseFormat,\n            this.config.timezone).format(),\n        closingTime: moment.tz(\n            `${dateString}T${targetDate.closeTime}`,\n            momentParseFormat,\n            this.config.timezone).format(),\n        type: scheduleType.operating,\n      });\n\n      // \"sp\" opening times, i.e, magic hours\n      if (targetDate.spOpenTime && targetDate.spCloseTime) {\n        hours.push({\n          openingTime: moment.tz(\n              `${dateString}T${targetDate.spOpenTime}`,\n              momentParseFormat,\n              this.config.timezone).format(),\n          closingTime: moment.tz(\n              `${dateString}T${targetDate.spCloseTime}`,\n              momentParseFormat,\n              this.config.timezone).format(),\n          type: scheduleType.extraHours,\n        });\n      }\n\n      return hours;\n    }\n\n    return undefined;\n  }\n}\n\nexport default TokyoDisneyResortPark;\n\n/**\n * Tokyo Disneyland\n */\nexport class TokyoDisneyland extends TokyoDisneyResortPark {\n  /**\n   * Construct new TokyoDisneyland Object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.name = 'Tokyo Disney Resort - Tokyo Disneyland';\n    options.parkId = 'tdl';\n\n    super(options);\n  }\n}\n\n/**\n * Tokyo DisneySea\n */\nexport class TokyoDisneySea extends TokyoDisneyResortPark {\n  /**\n   * Construct new TokyoDisneySea Object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.name = 'Tokyo Disney Resort - Tokyo DisneySea';\n    options.parkId = 'tds';\n\n    super(options);\n  }\n}\n",
+    "content": "import {Park} from '../park.js';\nimport {attractionType, statusType, queueType, tagType, scheduleType} from '../parkTypes.js';\nimport moment from 'moment-timezone';\n\n/**\n * TokyoDisneyResortPark Object\n */\nexport class TokyoDisneyResortPark extends Park {\n  /**\n   * Create a new TokyoDisneyResortPark object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.name = options.name || 'Tokyo Disney Resort Park';\n    options.timezone = options.timezone || 'Asia/Tokyo';\n\n    options.apiKey = options.apiKey || '';\n    options.apiAuth = options.apiAuth || '';\n    options.apiOS = options.apiOS || '';\n    options.apiBase = options.apiBase || '';\n    options.apiVersion = options.apiVersion || '';\n    options.parkId = options.parkId || '';\n\n    // any custom environment variable prefixes we want to use for this park (optional)\n    options.configPrefixes = ['TDR'].concat(options.configPrefixes || []);\n\n    super(options);\n\n    if (!this.config.apiKey) throw new Error('Missing TDR apiKey');\n    if (!this.config.apiAuth) throw new Error('Missing TDR apiAuth');\n    if (!this.config.apiOS) throw new Error('Missing TDR apiOS');\n    if (!this.config.apiBase) throw new Error('Missing TDR apiBase');\n    if (!this.config.apiVersion) throw new Error('Missing TDR apiVersion');\n    if (!this.config.parkId) throw new Error('Missing TDR parkId');\n\n    // some convenience strings\n    this.config.parkIdLower = this.config.parkId.toLowerCase();\n    this.config.parkIdUpper = this.config.parkId.toUpperCase();\n\n    this.injectForDomain({\n      hostname: new URL(this.config.apiBase).hostname,\n    }, async (method, url, data, options) => {\n      const appVersion = (await this.fetchLatestVersion()) || this.config.apiVersion;\n\n      options.headers['user-agent'] = `TokyoDisneyResortApp/${appVersion} Android/${this.config.apiOS}`;\n      options.headers['x-api-key'] = this.config.apiKey;\n      options.headers['X-PORTAL-LANGUAGE'] = 'en-US';\n      options.headers['X-PORTAL-OS-VERSION'] = `Android ${this.config.apiOS}`;\n      options.headers['X-PORTAL-APP-VERSION'] = appVersion;\n      options.headers['X-PORTAL-DEVICE-NAME'] = 'OnePlus5';\n      options.headers.connection = 'keep-alive';\n      options.headers['Accept-Encoding'] = 'gzip';\n      options.headers.Accept = 'application/json';\n      options.headers['Content-Type'] = 'application/json';\n\n      if (!options.ignoreDeviceID) {\n        const deviceID = await this.fetchDeviceID();\n        options.headers['X-PORTAL-DEVICE-ID'] = deviceID;\n        options.headers['X-PORTAL-AUTH'] = this.config.apiAuth;\n      }\n\n      // we handle auth/500 errors ourselves for TDR\n      options.ignoreErrors = true;\n    });\n\n    this.http.injectForDomainResponse({\n      hostname: new URL(this.config.apiBase).hostname,\n    }, async (resp) => {\n      if (resp.statusCode === 400) {\n        console.log('TDR version invalid, fetch again...');\n        // force a store version update if we get a 400 error\n        await this.cache.setGlobal('tdr_appversion', undefined, -1);\n        return undefined;\n      }\n\n      if (resp.statusCode === 503) {\n        const maintenance = resp.body.errors.find((x) => x.code === 'error.systemMaintenance');\n        if (maintenance) {\n          // down for maintenance!\n          const now = this.getTimeNowMoment();\n          if (now.isBetween(maintenance.startAt, maintenance.endAt)) {\n            const endsIn = now.diff(maintenance.endAt, 'minutes');\n            this.log(`Tokyo Disney Resort API in maintenance. Ends in ${Math.abs(endsIn)} minutes`);\n            // return original response to avoid refetching again and again and again\n            return resp;\n          }\n        } else {\n          this.emit('error', new Error(`Invalid response from TDR ${JSON.stringify(resp.body)}`));\n        }\n      }\n\n      return resp;\n    });\n  }\n\n  /**\n   * Fetch the current app version on the Google Play store\n   * @return {string}\n   */\n  async fetchLatestVersion() {\n    return await this.cache.wrapGlobal(\n        'tdr_appversion',\n        async () => {\n          // use the themeparks.wiki appstore watcher API\n          const resp = await this.http(\n              'GET',\n              'https://appwatch.themeparks.wiki/latest/jp.tokyodisneyresort.portalapp',\n              {},\n          );\n          return resp.body.version;\n        },\n        1000 * 60 * 60 * 2,\n    );\n  }\n\n  /**\n   * Return or fetch a device ID to use for API calls\n   */\n  async fetchDeviceID() {\n    return await this.cache.wrapGlobal('tdr_device_id', async () => {\n      const resp = await this.http(\n          'POST',\n          `${this.config.apiBase}/rest/v1/devices`,\n          undefined,\n          {\n            ignoreDeviceID: true,\n          },\n      );\n\n      return resp.body.deviceId;\n    }, 1000 * 60 * 60 * 24 * 10); // use for 10 days\n  }\n\n  /**\n   * Get the latest facilities data for the entire resort\n   */\n  async fetchAllFacilitiesData() {\n    return await this.cache.wrapGlobal('tdr_facilities', async () => {\n      const headers = {};\n      const lastModifiedTime = await this.cache.getGlobal('tdr_facilities_last_modified');\n      if (lastModifiedTime !== undefined) {\n        headers['If-Modified-Since'] = lastModifiedTime;\n      }\n\n      const resp = await this.http('GET', `${this.config.apiBase}/rest/v2/facilities`, undefined, {\n        headers,\n      });\n\n      // store in a separate long-term cache so we can keep using it if the server data hasn't changed\n      if (resp.statusCode !== 304) {\n        // transform data into an array with \"facilityType\", rather than a nested object\n        const data = [];\n        Object.keys(resp.body).forEach((key) => {\n          resp.body[key].forEach((x) => {\n            data.push({\n              facilityType: key,\n              ...x,\n            });\n          });\n        });\n\n        await this.cache.setGlobal('tdr_facilities_data', data, Number.MAX_SAFE_INTEGER);\n        await this.cache.setGlobal(\n            'tdr_facilities_last_modified',\n            resp.headers['Last-Modified'],\n            Number.MAX_SAFE_INTEGER,\n        );\n        return data;\n      }\n\n      return await this.cache.getGlobal('tdr_facilities_data');\n    }, 1000 * 60 * 60 * 2); // check every 2 hours\n  }\n\n  /**\n   * Get facilities data for this park\n   */\n  async fetchFacilitiesData() {\n    return await this.cache.wrap('facilities', async () => {\n      const resortData = await this.fetchAllFacilitiesData();\n      return resortData.filter((x) => x.parkType === this.config.parkIdUpper);\n    }, 1000 * 60 * 15); // cache each park's facility data for 15 minutes, to avoid filtering too often\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _init() {\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _buildAttractionObject(attractionID) {\n    const facilityData = await this.fetchFacilitiesData();\n    const attr = facilityData.find((x) => x.facilityCode == attractionID);\n    if (attr === undefined) return undefined;\n\n    const tags = [];\n\n    tags.push({\n      type: tagType.fastPass,\n      value: !!attr.fastpass,\n    });\n\n    tags.push({\n      type: tagType.singleRider,\n      value: !!attr.filters.find((x) => x.type === 'SINGLE_RIDER'),\n    });\n\n    const heightUppper = attr.restrictions.find((x) => x.type === 'LOWER_HEIGHT');\n    if (heightUppper !== undefined) {\n      const heightMin = /(\\d+)\\s*cm/.exec(heightUppper.name);\n      if (heightMin) {\n        tags.push({\n          key: 'minimumHeight',\n          type: tagType.minimumHeight,\n          value: {\n            unit: 'cm',\n            height: Number(heightMin[1]),\n          },\n        });\n      }\n    }\n\n    const heightLower = attr.restrictions.find((x) => x.type === 'UPPER_HEIGHT');\n    if (heightLower !== undefined) {\n      const heightMax = /(\\d+)\\s*cm/.exec(heightLower.name);\n      if (heightMax) {\n        tags.push({\n          key: 'maximumHeight',\n          type: tagType.maximumHeight,\n          value: {\n            unit: 'cm',\n            height: Number(heightMax[1]),\n          },\n        });\n      }\n    }\n\n    tags.push({\n      type: tagType.unsuitableForPregnantPeople,\n      value: attr.filters.find((x) => x === 'EXPECTANT_MOTHER') === undefined,\n    });\n\n    return {\n      name: attr.nameKana,\n      type: attr.facilityType === 'attractions' ? attractionType.ride : attractionType.other,\n      tags,\n    };\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _update() {\n    const resp = await this.http(\n        'GET',\n        `${this.config.apiBase}/rest/v2/facilities/conditions`,\n    );\n\n    const attractions = resp?.body?.attractions;\n    if (!attractions) {\n      return;\n    }\n\n    await Promise.allSettled(attractions.map(async (attr) => {\n      let status = attr.standbyTime ? statusType.operating : statusType.closed;\n      switch (attr.facilityStatus) {\n        case 'CANCEL':\n          status = statusType.closed;\n          break;\n        case 'CLOSE_NOTICE':\n          status = statusType.down;\n          break;\n        case 'OPEN':\n          status = statusType.operating;\n          break;\n      }\n\n      await this.updateAttractionState(attr.facilityCode, status);\n      await this.updateAttractionQueue(\n          attr.facilityCode,\n        status == statusType.operating ? attr.standbyTime : null,\n        queueType.standBy,\n      );\n    }));\n  }\n\n  /**\n   * Fetch the upcoming calendar\n   */\n  async fetchCalendar() {\n    return await this.cache.wrapGlobal('tdr_calendar', async () => {\n      const cal = await this.http(\n          'GET',\n          `${this.config.apiBase}/rest/v1/parks/calendars`,\n      );\n\n      return cal.body;\n    }, 1000 * 60 * 60 * 12);\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _getOperatingHoursForDate(date) {\n    const cal = await this.fetchCalendar();\n\n    if (!Array.isArray(cal)) return undefined;\n\n    const dateString = date.format('YYYY-MM-DD');\n    const targetDate = cal.find((x) => {\n      return x.parkType === this.config.parkIdUpper &&\n        x.closedDay === false &&\n        x.undecided === false &&\n        x.date === dateString;\n    });\n    if (targetDate) {\n      const hours = [];\n      const momentParseFormat = 'YYYY-MM-DDTHH:mm';\n\n      hours.push({\n        openingTime: moment.tz(\n            `${dateString}T${targetDate.openTime}`,\n            momentParseFormat,\n            this.config.timezone).format(),\n        closingTime: moment.tz(\n            `${dateString}T${targetDate.closeTime}`,\n            momentParseFormat,\n            this.config.timezone).format(),\n        type: scheduleType.operating,\n      });\n\n      // \"sp\" opening times, i.e, magic hours\n      if (targetDate.spOpenTime && targetDate.spCloseTime) {\n        hours.push({\n          openingTime: moment.tz(\n              `${dateString}T${targetDate.spOpenTime}`,\n              momentParseFormat,\n              this.config.timezone).format(),\n          closingTime: moment.tz(\n              `${dateString}T${targetDate.spCloseTime}`,\n              momentParseFormat,\n              this.config.timezone).format(),\n          type: scheduleType.extraHours,\n        });\n      }\n\n      return hours;\n    }\n\n    return undefined;\n  }\n}\n\nexport default TokyoDisneyResortPark;\n\n/**\n * Tokyo Disneyland\n */\nexport class TokyoDisneyland extends TokyoDisneyResortPark {\n  /**\n   * Construct new TokyoDisneyland Object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.name = 'Tokyo Disney Resort - Tokyo Disneyland';\n    options.parkId = 'tdl';\n\n    super(options);\n  }\n}\n\n/**\n * Tokyo DisneySea\n */\nexport class TokyoDisneySea extends TokyoDisneyResortPark {\n  /**\n   * Construct new TokyoDisneySea Object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.name = 'Tokyo Disney Resort - Tokyo DisneySea';\n    options.parkId = 'tds';\n\n    super(options);\n  }\n}\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/tdr/tokyodisneyresort.js",
     "access": "public",
@@ -5706,7 +5706,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchLatestVersion",
     "access": "public",
     "description": "Fetch the current app version on the Google Play store",
-    "lineNumber": 81,
+    "lineNumber": 100,
     "return": {
       "nullable": null,
       "types": [
@@ -5728,7 +5728,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchDeviceID",
     "access": "public",
     "description": "Return or fetch a device ID to use for API calls",
-    "lineNumber": 100,
+    "lineNumber": 119,
     "params": [],
     "return": {
       "types": [
@@ -5747,7 +5747,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchAllFacilitiesData",
     "access": "public",
     "description": "Get the latest facilities data for the entire resort",
-    "lineNumber": 118,
+    "lineNumber": 137,
     "params": [],
     "return": {
       "types": [
@@ -5766,7 +5766,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchFacilitiesData",
     "access": "public",
     "description": "Get facilities data for this park",
-    "lineNumber": 159,
+    "lineNumber": 178,
     "params": [],
     "return": {
       "types": [
@@ -5785,7 +5785,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_init",
     "access": "private",
     "description": "",
-    "lineNumber": 169,
+    "lineNumber": 188,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -5806,7 +5806,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_buildAttractionObject",
     "access": "private",
     "description": "",
-    "lineNumber": 175,
+    "lineNumber": 194,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -5838,7 +5838,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_update",
     "access": "private",
     "description": "",
-    "lineNumber": 237,
+    "lineNumber": 256,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -5859,7 +5859,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchCalendar",
     "access": "public",
     "description": "Fetch the upcoming calendar",
-    "lineNumber": 287,
+    "lineNumber": 293,
     "params": [],
     "return": {
       "types": [
@@ -5878,7 +5878,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_getOperatingHoursForDate",
     "access": "private",
     "description": "",
-    "lineNumber": 301,
+    "lineNumber": 307,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -5911,7 +5911,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js",
     "importStyle": "{TokyoDisneyland}",
     "description": "Tokyo Disneyland",
-    "lineNumber": 356,
+    "lineNumber": 362,
     "interface": false,
     "extends": [
       "TokyoDisneyResortPark"
@@ -5928,7 +5928,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyland#constructor",
     "access": "public",
     "description": "Construct new TokyoDisneyland Object",
-    "lineNumber": 361,
+    "lineNumber": 367,
     "params": [
       {
         "nullable": null,
@@ -5954,7 +5954,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js",
     "importStyle": "{TokyoDisneySea}",
     "description": "Tokyo DisneySea",
-    "lineNumber": 372,
+    "lineNumber": 378,
     "interface": false,
     "extends": [
       "TokyoDisneyResortPark"
@@ -5971,7 +5971,7 @@
     "longname": "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneySea#constructor",
     "access": "public",
     "description": "Construct new TokyoDisneySea Object",
-    "lineNumber": 377,
+    "lineNumber": 383,
     "params": [
       {
         "nullable": null,
@@ -7052,7 +7052,7 @@
     "__docId__": 332,
     "kind": "file",
     "name": "lib/parks/wdw/wdwdb.js",
-    "content": "import PouchDB from 'pouchdb';\nimport ReplicationStream from 'pouchdb-replication-stream';\nimport sift from 'sift';\nimport {promises as fs, constants as fsConstants, createReadStream, createWriteStream} from 'fs';\nimport path from 'path';\n\nimport {parseConfig} from '../../configBase.js';\n\n/**\n * Given a document, return it's entity ID for the WDW database\n * @param {object|string} doc CouchDB document or a document ID\n * @return {string}\n */\nexport function getEntityID(doc) {\n  const docId = doc?.id || doc;\n\n  if (!docId) {\n    console.trace('Unable to find ID from', JSON.stringify(doc));\n    return undefined;\n  }\n\n  const stack = docId.split(':');\n  const lowestLevelEntity = stack[stack.length - 1];\n\n  const parts = lowestLevelEntity.split(';');\n  if (parts <= 1) return undefined;\n\n  return parts.find((p) => {\n    // edge-case for some documents with no attraction attached (guessing test documents)\n    if (p === 'Unassigned') return false;\n\n    const keyval = p.split('=');\n    return (keyval.length === 1);\n  });\n}\n\n// internal key names for our indexes. Stored as constants to save typing these over and over\nconst constants = {\n  INDEX_FACILITYSTATUS: 'facilityStatus',\n  INDEX_CHANNELS: 'channels',\n  INDEX_ENTITIES: 'entities',\n};\n\n// ancestors to include in our index\n//  we add these into our index objects to identify unique documents to index\nconst ancestorIndexes = [\n  {\n    key: 'ancestorLandId',\n    index: 'land_id',\n  },\n  {\n    key: 'ancestorResortId',\n    index: 'resort_id',\n  },\n  {\n    key: 'ancestorResortAreaId',\n    index: 'resort_area_id',\n  },\n  {\n    key: 'ancestorThemeParkId',\n    index: 'park_id',\n  },\n];\n\n// Super() function to call when we setup this class as a plugin\nconst pouchBulkDocs = PouchDB.prototype.bulkDocs;\n\n/**\n * An indexed live WDW database\n * Replicated WDW database to local disk for fast access\n * While replicating, will build an in-memory index of entities for fast lookup\n * Options to dump database to a single file or load a snapshot for quicker database boot ups\n */\nexport class IndexedWDWDB extends PouchDB {\n  /**\n   * Construct a new IndexedWDWDB object\n   * @param {object} opts PouchDB options object\n   * @param {string} [opts.remoteHost] Remote database to replicate\n   * @param {string} [opts.remoteUsername] Remote database username to authenticate\n   * @param {string} [opts.remotePassword] Remote database password to authenticate\n   * @param {string} [opts.dbName='wdw'] Local database name\n   * @param {string} [opts.snapshot] File location of a snapshot to 'seed' the database during startup\n   * @param {string} [opts.skipSync] Skip network replication, only use data already on disk\n   * @extends PouchDB\n   */\n  constructor(opts = {}) {\n    // default to enable auto_compaction\n    opts.auto_compaction = opts.auto_compaction || true;\n\n    opts.remoteHost = '';\n    opts.remoteUsername = '';\n    opts.remotePassword = '';\n    opts.dbName = opts.dbName || 'wdw';\n    opts.snapshot = ''; // optional snapshot to use when starting database\n    // 'name' is the config option pouchdb uses for the storage path\n    opts.name = opts.name || IndexedWDWDB.getDatabaseFilePath(opts.dbName);\n\n    opts.skipSync = opts.skipSync === undefined ? false : opts.skipSync;\n\n    opts.restartTimeout = opts.restartTimeout || 5;\n\n    opts.configPrefixes = ['WDWDB'].concat(opts.configPrefixes || []);\n    const config = parseConfig(opts);\n\n    super(config);\n    this.config = config;\n\n    // increase the maximum listeners to this database\n    this.setMaxListeners(50);\n\n    // setup our remote host to replicate locally\n    if (this.config.remoteHost) {\n      const remoteHostOptions = {\n        skip_setup: true,\n      };\n      if (this.config.remoteUsername && this.config.remotePassword) {\n        remoteHostOptions.auth = {\n          username: this.config.remoteUsername,\n          password: this.config.remotePassword,\n        };\n      }\n\n      this.remoteDB = new PouchDB(this.config.remoteHost, remoteHostOptions);\n    }\n\n    this.synced = false;\n    this.replicating = false;\n\n    this._index = {};\n    this._setupPromise = null;\n    this._indexSetup = false;\n  }\n\n  /**\n * Get the LevelDOWN database location to use\n * @param {string} name Database name\n * @return {string}\n */\n  static getDatabaseFilePath(name) {\n    return path.join(process.cwd(), `db.${name}`);\n  }\n\n  /**\n   * Initialise the live database, returns once finished an initial sync\n   */\n  async init() {\n    if (this.synced) {\n      return;\n    }\n\n    if (this.initPromiseSync) return this.initPromiseSync;\n\n    // first, syncronise our database before we start rolling updates\n    this.initPromiseSync = this._loadAndInit();\n    // keep the Promise as a variable so we can keep returning it for any additional init() calls\n    await this.initPromiseSync;\n    this.initPromiseSync = null;\n\n    console.log(`Database finished setup!`);\n\n    this.synced = true;\n\n    if (!this.config.skipSync && this.remoteDB) {\n      this._replicate();\n    }\n  }\n\n  /**\n   * Start database replication\n   * @private\n   */\n  _replicate() {\n    if (this.replicating) return;\n    this.replicating = true;\n\n    let noChangeTimeout = null;\n    let replicationHandle = null;\n\n    // how many minutes before killing and restarting replication\n    const noChangeTimer = Number(this.config.restartTimeout) || 5;\n\n    // function to reboot the replicate based on various possible failure states\n    const rebootReplicator = (err) => {\n      if (noChangeTimeout) {\n        clearTimeout(noChangeTimeout);\n      }\n      if (replicationHandle) {\n        replicationHandle.cancel();\n        replicationHandle = null;\n      }\n\n      if (err) {\n        console.error('Replication Error!', new Date(), err);\n      }\n\n      console.log('Restarting replicator...');\n      this.replicating = false;\n      setTimeout(this._replicate.bind(this), 1000);\n    };\n\n    const resetTimeoutTimer = () => {\n      if (noChangeTimeout) {\n        clearTimeout(noChangeTimeout);\n      }\n      noChangeTimeout = setTimeout(() => {\n        console.log('Replicator timed out...');\n        rebootReplicator();\n      }, 1000 * 60 * noChangeTimer);\n    };\n\n    try {\n      replicationHandle = PouchDB.replicate(this.remoteDB, this, {\n        live: true,\n        retry: true,\n      }).on('change', () => {\n        // reset a timer whenever we get a change\n        //  if the timer is ever fired, we will restart the replicator\n        resetTimeoutTimer();\n      }).on('error', (e) => {\n        rebootReplicator(e);\n      });\n\n      // always start the change timer immediately\n      //  otherwise if we start repliating in the middle of the night (when no changes are happening)\n      //  on('change') never fires, so we can lose connection and never fire the timeout\n      resetTimeoutTimer();\n    } catch (e) {\n      rebootReplicator(e);\n    }\n  }\n\n  /**\n   * Internal function\n   * Loads and performs an initial sync on the database\n   * @private\n   */\n  async _loadAndInit() {\n    // first, try and restore from disk (will check if an existing snapshot exists)\n    await this.loadSnapshot();\n\n    // load up our indexes\n    await this._initIndexes();\n\n    // reindex every document once we've initialised from disk\n    //  do this before replication, since all new docs will be auto-indexed\n    const docs = await this.allDocs({\n      include_docs: true,\n    });\n    console.log('Building index...');\n    await Promise.allSettled(docs.rows.map((doc) => {\n      return this._indexWDWDocument(doc.doc);\n    }));\n\n    // optionally skip replicating with remote (for local fast testing)\n    if (this.config.skipSync || !this.remoteDB) {\n      return;\n    }\n\n    // then perform an initial replication from remote to local\n    console.log('Performing initial replication...');\n    return await PouchDB.replicate(this.remoteDB, this, {\n      batch_size: 500,\n    }).catch((e) => {\n      console.error(`Replication error: ${e}`);\n    });\n  }\n\n  /**\n   * Get the filename we use for saving backups of the database to disk\n   * Used for creating simple \"snapshots\" to reduce initial sync times\n   * @param {string} [postfix] Optional postfix for the filename\n   * eg. Use postfix to generate a temporary version of a file to write to before replacing the \"real\" database\n   * @return {string}\n   */\n  getDumpFilename(postfix = '') {\n    return path.join('localdb', `${this.config.dbName}${postfix}.db`);\n  }\n\n  /**\n   * Restore a database backup from disk\n   * Perform this after running \"dump()\" on a previous synced database\n   * This will help to reduce the initial sync time for large databases\n   * @param {string} [snapshotFile] File path of the snapshot to restore into the database\n   * snapshotFile will use default saveSnapshot result location if not supplied\n   */\n  async loadSnapshot(snapshotFile = '') {\n    if (this.synced || this.replicating) {\n      console.warn('Trying to load database snapshot when replication has already started');\n      return;\n    }\n\n    const useCustomSnapshot = !!snapshotFile;\n    const dumpPath = useCustomSnapshot ? snapshotFile : this.getDumpFilename();\n\n    // if our database dump doesn't exist, then early out and we'll do a normal sync\n    try {\n      await fs.access(dumpPath, fsConstants.F_OK);\n    } catch (error) {\n      return;\n    }\n\n    console.log('Restoring database from disk...');\n\n    // otherwise, load up our database from disk\n    const ws = createReadStream(dumpPath);\n    return this.load(ws, {\n      batch_size: 500,\n    });\n  }\n\n  /**\n   * Save a snapshot of this live database to disk\n   * This will be used to \"seed\" the database to speed up syncs for future runs\n   * @return {string} Path to resulting database snapshot\n   */\n  async saveSnapshot() {\n    if (this.databaseDumpPendingPromise) {\n      return this.databaseDumpPendingPromise;\n    }\n\n    console.log('Dumping database to disk...');\n\n    const dumpPath = this.getDumpFilename();\n    const dumpPathNew = this.getDumpFilename('_new');\n\n    // dump database to our new location\n    const ws = createWriteStream(dumpPathNew);\n    this.databaseDumpPendingPromise = this.dump(ws, {\n      batch_size: 500,\n    });\n    // save Promise so multiple \"dump()\" calls can stack cleanly\n    await this.databaseDumpPendingPromise;\n    this.databaseDumpPendingPromise = null;\n\n    // rename new database dump to our final intended location\n    return fs.rename(dumpPathNew, dumpPath).then(() => {\n      // finally, return the actual path of the snapshot\n      return dumpPath;\n    });\n  }\n\n  /**\n   * Index initialisation\n   * This function wraps taking care of creating our indexes once only\n   * @private\n   */\n  async _initIndexes() {\n    if (this._indexSetup) {\n      return;\n    }\n\n    if (this._setupPromise) {\n      return this._setupPromise;\n    }\n\n    this._setupPromise = this._createIndexes();\n    await this._setupPromise;\n    this._indexSetup = true;\n    return;\n  }\n\n  /**\n   * Setup our WDW indexes\n   * @private\n   */\n  async _createIndexes() {\n    await this._createIndex(constants.INDEX_ENTITIES);\n    await this._createIndex(constants.INDEX_CHANNELS);\n    await this._createIndex(constants.INDEX_FACILITYSTATUS, []);\n  }\n\n  /**\n   * Get the internal index object for the given index type\n   * @param {object} name Index name (see constants.INDEX_*)\n   * @return {*}\n   * @private\n   */\n  getIndex(name) {\n    return this._index[name].index;\n  }\n\n  /**\n   * Create an index object to be used by this database\n   * @param {string} name Index name\n   * @param {*} defaultIndex Index initial object state\n   * @private\n   */\n  async _createIndex(name, defaultIndex = {}) {\n    this._index[name] = {\n      index: defaultIndex,\n    };\n  }\n\n  /**\n   * Given a WDW document, extract key identifiable data\n   * This is used to build a look-up index of unique document types\n   * See ancestorIndexes for some of the keys we use\n   * This is important so we can tell the difference between entities with the same ID, but different purposes\n   * eg. an entity ID can have multiple documents, one for the attraction itself, one for it's wait times, etc.\n   * These need to both be in the index under the same entity ID, but with different properties to make them distinct\n   * @param {object} doc WDW Database Document\n   * @return {object} Index object containing important identifying data\n   * @private\n   */\n  _extractEntityKeys(doc) {\n    if (!doc || !doc.id) return undefined;\n\n    // some IDs are stacked using :\n    const stack = doc.id.split(':');\n    const lowestLevelEntity = stack[stack.length - 1];\n\n    const parts = lowestLevelEntity.split(';');\n    if (parts <= 1) return undefined;\n\n    // some documents can have different parents, they're the same, but different path to get there\n    const parentStackEl = stack.length > 1 ? stack[stack.length - 2] : undefined;\n    const parent = parentStackEl ? this._extractEntityKeys({id: parentStackEl}).id : undefined;\n\n    const ret = {\n      parent,\n    };\n\n    // special case for calendars\n    if (doc.channels.find((x) => x.indexOf('.calendar.') >= 0) !== undefined) {\n      ret.entityType = 'calendar';\n    }\n\n    parts.forEach((p) => {\n      const keyval = p.split('=');\n      if (keyval.length === 1) {\n        ret.id = keyval[0];\n      } else {\n        ret[keyval[0]] = keyval[1];\n      }\n    });\n\n    // if this document is in a \"facilitystatus\" channel, add an extra tag\n    //  this is so we don't collide with the actaul document for this attraction\n    //  but also so we can filter it easier later\n    const facilityStatus = doc.channels && (doc.channels.find((x) => x.indexOf('facilitystatus') >= 0) !== undefined);\n    if (facilityStatus) {\n      ret.facilityStatus = true;\n    }\n\n    // include channels in our index\n    if (doc.channels) {\n      const channels = JSON.parse(JSON.stringify(doc.channels));\n      channels.sort();\n      ret.channel = channels.join(',');\n    }\n\n    // add any ancestor data to our index (that we a) care about and b) can find) - see ancestorIndexes\n    ancestorIndexes.forEach((ancestorIndex) => {\n      if (doc[ancestorIndex.key]) {\n        const ancestorID = getEntityID(doc[ancestorIndex.key]);\n        if (ancestorID) {\n          ret[ancestorIndex.index] = ancestorID;\n        }\n      }\n    });\n\n    return ret;\n  }\n\n  /**\n   * Given a WDW database document, try to return its language\n   * @param {object} doc\n   * @return {string} Language of this document. Eg. en_intl, en_us\n   * @private\n   */\n  _extractChannelLanguage(doc) {\n    // pull channel from doc\n    if (!doc.channels) return undefined;\n\n    const langs = doc.channels.map((x) => {\n      // extract last \\.* from the end of the channel name\n      // language-specific channels end with \"en_us\" or something\n      // channels without locale end with a version number eg. \"1_0\"\n      return x.slice(x.lastIndexOf('.') + 1);\n    }).filter((x) => {\n      // check each one to see the language tag starts with a version number\n      return isNaN(Number(x.slice(0, 1)));\n    });\n\n    // default to 'en_intl' if we cannot find a language in our channels\n    return langs[0] || 'en_intl';\n  }\n\n  /**\n   * Remove all indexes referencing docID from the given index\n   * @param {object} index\n   * @param {string} docID\n   */\n  _removeFromArrayIndex(index, docID) {\n    Object.keys(index).forEach((key) => {\n      const indexIDs = index[key].map(\n          (x, idx) => {\n            return x._id === docID ? idx : undefined;\n          }).\n          filter((x) => x !== undefined);\n\n      indexIDs.forEach((idx) => {\n        index[key].splice(idx, 1);\n      });\n    });\n  }\n\n  /**\n   * Add a document to the database index\n   * Used for fast lookups of entities etc. to the correct documents\n   * @param {object} doc CouchDB document to index\n   * @private\n   */\n  async _indexWDWDocument(doc) {\n    if (doc._deleted) {\n      // remove document from all indexes\n\n      // facility status\n      //  quick hack to turn the facility status index into the same type as the others so I can reuse my code\n      const facilityIndexObject = {index: this.getIndex(constants.INDEX_FACILITYSTATUS)};\n      this._removeFromArrayIndex(facilityIndexObject, doc._id);\n\n      // channels\n      this._removeFromArrayIndex(this.getIndex(constants.INDEX_CHANNELS), doc._id);\n\n      // entity index\n      this._removeFromArrayIndex(this.getIndex(constants.INDEX_ENTITIES), doc._id);\n\n      return;\n    }\n\n    const entity = this._extractEntityKeys(doc);\n    if (entity && entity.id && entity.entityType) {\n      const id = entity.id;\n\n      const newIndexEntry = {\n        ...entity,\n        language: this._extractChannelLanguage(doc),\n        _id: doc._id,\n      };\n\n      // special-case, index all facility status documents in another index\n      if (newIndexEntry.facilityStatus) {\n        const facilityIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);\n\n        const docExists = facilityIndex.findIndex((x) => {\n          return x.id === newIndexEntry.id;\n        });\n        if (docExists >= 0) {\n          facilityIndex[docExists] = newIndexEntry;\n        } else {\n          facilityIndex.push(newIndexEntry);\n        }\n      }\n\n      // index all documents based on channel\n      if (doc.channels) {\n        const channelIndex = this.getIndex(constants.INDEX_CHANNELS);\n        doc.channels.forEach((channel) => {\n          if (!channelIndex[channel]) {\n            channelIndex[channel] = [];\n          }\n          channelIndex[channel].push(newIndexEntry);\n        });\n      }\n\n      const newIndexKeys = Object.keys(newIndexEntry);\n\n      const entityIndex = this.getIndex(constants.INDEX_ENTITIES);\n      if (!entityIndex[id]) {\n        entityIndex[id] = [];\n      }\n      const findExisting = entityIndex[id].findIndex((x) => {\n        // if # keys are different, not a match\n        if (Object.keys(x).length !== newIndexKeys.length) return false;\n\n        // look for any mismatches between the keys\n        const findMismatch = newIndexKeys.find((key) => {\n          // _id is supposed to be different, so ignore it regardless of if it matches or not\n          if (key === '_id') return false;\n          return (newIndexEntry[key] !== x[key]);\n        });\n        return !findMismatch;\n      });\n\n      if (findExisting < 0) {\n        // entry doesn't exist, add to our list\n        entityIndex[id].push(newIndexEntry);\n      } else {\n        // replace existing entry that matches all the same properties\n        if (entityIndex[id][findExisting]._id !== newIndexEntry._id) {\n          entityIndex[id][findExisting] = newIndexEntry;\n        }\n      }\n    }\n  }\n\n  /**\n   * Get an array of documents from an array of _id\n   * @param {array<string>} ids\n   */\n  async getDocsById(ids) {\n    await this.init();\n\n    return (await Promise.all(ids.map((id) => {\n      // fetch each document using our local DB\n      return this.get(id);\n    }))).filter((doc) => {\n      // filter our any docs that failed to be fetched (they have been deleted etc.)\n      return doc !== undefined;\n    });\n  }\n\n  /**\n   * Find search index entries by ID\n   * If you want the actual document and not just the meta-index data, use getEntity() instead\n   * @param {string} id\n   * @param {object} [filter]\n   * @return {array<object>} Returns the index data for this entity ID\n   */\n  async getEntityIndex(id, filter = {}) {\n    await this.init();\n\n    const entityIndex = this.getIndex(constants.INDEX_ENTITIES);\n    const indexEntry = entityIndex[id];\n    if (!indexEntry) return [];\n\n    // filter entries by supplied filter options before resolving\n    return indexEntry.filter(sift(filter));\n  }\n\n  /**\n   * Search for an entity in the WDW database\n   * @param {string} id Entity ID\n   * @param {object} [filter] Filter index by field\n   * @return {array<object>} Returns all documents for this entity ID\n   */\n  async getEntity(id, filter = {}) {\n    const entities = await this.getEntityIndex(id, filter);\n\n    // resolve each index entry to our full documents\n    return this.getDocsById(entities.map((entry) => {\n      return entry._id;\n    }));\n  }\n\n\n  /**\n   * Search for an entity in the WDW database\n   * Attempts to return the \"best candidate\" single document that matches the incoming ID\n   * @param {string} id Entity ID\n   * @param {object} [filter] Optional index filter\n   * @return {object} Returns the best candidate single document, or undefined\n   */\n  async getEntityOne(id, filter = {}) {\n    const entities = await this.getEntityIndex(id, filter);\n    if (entities.length === 0) return undefined;\n\n    // filter to find the best document of the ones available\n    //  prioritise language en_intl\n    const enIntl = entities.find((doc) => {\n      return doc.language === 'en_intl' && !doc.facilityStatus; // don't include facilityStatus docs by-default\n    });\n    if (enIntl) {\n      return await this.get(enIntl._id);\n    }\n\n    //  2nd priority: en_US\n    const enUS = entities.find((doc) => {\n      return doc.language === 'en_us' && !doc.facilityStatus; // don't include facilityStatus docs by-default\n    });\n    if (enUS) {\n      return await this.get(enUS._id);\n    }\n\n    // otherwise just return the first entry in out list\n    return await this.get(entities[0]._id);\n  }\n\n  /**\n   * Get the live facility status for a given entity ID\n   * @param {string} id Entity ID\n   * @return {object} Facility status document, or undefined\n   */\n  async getFacilityStatus(id) {\n    await this.init();\n\n    const statusIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);\n\n    // look up entity ID in our facility status index\n    const indexEntity = statusIndex.find((x) => {\n      return x.id === id;\n    });\n    if (!indexEntity) return undefined;\n\n    return await this.get(indexEntity._id);\n  }\n\n  /**\n   * Find all documents by channel\n   * eg. 'wdw.facilitystatus.1_0' to get all WDW facility status documents\n   * @param {string} channel Channel ID\n   * @param {object} [filter] Optional document index filter\n   * @return {array<object>} All documents in this channel (or empty array)\n   */\n  async getByChannel(channel, filter = {}) {\n    await this.init();\n\n    const channelIndex = this.getIndex(constants.INDEX_CHANNELS);\n\n    const channelData = channelIndex[channel];\n    if (!channelData) {\n      return [];\n    }\n\n    // return resolved documents for the channel\n    return this.getDocsById(channelData.filter(sift(filter)).map((entry) => {\n      return entry._id;\n    }));\n  }\n\n  /**\n   * Return all documents in the database that match the given filter\n   * This is a slow operation! Use sparingly!\n   * @param {object} [filter]\n   * @return {array<object>}\n   */\n  async find(filter = {}) {\n    await this.init();\n\n    const docs = await this.allDocs({\n      include_docs: true,\n    });\n\n    return docs.rows.map((row) => row.doc).filter(sift(filter));\n  }\n\n  /**\n   * Subscribe to all database changes with an optional mongo-style filter\n   * @param {object} [filter]\n   * @param {function} callback\n   */\n  subscribeToChanges(filter, callback) {\n    if (typeof filter === 'function') {\n      // if no filter passed in, call ourselves with an empty set\n      this.subscribeToChanges({}, callback);\n    } else {\n      // listen to changes from now onwards, passing in our filter function\n      this.changes({\n        since: 'now',\n        live: true,\n        include_docs: true,\n        filter: sift(filter),\n      }).on('change', (change) => {\n        callback(change.doc);\n      });\n    }\n  }\n\n  /**\n   * Subscribe to all changes to a channel\n   * @param {string} channel\n   * @param {function} callback\n   */\n  subscribeToChannel(channel, callback) {\n    // only return documents that contain the supplied channel\n    this.subscribeToChanges({\n      channels: {\n        $elemMatch: channel,\n      },\n    }, callback);\n  }\n\n  /**\n   * Plugin function to intercept bulkDocs function\n   * We index any WDW documents we find for easier lookup later\n   * @param  {...any} args bulkDocs in\n   * @private\n   */\n  static async _pluginBulkDocs(...args) {\n    await this._initIndexes();\n\n    const body = args[0];\n    const docs = Array.isArray(body) ? body : body.docs;\n\n    // index each document being added to the database\n    await Promise.allSettled(docs.map((doc) => {\n      return this._indexWDWDocument(doc);\n    }));\n\n    // All documents check out. Pass them to PouchDB.\n    return pouchBulkDocs.call(this, ...args);\n  }\n}\n\n// add our plugin function\nIndexedWDWDB.plugin({\n  bulkDocs: IndexedWDWDB._pluginBulkDocs,\n});\n\n// pouchdb-replication-stream allows us to \"seed\" the database with an initial database dump\n//  incredibly useful for the wdw db, which is pretty huge\nIndexedWDWDB.plugin(ReplicationStream.plugin);\nPouchDB.adapter('writableStream', ReplicationStream.adapters.writableStream);\n\nexport default IndexedWDWDB;\n",
+    "content": "import PouchDB from 'pouchdb';\nimport ReplicationStream from 'pouchdb-replication-stream';\nimport sift from 'sift';\nimport {promises as fs, constants as fsConstants, createReadStream, createWriteStream} from 'fs';\nimport path from 'path';\n\nimport {parseConfig} from '../../configBase.js';\n\n/**\n * Given a document, return it's entity ID for the WDW database\n * @param {object|string} doc CouchDB document or a document ID\n * @return {string}\n */\nexport function getEntityID(doc) {\n  const docId = doc?.id || doc;\n\n  if (!docId) {\n    console.trace('Unable to find ID from', JSON.stringify(doc));\n    return undefined;\n  }\n\n  const stack = docId.split(':');\n  const lowestLevelEntity = stack[stack.length - 1];\n\n  const parts = lowestLevelEntity.split(';');\n  if (parts <= 1) return undefined;\n\n  return parts.find((p) => {\n    // edge-case for some documents with no attraction attached (guessing test documents)\n    if (p === 'Unassigned') return false;\n\n    const keyval = p.split('=');\n    return (keyval.length === 1);\n  });\n}\n\n// internal key names for our indexes. Stored as constants to save typing these over and over\nconst constants = {\n  INDEX_FACILITYSTATUS: 'facilityStatus',\n  INDEX_CHANNELS: 'channels',\n  INDEX_ENTITIES: 'entities',\n  INDEX_CHILDREN: 'children',\n};\n\n// ancestors to include in our index\n//  we add these into our index objects to identify unique documents to index\nconst ancestorIndexes = [\n  {\n    key: 'ancestorLandId',\n    index: 'land_id',\n  },\n  {\n    key: 'ancestorResortId',\n    index: 'resort_id',\n  },\n  {\n    key: 'ancestorResortAreaId',\n    index: 'resort_area_id',\n  },\n  {\n    key: 'ancestorThemeParkId',\n    index: 'park_id',\n  },\n];\n\n// Super() function to call when we setup this class as a plugin\nconst pouchBulkDocs = PouchDB.prototype.bulkDocs;\n\n/**\n * An indexed live WDW database\n * Replicated WDW database to local disk for fast access\n * While replicating, will build an in-memory index of entities for fast lookup\n * Options to dump database to a single file or load a snapshot for quicker database boot ups\n */\nexport class IndexedWDWDB extends PouchDB {\n  /**\n   * Construct a new IndexedWDWDB object\n   * @param {object} opts PouchDB options object\n   * @param {string} [opts.remoteHost] Remote database to replicate\n   * @param {string} [opts.remoteUsername] Remote database username to authenticate\n   * @param {string} [opts.remotePassword] Remote database password to authenticate\n   * @param {string} [opts.dbName='wdw'] Local database name\n   * @param {string} [opts.snapshot] File location of a snapshot to 'seed' the database during startup\n   * @param {string} [opts.skipSync] Skip network replication, only use data already on disk\n   * @extends PouchDB\n   */\n  constructor(opts = {}) {\n    // default to enable auto_compaction\n    opts.auto_compaction = opts.auto_compaction || true;\n\n    opts.remoteHost = '';\n    opts.remoteUsername = '';\n    opts.remotePassword = '';\n    opts.dbName = opts.dbName || 'wdw';\n    opts.snapshot = ''; // optional snapshot to use when starting database\n    // 'name' is the config option pouchdb uses for the storage path\n    opts.name = opts.name || IndexedWDWDB.getDatabaseFilePath(opts.dbName);\n\n    opts.skipSync = opts.skipSync === undefined ? false : opts.skipSync;\n\n    opts.restartTimeout = opts.restartTimeout || 5;\n\n    opts.configPrefixes = ['WDWDB'].concat(opts.configPrefixes || []);\n    const config = parseConfig(opts);\n\n    super(config);\n    this.config = config;\n\n    // increase the maximum listeners to this database\n    this.setMaxListeners(50);\n\n    // setup our remote host to replicate locally\n    if (this.config.remoteHost) {\n      const remoteHostOptions = {\n        skip_setup: true,\n      };\n      if (this.config.remoteUsername && this.config.remotePassword) {\n        remoteHostOptions.auth = {\n          username: this.config.remoteUsername,\n          password: this.config.remotePassword,\n        };\n      }\n\n      this.remoteDB = new PouchDB(this.config.remoteHost, remoteHostOptions);\n    }\n\n    this.synced = false;\n    this.replicating = false;\n\n    this._index = {};\n    this._setupPromise = null;\n    this._indexSetup = false;\n  }\n\n  /**\n * Get the LevelDOWN database location to use\n * @param {string} name Database name\n * @return {string}\n */\n  static getDatabaseFilePath(name) {\n    return path.join(process.cwd(), `db.${name}`);\n  }\n\n  /**\n   * Initialise the live database, returns once finished an initial sync\n   */\n  async init() {\n    if (this.synced) {\n      return;\n    }\n\n    if (this.initPromiseSync) return this.initPromiseSync;\n\n    // first, syncronise our database before we start rolling updates\n    this.initPromiseSync = this._loadAndInit();\n    // keep the Promise as a variable so we can keep returning it for any additional init() calls\n    await this.initPromiseSync;\n    this.initPromiseSync = null;\n\n    console.log(`Database finished setup!`);\n\n    this.synced = true;\n\n    if (!this.config.skipSync && this.remoteDB) {\n      this._replicate();\n    }\n  }\n\n  /**\n   * Start database replication\n   * @private\n   */\n  _replicate() {\n    if (this.replicating) return;\n    this.replicating = true;\n\n    let noChangeTimeout = null;\n    let replicationHandle = null;\n\n    // how many minutes before killing and restarting replication\n    const noChangeTimer = Number(this.config.restartTimeout) || 5;\n\n    // function to reboot the replicate based on various possible failure states\n    const rebootReplicator = (err) => {\n      if (noChangeTimeout) {\n        clearTimeout(noChangeTimeout);\n      }\n      if (replicationHandle) {\n        replicationHandle.cancel();\n        replicationHandle = null;\n      }\n\n      if (err) {\n        console.error('Replication Error!', new Date(), err);\n      }\n\n      console.log('Restarting replicator...');\n      this.replicating = false;\n      setTimeout(this._replicate.bind(this), 1000);\n    };\n\n    const resetTimeoutTimer = () => {\n      if (noChangeTimeout) {\n        clearTimeout(noChangeTimeout);\n      }\n      noChangeTimeout = setTimeout(() => {\n        console.log('Replicator timed out...');\n        rebootReplicator();\n      }, 1000 * 60 * noChangeTimer);\n    };\n\n    try {\n      replicationHandle = PouchDB.replicate(this.remoteDB, this, {\n        live: true,\n        retry: true,\n      }).on('change', () => {\n        // reset a timer whenever we get a change\n        //  if the timer is ever fired, we will restart the replicator\n        resetTimeoutTimer();\n      }).on('error', (e) => {\n        rebootReplicator(e);\n      });\n\n      // always start the change timer immediately\n      //  otherwise if we start repliating in the middle of the night (when no changes are happening)\n      //  on('change') never fires, so we can lose connection and never fire the timeout\n      resetTimeoutTimer();\n    } catch (e) {\n      rebootReplicator(e);\n    }\n  }\n\n  /**\n   * Internal function\n   * Loads and performs an initial sync on the database\n   * @private\n   */\n  async _loadAndInit() {\n    // first, try and restore from disk (will check if an existing snapshot exists)\n    await this.loadSnapshot();\n\n    // load up our indexes\n    await this._initIndexes();\n\n    // reindex every document once we've initialised from disk\n    //  do this before replication, since all new docs will be auto-indexed\n    const docs = await this.allDocs({\n      include_docs: true,\n    });\n    console.log('Building index...');\n    await Promise.allSettled(docs.rows.map((doc) => {\n      return this._indexWDWDocument(doc.doc);\n    }));\n\n    // optionally skip replicating with remote (for local fast testing)\n    if (this.config.skipSync || !this.remoteDB) {\n      return;\n    }\n\n    // then perform an initial replication from remote to local\n    console.log('Performing initial replication...');\n    return await PouchDB.replicate(this.remoteDB, this, {\n      batch_size: 500,\n    }).catch((e) => {\n      console.error(`Replication error: ${e}`);\n    });\n  }\n\n  /**\n   * Get the filename we use for saving backups of the database to disk\n   * Used for creating simple \"snapshots\" to reduce initial sync times\n   * @param {string} [postfix] Optional postfix for the filename\n   * eg. Use postfix to generate a temporary version of a file to write to before replacing the \"real\" database\n   * @return {string}\n   */\n  getDumpFilename(postfix = '') {\n    return path.join('localdb', `${this.config.dbName}${postfix}.db`);\n  }\n\n  /**\n   * Restore a database backup from disk\n   * Perform this after running \"dump()\" on a previous synced database\n   * This will help to reduce the initial sync time for large databases\n   * @param {string} [snapshotFile] File path of the snapshot to restore into the database\n   * snapshotFile will use default saveSnapshot result location if not supplied\n   */\n  async loadSnapshot(snapshotFile = '') {\n    if (this.synced || this.replicating) {\n      console.warn('Trying to load database snapshot when replication has already started');\n      return;\n    }\n\n    const useCustomSnapshot = !!snapshotFile;\n    const dumpPath = useCustomSnapshot ? snapshotFile : this.getDumpFilename();\n\n    // if our database dump doesn't exist, then early out and we'll do a normal sync\n    try {\n      await fs.access(dumpPath, fsConstants.F_OK);\n    } catch (error) {\n      return;\n    }\n\n    console.log('Restoring database from disk...');\n\n    // otherwise, load up our database from disk\n    const ws = createReadStream(dumpPath);\n    return this.load(ws, {\n      batch_size: 500,\n    });\n  }\n\n  /**\n   * Save a snapshot of this live database to disk\n   * This will be used to \"seed\" the database to speed up syncs for future runs\n   * @return {string} Path to resulting database snapshot\n   */\n  async saveSnapshot() {\n    if (this.databaseDumpPendingPromise) {\n      return this.databaseDumpPendingPromise;\n    }\n\n    console.log('Dumping database to disk...');\n\n    const dumpPath = this.getDumpFilename();\n    const dumpPathNew = this.getDumpFilename('_new');\n\n    // dump database to our new location\n    const ws = createWriteStream(dumpPathNew);\n    this.databaseDumpPendingPromise = this.dump(ws, {\n      batch_size: 500,\n    });\n    // save Promise so multiple \"dump()\" calls can stack cleanly\n    await this.databaseDumpPendingPromise;\n    this.databaseDumpPendingPromise = null;\n\n    // rename new database dump to our final intended location\n    return fs.rename(dumpPathNew, dumpPath).then(() => {\n      // finally, return the actual path of the snapshot\n      return dumpPath;\n    });\n  }\n\n  /**\n   * Index initialisation\n   * This function wraps taking care of creating our indexes once only\n   * @private\n   */\n  async _initIndexes() {\n    if (this._indexSetup) {\n      return;\n    }\n\n    if (this._setupPromise) {\n      return this._setupPromise;\n    }\n\n    this._setupPromise = this._createIndexes();\n    await this._setupPromise;\n    this._indexSetup = true;\n    return;\n  }\n\n  /**\n   * Setup our WDW indexes\n   * @private\n   */\n  async _createIndexes() {\n    await this._createIndex(constants.INDEX_ENTITIES);\n    await this._createIndex(constants.INDEX_CHANNELS);\n    await this._createIndex(constants.INDEX_FACILITYSTATUS, []);\n    await this._createIndex(constants.INDEX_CHILDREN);\n  }\n\n  /**\n   * Get the internal index object for the given index type\n   * @param {object} name Index name (see constants.INDEX_*)\n   * @return {*}\n   * @private\n   */\n  getIndex(name) {\n    return this._index[name].index;\n  }\n\n  /**\n   * Create an index object to be used by this database\n   * @param {string} name Index name\n   * @param {*} defaultIndex Index initial object state\n   * @private\n   */\n  async _createIndex(name, defaultIndex = {}) {\n    this._index[name] = {\n      index: defaultIndex,\n    };\n  }\n\n  /**\n   * Given a WDW document, extract key identifiable data\n   * This is used to build a look-up index of unique document types\n   * See ancestorIndexes for some of the keys we use\n   * This is important so we can tell the difference between entities with the same ID, but different purposes\n   * eg. an entity ID can have multiple documents, one for the attraction itself, one for it's wait times, etc.\n   * These need to both be in the index under the same entity ID, but with different properties to make them distinct\n   * @param {object} doc WDW Database Document\n   * @return {object} Index object containing important identifying data\n   * @private\n   */\n  _extractEntityKeys(doc) {\n    if (!doc || !doc.id) return undefined;\n\n    // some IDs are stacked using :\n    const stack = doc.id.split(':');\n    const lowestLevelEntity = stack[stack.length - 1];\n\n    const parts = lowestLevelEntity.split(';');\n    if (parts <= 1) return undefined;\n\n    // some documents can have different parents, they're the same, but different path to get there\n    const parentStackEl = stack.length > 1 ? stack[stack.length - 2] : undefined;\n    const parent = parentStackEl ? this._extractEntityKeys({id: parentStackEl}).id : undefined;\n\n    const ret = {\n      parent,\n    };\n\n    // special case for calendars\n    if (doc.channels.find((x) => x.indexOf('.calendar.') >= 0) !== undefined) {\n      ret.entityType = 'calendar';\n    }\n\n    parts.forEach((p) => {\n      const keyval = p.split('=');\n      if (keyval.length === 1) {\n        ret.id = keyval[0];\n      } else {\n        ret[keyval[0]] = keyval[1];\n      }\n    });\n\n    // if this document is in a \"facilitystatus\" channel, add an extra tag\n    //  this is so we don't collide with the actaul document for this attraction\n    //  but also so we can filter it easier later\n    const facilityStatus = doc.channels && (doc.channels.find((x) => x.indexOf('facilitystatus') >= 0) !== undefined);\n    if (facilityStatus) {\n      ret.facilityStatus = true;\n    }\n\n    // include channels in our index\n    if (doc.channels) {\n      const channels = JSON.parse(JSON.stringify(doc.channels));\n      channels.sort();\n      ret.channel = channels.join(',');\n    }\n\n    // add any ancestor data to our index (that we a) care about and b) can find) - see ancestorIndexes\n    ancestorIndexes.forEach((ancestorIndex) => {\n      if (doc[ancestorIndex.key]) {\n        const ancestorID = getEntityID(doc[ancestorIndex.key]);\n        if (ancestorID) {\n          ret[ancestorIndex.index] = ancestorID;\n        }\n      }\n    });\n\n    return ret;\n  }\n\n  /**\n   * Given a WDW database document, try to return its language\n   * @param {object} doc\n   * @return {string} Language of this document. Eg. en_intl, en_us\n   * @private\n   */\n  _extractChannelLanguage(doc) {\n    // pull channel from doc\n    if (!doc.channels) return undefined;\n\n    const langs = doc.channels.map((x) => {\n      // extract last \\.* from the end of the channel name\n      // language-specific channels end with \"en_us\" or something\n      // channels without locale end with a version number eg. \"1_0\"\n      return x.slice(x.lastIndexOf('.') + 1);\n    }).filter((x) => {\n      // check each one to see the language tag starts with a version number\n      return isNaN(Number(x.slice(0, 1)));\n    });\n\n    // default to 'en_intl' if we cannot find a language in our channels\n    return langs[0] || 'en_intl';\n  }\n\n  /**\n   * Remove all indexes referencing docID from the given index\n   * @param {object} index\n   * @param {string} docID\n   */\n  _removeFromArrayIndex(index, docID) {\n    Object.keys(index).forEach((key) => {\n      const indexIDs = index[key].map(\n          (x, idx) => {\n            return x._id === docID ? idx : undefined;\n          }).\n          filter((x) => x !== undefined);\n\n      indexIDs.forEach((idx) => {\n        index[key].splice(idx, 1);\n      });\n    });\n  }\n\n  /**\n   * Add a document to the database index\n   * Used for fast lookups of entities etc. to the correct documents\n   * @param {object} doc CouchDB document to index\n   * @private\n   */\n  async _indexWDWDocument(doc) {\n    if (doc._deleted) {\n      // remove document from all indexes\n\n      // facility status\n      //  quick hack to turn the facility status index into the same type as the others so I can reuse my code\n      const facilityIndexObject = {index: this.getIndex(constants.INDEX_FACILITYSTATUS)};\n      this._removeFromArrayIndex(facilityIndexObject, doc._id);\n\n      // channels\n      this._removeFromArrayIndex(this.getIndex(constants.INDEX_CHANNELS), doc._id);\n\n      // entity index\n      this._removeFromArrayIndex(this.getIndex(constants.INDEX_ENTITIES), doc._id);\n\n      // ancestor data\n      //  look through all ancestor index items and remove this document\n      const childIndex = this.getIndex(constants.INDEX_CHILDREN);\n      const indexIDs = Object.keys(childIndex);\n      indexIDs.forEach((index) => {\n        const idx = childIndex[index].indexOf(doc._id);\n        if (idx >= 0) {\n          childIndex[index].splice(idx, 1);\n        }\n      });\n\n      return;\n    }\n\n    const entity = this._extractEntityKeys(doc);\n    if (entity && entity.id && entity.entityType) {\n      const id = entity.id;\n\n      const newIndexEntry = {\n        ...entity,\n        language: this._extractChannelLanguage(doc),\n        _id: doc._id,\n      };\n\n      // special-case, index all facility status documents in another index\n      if (newIndexEntry.facilityStatus) {\n        const facilityIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);\n\n        const docExists = facilityIndex.findIndex((x) => {\n          return x.id === newIndexEntry.id;\n        });\n        if (docExists >= 0) {\n          facilityIndex[docExists] = newIndexEntry;\n        } else {\n          facilityIndex.push(newIndexEntry);\n        }\n      }\n\n      // index all documents based on channel\n      if (doc.channels) {\n        const channelIndex = this.getIndex(constants.INDEX_CHANNELS);\n        doc.channels.forEach((channel) => {\n          if (!channelIndex[channel]) {\n            channelIndex[channel] = [];\n          }\n          channelIndex[channel].push(newIndexEntry);\n        });\n      }\n\n      // index ancestors (so we can find all children of a given entity)\n      const locs = doc?.relatedLocations;\n      if (locs) {\n        const ancestors = locs ? locs.map((x) => x.ancestors || []).flat() : [];\n        const childrenIndex = this.getIndex(constants.INDEX_CHILDREN);\n        for (let i=0; i<ancestors.length; i++) {\n          const entity = getEntityID(ancestors[i].id);\n          if (entity) {\n            // found entity ID for this ancestor, create or update an entry for it\n            if (childrenIndex[entity] === undefined) {\n              childrenIndex[entity] = [];\n            }\n            if (childrenIndex[entity].indexOf(doc._id) < 0) {\n              childrenIndex[entity].push(doc._id);\n            }\n          }\n        }\n      }\n\n      const newIndexKeys = Object.keys(newIndexEntry);\n\n      const entityIndex = this.getIndex(constants.INDEX_ENTITIES);\n      if (!entityIndex[id]) {\n        entityIndex[id] = [];\n      }\n      const findExisting = entityIndex[id].findIndex((x) => {\n        // if # keys are different, not a match\n        if (Object.keys(x).length !== newIndexKeys.length) return false;\n\n        // look for any mismatches between the keys\n        const findMismatch = newIndexKeys.find((key) => {\n          // _id is supposed to be different, so ignore it regardless of if it matches or not\n          if (key === '_id') return false;\n          return (newIndexEntry[key] !== x[key]);\n        });\n        return !findMismatch;\n      });\n\n      if (findExisting < 0) {\n        // entry doesn't exist, add to our list\n        entityIndex[id].push(newIndexEntry);\n      } else {\n        // replace existing entry that matches all the same properties\n        if (entityIndex[id][findExisting]._id !== newIndexEntry._id) {\n          entityIndex[id][findExisting] = newIndexEntry;\n        }\n      }\n    }\n  }\n\n  /**\n   * Get an array of documents from an array of _id\n   * @param {array<string>} ids\n   */\n  async getDocsById(ids) {\n    await this.init();\n\n    return (await Promise.all(ids.map((id) => {\n      // fetch each document using our local DB\n      return this.get(id);\n    }))).filter((doc) => {\n      // filter our any docs that failed to be fetched (they have been deleted etc.)\n      return doc !== undefined;\n    });\n  }\n\n  /**\n   * Find search index entries by ID\n   * If you want the actual document and not just the meta-index data, use getEntity() instead\n   * @param {string} id\n   * @param {object} [filter]\n   * @return {array<object>} Returns the index data for this entity ID\n   */\n  async getEntityIndex(id, filter = {}) {\n    await this.init();\n\n    const entityIndex = this.getIndex(constants.INDEX_ENTITIES);\n    const indexEntry = entityIndex[id];\n    if (!indexEntry) return [];\n\n    // filter entries by supplied filter options before resolving\n    return indexEntry.filter(sift(filter));\n  }\n\n  /**\n   * Return an array of children document IDs for a given entity ID\n   * @param {string} id\n   */\n  async getDocChildren(id) {\n    await this.init();\n\n    const childrenIndex = this.getIndex(constants.INDEX_CHILDREN);\n    const children = childrenIndex[id];\n    if (!children) return [];\n    return children;\n  }\n\n  /**\n   * Search for an entity in the WDW database\n   * @param {string} id Entity ID\n   * @param {object} [filter] Filter index by field\n   * @return {array<object>} Returns all documents for this entity ID\n   */\n  async getEntity(id, filter = {}) {\n    const entities = await this.getEntityIndex(id, filter);\n\n    // resolve each index entry to our full documents\n    return this.getDocsById(entities.map((entry) => {\n      return entry._id;\n    }));\n  }\n\n\n  /**\n   * Search for an entity in the WDW database\n   * Attempts to return the \"best candidate\" single document that matches the incoming ID\n   * @param {string} id Entity ID\n   * @param {object} [filter] Optional index filter\n   * @return {object} Returns the best candidate single document, or undefined\n   */\n  async getEntityOne(id, filter = {}) {\n    const entities = await this.getEntityIndex(id, filter);\n    if (entities.length === 0) return undefined;\n\n    // filter to find the best document of the ones available\n    //  prioritise language en_intl\n    const enIntl = entities.find((doc) => {\n      return doc.language === 'en_intl' && !doc.facilityStatus; // don't include facilityStatus docs by-default\n    });\n    if (enIntl) {\n      return await this.get(enIntl._id);\n    }\n\n    //  2nd priority: en_US\n    const enUS = entities.find((doc) => {\n      return doc.language === 'en_us' && !doc.facilityStatus; // don't include facilityStatus docs by-default\n    });\n    if (enUS) {\n      return await this.get(enUS._id);\n    }\n\n    // otherwise just return the first entry in out list\n    return await this.get(entities[0]._id);\n  }\n\n  /**\n   * Get the live facility status for a given entity ID\n   * @param {string} id Entity ID\n   * @return {object} Facility status document, or undefined\n   */\n  async getFacilityStatus(id) {\n    await this.init();\n\n    const statusIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);\n\n    // look up entity ID in our facility status index\n    const indexEntity = statusIndex.find((x) => {\n      return x.id === id;\n    });\n    if (!indexEntity) return undefined;\n\n    return await this.get(indexEntity._id);\n  }\n\n  /**\n   * Find all documents by channel\n   * eg. 'wdw.facilitystatus.1_0' to get all WDW facility status documents\n   * @param {string} channel Channel ID\n   * @param {object} [filter] Optional document index filter\n   * @return {array<object>} All documents in this channel (or empty array)\n   */\n  async getByChannel(channel, filter = {}) {\n    await this.init();\n\n    const channelIndex = this.getIndex(constants.INDEX_CHANNELS);\n\n    const channelData = channelIndex[channel];\n    if (!channelData) {\n      return [];\n    }\n\n    // return resolved documents for the channel\n    return this.getDocsById(channelData.filter(sift(filter)).map((entry) => {\n      return entry._id;\n    }));\n  }\n\n  /**\n   * Return all documents in the database that match the given filter\n   * This is a slow operation! Use sparingly!\n   * @param {object} [filter]\n   * @return {array<object>}\n   */\n  async find(filter = {}) {\n    await this.init();\n\n    const docs = await this.allDocs({\n      include_docs: true,\n    });\n\n    return docs.rows.map((row) => row.doc).filter(sift(filter));\n  }\n\n  /**\n   * Subscribe to all database changes with an optional mongo-style filter\n   * @param {object} [filter]\n   * @param {function} callback\n   */\n  subscribeToChanges(filter, callback) {\n    if (typeof filter === 'function') {\n      // if no filter passed in, call ourselves with an empty set\n      this.subscribeToChanges({}, callback);\n    } else {\n      // listen to changes from now onwards, passing in our filter function\n      this.changes({\n        since: 'now',\n        live: true,\n        include_docs: true,\n        filter: sift(filter),\n      }).on('change', (change) => {\n        callback(change.doc);\n      });\n    }\n  }\n\n  /**\n   * Subscribe to all changes to a channel\n   * @param {string} channel\n   * @param {function} callback\n   */\n  subscribeToChannel(channel, callback) {\n    // only return documents that contain the supplied channel\n    this.subscribeToChanges({\n      channels: {\n        $elemMatch: channel,\n      },\n    }, callback);\n  }\n\n  /**\n   * Plugin function to intercept bulkDocs function\n   * We index any WDW documents we find for easier lookup later\n   * @param  {...any} args bulkDocs in\n   * @private\n   */\n  static async _pluginBulkDocs(...args) {\n    await this._initIndexes();\n\n    const body = args[0];\n    const docs = Array.isArray(body) ? body : body.docs;\n\n    // index each document being added to the database\n    await Promise.allSettled(docs.map((doc) => {\n      return this._indexWDWDocument(doc);\n    }));\n\n    // All documents check out. Pass them to PouchDB.\n    return pouchBulkDocs.call(this, ...args);\n  }\n}\n\n// add our plugin function\nIndexedWDWDB.plugin({\n  bulkDocs: IndexedWDWDB._pluginBulkDocs,\n});\n\n// pouchdb-replication-stream allows us to \"seed\" the database with an initial database dump\n//  incredibly useful for the wdw db, which is pretty huge\nIndexedWDWDB.plugin(ReplicationStream.plugin);\nPouchDB.adapter('writableStream', ReplicationStream.adapters.writableStream);\n\nexport default IndexedWDWDB;\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/wdw/wdwdb.js",
     "access": "public",
@@ -7112,7 +7112,7 @@
     "undocument": true,
     "type": {
       "types": [
-        "{\"INDEX_FACILITYSTATUS\": string, \"INDEX_CHANNELS\": string, \"INDEX_ENTITIES\": string}"
+        "{\"INDEX_FACILITYSTATUS\": string, \"INDEX_CHANNELS\": string, \"INDEX_ENTITIES\": string, \"INDEX_CHILDREN\": string}"
       ]
     },
     "ignore": true
@@ -7129,7 +7129,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/wdw/wdwdb.js",
     "importStyle": null,
     "description": null,
-    "lineNumber": 46,
+    "lineNumber": 47,
     "undocument": true,
     "type": {
       "types": [
@@ -7150,7 +7150,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/wdw/wdwdb.js",
     "importStyle": null,
     "description": null,
-    "lineNumber": 66,
+    "lineNumber": 67,
     "undocument": true,
     "type": {
       "types": [
@@ -7171,7 +7171,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/wdw/wdwdb.js",
     "importStyle": "{IndexedWDWDB}",
     "description": "An indexed live WDW database<br />Replicated WDW database to local disk for fast access<br />While replicating, will build an in-memory index of entities for fast lookup<br />Options to dump database to a single file or load a snapshot for quicker database boot ups",
-    "lineNumber": 74,
+    "lineNumber": 75,
     "interface": false,
     "extends": [
       "pouchdb~PouchDB"
@@ -7188,7 +7188,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#constructor",
     "access": "public",
     "description": "Construct a new IndexedWDWDB object",
-    "lineNumber": 86,
+    "lineNumber": 87,
     "unknown": [
       {
         "tagName": "@extends",
@@ -7279,7 +7279,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#config",
     "access": "public",
     "description": null,
-    "lineNumber": 106,
+    "lineNumber": 107,
     "undocument": true,
     "type": {
       "types": [
@@ -7296,7 +7296,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#remoteDB",
     "access": "public",
     "description": null,
-    "lineNumber": 123,
+    "lineNumber": 124,
     "undocument": true,
     "type": {
       "types": [
@@ -7313,7 +7313,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#synced",
     "access": "public",
     "description": null,
-    "lineNumber": 126,
+    "lineNumber": 127,
     "undocument": true,
     "type": {
       "types": [
@@ -7330,7 +7330,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#replicating",
     "access": "public",
     "description": null,
-    "lineNumber": 127,
+    "lineNumber": 128,
     "undocument": true,
     "type": {
       "types": [
@@ -7347,7 +7347,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_index",
     "access": "private",
     "description": null,
-    "lineNumber": 129,
+    "lineNumber": 130,
     "undocument": true,
     "type": {
       "types": [
@@ -7364,7 +7364,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_setupPromise",
     "access": "private",
     "description": null,
-    "lineNumber": 130,
+    "lineNumber": 131,
     "undocument": true,
     "type": {
       "types": [
@@ -7381,7 +7381,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_indexSetup",
     "access": "private",
     "description": null,
-    "lineNumber": 131,
+    "lineNumber": 132,
     "undocument": true,
     "type": {
       "types": [
@@ -7400,7 +7400,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB.getDatabaseFilePath",
     "access": "public",
     "description": "Get the LevelDOWN database location to use",
-    "lineNumber": 139,
+    "lineNumber": 140,
     "params": [
       {
         "nullable": null,
@@ -7433,7 +7433,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#init",
     "access": "public",
     "description": "Initialise the live database, returns once finished an initial sync",
-    "lineNumber": 146,
+    "lineNumber": 147,
     "params": [],
     "return": {
       "types": [
@@ -7450,7 +7450,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#initPromiseSync",
     "access": "public",
     "description": null,
-    "lineNumber": 154,
+    "lineNumber": 155,
     "undocument": true,
     "type": {
       "types": [
@@ -7469,7 +7469,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_replicate",
     "access": "private",
     "description": "Start database replication",
-    "lineNumber": 172,
+    "lineNumber": 173,
     "params": [],
     "return": null
   },
@@ -7484,7 +7484,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_loadAndInit",
     "access": "private",
     "description": "Internal function<br />Loads and performs an initial sync on the database",
-    "lineNumber": 237,
+    "lineNumber": 238,
     "params": [],
     "return": {
       "types": [
@@ -7503,7 +7503,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getDumpFilename",
     "access": "public",
     "description": "Get the filename we use for saving backups of the database to disk<br />Used for creating simple \"snapshots\" to reduce initial sync times",
-    "lineNumber": 275,
+    "lineNumber": 276,
     "params": [
       {
         "nullable": null,
@@ -7536,7 +7536,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#loadSnapshot",
     "access": "public",
     "description": "Restore a database backup from disk<br />Perform this after running \"dump()\" on a previous synced database<br />This will help to reduce the initial sync time for large databases",
-    "lineNumber": 286,
+    "lineNumber": 287,
     "params": [
       {
         "nullable": null,
@@ -7566,7 +7566,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#saveSnapshot",
     "access": "public",
     "description": "Save a snapshot of this live database to disk<br />This will be used to \"seed\" the database to speed up syncs for future runs",
-    "lineNumber": 316,
+    "lineNumber": 317,
     "return": {
       "nullable": null,
       "types": [
@@ -7586,7 +7586,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#databaseDumpPendingPromise",
     "access": "public",
     "description": null,
-    "lineNumber": 328,
+    "lineNumber": 329,
     "undocument": true,
     "type": {
       "types": [
@@ -7605,7 +7605,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_initIndexes",
     "access": "private",
     "description": "Index initialisation<br />This function wraps taking care of creating our indexes once only",
-    "lineNumber": 347,
+    "lineNumber": 348,
     "params": [],
     "return": {
       "types": [
@@ -7624,7 +7624,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_createIndexes",
     "access": "private",
     "description": "Setup our WDW indexes",
-    "lineNumber": 366,
+    "lineNumber": 367,
     "params": [],
     "return": null
   },
@@ -7639,7 +7639,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getIndex",
     "access": "private",
     "description": "Get the internal index object for the given index type",
-    "lineNumber": 378,
+    "lineNumber": 380,
     "params": [
       {
         "nullable": null,
@@ -7672,7 +7672,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_createIndex",
     "access": "private",
     "description": "Create an index object to be used by this database",
-    "lineNumber": 388,
+    "lineNumber": 390,
     "params": [
       {
         "nullable": null,
@@ -7708,7 +7708,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_extractEntityKeys",
     "access": "private",
     "description": "Given a WDW document, extract key identifiable data<br />This is used to build a look-up index of unique document types<br />See ancestorIndexes for some of the keys we use<br />This is important so we can tell the difference between entities with the same ID, but different purposes<br />eg. an entity ID can have multiple documents, one for the attraction itself, one for it's wait times, etc.<br />These need to both be in the index under the same entity ID, but with different properties to make them distinct",
-    "lineNumber": 405,
+    "lineNumber": 407,
     "params": [
       {
         "nullable": null,
@@ -7741,7 +7741,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_extractChannelLanguage",
     "access": "private",
     "description": "Given a WDW database document, try to return its language",
-    "lineNumber": 471,
+    "lineNumber": 473,
     "params": [
       {
         "nullable": null,
@@ -7774,7 +7774,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_removeFromArrayIndex",
     "access": "private",
     "description": "Remove all indexes referencing docID from the given index",
-    "lineNumber": 494,
+    "lineNumber": 496,
     "params": [
       {
         "nullable": null,
@@ -7810,7 +7810,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#_indexWDWDocument",
     "access": "private",
     "description": "Add a document to the database index<br />Used for fast lookups of entities etc. to the correct documents",
-    "lineNumber": 514,
+    "lineNumber": 516,
     "params": [
       {
         "nullable": null,
@@ -7836,7 +7836,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getDocsById",
     "access": "public",
     "description": "Get an array of documents from an array of _id",
-    "lineNumber": 602,
+    "lineNumber": 634,
     "params": [
       {
         "nullable": null,
@@ -7866,7 +7866,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getEntityIndex",
     "access": "public",
     "description": "Find search index entries by ID<br />If you want the actual document and not just the meta-index data, use getEntity() instead",
-    "lineNumber": 621,
+    "lineNumber": 653,
     "params": [
       {
         "nullable": null,
@@ -7901,6 +7901,36 @@
   {
     "__docId__": 372,
     "kind": "method",
+    "name": "getDocChildren",
+    "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getDocChildren",
+    "access": "public",
+    "description": "Return an array of children document IDs for a given entity ID",
+    "lineNumber": 668,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "string"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "id",
+        "description": ""
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 373,
+    "kind": "method",
     "name": "getEntity",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
     "generator": false,
@@ -7909,7 +7939,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getEntity",
     "access": "public",
     "description": "Search for an entity in the WDW database",
-    "lineNumber": 638,
+    "lineNumber": 683,
     "params": [
       {
         "nullable": null,
@@ -7942,7 +7972,7 @@
     }
   },
   {
-    "__docId__": 373,
+    "__docId__": 374,
     "kind": "method",
     "name": "getEntityOne",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -7952,7 +7982,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getEntityOne",
     "access": "public",
     "description": "Search for an entity in the WDW database<br />Attempts to return the \"best candidate\" single document that matches the incoming ID",
-    "lineNumber": 655,
+    "lineNumber": 700,
     "params": [
       {
         "nullable": null,
@@ -7985,7 +8015,7 @@
     }
   },
   {
-    "__docId__": 374,
+    "__docId__": 375,
     "kind": "method",
     "name": "getFacilityStatus",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -7995,7 +8025,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getFacilityStatus",
     "access": "public",
     "description": "Get the live facility status for a given entity ID",
-    "lineNumber": 685,
+    "lineNumber": 730,
     "params": [
       {
         "nullable": null,
@@ -8018,7 +8048,7 @@
     }
   },
   {
-    "__docId__": 375,
+    "__docId__": 376,
     "kind": "method",
     "name": "getByChannel",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -8028,7 +8058,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getByChannel",
     "access": "public",
     "description": "Find all documents by channel<br />eg. 'wdw.facilitystatus.1_0' to get all WDW facility status documents",
-    "lineNumber": 706,
+    "lineNumber": 751,
     "params": [
       {
         "nullable": null,
@@ -8061,7 +8091,7 @@
     }
   },
   {
-    "__docId__": 376,
+    "__docId__": 377,
     "kind": "method",
     "name": "find",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -8071,7 +8101,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#find",
     "access": "public",
     "description": "Return all documents in the database that match the given filter<br />This is a slow operation! Use sparingly!",
-    "lineNumber": 728,
+    "lineNumber": 773,
     "params": [
       {
         "nullable": null,
@@ -8094,7 +8124,7 @@
     }
   },
   {
-    "__docId__": 377,
+    "__docId__": 378,
     "kind": "method",
     "name": "subscribeToChanges",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -8104,7 +8134,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#subscribeToChanges",
     "access": "public",
     "description": "Subscribe to all database changes with an optional mongo-style filter",
-    "lineNumber": 743,
+    "lineNumber": 788,
     "params": [
       {
         "nullable": null,
@@ -8130,7 +8160,7 @@
     "return": null
   },
   {
-    "__docId__": 378,
+    "__docId__": 379,
     "kind": "method",
     "name": "subscribeToChannel",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -8140,7 +8170,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB#subscribeToChannel",
     "access": "public",
     "description": "Subscribe to all changes to a channel",
-    "lineNumber": 765,
+    "lineNumber": 810,
     "params": [
       {
         "nullable": null,
@@ -8166,7 +8196,7 @@
     "return": null
   },
   {
-    "__docId__": 379,
+    "__docId__": 380,
     "kind": "method",
     "name": "_pluginBulkDocs",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -8176,7 +8206,7 @@
     "longname": "lib/parks/wdw/wdwdb.js~IndexedWDWDB._pluginBulkDocs",
     "access": "private",
     "description": "Plugin function to intercept bulkDocs function<br />We index any WDW documents we find for easier lookup later",
-    "lineNumber": 780,
+    "lineNumber": 825,
     "params": [
       {
         "nullable": null,
@@ -8196,7 +8226,7 @@
     }
   },
   {
-    "__docId__": 380,
+    "__docId__": 381,
     "kind": "file",
     "name": "lib/reusePromises.js",
     "content": "/**\n * Module that wraps re-using the same Promise multiple times.\n * This allows a function to be called multiple times before returning, but only return once.\n * Useful for latent network requests,\n *  such as requesting a document from multiple sources, but only making one HTTP request.\n */\n\nconst activeFunctions = [];\n\n/**\n * Find the active function with these arguments\n * @param {*} self\n * @param {function} fn\n * @param {string} argsSerialised\n * @return {number}\n * @private\n */\nfunction findActiveFunctionIndex(self, fn, argsSerialised) {\n  return activeFunctions.findIndex((x) => {\n    return x.self === self && x.fn === fn && x.args === argsSerialised;\n  });\n}\n\n/**\n * Reuse a function until it resolves\n * @param {*} self\n * @param {function} fn\n * @param  {...any} args Arguments to pass to the function\n * @return {Promise}\n */\nexport function reusePromise(self, fn, ...args) {\n  return _reusePromise(false, self, fn, ...args);\n}\n\n/**\n * Reuse a function, returning it's result forever\n * @param {*} self\n * @param {function} fn\n * @param  {...any} args Arguments to pass to the function\n * @return {Promise}\n */\nexport function reusePromiseForever(self, fn, ...args) {\n  return _reusePromise(true, self, fn, ...args);\n}\n\n/**\n * Internal call to run a Promise once time (and optionally keep result forever)\n * @param {boolean} useResultForever\n * @param {*} self\n * @param {function} fn\n * @param  {...any} args\n * @return {Promise}\n * @private\n */\nfunction _reusePromise(useResultForever, self, fn, ...args) {\n  // search for existing promise that hasn't resolved yet\n  const argsSerialise = args ? JSON.stringify(args) : null;\n  const existingFunctionIndex = findActiveFunctionIndex(self, fn, argsSerialise);\n  const existingFunction = existingFunctionIndex >= 0 ? activeFunctions[existingFunctionIndex] : undefined;\n  if (existingFunction) {\n    if (existingFunction.resolved) {\n      return existingFunction.value;\n    }\n    return existingFunction.promise;\n  }\n\n  const cleanupPendingFunction = () => {\n    const pendingFunctionIDX = findActiveFunctionIndex(self, fn, argsSerialise);\n    if (pendingFunctionIDX >= 0) {\n      if (!useResultForever) {\n      // clean up pending Promise\n        activeFunctions.splice(pendingFunctionIDX, 1);\n      }\n    }\n  };\n\n  // didn't find a pending existing promise, make a new one!\n  const newPromise = (self !== null && self !== undefined) ? fn.apply(self, args) : fn(...args);\n  newPromise.then((value) => {\n    // clean up our pending Promise\n    if (!useResultForever) {\n      cleanupPendingFunction();\n    } else {\n      const pendingFunctionIDX = findActiveFunctionIndex(self, fn, argsSerialise);\n      if (pendingFunctionIDX >= 0) {\n      // store result so we can re-use it for future calls\n        activeFunctions[pendingFunctionIDX].resolved = true;\n        activeFunctions[pendingFunctionIDX].value = value;\n      }\n    }\n\n    return value;\n  }).catch((err) => {\n    cleanupPendingFunction();\n    throw err;\n  });\n  activeFunctions.push({\n    fn,\n    self,\n    args: argsSerialise,\n    promise: newPromise,\n    resolved: false,\n  });\n  return newPromise;\n}\n\nexport default reusePromise;\n",
@@ -8207,7 +8237,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 381,
+    "__docId__": 382,
     "kind": "variable",
     "name": "activeFunctions",
     "memberof": "lib/reusePromises.js",
@@ -8227,7 +8257,7 @@
     "ignore": true
   },
   {
-    "__docId__": 382,
+    "__docId__": 383,
     "kind": "function",
     "name": "findActiveFunctionIndex",
     "memberof": "lib/reusePromises.js",
@@ -8284,7 +8314,7 @@
     "ignore": true
   },
   {
-    "__docId__": 383,
+    "__docId__": 384,
     "kind": "function",
     "name": "reusePromise",
     "memberof": "lib/reusePromises.js",
@@ -8340,7 +8370,7 @@
     }
   },
   {
-    "__docId__": 384,
+    "__docId__": 385,
     "kind": "function",
     "name": "reusePromiseForever",
     "memberof": "lib/reusePromises.js",
@@ -8396,7 +8426,7 @@
     }
   },
   {
-    "__docId__": 385,
+    "__docId__": 386,
     "kind": "function",
     "name": "_reusePromise",
     "memberof": "lib/reusePromises.js",

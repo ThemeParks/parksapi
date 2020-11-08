@@ -1968,6 +1968,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#getdocchildren",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-getDocChildren",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getDocChildren",
+    "method"
+  ],
+  [
     "lib/parks/wdw/wdwdb.js~indexedwdwdb#getdocsbyid",
     "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-getDocsById",
     "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getDocsById",
