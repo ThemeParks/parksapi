@@ -128,6 +128,7 @@ const constants = {
   INDEX_CHANNELS: &apos;channels&apos;,
   INDEX_ENTITIES: &apos;entities&apos;,
   INDEX_CHILDREN: &apos;children&apos;,
+  INDEX_NAMES: &apos;names&apos;,
 };
 
 // ancestors to include in our index
@@ -457,6 +458,7 @@ export class IndexedWDWDB extends PouchDB {
     await this._createIndex(constants.INDEX_CHANNELS);
     await this._createIndex(constants.INDEX_FACILITYSTATUS, []);
     await this._createIndex(constants.INDEX_CHILDREN);
+    await this._createIndex(constants.INDEX_NAMES);
   }
 
   /**
@@ -627,6 +629,16 @@ export class IndexedWDWDB extends PouchDB {
         }
       });
 
+      // name index
+      const nameIndex = this.getIndex(constants.INDEX_NAMES);
+      const nameIndexIDs = Object.keys(nameIndex);
+      nameIndexIDs.forEach((index) =&gt; {
+        const idx = childIndex[index].indexOf(doc._id);
+        if (idx &gt;= 0) {
+          childIndex[index].splice(idx, 1);
+        }
+      });
+
       return;
     }
 
@@ -682,6 +694,18 @@ export class IndexedWDWDB extends PouchDB {
             }
           }
         }
+      }
+
+      // index document names for text searching
+      let docName = doc?.name;
+      if (docName) {
+        // simplify our doc name to only alphanumeric characters
+        docName = docName.toLowerCase().replace(/[^a-z0-9]/g, &apos;&apos;);
+        const nameIndex = this.getIndex(constants.INDEX_NAMES);
+        if (!nameIndex[docName]) {
+          nameIndex[docName] = [];
+        }
+        nameIndex[docName].push(doc._id);
       }
 
       const newIndexKeys = Object.keys(newIndexEntry);
