@@ -4911,7 +4911,7 @@
     "__docId__": 237,
     "kind": "file",
     "name": "lib/parks/parkTypes.js",
-    "content": "\n/**\n * Possible types of queue\n * @enum\n */\nexport const queueType = Object.freeze({\n  // your standard \"stand-by queueing\"\n  standBy: 'STANDBY',\n  // identical to standby, but one guest at a time\n  singleRider: 'SINGLE_RIDER',\n  // virtual queue or \"classic\" paper fast-pass style system\n  //  can reserve a spot for a later time\n  returnTime: 'RETURN_TIME',\n  // special type, \"boarding group\"\n  //  guests reserve a slot to enter the attracion, but the time is not known\n  //  \"boarding groups\" are called in sequence when capacity allows\n  // eg. Rise of the Resistance at Disney\n  boardingGroup: 'BOARDING_GROUP',\n});\n\n/**\n * Possible types of state for a return time queue\n * @enum\n */\nexport const returnTimeState = Object.freeze({\n  // there are places still available\n  available: 'AVAILABLE',\n  // more slots will be available later\n  temporarilyFull: 'TEMP_FULL',\n  // all slots have been reserved for the day\n  finished: 'FINISHED',\n});\n\n/**\n * Status an attraction can be in (Operating, Down, etc.)\n * @enum\n */\nexport const statusType = Object.freeze({\n  operating: 'OPERATING',\n  down: 'DOWN',\n  closed: 'CLOSED',\n  refurbishment: 'REFURBISHMENT',\n});\n\n/**\n * Entity types\n * @enum\n */\nexport const entityType = Object.freeze({\n  resort: 'RESORT',\n  park: 'PARK',\n  attraction: 'ATTRACTION',\n  restaurant: 'RESTAURANT',\n  hotel: 'HOTEL',\n  show: 'SHOW',\n});\n\n/**\n * All known attraction types (ride, show, etc.)\n * @enum\n */\nexport const attractionType = Object.freeze({\n  ride: 'RIDE',\n  show: 'SHOW',\n  transport: 'TRANSPORT',\n  parade: 'PARADE',\n  meetAndGreet: 'MEET_AND_GREET',\n  other: 'OTHER',\n});\n\n/**\n * All possible schedule types\n * @enum\n */\nexport const scheduleType = Object.freeze({\n  operating: 'OPERATING', // normal park operating hours\n  ticketed: 'TICKETED_EVENT', // ticketed event. Halloween Horror nights etc.\n  private: 'PRIVATE_EVENT',\n  extraHours: 'EXTRA_HOURS', // \"extra magic hours\", \"early park admission\", etc.\n});\n\n/**\n * All possible Tag types for attractions\n * @enum\n */\nexport const tagType = Object.freeze({\n  location: 'LOCATION',\n  fastPass: 'FASTPASS',\n  mayGetWet: 'MAY_GET_WET',\n  unsuitableForPregnantPeople: 'UNSUITABLE_PREGNANT',\n  minimumHeight: 'MINIMUM_HEIGHT',\n  maximumHeight: 'MAXIMUM_HEIGHT',\n  onRidePhoto: 'ONRIDE_PHOTO',\n  singleRider: 'SINGLE_RIDER',\n  childSwap: 'CHILD_SWAP',\n});\n",
+    "content": "\n/**\n * Possible types of queue\n * @enum\n */\nexport const queueType = Object.freeze({\n  // your standard \"stand-by queueing\"\n  standBy: 'STANDBY',\n  // identical to standby, but one guest at a time\n  singleRider: 'SINGLE_RIDER',\n  // virtual queue or \"classic\" paper fast-pass style system\n  //  can reserve a spot for a later time\n  returnTime: 'RETURN_TIME',\n  // special type, \"boarding group\"\n  //  guests reserve a slot to enter the attracion, but the time is not known\n  //  \"boarding groups\" are called in sequence when capacity allows\n  // eg. Rise of the Resistance at Disney\n  boardingGroup: 'BOARDING_GROUP',\n});\n\n/**\n * Possible types of state for a return time queue\n * @enum\n */\nexport const returnTimeState = Object.freeze({\n  // status is unknown, app may require authentication or a purchased ticket to know\n  unknown: 'UNKNOWN',\n  // there are places still available\n  available: 'AVAILABLE',\n  // more slots will be available later\n  temporarilyFull: 'TEMP_FULL',\n  // all slots have been reserved for the day\n  finished: 'FINISHED',\n});\n\n/**\n * Status an attraction can be in (Operating, Down, etc.)\n * @enum\n */\nexport const statusType = Object.freeze({\n  operating: 'OPERATING',\n  down: 'DOWN',\n  closed: 'CLOSED',\n  refurbishment: 'REFURBISHMENT',\n});\n\n/**\n * Entity types\n * @enum\n */\nexport const entityType = Object.freeze({\n  resort: 'RESORT',\n  park: 'PARK',\n  attraction: 'ATTRACTION',\n  restaurant: 'RESTAURANT',\n  hotel: 'HOTEL',\n  show: 'SHOW',\n});\n\n/**\n * All known attraction types (ride, show, etc.)\n * @enum\n */\nexport const attractionType = Object.freeze({\n  ride: 'RIDE',\n  show: 'SHOW',\n  transport: 'TRANSPORT',\n  parade: 'PARADE',\n  meetAndGreet: 'MEET_AND_GREET',\n  other: 'OTHER',\n});\n\n/**\n * All possible schedule types\n * @enum\n */\nexport const scheduleType = Object.freeze({\n  operating: 'OPERATING', // normal park operating hours\n  ticketed: 'TICKETED_EVENT', // ticketed event. Halloween Horror nights etc.\n  private: 'PRIVATE_EVENT',\n  extraHours: 'EXTRA_HOURS', // \"extra magic hours\", \"early park admission\", etc.\n});\n\n/**\n * All possible Tag types for attractions\n * @enum\n */\nexport const tagType = Object.freeze({\n  location: 'LOCATION',\n  fastPass: 'FASTPASS',\n  mayGetWet: 'MAY_GET_WET',\n  unsuitableForPregnantPeople: 'UNSUITABLE_PREGNANT',\n  minimumHeight: 'MINIMUM_HEIGHT',\n  maximumHeight: 'MAXIMUM_HEIGHT',\n  onRidePhoto: 'ONRIDE_PHOTO',\n  singleRider: 'SINGLE_RIDER',\n  childSwap: 'CHILD_SWAP',\n});\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/parkTypes.js",
     "access": "public",
@@ -4980,7 +4980,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/parkTypes.js",
     "importStyle": "{statusType}",
     "description": "Status an attraction can be in (Operating, Down, etc.)",
-    "lineNumber": 38,
+    "lineNumber": 40,
     "unknown": [
       {
         "tagName": "@enum",
@@ -5005,7 +5005,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/parkTypes.js",
     "importStyle": "{entityType}",
     "description": "Entity types",
-    "lineNumber": 49,
+    "lineNumber": 51,
     "unknown": [
       {
         "tagName": "@enum",
@@ -5030,7 +5030,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/parkTypes.js",
     "importStyle": "{attractionType}",
     "description": "All known attraction types (ride, show, etc.)",
-    "lineNumber": 62,
+    "lineNumber": 64,
     "unknown": [
       {
         "tagName": "@enum",
@@ -5055,7 +5055,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/parkTypes.js",
     "importStyle": "{scheduleType}",
     "description": "All possible schedule types",
-    "lineNumber": 75,
+    "lineNumber": 77,
     "unknown": [
       {
         "tagName": "@enum",
@@ -5080,7 +5080,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/parkTypes.js",
     "importStyle": "{tagType}",
     "description": "All possible Tag types for attractions",
-    "lineNumber": 86,
+    "lineNumber": 88,
     "unknown": [
       {
         "tagName": "@enum",
@@ -8502,7 +8502,7 @@
   },
   {
     "kind": "packageJSON",
-    "content": "{\n  \"name\": \"@themeparks/parksapi\",\n  \"type\": \"module\",\n  \"version\": \"1.2.26\",\n  \"description\": \"\",\n  \"engines\": {\n    \"npm\": \">=6\",\n    \"node\": \">=14\"\n  },\n  \"main\": \"lib/index.js\",\n  \"exports\": {\n    \".\": \"./lib/index.js\",\n    \"./park\": \"./lib/parks/park.js\",\n    \"./parkTypes\": \"./lib/parks/parkTypes.js\",\n    \"./cache/\": \"./lib/cache/\",\n    \"./cache\": \"./lib/cache.js\",\n    \"./tags\": \"./lib/parks/tags.js\"\n  },\n  \"scripts\": {\n    \"test\": \"eslint ./lib/**\",\n    \"docs\": \"esdoc\"\n  },\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/ThemeParks/parksapi.git\"\n  },\n  \"publishConfig\": {\n    \"registry\": \"https://npm.jamie.holdings\"\n  },\n  \"author\": \"@cube\",\n  \"license\": \"ISC\",\n  \"bugs\": {\n    \"url\": \"https://github.com/ThemeParks/parksapi/issues\"\n  },\n  \"homepage\": \"https://github.com/ThemeParks/parksapi#readme\",\n  \"dependencies\": {\n    \"dotenv\": \"^8.2.0\",\n    \"egoroof-blowfish\": \"^2.2.2\",\n    \"fetch-cookie\": \"^0.10.1\",\n    \"json-diff\": \"^0.5.4\",\n    \"mingo\": \"^3.0.6\",\n    \"moment-timezone\": \"^0.5.31\",\n    \"needle\": \"^2.5.0\",\n    \"node-fetch\": \"^2.6.1\",\n    \"pouchdb\": \"^7.2.1\",\n    \"pouchdb-replication-stream\": \"github:pouchdb-community/pouchdb-replication-stream#56f0511\",\n    \"promise-retry\": \"^2.0.1\",\n    \"random-useragent\": \"^0.4.0\",\n    \"sift\": \"^13.1.10\",\n    \"tough-cookie\": \"^4.0.0\",\n    \"uuid\": \"^8.3.0\"\n  },\n  \"devDependencies\": {\n    \"@babel/traverse\": \"^7.11.0\",\n    \"esdoc\": \"^1.1.0\",\n    \"esdoc-ecmascript-proposal-plugin\": \"^1.0.0\",\n    \"esdoc-standard-plugin\": \"^1.0.0\",\n    \"eslint\": \"^7.4.0\",\n    \"eslint-config-google\": \"^0.14.0\"\n  }\n}\n",
+    "content": "{\n  \"name\": \"@themeparks/parksapi\",\n  \"type\": \"module\",\n  \"version\": \"1.2.27\",\n  \"description\": \"\",\n  \"engines\": {\n    \"npm\": \">=6\",\n    \"node\": \">=14\"\n  },\n  \"main\": \"lib/index.js\",\n  \"exports\": {\n    \".\": \"./lib/index.js\",\n    \"./park\": \"./lib/parks/park.js\",\n    \"./parkTypes\": \"./lib/parks/parkTypes.js\",\n    \"./cache/\": \"./lib/cache/\",\n    \"./cache\": \"./lib/cache.js\",\n    \"./tags\": \"./lib/parks/tags.js\"\n  },\n  \"scripts\": {\n    \"test\": \"eslint ./lib/**\",\n    \"docs\": \"esdoc\"\n  },\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/ThemeParks/parksapi.git\"\n  },\n  \"publishConfig\": {\n    \"registry\": \"https://npm.jamie.holdings\"\n  },\n  \"author\": \"@cube\",\n  \"license\": \"ISC\",\n  \"bugs\": {\n    \"url\": \"https://github.com/ThemeParks/parksapi/issues\"\n  },\n  \"homepage\": \"https://github.com/ThemeParks/parksapi#readme\",\n  \"dependencies\": {\n    \"dotenv\": \"^8.2.0\",\n    \"egoroof-blowfish\": \"^2.2.2\",\n    \"fetch-cookie\": \"^0.10.1\",\n    \"json-diff\": \"^0.5.4\",\n    \"mingo\": \"^3.0.6\",\n    \"moment-timezone\": \"^0.5.31\",\n    \"needle\": \"^2.5.0\",\n    \"node-fetch\": \"^2.6.1\",\n    \"pouchdb\": \"^7.2.1\",\n    \"pouchdb-replication-stream\": \"github:pouchdb-community/pouchdb-replication-stream#56f0511\",\n    \"promise-retry\": \"^2.0.1\",\n    \"random-useragent\": \"^0.4.0\",\n    \"sift\": \"^13.1.10\",\n    \"tough-cookie\": \"^4.0.0\",\n    \"uuid\": \"^8.3.0\"\n  },\n  \"devDependencies\": {\n    \"@babel/traverse\": \"^7.11.0\",\n    \"esdoc\": \"^1.1.0\",\n    \"esdoc-ecmascript-proposal-plugin\": \"^1.0.0\",\n    \"esdoc-standard-plugin\": \"^1.0.0\",\n    \"eslint\": \"^7.4.0\",\n    \"eslint-config-google\": \"^0.14.0\"\n  }\n}\n",
     "longname": "/home/runner/work/parksapi/parksapi/package.json",
     "name": "package.json",
     "static": true,

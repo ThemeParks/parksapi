@@ -111,6 +111,8 @@ export const queueType = Object.freeze({
  * @enum
  */
 export const returnTimeState = Object.freeze({
+  // status is unknown, app may require authentication or a purchased ticket to know
+  unknown: &apos;UNKNOWN&apos;,
   // there are places still available
   available: &apos;AVAILABLE&apos;,
   // more slots will be available later
