@@ -1314,6 +1314,12 @@ window.esdocSearchIndex = [
     "member"
   ],
   [
+    "lib/parks/park.js~park#_postinit",
+    "class/lib/parks/park.js~Park.html#instance-method-_postInit",
+    "lib/parks/park.js~Park#_postInit",
+    "method"
+  ],
+  [
     "lib/parks/park.js~park#_postofflineload",
     "class/lib/parks/park.js~Park.html#instance-method-_postOfflineLoad",
     "lib/parks/park.js~Park#_postOfflineLoad",
@@ -1432,6 +1438,12 @@ window.esdocSearchIndex = [
     "class/lib/parks/park.js~Park.html#instance-method-getParkUniqueID",
     "lib/parks/park.js~Park#getParkUniqueID",
     "method"
+  ],
+  [
+    "lib/parks/park.js~park#hasrunpostinit",
+    "class/lib/parks/park.js~Park.html#instance-member-hasRunPostInit",
+    "lib/parks/park.js~Park#hasRunPostInit",
+    "member"
   ],
   [
     "lib/parks/park.js~park#hasrunupdate",
@@ -1746,6 +1758,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#_daterefresh",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_dateRefresh",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_dateRefresh",
+    "method"
+  ],
+  [
     "lib/parks/wdw/waltdisneyworldbase.js~disneypark#_getoperatinghoursfordate",
     "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_getOperatingHoursForDate",
     "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_getOperatingHoursForDate",
@@ -1755,6 +1773,12 @@ window.esdocSearchIndex = [
     "lib/parks/wdw/waltdisneyworldbase.js~disneypark#_init",
     "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_init",
     "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_init",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#_postinit",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_postInit",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_postInit",
     "method"
   ],
   [
@@ -1782,9 +1806,33 @@ window.esdocSearchIndex = [
     "member"
   ],
   [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#getcalendardocumentidfordate",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-getCalendarDocumentIDForDate",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#getCalendarDocumentIDForDate",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#getdatabasecalendarfordate",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-getDatabaseCalendarForDate",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#getDatabaseCalendarForDate",
+    "method"
+  ],
+  [
     "lib/parks/wdw/waltdisneyworldbase.js~disneypark#getfacilitystatuschannelid",
     "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-getFacilityStatusChannelID",
     "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#getFacilityStatusChannelID",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#refurbs",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-member-refurbs",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#refurbs",
+    "member"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#updaterefurbishments",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-updateRefurbishments",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#updateRefurbishments",
     "method"
   ],
   [
@@ -1971,6 +2019,12 @@ window.esdocSearchIndex = [
     "lib/parks/wdw/wdwdb.js~indexedwdwdb#getdocchildren",
     "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-getDocChildren",
     "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getDocChildren",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/wdwdb.js~indexedwdwdb#getdocnamesearch",
+    "class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html#instance-method-getDocNameSearch",
+    "lib/parks/wdw/wdwdb.js~IndexedWDWDB#getDocNameSearch",
     "method"
   ],
   [

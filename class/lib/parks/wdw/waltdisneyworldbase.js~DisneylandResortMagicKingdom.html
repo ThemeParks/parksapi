@@ -86,13 +86,13 @@
 </nav>
 
 <div class="content" data-ice="content"><div class="header-notice">
-  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import {DisneylandResortMagicKingdom} from &apos;<span><a href="file/lib/parks/wdw/waltdisneyworldbase.js.html#lineNumber300">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</a></span>&apos;</code></pre></div>
+  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import {DisneylandResortMagicKingdom} from &apos;<span><a href="file/lib/parks/wdw/waltdisneyworldbase.js.html#lineNumber372">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</a></span>&apos;</code></pre></div>
   <span data-ice="access">public</span>
   <span data-ice="kind">class</span>
   
   
   
-  <span data-ice="source">| <span><a href="file/lib/parks/wdw/waltdisneyworldbase.js.html#lineNumber300">source</a></span></span>
+  <span data-ice="source">| <span><a href="file/lib/parks/wdw/waltdisneyworldbase.js.html#lineNumber372">source</a></span></span>
 </div>
 
 <div class="self-detail detail">
@@ -768,6 +768,34 @@
           
           
           
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-member-hasRunPostInit">hasRunPostInit</a></span></span><span class="code" data-ice="signature">: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean">boolean</a></span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          
+          
           <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-member-hasRunUpdate">hasRunUpdate</a></span></span><span class="code" data-ice="signature">: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean">boolean</a></span></span>
         </p>
       </div>
@@ -1314,7 +1342,7 @@
           
           <span data-ice="async">async</span>
           
-          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-init">init</a></span></span><span class="code" data-ice="signature">(): <span>*</span></span>
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-init">init</a></span></span><span class="code" data-ice="signature">()</span>
         </p>
       </div>
       <div>
@@ -1740,6 +1768,35 @@
       <span class="access" data-ice="access">private</span>
       
       
+      <span class="abstract" data-ice="abstract">abstract</span>
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-_postInit">_postInit</a></span></span><span class="code" data-ice="signature">()</span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Internal function<br>Called by init() to initialise the object</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">private</span>
+      
+      
       
       <span class="override" data-ice="override"></span>
     </td>
@@ -1957,6 +2014,92 @@
           
           
           
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-member-refurbs">refurbs</a></span></span><span class="code" data-ice="signature">: <span><span>*</span><span>[]</span></span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-getCalendarDocumentIDForDate">getCalendarDocumentIDForDate</a></span></span><span class="code" data-ice="signature">(date: <span>Moment</span>): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Get calendar document ID for resort.</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-getDatabaseCalendarForDate">getDatabaseCalendarForDate</a></span></span><span class="code" data-ice="signature">(date: <span>Moment</span>): <span>*</span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Get calendar data from WDW database for a given date</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          
+          
           <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-getFacilityStatusChannelID">getFacilityStatusChannelID</a></span></span><span class="code" data-ice="signature">(): <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></span>
         </p>
       </div>
@@ -1964,6 +2107,35 @@
         
         
         <div data-ice="description"><p>Get the channel ID for the facility status live update documents</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-updateRefurbishments">updateRefurbishments</a></span></span><span class="code" data-ice="signature">()</span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Update resort&apos;s refurbishment data</p>
 </div>
       </div>
     </td>
@@ -2015,6 +2187,34 @@
           
           <span data-ice="async">async</span>
           
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_dateRefresh">_dateRefresh</a></span></span><span class="code" data-ice="signature">(newDate: <span>*</span>, oldDate: <span>*</span>)</span>
+        </p>
+      </div>
+      <div>
+        
+        
+        
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">private</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
           <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_getOperatingHoursForDate">_getOperatingHoursForDate</a></span></span><span class="code" data-ice="signature">(date: <span>moment</span>): <span>*</span></span>
         </p>
       </div>
@@ -2045,6 +2245,34 @@
           <span data-ice="async">async</span>
           
           <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_init">_init</a></span></span><span class="code" data-ice="signature">()</span>
+        </p>
+      </div>
+      <div>
+        
+        
+        
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">private</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_postInit">_postInit</a></span></span><span class="code" data-ice="signature">()</span>
         </p>
       </div>
       <div>
@@ -2135,7 +2363,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/wdw/waltdisneyworldbase.js.html#lineNumber304">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/wdw/waltdisneyworldbase.js.html#lineNumber376">source</a></span></span>
     </span>
   </h3>
 

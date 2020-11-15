@@ -787,6 +787,22 @@ export class IndexedWDWDB extends PouchDB {
   }
 
   /**
+   * Very rudementary text search for documents matching the incoming name.
+   * name argument will be stripped of all non-alphanumeric characters for searching.
+   * Will return an array of document IDs with matching name substrings.
+   * @param {string} name
+   */
+  async getDocNameSearch(name) {
+    const searchName = name.toLowerCase().replace(/[^a-z0-9]/g, &apos;&apos;);
+    const nameIndex = await this.getIndex(constants.INDEX_NAMES);
+    const names = Object.keys(nameIndex);
+    const found = names.filter((x) =&gt; {
+      return x.indexOf(searchName) &gt;= 0;
+    });
+    return found.map((x) =&gt; nameIndex[x]).flat();
+  }
+
+  /**
    * Search for an entity in the WDW database
    * @param {string} id Entity ID
    * @param {object} [filter] Filter index by field
