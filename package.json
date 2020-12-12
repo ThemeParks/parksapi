@@ -24,9 +24,6 @@
     "type": "git",
     "url": "git+https://github.com/ThemeParks/parksapi.git"
   },
-  "publishConfig": {
-    "registry": "https://npm.jamie.holdings"
-  },
   "author": "@cube",
   "license": "ISC",
   "bugs": {
