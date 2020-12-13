@@ -6639,7 +6639,7 @@
     "__docId__": 310,
     "kind": "file",
     "name": "lib/parks/wdw/waltdisneyworldbase.js",
-    "content": "import {IndexedWDWDB, getEntityID} from './wdwdb.js';\nimport {Park} from '../park.js';\nimport {attractionType, statusType, queueType, tagType, scheduleType, entityType} from '../parkTypes.js';\nimport moment from 'moment-timezone';\n\nlet wdwDB = null;\n\n/**\n * Base Disney Park Class\n */\nexport class DisneyPark extends Park {\n  /**\n   * Create a new DisneyPark object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.resort_id = options.resort_id || '';\n    options.park_id = options.park_id || '';\n\n    if (!options.configPrefixes) {\n      options.configPrefixes = ['wdw'];\n    }\n\n    super(options);\n\n    if (this.config.park_id === '') {\n      throw new Error(`Missing park_id for class ${this.constructor.name}`);\n    }\n    if (this.config.resort_id === '') {\n      throw new Error(`Missing resort_id for class ${this.constructor.name}`);\n    }\n\n    this.refurbs = [];\n  }\n\n  /**\n * Get the live WDW database object\n * @return {object} wdwdb live database instance\n */\n  static getDatabase() {\n    if (!wdwDB) {\n      wdwDB = new IndexedWDWDB();\n    }\n    return wdwDB;\n  }\n\n  /**\n   * Get the channel ID for the facility status live update documents\n   * @return {string}\n   */\n  getFacilityStatusChannelID() {\n    return `${this.config.resort_id}.facilitystatus.1_0`;\n  }\n\n  /**\n   * Get calendar document ID for resort. This will include closures, refurbishments etc.\n   * @param {Moment} date\n   * @return {string} Document ID\n   */\n  getCalendarDocumentIDForDate(date) {\n    return `${this.config.resort_id}.calendar.1_0.${date.format('DD-MM')}`;\n  }\n\n  /**\n   * Get calendar data from WDW database for a given date\n   * @param {Moment} date\n   */\n  async getDatabaseCalendarForDate(date) {\n    const docID = this.getCalendarDocumentIDForDate(date);\n    await this.init(); // make sure we're setup\n    return await this.db.get(docID);\n  }\n\n  /**\n   * Update resort's refurbishment data\n   */\n  async updateRefurbishments() {\n    const calendar = await this.getDatabaseCalendarForDate(await this.getActiveParkDateMoment());\n    const refurbData = calendar?.refurbishments;\n\n    // capture rides previously down for refurb and mark them as closed instead\n    const oldRefurbs = this.refurbs;\n\n    this.refurbs = refurbData.map((x) => {\n      if (x.scheduleType !== 'Refurbishment') return undefined;\n      return {\n        entityID: getEntityID(x.facilityId),\n      };\n    }).filter((x) => x !== undefined);\n\n    // mark attractions that were previously refurbed, but now aren't, as closed instead\n    for (let i=0; i<oldRefurbs.length; i++) {\n      if (this.refurbs.find((x) => x.entityID === oldRefurbs[i].entityID) !== undefined) {\n        // await this.updateAttractionState(oldRefurbs[i].entityID, statusType.closed);\n      }\n    }\n\n    // mark any entities in refurb list as down for refurbishment\n    for (let i=0; i<this.refurbs.length; i++) {\n      // TODO - make sure entity is for the correct park!\n      // await this.updateAttractionState(this.refurbs[i].entityID, statusType.refurbishment);\n    }\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _dateRefresh(newDate, oldDate) {\n    // date has changed for our resort, update daily refurbishment schedule\n    await this.updateRefurbishments();\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _init() {\n    // get a reference to our shared live database\n    this.db = DisneyPark.getDatabase();\n\n    // make sure the shared database is initialised\n    await this.db.init();\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _postInit() {\n    // fetch latest refurb data\n    await this.updateRefurbishments();\n\n    // subscribe to any live facility status updates\n    this.db.subscribeToChannel(this.getFacilityStatusChannelID(), async (doc) => {\n      this._processAttractionStatusUpdate(doc);\n    });\n\n    // fetch the current attraction times\n    const allStatusDocs = await this.db.getByChannel(this.getFacilityStatusChannelID());\n    await Promise.allSettled(allStatusDocs.map(this._processAttractionStatusUpdate.bind(this)));\n  }\n\n  /**\n   * Process a document update from a facilitystatus channel\n   * @param {object} doc The updated document\n   */\n  async _processAttractionStatusUpdate(doc) {\n    // get our clean attraction ID\n    const entityID = getEntityID(doc.id);\n\n    // check attraction is within our park\n    const updateIndexEntry = await this.db.getEntityIndex(entityID, {\n      park_id: `${this.config.park_id}`,\n    });\n\n    // if we have no entries, then attraction is not in our park\n    if (updateIndexEntry.length === 0) {\n      return;\n    }\n\n    // figure out general ride status\n    let status = statusType.operating;\n\n    // if our status document contains singleRider, then tag it\n    //  this is only available in live data, so we have to do it in our update\n    await this.toggleAttractionTag(entityID, tagType.singleRider, !!doc.singleRider);\n\n    // TODO - if name contains \"Temporarily Unavailable\", mark as closed?\n\n    if (doc.status === 'Down') {\n      status = statusType.down;\n    } else if (doc.status === 'Closed') {\n      status = statusType.closed;\n    } else if (doc.status === 'Refurbishment') {\n      status = statusType.refurbishment;\n    }\n\n    // check our refurb data and override any incoming status\n    if (this.refurbs.find((x) => x.entityID === entityID) !== undefined) {\n      status = statusType.refurbishment;\n    }\n\n    if (status == statusType.operating) {\n      // override status if the lastUpdate is really out-of-date\n      const statusUpdateTime = moment(doc.lastUpdate);\n      const now = this.getTimeNowMoment();\n      if (now.diff(statusUpdateTime, 'days') > 2) {\n        status = statusType.closed;\n        doc.waitMinutes = null;\n      }\n    }\n\n    // update attraction state\n    await this.updateAttractionState(entityID, status);\n\n    // update attraction standby queue\n    await this.updateAttractionQueue(entityID, doc.waitMinutes, queueType.standBy);\n\n    // if the ride has a single rider queue, record one with \"null\" to say it exists, we just don't it's length\n    await this.updateAttractionQueue(entityID, !!doc.singleRider ? null : undefined, queueType.singleRider);\n  }\n\n  /**\n   * Build an attraction object from an ID\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async _buildAttractionObject(attractionID) {\n    // find a document for our attraction ID\n    const attr = await this.db.getEntityOne(attractionID);\n    if (attr) {\n      const tags = [];\n\n      // pregnant persons advisory\n      const pregnantWarning = attr.facets && !!attr.facets.find((f) => f.id === 'expectant-mothers');\n      tags.push({\n        type: tagType.unsuitableForPregnantPeople,\n        value: pregnantWarning,\n      });\n\n      // fast pass\n      tags.push({\n        type: tagType.fastPass,\n        value: !!attr.fastPassPlus,\n      });\n\n      // TODO - min height\n\n      if (attr.longitude && attr.latitude) {\n        // ride location tag\n        tags.push({\n          key: 'location',\n          type: tagType.location,\n          value: {\n            longitude: Number(attr.longitude),\n            latitude: Number(attr.latitude),\n          },\n        });\n      }\n\n      let attrEntityType = entityType.attraction;\n\n      if (attr.type.toLowerCase() === 'restaurant') {\n        attrEntityType = entityType.restaurant;\n      }\n\n      return {\n        name: attr.name,\n        entityType: attrEntityType,\n        type: attr.type === 'Attraction' ? attractionType.ride : attractionType.other, // TODO - sort attraction types\n        tags,\n      };\n    }\n\n    return undefined;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _update() {\n    // TODO - parks that don't use the live database need to implement this function\n  }\n\n  /**\n   * Return the operating hours for the supplied date\n   * @param {moment} date\n   */\n  async _getOperatingHoursForDate(date) {\n    // TODO - wrap/cache this in Park so we don't keep fetching this date all the time\n    const dateCalendar = await this.db.getByChannel(\n        `${this.config.resort_id}.calendar.1_0`,\n        {\n          'id': date.format('DD-MM'),\n        },\n    );\n\n    if (dateCalendar.length >= 1) {\n      const calendar = dateCalendar[0];\n      const parkHours = calendar.parkHours.find((h) => {\n        return getEntityID(h.facilityId) === this.config.park_id &&\n          h.scheduleType !== 'Closed' &&\n          h.scheduleType.indexOf('blockout') < 0; // ignore annual pass blockouts;\n      });\n\n      if (parkHours) {\n        // TODO - build up our opening hours data for this park\n        //  include magic hours etc.?\n        return [\n          {\n            openingTime: moment(parkHours.startTime).tz(this.config.timezone).format(),\n            closingTime: moment(parkHours.endTime).tz(this.config.timezone).format(),\n            type: scheduleType.operating,\n          },\n        ];\n      }\n    }\n\n    return undefined;\n  }\n}\n\nexport default DisneyPark;\n\n/**\n * Walt Disney World - Magic Kingdom\n */\nexport class WaltDisneyWorldMagicKingdom extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = '80007944';\n    options.resort_id = 'wdw';\n    options.name = 'Walt Disney World - Magic Kingdom';\n    options.timezone = 'America/New_York';\n\n    super(options);\n  }\n}\n\n/**\n * Walt Disney World - Epcot\n */\nexport class WaltDisneyWorldEpcot extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = '80007838';\n    options.resort_id = 'wdw';\n    options.name = 'Walt Disney World - Epcot';\n    options.timezone = 'America/New_York';\n\n    super(options);\n  }\n}\n\n/**\n * Walt Disney World - Hollywood Studios\n */\nexport class WaltDisneyWorldHollywoodStudios extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = '80007998';\n    options.resort_id = 'wdw';\n    options.name = 'Walt Disney World - Hollywood Studios';\n    options.timezone = 'America/New_York';\n\n    super(options);\n  }\n}\n\n/**\n * Walt Disney World - Animal Kingdom\n */\nexport class WaltDisneyWorldAnimalKingdom extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = '80007823';\n    options.resort_id = 'wdw';\n    options.name = 'Walt Disney World - Animal Kingdom';\n    options.timezone = 'America/New_York';\n\n    super(options);\n  }\n}\n\n/**\n * Disneyland Resort - Magic Kingdom\n */\nexport class DisneylandResortMagicKingdom extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = '330339';\n    options.resort_id = 'dlr';\n    options.name = 'Disneyland Resort - Magic Kingdom';\n    options.timezone = 'America/Los_Angeles';\n\n    super(options);\n  }\n}\n\n/**\n * Disneyland Resort - California Adventure\n */\nexport class DisneylandResortCaliforniaAdventure extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = '336894';\n    options.resort_id = 'dlr';\n    options.name = 'Disneyland Resort - California Adventure';\n    options.timezone = 'America/Los_Angeles';\n\n    super(options);\n  }\n}\n\n/**\n * Hong Kong Disneyland\n */\nexport class HongKongDisneylandPark extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = 'desHongKongDisneyland';\n    options.resort_id = 'hkdl';\n    options.name = 'Hong Kong Disneyland - Hong Kong Disneyland Park';\n    options.timezone = 'Asia/Hong_Kong';\n\n    super(options);\n  }\n}\n",
+    "content": "import {IndexedWDWDB, getEntityID} from './wdwdb.js';\nimport {Park} from '../park.js';\nimport {attractionType, statusType, queueType, tagType, scheduleType, entityType} from '../parkTypes.js';\nimport moment from 'moment-timezone';\n\nlet wdwDB = null;\n\n/**\n * Base Disney Park Class\n */\nexport class DisneyPark extends Park {\n  /**\n   * Create a new DisneyPark object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.resort_id = options.resort_id || '';\n    options.park_id = options.park_id || '';\n\n    if (!options.configPrefixes) {\n      options.configPrefixes = ['wdw'];\n    }\n\n    super(options);\n\n    if (this.config.park_id === '') {\n      throw new Error(`Missing park_id for class ${this.constructor.name}`);\n    }\n    if (this.config.resort_id === '') {\n      throw new Error(`Missing resort_id for class ${this.constructor.name}`);\n    }\n\n    this.refurbs = [];\n  }\n\n  /**\n * Get the live WDW database object\n * @return {object} wdwdb live database instance\n */\n  static getDatabase() {\n    if (!wdwDB) {\n      wdwDB = new IndexedWDWDB();\n    }\n    return wdwDB;\n  }\n\n  /**\n   * Get the channel ID for the facility status live update documents\n   * @return {string}\n   */\n  getFacilityStatusChannelID() {\n    return `${this.config.resort_id}.facilitystatus.1_0`;\n  }\n\n  /**\n   * Get calendar document ID for resort. This will include closures, refurbishments etc.\n   * @param {Moment} date\n   * @return {string} Document ID\n   */\n  getCalendarDocumentIDForDate(date) {\n    return `${this.config.resort_id}.calendar.1_0.${date.format('DD-MM')}`;\n  }\n\n  /**\n   * Get calendar data from WDW database for a given date\n   * @param {Moment} date\n   */\n  async getDatabaseCalendarForDate(date) {\n    const docID = this.getCalendarDocumentIDForDate(date);\n    await this.init(); // make sure we're setup\n    return await this.db.get(docID);\n  }\n\n  /**\n   * Update resort's refurbishment data\n   */\n  async updateRefurbishments() {\n    const calendar = await this.getDatabaseCalendarForDate(await this.getActiveParkDateMoment());\n    const refurbData = calendar?.refurbishments;\n\n    // capture rides previously down for refurb and mark them as closed instead\n    const oldRefurbs = JSON.parse(JSON.stringify(this.refurbs));\n\n    this.refurbs = [];\n    for (let i=0; i<refurbData.length; i++) {\n      if (refurbData[i].scheduleType !== 'Refurbishment') continue;\n\n      const entityID = getEntityID(refurbData[i].facilityId);\n      // search our index to make sure this attraction is in the correct park\n      const updateIndexEntry = await this.db.getEntityIndex(entityID, {\n        park_id: `${this.config.park_id}`,\n      });\n\n      if (updateIndexEntry.length === 0) continue;\n\n      this.refurbs.push({\n        entityID,\n      });\n    }\n\n    // mark attractions that were previously refurbed, but now aren't, as closed instead\n    for (let i=0; i<oldRefurbs.length; i++) {\n      if (this.refurbs.findIndex((x) => x.entityID === oldRefurbs[i].entityID) < 0) {\n        await this.updateAttractionState(oldRefurbs[i].entityID, statusType.closed);\n      }\n    }\n\n    // mark any entities in refurb list as down for refurbishment\n    for (let i=0; i<this.refurbs.length; i++) {\n      await this.updateAttractionState(this.refurbs[i].entityID, statusType.refurbishment);\n    }\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _dateRefresh(newDate, oldDate) {\n    // date has changed for our resort, update daily refurbishment schedule\n    await this.updateRefurbishments();\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _init() {\n    // get a reference to our shared live database\n    this.db = DisneyPark.getDatabase();\n\n    // make sure the shared database is initialised\n    await this.db.init();\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _postInit() {\n    // fetch latest refurb data\n    await this.updateRefurbishments();\n\n    // subscribe to any live facility status updates\n    this.db.subscribeToChannel(this.getFacilityStatusChannelID(), async (doc) => {\n      this._processAttractionStatusUpdate(doc);\n    });\n\n    // fetch the current attraction times\n    const allStatusDocs = await this.db.getByChannel(this.getFacilityStatusChannelID());\n    await Promise.allSettled(allStatusDocs.map(this._processAttractionStatusUpdate.bind(this)));\n  }\n\n  /**\n   * Process a document update from a facilitystatus channel\n   * @param {object} doc The updated document\n   */\n  async _processAttractionStatusUpdate(doc) {\n    // get our clean attraction ID\n    const entityID = getEntityID(doc.id);\n\n    // check attraction is within our park\n    const updateIndexEntry = await this.db.getEntityIndex(entityID, {\n      park_id: `${this.config.park_id}`,\n    });\n\n    // if we have no entries, then attraction is not in our park\n    if (updateIndexEntry.length === 0) {\n      return;\n    }\n\n    // get full attraction document\n    let attraction;\n    try {\n      attraction = await this.db.get(updateIndexEntry[0]._id);\n    } catch (e) {\n      return;\n    }\n    if (attraction === undefined) return;\n\n    // figure out general ride status\n    let status = statusType.operating;\n\n    // if our status document contains singleRider, then tag it\n    //  this is only available in live data, so we have to do it in our update\n    await this.toggleAttractionTag(entityID, tagType.singleRider, !!doc.singleRider);\n\n    // restaurants can have status \"Capacity\", \"Walk-Up Disabled\"\n    //  currently these fallback to \"Operating\", which matches the resturant state well enough\n\n    if (doc.status === 'Down') {\n      status = statusType.down;\n    } else if (doc.status === 'Closed') {\n      status = statusType.closed;\n    } else if (doc.status === 'Refurbishment') {\n      status = statusType.refurbishment;\n    }\n    // TODO - \"Virtual Queue\" status\n\n    // if name contains \"Temporarily Unavailable\", mark as closed\n    if (attraction.name.indexOf(' - Temporarily Unavailable') > 0) {\n      status = statusType.closed;\n    }\n\n    // check our refurb data and override any incoming status\n    if (this.refurbs.find((x) => x.entityID === entityID) !== undefined) {\n      status = statusType.refurbishment;\n    }\n\n    if (status == statusType.operating) {\n      // override status if the lastUpdate is really out-of-date\n      const statusUpdateTime = moment(doc.lastUpdate);\n      const now = this.getTimeNowMoment();\n      if (now.diff(statusUpdateTime, 'days') > 2) {\n        status = statusType.closed;\n        doc.waitMinutes = null;\n      }\n    }\n\n    // update attraction state\n    await this.updateAttractionState(entityID, status);\n\n    // update attraction standby queue\n    await this.updateAttractionQueue(entityID, doc.waitMinutes, queueType.standBy);\n\n    // if the ride has a single rider queue, record one with \"null\" to say it exists, we just don't it's length\n    await this.updateAttractionQueue(entityID, !!doc.singleRider ? null : undefined, queueType.singleRider);\n  }\n\n  /**\n   * Build an attraction object from an ID\n   * @param {string} attractionID Unique Attraction ID\n   */\n  async _buildAttractionObject(attractionID) {\n    // find a document for our attraction ID\n    const attr = await this.db.getEntityOne(attractionID);\n    if (attr) {\n      const tags = [];\n\n      // pregnant persons advisory\n      const pregnantWarning = attr.facets && !!attr.facets.find((f) => f.id === 'expectant-mothers');\n      tags.push({\n        type: tagType.unsuitableForPregnantPeople,\n        value: pregnantWarning,\n      });\n\n      // fast pass\n      tags.push({\n        type: tagType.fastPass,\n        value: !!attr.fastPassPlus,\n      });\n\n      // TODO - min height\n\n      if (attr.longitude && attr.latitude) {\n        // ride location tag\n        tags.push({\n          key: 'location',\n          type: tagType.location,\n          value: {\n            longitude: Number(attr.longitude),\n            latitude: Number(attr.latitude),\n          },\n        });\n      }\n\n      let attrEntityType = entityType.attraction;\n\n      if (attr.type.toLowerCase() === 'restaurant') {\n        attrEntityType = entityType.restaurant;\n      }\n\n      return {\n        name: attr.name,\n        entityType: attrEntityType,\n        type: attr.type === 'Attraction' ? attractionType.ride : attractionType.other, // TODO - sort attraction types\n        tags,\n      };\n    }\n\n    return undefined;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _update() {\n    // TODO - parks that don't use the live database need to implement this function\n  }\n\n  /**\n   * Return the operating hours for the supplied date\n   * @param {moment} date\n   */\n  async _getOperatingHoursForDate(date) {\n    // TODO - wrap/cache this in Park so we don't keep fetching this date all the time\n    const dateCalendar = await this.db.getByChannel(\n        `${this.config.resort_id}.calendar.1_0`,\n        {\n          'id': date.format('DD-MM'),\n        },\n    );\n\n    if (dateCalendar.length >= 1) {\n      const calendar = dateCalendar[0];\n      const parkHours = calendar.parkHours.find((h) => {\n        return getEntityID(h.facilityId) === this.config.park_id &&\n          h.scheduleType !== 'Closed' &&\n          h.scheduleType.indexOf('blockout') < 0; // ignore annual pass blockouts;\n      });\n\n      if (parkHours) {\n        // TODO - build up our opening hours data for this park\n        //  include magic hours etc.?\n        return [\n          {\n            openingTime: moment(parkHours.startTime).tz(this.config.timezone).format(),\n            closingTime: moment(parkHours.endTime).tz(this.config.timezone).format(),\n            type: scheduleType.operating,\n          },\n        ];\n      }\n    }\n\n    return undefined;\n  }\n}\n\nexport default DisneyPark;\n\n/**\n * Walt Disney World - Magic Kingdom\n */\nexport class WaltDisneyWorldMagicKingdom extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = '80007944';\n    options.resort_id = 'wdw';\n    options.name = 'Walt Disney World - Magic Kingdom';\n    options.timezone = 'America/New_York';\n\n    super(options);\n  }\n}\n\n/**\n * Walt Disney World - Epcot\n */\nexport class WaltDisneyWorldEpcot extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = '80007838';\n    options.resort_id = 'wdw';\n    options.name = 'Walt Disney World - Epcot';\n    options.timezone = 'America/New_York';\n\n    super(options);\n  }\n}\n\n/**\n * Walt Disney World - Hollywood Studios\n */\nexport class WaltDisneyWorldHollywoodStudios extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = '80007998';\n    options.resort_id = 'wdw';\n    options.name = 'Walt Disney World - Hollywood Studios';\n    options.timezone = 'America/New_York';\n\n    super(options);\n  }\n}\n\n/**\n * Walt Disney World - Animal Kingdom\n */\nexport class WaltDisneyWorldAnimalKingdom extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = '80007823';\n    options.resort_id = 'wdw';\n    options.name = 'Walt Disney World - Animal Kingdom';\n    options.timezone = 'America/New_York';\n\n    super(options);\n  }\n}\n\n/**\n * Disneyland Resort - Magic Kingdom\n */\nexport class DisneylandResortMagicKingdom extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = '330339';\n    options.resort_id = 'dlr';\n    options.name = 'Disneyland Resort - Magic Kingdom';\n    options.timezone = 'America/Los_Angeles';\n\n    super(options);\n  }\n}\n\n/**\n * Disneyland Resort - California Adventure\n */\nexport class DisneylandResortCaliforniaAdventure extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = '336894';\n    options.resort_id = 'dlr';\n    options.name = 'Disneyland Resort - California Adventure';\n    options.timezone = 'America/Los_Angeles';\n\n    super(options);\n  }\n}\n\n/**\n * Hong Kong Disneyland\n */\nexport class HongKongDisneylandPark extends DisneyPark {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.park_id = 'desHongKongDisneyland';\n    options.resort_id = 'hkdl';\n    options.name = 'Hong Kong Disneyland - Hong Kong Disneyland Park';\n    options.timezone = 'Asia/Hong_Kong';\n\n    super(options);\n  }\n}\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/wdw/waltdisneyworldbase.js",
     "access": "public",
@@ -6860,7 +6860,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_dateRefresh",
     "access": "private",
     "description": "",
-    "lineNumber": 108,
+    "lineNumber": 117,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -6894,7 +6894,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_init",
     "access": "private",
     "description": "",
-    "lineNumber": 116,
+    "lineNumber": 125,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -6913,7 +6913,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#db",
     "access": "public",
     "description": null,
-    "lineNumber": 118,
+    "lineNumber": 127,
     "undocument": true,
     "type": {
       "types": [
@@ -6932,7 +6932,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_postInit",
     "access": "private",
     "description": "",
-    "lineNumber": 127,
+    "lineNumber": 136,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -6953,7 +6953,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_processAttractionStatusUpdate",
     "access": "private",
     "description": "Process a document update from a facilitystatus channel",
-    "lineNumber": 145,
+    "lineNumber": 154,
     "params": [
       {
         "nullable": null,
@@ -6979,7 +6979,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_buildAttractionObject",
     "access": "private",
     "description": "Build an attraction object from an ID",
-    "lineNumber": 205,
+    "lineNumber": 230,
     "params": [
       {
         "nullable": null,
@@ -7009,7 +7009,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_update",
     "access": "private",
     "description": "",
-    "lineNumber": 258,
+    "lineNumber": 283,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -7030,7 +7030,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_getOperatingHoursForDate",
     "access": "private",
     "description": "Return the operating hours for the supplied date",
-    "lineNumber": 266,
+    "lineNumber": 291,
     "params": [
       {
         "nullable": null,
@@ -7061,7 +7061,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js",
     "importStyle": "{WaltDisneyWorldMagicKingdom}",
     "description": "Walt Disney World - Magic Kingdom",
-    "lineNumber": 305,
+    "lineNumber": 330,
     "interface": false,
     "extends": [
       "DisneyPark"
@@ -7078,7 +7078,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom#constructor",
     "access": "public",
     "description": "",
-    "lineNumber": 309,
+    "lineNumber": 334,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -7098,7 +7098,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js",
     "importStyle": "{WaltDisneyWorldEpcot}",
     "description": "Walt Disney World - Epcot",
-    "lineNumber": 322,
+    "lineNumber": 347,
     "interface": false,
     "extends": [
       "DisneyPark"
@@ -7115,7 +7115,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot#constructor",
     "access": "public",
     "description": "",
-    "lineNumber": 326,
+    "lineNumber": 351,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -7135,7 +7135,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js",
     "importStyle": "{WaltDisneyWorldHollywoodStudios}",
     "description": "Walt Disney World - Hollywood Studios",
-    "lineNumber": 339,
+    "lineNumber": 364,
     "interface": false,
     "extends": [
       "DisneyPark"
@@ -7152,7 +7152,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios#constructor",
     "access": "public",
     "description": "",
-    "lineNumber": 343,
+    "lineNumber": 368,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -7172,7 +7172,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js",
     "importStyle": "{WaltDisneyWorldAnimalKingdom}",
     "description": "Walt Disney World - Animal Kingdom",
-    "lineNumber": 356,
+    "lineNumber": 381,
     "interface": false,
     "extends": [
       "DisneyPark"
@@ -7189,7 +7189,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom#constructor",
     "access": "public",
     "description": "",
-    "lineNumber": 360,
+    "lineNumber": 385,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -7209,7 +7209,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js",
     "importStyle": "{DisneylandResortMagicKingdom}",
     "description": "Disneyland Resort - Magic Kingdom",
-    "lineNumber": 373,
+    "lineNumber": 398,
     "interface": false,
     "extends": [
       "DisneyPark"
@@ -7226,7 +7226,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortMagicKingdom#constructor",
     "access": "public",
     "description": "",
-    "lineNumber": 377,
+    "lineNumber": 402,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -7246,7 +7246,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js",
     "importStyle": "{DisneylandResortCaliforniaAdventure}",
     "description": "Disneyland Resort - California Adventure",
-    "lineNumber": 390,
+    "lineNumber": 415,
     "interface": false,
     "extends": [
       "DisneyPark"
@@ -7263,7 +7263,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure#constructor",
     "access": "public",
     "description": "",
-    "lineNumber": 394,
+    "lineNumber": 419,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -7283,7 +7283,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js",
     "importStyle": "{HongKongDisneylandPark}",
     "description": "Hong Kong Disneyland",
-    "lineNumber": 407,
+    "lineNumber": 432,
     "interface": false,
     "extends": [
       "DisneyPark"
@@ -7300,7 +7300,7 @@
     "longname": "lib/parks/wdw/waltdisneyworldbase.js~HongKongDisneylandPark#constructor",
     "access": "public",
     "description": "",
-    "lineNumber": 411,
+    "lineNumber": 436,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -8896,7 +8896,7 @@
   },
   {
     "kind": "packageJSON",
-    "content": "{\n  \"name\": \"@themeparks/parksapi\",\n  \"type\": \"module\",\n  \"version\": \"1.2.32\",\n  \"description\": \"\",\n  \"engines\": {\n    \"npm\": \">=6\",\n    \"node\": \">=14\"\n  },\n  \"main\": \"lib/index.js\",\n  \"exports\": {\n    \".\": \"./lib/index.js\",\n    \"./park\": \"./lib/parks/park.js\",\n    \"./parkTypes\": \"./lib/parks/parkTypes.js\",\n    \"./cache/\": \"./lib/cache/\",\n    \"./cache\": \"./lib/cache.js\",\n    \"./tags\": \"./lib/parks/tags.js\"\n  },\n  \"scripts\": {\n    \"test\": \"eslint ./lib/**\",\n    \"docs\": \"esdoc\"\n  },\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/ThemeParks/parksapi.git\"\n  },\n  \"publishConfig\": {\n    \"registry\": \"https://npm.jamie.holdings\"\n  },\n  \"author\": \"@cube\",\n  \"license\": \"ISC\",\n  \"bugs\": {\n    \"url\": \"https://github.com/ThemeParks/parksapi/issues\"\n  },\n  \"homepage\": \"https://github.com/ThemeParks/parksapi#readme\",\n  \"dependencies\": {\n    \"dotenv\": \"^8.2.0\",\n    \"egoroof-blowfish\": \"^2.2.2\",\n    \"fetch-cookie\": \"^0.10.1\",\n    \"json-diff\": \"^0.5.4\",\n    \"mingo\": \"^3.0.6\",\n    \"moment-timezone\": \"^0.5.31\",\n    \"needle\": \"^2.5.0\",\n    \"node-fetch\": \"^2.6.1\",\n    \"pouchdb\": \"^7.2.1\",\n    \"pouchdb-replication-stream\": \"github:pouchdb-community/pouchdb-replication-stream#56f0511\",\n    \"promise-retry\": \"^2.0.1\",\n    \"random-useragent\": \"^0.4.0\",\n    \"sift\": \"^13.1.10\",\n    \"tough-cookie\": \"^4.0.0\",\n    \"uuid\": \"^8.3.0\"\n  },\n  \"devDependencies\": {\n    \"@babel/traverse\": \"^7.11.0\",\n    \"esdoc\": \"^1.1.0\",\n    \"esdoc-ecmascript-proposal-plugin\": \"^1.0.0\",\n    \"esdoc-standard-plugin\": \"^1.0.0\",\n    \"eslint\": \"^7.4.0\",\n    \"eslint-config-google\": \"^0.14.0\"\n  }\n}\n",
+    "content": "{\n  \"name\": \"@themeparks/parksapi\",\n  \"type\": \"module\",\n  \"version\": \"1.2.32\",\n  \"description\": \"\",\n  \"engines\": {\n    \"npm\": \">=6\",\n    \"node\": \">=14\"\n  },\n  \"main\": \"lib/index.js\",\n  \"exports\": {\n    \".\": \"./lib/index.js\",\n    \"./park\": \"./lib/parks/park.js\",\n    \"./parkTypes\": \"./lib/parks/parkTypes.js\",\n    \"./cache/\": \"./lib/cache/\",\n    \"./cache\": \"./lib/cache.js\",\n    \"./tags\": \"./lib/parks/tags.js\"\n  },\n  \"scripts\": {\n    \"test\": \"eslint ./lib/**\",\n    \"docs\": \"esdoc\"\n  },\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/ThemeParks/parksapi.git\"\n  },\n  \"author\": \"@cube\",\n  \"license\": \"ISC\",\n  \"bugs\": {\n    \"url\": \"https://github.com/ThemeParks/parksapi/issues\"\n  },\n  \"homepage\": \"https://github.com/ThemeParks/parksapi#readme\",\n  \"dependencies\": {\n    \"dotenv\": \"^8.2.0\",\n    \"egoroof-blowfish\": \"^2.2.2\",\n    \"fetch-cookie\": \"^0.10.1\",\n    \"json-diff\": \"^0.5.4\",\n    \"mingo\": \"^3.0.6\",\n    \"moment-timezone\": \"^0.5.31\",\n    \"needle\": \"^2.5.0\",\n    \"node-fetch\": \"^2.6.1\",\n    \"pouchdb\": \"^7.2.1\",\n    \"pouchdb-replication-stream\": \"github:pouchdb-community/pouchdb-replication-stream#56f0511\",\n    \"promise-retry\": \"^2.0.1\",\n    \"random-useragent\": \"^0.4.0\",\n    \"sift\": \"^13.1.10\",\n    \"tough-cookie\": \"^4.0.0\",\n    \"uuid\": \"^8.3.0\"\n  },\n  \"devDependencies\": {\n    \"@babel/traverse\": \"^7.11.0\",\n    \"esdoc\": \"^1.1.0\",\n    \"esdoc-ecmascript-proposal-plugin\": \"^1.0.0\",\n    \"esdoc-standard-plugin\": \"^1.0.0\",\n    \"eslint\": \"^7.4.0\",\n    \"eslint-config-google\": \"^0.14.0\"\n  }\n}\n",
     "longname": "/home/runner/work/parksapi/parksapi/package.json",
     "name": "package.json",
     "static": true,
