@@ -440,6 +440,55 @@ export class TokyoDisneyResortPark extends Park {
 
     return undefined;
   }
+
+  /**
+   * Fetch the restaurant operating hours
+   */
+  async fetchRestaurantOperatingHours() {
+    const resp = await this.http(
+        &apos;GET&apos;,
+        `${this.config.apiBase}/rest/v2/facilities/conditions`,
+    );
+
+    return resp.body.restaurants.map((restaurant) =&gt; {
+      // console.log(restaurant);
+      if (!restaurant.operatings || restaurant.operatings.length === 0) {
+        return {
+          restaurantID: restaurant.facilityCode,
+          openingTime: 0,
+          closingTime: 0,
+          status: statusType.closed,
+        };
+      }
+
+      // TODO: restaurant.facilityStatus check needed?
+      const momentParseFormat = &apos;YYYY-MM-DDTHH:mm&apos;;
+      const schedule = restaurant.operatings[0];
+
+      return {
+        restaurantID: restaurant.facilityCode,
+        openingTime: moment.tz(
+            schedule.startAt,
+            momentParseFormat,
+            this.config.timezone).format(),
+        closingTime: moment.tz(
+            schedule.endAt,
+            momentParseFormat,
+            this.config.timezone).format(),
+        status: statusType.operating,
+      };
+    });
+  }
+
+  /**
+     * Return restaurant operating hours for the supplied date
+     * @param {moment} date
+     */
+  async _getRestaurantOperatingHoursForDate(date) {
+    const cal = await this.fetchRestaurantOperatingHours();
+    if (!cal) return undefined;
+    return cal;
+  }
 }
 
 export default TokyoDisneyResortPark;

@@ -88,6 +88,7 @@
 <div class="content" data-ice="content"><h1 data-ice="title">lib/parks/efteling/efteling.js</h1>
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {Park} from &apos;../park.js&apos;;
 import {attractionType, statusType, queueType, tagType, scheduleType} from &apos;../parkTypes.js&apos;;
+import moment from &apos;moment-timezone&apos;;
 
 /**
  * Efteling Park Object
@@ -101,9 +102,9 @@ export class Efteling extends Park {
     options.name = options.name || &apos;Efteling&apos;;
     options.timezone = options.timezone || &apos;Europe/Amsterdam&apos;;
 
-    options.apiKey = &apos;&apos;;
-    options.apiVersion = &apos;&apos;;
-    options.appVersion = &apos;&apos;;
+    options.apiKey = options.apiKey || &apos;&apos;;
+    options.apiVersion = options.apiVersion || &apos;&apos;;
+    options.appVersion = options.appVersion || &apos;&apos;;
 
     options.searchUrl = options.searchUrl || &apos;https://prd-search-acs.efteling.com/2013-01-01/search&apos;;
     options.waitTimesUrl = options.waitTimesUrl || &apos;https://api.efteling.com/app/wis/&apos;;
@@ -278,7 +279,7 @@ export class Efteling extends Park {
     if (data.type === &apos;attraction&apos;) {
       // all attractions default to &quot;ride&quot;
       type = attractionType.ride;
-    } else if (data.type ===&apos;show&apos;) {
+    } else if (data.type === &apos;show&apos;) {
       type = attractionType.show;
     }
 
@@ -337,8 +338,8 @@ export class Efteling extends Park {
         // update queue status
         await this.updateAttractionQueue(
             entry.Id,
-            rideStatus == statusType.operating ? rideWaitTime : null,
-            queueType.standBy,
+          rideStatus == statusType.operating ? rideWaitTime : null,
+          queueType.standBy,
         );
       } else {
         // if we don&apos;t have POI data for this attraction, check for single rider IDs and update the main attraction
@@ -411,6 +412,60 @@ export class Efteling extends Park {
       });
     }
     return undefined;
+  }
+
+  /**
+ * Get restaurant operating hours from API
+ * @param {string} day
+ * @param {string} month
+ * @param {string} year
+ */
+  async getRestaurantOperatingHours(day, month, year) {
+    return await this.cache.wrap(`restaurant_${year}_${month}_${day}`, async () =&gt; {
+      const waitTimes = await this.http(&apos;GET&apos;, this.config.waitTimesUrl, {
+        language: &apos;en&apos;,
+      });
+
+      if (!waitTimes?.body?.AttractionInfo) {
+        throw new Error(`Unable to find restaurant operating hours for Efteling ${data.body}`);
+      }
+
+      return waitTimes.body;
+    }, 1000 * 60 * 60 * 12); // 12 hours
+  }
+
+  /**
+   * Return restaurant operating hours for the supplied date
+   * @param {moment} date
+   */
+  async _getRestaurantOperatingHoursForDate(date) {
+    const cal = await this.getRestaurantOperatingHours(date.format(&apos;D&apos;), date.format(&apos;M&apos;), date.format(&apos;YYYY&apos;));
+
+    if (cal === undefined) return undefined;
+
+    const data = cal.AttractionInfo;
+
+    return data.map((entry) =&gt; {
+      if (entry.Type !== &apos;Horeca&apos;) return;
+
+      if (!entry.OpeningTimes || entry.OpeningTimes.length == 0) {
+        return {
+          restaurantID: entry.Id,
+          openingTime: 0,
+          closingTime: 0,
+          status: statusType.closed,
+        };
+      }
+
+      const openingTimes = entry.OpeningTimes;
+
+      return {
+        restaurantID: entry.Id,
+        openingTime: moment(openingTimes[0].HourFrom).format(),
+        closingTime: moment(openingTimes[0].HourTo).format(),
+        type: scheduleType.operating,
+      };
+    }).filter((x) =&gt; x !== undefined);
   }
 }
 

@@ -1,7 +1,7 @@
 {
-  "coverage": "82.95%",
-  "expectCount": 305,
-  "actualCount": 253,
+  "coverage": "83.27%",
+  "expectCount": 311,
+  "actualCount": 259,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 14,
@@ -61,8 +61,8 @@
       ]
     },
     "lib/parks/efteling/efteling.js": {
-      "expectCount": 8,
-      "actualCount": 8,
+      "expectCount": 10,
+      "actualCount": 10,
       "undocumentLines": []
     },
     "lib/parks/entity.js": {
@@ -100,8 +100,8 @@
       ]
     },
     "lib/parks/park.js": {
-      "expectCount": 45,
-      "actualCount": 37,
+      "expectCount": 47,
+      "actualCount": 39,
       "undocumentLines": [
         10,
         35,
@@ -137,8 +137,8 @@
       "undocumentLines": []
     },
     "lib/parks/tdr/tokyodisneyresort.js": {
-      "expectCount": 15,
-      "actualCount": 15,
+      "expectCount": 17,
+      "actualCount": 17,
       "undocumentLines": []
     },
     "lib/parks/universal/universalstudios.js": {

@@ -966,6 +966,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/efteling/efteling.js~efteling#_getrestaurantoperatinghoursfordate",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-_getRestaurantOperatingHoursForDate",
+    "lib/parks/efteling/efteling.js~Efteling#_getRestaurantOperatingHoursForDate",
+    "method"
+  ],
+  [
     "lib/parks/efteling/efteling.js~efteling#_init",
     "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-_init",
     "lib/parks/efteling/efteling.js~Efteling#_init",
@@ -993,6 +999,12 @@ window.esdocSearchIndex = [
     "lib/parks/efteling/efteling.js~efteling#getpoidata",
     "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-getPOIData",
     "lib/parks/efteling/efteling.js~Efteling#getPOIData",
+    "method"
+  ],
+  [
+    "lib/parks/efteling/efteling.js~efteling#getrestaurantoperatinghours",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-getRestaurantOperatingHours",
+    "lib/parks/efteling/efteling.js~Efteling#getRestaurantOperatingHours",
     "method"
   ],
   [
@@ -1302,6 +1314,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/park.js~park#_getrestaurantoperatinghoursfordate",
+    "class/lib/parks/park.js~Park.html#instance-method-_getRestaurantOperatingHoursForDate",
+    "lib/parks/park.js~Park#_getRestaurantOperatingHoursForDate",
+    "method"
+  ],
+  [
     "lib/parks/park.js~park#_init",
     "class/lib/parks/park.js~Park.html#instance-method-_init",
     "lib/parks/park.js~Park#_init",
@@ -1437,6 +1455,12 @@ window.esdocSearchIndex = [
     "lib/parks/park.js~park#getparkuniqueid",
     "class/lib/parks/park.js~Park.html#instance-method-getParkUniqueID",
     "lib/parks/park.js~Park#getParkUniqueID",
+    "method"
+  ],
+  [
+    "lib/parks/park.js~park#getrestaurantoperatinghoursfordate",
+    "class/lib/parks/park.js~Park.html#instance-method-getRestaurantOperatingHoursForDate",
+    "lib/parks/park.js~Park#getRestaurantOperatingHoursForDate",
     "method"
   ],
   [
@@ -1590,6 +1614,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#_getrestaurantoperatinghoursfordate",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-_getRestaurantOperatingHoursForDate",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_getRestaurantOperatingHoursForDate",
+    "method"
+  ],
+  [
     "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#_init",
     "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-_init",
     "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_init",
@@ -1635,6 +1665,12 @@ window.esdocSearchIndex = [
     "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#fetchlatestversion",
     "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchLatestVersion",
     "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchLatestVersion",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#fetchrestaurantoperatinghours",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchRestaurantOperatingHours",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchRestaurantOperatingHours",
     "method"
   ],
   [

@@ -86,13 +86,13 @@
 </nav>
 
 <div class="content" data-ice="content"><div class="header-notice">
-  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import {Efteling} from &apos;<span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber7">@themeparks/parksapi/lib/parks/efteling/efteling.js</a></span>&apos;</code></pre></div>
+  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import {Efteling} from &apos;<span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber8">@themeparks/parksapi/lib/parks/efteling/efteling.js</a></span>&apos;</code></pre></div>
   <span data-ice="access">public</span>
   <span data-ice="kind">class</span>
   
   
   
-  <span data-ice="source">| <span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber7">source</a></span></span>
+  <span data-ice="source">| <span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber8">source</a></span></span>
 </div>
 
 <div class="self-detail detail">
@@ -226,6 +226,35 @@
       
     </td>
   </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-getRestaurantOperatingHours">getRestaurantOperatingHours</a></span></span><span class="code" data-ice="signature">(day: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, month: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, year: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>): <span>*</span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Get restaurant operating hours from API</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
 </tbody>
 </table>
 <table class="summary" data-ice="summary">
@@ -281,6 +310,35 @@
         
         
         <div data-ice="description"><p>Return the operating hours for the supplied date</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">private</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-_getRestaurantOperatingHoursForDate">_getRestaurantOperatingHoursForDate</a></span></span><span class="code" data-ice="signature">(date: <span>moment</span>): <span>*</span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Return restaurant operating hours for the supplied date</p>
 </div>
       </div>
     </td>
@@ -1526,6 +1584,35 @@
           
           <span data-ice="async">async</span>
           
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-getRestaurantOperatingHoursForDate">getRestaurantOperatingHoursForDate</a></span></span><span class="code" data-ice="signature">(date: <span>moment</span>): <span>*</span></span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Get the restaurant operating hours for the supplied date</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">public</span>
+      
+      
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
           <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-init">init</a></span></span><span class="code" data-ice="signature">()</span>
         </p>
       </div>
@@ -1923,6 +2010,35 @@
       <span class="access" data-ice="access">private</span>
       
       
+      
+      <span class="override" data-ice="override"></span>
+    </td>
+    <td>
+      <div>
+        <p>
+          
+          <span data-ice="async">async</span>
+          
+          <span class="code" data-ice="name"><span><a href="class/lib/parks/park.js~Park.html#instance-method-_getRestaurantOperatingHoursForDate">_getRestaurantOperatingHoursForDate</a></span></span><span class="code" data-ice="signature">(date: <span>moment</span>)</span>
+        </p>
+      </div>
+      <div>
+        
+        
+        <div data-ice="description"><p>Given a moment date, return an array of opening hours for the restaurants in this park, or undefined<br>Ech entry should contain openingTime closingTime</p>
+</div>
+      </div>
+    </td>
+    <td>
+      
+      
+    </td>
+  </tr>
+<tr data-ice="target">
+    <td>
+      <span class="access" data-ice="access">private</span>
+      
+      
       <span class="abstract" data-ice="abstract">abstract</span>
       <span class="override" data-ice="override"></span>
     </td>
@@ -2140,7 +2256,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber12">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber13">source</a></span></span>
     </span>
   </h3>
 
@@ -2204,7 +2320,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber277">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber278">source</a></span></span>
     </span>
   </h3>
 
@@ -2282,7 +2398,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber71">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber72">source</a></span></span>
     </span>
   </h3>
 
@@ -2295,6 +2411,90 @@
   
 
   <div data-ice="properties">
+</div>
+
+  <div class="return-params" data-ice="returnParams">
+    <h4>Return:</h4>
+    <table>
+      <tbody>
+        <tr>
+          <td class="return-type code" data-ice="returnType"><span>*</span></td>
+          
+        </tr>
+      </tbody>
+    </table>
+    <div data-ice="returnProperties">
+</div>
+  </div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-getRestaurantOperatingHours">
+    <span class="access" data-ice="access">public</span>
+    
+    
+    
+    <span data-ice="async">async</span>
+    
+    <span class="code" data-ice="name">getRestaurantOperatingHours</span><span class="code" data-ice="signature">(day: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, month: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>, year: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span>): <span>*</span></span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber335">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Get restaurant operating hours from API</p>
+</div>
+
+  
+
+  <div data-ice="properties"><div data-ice="properties">
+  <h4 data-ice="title">Params:</h4>
+  <table class="params">
+    <thead>
+    <tr><td>Name</td><td>Type</td><td>Attribute</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+    
+    <tr data-ice="property" data-depth="0">
+      <td data-ice="name" class="code" data-depth="0">day</td>
+      <td data-ice="type" class="code"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></td>
+      <td data-ice="appendix"></td>
+      <td data-ice="description"></td>
+    </tr>
+<tr data-ice="property" data-depth="0">
+      <td data-ice="name" class="code" data-depth="0">month</td>
+      <td data-ice="type" class="code"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></td>
+      <td data-ice="appendix"></td>
+      <td data-ice="description"></td>
+    </tr>
+<tr data-ice="property" data-depth="0">
+      <td data-ice="name" class="code" data-depth="0">year</td>
+      <td data-ice="type" class="code"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String">string</a></span></td>
+      <td data-ice="appendix"></td>
+      <td data-ice="description"></td>
+    </tr>
+</tbody>
+  </table>
+</div>
 </div>
 
   <div class="return-params" data-ice="returnParams">
@@ -2340,7 +2540,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber182">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber183">source</a></span></span>
     </span>
   </h3>
 
@@ -2412,7 +2612,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber308">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber309">source</a></span></span>
     </span>
   </h3>
 
@@ -2423,6 +2623,78 @@
 </div>
 
   <div data-ice="override"><h4>Override:</h4><span><a href="class/lib/parks/park.js~Park.html#instance-method-_getOperatingHoursForDate">Park#_getOperatingHoursForDate</a></span></div>
+
+  <div data-ice="properties"><div data-ice="properties">
+  <h4 data-ice="title">Params:</h4>
+  <table class="params">
+    <thead>
+    <tr><td>Name</td><td>Type</td><td>Attribute</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+    
+    <tr data-ice="property" data-depth="0">
+      <td data-ice="name" class="code" data-depth="0">date</td>
+      <td data-ice="type" class="code"><span>moment</span></td>
+      <td data-ice="appendix"></td>
+      <td data-ice="description"></td>
+    </tr>
+</tbody>
+  </table>
+</div>
+</div>
+
+  <div class="return-params" data-ice="returnParams">
+    <h4>Return:</h4>
+    <table>
+      <tbody>
+        <tr>
+          <td class="return-type code" data-ice="returnType"><span>*</span></td>
+          
+        </tr>
+      </tbody>
+    </table>
+    <div data-ice="returnProperties">
+</div>
+  </div>
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+  
+</div>
+<div class="detail" data-ice="detail">
+  <h3 data-ice="anchor" id="instance-method-_getRestaurantOperatingHoursForDate">
+    <span class="access" data-ice="access">private</span>
+    
+    
+    
+    <span data-ice="async">async</span>
+    
+    <span class="code" data-ice="name">_getRestaurantOperatingHoursForDate</span><span class="code" data-ice="signature">(date: <span>moment</span>): <span>*</span></span>
+    <span class="right-info">
+      
+      
+      <span data-ice="source"><span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber353">source</a></span></span>
+    </span>
+  </h3>
+
+  
+  
+  
+  <div data-ice="description"><p>Return restaurant operating hours for the supplied date</p>
+</div>
+
+  <div data-ice="override"><h4>Override:</h4><span><a href="class/lib/parks/park.js~Park.html#instance-method-_getRestaurantOperatingHoursForDate">Park#_getRestaurantOperatingHoursForDate</a></span></div>
 
   <div data-ice="properties"><div data-ice="properties">
   <h4 data-ice="title">Params:</h4>
@@ -2484,7 +2756,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber124">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber125">source</a></span></span>
     </span>
   </h3>
 
@@ -2528,7 +2800,7 @@
     <span class="right-info">
       
       
-      <span data-ice="source"><span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber206">source</a></span></span>
+      <span data-ice="source"><span><a href="file/lib/parks/efteling/efteling.js.html#lineNumber207">source</a></span></span>
     </span>
   </h3>
 
