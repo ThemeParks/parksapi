@@ -2,6 +2,16 @@ import assert from 'assert';
 
 import Cache from '../lib/cache/scopedCache.js';
 
+import LmdbCache from '../lib/cache/cacheLmdb.js';
+import LevelCache from '../lib/cache/cacheLevel.js';
+import MemoryCache from '../lib/cache/cacheMemory.js';
+
+const cacheTypes = {
+  'LMDB': new LmdbCache(),
+  'Level': new LevelCache(),
+  'Memory': new MemoryCache(),
+};
+
 // TODO - create cache in-memory for testing
 
 const wait = async (ms) => {
@@ -10,118 +20,101 @@ const wait = async (ms) => {
   });
 };
 
-describe('Transactions', function() {
-  it('#commit()', async function() {
-    const cache = new Cache('blockUntilCommit');
+/**
+ * Test a specific cache type
+ * @param {cacheObject} cache
+ */
+async function testCacheType(cache) {
+  // test set/get
+  for (let i=0; i<1000; i++) {
+    await cache.set('test', i);
+    const value = await cache.get('test');
+    assert(value === i, `Failed to get set value of ${value}`);
+  }
+  await cache.set('test', 2021);
+  const getValue = await cache.get('test');
+  assert(getValue === 2021, `Getting set value is invalid ${getValue}`);
 
-    await cache.set('test', 1337);
-    const testSetter = await cache.get('test');
-    assert(testSetter === 1337, `Cache setter+getter failed: ${testSetter}`);
+  // test set with minor variation
+  await cache.set('test', 2020);
+  const getValue2 = await cache.get('test');
+  assert(getValue2 === 2020, `Getting set value 2nd time is invalid ${getValue2}`);
 
-    const lock = cache.createLock();
-    const lockGetter = await lock.get('test');
-    assert(lockGetter === 1337, `Lock getter failed: ${lockGetter}`);
+  // test delete through negative ttl
+  await cache.set('test', undefined, -1);
+  const getValue3 = await cache.get('test');
+  assert(getValue3 === undefined, `Getting set value 3rd time should be undefined: ${getValue3}`);
 
-    // update and release the lock
-    setTimeout(async () => {
-      await lock.set('test', 1338);
-      await lock.commit();
-    }, 10);
+  await cache.set('testkey1', undefined, -1);
+  await cache.set('testkey2', undefined, -1);
 
-    const postCommitGetter = await cache.get('test');
-    assert(postCommitGetter === 1338, `Post-Commit getter failed: ${postCommitGetter}`);
+  // test setting multiple keys and then using getKeys
+  await cache.set('testkey1', 1);
+  await cache.set('testkey2', 2);
+
+  const keys = await cache.getKeys();
+  assert(keys.indexOf('testkey1') >= 0, 'getKeys() must return our first test key');
+  assert(keys.indexOf('testkey2') >= 0, 'getKeys() must return our second test key');
+}
+
+describe('Base Cache Behaviour', function() {
+  for (const dbName of Object.keys(cacheTypes)) {
+    it(`${dbName}`, async function() {
+      await testCacheType(cacheTypes[dbName]);
+    });
+  };
+});
+
+/**
+ * Test a specific cache type for transactions support
+ * @param {cacheBash} cacheObject
+ */
+async function testCacheTransactions(cacheObject) {
+  const cache = new Cache('transactions_01', 0, cacheObject);
+  await cache.runTransaction(async (lock) => {
+    await lock.set('test', 1);
+    const val = await lock.get('test');
+    assert(val === 1, 'Data set should be valid within transaction');
   });
 
-  it('#rollback()', async function() {
-    const cache = new Cache('blockUntilRollback');
+  const val = await cache.get('test');
+  assert(val === 1, `Data set should be present when transaction finishes, ${val}`);
 
-    await cache.set('test', 1337);
-    const testSetter = await cache.get('test');
-    assert(testSetter === 1337, `Cache setter+getter failed: ${testSetter}`);
-
-    const lock = cache.createLock();
-    const lockGetter = await lock.get('test');
-    assert(lockGetter === 1337, `Lock getter failed: ${lockGetter}`);
-
-    // rollback and release the lock
-    setTimeout(async () => {
-      await lock.set('test', 1338);
-      await lock.rollback();
-    }, 10);
-
-    const postRollbackGetter = await cache.get('test');
-    assert(postRollbackGetter === 1337, `Post-Rollback getter failed: ${postRollbackGetter}`);
-  });
-
-  it('multiple blocks', async function() {
-    const cache = new Cache('multipleBlocks');
-
-    await cache.set('test', 1337);
-    const testSetter = await cache.get('test');
-    assert(testSetter === 1337, `Cache setter+getter failed: ${testSetter}`);
-
-    const lock = cache.createLock();
-    const lockGetter = await lock.get('test');
-    assert(lockGetter === 1337, `Lock getter failed: ${lockGetter}`);
-
-    // test that having two pending get()s both fire after commit
-    let passedBlock1 = false;
-    let passedBlock2 = false;
-    setTimeout(async () => {
-      const val = await cache.get('test');
-      passedBlock1 = (val === 1337);
-    }, 10);
-    setTimeout(async () => {
-      const val = await cache.get('test');
-      passedBlock2 = (val === 1337);
-    }, 10);
-
+  // test running a get while a transaction is pending...
+  //  note no "await" before runTransaction
+  const val2Tester = 50 + Math.floor(Math.random() * 999);
+  await cache.set('test_2', 0);
+  cache.runTransaction(async (lock) => {
     await wait(50);
-    assert(!passedBlock1 && !passedBlock2, 'Blocks should not released until commit');
-    await lock.commit();
-    await wait(50);
-
-    assert(passedBlock1 && passedBlock2, 'Both blocks were not triggered after lock is committed');
+    await lock.set('test_2', val2Tester);
   });
 
-  it('multiple locks', async function() {
-    const cache = new Cache('multiLocks');
+  await wait(10);
+  const val2 = await cache.get('test_2');
+  assert(val2 === val2Tester, `Cache get must not return until transaction is done ${val2Tester} vs ${val2}`);
 
-    await cache.set('test', 1337);
-    const testSetter = await cache.get('test');
-    assert(testSetter === 1337, `Cache setter+getter failed: ${testSetter}`);
-
-    const lock1 = cache.createLock();
-    const lockGetter = await lock1.get('test');
-    assert(lockGetter === 1337, `Lock getter failed: ${lockGetter}`);
-
-    const lock2 = cache.createLock();
-    const lock3 = cache.createLock();
-
-    let lock2Blocked = true;
-    setTimeout(async () => {
-      const lock2Getter = await lock2.get('test');
-      assert(lock2Getter === 1337);
-      lock2Blocked = false;
-    }, 10);
-    let lock3Blocked = true;
-    setTimeout(async () => {
-      const lock3Getter = await lock3.get('test');
-      assert(lock3Getter === 1337);
-      lock3Blocked = false;
-    }, 10);
-
+  // test running multiple transactions blocking a single get operation
+  const val3Tester = 50 + Math.floor(Math.random() * 999);
+  await cache.set('test_3', 0);
+  let secondTransactionDone = false;
+  cache.runTransaction(async (lock) => {
     await wait(50);
-    assert(lock2Blocked, 'Lock 2 should be blocked until lock 1 is released');
-    assert(lock3Blocked, 'Lock 3 should be blocked until lock 1 is released');
-
-    await lock1.commit();
-    await wait(10);
-    assert(!lock2Blocked, 'Lock 2 should be unlocked once lock 1 is released');
-    assert(lock3Blocked, 'Lock 3 should be blocked until lock 2 is released');
-
-    await lock2.commit();
-    await wait(10);
-    assert(!lock3Blocked, 'Lock 3 should be unlocked once lock 2 is released');
+    await lock.set('test_3', val3Tester);
   });
+  cache.runTransaction(async (lock) => {
+    await wait(70);
+    secondTransactionDone = true;
+  });
+
+  const val3Test1 = await cache.get('test_3');
+  assert(val3Test1 === val3Tester, 'Get request waited until first transaction completed');
+  assert(secondTransactionDone, 'Second transaction did not finish before get request was unblocked');
+}
+
+describe('Cache Transactions', function() {
+  for (const dbName of Object.keys(cacheTypes)) {
+    it(`${dbName} Transactions`, async function() {
+      await testCacheTransactions(cacheTypes[dbName]);
+    });
+  };
 });
