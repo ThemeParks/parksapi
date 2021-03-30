@@ -45,7 +45,7 @@
     "needle": "^2.5.0",
     "node-fetch": "^2.6.1",
     "object-hash": "^2.1.1",
-    "pouchdb": "^7.2.1",
+    "pouchdb": "^7.2.2",
     "promise-retry": "^2.0.1",
     "random-useragent": "^0.4.0",
     "sift": "^13.1.10",
