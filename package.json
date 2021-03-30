@@ -32,6 +32,7 @@
   },
   "homepage": "https://github.com/ThemeParks/parksapi#readme",
   "dependencies": {
+    "ajv": "^6.12.6",
     "dotenv": "^8.2.0",
     "egoroof-blowfish": "^2.2.2",
     "fetch-cookie": "^0.10.1",
