@@ -21,6 +21,23 @@ describe('Live Data Validators', function () {
     );
   });
 
+  it('attraction standby fails negative wait', function () {
+    assert(getLiveDataErrors(
+      {
+        entityType: entityType.attraction,
+      },
+      {
+        queue: {
+          [queueType.standBy]: {
+            // fail if time is < 0
+            waitTime: -1,
+          },
+        }
+      }),
+      'Standby livedata should not accept negative wait times'
+    );
+  });
+
   it('attraction standby fails string', function () {
     // fail if waittime is a string
     assert(getLiveDataErrors(
