@@ -17,9 +17,11 @@
     "./tags": "./lib/parks/tags.js"
   },
   "scripts": {
-    "test": "eslint ./lib/**/*.js && npm run mocha",
+    "test": "npm run lint && npm run mocha",
     "docs": "esdoc",
-    "mocha": "mocha"
+    "mocha": "mocha",
+    "lint": "eslint ./lib/**/*.js",
+    "lintfix": "eslint ./lib/**/*.js --fix"
   },
   "repository": {
     "type": "git",
