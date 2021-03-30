@@ -17,7 +17,7 @@
     "./tags": "./lib/parks/tags.js"
   },
   "scripts": {
-    "test": "eslint ./lib/** && npm run mocha",
+    "test": "eslint ./lib/**/*.js && npm run mocha",
     "docs": "esdoc",
     "mocha": "mocha"
   },
