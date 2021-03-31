@@ -1,4 +1,5 @@
 import assert from 'assert';
+import moment from 'moment-timezone';
 
 import {getLiveDataErrors} from '../lib/parks/livedata.js';
 import {queueType, returnTimeState} from '../lib/parks/parkTypes.js';
@@ -99,6 +100,36 @@ describe('Live Data Validators', function () {
         }
       }),
       'Validation should fail is state is an invalid value'
+    );
+  });
+
+  it('showtimes valid data', function () {
+    assert(getLiveDataErrors(
+      {
+        showtimes: [
+          {
+            startTime: moment().format(),
+            endTime: moment().format(),
+            type: 'Performance Time',
+          }
+        ],
+      }) === null,
+      'Validation should pass for valid showtimes data'
+    );
+  });
+
+  it('showtimes invalid startTime', function () {
+    assert(getLiveDataErrors(
+      {
+        showtimes: [
+          {
+            startTime: 'notadate',
+            endTime: moment().format(),
+            type: 'Performance Time',
+          }
+        ],
+      }).length > 0,
+      'Validation should fail for invalid startTime'
     );
   });
 });
