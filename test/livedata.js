@@ -1,15 +1,12 @@
 import assert from 'assert';
 
 import {getLiveDataErrors} from '../lib/parks/livedata.js';
-import {entityType, queueType, returnTimeState} from '../lib/parks/parkTypes.js';
+import {queueType, returnTimeState} from '../lib/parks/parkTypes.js';
 
 describe('Live Data Validators', function () {
   it('attraction standby integer', function () {
     // validate basic standby queue time
     assert(getLiveDataErrors(
-      {
-        entityType: entityType.attraction,
-      },
       {
         queue: {
           [queueType.standBy]: {
@@ -23,9 +20,6 @@ describe('Live Data Validators', function () {
 
   it('attraction standby fails negative wait', function () {
     assert(getLiveDataErrors(
-      {
-        entityType: entityType.attraction,
-      },
       {
         queue: {
           [queueType.standBy]: {
@@ -42,9 +36,6 @@ describe('Live Data Validators', function () {
     // fail if waittime is a string
     assert(getLiveDataErrors(
       {
-        entityType: entityType.attraction,
-      },
-      {
         queue: {
           [queueType.standBy]: {
             waitTime: '15', // string
@@ -59,9 +50,6 @@ describe('Live Data Validators', function () {
     // fail if waittime is a string
     assert(getLiveDataErrors(
       {
-        entityType: entityType.attraction,
-      },
-      {
         queue: {
           [queueType.standBy]: {},
         }
@@ -72,9 +60,6 @@ describe('Live Data Validators', function () {
 
   it('return time validation', function () {
     assert(getLiveDataErrors(
-      {
-        entityType: entityType.attraction,
-      },
       {
         queue: {
           [queueType.returnTime]: {
@@ -91,9 +76,6 @@ describe('Live Data Validators', function () {
   it('return time missing state', function () {
     assert(getLiveDataErrors(
       {
-        entityType: entityType.attraction,
-      },
-      {
         queue: {
           [queueType.returnTime]: {
             returnStart: '10:00',
@@ -108,9 +90,6 @@ describe('Live Data Validators', function () {
   it('return time invalid state', function () {
     assert(getLiveDataErrors(
       {
-        entityType: entityType.attraction,
-      },
-      {
         queue: {
           [queueType.returnTime]: {
             returnStart: '10:00',
@@ -120,22 +99,6 @@ describe('Live Data Validators', function () {
         }
       }),
       'Validation should fail is state is an invalid value'
-    );
-  });
-
-  it('fail with invalid entity type', function () {
-    assert(getLiveDataErrors(
-      {
-        entityType: 'nan',
-      },
-      {
-        queue: {
-          [queueType.standBy]: {
-            waitTime: 0,
-          },
-        }
-      }),
-      'Validation should fail with invalid entity type'
     );
   });
 });
