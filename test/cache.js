@@ -58,6 +58,7 @@ async function testCacheType(cache) {
 }
 
 describe('Base Cache Behaviour', function() {
+  this.timeout(10000); 
   for (const dbName of Object.keys(cacheTypes)) {
     it(`${dbName}`, async function() {
       await testCacheType(cacheTypes[dbName]);
