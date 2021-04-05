@@ -10,3 +10,4 @@ test*.js
 *.har
 .vscode
 *.themepark
+menus/
