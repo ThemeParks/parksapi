@@ -173,9 +173,9 @@ export class DatabaseEuropaPark extends Database {
         const fidByteArray = crypto.randomBytes(17).toJSON().data;
         fidByteArray[0] = 0b01110000 + (fidByteArray[0] % 0b00010000);
         const b64String = Buffer.from(String.fromCharCode(...fidByteArray))
-          .toString(&apos;base64&apos;)
-          .replace(/\+/g, &apos;-&apos;)
-          .replace(/\//g, &apos;_&apos;);
+            .toString(&apos;base64&apos;)
+            .replace(/\+/g, &apos;-&apos;)
+            .replace(/\//g, &apos;_&apos;);
         const fid = b64String.substr(0, 22);
         return /^[cdef][\w-]{21}$/.test(fid) ? fid : &apos;&apos;;
       } catch (e) {
@@ -194,18 +194,18 @@ export class DatabaseEuropaPark extends Database {
       const fid = await this.getFirebaseID();
 
       const resp = await this.http(
-        &apos;POST&apos;,
-        `https://firebaseremoteconfig.googleapis.com/v1/projects/${this.config.fbProjectId}/namespaces/firebase:fetch`,
-        {
-          &apos;appInstanceId&apos;: fid,
-          &apos;appId&apos;: this.config.fbAppId,
-          &apos;packageName&apos;: &apos;com.EuropaParkMackKG.EPGuide&apos;,
-          &apos;languageCode&apos;: &apos;en_GB&apos;,
-        }, {
-        headers: {
-          &apos;X-Goog-Api-Key&apos;: this.config.fbApiKey,
-        },
-      },
+          &apos;POST&apos;,
+          `https://firebaseremoteconfig.googleapis.com/v1/projects/${this.config.fbProjectId}/namespaces/firebase:fetch`,
+          {
+            &apos;appInstanceId&apos;: fid,
+            &apos;appId&apos;: this.config.fbAppId,
+            &apos;packageName&apos;: &apos;com.EuropaParkMackKG.EPGuide&apos;,
+            &apos;languageCode&apos;: &apos;en_GB&apos;,
+          }, {
+            headers: {
+              &apos;X-Goog-Api-Key&apos;: this.config.fbApiKey,
+            },
+          },
       );
 
       const decrypt = (str) =&gt; {
@@ -228,16 +228,16 @@ export class DatabaseEuropaPark extends Database {
     return await this.cache.wrap(&apos;access_token&apos;, async () =&gt; {
       const config = await this.getConfig();
       const resp = await this.http(
-        &apos;POST&apos;,
-        this.config.authURL,
-        {
-          client_id: config[this.config.userKey],
-          client_secret: config[this.config.passKey],
-          grant_type: &apos;client_credentials&apos;,
-        },
-        {
-          json: true,
-        },
+          &apos;POST&apos;,
+          this.config.authURL,
+          {
+            client_id: config[this.config.userKey],
+            client_secret: config[this.config.passKey],
+            grant_type: &apos;client_credentials&apos;,
+          },
+          {
+            json: true,
+          },
       );
 
       if (!resp || !resp.body) {
@@ -260,13 +260,13 @@ export class DatabaseEuropaPark extends Database {
       // get the last checksum we received
       const checksum = (await this.cache.get(&apos;poi_checksum&apos;)) || 0;
       const data = await this.http(
-        &apos;GET&apos;,
-        `${this.config.apiBase}/api/v1/latest/en/live/${checksum}`,
-        undefined,
-        {
-          json: true,
-          ignoreErrors: true, // we want 404 errors
-        },
+          &apos;GET&apos;,
+          `${this.config.apiBase}/api/v1/latest/en/live/${checksum}`,
+          undefined,
+          {
+            json: true,
+            ignoreErrors: true, // we want 404 errors
+          },
       );
 
       if (data.body?.error?.code === 404 &amp;&amp; checksum &gt; 0) {
