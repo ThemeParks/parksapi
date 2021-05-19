@@ -1,7 +1,7 @@
 {
   "type": "File",
   "start": 0,
-  "end": 739,
+  "end": 748,
   "loc": {
     "start": {
       "line": 1,
@@ -15,7 +15,7 @@
   "program": {
     "type": "Program",
     "start": 0,
-    "end": 739,
+    "end": 748,
     "loc": {
       "start": {
         "line": 1,
@@ -138,7 +138,7 @@
       {
         "type": "VariableDeclaration",
         "start": 215,
-        "end": 240,
+        "end": 252,
         "loc": {
           "start": {
             "line": 9,
@@ -146,14 +146,14 @@
           },
           "end": {
             "line": 9,
-            "column": 25
+            "column": 37
           }
         },
         "declarations": [
           {
             "type": "VariableDeclarator",
             "start": 219,
-            "end": 239,
+            "end": 251,
             "loc": {
               "start": {
                 "line": 9,
@@ -161,7 +161,7 @@
               },
               "end": {
                 "line": 9,
-                "column": 24
+                "column": 36
               }
             },
             "id": {
@@ -183,9 +183,9 @@
               "leadingComments": null
             },
             "init": {
-              "type": "NullLiteral",
+              "type": "NewExpression",
               "start": 235,
-              "end": 239,
+              "end": 251,
               "loc": {
                 "start": {
                   "line": 9,
@@ -193,9 +193,27 @@
                 },
                 "end": {
                   "line": 9,
-                  "column": 24
+                  "column": 36
                 }
-              }
+              },
+              "callee": {
+                "type": "Identifier",
+                "start": 239,
+                "end": 249,
+                "loc": {
+                  "start": {
+                    "line": 9,
+                    "column": 24
+                  },
+                  "end": {
+                    "line": 9,
+                    "column": 34
+                  },
+                  "identifierName": "CacheLevel"
+                },
+                "name": "CacheLevel"
+              },
+              "arguments": []
             },
             "leadingComments": null
           }
@@ -223,8 +241,8 @@
           {
             "type": "CommentBlock",
             "value": "*\n * Create a new Cache Instance.\n * This function should only be called once for the lifetime of the module.\n ",
-            "start": 242,
-            "end": 357,
+            "start": 254,
+            "end": 369,
             "loc": {
               "start": {
                 "line": 11,
@@ -240,8 +258,8 @@
       },
       {
         "type": "FunctionDeclaration",
-        "start": 358,
-        "end": 504,
+        "start": 370,
+        "end": 513,
         "loc": {
           "start": {
             "line": 15,
@@ -254,8 +272,8 @@
         },
         "id": {
           "type": "Identifier",
-          "start": 373,
-          "end": 392,
+          "start": 385,
+          "end": 404,
           "loc": {
             "start": {
               "line": 15,
@@ -276,8 +294,8 @@
         "params": [],
         "body": {
           "type": "BlockStatement",
-          "start": 395,
-          "end": 504,
+          "start": 407,
+          "end": 513,
           "loc": {
             "start": {
               "line": 15,
@@ -291,8 +309,8 @@
           "body": [
             {
               "type": "ReturnStatement",
-              "start": 478,
-              "end": 502,
+              "start": 490,
+              "end": 511,
               "loc": {
                 "start": {
                   "line": 17,
@@ -300,13 +318,13 @@
                 },
                 "end": {
                   "line": 17,
-                  "column": 26
+                  "column": 23
                 }
               },
               "argument": {
-                "type": "NewExpression",
-                "start": 485,
-                "end": 501,
+                "type": "Identifier",
+                "start": 497,
+                "end": 510,
                 "loc": {
                   "start": {
                     "line": 17,
@@ -314,35 +332,19 @@
                   },
                   "end": {
                     "line": 17,
-                    "column": 25
-                  }
-                },
-                "callee": {
-                  "type": "Identifier",
-                  "start": 489,
-                  "end": 499,
-                  "loc": {
-                    "start": {
-                      "line": 17,
-                      "column": 13
-                    },
-                    "end": {
-                      "line": 17,
-                      "column": 23
-                    },
-                    "identifierName": "CacheLevel"
+                    "column": 22
                   },
-                  "name": "CacheLevel"
+                  "identifierName": "CacheInstance"
                 },
-                "arguments": [],
+                "name": "CacheInstance",
                 "leadingComments": null
               },
               "leadingComments": [
                 {
                   "type": "CommentLine",
                   "value": " TODO - accept configured caches through environment variables (or other?)",
-                  "start": 399,
-                  "end": 475,
+                  "start": 411,
+                  "end": 487,
                   "loc": {
                     "start": {
                       "line": 16,
@@ -364,8 +366,8 @@
           {
             "type": "CommentBlock",
             "value": "*\n * Create a new Cache Instance.\n * This function should only be called once for the lifetime of the module.\n ",
-            "start": 242,
-            "end": 357,
+            "start": 254,
+            "end": 369,
             "loc": {
               "start": {
                 "line": 11,
@@ -382,8 +384,8 @@
           {
             "type": "CommentBlock",
             "value": "*\n  * Get the configured Cache implementation\n  ",
-            "start": 506,
-            "end": 558,
+            "start": 515,
+            "end": 567,
             "loc": {
               "start": {
                 "line": 20,
@@ -399,8 +401,8 @@
       },
       {
         "type": "ExportNamedDeclaration",
-        "start": 559,
-        "end": 705,
+        "start": 568,
+        "end": 714,
         "loc": {
           "start": {
             "line": 23,
@@ -415,8 +417,8 @@
         "source": null,
         "declaration": {
           "type": "FunctionDeclaration",
-          "start": 566,
-          "end": 705,
+          "start": 575,
+          "end": 714,
           "loc": {
             "start": {
               "line": 23,
@@ -429,8 +431,8 @@
           },
           "id": {
             "type": "Identifier",
-            "start": 581,
-            "end": 589,
+            "start": 590,
+            "end": 598,
             "loc": {
               "start": {
                 "line": 23,
@@ -451,8 +453,8 @@
           "params": [],
           "body": {
             "type": "BlockStatement",
-            "start": 592,
-            "end": 705,
+            "start": 601,
+            "end": 714,
             "loc": {
               "start": {
                 "line": 23,
@@ -466,8 +468,8 @@
             "body": [
               {
                 "type": "IfStatement",
-                "start": 596,
-                "end": 678,
+                "start": 605,
+                "end": 687,
                 "loc": {
                   "start": {
                     "line": 24,
@@ -480,8 +482,8 @@
                 },
                 "test": {
                   "type": "BinaryExpression",
-                  "start": 600,
-                  "end": 622,
+                  "start": 609,
+                  "end": 631,
                   "loc": {
                     "start": {
                       "line": 24,
@@ -494,8 +496,8 @@
                   },
                   "left": {
                     "type": "Identifier",
-                    "start": 600,
-                    "end": 613,
+                    "start": 609,
+                    "end": 622,
                     "loc": {
                       "start": {
                         "line": 24,
@@ -512,8 +514,8 @@
                   "operator": "===",
                   "right": {
                     "type": "NullLiteral",
-                    "start": 618,
-                    "end": 622,
+                    "start": 627,
+                    "end": 631,
                     "loc": {
                       "start": {
                         "line": 24,
@@ -528,8 +530,8 @@
                 },
                 "consequent": {
                   "type": "BlockStatement",
-                  "start": 624,
-                  "end": 678,
+                  "start": 633,
+                  "end": 687,
                   "loc": {
                     "start": {
                       "line": 24,
@@ -543,8 +545,8 @@
                   "body": [
                     {
                       "type": "ExpressionStatement",
-                      "start": 630,
-                      "end": 674,
+                      "start": 639,
+                      "end": 683,
                       "loc": {
                         "start": {
                           "line": 25,
@@ -557,8 +559,8 @@
                       },
                       "expression": {
                         "type": "AssignmentExpression",
-                        "start": 630,
-                        "end": 673,
+                        "start": 639,
+                        "end": 682,
                         "loc": {
                           "start": {
                             "line": 25,
@@ -572,8 +574,8 @@
                         "operator": "=",
                         "left": {
                           "type": "Identifier",
-                          "start": 630,
-                          "end": 643,
+                          "start": 639,
+                          "end": 652,
                           "loc": {
                             "start": {
                               "line": 25,
@@ -589,8 +591,8 @@
                         },
                         "right": {
                           "type": "AwaitExpression",
-                          "start": 646,
-                          "end": 673,
+                          "start": 655,
+                          "end": 682,
                           "loc": {
                             "start": {
                               "line": 25,
@@ -603,8 +605,8 @@
                           },
                           "argument": {
                             "type": "CallExpression",
-                            "start": 652,
-                            "end": 673,
+                            "start": 661,
+                            "end": 682,
                             "loc": {
                               "start": {
                                 "line": 25,
@@ -617,8 +619,8 @@
                             },
                             "callee": {
                               "type": "Identifier",
-                              "start": 652,
-                              "end": 671,
+                              "start": 661,
+                              "end": 680,
                               "loc": {
                                 "start": {
                                   "line": 25,
@@ -644,8 +646,8 @@
               },
               {
                 "type": "ReturnStatement",
-                "start": 682,
-                "end": 703,
+                "start": 691,
+                "end": 712,
                 "loc": {
                   "start": {
                     "line": 28,
@@ -658,8 +660,8 @@
                 },
                 "argument": {
                   "type": "Identifier",
-                  "start": 689,
-                  "end": 702,
+                  "start": 698,
+                  "end": 711,
                   "loc": {
                     "start": {
                       "line": 28,
@@ -681,8 +683,8 @@
             {
               "type": "CommentBlock",
               "value": "*\n  * Get the configured Cache implementation\n  ",
-              "start": 506,
-              "end": 558,
+              "start": 515,
+              "end": 567,
               "loc": {
                 "start": {
                   "line": 20,
@@ -701,8 +703,8 @@
           {
             "type": "CommentBlock",
             "value": "*\n  * Get the configured Cache implementation\n  ",
-            "start": 506,
-            "end": 558,
+            "start": 515,
+            "end": 567,
             "loc": {
               "start": {
                 "line": 20,
@@ -718,8 +720,8 @@
       },
       {
         "type": "ExportDefaultDeclaration",
-        "start": 707,
-        "end": 738,
+        "start": 716,
+        "end": 747,
         "loc": {
           "start": {
             "line": 31,
@@ -732,8 +734,8 @@
         },
         "declaration": {
           "type": "ObjectExpression",
-          "start": 722,
-          "end": 737,
+          "start": 731,
+          "end": 746,
           "loc": {
             "start": {
               "line": 31,
@@ -747,8 +749,8 @@
           "properties": [
             {
               "type": "ObjectProperty",
-              "start": 726,
-              "end": 734,
+              "start": 735,
+              "end": 743,
               "loc": {
                 "start": {
                   "line": 32,
@@ -764,8 +766,8 @@
               "computed": false,
               "key": {
                 "type": "Identifier",
-                "start": 726,
-                "end": 734,
+                "start": 735,
+                "end": 743,
                 "loc": {
                   "start": {
                     "line": 32,
@@ -781,8 +783,8 @@
               },
               "value": {
                 "type": "Identifier",
-                "start": 726,
-                "end": 734,
+                "start": 735,
+                "end": 743,
                 "loc": {
                   "start": {
                     "line": 32,
@@ -844,8 +846,8 @@
     {
       "type": "CommentBlock",
       "value": "*\n * Create a new Cache Instance.\n * This function should only be called once for the lifetime of the module.\n ",
-      "start": 242,
-      "end": 357,
+      "start": 254,
+      "end": 369,
       "loc": {
         "start": {
           "line": 11,
@@ -860,8 +862,8 @@
     {
       "type": "CommentLine",
       "value": " TODO - accept configured caches through environment variables (or other?)",
-      "start": 399,
-      "end": 475,
+      "start": 411,
+      "end": 487,
       "loc": {
         "start": {
           "line": 16,
@@ -876,8 +878,8 @@
     {
       "type": "CommentBlock",
       "value": "*\n  * Get the configured Cache implementation\n  ",
-      "start": 506,
-      "end": 558,
+      "start": 515,
+      "end": 567,
       "loc": {
         "start": {
           "line": 20,
@@ -1139,9 +1141,9 @@
     },
     {
       "type": {
-        "label": "null",
-        "keyword": "null",
-        "beforeExpr": false,
+        "label": "new",
+        "keyword": "new",
+        "beforeExpr": true,
         "startsExpr": true,
         "rightAssociative": false,
         "isLoop": false,
@@ -1151,9 +1153,9 @@
         "binop": null,
         "updateContext": null
       },
-      "value": "null",
+      "value": "new",
       "start": 235,
-      "end": 239,
+      "end": 238,
       "loc": {
         "start": {
           "line": 9,
@@ -1161,7 +1163,83 @@
         },
         "end": {
           "line": 9,
+          "column": 23
+        }
+      }
+    },
+    {
+      "type": {
+        "label": "name",
+        "beforeExpr": false,
+        "startsExpr": true,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null
+      },
+      "value": "CacheLevel",
+      "start": 239,
+      "end": 249,
+      "loc": {
+        "start": {
+          "line": 9,
           "column": 24
+        },
+        "end": {
+          "line": 9,
+          "column": 34
+        }
+      }
+    },
+    {
+      "type": {
+        "label": "(",
+        "beforeExpr": true,
+        "startsExpr": true,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null
+      },
+      "start": 249,
+      "end": 250,
+      "loc": {
+        "start": {
+          "line": 9,
+          "column": 34
+        },
+        "end": {
+          "line": 9,
+          "column": 35
+        }
+      }
+    },
+    {
+      "type": {
+        "label": ")",
+        "beforeExpr": false,
+        "startsExpr": false,
+        "rightAssociative": false,
+        "isLoop": false,
+        "isAssign": false,
+        "prefix": false,
+        "postfix": false,
+        "binop": null
+      },
+      "start": 250,
+      "end": 251,
+      "loc": {
+        "start": {
+          "line": 9,
+          "column": 35
+        },
+        "end": {
+          "line": 9,
+          "column": 36
         }
       }
     },
@@ -1178,24 +1256,24 @@
         "binop": null,
         "updateContext": null
       },
-      "start": 239,
-      "end": 240,
+      "start": 251,
+      "end": 252,
       "loc": {
         "start": {
           "line": 9,
-          "column": 24
+          "column": 36
         },
         "end": {
           "line": 9,
-          "column": 25
+          "column": 37
         }
       }
     },
     {
       "type": "CommentBlock",
       "value": "*\n * Create a new Cache Instance.\n * This function should only be called once for the lifetime of the module.\n ",
-      "start": 242,
-      "end": 357,
+      "start": 254,
+      "end": 369,
       "loc": {
         "start": {
           "line": 11,
@@ -1220,8 +1298,8 @@
         "binop": null
       },
       "value": "async",
-      "start": 358,
-      "end": 363,
+      "start": 370,
+      "end": 375,
       "loc": {
         "start": {
           "line": 15,
@@ -1247,8 +1325,8 @@
         "binop": null
       },
       "value": "function",
-      "start": 364,
-      "end": 372,
+      "start": 376,
+      "end": 384,
       "loc": {
         "start": {
           "line": 15,
@@ -1273,8 +1351,8 @@
         "binop": null
       },
       "value": "createCacheInstance",
-      "start": 373,
-      "end": 392,
+      "start": 385,
+      "end": 404,
       "loc": {
         "start": {
           "line": 15,
@@ -1298,8 +1376,8 @@
         "postfix": false,
         "binop": null
       },
-      "start": 392,
-      "end": 393,
+      "start": 404,
+      "end": 405,
       "loc": {
         "start": {
           "line": 15,
@@ -1323,8 +1401,8 @@
         "postfix": false,
         "binop": null
       },
-      "start": 393,
-      "end": 394,
+      "start": 405,
+      "end": 406,
       "loc": {
         "start": {
           "line": 15,
@@ -1348,8 +1426,8 @@
         "postfix": false,
         "binop": null
       },
-      "start": 395,
-      "end": 396,
+      "start": 407,
+      "end": 408,
       "loc": {
         "start": {
           "line": 15,
@@ -1364,8 +1442,8 @@
     {
       "type": "CommentLine",
       "value": " TODO - accept configured caches through environment variables (or other?)",
-      "start": 399,
-      "end": 475,
+      "start": 411,
+      "end": 487,
       "loc": {
         "start": {
           "line": 16,
@@ -1392,8 +1470,8 @@
         "updateContext": null
       },
       "value": "return",
-      "start": 478,
-      "end": 484,
+      "start": 490,
+      "end": 496,
       "loc": {
         "start": {
           "line": 17,
@@ -1402,34 +1480,6 @@
         "end": {
           "line": 17,
           "column": 8
-        }
-      }
-    },
-    {
-      "type": {
-        "label": "new",
-        "keyword": "new",
-        "beforeExpr": true,
-        "startsExpr": true,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null,
-        "updateContext": null
-      },
-      "value": "new",
-      "start": 485,
-      "end": 488,
-      "loc": {
-        "start": {
-          "line": 17,
-          "column": 9
-        },
-        "end": {
-          "line": 17,
-          "column": 12
         }
       }
     },
@@ -1445,67 +1495,17 @@
         "postfix": false,
         "binop": null
       },
-      "value": "CacheLevel",
-      "start": 489,
-      "end": 499,
+      "value": "CacheInstance",
+      "start": 497,
+      "end": 510,
       "loc": {
         "start": {
           "line": 17,
-          "column": 13
+          "column": 9
         },
         "end": {
           "line": 17,
-          "column": 23
-        }
-      }
-    },
-    {
-      "type": {
-        "label": "(",
-        "beforeExpr": true,
-        "startsExpr": true,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null
-      },
-      "start": 499,
-      "end": 500,
-      "loc": {
-        "start": {
-          "line": 17,
-          "column": 23
-        },
-        "end": {
-          "line": 17,
-          "column": 24
-        }
-      }
-    },
-    {
-      "type": {
-        "label": ")",
-        "beforeExpr": false,
-        "startsExpr": false,
-        "rightAssociative": false,
-        "isLoop": false,
-        "isAssign": false,
-        "prefix": false,
-        "postfix": false,
-        "binop": null
-      },
-      "start": 500,
-      "end": 501,
-      "loc": {
-        "start": {
-          "line": 17,
-          "column": 24
-        },
-        "end": {
-          "line": 17,
-          "column": 25
+          "column": 22
         }
       }
     },
@@ -1522,16 +1522,16 @@
         "binop": null,
         "updateContext": null
       },
-      "start": 501,
-      "end": 502,
+      "start": 510,
+      "end": 511,
       "loc": {
         "start": {
           "line": 17,
-          "column": 25
+          "column": 22
         },
         "end": {
           "line": 17,
-          "column": 26
+          "column": 23
         }
       }
     },
@@ -1547,8 +1547,8 @@
         "postfix": false,
         "binop": null
       },
-      "start": 503,
-      "end": 504,
+      "start": 512,
+      "end": 513,
       "loc": {
         "start": {
           "line": 18,
@@ -1563,8 +1563,8 @@
     {
       "type": "CommentBlock",
       "value": "*\n  * Get the configured Cache implementation\n  ",
-      "start": 506,
-      "end": 558,
+      "start": 515,
+      "end": 567,
       "loc": {
         "start": {
           "line": 20,
@@ -1591,8 +1591,8 @@
         "updateContext": null
       },
       "value": "export",
-      "start": 559,
-      "end": 565,
+      "start": 568,
+      "end": 574,
       "loc": {
         "start": {
           "line": 23,
@@ -1617,8 +1617,8 @@
         "binop": null
       },
       "value": "async",
-      "start": 566,
-      "end": 571,
+      "start": 575,
+      "end": 580,
       "loc": {
         "start": {
           "line": 23,
@@ -1644,8 +1644,8 @@
         "binop": null
       },
       "value": "function",
-      "start": 572,
-      "end": 580,
+      "start": 581,
+      "end": 589,
       "loc": {
         "start": {
           "line": 23,
@@ -1670,8 +1670,8 @@
         "binop": null
       },
       "value": "getCache",
-      "start": 581,
-      "end": 589,
+      "start": 590,
+      "end": 598,
       "loc": {
         "start": {
           "line": 23,
@@ -1695,8 +1695,8 @@
         "postfix": false,
         "binop": null
       },
-      "start": 589,
-      "end": 590,
+      "start": 598,
+      "end": 599,
       "loc": {
         "start": {
           "line": 23,
@@ -1720,8 +1720,8 @@
         "postfix": false,
         "binop": null
       },
-      "start": 590,
-      "end": 591,
+      "start": 599,
+      "end": 600,
       "loc": {
         "start": {
           "line": 23,
@@ -1745,8 +1745,8 @@
         "postfix": false,
         "binop": null
       },
-      "start": 592,
-      "end": 593,
+      "start": 601,
+      "end": 602,
       "loc": {
         "start": {
           "line": 23,
@@ -1773,8 +1773,8 @@
         "updateContext": null
       },
       "value": "if",
-      "start": 596,
-      "end": 598,
+      "start": 605,
+      "end": 607,
       "loc": {
         "start": {
           "line": 24,
@@ -1798,8 +1798,8 @@
         "postfix": false,
         "binop": null
       },
-      "start": 599,
-      "end": 600,
+      "start": 608,
+      "end": 609,
       "loc": {
         "start": {
           "line": 24,
@@ -1824,8 +1824,8 @@
         "binop": null
       },
       "value": "CacheInstance",
-      "start": 600,
-      "end": 613,
+      "start": 609,
+      "end": 622,
       "loc": {
         "start": {
           "line": 24,
@@ -1851,8 +1851,8 @@
         "updateContext": null
       },
       "value": "===",
-      "start": 614,
-      "end": 617,
+      "start": 623,
+      "end": 626,
       "loc": {
         "start": {
           "line": 24,
@@ -1879,8 +1879,8 @@
         "updateContext": null
       },
       "value": "null",
-      "start": 618,
-      "end": 622,
+      "start": 627,
+      "end": 631,
       "loc": {
         "start": {
           "line": 24,
@@ -1904,8 +1904,8 @@
         "postfix": false,
         "binop": null
       },
-      "start": 622,
-      "end": 623,
+      "start": 631,
+      "end": 632,
       "loc": {
         "start": {
           "line": 24,
@@ -1929,8 +1929,8 @@
         "postfix": false,
         "binop": null
       },
-      "start": 624,
-      "end": 625,
+      "start": 633,
+      "end": 634,
       "loc": {
         "start": {
           "line": 24,
@@ -1955,8 +1955,8 @@
         "binop": null
       },
       "value": "CacheInstance",
-      "start": 630,
-      "end": 643,
+      "start": 639,
+      "end": 652,
       "loc": {
         "start": {
           "line": 25,
@@ -1982,8 +1982,8 @@
         "updateContext": null
       },
       "value": "=",
-      "start": 644,
-      "end": 645,
+      "start": 653,
+      "end": 654,
       "loc": {
         "start": {
           "line": 25,
@@ -2008,8 +2008,8 @@
         "binop": null
       },
       "value": "await",
-      "start": 646,
-      "end": 651,
+      "start": 655,
+      "end": 660,
       "loc": {
         "start": {
           "line": 25,
@@ -2034,8 +2034,8 @@
         "binop": null
       },
       "value": "createCacheInstance",
-      "start": 652,
-      "end": 671,
+      "start": 661,
+      "end": 680,
       "loc": {
         "start": {
           "line": 25,
@@ -2059,8 +2059,8 @@
         "postfix": false,
         "binop": null
       },
-      "start": 671,
-      "end": 672,
+      "start": 680,
+      "end": 681,
       "loc": {
         "start": {
           "line": 25,
@@ -2084,8 +2084,8 @@
         "postfix": false,
         "binop": null
       },
-      "start": 672,
-      "end": 673,
+      "start": 681,
+      "end": 682,
       "loc": {
         "start": {
           "line": 25,
@@ -2110,8 +2110,8 @@
         "binop": null,
         "updateContext": null
       },
-      "start": 673,
-      "end": 674,
+      "start": 682,
+      "end": 683,
       "loc": {
         "start": {
           "line": 25,
@@ -2135,8 +2135,8 @@
         "postfix": false,
         "binop": null
       },
-      "start": 677,
-      "end": 678,
+      "start": 686,
+      "end": 687,
       "loc": {
         "start": {
           "line": 26,
@@ -2163,8 +2163,8 @@
         "updateContext": null
       },
       "value": "return",
-      "start": 682,
-      "end": 688,
+      "start": 691,
+      "end": 697,
       "loc": {
         "start": {
           "line": 28,
@@ -2189,8 +2189,8 @@
         "binop": null
       },
       "value": "CacheInstance",
-      "start": 689,
-      "end": 702,
+      "start": 698,
+      "end": 711,
       "loc": {
         "start": {
           "line": 28,
@@ -2215,8 +2215,8 @@
         "binop": null,
         "updateContext": null
       },
-      "start": 702,
-      "end": 703,
+      "start": 711,
+      "end": 712,
       "loc": {
         "start": {
           "line": 28,
@@ -2240,8 +2240,8 @@
         "postfix": false,
         "binop": null
       },
-      "start": 704,
-      "end": 705,
+      "start": 713,
+      "end": 714,
       "loc": {
         "start": {
           "line": 29,
@@ -2268,8 +2268,8 @@
         "updateContext": null
       },
       "value": "export",
-      "start": 707,
-      "end": 713,
+      "start": 716,
+      "end": 722,
       "loc": {
         "start": {
           "line": 31,
@@ -2296,8 +2296,8 @@
         "updateContext": null
       },
       "value": "default",
-      "start": 714,
-      "end": 721,
+      "start": 723,
+      "end": 730,
       "loc": {
         "start": {
           "line": 31,
@@ -2321,8 +2321,8 @@
         "postfix": false,
         "binop": null
       },
-      "start": 722,
-      "end": 723,
+      "start": 731,
+      "end": 732,
       "loc": {
         "start": {
           "line": 31,
@@ -2347,8 +2347,8 @@
         "binop": null
       },
       "value": "getCache",
-      "start": 726,
-      "end": 734,
+      "start": 735,
+      "end": 743,
       "loc": {
         "start": {
           "line": 32,
@@ -2373,8 +2373,8 @@
         "binop": null,
         "updateContext": null
       },
-      "start": 734,
-      "end": 735,
+      "start": 743,
+      "end": 744,
       "loc": {
         "start": {
           "line": 32,
@@ -2398,8 +2398,8 @@
         "postfix": false,
         "binop": null
       },
-      "start": 736,
-      "end": 737,
+      "start": 745,
+      "end": 746,
       "loc": {
         "start": {
           "line": 33,
@@ -2424,8 +2424,8 @@
         "binop": null,
         "updateContext": null
       },
-      "start": 737,
-      "end": 738,
+      "start": 746,
+      "end": 747,
       "loc": {
         "start": {
           "line": 33,
@@ -2450,8 +2450,8 @@
         "binop": null,
         "updateContext": null
       },
-      "start": 739,
-      "end": 739,
+      "start": 748,
+      "end": 748,
       "loc": {
         "start": {
           "line": 34,

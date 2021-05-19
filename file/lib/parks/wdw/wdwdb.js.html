@@ -87,7 +87,6 @@
 
 <div class="content" data-ice="content"><h1 data-ice="title">lib/parks/wdw/wdwdb.js</h1>
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import PouchDB from &apos;pouchdb&apos;;
-import ReplicationStream from &apos;pouchdb-replication-stream&apos;;
 import sift from &apos;sift&apos;;
 import {promises as fs, constants as fsConstants, createReadStream, createWriteStream} from &apos;fs&apos;;
 import path from &apos;path&apos;;
@@ -283,7 +282,7 @@ export class IndexedWDWDB extends PouchDB {
         console.error(&apos;Replication Error!&apos;, new Date(), err);
       }
 
-      console.log(&apos;Restarting replicator...&apos;);
+      // console.log(&apos;Restarting replicator...&apos;);
       this.replicating = false;
       setTimeout(this._replicate.bind(this), 1000);
     };
@@ -293,7 +292,7 @@ export class IndexedWDWDB extends PouchDB {
         clearTimeout(noChangeTimeout);
       }
       noChangeTimeout = setTimeout(() =&gt; {
-        console.log(&apos;Replicator timed out...&apos;);
+        // console.log(&apos;Replicator timed out...&apos;);
         rebootReplicator();
       }, 1000 * 60 * noChangeTimer);
     };
@@ -325,9 +324,6 @@ export class IndexedWDWDB extends PouchDB {
    * @private
    */
   async _loadAndInit() {
-    // first, try and restore from disk (will check if an existing snapshot exists)
-    await this.loadSnapshot();
-
     // load up our indexes
     await this._initIndexes();
 
@@ -374,6 +370,7 @@ export class IndexedWDWDB extends PouchDB {
    * snapshotFile will use default saveSnapshot result location if not supplied
    */
   async loadSnapshot(snapshotFile = &apos;&apos;) {
+    throw new Error(&apos;Missing Implementation&apos;);
     if (this.synced || this.replicating) {
       console.warn(&apos;Trying to load database snapshot when replication has already started&apos;);
       return;
@@ -404,6 +401,7 @@ export class IndexedWDWDB extends PouchDB {
    * @return {string} Path to resulting database snapshot
    */
   async saveSnapshot() {
+    throw new Error(&apos;Missing Implementation&apos;);
     if (this.databaseDumpPendingPromise) {
       return this.databaseDumpPendingPromise;
     }
@@ -970,11 +968,6 @@ export class IndexedWDWDB extends PouchDB {
 IndexedWDWDB.plugin({
   bulkDocs: IndexedWDWDB._pluginBulkDocs,
 });
-
-// pouchdb-replication-stream allows us to &quot;seed&quot; the database with an initial database dump
-//  incredibly useful for the wdw db, which is pretty huge
-IndexedWDWDB.plugin(ReplicationStream.plugin);
-PouchDB.adapter(&apos;writableStream&apos;, ReplicationStream.adapters.writableStream);
 
 export default IndexedWDWDB;
 </code></pre>

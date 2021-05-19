@@ -94,7 +94,7 @@
 import CacheLevel from &apos;./cache/cacheLevel.js&apos;;
 
 // our global cache instance
-let CacheInstance = null;
+let CacheInstance = new CacheLevel();
 
 /**
  * Create a new Cache Instance.
@@ -102,7 +102,7 @@ let CacheInstance = null;
  */
 async function createCacheInstance() {
   // TODO - accept configured caches through environment variables (or other?)
-  return new CacheLevel();
+  return CacheInstance;
 }
 
 /**
