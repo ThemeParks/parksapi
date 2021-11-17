@@ -13,3 +13,4 @@ test*.js
 menus/
 scan.js
 scans/
+debug_cache/
