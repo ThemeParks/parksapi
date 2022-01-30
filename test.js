@@ -1,8 +1,17 @@
 import parksapi from './lib/index.js';
 import {entityType, queueType} from './lib/parks/parkTypes.js';
 import moment from 'moment-timezone';
+import path from 'path';
+import {promises as fs} from 'fs';
 
-const destination = new parksapi.destinations.EuropaPark();
+const __dirname = path.dirname(process.argv[1]);
+
+const destination = new parksapi.destinations.PortAventuraWorld();
+
+destination.on('error', (id, err, data) => {
+  console.error(`[✗] ${id}: ${err} ${JSON.stringify(data, null, 4)}`);
+  debugger;
+});
 
 const _requiredFields = [
   'timezone',
@@ -90,9 +99,12 @@ function TestLiveData(data, ents) {
   if (!ent) {
     console.log(`[✗] Missing entity ${data._id} for livedata: ${JSON.stringify(data)}`);
   }
+
+  // console.log(`[✓] ${data._id}: ${JSON.stringify(data)}`);
 }
 
 function TestSchedule(scheduleData, entityId) {
+  return;
   const entSchedule = scheduleData.find((x) => x._id === entityId);
   if (!entSchedule) {
     throw new EntityError(`Missing schedule ${entityId}`, scheduleData);
@@ -147,6 +159,10 @@ async function TestDestination() {
   Object.keys(entityTypes).forEach((x) => {
     console.log(`\t${entityTypes[x]} ${x} entities`);
   });
+  
+  // write all entities to a file
+  const entityDataFile = path.join(__dirname, 'testout_Entities.json');
+  await fs.writeFile(entityDataFile, JSON.stringify(allEntities, null, 4));
 
   const schedule = await destination.getEntitySchedules();
   // get parks
@@ -161,6 +177,10 @@ async function TestDestination() {
     TestLiveData(ent, allEntities);
   }
   console.log(`[✓] ${liveData.length} live data tested`);
+
+  // write all live data to file
+  const liveDataFile = path.join(__dirname, 'testout_LiveData.json');
+  await fs.writeFile(liveDataFile, JSON.stringify(liveData, null, 4));
 }
 
 const run = async () => {
