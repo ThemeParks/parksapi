@@ -7,9 +7,12 @@ docs
 db.*
 .env
 test*.js
+!test.js
 *.har
 .vscode
 *.themepark
 menus/
 scan.js
 scans/
+debug_cache/
+testout_*
