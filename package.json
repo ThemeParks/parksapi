@@ -47,7 +47,7 @@
     "mingo": "^3.0.6",
     "moment-timezone": "^0.5.31",
     "needle": "^2.5.0",
-    "node-fetch": "^2.6.1",
+    "node-fetch": "^3.1.1",
     "object-hash": "^2.1.1",
     "pouchdb": "^7.2.2",
     "promise-retry": "^2.0.1",
