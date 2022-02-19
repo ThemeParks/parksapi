@@ -6,7 +6,7 @@ import {promises as fs} from 'fs';
 
 const __dirname = path.dirname(process.argv[1]);
 
-const destination = new parksapi.destinations.PortAventuraWorld();
+const destination = new parksapi.destinations.Toverland();
 
 destination.on('error', (id, err, data) => {
   console.error(`[✗] ${id}: ${err} ${JSON.stringify(data, null, 4)}`);
@@ -104,7 +104,6 @@ function TestLiveData(data, ents) {
 }
 
 function TestSchedule(scheduleData, entityId) {
-  return;
   const entSchedule = scheduleData.find((x) => x._id === entityId);
   if (!entSchedule) {
     throw new EntityError(`Missing schedule ${entityId}`, scheduleData);
@@ -140,6 +139,25 @@ function TestSchedule(scheduleData, entityId) {
 
   }
 
+  // check we have some schedule data for the next month
+  const now = moment();
+  const nextMonth = moment().add(1, 'month');
+  let schedulesForNextMonth = 0;
+  let scheduleDays = 0;
+  for (const date = now.clone(); date.isBefore(nextMonth); date.add(1, 'day')) {
+    scheduleDays++;
+    const schedule = entSchedule.schedule.filter((x) => x.date === date.format('YYYY-MM-DD'));
+    if (schedule && schedule.length > 0) {
+      schedulesForNextMonth += schedule.length;
+    }
+  }
+
+  if (schedulesForNextMonth === 0) {
+    throw new EntityError(`No schedule data found for next month for ${entityId}`, scheduleData);
+  }
+
+  console.log(`[✓] ${entityId}: ${schedulesForNextMonth} schedules found for next month [${scheduleDays} days]`);
+
   // console.log(entSchedule.schedule);
 }
 
@@ -159,7 +177,7 @@ async function TestDestination() {
   Object.keys(entityTypes).forEach((x) => {
     console.log(`\t${entityTypes[x]} ${x} entities`);
   });
-  
+
   // write all entities to a file
   const entityDataFile = path.join(__dirname, 'testout_Entities.json');
   await fs.writeFile(entityDataFile, JSON.stringify(allEntities, null, 4));
