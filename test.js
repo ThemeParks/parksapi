@@ -6,7 +6,7 @@ import {promises as fs} from 'fs';
 
 const __dirname = path.dirname(process.argv[1]);
 
-const destination = new parksapi.destinations.Toverland();
+const destination = new parksapi.destinations.Dollywood();
 
 destination.on('error', (id, err, data) => {
   console.error(`[✗] ${id}: ${err} ${JSON.stringify(data, null, 4)}`);
@@ -66,6 +66,13 @@ function TestEntity(ent) {
   }
   if (!ent._id) {
     throw new EntityError('_id is required', ent);
+  }
+
+  if (ent._id === 'resortId') {
+    throw new EntityError('resortId is default template _id, must change', ent);
+  }
+  if (ent.slug === 'resortslug') {
+    throw new EntityError('resortslug is default template slug, must change', ent);
   }
 
   const entityType = ent.entityType;
@@ -153,7 +160,7 @@ function TestSchedule(scheduleData, entityId) {
   }
 
   if (schedulesForNextMonth === 0) {
-    throw new EntityError(`No schedule data found for next month for ${entityId}`, scheduleData);
+    throw new EntityError(`No schedule data found for next month for ${entityId}`);
   }
 
   console.log(`[✓] ${entityId}: ${schedulesForNextMonth} schedules found for next month [${scheduleDays} days]`);
