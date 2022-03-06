@@ -6,7 +6,7 @@ import {promises as fs} from 'fs';
 
 const __dirname = path.dirname(process.argv[1]);
 
-const destination = new parksapi.destinations.Toverland();
+const destination = new parksapi.destinations.Plopsaland();
 
 destination.on('error', (id, err, data) => {
   console.error(`[✗] ${id}: ${err} ${JSON.stringify(data, null, 4)}`);
@@ -177,6 +177,16 @@ async function TestDestination() {
   Object.keys(entityTypes).forEach((x) => {
     console.log(`\t${entityTypes[x]} ${x} entities`);
   });
+
+  // test for entity id collisions
+  const entityIds = allEntities.map((x) => x._id);
+  const duplicateEntityIds = entityIds.filter((x, i) => entityIds.indexOf(x) !== i);
+  if (duplicateEntityIds.length > 0) {
+    console.log(`[✗] ${duplicateEntityIds.length} entity ids are duplicated`);
+    console.log(duplicateEntityIds);
+  } else {
+    console.log(`[✓] No entity ids are duplicated`);
+  }
 
   // write all entities to a file
   const entityDataFile = path.join(__dirname, 'testout_Entities.json');
