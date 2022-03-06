@@ -6,7 +6,7 @@ import {promises as fs} from 'fs';
 
 const __dirname = path.dirname(process.argv[1]);
 
-const destination = new parksapi.destinations.Plopsaland();
+const destination = new parksapi.destinations.HolidayPark();
 
 const logSuccess = (...msg) => {
   // print green tick
@@ -199,6 +199,16 @@ async function TestDestination() {
     console.log(duplicateEntityIds);
   } else {
     logSuccess(`No entity ids are duplicated`);
+  }
+
+  // test for entity slug collisions
+  const entitySlugs = allEntities.map((x) => x.slug).filter((x) => !!x);
+  const duplicateEntitySlugs = entitySlugs.filter((x, i) => entitySlugs.indexOf(x) !== i);
+  if (duplicateEntitySlugs.length > 0) {
+    logError(`${duplicateEntitySlugs.length} entity slugs are duplicated`);
+    console.log(duplicateEntitySlugs);
+  } else {
+    logSuccess(`No entity slugs are duplicated`);
   }
 
   // write all entities to a file
