@@ -6,10 +6,20 @@ import {promises as fs} from 'fs';
 
 const __dirname = path.dirname(process.argv[1]);
 
-const destination = new parksapi.destinations.Dollywood();
+const destination = new parksapi.destinations.HolidayPark();
+
+const logSuccess = (...msg) => {
+  // print green tick
+  console.log(`[\x1b[32m✓\x1b[0m]`, ...msg);
+}
+
+const logError = (...msg) => {
+  // print red cross
+  console.log(`[\x1b[31m✗\x1b[0m]`, ...msg);
+}
 
 destination.on('error', (id, err, data) => {
-  console.error(`[✗] ${id}: ${err} ${JSON.stringify(data, null, 4)}`);
+  logError(`${id}: ${err} ${JSON.stringify(data, null, 4)}`);
   debugger;
 });
 
@@ -67,6 +77,9 @@ function TestEntity(ent) {
   if (!ent._id) {
     throw new EntityError('_id is required', ent);
   }
+  if (typeof ent._id !== 'string') {
+    throw new EntityError('_id must be a string', ent);
+  }
 
   if (ent._id === 'resortId') {
     throw new EntityError('resortId is default template _id, must change', ent);
@@ -104,10 +117,10 @@ function TestLiveData(data, ents) {
 
   const ent = ents.find((x) => x._id === data._id);
   if (!ent) {
-    console.log(`[✗] Missing entity ${data._id} for livedata: ${JSON.stringify(data)}`);
+    logError(`Missing entity ${data._id} for livedata: ${JSON.stringify(data)}`);
   }
 
-  // console.log(`[✓] ${data._id}: ${JSON.stringify(data)}`);
+  // logSuccess(`${data._id}: ${JSON.stringify(data)}`);
 }
 
 function TestSchedule(scheduleData, entityId) {
@@ -163,7 +176,7 @@ function TestSchedule(scheduleData, entityId) {
     throw new EntityError(`No schedule data found for next month for ${entityId}`);
   }
 
-  console.log(`[✓] ${entityId}: ${schedulesForNextMonth} schedules found for next month [${scheduleDays} days]`);
+  logSuccess(`${entityId}: ${schedulesForNextMonth} schedules found for next month [${scheduleDays} days]`);
 
   // console.log(entSchedule.schedule);
 }
@@ -175,7 +188,7 @@ async function TestDestination() {
   for (const ent of allEntities) {
     TestEntity(ent);
   }
-  console.log(`[✓] ${allEntities.length} entities tested`);
+  logSuccess(`${allEntities.length} entities tested`);
   const entityTypes = allEntities.reduce((x, ent) => {
     x[ent.entityType] = x[ent.entityType] || 0;
     x[ent.entityType]++;
@@ -184,6 +197,26 @@ async function TestDestination() {
   Object.keys(entityTypes).forEach((x) => {
     console.log(`\t${entityTypes[x]} ${x} entities`);
   });
+
+  // test for entity id collisions
+  const entityIds = allEntities.map((x) => x._id);
+  const duplicateEntityIds = entityIds.filter((x, i) => entityIds.indexOf(x) !== i);
+  if (duplicateEntityIds.length > 0) {
+    logError(`${duplicateEntityIds.length} entity ids are duplicated`);
+    console.log(duplicateEntityIds);
+  } else {
+    logSuccess(`No entity ids are duplicated`);
+  }
+
+  // test for entity slug collisions
+  const entitySlugs = allEntities.map((x) => x.slug).filter((x) => !!x);
+  const duplicateEntitySlugs = entitySlugs.filter((x, i) => entitySlugs.indexOf(x) !== i);
+  if (duplicateEntitySlugs.length > 0) {
+    logError(`${duplicateEntitySlugs.length} entity slugs are duplicated`);
+    console.log(duplicateEntitySlugs);
+  } else {
+    logSuccess(`No entity slugs are duplicated`);
+  }
 
   // write all entities to a file
   const entityDataFile = path.join(__dirname, 'testout_Entities.json');
@@ -195,13 +228,13 @@ async function TestDestination() {
   for (const park of parks) {
     TestSchedule(schedule, park._id);
   }
-  console.log(`[✓] ${parks.length} park schedules tested`);
+  logSuccess(`${parks.length} park schedules tested`);
 
   const liveData = await destination.getEntityLiveData();
   for (const ent of liveData) {
     TestLiveData(ent, allEntities);
   }
-  console.log(`[✓] ${liveData.length} live data tested`);
+  logSuccess(`${liveData.length} live data tested`);
 
   // write all live data to file
   const liveDataFile = path.join(__dirname, 'testout_LiveData.json');
