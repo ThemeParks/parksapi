@@ -1,14 +1,18 @@
-# Parks API
+# ThemeParks.wiki Parks API
 
 ![Unit Test](https://github.com/ThemeParks/parksapi/workflows/Unit%20Test/badge.svg) ![Documentation Build](https://github.com/ThemeParks/parksapi/workflows/ESDoc/badge.svg)
 
 [API Documentation](https://themeparks.github.io/parksapi/)
 
-This is a backend module to fetch and query live data for themeparks.
+This is a backend module to fetch and query live data for themeparks. This source code powers the free-to-use API at [ThemeParks.wiki](https://themeparks.wiki)
 
-Barebones logic is provided in this module. Most parks require some form of credentials, which are not supplied in this repo.
+To fetch data from the API, you should look at the client libraries:
+* https://github.com/ThemeParks/ThemeParks_JavaScript
+* https://github.com/ThemeParks/ThemeParks_Python
 
-Support is not offered for this module, but is available for those interested in the ThemeParks.wiki implementation.
+Fetching and parsing logic is provided in this source code. Most parks require some form of credentials, which are not supplied in this repo. You will need to source these yourself.
+
+General support is available for the ThemeParks.wiki API, and not this source code (except for Sponsors with support benefits).
 
 `test.js` contains a basic set of sanity checks and output validation, which also shows how a destination object can be accessed.
 
@@ -32,7 +36,7 @@ Each destination generates *entities*. Entities can be of various types:
   * A show / parade entity with scheduled show times
   * eg. Main Street Electrical Parade
 
-*Entity Types Being Finalised - Destinations, Parks, and Attractions are well committed to for supported parks*
+*Entity Types Being Finalised - Destinations, Parks, and Attractions however, are well supported and unlikely to change*
 
 ## Adding Destinations
 
