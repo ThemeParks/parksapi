@@ -105,7 +105,7 @@
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import Ajv from &apos;ajv&apos;;
 const ajv = new Ajv();
 
-import {entityType, queueType, returnTimeState, statusType, boardingGroupState} from &apos;./parkTypes.js&apos;;
+import {queueType, returnTimeState, statusType, boardingGroupState} from &apos;./parkTypes.js&apos;;
 
 // queue schema, can be applied to various entity types
 const queueSchema = {
@@ -167,7 +167,7 @@ const queueSchema = {
         },
         estimatedWait: {
           type: [&apos;integer&apos;, &apos;null&apos;],
-        }
+        },
       },
     },
   },

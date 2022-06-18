@@ -117,17 +117,17 @@ import {validateEntitySchedule} from &apos;./scheduledata.js&apos;;
 
 /**
  * Return functions available on the supplied object as an array of strings
- * @param {object} obj 
- * @returns Array&lt;string&gt; array of function names
+ * @param {object} obj
+ * @return {Array&lt;string&gt;} array of function names
  */
 const getMethods = (obj) =&gt; {
-  let properties = new Set()
-  let currentObj = obj
+  const properties = new Set();
+  let currentObj = obj;
   do {
-    Object.getOwnPropertyNames(currentObj).map(item =&gt; properties.add(item))
-  } while ((currentObj = Object.getPrototypeOf(currentObj)))
-  return [...properties.keys()].filter(item =&gt; typeof obj[item] === &apos;function&apos;)
-}
+    Object.getOwnPropertyNames(currentObj).map((item) =&gt; properties.add(item));
+  } while ((currentObj = Object.getPrototypeOf(currentObj)));
+  return [...properties.keys()].filter((item) =&gt; typeof obj[item] === &apos;function&apos;);
+};
 
 /**
  * Meta-programming commands
@@ -136,7 +136,7 @@ const getMethods = (obj) =&gt; {
  */
 const metaCommands = {
   // @cache|minutesToCache
-  cache: function (fnName, args) {
+  cache: function(fnName, args) {
     const originalFunction = this[fnName].bind(this);
 
     this[fnName] = async (...originalFunctionArgs) =&gt; {
@@ -147,15 +147,15 @@ const metaCommands = {
 
       // replace original function with a cache wrap
       return this.cache.wrap(
-        // try and make a unique name based on our function name
-        //  to store in cache
-        funcCacheName,
-        // call original function if value not in cache
-        async () =&gt; {
-          return originalFunction(...originalFunctionArgs);
-        },
-        // @cache takes argument in minutes
-        parseInt(args[0], 10) * 1000 * 60,
+          // try and make a unique name based on our function name
+          //  to store in cache
+          funcCacheName,
+          // call original function if value not in cache
+          async () =&gt; {
+            return originalFunction(...originalFunctionArgs);
+          },
+          // @cache takes argument in minutes
+          parseInt(args[0], 10) * 1000 * 60,
       );
     };
   },
@@ -174,7 +174,7 @@ export class Destination extends EventEmitter {
 
     // add class name to our $env options
     options.configPrefixes = [this.constructor.name].concat(
-      options.configPrefixes || [],
+        options.configPrefixes || [],
     );
 
     // debug callback to list environment variables
@@ -389,31 +389,31 @@ export class Destination extends EventEmitter {
     const destination = await this.getDestinationEntity();
 
     this._allEntities = [].concat(
-      destination,
-      (await this.buildParkEntities()).map((x) =&gt; {
-        return {
-          ...x,
-          _destinationId: destination._id,
-        };
-      }),
-      (await this.buildAttractionEntities()).map((x) =&gt; {
-        return {
-          ...x,
-          _destinationId: destination._id,
-        };
-      }),
-      (await this.buildShowEntities()).map((x) =&gt; {
-        return {
-          ...x,
-          _destinationId: destination._id,
-        };
-      }),
-      (await this.buildRestaurantEntities()).map((x) =&gt; {
-        return {
-          ...x,
-          _destinationId: destination._id,
-        };
-      }),
+        destination,
+        (await this.buildParkEntities()).map((x) =&gt; {
+          return {
+            ...x,
+            _destinationId: destination._id,
+          };
+        }),
+        (await this.buildAttractionEntities()).map((x) =&gt; {
+          return {
+            ...x,
+            _destinationId: destination._id,
+          };
+        }),
+        (await this.buildShowEntities()).map((x) =&gt; {
+          return {
+            ...x,
+            _destinationId: destination._id,
+          };
+        }),
+        (await this.buildRestaurantEntities()).map((x) =&gt; {
+          return {
+            ...x,
+            _destinationId: destination._id,
+          };
+        }),
     );
 
     this._allEntitiesLastStash = +new Date();
@@ -508,7 +508,8 @@ export class Destination extends EventEmitter {
     const validationErrors = getLiveDataErrors(data);
     if (validationErrors !== null) {
       this.emit(&apos;error&apos;, internalId, &apos;INVALID_LIVEDATA&apos;, {
-        message: `Error validating incoming live data [${internalId}] ${JSON.stringify(data)}.\n\t${validationErrors.map((x) =&gt; `${x.dataPath} ${x.message}`).join(&apos;\n\t&apos;)}`,
+        message: `Error validating incoming live data [${internalId}] ${JSON.stringify(data)}.
+\t${validationErrors.map((x) =&gt; `${x.dataPath} ${x.message}`).join(&apos;\n\t&apos;)}`,
         data,
       });
       return;
@@ -594,7 +595,7 @@ export class Destination extends EventEmitter {
 
   /**
    * Get all schedules for this destination&apos;s entites
-   * @return Array&lt;object&gt; Array of objects containing _id and schedules
+   * @return {Array&lt;object&gt;} Array of objects containing _id and schedules
    */
   async getEntitySchedules() {
     await this.init();
@@ -624,8 +625,8 @@ export class Destination extends EventEmitter {
   /**
    * Clear the cache for a given meta function
    * @private
-   * @param {string} functionName 
-   * @param {Array&lt;*&gt;} args 
+   * @param {string} functionName
+   * @param {Array&lt;*&gt;} args
    */
   async _clearFunctionCache(functionName, args = []) {
     let funcCacheName = `metacache_${functionName}`;
@@ -639,7 +640,7 @@ export class Destination extends EventEmitter {
    * Helper function to call a function, passing in a date for each date x days in the future.
    * First date will be current park date.
    * @param {Function} func
-   * @param {Number} dates 
+   * @param {Number} dates
    */
   async forEachUpcomingDate(func, dates = 30) {
     const now = this.getTimeNowMoment();
@@ -667,9 +668,9 @@ export class Destination extends EventEmitter {
     // cache 12 hours
     &apos;@cache|720&apos;;
     const resp = await this.http(
-      &apos;GET&apos;,
-      `https://appwatch.themeparks.wiki/latest/${packageId}`,
-      {},
+        &apos;GET&apos;,
+        `https://appwatch.themeparks.wiki/latest/${packageId}`,
+        {},
     );
     return resp?.body?.version || undefined;
   }
