@@ -1,1 +1,77 @@
-[]
+[
+  {
+    "name": "AttractionsIO#_buildEntitiesFromCategories",
+    "filePath": "lib/parks/attractionsio/attractionsio.js",
+    "lines": [
+      {
+        "lineNumber": 366,
+        "line": "  /**"
+      },
+      {
+        "lineNumber": 367,
+        "line": "   * Helper function to generate entities from a list of category names"
+      },
+      {
+        "lineNumber": 368,
+        "line": "   * @param {Array<String>} categoryNames"
+      },
+      {
+        "lineNumber": 369,
+        "line": "   * @returns "
+      },
+      {
+        "lineNumber": 370,
+        "line": "   */"
+      },
+      {
+        "lineNumber": 371,
+        "line": "  async _buildEntitiesFromCategories(categoryNames, parentId, attributes = {}) {"
+      }
+    ],
+    "codeParams": [
+      "categoryNames",
+      "parentId",
+      "attributes"
+    ],
+    "docParams": [
+      "categoryNames"
+    ]
+  },
+  {
+    "name": "HerschendDestination#getPOIForCategory",
+    "filePath": "lib/parks/herschend/herschendparks.js",
+    "lines": [
+      {
+        "lineNumber": 168,
+        "line": "  /**"
+      },
+      {
+        "lineNumber": 169,
+        "line": "   * Helper function to filter POI data for a chosen category GUID"
+      },
+      {
+        "lineNumber": 170,
+        "line": "   * @param {string} category "
+      },
+      {
+        "lineNumber": 171,
+        "line": "   * @returns "
+      },
+      {
+        "lineNumber": 172,
+        "line": "   */"
+      },
+      {
+        "lineNumber": 173,
+        "line": "  async getPOIForCategory(category, filterSeasonal = true) {"
+      }
+    ],
+    "codeParams": [
+      "category",
+      "filterSeasonal"
+    ],
+    "docParams": [
+      "category"
+    ]
+  }
+]

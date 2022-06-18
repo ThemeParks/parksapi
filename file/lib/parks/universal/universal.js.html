@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <base data-ice="baseUrl" href="../../../../">
+  <title data-ice="title">lib/parks/universal/universal.js | @themeparks/parksapi</title>
+  <link type="text/css" rel="stylesheet" href="css/style.css">
+  <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
+  <script src="script/prettify/prettify.js"></script>
+  <script src="script/manual.js"></script>
+</head>
+<body class="layout-container" data-ice="rootContainer">
+
+<header>
+  <a href="./">Home</a>
+  
+  <a href="identifiers.html">Reference</a>
+  <a href="source.html">Source</a>
+  
+  <div class="search-box">
+  <span>
+    <img src="./image/search.png">
+    <span class="search-input-edge"></span><input class="search-input"><span class="search-input-edge"></span>
+  </span>
+    <ul class="search-result"></ul>
+  </div>
+<a style="position:relative; top:3px;" href="https://github.com/ThemeParks/parksapi"><img width="20px" src="./image/github.png"></a></header>
+
+<nav class="navigation" data-ice="nav"><div>
+  <ul>
+    
+  <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/configBase.js~ConfigBase.html">ConfigBase</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getCache">getCache</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-parseConfig">parseConfig</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-reusePromise">reusePromise</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-reusePromiseForever">reusePromiseForever</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#cache">cache</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheBase.js~CacheBase.html">CacheBase</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheLevel.js~CacheLevel.html">CacheLevel</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheLmdb.js~CacheLmdb.html">CacheLmdb</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/cacheMemory.js~CacheMemory.html">CacheMemory</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/cache/scopedCache.js~ScopedCache.html">ScopedCache</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks">parks</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/database.js~Database.html">Database</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/destination.js~Destination.html">Destination</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/entity.js~Entity.html">Entity</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/park.js~Park.html">Park</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-HTTP">HTTP</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-setOverrideFunction">setOverrideFunction</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getLiveDataErrors">getLiveDataErrors</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-validateEntitySchedule">validateEntitySchedule</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-Sieve">Sieve</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getValidTagObject">getValidTagObject</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isSimpleTagType">isSimpleTagType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTag">isValidTag</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-isValidTagType">isValidTagType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-attractionType">attractionType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-boardingGroupState">boardingGroupState</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-entityType">entityType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-queueType">queueType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-returnTimeState">returnTimeState</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-scheduleType">scheduleType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-statusType">statusType</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-variable">V</span><span data-ice="name"><span><a href="variable/index.html#static-variable-tagType">tagType</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-attractionsio">parks/attractionsio</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/attractionsio/attractionsio.js~AltonTowers.html">AltonTowers</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html">AttractionsIO</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/attractionsio/attractionsio.js~ChessingtonWorldOfAdventures.html">ChessingtonWorldOfAdventures</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/attractionsio/attractionsio.js~Gardaland.html">Gardaland</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/attractionsio/attractionsio.js~LegolandOrlando.html">LegolandOrlando</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/attractionsio/attractionsio.js~LegolandWindsor.html">LegolandWindsor</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/attractionsio/attractionsio.js~ThorpePark.html">ThorpePark</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-efteling">parks/efteling</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/efteling/efteling.js~Efteling.html">Efteling</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-europa">parks/europa</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/europa/europapark.js~EuropaPark.html">EuropaPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/europa/europaparkdb.js~DatabaseEuropaPark.html">DatabaseEuropaPark</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-herschend">parks/herschend</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/herschend/herschendparks.js~Dollywood.html">Dollywood</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/herschend/herschendparks.js~HerschendDestination.html">HerschendDestination</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/herschend/herschendparks.js~SilverDollarCity.html">SilverDollarCity</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-parcasterix">parks/parcasterix</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html">ParcAsterix</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-phantasialand">parks/phantasialand</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html">Phantasialand</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-plopsaland">parks/plopsaland</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/plopsaland/plopsa.js~HolidayPark.html">HolidayPark</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html">PlopsaBase</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/plopsaland/plopsa.js~Plopsaland.html">Plopsaland</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-tdr">parks/tdr</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html">TokyoDisneyResort</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-toverland">parks/toverland</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/toverland/toverland.js~Toverland.html">Toverland</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-universal">parks/universal</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/universal/universal.js~UniversalOrlando.html">UniversalOrlando</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/universal/universal.js~UniversalResortBase.html">UniversalResortBase</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/universal/universal.js~UniversalStudios.html">UniversalStudios</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalIslandsOfAdventure.html">UniversalIslandsOfAdventure</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalParkBase.html">UniversalParkBase</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalStudios.html">UniversalStudios</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalStudiosFlorida.html">UniversalStudiosFlorida</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/universal/universalstudios.js~UniversalVolcanoBay.html">UniversalVolcanoBay</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-wdw">parks/wdw</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html">DisneyLiveResort</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResort.html">DisneylandResort</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~HongKongDisneyland.html">HongKongDisneyland</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldResort.html">WaltDisneyWorldResort</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdatabase.js~DatabaseWDW.html">DatabaseWDW</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/wdw/wdwdb.js~IndexedWDWDB.html">IndexedWDWDB</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getDatabase">getDatabase</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-function">F</span><span data-ice="name"><span><a href="function/index.html#static-function-getEntityID">getEntityID</a></span></span></li>
+</ul>
+</div>
+</nav>
+
+<div class="content" data-ice="content"><h1 data-ice="title">lib/parks/universal/universal.js</h1>
+<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import moment from &apos;moment-timezone&apos;;
+import crypto from &apos;crypto&apos;;
+
+import Destination from &apos;../destination.js&apos;;
+import {attractionType, entityType, queueType, scheduleType, statusType, tagType, returnTimeState} from &apos;../parkTypes.js&apos;;
+
+// only return restaurants using these dining types
+const wantedDiningTypes = [
+  &apos;CasualDining&apos;,
+  &apos;FineDining&apos;,
+];
+
+// only return live data for entities in these POI categories (see getPOI)
+const wantedLiveDataPOITypes = [
+  &apos;Rides&apos;,
+];
+
+export class UniversalResortBase extends Destination {
+  /**
+   * @inheritdoc
+   */
+  constructor(options = {}) {
+    options.timezone = options.timezone || &apos;America/New_York&apos;;
+
+    options.secretKey = options.secretKey || &apos;&apos;;
+    options.appKey = options.appKey || &apos;&apos;;
+    options.city = options.city || &apos;&apos;;
+    options.vQueueURL = options.vQueueURL || &apos;&apos;;
+    options.baseURL = options.baseURL || &apos;&apos;;
+    options.resortSlug = options.resortSlug || &apos;&apos;;
+
+    // any custom environment variable prefixes we want to use for this park (optional)
+    options.configPrefixes = [&apos;UNIVERSALSTUDIOS&apos;].concat(options.configPrefixes || []);
+
+    super(options);
+
+    // here we can validate the resulting this.config object
+    if (!this.config.name) throw new Error(&apos;Missing Universal resort name&apos;);
+    if (!this.config.secretKey) throw new Error(&apos;Missing Universal secretKey&apos;);
+    if (!this.config.appKey) throw new Error(&apos;Missing Universal appKey&apos;);
+    if (!this.config.city) throw new Error(&apos;Missing Universal city&apos;);
+    if (!this.config.vQueueURL) throw new Error(&apos;Missing Universal vQueueURL&apos;);
+    if (!this.config.baseURL) throw new Error(&apos;Missing Universal baseURL&apos;);
+    if (!this.config.resortSlug) throw new Error(&apos;Missing Universal resortSlug&apos;);
+
+    const baseURLHostname = new URL(this.config.baseURL).hostname;
+
+    // add out ApiKey to all API requests
+    //  add our service token only if this is not the login request
+    //  set options.loginRequest=true to skip adding the service token
+    this.http.injectForDomain({
+      hostname: baseURLHostname,
+    }, async (method, url, data, options) =&gt; {
+      options.headers[&apos;X-UNIWebService-ApiKey&apos;] = this.config.appKey;
+      if (!options.loginRequest) {
+        const token = await this.getServiceToken();
+        options.headers[&apos;X-UNIWebService-Token&apos;] = token;
+      }
+    });
+
+    // if our API ever returns 401, refetch our service token with a new login
+    this.http.injectForDomainResponse({
+      hostname: baseURLHostname,
+    }, async (response) =&gt; {
+      if (response.statusCode === 401) {
+        // clear out our token and try again
+        await this.cache.set(&apos;servicetoken&apos;, undefined, -1);
+        return undefined;
+      }
+
+      return response;
+    });
+  }
+
+  /**
+   * Get a service auth token for Universal
+   */
+  async getServiceToken() {
+    let tokenExpiration = null;
+    return await this.cache.wrap(&apos;servicetoken&apos;, async () =&gt; {
+      // create signature to get access token
+      const today = `${moment.utc().format(&apos;ddd, DD MMM YYYY HH:mm:ss&apos;)} GMT`;
+      const signatureBuilder = crypto.createHmac(&apos;sha256&apos;, this.config.secretKey);
+      signatureBuilder.update(`${this.config.appKey}\n${today}\n`);
+      // generate hash from signature builder
+      //  also convert trailing equal signs to unicode. because. I don&apos;t know
+      const signature = signatureBuilder.digest(&apos;base64&apos;).replace(/=$/, &apos;\u003d&apos;);
+
+      const resp = await this.http(&apos;POST&apos;, `${this.config.baseURL}?city=${this.config.city}`, {
+        apikey: this.config.appKey,
+        signature,
+      }, {
+        headers: {
+          &apos;Date&apos;: today,
+        },
+        // tell our HTTP injector to not add our (currently undefined) service token
+        loginRequest: true,
+        json: true,
+      });
+
+      // remember the expiration time
+      const expireTime = resp.body.TokenExpirationUnix * 1000;
+      tokenExpiration = Math.max(+new Date() + (1000 * 60 * 60), expireTime - (+new Date()) - (1000 * 60 * 60 * 12));
+
+      return resp.body.Token;
+    }, () =&gt; {
+      // return ttl for cached service token based on data in the token response
+      //  can define ttl as a function instead of a Number for dynamic cache timeouts
+      return tokenExpiration;
+    });
+  }
+
+  async _getParks() {
+    // cache for 3 hours
+    &apos;@cache|180&apos;;
+    const resp = await this.http(&apos;GET&apos;, `${this.config.baseURL}/venues?city=${this.config.city}`);
+    return resp.body.Results.filter((x) =&gt; {
+      // skip &quot;parks&quot; which don&apos;t require admission (i.e, CityWalk)
+      return x.AdmissionRequired;
+    });
+  }
+
+  /**
+   * Get POI data from API for this resort
+   * @returns {Object}
+   */
+  async getPOI() {
+    // cache for 3 hours
+    &apos;@cache|180&apos;;
+    const resp = await this.http(&apos;GET&apos;, `${this.config.baseURL}/pointsofinterest?city=${this.config.city}`);
+    return resp.body;
+  }
+
+  /**
+   * @inheritdoc
+   */
+  buildBaseEntityObject(data) {
+    const entity = super.buildBaseEntityObject(data);
+
+    if (data) {
+      // add location data (if present)
+      if (data.Longitude &amp;&amp; data.Latitude) {
+        entity.location = {
+          longitude: data.Longitude,
+          latitude: data.Latitude,
+        };
+      }
+
+      // grab entity name from incoming data
+      if (data.MblDisplayName) {
+        entity.name = data.MblDisplayName;
+      }
+    }
+
+    return entity;
+  }
+
+  /**
+   * Build the destination entity representing this resort
+   */
+  async buildDestinationEntity() {
+    return {
+      ...this.buildBaseEntityObject(),
+      _id: `universalresort_${this.config.city}`,
+      name: this.config.name,
+      entityType: entityType.destination,
+      slug: this.config.resortSlug,
+    };
+  }
+
+  /**
+   * Build the park entities for this resort
+   */
+  async buildParkEntities() {
+    const parks = await this._getParks();
+
+    return parks.map((x) =&gt; {
+      return {
+        ...this.buildBaseEntityObject(x),
+        // all IDs must be strings in ThemeParks.wiki
+        _id: x.Id.toString(),
+        // parented to the resort
+        _parentId: `universalresort_${this.config.city}`,
+        _contentId: x.ExternalIds.ContentId.slice(0, x.ExternalIds.ContentId.indexOf(&apos;.venues.&apos;)),
+        entityType: entityType.park,
+        slug: x.MblDisplayName.replace(/[^a-zA-Z]/g, &apos;&apos;).toLowerCase(),
+      };
+    });
+  }
+
+  /**
+   * Build the attraction entities for this resort
+   */
+  async buildAttractionEntities() {
+    return (await this.getPOI()).Rides.map((x) =&gt; {
+      // what kind of attraction is this?
+      let type = attractionType.ride; // default to &quot;ride&quot;
+      // Hogwarts Express manually tag as &quot;transport&quot;
+      if (x.Tags.indexOf(&apos;train&apos;) &gt;= 0) {
+        type = attractionType.transport;
+      }
+
+      // TODO - how to classify pool areas like Puka Uli Lagoon?
+
+      return {
+        ...this.buildBaseEntityObject(x),
+        _id: x.Id.toString(),
+        _parkId: x.VenueId.toString(),
+        _parentId: x.VenueId.toString(),
+        entityType: entityType.attraction,
+        attractionType: type,
+      };
+    });
+  }
+
+  /**
+   * Build the show entities for this resort
+   */
+  async buildShowEntities() {
+    return [];
+    // TODO - filter out meet &amp; greets and street entertainment
+    return (await this.getPOI()).Shows.map((x) =&gt; {
+      return {
+        ...this.buildBaseEntityObject(x),
+        _id: x.Id.toString(),
+        _parkId: x.VenueId.toString(),
+        _parentId: x.VenueId.toString(),
+        entityType: entityType.show,
+      };
+    });
+  }
+
+  /**
+   * Build the restaurant entities for this resort
+   */
+  async buildRestaurantEntities() {
+    return (await this.getPOI()).DiningLocations.filter((x) =&gt; {
+      // only return dining locations that match our wantedDiningTypes list
+      //  eg. CasualDining, FineDining - skip coffee carts
+      if (!x.DiningTypes) return false;
+      return !!x.DiningTypes.find((type) =&gt; {
+        return wantedDiningTypes.indexOf(type) &gt;= 0;
+      });
+    }).map((x) =&gt; {
+      return {
+        ...this.buildBaseEntityObject(x),
+        _id: x.Id.toString(),
+        _parkId: x.VenueId.toString(),
+        _parentId: x.VenueId.toString(),
+        entityType: entityType.restaurant,
+      };
+    });
+  }
+
+  /**
+   * Fetch wait time data
+   * @private
+   */
+  async _fetchWaitTimes() {
+    // cache for 1 minute
+    &apos;@cache|1&apos;;
+    const resp = await this.http(&apos;GET&apos;, `${this.config.baseURL}/pointsofinterest/rides/waittimes`, {
+      city: this.config.city,
+      pageSize: &apos;All&apos;,
+    });
+    return resp.body;
+  }
+
+  /**
+   * Get the current state of virtual queues for the resort
+   * @private
+   */
+  async _fetchVirtualQueueStates() {
+    // cache for 1 minute
+    &apos;@cache|1&apos;;
+    const virtualData = await this.http(&apos;GET&apos;, `${this.config.baseURL}/Queues`, {
+      city: this.config.city,
+      page: 1,
+      pageSize: &apos;all&apos;,
+    });
+    return virtualData?.body?.Results;
+  }
+
+  /**
+   * Fetch the virtual queue state for a specific ride
+   * @private
+   */
+  async _fetchVirtualQueueStateForRide(queueId) {
+    // cache for 1 minute
+    &apos;@cache|1&apos;;
+    const todaysDate = (await this.getTimeNowMoment()).format(&apos;MM/DD/YYYY&apos;);
+    const res = await this.http(
+      &apos;GET&apos;,
+      `${this.config.baseURL}/${this.config.vQueueURL}/${queueId}`, {
+      page: 1,
+      pageSize: &apos;all&apos;,
+      city: this.config.city,
+      appTimeForToday: todaysDate,
+    });
+
+    return res.body;
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async buildEntityLiveData() {
+    // fetch standard wait times
+    const waittime = await this._fetchWaitTimes();
+
+    // fetch virtual lines state
+    //  this returns all the virtual queues and if they are running
+    const vQueueData = await this._fetchVirtualQueueStates();
+
+    // build a map of POI data to their poi type
+    //  so we can filter out entities we don&apos;t want to return live data for
+    // API returns live data for &quot;lands&quot; or other non-Ride things we don&apos;t want
+    const poiData = await this.getPOI();
+    const poiTypes = {};
+    Object.keys(poiData).forEach((type) =&gt; {
+      poiData[type].forEach((x) =&gt; {
+        poiTypes[`${x.Id}`] = type;
+      });
+    });
+
+    return Promise.all(waittime.Results.filter((x) =&gt; {
+      // filter all live data so we only return live data for things like Rides
+      //  (see wantedLiveDataPOITypes)
+      return wantedLiveDataPOITypes.indexOf(poiTypes[`${x.Key}`]) &gt;= 0;
+    }).map(async (ride) =&gt; {
+      let queue = queueType.standBy;
+      let status = statusType.operating;
+      let postWaitTime = Math.max(0, ride.Value);
+      // figure out ride status and wait time based on ride.Value
+      //  generally anything &lt; 0 is a special case
+      switch (ride.Value) {
+        case -50:
+          // wait time unknown
+          //  app just displays nothing for the ride status when -50
+          postWaitTime = null;
+          break;
+        case -9:
+          // this is a virtual line update, so bail out
+          queue = queueType.returnTime;
+          break;
+        case -8:
+          // not open yet
+          status = statusType.closed;
+          postWaitTime = null;
+          break;
+        case -7:
+          // &quot;ride now&quot;
+          break;
+        case -6:
+        case -5:
+          // &quot;closed inside of operating hours&quot;, not sure what that means, but it&apos;s closed
+          status = statusType.closed;
+          postWaitTime = null;
+          break;
+        case -4:
+        case -3:
+          // bad weather
+          status = statusType.down;
+          postWaitTime = null;
+          break;
+        case -1:
+        // not open yet (too early)
+        case -2:
+          // &quot;delayed&quot;, but expected to open
+          status = statusType.closed;
+          postWaitTime = null;
+          break;
+      }
+
+      const data = {
+        _id: ride.Key.toString(),
+        status,
+      };
+
+      data.queue = {};
+      if (queue == queueType.standBy) {
+        data.queue[queueType.standBy] = {
+          waitTime: postWaitTime,
+        };
+      }
+
+      if (queue == queueType.returnTime &amp;&amp; !!vQueueData) {
+        // look for vqueue data for this attraction
+        const vQueue = vQueueData.find((x) =&gt; x.QueueEntityId === ride.Key);
+
+        if (vQueue &amp;&amp; vQueue.IsEnabled) {
+          // hurray! we found some vqueue data in the state object
+          //  and it&apos;s enabled!
+
+          // get details about this queue
+          const vQueueFetchedData = await this._fetchVirtualQueueStateForRide(vQueue.Id);
+
+          // find and return the earliest appointment time available
+          const nextSlot = vQueueFetchedData.AppointmentTimes.reduce((p, x) =&gt; {
+            const startTime = moment.tz(x.StartTime, this.config.timezone);
+            if (p === undefined || startTime.isBefore(p.startTime)) {
+              const endTime = moment.tz(x.EndTime, this.config.timezone);
+              return {
+                startTime,
+                endTime,
+              };
+            }
+            return p;
+          }, undefined);
+
+          data.queue[queueType.returnTime] = {
+            returnStart: nextSlot === undefined ? null : nextSlot.startTime.format(),
+            returnEnd: nextSlot === undefined ? null : nextSlot.endTime.format(),
+            // TODO - can we tell the difference between temporarily full and finished for the day?
+            state: nextSlot === undefined ? returnTimeState.temporarilyFull : returnTimeState.available,
+          };
+        }
+      }
+
+      return data;
+    }).filter((x) =&gt; !!x));
+  }
+
+  /**
+   * Convert a time string from the API to a valid timestamp in our timezone
+   * @param {string} time 
+   * @returns 
+   */
+  _stringTimeToLocalTime(time) {
+    return moment.tz(time, this.config.timezone).format();
+  }
+
+  /**
+   * Get the latest raw opening hours for a given venue
+   */
+  async getLatestOpeningHoursForVenue(venueId) {
+    // cache for 12 hours
+    &apos;@cache|720&apos;;
+    const now = this.getTimeNowMoment();
+    const cal = await this.http(&apos;GET&apos;, `${this.config.baseURL}/venues/${venueId}/hours`, {
+      endDate: now.clone().add(190, &apos;days&apos;).format(&apos;MM/DD/YYYY&apos;),
+    });
+
+    const ret = [];
+    // loop over all hours data the API returns
+    cal.body.forEach((todaysCal) =&gt; {
+      // skip any Closed dates, just return nothing
+      if (todaysCal.VenueStatus === &apos;Closed&apos;) return;
+
+      ret.push({
+        date: todaysCal.Date,
+        openingTime: this._stringTimeToLocalTime(todaysCal.OpenTimeString),
+        closingTime: this._stringTimeToLocalTime(todaysCal.CloseTimeString),
+        type: scheduleType.operating,
+      });
+
+      if (todaysCal.EarlyEntryString) {
+        // extra hours
+        ret.push({
+          date: todaysCal.Date,
+          openingTime: this._stringTimeToLocalTime(todaysCal.EarlyEntryString),
+          closingTime: this._stringTimeToLocalTime(todaysCal.OpenTimeString),
+          type: scheduleType.extraHours,
+        });
+      }
+
+      // TODO - handle todaysCal.SpecialEntryString (when these exist)
+      if (todaysCal.SpecialEntryString) {
+        this.emit(&apos;error&apos;, new Error(`Unknown Universal SpecialEntryString ${todaysCal.SpecialEntryString}`));
+      }
+    });
+
+    return ret;
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async buildEntityScheduleData() {
+    // get list of venues to fetch schedules for
+    const venues = (await this.getParkEntities()).map((x) =&gt; {
+      return x._id;
+    });
+
+    // loop over each venue and build up our return object
+    const returnData = [];
+    for (let i = 0; i &lt; venues.length; i++) {
+      const venueScheduleData = await this.getLatestOpeningHoursForVenue(venues[i]);
+      returnData.push({
+        _id: venues[i],
+        schedule: venueScheduleData,
+      });
+    }
+    return returnData;
+  }
+}
+
+export class UniversalOrlando extends UniversalResortBase {
+  /**
+   * @inheritdoc
+   */
+  constructor(options = {}) {
+    options.name = options.name || &apos;Universal Orlando Resort&apos;;
+    options.city = options.city || &apos;orlando&apos;;
+    options.timezone = options.timezone || &apos;America/New_York&apos;;
+    options.resortSlug = options.resortSlug || &apos;universalorlando&apos;;
+
+    super(options);
+  }
+}
+
+export class UniversalStudios extends UniversalResortBase {
+  /**
+   * @inheritdoc
+   */
+  constructor(options = {}) {
+    options.name = options.name || &apos;Universal Studios&apos;;
+    options.city = options.city || &apos;hollywood&apos;;
+    options.timezone = options.timezone || &apos;America/Los_Angeles&apos;;
+    options.resortSlug = options.resortSlug || &apos;universalstudios&apos;;
+
+    super(options);
+  }
+}
+</code></pre>
+
+</div>
+
+<footer class="footer">
+  Generated by <a href="https://esdoc.org">ESDoc<span data-ice="esdocVersion">(1.1.0)</span><img src="./image/esdoc-logo-mini-black.png"></a>
+</footer>
+
+<script src="script/search_index.js"></script>
+<script src="script/search.js"></script>
+<script src="script/pretty-print.js"></script>
+<script src="script/inherited-summary.js"></script>
+<script src="script/test-summary.js"></script>
+<script src="script/inner-link.js"></script>
+<script src="script/patch-for-local.js"></script>
+</body>
+</html>

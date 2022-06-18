@@ -1,5 +1,17 @@
 window.esdocSearchIndex = [
   [
+    "@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js~altontowers",
+    "class/lib/parks/attractionsio/attractionsio.js~AltonTowers.html",
+    "<span>AltonTowers</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js~attractionsio",
+    "class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html",
+    "<span>AttractionsIO</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js</span>",
+    "class"
+  ],
+  [
     "@themeparks/parksapi/lib/cache/cachebase.js~cachebase",
     "class/lib/cache/cacheBase.js~CacheBase.html",
     "<span>CacheBase</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/cache/cacheBase.js</span>",
@@ -12,9 +24,21 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "@themeparks/parksapi/lib/cache/cachelmdb.js~cachelmdb",
+    "class/lib/cache/cacheLmdb.js~CacheLmdb.html",
+    "<span>CacheLmdb</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/cache/cacheLmdb.js</span>",
+    "class"
+  ],
+  [
     "@themeparks/parksapi/lib/cache/cachememory.js~cachememory",
     "class/lib/cache/cacheMemory.js~CacheMemory.html",
     "<span>CacheMemory</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/cache/cacheMemory.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js~chessingtonworldofadventures",
+    "class/lib/parks/attractionsio/attractionsio.js~ChessingtonWorldOfAdventures.html",
+    "<span>ChessingtonWorldOfAdventures</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js</span>",
     "class"
   ],
   [
@@ -42,21 +66,27 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
-    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~disneypark",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html",
-    "<span>DisneyPark</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "@themeparks/parksapi/lib/parks/destination.js~destination",
+    "class/lib/parks/destination.js~Destination.html",
+    "<span>Destination</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/destination.js</span>",
     "class"
   ],
   [
-    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~disneylandresortcaliforniaadventure",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure.html",
-    "<span>DisneylandResortCaliforniaAdventure</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html",
+    "<span>DisneyLiveResort</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
     "class"
   ],
   [
-    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~disneylandresortmagickingdom",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortMagicKingdom.html",
-    "<span>DisneylandResortMagicKingdom</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~disneylandresort",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResort.html",
+    "<span>DisneylandResort</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/herschend/herschendparks.js~dollywood",
+    "class/lib/parks/herschend/herschendparks.js~Dollywood.html",
+    "<span>Dollywood</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/herschend/herschendparks.js</span>",
     "class"
   ],
   [
@@ -78,9 +108,9 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
-    "@themeparks/parksapi/lib/parks/europa/europapark.js~europaparkbase",
-    "class/lib/parks/europa/europapark.js~EuropaParkBase.html",
-    "<span>EuropaParkBase</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/europa/europapark.js</span>",
+    "@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js~gardaland",
+    "class/lib/parks/attractionsio/attractionsio.js~Gardaland.html",
+    "<span>Gardaland</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js</span>",
     "class"
   ],
   [
@@ -90,9 +120,21 @@ window.esdocSearchIndex = [
     "function"
   ],
   [
-    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~hongkongdisneylandpark",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~HongKongDisneylandPark.html",
-    "<span>HongKongDisneylandPark</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "@themeparks/parksapi/lib/parks/herschend/herschendparks.js~herschenddestination",
+    "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html",
+    "<span>HerschendDestination</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/herschend/herschendparks.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/plopsaland/plopsa.js~holidaypark",
+    "class/lib/parks/plopsaland/plopsa.js~HolidayPark.html",
+    "<span>HolidayPark</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/plopsaland/plopsa.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~hongkongdisneyland",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~HongKongDisneyland.html",
+    "<span>HongKongDisneyland</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
     "class"
   ],
   [
@@ -102,21 +144,45 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js~legolandorlando",
+    "class/lib/parks/attractionsio/attractionsio.js~LegolandOrlando.html",
+    "<span>LegolandOrlando</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js~legolandwindsor",
+    "class/lib/parks/attractionsio/attractionsio.js~LegolandWindsor.html",
+    "<span>LegolandWindsor</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/parcasterix/parcasterix.js~parcasterix",
+    "class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html",
+    "<span>ParcAsterix</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/parcasterix/parcasterix.js</span>",
+    "class"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/park.js~park",
     "class/lib/parks/park.js~Park.html",
     "<span>Park</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/park.js</span>",
     "class"
   ],
   [
-    "@themeparks/parksapi/lib/parks/resort.js~resort",
-    "class/lib/parks/resort.js~Resort.html",
-    "<span>Resort</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/resort.js</span>",
+    "@themeparks/parksapi/lib/parks/phantasialand/phantasialand.js~phantasialand",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html",
+    "<span>Phantasialand</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/phantasialand/phantasialand.js</span>",
     "class"
   ],
   [
-    "@themeparks/parksapi/lib/parks/europa/europapark.js~rulantica",
-    "class/lib/parks/europa/europapark.js~Rulantica.html",
-    "<span>Rulantica</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/europa/europapark.js</span>",
+    "@themeparks/parksapi/lib/parks/plopsaland/plopsa.js~plopsabase",
+    "class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html",
+    "<span>PlopsaBase</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/plopsaland/plopsa.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/plopsaland/plopsa.js~plopsaland",
+    "class/lib/parks/plopsaland/plopsa.js~Plopsaland.html",
+    "<span>Plopsaland</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/plopsaland/plopsa.js</span>",
     "class"
   ],
   [
@@ -132,21 +198,27 @@ window.esdocSearchIndex = [
     "function"
   ],
   [
-    "@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark",
-    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html",
-    "<span>TokyoDisneyResortPark</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js</span>",
+    "@themeparks/parksapi/lib/parks/herschend/herschendparks.js~silverdollarcity",
+    "class/lib/parks/herschend/herschendparks.js~SilverDollarCity.html",
+    "<span>SilverDollarCity</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/herschend/herschendparks.js</span>",
     "class"
   ],
   [
-    "@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js~tokyodisneysea",
-    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneySea.html",
-    "<span>TokyoDisneySea</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js</span>",
+    "@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js~thorpepark",
+    "class/lib/parks/attractionsio/attractionsio.js~ThorpePark.html",
+    "<span>ThorpePark</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js</span>",
     "class"
   ],
   [
-    "@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js~tokyodisneyland",
-    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyland.html",
-    "<span>TokyoDisneyland</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js</span>",
+    "@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html",
+    "<span>TokyoDisneyResort</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/tdr/tokyodisneyresort.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/toverland/toverland.js~toverland",
+    "class/lib/parks/toverland/toverland.js~Toverland.html",
+    "<span>Toverland</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/toverland/toverland.js</span>",
     "class"
   ],
   [
@@ -156,9 +228,27 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "@themeparks/parksapi/lib/parks/universal/universal.js~universalorlando",
+    "class/lib/parks/universal/universal.js~UniversalOrlando.html",
+    "<span>UniversalOrlando</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/universal/universal.js</span>",
+    "class"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/universal/universalstudios.js~universalparkbase",
     "class/lib/parks/universal/universalstudios.js~UniversalParkBase.html",
     "<span>UniversalParkBase</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/universal/universalstudios.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/universal/universal.js~universalresortbase",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html",
+    "<span>UniversalResortBase</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/universal/universal.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/universal/universal.js~universalstudios",
+    "class/lib/parks/universal/universal.js~UniversalStudios.html",
+    "<span>UniversalStudios</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/universal/universal.js</span>",
     "class"
   ],
   [
@@ -180,39 +270,21 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
-    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldanimalkingdom",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom.html",
-    "<span>WaltDisneyWorldAnimalKingdom</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
-    "class"
-  ],
-  [
-    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldepcot",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot.html",
-    "<span>WaltDisneyWorldEpcot</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
-    "class"
-  ],
-  [
-    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldhollywoodstudios",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios.html",
-    "<span>WaltDisneyWorldHollywoodStudios</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
-    "class"
-  ],
-  [
-    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldmagickingdom",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom.html",
-    "<span>WaltDisneyWorldMagicKingdom</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
-    "class"
-  ],
-  [
-    "@themeparks/parksapi/lib/parks/europa/europapark.js~yullbe",
-    "class/lib/parks/europa/europapark.js~Yullbe.html",
-    "<span>Yullbe</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/europa/europapark.js</span>",
+    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldresort",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldResort.html",
+    "<span>WaltDisneyWorldResort</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
     "class"
   ],
   [
     "@themeparks/parksapi/lib/parks/parktypes.js~attractiontype",
     "variable/index.html#static-variable-attractionType",
     "<span>attractionType</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/parkTypes.js</span>",
+    "variable"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/parktypes.js~boardinggroupstate",
+    "variable/index.html#static-variable-boardingGroupState",
+    "<span>boardingGroupState</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/parkTypes.js</span>",
     "variable"
   ],
   [
@@ -234,9 +306,21 @@ window.esdocSearchIndex = [
     "function"
   ],
   [
+    "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~getdatabase",
+    "function/index.html#static-function-getDatabase",
+    "<span>getDatabase</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "function"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/wdw/wdwdb.js~getentityid",
     "function/index.html#static-function-getEntityID",
     "<span>getEntityID</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/wdwdb.js</span>",
+    "function"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/livedata.js~getlivedataerrors",
+    "function/index.html#static-function-getLiveDataErrors",
+    "<span>getLiveDataErrors</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/livedata.js</span>",
     "function"
   ],
   [
@@ -300,6 +384,12 @@ window.esdocSearchIndex = [
     "variable"
   ],
   [
+    "@themeparks/parksapi/lib/parks/http.js~setoverridefunction",
+    "function/index.html#static-function-setOverrideFunction",
+    "<span>setOverrideFunction</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/http.js</span>",
+    "function"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/parktypes.js~statustype",
     "variable/index.html#static-variable-statusType",
     "<span>statusType</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/parkTypes.js</span>",
@@ -310,6 +400,12 @@ window.esdocSearchIndex = [
     "variable/index.html#static-variable-tagType",
     "<span>tagType</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/parkTypes.js</span>",
     "variable"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/scheduledata.js~validateentityschedule",
+    "function/index.html#static-function-validateEntitySchedule",
+    "<span>validateEntitySchedule</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/scheduledata.js</span>",
+    "function"
   ],
   [
     "lib/.external-ecmascript.js~array",
@@ -630,6 +726,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/cache/cachebase.js~cachebase#blockonpendingtransactions",
+    "class/lib/cache/cacheBase.js~CacheBase.html#instance-method-blockOnPendingTransactions",
+    "lib/cache/cacheBase.js~CacheBase#blockOnPendingTransactions",
+    "method"
+  ],
+  [
     "lib/cache/cachebase.js~cachebase#constructor",
     "class/lib/cache/cacheBase.js~CacheBase.html#instance-constructor-constructor",
     "lib/cache/cacheBase.js~CacheBase#constructor",
@@ -654,15 +756,9 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
-    "lib/cache/cachebase.js~cachebase#memcache",
-    "class/lib/cache/cacheBase.js~CacheBase.html#instance-member-memCache",
-    "lib/cache/cacheBase.js~CacheBase#memCache",
-    "member"
-  ],
-  [
-    "lib/cache/cachebase.js~cachebase#memorylayerenabled",
-    "class/lib/cache/cacheBase.js~CacheBase.html#instance-member-memoryLayerEnabled",
-    "lib/cache/cacheBase.js~CacheBase#memoryLayerEnabled",
+    "lib/cache/cachebase.js~cachebase#haspendinglocks",
+    "class/lib/cache/cacheBase.js~CacheBase.html#instance-member-hasPendingLocks",
+    "lib/cache/cacheBase.js~CacheBase#hasPendingLocks",
     "member"
   ],
   [
@@ -670,6 +766,18 @@ window.esdocSearchIndex = [
     "class/lib/cache/cacheBase.js~CacheBase.html#instance-member-pendingCacheWraps",
     "lib/cache/cacheBase.js~CacheBase#pendingCacheWraps",
     "member"
+  ],
+  [
+    "lib/cache/cachebase.js~cachebase#pendinglocks",
+    "class/lib/cache/cacheBase.js~CacheBase.html#instance-member-pendingLocks",
+    "lib/cache/cacheBase.js~CacheBase#pendingLocks",
+    "member"
+  ],
+  [
+    "lib/cache/cachebase.js~cachebase#runtransaction",
+    "class/lib/cache/cacheBase.js~CacheBase.html#instance-method-runTransaction",
+    "lib/cache/cacheBase.js~CacheBase#runTransaction",
+    "method"
   ],
   [
     "lib/cache/cachebase.js~cachebase#set",
@@ -723,6 +831,48 @@ window.esdocSearchIndex = [
     "lib/cache/cachelevel.js~cachelevel#db",
     "class/lib/cache/cacheLevel.js~CacheLevel.html#instance-member-db",
     "lib/cache/cacheLevel.js~CacheLevel#db",
+    "member"
+  ],
+  [
+    "lib/cache/cachelmdb.js",
+    "file/lib/cache/cacheLmdb.js.html",
+    "lib/cache/cacheLmdb.js",
+    "file"
+  ],
+  [
+    "lib/cache/cachelmdb.js~cachelmdb#_del",
+    "class/lib/cache/cacheLmdb.js~CacheLmdb.html#instance-method-_del",
+    "lib/cache/cacheLmdb.js~CacheLmdb#_del",
+    "method"
+  ],
+  [
+    "lib/cache/cachelmdb.js~cachelmdb#_get",
+    "class/lib/cache/cacheLmdb.js~CacheLmdb.html#instance-method-_get",
+    "lib/cache/cacheLmdb.js~CacheLmdb#_get",
+    "method"
+  ],
+  [
+    "lib/cache/cachelmdb.js~cachelmdb#_getkeys",
+    "class/lib/cache/cacheLmdb.js~CacheLmdb.html#instance-method-_getKeys",
+    "lib/cache/cacheLmdb.js~CacheLmdb#_getKeys",
+    "method"
+  ],
+  [
+    "lib/cache/cachelmdb.js~cachelmdb#_set",
+    "class/lib/cache/cacheLmdb.js~CacheLmdb.html#instance-method-_set",
+    "lib/cache/cacheLmdb.js~CacheLmdb#_set",
+    "method"
+  ],
+  [
+    "lib/cache/cachelmdb.js~cachelmdb#constructor",
+    "class/lib/cache/cacheLmdb.js~CacheLmdb.html#instance-constructor-constructor",
+    "lib/cache/cacheLmdb.js~CacheLmdb#constructor",
+    "method"
+  ],
+  [
+    "lib/cache/cachelmdb.js~cachelmdb#db",
+    "class/lib/cache/cacheLmdb.js~CacheLmdb.html#instance-member-db",
+    "lib/cache/cacheLmdb.js~CacheLmdb#db",
     "member"
   ],
   [
@@ -786,9 +936,21 @@ window.esdocSearchIndex = [
     "member"
   ],
   [
+    "lib/cache/scopedcache.js~scopedcache#blockonpendingtransactions",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-method-blockOnPendingTransactions",
+    "lib/cache/scopedCache.js~ScopedCache#blockOnPendingTransactions",
+    "method"
+  ],
+  [
     "lib/cache/scopedcache.js~scopedcache#cache",
     "class/lib/cache/scopedCache.js~ScopedCache.html#instance-member-cache",
     "lib/cache/scopedCache.js~ScopedCache#cache",
+    "member"
+  ],
+  [
+    "lib/cache/scopedcache.js~scopedcache#cacheoverride",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-member-cacheOverride",
+    "lib/cache/scopedCache.js~ScopedCache#cacheOverride",
     "member"
   ],
   [
@@ -816,6 +978,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/cache/scopedcache.js~scopedcache#getkeys",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-method-getKeys",
+    "lib/cache/scopedCache.js~ScopedCache#getKeys",
+    "method"
+  ],
+  [
     "lib/cache/scopedcache.js~scopedcache#initcache",
     "class/lib/cache/scopedCache.js~ScopedCache.html#instance-method-initCache",
     "lib/cache/scopedCache.js~ScopedCache#initCache",
@@ -826,6 +994,12 @@ window.esdocSearchIndex = [
     "class/lib/cache/scopedCache.js~ScopedCache.html#instance-member-prefix",
     "lib/cache/scopedCache.js~ScopedCache#prefix",
     "member"
+  ],
+  [
+    "lib/cache/scopedcache.js~scopedcache#runtransaction",
+    "class/lib/cache/scopedCache.js~ScopedCache.html#instance-method-runTransaction",
+    "lib/cache/scopedCache.js~ScopedCache#runTransaction",
+    "method"
   ],
   [
     "lib/cache/scopedcache.js~scopedcache#set",
@@ -880,6 +1054,144 @@ window.esdocSearchIndex = [
     "file/lib/index.js.html",
     "lib/index.js",
     "file"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js",
+    "file/lib/parks/attractionsio/attractionsio.js.html",
+    "lib/parks/attractionsio/attractionsio.js",
+    "file"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~altontowers#constructor",
+    "class/lib/parks/attractionsio/attractionsio.js~AltonTowers.html#instance-constructor-constructor",
+    "lib/parks/attractionsio/attractionsio.js~AltonTowers#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~attractionsio#_buildentitiesfromcategories",
+    "class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html#instance-method-_buildEntitiesFromCategories",
+    "lib/parks/attractionsio/attractionsio.js~AttractionsIO#_buildEntitiesFromCategories",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~attractionsio#_fetchcalendar",
+    "class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html#instance-method-_fetchCalendar",
+    "lib/parks/attractionsio/attractionsio.js~AttractionsIO#_fetchCalendar",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~attractionsio#_fetchlivedata",
+    "class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html#instance-method-_fetchLiveData",
+    "lib/parks/attractionsio/attractionsio.js~AttractionsIO#_fetchLiveData",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~attractionsio#buildattractionentities",
+    "class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html#instance-method-buildAttractionEntities",
+    "lib/parks/attractionsio/attractionsio.js~AttractionsIO#buildAttractionEntities",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~attractionsio#buildbaseentityobject",
+    "class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html#instance-method-buildBaseEntityObject",
+    "lib/parks/attractionsio/attractionsio.js~AttractionsIO#buildBaseEntityObject",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~attractionsio#builddestinationentity",
+    "class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html#instance-method-buildDestinationEntity",
+    "lib/parks/attractionsio/attractionsio.js~AttractionsIO#buildDestinationEntity",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~attractionsio#buildentitylivedata",
+    "class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html#instance-method-buildEntityLiveData",
+    "lib/parks/attractionsio/attractionsio.js~AttractionsIO#buildEntityLiveData",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~attractionsio#buildentityscheduledata",
+    "class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html#instance-method-buildEntityScheduleData",
+    "lib/parks/attractionsio/attractionsio.js~AttractionsIO#buildEntityScheduleData",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~attractionsio#buildparkentities",
+    "class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html#instance-method-buildParkEntities",
+    "lib/parks/attractionsio/attractionsio.js~AttractionsIO#buildParkEntities",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~attractionsio#buildrestaurantentities",
+    "class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html#instance-method-buildRestaurantEntities",
+    "lib/parks/attractionsio/attractionsio.js~AttractionsIO#buildRestaurantEntities",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~attractionsio#buildshowentities",
+    "class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html#instance-method-buildShowEntities",
+    "lib/parks/attractionsio/attractionsio.js~AttractionsIO#buildShowEntities",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~attractionsio#constructor",
+    "class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html#instance-constructor-constructor",
+    "lib/parks/attractionsio/attractionsio.js~AttractionsIO#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~attractionsio#downloadassetpack",
+    "class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html#instance-method-downloadAssetPack",
+    "lib/parks/attractionsio/attractionsio.js~AttractionsIO#downloadAssetPack",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~attractionsio#getcategoryids",
+    "class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html#instance-method-getCategoryIDs",
+    "lib/parks/attractionsio/attractionsio.js~AttractionsIO#getCategoryIDs",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~attractionsio#getdeviceid",
+    "class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html#instance-method-getDeviceId",
+    "lib/parks/attractionsio/attractionsio.js~AttractionsIO#getDeviceId",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~attractionsio#getpoidata",
+    "class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html#instance-method-getPOIData",
+    "lib/parks/attractionsio/attractionsio.js~AttractionsIO#getPOIData",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~chessingtonworldofadventures#constructor",
+    "class/lib/parks/attractionsio/attractionsio.js~ChessingtonWorldOfAdventures.html#instance-constructor-constructor",
+    "lib/parks/attractionsio/attractionsio.js~ChessingtonWorldOfAdventures#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~gardaland#constructor",
+    "class/lib/parks/attractionsio/attractionsio.js~Gardaland.html#instance-constructor-constructor",
+    "lib/parks/attractionsio/attractionsio.js~Gardaland#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~legolandorlando#constructor",
+    "class/lib/parks/attractionsio/attractionsio.js~LegolandOrlando.html#instance-constructor-constructor",
+    "lib/parks/attractionsio/attractionsio.js~LegolandOrlando#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~legolandwindsor#constructor",
+    "class/lib/parks/attractionsio/attractionsio.js~LegolandWindsor.html#instance-constructor-constructor",
+    "lib/parks/attractionsio/attractionsio.js~LegolandWindsor#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~thorpepark#constructor",
+    "class/lib/parks/attractionsio/attractionsio.js~ThorpePark.html#instance-constructor-constructor",
+    "lib/parks/attractionsio/attractionsio.js~ThorpePark#constructor",
+    "method"
   ],
   [
     "lib/parks/database.js",
@@ -942,9 +1254,243 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/database.js~database#log",
+    "class/lib/parks/database.js~Database.html#instance-method-log",
+    "lib/parks/database.js~Database#log",
+    "method"
+  ],
+  [
     "lib/parks/database.js~database.get",
     "class/lib/parks/database.js~Database.html#static-method-get",
     "lib/parks/database.js~Database.get",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js",
+    "file/lib/parks/destination.js.html",
+    "lib/parks/destination.js",
+    "file"
+  ],
+  [
+    "lib/parks/destination.js~destination#_allentities",
+    "class/lib/parks/destination.js~Destination.html#instance-member-_allEntities",
+    "lib/parks/destination.js~Destination#_allEntities",
+    "member"
+  ],
+  [
+    "lib/parks/destination.js~destination#_allentitieslaststash",
+    "class/lib/parks/destination.js~Destination.html#instance-member-_allEntitiesLastStash",
+    "lib/parks/destination.js~Destination#_allEntitiesLastStash",
+    "member"
+  ],
+  [
+    "lib/parks/destination.js~destination#_clearfunctioncache",
+    "class/lib/parks/destination.js~Destination.html#instance-method-_clearFunctionCache",
+    "lib/parks/destination.js~Destination#_clearFunctionCache",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#_destinationentityobject",
+    "class/lib/parks/destination.js~Destination.html#instance-member-_destinationEntityObject",
+    "lib/parks/destination.js~Destination#_destinationEntityObject",
+    "member"
+  ],
+  [
+    "lib/parks/destination.js~destination#_init",
+    "class/lib/parks/destination.js~Destination.html#instance-method-_init",
+    "lib/parks/destination.js~Destination#_init",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#buildattractionentities",
+    "class/lib/parks/destination.js~Destination.html#instance-method-buildAttractionEntities",
+    "lib/parks/destination.js~Destination#buildAttractionEntities",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#buildbaseentityobject",
+    "class/lib/parks/destination.js~Destination.html#instance-method-buildBaseEntityObject",
+    "lib/parks/destination.js~Destination#buildBaseEntityObject",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#builddestinationentity",
+    "class/lib/parks/destination.js~Destination.html#instance-method-buildDestinationEntity",
+    "lib/parks/destination.js~Destination#buildDestinationEntity",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#buildentitylivedata",
+    "class/lib/parks/destination.js~Destination.html#instance-method-buildEntityLiveData",
+    "lib/parks/destination.js~Destination#buildEntityLiveData",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#buildentityscheduledata",
+    "class/lib/parks/destination.js~Destination.html#instance-method-buildEntityScheduleData",
+    "lib/parks/destination.js~Destination#buildEntityScheduleData",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#buildparkentities",
+    "class/lib/parks/destination.js~Destination.html#instance-method-buildParkEntities",
+    "lib/parks/destination.js~Destination#buildParkEntities",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#buildrestaurantentities",
+    "class/lib/parks/destination.js~Destination.html#instance-method-buildRestaurantEntities",
+    "lib/parks/destination.js~Destination#buildRestaurantEntities",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#buildshowentities",
+    "class/lib/parks/destination.js~Destination.html#instance-method-buildShowEntities",
+    "lib/parks/destination.js~Destination#buildShowEntities",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#cache",
+    "class/lib/parks/destination.js~Destination.html#instance-member-cache",
+    "lib/parks/destination.js~Destination#cache",
+    "member"
+  ],
+  [
+    "lib/parks/destination.js~destination#config",
+    "class/lib/parks/destination.js~Destination.html#instance-member-config",
+    "lib/parks/destination.js~Destination#config",
+    "member"
+  ],
+  [
+    "lib/parks/destination.js~destination#constructor",
+    "class/lib/parks/destination.js~Destination.html#instance-constructor-constructor",
+    "lib/parks/destination.js~Destination#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#foreachupcomingdate",
+    "class/lib/parks/destination.js~Destination.html#instance-method-forEachUpcomingDate",
+    "lib/parks/destination.js~Destination#forEachUpcomingDate",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#getallentities",
+    "class/lib/parks/destination.js~Destination.html#instance-method-getAllEntities",
+    "lib/parks/destination.js~Destination#getAllEntities",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#getandroidappversion",
+    "class/lib/parks/destination.js~Destination.html#instance-method-getAndroidAPPVersion",
+    "lib/parks/destination.js~Destination#getAndroidAPPVersion",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#getattractionentities",
+    "class/lib/parks/destination.js~Destination.html#instance-method-getAttractionEntities",
+    "lib/parks/destination.js~Destination#getAttractionEntities",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#getdestinationentities",
+    "class/lib/parks/destination.js~Destination.html#instance-method-getDestinationEntities",
+    "lib/parks/destination.js~Destination#getDestinationEntities",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#getdestinationentity",
+    "class/lib/parks/destination.js~Destination.html#instance-method-getDestinationEntity",
+    "lib/parks/destination.js~Destination#getDestinationEntity",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#getentityfromid",
+    "class/lib/parks/destination.js~Destination.html#instance-method-getEntityFromId",
+    "lib/parks/destination.js~Destination#getEntityFromId",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#getentitylivedata",
+    "class/lib/parks/destination.js~Destination.html#instance-method-getEntityLiveData",
+    "lib/parks/destination.js~Destination#getEntityLiveData",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#getentityschedules",
+    "class/lib/parks/destination.js~Destination.html#instance-method-getEntitySchedules",
+    "lib/parks/destination.js~Destination#getEntitySchedules",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#getlivecache",
+    "class/lib/parks/destination.js~Destination.html#instance-method-getLiveCache",
+    "lib/parks/destination.js~Destination#getLiveCache",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#getlivehash",
+    "class/lib/parks/destination.js~Destination.html#instance-method-getLiveHash",
+    "lib/parks/destination.js~Destination#getLiveHash",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#getparkentities",
+    "class/lib/parks/destination.js~Destination.html#instance-method-getParkEntities",
+    "lib/parks/destination.js~Destination#getParkEntities",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#getrestaurantentities",
+    "class/lib/parks/destination.js~Destination.html#instance-method-getRestaurantEntities",
+    "lib/parks/destination.js~Destination#getRestaurantEntities",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#getshowentities",
+    "class/lib/parks/destination.js~Destination.html#instance-method-getShowEntities",
+    "lib/parks/destination.js~Destination#getShowEntities",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#gettimenow",
+    "class/lib/parks/destination.js~Destination.html#instance-method-getTimeNow",
+    "lib/parks/destination.js~Destination#getTimeNow",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#gettimenowmoment",
+    "class/lib/parks/destination.js~Destination.html#instance-method-getTimeNowMoment",
+    "lib/parks/destination.js~Destination#getTimeNowMoment",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#http",
+    "class/lib/parks/destination.js~Destination.html#instance-member-http",
+    "lib/parks/destination.js~Destination#http",
+    "member"
+  ],
+  [
+    "lib/parks/destination.js~destination#init",
+    "class/lib/parks/destination.js~Destination.html#instance-method-init",
+    "lib/parks/destination.js~Destination#init",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#log",
+    "class/lib/parks/destination.js~Destination.html#instance-method-log",
+    "lib/parks/destination.js~Destination#log",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#setlivecache",
+    "class/lib/parks/destination.js~Destination.html#instance-method-setLiveCache",
+    "lib/parks/destination.js~Destination#setLiveCache",
+    "method"
+  ],
+  [
+    "lib/parks/destination.js~destination#updateentitylivedata",
+    "class/lib/parks/destination.js~Destination.html#instance-method-updateEntityLiveData",
+    "lib/parks/destination.js~Destination#updateEntityLiveData",
     "method"
   ],
   [
@@ -954,15 +1500,21 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
-    "lib/parks/efteling/efteling.js~efteling#_buildattractionobject",
-    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-_buildAttractionObject",
-    "lib/parks/efteling/efteling.js~Efteling#_buildAttractionObject",
+    "lib/parks/efteling/efteling.js~efteling#_buildarrayofentitiesoftype",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-_buildArrayOfEntitiesOfType",
+    "lib/parks/efteling/efteling.js~Efteling#_buildArrayOfEntitiesOfType",
     "method"
   ],
   [
-    "lib/parks/efteling/efteling.js~efteling#_getoperatinghoursfordate",
-    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-_getOperatingHoursForDate",
-    "lib/parks/efteling/efteling.js~Efteling#_getOperatingHoursForDate",
+    "lib/parks/efteling/efteling.js~efteling#_fetchpoidata",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-_fetchPOIData",
+    "lib/parks/efteling/efteling.js~Efteling#_fetchPOIData",
+    "method"
+  ],
+  [
+    "lib/parks/efteling/efteling.js~efteling#_fetchwaittimes",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-_fetchWaitTimes",
+    "lib/parks/efteling/efteling.js~Efteling#_fetchWaitTimes",
     "method"
   ],
   [
@@ -972,15 +1524,51 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
-    "lib/parks/efteling/efteling.js~efteling#_init",
-    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-_init",
-    "lib/parks/efteling/efteling.js~Efteling#_init",
+    "lib/parks/efteling/efteling.js~efteling#buildattractionentities",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-buildAttractionEntities",
+    "lib/parks/efteling/efteling.js~Efteling#buildAttractionEntities",
     "method"
   ],
   [
-    "lib/parks/efteling/efteling.js~efteling#_update",
-    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-_update",
-    "lib/parks/efteling/efteling.js~Efteling#_update",
+    "lib/parks/efteling/efteling.js~efteling#buildbaseentityobject",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-buildBaseEntityObject",
+    "lib/parks/efteling/efteling.js~Efteling#buildBaseEntityObject",
+    "method"
+  ],
+  [
+    "lib/parks/efteling/efteling.js~efteling#builddestinationentity",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-buildDestinationEntity",
+    "lib/parks/efteling/efteling.js~Efteling#buildDestinationEntity",
+    "method"
+  ],
+  [
+    "lib/parks/efteling/efteling.js~efteling#buildentitylivedata",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-buildEntityLiveData",
+    "lib/parks/efteling/efteling.js~Efteling#buildEntityLiveData",
+    "method"
+  ],
+  [
+    "lib/parks/efteling/efteling.js~efteling#buildentityscheduledata",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-buildEntityScheduleData",
+    "lib/parks/efteling/efteling.js~Efteling#buildEntityScheduleData",
+    "method"
+  ],
+  [
+    "lib/parks/efteling/efteling.js~efteling#buildparkentities",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-buildParkEntities",
+    "lib/parks/efteling/efteling.js~Efteling#buildParkEntities",
+    "method"
+  ],
+  [
+    "lib/parks/efteling/efteling.js~efteling#buildrestaurantentities",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-buildRestaurantEntities",
+    "lib/parks/efteling/efteling.js~Efteling#buildRestaurantEntities",
+    "method"
+  ],
+  [
+    "lib/parks/efteling/efteling.js~efteling#buildshowentities",
+    "class/lib/parks/efteling/efteling.js~Efteling.html#instance-method-buildShowEntities",
+    "lib/parks/efteling/efteling.js~Efteling#buildShowEntities",
     "method"
   ],
   [
@@ -1134,57 +1722,75 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
+    "lib/parks/europa/europapark.js~europapark#_getcalendarforpark",
+    "class/lib/parks/europa/europapark.js~EuropaPark.html#instance-method-_getCalendarForPark",
+    "lib/parks/europa/europapark.js~EuropaPark#_getCalendarForPark",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europapark.js~europapark#buildattractionentities",
+    "class/lib/parks/europa/europapark.js~EuropaPark.html#instance-method-buildAttractionEntities",
+    "lib/parks/europa/europapark.js~EuropaPark#buildAttractionEntities",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europapark.js~europapark#buildbaseentityobject",
+    "class/lib/parks/europa/europapark.js~EuropaPark.html#instance-method-buildBaseEntityObject",
+    "lib/parks/europa/europapark.js~EuropaPark#buildBaseEntityObject",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europapark.js~europapark#builddestinationentity",
+    "class/lib/parks/europa/europapark.js~EuropaPark.html#instance-method-buildDestinationEntity",
+    "lib/parks/europa/europapark.js~EuropaPark#buildDestinationEntity",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europapark.js~europapark#buildentitylivedata",
+    "class/lib/parks/europa/europapark.js~EuropaPark.html#instance-method-buildEntityLiveData",
+    "lib/parks/europa/europapark.js~EuropaPark#buildEntityLiveData",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europapark.js~europapark#buildentityscheduledata",
+    "class/lib/parks/europa/europapark.js~EuropaPark.html#instance-method-buildEntityScheduleData",
+    "lib/parks/europa/europapark.js~EuropaPark#buildEntityScheduleData",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europapark.js~europapark#buildparkentities",
+    "class/lib/parks/europa/europapark.js~EuropaPark.html#instance-method-buildParkEntities",
+    "lib/parks/europa/europapark.js~EuropaPark#buildParkEntities",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europapark.js~europapark#buildrestaurantentities",
+    "class/lib/parks/europa/europapark.js~EuropaPark.html#instance-method-buildRestaurantEntities",
+    "lib/parks/europa/europapark.js~EuropaPark#buildRestaurantEntities",
+    "method"
+  ],
+  [
+    "lib/parks/europa/europapark.js~europapark#buildshowentities",
+    "class/lib/parks/europa/europapark.js~EuropaPark.html#instance-method-buildShowEntities",
+    "lib/parks/europa/europapark.js~EuropaPark#buildShowEntities",
+    "method"
+  ],
+  [
     "lib/parks/europa/europapark.js~europapark#constructor",
     "class/lib/parks/europa/europapark.js~EuropaPark.html#instance-constructor-constructor",
     "lib/parks/europa/europapark.js~EuropaPark#constructor",
     "method"
   ],
   [
-    "lib/parks/europa/europapark.js~europaparkbase#_buildattractionobject",
-    "class/lib/parks/europa/europapark.js~EuropaParkBase.html#instance-method-_buildAttractionObject",
-    "lib/parks/europa/europapark.js~EuropaParkBase#_buildAttractionObject",
-    "method"
-  ],
-  [
-    "lib/parks/europa/europapark.js~europaparkbase#_getoperatinghoursfordate",
-    "class/lib/parks/europa/europapark.js~EuropaParkBase.html#instance-method-_getOperatingHoursForDate",
-    "lib/parks/europa/europapark.js~EuropaParkBase#_getOperatingHoursForDate",
-    "method"
-  ],
-  [
-    "lib/parks/europa/europapark.js~europaparkbase#_init",
-    "class/lib/parks/europa/europapark.js~EuropaParkBase.html#instance-method-_init",
-    "lib/parks/europa/europapark.js~EuropaParkBase#_init",
-    "method"
-  ],
-  [
-    "lib/parks/europa/europapark.js~europaparkbase#_update",
-    "class/lib/parks/europa/europapark.js~EuropaParkBase.html#instance-method-_update",
-    "lib/parks/europa/europapark.js~EuropaParkBase#_update",
-    "method"
-  ],
-  [
-    "lib/parks/europa/europapark.js~europaparkbase#constructor",
-    "class/lib/parks/europa/europapark.js~EuropaParkBase.html#instance-constructor-constructor",
-    "lib/parks/europa/europapark.js~EuropaParkBase#constructor",
-    "method"
-  ],
-  [
-    "lib/parks/europa/europapark.js~europaparkbase#db",
-    "class/lib/parks/europa/europapark.js~EuropaParkBase.html#instance-get-db",
-    "lib/parks/europa/europapark.js~EuropaParkBase#db",
+    "lib/parks/europa/europapark.js~europapark#db",
+    "class/lib/parks/europa/europapark.js~EuropaPark.html#instance-get-db",
+    "lib/parks/europa/europapark.js~EuropaPark#db",
     "member"
   ],
   [
-    "lib/parks/europa/europapark.js~rulantica#constructor",
-    "class/lib/parks/europa/europapark.js~Rulantica.html#instance-constructor-constructor",
-    "lib/parks/europa/europapark.js~Rulantica#constructor",
-    "method"
-  ],
-  [
-    "lib/parks/europa/europapark.js~yullbe#constructor",
-    "class/lib/parks/europa/europapark.js~Yullbe.html#instance-constructor-constructor",
-    "lib/parks/europa/europapark.js~Yullbe#constructor",
+    "lib/parks/europa/europapark.js~europapark.idtostring",
+    "class/lib/parks/europa/europapark.js~EuropaPark.html#static-method-idToString",
+    "lib/parks/europa/europapark.js~EuropaPark.idToString",
     "method"
   ],
   [
@@ -1254,10 +1860,232 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/herschend/herschendparks.js",
+    "file/lib/parks/herschend/herschendparks.js.html",
+    "lib/parks/herschend/herschendparks.js",
+    "file"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~dollywood#constructor",
+    "class/lib/parks/herschend/herschendparks.js~Dollywood.html#instance-constructor-constructor",
+    "lib/parks/herschend/herschendparks.js~Dollywood#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~herschenddestination#buildattractionentities",
+    "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html#instance-method-buildAttractionEntities",
+    "lib/parks/herschend/herschendparks.js~HerschendDestination#buildAttractionEntities",
+    "method"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~herschenddestination#buildbaseentityobject",
+    "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html#instance-method-buildBaseEntityObject",
+    "lib/parks/herschend/herschendparks.js~HerschendDestination#buildBaseEntityObject",
+    "method"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~herschenddestination#builddestinationentity",
+    "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html#instance-method-buildDestinationEntity",
+    "lib/parks/herschend/herschendparks.js~HerschendDestination#buildDestinationEntity",
+    "method"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~herschenddestination#buildentitylivedata",
+    "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html#instance-method-buildEntityLiveData",
+    "lib/parks/herschend/herschendparks.js~HerschendDestination#buildEntityLiveData",
+    "method"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~herschenddestination#buildentityscheduledata",
+    "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html#instance-method-buildEntityScheduleData",
+    "lib/parks/herschend/herschendparks.js~HerschendDestination#buildEntityScheduleData",
+    "method"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~herschenddestination#buildparkentities",
+    "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html#instance-method-buildParkEntities",
+    "lib/parks/herschend/herschendparks.js~HerschendDestination#buildParkEntities",
+    "method"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~herschenddestination#buildrestaurantentities",
+    "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html#instance-method-buildRestaurantEntities",
+    "lib/parks/herschend/herschendparks.js~HerschendDestination#buildRestaurantEntities",
+    "method"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~herschenddestination#buildshowentities",
+    "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html#instance-method-buildShowEntities",
+    "lib/parks/herschend/herschendparks.js~HerschendDestination#buildShowEntities",
+    "method"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~herschenddestination#constructor",
+    "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html#instance-constructor-constructor",
+    "lib/parks/herschend/herschendparks.js~HerschendDestination#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~herschenddestination#fetchfivedates",
+    "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html#instance-method-fetchFiveDates",
+    "lib/parks/herschend/herschendparks.js~HerschendDestination#fetchFiveDates",
+    "method"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~herschenddestination#fetchscheduledata",
+    "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html#instance-method-fetchScheduleData",
+    "lib/parks/herschend/herschendparks.js~HerschendDestination#fetchScheduleData",
+    "method"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~herschenddestination#getfoodwaittimes",
+    "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html#instance-method-getFoodWaitTimes",
+    "lib/parks/herschend/herschendparks.js~HerschendDestination#getFoodWaitTimes",
+    "method"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~herschenddestination#getpoidata",
+    "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html#instance-method-getPOIData",
+    "lib/parks/herschend/herschendparks.js~HerschendDestination#getPOIData",
+    "method"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~herschenddestination#getpoiforcategory",
+    "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html#instance-method-getPOIForCategory",
+    "lib/parks/herschend/herschendparks.js~HerschendDestination#getPOIForCategory",
+    "method"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~herschenddestination#gettraintimes",
+    "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html#instance-method-getTrainTimes",
+    "lib/parks/herschend/herschendparks.js~HerschendDestination#getTrainTimes",
+    "method"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~herschenddestination#getwaittimes",
+    "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html#instance-method-getWaitTimes",
+    "lib/parks/herschend/herschendparks.js~HerschendDestination#getWaitTimes",
+    "method"
+  ],
+  [
+    "lib/parks/herschend/herschendparks.js~silverdollarcity#constructor",
+    "class/lib/parks/herschend/herschendparks.js~SilverDollarCity.html#instance-constructor-constructor",
+    "lib/parks/herschend/herschendparks.js~SilverDollarCity#constructor",
+    "method"
+  ],
+  [
     "lib/parks/http.js",
     "file/lib/parks/http.js.html",
     "lib/parks/http.js",
     "file"
+  ],
+  [
+    "lib/parks/livedata.js",
+    "file/lib/parks/livedata.js.html",
+    "lib/parks/livedata.js",
+    "file"
+  ],
+  [
+    "lib/parks/parcasterix/parcasterix.js",
+    "file/lib/parks/parcasterix/parcasterix.js.html",
+    "lib/parks/parcasterix/parcasterix.js",
+    "file"
+  ],
+  [
+    "lib/parks/parcasterix/parcasterix.js~parcasterix#buildattractionentities",
+    "class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html#instance-method-buildAttractionEntities",
+    "lib/parks/parcasterix/parcasterix.js~ParcAsterix#buildAttractionEntities",
+    "method"
+  ],
+  [
+    "lib/parks/parcasterix/parcasterix.js~parcasterix#buildbaseentityobject",
+    "class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html#instance-method-buildBaseEntityObject",
+    "lib/parks/parcasterix/parcasterix.js~ParcAsterix#buildBaseEntityObject",
+    "method"
+  ],
+  [
+    "lib/parks/parcasterix/parcasterix.js~parcasterix#builddestinationentity",
+    "class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html#instance-method-buildDestinationEntity",
+    "lib/parks/parcasterix/parcasterix.js~ParcAsterix#buildDestinationEntity",
+    "method"
+  ],
+  [
+    "lib/parks/parcasterix/parcasterix.js~parcasterix#buildentitylivedata",
+    "class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html#instance-method-buildEntityLiveData",
+    "lib/parks/parcasterix/parcasterix.js~ParcAsterix#buildEntityLiveData",
+    "method"
+  ],
+  [
+    "lib/parks/parcasterix/parcasterix.js~parcasterix#buildentityscheduledata",
+    "class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html#instance-method-buildEntityScheduleData",
+    "lib/parks/parcasterix/parcasterix.js~ParcAsterix#buildEntityScheduleData",
+    "method"
+  ],
+  [
+    "lib/parks/parcasterix/parcasterix.js~parcasterix#buildparkentities",
+    "class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html#instance-method-buildParkEntities",
+    "lib/parks/parcasterix/parcasterix.js~ParcAsterix#buildParkEntities",
+    "method"
+  ],
+  [
+    "lib/parks/parcasterix/parcasterix.js~parcasterix#buildrestaurantentities",
+    "class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html#instance-method-buildRestaurantEntities",
+    "lib/parks/parcasterix/parcasterix.js~ParcAsterix#buildRestaurantEntities",
+    "method"
+  ],
+  [
+    "lib/parks/parcasterix/parcasterix.js~parcasterix#buildshowentities",
+    "class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html#instance-method-buildShowEntities",
+    "lib/parks/parcasterix/parcasterix.js~ParcAsterix#buildShowEntities",
+    "method"
+  ],
+  [
+    "lib/parks/parcasterix/parcasterix.js~parcasterix#constructor",
+    "class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html#instance-constructor-constructor",
+    "lib/parks/parcasterix/parcasterix.js~ParcAsterix#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/parcasterix/parcasterix.js~parcasterix#getattractiondata",
+    "class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html#instance-method-getAttractionData",
+    "lib/parks/parcasterix/parcasterix.js~ParcAsterix#getAttractionData",
+    "method"
+  ],
+  [
+    "lib/parks/parcasterix/parcasterix.js~parcasterix#getcalendardata",
+    "class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html#instance-method-getCalendarData",
+    "lib/parks/parcasterix/parcasterix.js~ParcAsterix#getCalendarData",
+    "method"
+  ],
+  [
+    "lib/parks/parcasterix/parcasterix.js~parcasterix#getresortdata",
+    "class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html#instance-method-getResortData",
+    "lib/parks/parcasterix/parcasterix.js~ParcAsterix#getResortData",
+    "method"
+  ],
+  [
+    "lib/parks/parcasterix/parcasterix.js~parcasterix#getrestaurantdata",
+    "class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html#instance-method-getRestaurantData",
+    "lib/parks/parcasterix/parcasterix.js~ParcAsterix#getRestaurantData",
+    "method"
+  ],
+  [
+    "lib/parks/parcasterix/parcasterix.js~parcasterix#getshowdata",
+    "class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html#instance-method-getShowData",
+    "lib/parks/parcasterix/parcasterix.js~ParcAsterix#getShowData",
+    "method"
+  ],
+  [
+    "lib/parks/parcasterix/parcasterix.js~parcasterix#getwaittimedata",
+    "class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html#instance-method-getWaitTimeData",
+    "lib/parks/parcasterix/parcasterix.js~ParcAsterix#getWaitTimeData",
+    "method"
+  ],
+  [
+    "lib/parks/parcasterix/parcasterix.js~parcasterix#makecachedquery",
+    "class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html#instance-method-makeCachedQuery",
+    "lib/parks/parcasterix/parcasterix.js~ParcAsterix#makeCachedQuery",
+    "method"
   ],
   [
     "lib/parks/park.js",
@@ -1542,46 +2370,226 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
-    "lib/parks/resort.js",
-    "file/lib/parks/resort.js.html",
-    "lib/parks/resort.js",
+    "lib/parks/phantasialand/phantasialand.js",
+    "file/lib/parks/phantasialand/phantasialand.js.html",
+    "lib/parks/phantasialand/phantasialand.js",
     "file"
   ],
   [
-    "lib/parks/resort.js~resort#_newparkoptions",
-    "class/lib/parks/resort.js~Resort.html#instance-member-_newParkOptions",
-    "lib/parks/resort.js~Resort#_newParkOptions",
-    "member"
-  ],
-  [
-    "lib/parks/resort.js~resort#_parks",
-    "class/lib/parks/resort.js~Resort.html#instance-member-_parks",
-    "lib/parks/resort.js~Resort#_parks",
-    "member"
-  ],
-  [
-    "lib/parks/resort.js~resort#addpark",
-    "class/lib/parks/resort.js~Resort.html#instance-method-addPark",
-    "lib/parks/resort.js~Resort#addPark",
+    "lib/parks/phantasialand/phantasialand.js~phantasialand#_buildentitiesfromcategory",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html#instance-method-_buildEntitiesFromCategory",
+    "lib/parks/phantasialand/phantasialand.js~Phantasialand#_buildEntitiesFromCategory",
     "method"
   ],
   [
-    "lib/parks/resort.js~resort#addparkclass",
-    "class/lib/parks/resort.js~Resort.html#instance-method-addParkClass",
-    "lib/parks/resort.js~Resort#addParkClass",
+    "lib/parks/phantasialand/phantasialand.js~phantasialand#buildattractionentities",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html#instance-method-buildAttractionEntities",
+    "lib/parks/phantasialand/phantasialand.js~Phantasialand#buildAttractionEntities",
     "method"
   ],
   [
-    "lib/parks/resort.js~resort#constructor",
-    "class/lib/parks/resort.js~Resort.html#instance-constructor-constructor",
-    "lib/parks/resort.js~Resort#constructor",
+    "lib/parks/phantasialand/phantasialand.js~phantasialand#buildbaseentityobject",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html#instance-method-buildBaseEntityObject",
+    "lib/parks/phantasialand/phantasialand.js~Phantasialand#buildBaseEntityObject",
     "method"
   ],
   [
-    "lib/parks/resort.js~resort#getparks",
-    "class/lib/parks/resort.js~Resort.html#instance-method-getParks",
-    "lib/parks/resort.js~Resort#getParks",
+    "lib/parks/phantasialand/phantasialand.js~phantasialand#builddestinationentity",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html#instance-method-buildDestinationEntity",
+    "lib/parks/phantasialand/phantasialand.js~Phantasialand#buildDestinationEntity",
     "method"
+  ],
+  [
+    "lib/parks/phantasialand/phantasialand.js~phantasialand#buildentitylivedata",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html#instance-method-buildEntityLiveData",
+    "lib/parks/phantasialand/phantasialand.js~Phantasialand#buildEntityLiveData",
+    "method"
+  ],
+  [
+    "lib/parks/phantasialand/phantasialand.js~phantasialand#buildentityscheduledata",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html#instance-method-buildEntityScheduleData",
+    "lib/parks/phantasialand/phantasialand.js~Phantasialand#buildEntityScheduleData",
+    "method"
+  ],
+  [
+    "lib/parks/phantasialand/phantasialand.js~phantasialand#buildparkentities",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html#instance-method-buildParkEntities",
+    "lib/parks/phantasialand/phantasialand.js~Phantasialand#buildParkEntities",
+    "method"
+  ],
+  [
+    "lib/parks/phantasialand/phantasialand.js~phantasialand#buildrestaurantentities",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html#instance-method-buildRestaurantEntities",
+    "lib/parks/phantasialand/phantasialand.js~Phantasialand#buildRestaurantEntities",
+    "method"
+  ],
+  [
+    "lib/parks/phantasialand/phantasialand.js~phantasialand#buildshowentities",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html#instance-method-buildShowEntities",
+    "lib/parks/phantasialand/phantasialand.js~Phantasialand#buildShowEntities",
+    "method"
+  ],
+  [
+    "lib/parks/phantasialand/phantasialand.js~phantasialand#constructor",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html#instance-constructor-constructor",
+    "lib/parks/phantasialand/phantasialand.js~Phantasialand#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/phantasialand/phantasialand.js~phantasialand#createuser",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html#instance-method-createUser",
+    "lib/parks/phantasialand/phantasialand.js~Phantasialand#createUser",
+    "method"
+  ],
+  [
+    "lib/parks/phantasialand/phantasialand.js~phantasialand#fetchaccesstoken",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html#instance-method-fetchAccessToken",
+    "lib/parks/phantasialand/phantasialand.js~Phantasialand#fetchAccessToken",
+    "method"
+  ],
+  [
+    "lib/parks/phantasialand/phantasialand.js~phantasialand#fetchcalendardata",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html#instance-method-fetchCalendarData",
+    "lib/parks/phantasialand/phantasialand.js~Phantasialand#fetchCalendarData",
+    "method"
+  ],
+  [
+    "lib/parks/phantasialand/phantasialand.js~phantasialand#fetchlivedata",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html#instance-method-fetchLiveData",
+    "lib/parks/phantasialand/phantasialand.js~Phantasialand#fetchLiveData",
+    "method"
+  ],
+  [
+    "lib/parks/phantasialand/phantasialand.js~phantasialand#getcalendarjson",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html#instance-method-getCalendarJSON",
+    "lib/parks/phantasialand/phantasialand.js~Phantasialand#getCalendarJSON",
+    "method"
+  ],
+  [
+    "lib/parks/phantasialand/phantasialand.js~phantasialand#getpoidata",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html#instance-method-getPOIData",
+    "lib/parks/phantasialand/phantasialand.js~Phantasialand#getPOIData",
+    "method"
+  ],
+  [
+    "lib/parks/phantasialand/phantasialand.js~phantasialand#getrandomlocation",
+    "class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html#instance-method-getRandomLocation",
+    "lib/parks/phantasialand/phantasialand.js~Phantasialand#getRandomLocation",
+    "method"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js",
+    "file/lib/parks/plopsaland/plopsa.js.html",
+    "lib/parks/plopsaland/plopsa.js",
+    "file"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js~holidaypark#constructor",
+    "class/lib/parks/plopsaland/plopsa.js~HolidayPark.html#instance-constructor-constructor",
+    "lib/parks/plopsaland/plopsa.js~HolidayPark#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js~plopsabase#buildattractionentities",
+    "class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html#instance-method-buildAttractionEntities",
+    "lib/parks/plopsaland/plopsa.js~PlopsaBase#buildAttractionEntities",
+    "method"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js~plopsabase#buildbaseentityobject",
+    "class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html#instance-method-buildBaseEntityObject",
+    "lib/parks/plopsaland/plopsa.js~PlopsaBase#buildBaseEntityObject",
+    "method"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js~plopsabase#builddestinationentity",
+    "class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html#instance-method-buildDestinationEntity",
+    "lib/parks/plopsaland/plopsa.js~PlopsaBase#buildDestinationEntity",
+    "method"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js~plopsabase#buildentitylivedata",
+    "class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html#instance-method-buildEntityLiveData",
+    "lib/parks/plopsaland/plopsa.js~PlopsaBase#buildEntityLiveData",
+    "method"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js~plopsabase#buildentityscheduledata",
+    "class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html#instance-method-buildEntityScheduleData",
+    "lib/parks/plopsaland/plopsa.js~PlopsaBase#buildEntityScheduleData",
+    "method"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js~plopsabase#buildparkentities",
+    "class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html#instance-method-buildParkEntities",
+    "lib/parks/plopsaland/plopsa.js~PlopsaBase#buildParkEntities",
+    "method"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js~plopsabase#buildrestaurantentities",
+    "class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html#instance-method-buildRestaurantEntities",
+    "lib/parks/plopsaland/plopsa.js~PlopsaBase#buildRestaurantEntities",
+    "method"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js~plopsabase#buildshowentities",
+    "class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html#instance-method-buildShowEntities",
+    "lib/parks/plopsaland/plopsa.js~PlopsaBase#buildShowEntities",
+    "method"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js~plopsabase#constructor",
+    "class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html#instance-constructor-constructor",
+    "lib/parks/plopsaland/plopsa.js~PlopsaBase#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js~plopsabase#fetchcalendardata",
+    "class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html#instance-method-fetchCalendarData",
+    "lib/parks/plopsaland/plopsa.js~PlopsaBase#fetchCalendarData",
+    "method"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js~plopsabase#getattractiondata",
+    "class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html#instance-method-getAttractionData",
+    "lib/parks/plopsaland/plopsa.js~PlopsaBase#getAttractionData",
+    "method"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js~plopsabase#getauthtoken",
+    "class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html#instance-method-getAuthToken",
+    "lib/parks/plopsaland/plopsa.js~PlopsaBase#getAuthToken",
+    "method"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js~plopsabase#getdiningdata",
+    "class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html#instance-method-getDiningData",
+    "lib/parks/plopsaland/plopsa.js~PlopsaBase#getDiningData",
+    "method"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js~plopsabase#getwaitdata",
+    "class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html#instance-method-getWaitData",
+    "lib/parks/plopsaland/plopsa.js~PlopsaBase#getWaitData",
+    "method"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js~plopsabase#mergelocaledata",
+    "class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html#instance-method-mergeLocaleData",
+    "lib/parks/plopsaland/plopsa.js~PlopsaBase#mergeLocaleData",
+    "method"
+  ],
+  [
+    "lib/parks/plopsaland/plopsa.js~plopsaland#constructor",
+    "class/lib/parks/plopsaland/plopsa.js~Plopsaland.html#instance-constructor-constructor",
+    "lib/parks/plopsaland/plopsa.js~Plopsaland#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/scheduledata.js",
+    "file/lib/parks/scheduledata.js.html",
+    "lib/parks/scheduledata.js",
+    "file"
   ],
   [
     "lib/parks/sieve.js",
@@ -1602,87 +2610,345 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
-    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#_buildattractionobject",
-    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-_buildAttractionObject",
-    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_buildAttractionObject",
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#_buildattractionobject",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-_buildAttractionObject",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#_buildAttractionObject",
     "method"
   ],
   [
-    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#_getoperatinghoursfordate",
-    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-_getOperatingHoursForDate",
-    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_getOperatingHoursForDate",
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#_fetchwaittimes",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-_fetchWaitTimes",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#_fetchWaitTimes",
     "method"
   ],
   [
-    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#_getrestaurantoperatinghoursfordate",
-    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-_getRestaurantOperatingHoursForDate",
-    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_getRestaurantOperatingHoursForDate",
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#_getoperatinghoursfordate",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-_getOperatingHoursForDate",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#_getOperatingHoursForDate",
     "method"
   ],
   [
-    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#_init",
-    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-_init",
-    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_init",
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#_getrestaurantoperatinghoursfordate",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-_getRestaurantOperatingHoursForDate",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#_getRestaurantOperatingHoursForDate",
     "method"
   ],
   [
-    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#_update",
-    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-_update",
-    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#_update",
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#_update",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-_update",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#_update",
     "method"
   ],
   [
-    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#constructor",
-    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-constructor-constructor",
-    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#constructor",
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#buildattractionentities",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-buildAttractionEntities",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#buildAttractionEntities",
     "method"
   ],
   [
-    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#fetchallfacilitiesdata",
-    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchAllFacilitiesData",
-    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchAllFacilitiesData",
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#buildbaseentityobject",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-buildBaseEntityObject",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#buildBaseEntityObject",
     "method"
   ],
   [
-    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#fetchcalendar",
-    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchCalendar",
-    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchCalendar",
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#builddestinationentity",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-buildDestinationEntity",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#buildDestinationEntity",
     "method"
   ],
   [
-    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#fetchdeviceid",
-    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchDeviceID",
-    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchDeviceID",
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#buildentitylivedata",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-buildEntityLiveData",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#buildEntityLiveData",
     "method"
   ],
   [
-    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#fetchfacilitiesdata",
-    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchFacilitiesData",
-    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchFacilitiesData",
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#buildentityscheduledata",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-buildEntityScheduleData",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#buildEntityScheduleData",
     "method"
   ],
   [
-    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#fetchlatestversion",
-    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchLatestVersion",
-    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchLatestVersion",
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#buildparkentities",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-buildParkEntities",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#buildParkEntities",
     "method"
   ],
   [
-    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresortpark#fetchrestaurantoperatinghours",
-    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark.html#instance-method-fetchRestaurantOperatingHours",
-    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResortPark#fetchRestaurantOperatingHours",
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#buildrestaurantentities",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-buildRestaurantEntities",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#buildRestaurantEntities",
     "method"
   ],
   [
-    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneysea#constructor",
-    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneySea.html#instance-constructor-constructor",
-    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneySea#constructor",
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#buildshowentities",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-buildShowEntities",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#buildShowEntities",
     "method"
   ],
   [
-    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyland#constructor",
-    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyland.html#instance-constructor-constructor",
-    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyland#constructor",
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#constructor",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-constructor-constructor",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#fetchallfacilitiesdata",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-fetchAllFacilitiesData",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#fetchAllFacilitiesData",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#fetchcalendar",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-fetchCalendar",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#fetchCalendar",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#fetchdeviceid",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-fetchDeviceID",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#fetchDeviceID",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#fetchfacilitiesdata",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-fetchFacilitiesData",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#fetchFacilitiesData",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#fetchlatestversion",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-fetchLatestVersion",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#fetchLatestVersion",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#fetchrestaurantoperatinghours",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-fetchRestaurantOperatingHours",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#fetchRestaurantOperatingHours",
+    "method"
+  ],
+  [
+    "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#getentitiesoftype",
+    "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-getEntitiesOfType",
+    "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#getEntitiesOfType",
+    "method"
+  ],
+  [
+    "lib/parks/toverland/toverland.js",
+    "file/lib/parks/toverland/toverland.js.html",
+    "lib/parks/toverland/toverland.js",
+    "file"
+  ],
+  [
+    "lib/parks/toverland/toverland.js~toverland#_buildentitylist",
+    "class/lib/parks/toverland/toverland.js~Toverland.html#instance-method-_buildEntityList",
+    "lib/parks/toverland/toverland.js~Toverland#_buildEntityList",
+    "method"
+  ],
+  [
+    "lib/parks/toverland/toverland.js~toverland#_fetchweekcalendar",
+    "class/lib/parks/toverland/toverland.js~Toverland.html#instance-method-_fetchWeekCalendar",
+    "lib/parks/toverland/toverland.js~Toverland#_fetchWeekCalendar",
+    "method"
+  ],
+  [
+    "lib/parks/toverland/toverland.js~toverland#buildattractionentities",
+    "class/lib/parks/toverland/toverland.js~Toverland.html#instance-method-buildAttractionEntities",
+    "lib/parks/toverland/toverland.js~Toverland#buildAttractionEntities",
+    "method"
+  ],
+  [
+    "lib/parks/toverland/toverland.js~toverland#buildbaseentityobject",
+    "class/lib/parks/toverland/toverland.js~Toverland.html#instance-method-buildBaseEntityObject",
+    "lib/parks/toverland/toverland.js~Toverland#buildBaseEntityObject",
+    "method"
+  ],
+  [
+    "lib/parks/toverland/toverland.js~toverland#builddestinationentity",
+    "class/lib/parks/toverland/toverland.js~Toverland.html#instance-method-buildDestinationEntity",
+    "lib/parks/toverland/toverland.js~Toverland#buildDestinationEntity",
+    "method"
+  ],
+  [
+    "lib/parks/toverland/toverland.js~toverland#buildentitylivedata",
+    "class/lib/parks/toverland/toverland.js~Toverland.html#instance-method-buildEntityLiveData",
+    "lib/parks/toverland/toverland.js~Toverland#buildEntityLiveData",
+    "method"
+  ],
+  [
+    "lib/parks/toverland/toverland.js~toverland#buildentityscheduledata",
+    "class/lib/parks/toverland/toverland.js~Toverland.html#instance-method-buildEntityScheduleData",
+    "lib/parks/toverland/toverland.js~Toverland#buildEntityScheduleData",
+    "method"
+  ],
+  [
+    "lib/parks/toverland/toverland.js~toverland#buildparkentities",
+    "class/lib/parks/toverland/toverland.js~Toverland.html#instance-method-buildParkEntities",
+    "lib/parks/toverland/toverland.js~Toverland#buildParkEntities",
+    "method"
+  ],
+  [
+    "lib/parks/toverland/toverland.js~toverland#buildrestaurantentities",
+    "class/lib/parks/toverland/toverland.js~Toverland.html#instance-method-buildRestaurantEntities",
+    "lib/parks/toverland/toverland.js~Toverland#buildRestaurantEntities",
+    "method"
+  ],
+  [
+    "lib/parks/toverland/toverland.js~toverland#buildshowentities",
+    "class/lib/parks/toverland/toverland.js~Toverland.html#instance-method-buildShowEntities",
+    "lib/parks/toverland/toverland.js~Toverland#buildShowEntities",
+    "method"
+  ],
+  [
+    "lib/parks/toverland/toverland.js~toverland#constructor",
+    "class/lib/parks/toverland/toverland.js~Toverland.html#instance-constructor-constructor",
+    "lib/parks/toverland/toverland.js~Toverland#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/toverland/toverland.js~toverland#fetchdiningdata",
+    "class/lib/parks/toverland/toverland.js~Toverland.html#instance-method-fetchDiningData",
+    "lib/parks/toverland/toverland.js~Toverland#fetchDiningData",
+    "method"
+  ],
+  [
+    "lib/parks/toverland/toverland.js~toverland#fetchridedata",
+    "class/lib/parks/toverland/toverland.js~Toverland.html#instance-method-fetchRideData",
+    "lib/parks/toverland/toverland.js~Toverland#fetchRideData",
+    "method"
+  ],
+  [
+    "lib/parks/toverland/toverland.js~toverland#fetchshowdata",
+    "class/lib/parks/toverland/toverland.js~Toverland.html#instance-method-fetchShowData",
+    "lib/parks/toverland/toverland.js~Toverland#fetchShowData",
+    "method"
+  ],
+  [
+    "lib/parks/toverland/toverland.js~toverland#getlocstring",
+    "class/lib/parks/toverland/toverland.js~Toverland.html#instance-method-getLocString",
+    "lib/parks/toverland/toverland.js~Toverland#getLocString",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js",
+    "file/lib/parks/universal/universal.js.html",
+    "lib/parks/universal/universal.js",
+    "file"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalorlando#constructor",
+    "class/lib/parks/universal/universal.js~UniversalOrlando.html#instance-constructor-constructor",
+    "lib/parks/universal/universal.js~UniversalOrlando#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalresortbase#_fetchvirtualqueuestateforride",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html#instance-method-_fetchVirtualQueueStateForRide",
+    "lib/parks/universal/universal.js~UniversalResortBase#_fetchVirtualQueueStateForRide",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalresortbase#_fetchvirtualqueuestates",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html#instance-method-_fetchVirtualQueueStates",
+    "lib/parks/universal/universal.js~UniversalResortBase#_fetchVirtualQueueStates",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalresortbase#_fetchwaittimes",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html#instance-method-_fetchWaitTimes",
+    "lib/parks/universal/universal.js~UniversalResortBase#_fetchWaitTimes",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalresortbase#_getparks",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html#instance-method-_getParks",
+    "lib/parks/universal/universal.js~UniversalResortBase#_getParks",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalresortbase#_stringtimetolocaltime",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html#instance-method-_stringTimeToLocalTime",
+    "lib/parks/universal/universal.js~UniversalResortBase#_stringTimeToLocalTime",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalresortbase#buildattractionentities",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html#instance-method-buildAttractionEntities",
+    "lib/parks/universal/universal.js~UniversalResortBase#buildAttractionEntities",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalresortbase#buildbaseentityobject",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html#instance-method-buildBaseEntityObject",
+    "lib/parks/universal/universal.js~UniversalResortBase#buildBaseEntityObject",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalresortbase#builddestinationentity",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html#instance-method-buildDestinationEntity",
+    "lib/parks/universal/universal.js~UniversalResortBase#buildDestinationEntity",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalresortbase#buildentitylivedata",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html#instance-method-buildEntityLiveData",
+    "lib/parks/universal/universal.js~UniversalResortBase#buildEntityLiveData",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalresortbase#buildentityscheduledata",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html#instance-method-buildEntityScheduleData",
+    "lib/parks/universal/universal.js~UniversalResortBase#buildEntityScheduleData",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalresortbase#buildparkentities",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html#instance-method-buildParkEntities",
+    "lib/parks/universal/universal.js~UniversalResortBase#buildParkEntities",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalresortbase#buildrestaurantentities",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html#instance-method-buildRestaurantEntities",
+    "lib/parks/universal/universal.js~UniversalResortBase#buildRestaurantEntities",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalresortbase#buildshowentities",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html#instance-method-buildShowEntities",
+    "lib/parks/universal/universal.js~UniversalResortBase#buildShowEntities",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalresortbase#constructor",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html#instance-constructor-constructor",
+    "lib/parks/universal/universal.js~UniversalResortBase#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalresortbase#getlatestopeninghoursforvenue",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html#instance-method-getLatestOpeningHoursForVenue",
+    "lib/parks/universal/universal.js~UniversalResortBase#getLatestOpeningHoursForVenue",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalresortbase#getpoi",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html#instance-method-getPOI",
+    "lib/parks/universal/universal.js~UniversalResortBase#getPOI",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalresortbase#getservicetoken",
+    "class/lib/parks/universal/universal.js~UniversalResortBase.html#instance-method-getServiceToken",
+    "lib/parks/universal/universal.js~UniversalResortBase#getServiceToken",
+    "method"
+  ],
+  [
+    "lib/parks/universal/universal.js~universalstudios#constructor",
+    "class/lib/parks/universal/universal.js~UniversalStudios.html#instance-constructor-constructor",
+    "lib/parks/universal/universal.js~UniversalStudios#constructor",
     "method"
   ],
   [
@@ -1788,135 +3054,171 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#_buildattractionobject",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_buildAttractionObject",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_buildAttractionObject",
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#_buildlivedataobject",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-_buildLiveDataObject",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#_buildLiveDataObject",
     "method"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#_daterefresh",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_dateRefresh",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_dateRefresh",
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#_fetchrestaurantmenu",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-_fetchRestaurantMenu",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#_fetchRestaurantMenu",
     "method"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#_getoperatinghoursfordate",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_getOperatingHoursForDate",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_getOperatingHoursForDate",
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#_getschedulesfordate",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-_getSchedulesForDate",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#_getSchedulesForDate",
     "method"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#_init",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_init",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_init",
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#_init",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-_init",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#_init",
     "method"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#_postinit",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_postInit",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_postInit",
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#buildattractionentities",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-buildAttractionEntities",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#buildAttractionEntities",
     "method"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#_processattractionstatusupdate",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_processAttractionStatusUpdate",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_processAttractionStatusUpdate",
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#buildbaseentityobject",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-buildBaseEntityObject",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#buildBaseEntityObject",
     "method"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#_update",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-_update",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#_update",
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#builddestinationentity",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-buildDestinationEntity",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#buildDestinationEntity",
     "method"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#constructor",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-constructor-constructor",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#buildentitylivedata",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-buildEntityLiveData",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#buildEntityLiveData",
     "method"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#db",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-member-db",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#db",
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#buildentityscheduledata",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-buildEntityScheduleData",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#buildEntityScheduleData",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#buildparkentities",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-buildParkEntities",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#buildParkEntities",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#buildrestaurantentities",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-buildRestaurantEntities",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#buildRestaurantEntities",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#buildshowentities",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-buildShowEntities",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#buildShowEntities",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#constructor",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-constructor-constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#db",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-member-db",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#db",
     "member"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#getcalendardocumentidfordate",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-getCalendarDocumentIDForDate",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#getCalendarDocumentIDForDate",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#getdatabasecalendarfordate",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-getDatabaseCalendarForDate",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#getDatabaseCalendarForDate",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#getfacilitystatuschannelid",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-getFacilityStatusChannelID",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#getFacilityStatusChannelID",
-    "method"
-  ],
-  [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#refurbs",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-member-refurbs",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#refurbs",
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#destinationdocumentidregex",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-member-destinationDocumentIDRegex",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#destinationDocumentIDRegex",
     "member"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneypark#updaterefurbishments",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#instance-method-updateRefurbishments",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark#updateRefurbishments",
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#fetchgeniedata",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-fetchGenieData",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#fetchGenieData",
     "method"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneypark.getdatabase",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.html#static-method-getDatabase",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneyPark.getDatabase",
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#fetchvirtualqueuedata",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-fetchVirtualQueueData",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#fetchVirtualQueueData",
     "method"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneylandresortcaliforniaadventure#constructor",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure.html#instance-constructor-constructor",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortCaliforniaAdventure#constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#getfacilitystatuschannelid",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-getFacilityStatusChannelID",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#getFacilityStatusChannelID",
     "method"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~disneylandresortmagickingdom#constructor",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortMagicKingdom.html#instance-constructor-constructor",
-    "lib/parks/wdw/waltdisneyworldbase.js~DisneylandResortMagicKingdom#constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#getrestaurantmenu",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-getRestaurantMenu",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#getRestaurantMenu",
     "method"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~hongkongdisneylandpark#constructor",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~HongKongDisneylandPark.html#instance-constructor-constructor",
-    "lib/parks/wdw/waltdisneyworldbase.js~HongKongDisneylandPark#constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#initlivestatusupdates",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-initLiveStatusUpdates",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#initLiveStatusUpdates",
     "method"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldanimalkingdom#constructor",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom.html#instance-constructor-constructor",
-    "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldAnimalKingdom#constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#parkids",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-member-parkIds",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#parkIds",
+    "member"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#resortid",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-member-resortId",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#resortId",
+    "member"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#resortshortcode",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-member-resortShortcode",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#resortShortcode",
+    "member"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#sanitizeentityname",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-method-sanitizeEntityName",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#sanitizeEntityName",
     "method"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldepcot#constructor",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot.html#instance-constructor-constructor",
-    "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldEpcot#constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~disneylandresort#constructor",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResort.html#instance-constructor-constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneylandResort#constructor",
     "method"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldhollywoodstudios#constructor",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios.html#instance-constructor-constructor",
-    "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldHollywoodStudios#constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~hongkongdisneyland#_fetchrestaurantmenu",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~HongKongDisneyland.html#instance-method-_fetchRestaurantMenu",
+    "lib/parks/wdw/waltdisneyworldbase.js~HongKongDisneyland#_fetchRestaurantMenu",
     "method"
   ],
   [
-    "lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldmagickingdom#constructor",
-    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom.html#instance-constructor-constructor",
-    "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldMagicKingdom#constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~hongkongdisneyland#constructor",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~HongKongDisneyland.html#instance-constructor-constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~HongKongDisneyland#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldresort#constructor",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldResort.html#instance-constructor-constructor",
+    "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldResort#constructor",
     "method"
   ],
   [
