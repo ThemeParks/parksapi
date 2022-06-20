@@ -65,6 +65,7 @@
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/attractionsio/attractionsio.js~AttractionsIO.html">AttractionsIO</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/attractionsio/attractionsio.js~ChessingtonWorldOfAdventures.html">ChessingtonWorldOfAdventures</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/attractionsio/attractionsio.js~Gardaland.html">Gardaland</a></span></span></li>
+<li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/attractionsio/attractionsio.js~HeidePark.html">HeidePark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/attractionsio/attractionsio.js~LegolandOrlando.html">LegolandOrlando</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/attractionsio/attractionsio.js~LegolandWindsor.html">LegolandWindsor</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/attractionsio/attractionsio.js~ThorpePark.html">ThorpePark</a></span></span></li>
@@ -709,6 +710,20 @@ export class Gardaland extends AttractionsIO {
 
     config.appBuild = config.appBuild || 119;
     config.appVersion = config.appVersion || &apos;4.2&apos;;
+
+    super(config);
+  }
+}
+
+export class HeidePark extends AttractionsIO {
+  constructor(config = {}) {
+    config.timezone = config.timezone || &apos;Europe/Berlin&apos;;
+    config.destinationId = config.destinationId || &apos;heideparkresort&apos;;
+    config.parkId = config.parkId || &apos;heidepark&apos;;
+    config.initialDataVersion = config.initialDataVersion || &apos;2022-05-10T09:00:46Z&apos;;
+
+    config.appBuild = config.appBuild || 302018;
+    config.appVersion = config.appVersion || &apos;4.0.5&apos;;
 
     super(config);
   }

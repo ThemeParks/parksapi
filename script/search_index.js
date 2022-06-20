@@ -120,6 +120,12 @@ window.esdocSearchIndex = [
     "function"
   ],
   [
+    "@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js~heidepark",
+    "class/lib/parks/attractionsio/attractionsio.js~HeidePark.html",
+    "<span>HeidePark</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js</span>",
+    "class"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/herschend/herschendparks.js~herschenddestination",
     "class/lib/parks/herschend/herschendparks.js~HerschendDestination.html",
     "<span>HerschendDestination</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/herschend/herschendparks.js</span>",
@@ -1173,6 +1179,12 @@ window.esdocSearchIndex = [
     "lib/parks/attractionsio/attractionsio.js~gardaland#constructor",
     "class/lib/parks/attractionsio/attractionsio.js~Gardaland.html#instance-constructor-constructor",
     "lib/parks/attractionsio/attractionsio.js~Gardaland#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/attractionsio/attractionsio.js~heidepark#constructor",
+    "class/lib/parks/attractionsio/attractionsio.js~HeidePark.html#instance-constructor-constructor",
+    "lib/parks/attractionsio/attractionsio.js~HeidePark#constructor",
     "method"
   ],
   [

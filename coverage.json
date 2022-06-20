@@ -1,6 +1,6 @@
 {
-  "coverage": "76.57%",
-  "expectCount": 538,
+  "coverage": "76.29%",
+  "expectCount": 540,
   "actualCount": 412,
   "files": {
     "lib/cache/cacheBase.js": {
@@ -62,7 +62,7 @@
       ]
     },
     "lib/parks/attractionsio/attractionsio.js": {
-      "expectCount": 32,
+      "expectCount": 34,
       "actualCount": 14,
       "undocumentLines": [
         9,
@@ -82,7 +82,9 @@
         585,
         586,
         599,
-        600
+        600,
+        613,
+        614
       ]
     },
     "lib/parks/database.js": {
