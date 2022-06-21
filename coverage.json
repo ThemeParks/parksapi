@@ -1,7 +1,7 @@
 {
-  "coverage": "76.29%",
-  "expectCount": 540,
-  "actualCount": 412,
+  "coverage": "76.44%",
+  "expectCount": 552,
+  "actualCount": 422,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 16,
@@ -167,6 +167,14 @@
       "undocumentLines": [
         8,
         29
+      ]
+    },
+    "lib/parks/liseberg/liseberg.js": {
+      "expectCount": 12,
+      "actualCount": 10,
+      "undocumentLines": [
+        5,
+        6
       ]
     },
     "lib/parks/livedata.js": {
