@@ -6,7 +6,7 @@ import {promises as fs} from 'fs';
 
 const __dirname = path.dirname(process.argv[1]);
 
-const destination = new parksapi.destinations.HolidayPark();
+const destination = new parksapi.destinations.Liseberg();
 
 const logSuccess = (...msg) => {
   // print green tick
@@ -229,6 +229,10 @@ async function TestDestination() {
     TestSchedule(schedule, park._id);
   }
   logSuccess(`${parks.length} park schedules tested`);
+
+  // write all schedule data to file
+  const scheduleDataFile = path.join(__dirname, 'testout_Schedules.json');
+  await fs.writeFile(scheduleDataFile, JSON.stringify(schedule, null, 4));
 
   const liveData = await destination.getEntityLiveData();
   for (const ent of liveData) {
