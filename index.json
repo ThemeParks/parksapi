@@ -10839,7 +10839,7 @@
     "__docId__": 501,
     "kind": "file",
     "name": "lib/parks/te2/te2.js",
-    "content": "// te2.io / te2.biz interface\n\nimport {Destination} from '../destination.js';\nimport {attractionType, statusType, queueType, tagType, scheduleType, entityType} from '../parkTypes.js';\nimport {URL} from 'url';\n\nexport class TE2Destination extends Destination {\n  constructor(options = {}) {\n    // venue ID\n    options.destinationId = options.destinationId || '';\n    options.venueId = options.venueId || '';\n    options.subdomain = options.subdomain || 'cf';\n    options.apidomain = options.apidomain || 'te2.biz';\n    options.apiuser = options.apiuser || '';\n    options.apipass = options.apipass || '';\n    options.rideTypes = options.rideTypes || ['Ride', 'Coasters', 'Family', 'ThrillRides', 'Kids', 'Rides & Attractions'];\n    options.diningTypes = options.diningTypes || ['Snacks', 'wpDining', 'Meals', 'Dining'];\n\n    options.configPrefixes = ['TE2'];\n\n    super(options);\n\n    if (!this.config.destinationId) throw new Error('Missing destinationId');\n    if (!this.config.venueId) throw new Error('Missing venueId');\n    if (!this.config.subdomain) throw new Error('Missing subdomain');\n    if (!this.config.apidomain) throw new Error('Missing apidomain');\n    if (!this.config.apiuser) throw new Error('Missing apiuser');\n    if (!this.config.apipass) throw new Error('Missing apipass');\n    if (!this.config.rideTypes) throw new Error('Missing rideTypes');\n\n    // construct our destination's API base URL from the configured pieces\n    this.config.apiBase = this.config.apiBase || `https://${this.config.subdomain}.${this.config.apidomain}`;\n\n    // authenticate all our requests\n    const baseURLHostname = new URL(this.config.apiBase).hostname;\n\n    this.http.injectForDomain({\n      hostname: baseURLHostname,\n    }, async (method, url, data, options) => {\n      // extract path from url\n      const path = new URL(url).pathname;\n\n      // add core headers\n      options.headers = {\n        ...options.headers,\n        'Content-Type': 'application/json',\n      };\n\n      // use username:password credentials for /rest/ requests\n      if (path.startsWith('/rest/')) {\n        options.headers = {\n          ...options.headers,\n          Authorization: `Basic ${Buffer.from(`${this.config.apiuser}:${this.config.apipass}`).toString('base64')}`,\n        };\n      }\n    });\n  }\n\n  /**\n   * Get current POI data status\n   * @returns {array<object>}\n   */\n  async getPOIStatus() {\n    '@cache|1';\n    const resp = await this.http('GET', `${this.config.apiBase}/rest/venue/${this.config.venueId}/poi/all/status`);\n    return resp.body;\n  }\n\n  /**\n   * Get the destination data from the API (name, location, etc.)\n   * @returns {object}\n   */\n  async getDestinationData() {\n    // cache for a day\n    '@cache|1440';\n    const resp = await this.http('GET', `${this.config.apiBase}/rest/venue/${this.config.venueId}`);\n    return resp.body;\n  }\n\n  /**\n   * Get park POI data\n   * @returns {array<object>}\n   */\n  async getPOIData() {\n    // cache for a day\n    '@cache|1440';\n    const resp = await this.http('GET', `${this.config.apiBase}/rest/venue/${this.config.venueId}/poi/all`);\n    return resp.body;\n  }\n\n  /**\n   * Fetch the POI category data for this destination\n   */\n  async _fetchCategories() {\n    '@cache|1440'; // cache for a day\n    const resp = await this.http('GET', `${this.config.apiBase}/rest/app/${this.config.venueId}/displayCategories`);\n    return resp.body;\n  }\n\n  /**\n   * Get categories from API based on the configured initial types\n   * @param {object} params\n   * @param {array<string>} params.initialTypes\n   * @returns {object} - {types: {string: string}, entities: {string: string}}\n   */\n  async _getParsedCategories({initialTypes}) {\n    const types = [].concat(...initialTypes);\n    // some categories just list the POIs that belong to it\n    const entities = [];\n\n    const categoryData = await this._fetchCategories();\n\n    categoryData.categories.forEach((cat) => {\n      if (types.indexOf(cat.label) >= 0) {\n        if (types.indexOf(cat.id) < 0) {\n          types.push(cat.id);\n        }\n        if (cat.poi) {\n          entities.push(...cat.poi);\n        }\n      }\n      if (cat.parent && types.indexOf(cat.parent) >= 0) {\n        if (types.indexOf(cat.id) < 0) {\n          types.push(cat.id);\n        }\n        if (cat.poi) {\n          entities.push(...cat.poi);\n        }\n      }\n    });\n\n    return {\n      types,\n      entities: entities.filter((x, idx) => {\n        // remove duplicates\n        return entities.indexOf(x) === idx;\n      }),\n    };\n  }\n\n  /**\n   * Get the type IDs for this destination's attractions\n   */\n  async getAttractionTypes() {\n    return await this._getParsedCategories({\n      initialTypes: this.config.rideTypes,\n    });\n  }\n\n  /**\n   * Get the type IDs for this destination's dining\n   */\n  async getDiningTypes() {\n    return await this._getParsedCategories({\n      initialTypes: this.config.diningTypes,\n    });\n  }\n\n  /**\n   * Helper function to build a basic entity document\n   * Useful to avoid copy/pasting\n   * @param {object} data \n   * @returns {object}\n   */\n  buildBaseEntityObject(data) {\n    const entity = Destination.prototype.buildBaseEntityObject.call(this, data);\n\n    if (data) {\n      // name\n      entity.name = data.name || data.label;\n\n      entity._id = data.id || undefined;\n\n      // entity location\n      if (data.location) {\n        if (data.location.lon) {\n          entity.location = {\n            longitude: data.location.lon,\n            latitude: data.location.lat,\n          };\n        }\n        if (data.location.center?.lon) {\n          entity.location = {\n            longitude: data.location.center.lon,\n            latitude: data.location.center.lat,\n          };\n        }\n      }\n    }\n\n    return entity;\n  }\n\n  /**\n   * Build the destination entity representing this destination\n   */\n  async buildDestinationEntity() {\n    const destinationData = await this.getDestinationData();\n    return {\n      ...this.buildBaseEntityObject(destinationData),\n      _id: `${this.config.destinationId}_destination`,\n      slug: this.config.destinationId,\n      entityType: entityType.destination,\n    };\n  }\n\n  /**\n   * Build the park entities for this destination\n   */\n  async buildParkEntities() {\n    const destinationData = await this.getDestinationData();\n    return [\n      {\n        ...this.buildBaseEntityObject(destinationData),\n        _id: this.config.destinationId,\n        _destinationId: `${this.config.destinationId}_destination`,\n        _parentId: `${this.config.destinationId}_destination`,\n        slug: `${this.config.destinationId}park`,\n        entityType: entityType.park,\n      }\n    ];\n  }\n\n  async _getFilteredEntities({types, entities}, data) {\n    const poi = await this.getPOIData();\n    return poi.filter((entry) => {\n      // filter by rideTypes\n      return types.indexOf(entry.type) >= 0 || entities.indexOf(entry.id) >= 0;\n    }).map((entry) => {\n      // build the entity\n      return {\n        ...this.buildBaseEntityObject(entry),\n        _destinationId: `${this.config.destinationId}_destination`,\n        _parentId: this.config.destinationId,\n        ...data,\n      };\n    });\n  }\n\n  /**\n   * Build the attraction entities for this destination\n   */\n  async buildAttractionEntities() {\n    return await this._getFilteredEntities(\n      {\n        ...await this.getAttractionTypes(),\n      },\n      {\n        entityType: entityType.attraction,\n        attractionType: attractionType.ride,\n      }\n    );\n  }\n\n  /**\n   * Build the show entities for this destination\n   */\n  async buildShowEntities() {\n    return [];\n  }\n\n  /**\n   * Build the restaurant entities for this destination\n   */\n  async buildRestaurantEntities() {\n    return await this._getFilteredEntities(\n      {\n        ...await this.getDiningTypes(),\n      },\n      {\n        entityType: entityType.restaurant,\n      }\n    );\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async buildEntityLiveData() {\n    const statusData = await this.getPOIStatus();\n\n    return statusData.map((entry) => {\n      if (!entry.status || !entry.id) return null;\n\n      if (entry.id.indexOf('_STANDING_OFFER_BEACON') >= 0) {\n        return null;\n      }\n\n      const liveData = {\n        _id: entry.id,\n        status: statusType.closed,\n      };\n\n      if (!!entry.status.isOpen) {\n        liveData.status = statusType.operating;\n      }\n\n      if (entry.status.waitTime !== undefined) {\n        liveData.queue = {\n          [queueType.standBy]: {\n            waitTime: entry.status.waitTime,\n          },\n        };\n      }\n\n      return liveData;\n    }).filter((x) => !!x);\n  }\n\n  /**\n   * Get schedule data for this destination, with an optional number of days to fetch\n   * @param {object} [options]\n   * @param {number} [options.days] Number of days to fetch\n   * @returns {array<object>}\n   */\n  async _fetchScheduleData({days = 120} = {}) {\n    '@cache|1440'; // cache for a day\n    const resp = await this.http('GET', `${this.config.apiBase}/v2/venues/${this.config.venueId}/venue-hours?days=${days}`);\n    return resp.body;\n  }\n\n  /**\n   * Return schedule data for all scheduled entities in this destination\n   * Eg. parks\n   * @returns {array<object>}\n   */\n  async buildEntityScheduleData() {\n    const scheduleData = await this._fetchScheduleData();\n\n    const schedules = [];\n    scheduleData.days.forEach((x) => {\n      x.hours.forEach((hours) => {\n        if (x.label !== 'Park' && hours.status === 'CLOSED') return;\n\n        schedules.push({\n          date: x.date,\n          type: hours.label === 'Park' ? \"OPERATING\" : \"INFO\",\n          description: hours.label === 'Park' ? undefined : hours.label,\n          // bless you, API developer, for having the dates in a normal format\n          openingTime: hours.schedule.start,\n          closingTime: hours.schedule.end,\n        });\n      });\n    });\n\n    return [\n      {\n        _id: this.config.destinationId,\n        schedule: schedules,\n      }\n    ];\n  }\n}\n\nexport class CedarPoint extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/New_York';\n    options.venueId = 'CF_CP';\n    options.destinationId = 'centerpoint';\n\n    super(options);\n  }\n}\n\nexport class KnottsBerryFarm extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Los_Angeles';\n    options.venueId = 'CF_KBF';\n    options.destinationId = 'knottsberryfarm';\n\n    super(options);\n  }\n}\n\nexport class CaliforniasGreatAmerica extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Los_Angeles';\n    options.venueId = 'CF_GA';\n    options.destinationId = 'californiasgreatamerica';\n\n    super(options);\n  }\n}\n\nexport class CanadasWonderland extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Toronto';\n    options.venueId = 'CF_CW';\n    options.destinationId = 'canadaswonderland';\n\n    super(options);\n  }\n}\n\nexport class Carowinds extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/New_York';\n    options.venueId = 'CF_CA';\n    options.destinationId = 'carowinds';\n\n    super(options);\n  }\n}\n\nexport class KingsIsland extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/New_York';\n    options.venueId = 'CF_KI';\n    options.destinationId = 'kingsisland';\n\n    super(options);\n  }\n}\n\nexport class DorneyPark extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/New_York';\n    options.venueId = 'CF_DP';\n    options.destinationId = 'dorneypark';\n\n    super(options);\n  }\n}\n\nexport class KingsDominion extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/New_York';\n    options.venueId = 'CF_KD';\n    options.destinationId = 'kingsdominion';\n\n    super(options);\n  }\n}\n\nexport class MichigansAdventure extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Detroit';\n    options.venueId = 'CF_MA';\n    options.destinationId = 'michigansadventure';\n\n    super(options);\n  }\n}\n\nexport class ValleyFair extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Chicago';\n    options.venueId = 'CF_VF';\n    options.destinationId = 'valleyfair';\n\n    super(options);\n  }\n}\n\nexport class WorldsOfFun extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Chicago';\n    options.venueId = 'CF_WF';\n    options.destinationId = 'worldsoffun';\n\n    super(options);\n  }\n}\n",
+    "content": "// te2.io / te2.biz interface\n\nimport {Destination} from '../destination.js';\nimport {attractionType, statusType, queueType, tagType, scheduleType, entityType} from '../parkTypes.js';\nimport {URL} from 'url';\n\nexport class TE2Destination extends Destination {\n  constructor(options = {}) {\n    // venue ID\n    options.destinationId = options.destinationId || '';\n    options.venueId = options.venueId || '';\n    options.subdomain = options.subdomain || 'cf';\n    options.apidomain = options.apidomain || 'te2.biz';\n    options.apiuser = options.apiuser || '';\n    options.apipass = options.apipass || '';\n    options.rideTypes = options.rideTypes || ['Ride', 'Coasters', 'Family', 'ThrillRides', 'Kids', 'Rides & Attractions'];\n    options.diningTypes = options.diningTypes || ['Snacks', 'wpDining', 'Meals', 'Dining'];\n\n    options.configPrefixes = ['TE2'];\n\n    super(options);\n\n    if (!this.config.destinationId) throw new Error('Missing destinationId');\n    if (!this.config.venueId) throw new Error('Missing venueId');\n    if (!this.config.subdomain) throw new Error('Missing subdomain');\n    if (!this.config.apidomain) throw new Error('Missing apidomain');\n    if (!this.config.apiuser) throw new Error('Missing apiuser');\n    if (!this.config.apipass) throw new Error('Missing apipass');\n    if (!this.config.rideTypes) throw new Error('Missing rideTypes');\n\n    // construct our destination's API base URL from the configured pieces\n    this.config.apiBase = this.config.apiBase || `https://${this.config.subdomain}.${this.config.apidomain}`;\n\n    // authenticate all our requests\n    const baseURLHostname = new URL(this.config.apiBase).hostname;\n\n    this.http.injectForDomain({\n      hostname: baseURLHostname,\n    }, async (method, url, data, options) => {\n      // extract path from url\n      const path = new URL(url).pathname;\n\n      // add core headers\n      options.headers = {\n        ...options.headers,\n        'Content-Type': 'application/json',\n      };\n\n      // use username:password credentials for /rest/ requests\n      if (path.startsWith('/rest/')) {\n        options.headers = {\n          ...options.headers,\n          Authorization: `Basic ${Buffer.from(`${this.config.apiuser}:${this.config.apipass}`).toString('base64')}`,\n        };\n      }\n    });\n  }\n\n  /**\n   * Get current POI data status\n   * @returns {array<object>}\n   */\n  async getPOIStatus() {\n    '@cache|1';\n    const resp = await this.http('GET', `${this.config.apiBase}/rest/venue/${this.config.venueId}/poi/all/status`);\n    return resp.body;\n  }\n\n  /**\n   * Get the destination data from the API (name, location, etc.)\n   * @returns {object}\n   */\n  async getDestinationData() {\n    // cache for a day\n    '@cache|1440';\n    const resp = await this.http('GET', `${this.config.apiBase}/rest/venue/${this.config.venueId}`);\n    return resp.body;\n  }\n\n  /**\n   * Get park POI data\n   * @returns {array<object>}\n   */\n  async getPOIData() {\n    // cache for a day\n    '@cache|1440';\n    const resp = await this.http('GET', `${this.config.apiBase}/rest/venue/${this.config.venueId}/poi/all`);\n    return resp.body;\n  }\n\n  /**\n   * Fetch the POI category data for this destination\n   */\n  async _fetchCategories() {\n    '@cache|1440'; // cache for a day\n    const resp = await this.http('GET', `${this.config.apiBase}/rest/app/${this.config.venueId}/displayCategories`);\n    return resp.body;\n  }\n\n  /**\n   * Get categories from API based on the configured initial types\n   * @param {object} params\n   * @param {array<string>} params.initialTypes\n   * @returns {object} - {types: {string: string}, entities: {string: string}}\n   */\n  async _getParsedCategories({initialTypes}) {\n    const types = [].concat(...initialTypes);\n    // some categories just list the POIs that belong to it\n    const entities = [];\n\n    const categoryData = await this._fetchCategories();\n\n    categoryData.categories.forEach((cat) => {\n      if (types.indexOf(cat.label) >= 0) {\n        if (types.indexOf(cat.id) < 0) {\n          types.push(cat.id);\n        }\n        if (cat.poi) {\n          entities.push(...cat.poi);\n        }\n      }\n      if (cat.parent && types.indexOf(cat.parent) >= 0) {\n        if (types.indexOf(cat.id) < 0) {\n          types.push(cat.id);\n        }\n        if (cat.poi) {\n          entities.push(...cat.poi);\n        }\n      }\n    });\n\n    return {\n      types,\n      entities: entities.filter((x, idx) => {\n        // remove duplicates\n        return entities.indexOf(x) === idx;\n      }),\n    };\n  }\n\n  /**\n   * Get the type IDs for this destination's attractions\n   */\n  async getAttractionTypes() {\n    return await this._getParsedCategories({\n      initialTypes: this.config.rideTypes,\n    });\n  }\n\n  /**\n   * Get the type IDs for this destination's dining\n   */\n  async getDiningTypes() {\n    return await this._getParsedCategories({\n      initialTypes: this.config.diningTypes,\n    });\n  }\n\n  /**\n   * Helper function to build a basic entity document\n   * Useful to avoid copy/pasting\n   * @param {object} data \n   * @returns {object}\n   */\n  buildBaseEntityObject(data) {\n    const entity = Destination.prototype.buildBaseEntityObject.call(this, data);\n\n    if (data) {\n      // name\n      entity.name = data.name || data.label;\n\n      entity._id = data.id || undefined;\n\n      // entity location\n      if (data.location) {\n        if (data.location.lon) {\n          entity.location = {\n            longitude: data.location.lon,\n            latitude: data.location.lat,\n          };\n        }\n        if (data.location.center?.lon) {\n          entity.location = {\n            longitude: data.location.center.lon,\n            latitude: data.location.center.lat,\n          };\n        }\n      }\n    }\n\n    return entity;\n  }\n\n  /**\n   * Build the destination entity representing this destination\n   */\n  async buildDestinationEntity() {\n    const destinationData = await this.getDestinationData();\n    return {\n      ...this.buildBaseEntityObject(destinationData),\n      _id: `${this.config.destinationId}_destination`,\n      slug: this.config.destinationId,\n      entityType: entityType.destination,\n    };\n  }\n\n  /**\n   * Build the park entities for this destination\n   */\n  async buildParkEntities() {\n    const destinationData = await this.getDestinationData();\n    return [\n      {\n        ...this.buildBaseEntityObject(destinationData),\n        _id: this.config.destinationId,\n        _destinationId: `${this.config.destinationId}_destination`,\n        _parentId: `${this.config.destinationId}_destination`,\n        slug: `${this.config.destinationId}park`,\n        entityType: entityType.park,\n      }\n    ];\n  }\n\n  async _getFilteredEntities({types, entities}, data) {\n    const poi = await this.getPOIData();\n    return poi.filter((entry) => {\n      // filter by rideTypes\n      return types.indexOf(entry.type) >= 0 || entities.indexOf(entry.id) >= 0;\n    }).map((entry) => {\n      // build the entity\n      return {\n        ...this.buildBaseEntityObject(entry),\n        _destinationId: `${this.config.destinationId}_destination`,\n        _parentId: this.config.destinationId,\n        _parkId: this.config.destinationId,\n        ...data,\n      };\n    });\n  }\n\n  /**\n   * Build the attraction entities for this destination\n   */\n  async buildAttractionEntities() {\n    return await this._getFilteredEntities(\n      {\n        ...await this.getAttractionTypes(),\n      },\n      {\n        entityType: entityType.attraction,\n        attractionType: attractionType.ride,\n      }\n    );\n  }\n\n  /**\n   * Build the show entities for this destination\n   */\n  async buildShowEntities() {\n    return [];\n  }\n\n  /**\n   * Build the restaurant entities for this destination\n   */\n  async buildRestaurantEntities() {\n    return await this._getFilteredEntities(\n      {\n        ...await this.getDiningTypes(),\n      },\n      {\n        entityType: entityType.restaurant,\n      }\n    );\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async buildEntityLiveData() {\n    const statusData = await this.getPOIStatus();\n\n    return statusData.map((entry) => {\n      if (!entry.status || !entry.id) return null;\n\n      if (entry.id.indexOf('_STANDING_OFFER_BEACON') >= 0) {\n        return null;\n      }\n\n      const liveData = {\n        _id: entry.id,\n        status: statusType.closed,\n      };\n\n      if (!!entry.status.isOpen) {\n        liveData.status = statusType.operating;\n      }\n\n      if (entry.status.waitTime !== undefined) {\n        liveData.queue = {\n          [queueType.standBy]: {\n            waitTime: entry.status.waitTime,\n          },\n        };\n      }\n\n      return liveData;\n    }).filter((x) => !!x);\n  }\n\n  /**\n   * Get schedule data for this destination, with an optional number of days to fetch\n   * @param {object} [options]\n   * @param {number} [options.days] Number of days to fetch\n   * @returns {array<object>}\n   */\n  async _fetchScheduleData({days = 120} = {}) {\n    '@cache|1440'; // cache for a day\n    const resp = await this.http('GET', `${this.config.apiBase}/v2/venues/${this.config.venueId}/venue-hours?days=${days}`);\n    return resp.body;\n  }\n\n  /**\n   * Return schedule data for all scheduled entities in this destination\n   * Eg. parks\n   * @returns {array<object>}\n   */\n  async buildEntityScheduleData() {\n    const scheduleData = await this._fetchScheduleData();\n\n    const schedules = [];\n    scheduleData.days.forEach((x) => {\n      x.hours.forEach((hours) => {\n        if (x.label !== 'Park' && hours.status === 'CLOSED') return;\n\n        schedules.push({\n          date: x.date,\n          type: hours.label === 'Park' ? \"OPERATING\" : \"INFO\",\n          description: hours.label === 'Park' ? undefined : hours.label,\n          // bless you, API developer, for having the dates in a normal format\n          openingTime: hours.schedule.start,\n          closingTime: hours.schedule.end,\n        });\n      });\n    });\n\n    return [\n      {\n        _id: this.config.destinationId,\n        schedule: schedules,\n      }\n    ];\n  }\n}\n\nexport class CedarPoint extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/New_York';\n    options.venueId = 'CF_CP';\n    options.destinationId = 'centerpoint';\n\n    super(options);\n  }\n}\n\nexport class KnottsBerryFarm extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Los_Angeles';\n    options.venueId = 'CF_KBF';\n    options.destinationId = 'knottsberryfarm';\n\n    super(options);\n  }\n}\n\nexport class CaliforniasGreatAmerica extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Los_Angeles';\n    options.venueId = 'CF_GA';\n    options.destinationId = 'californiasgreatamerica';\n\n    super(options);\n  }\n}\n\nexport class CanadasWonderland extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Toronto';\n    options.venueId = 'CF_CW';\n    options.destinationId = 'canadaswonderland';\n\n    super(options);\n  }\n}\n\nexport class Carowinds extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/New_York';\n    options.venueId = 'CF_CA';\n    options.destinationId = 'carowinds';\n\n    super(options);\n  }\n}\n\nexport class KingsIsland extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/New_York';\n    options.venueId = 'CF_KI';\n    options.destinationId = 'kingsisland';\n\n    super(options);\n  }\n}\n\nexport class DorneyPark extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/New_York';\n    options.venueId = 'CF_DP';\n    options.destinationId = 'dorneypark';\n\n    super(options);\n  }\n}\n\nexport class KingsDominion extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/New_York';\n    options.venueId = 'CF_KD';\n    options.destinationId = 'kingsdominion';\n\n    super(options);\n  }\n}\n\nexport class MichigansAdventure extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Detroit';\n    options.venueId = 'CF_MA';\n    options.destinationId = 'michigansadventure';\n\n    super(options);\n  }\n}\n\nexport class ValleyFair extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Chicago';\n    options.venueId = 'CF_VF';\n    options.destinationId = 'valleyfair';\n\n    super(options);\n  }\n}\n\nexport class WorldsOfFun extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Chicago';\n    options.venueId = 'CF_WF';\n    options.destinationId = 'worldsoffun';\n\n    super(options);\n  }\n}\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/te2/te2.js",
     "access": "public",
@@ -11195,7 +11195,7 @@
     "longname": "lib/parks/te2/te2.js~TE2Destination#buildAttractionEntities",
     "access": "public",
     "description": "Build the attraction entities for this destination",
-    "lineNumber": 243,
+    "lineNumber": 244,
     "params": [],
     "return": {
       "types": [
@@ -11214,7 +11214,7 @@
     "longname": "lib/parks/te2/te2.js~TE2Destination#buildShowEntities",
     "access": "public",
     "description": "Build the show entities for this destination",
-    "lineNumber": 258,
+    "lineNumber": 259,
     "params": [],
     "return": {
       "types": [
@@ -11233,7 +11233,7 @@
     "longname": "lib/parks/te2/te2.js~TE2Destination#buildRestaurantEntities",
     "access": "public",
     "description": "Build the restaurant entities for this destination",
-    "lineNumber": 265,
+    "lineNumber": 266,
     "params": [],
     "return": {
       "types": [
@@ -11252,7 +11252,7 @@
     "longname": "lib/parks/te2/te2.js~TE2Destination#buildEntityLiveData",
     "access": "public",
     "description": "",
-    "lineNumber": 279,
+    "lineNumber": 280,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -11277,7 +11277,7 @@
     "longname": "lib/parks/te2/te2.js~TE2Destination#_fetchScheduleData",
     "access": "private",
     "description": "Get schedule data for this destination, with an optional number of days to fetch",
-    "lineNumber": 316,
+    "lineNumber": 317,
     "unknown": [
       {
         "tagName": "@returns",
@@ -11326,7 +11326,7 @@
     "longname": "lib/parks/te2/te2.js~TE2Destination#buildEntityScheduleData",
     "access": "public",
     "description": "Return schedule data for all scheduled entities in this destination<br />Eg. parks",
-    "lineNumber": 327,
+    "lineNumber": 328,
     "unknown": [
       {
         "tagName": "@returns",
@@ -11355,7 +11355,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
     "importStyle": "{CedarPoint}",
     "description": null,
-    "lineNumber": 355,
+    "lineNumber": 356,
     "undocument": true,
     "interface": false,
     "extends": [
@@ -11373,7 +11373,7 @@
     "longname": "lib/parks/te2/te2.js~CedarPoint#constructor",
     "access": "public",
     "description": null,
-    "lineNumber": 356,
+    "lineNumber": 357,
     "undocument": true
   },
   {
@@ -11388,7 +11388,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
     "importStyle": "{KnottsBerryFarm}",
     "description": null,
-    "lineNumber": 365,
+    "lineNumber": 366,
     "undocument": true,
     "interface": false,
     "extends": [
@@ -11406,7 +11406,7 @@
     "longname": "lib/parks/te2/te2.js~KnottsBerryFarm#constructor",
     "access": "public",
     "description": null,
-    "lineNumber": 366,
+    "lineNumber": 367,
     "undocument": true
   },
   {
@@ -11421,7 +11421,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
     "importStyle": "{CaliforniasGreatAmerica}",
     "description": null,
-    "lineNumber": 375,
+    "lineNumber": 376,
     "undocument": true,
     "interface": false,
     "extends": [
@@ -11439,7 +11439,7 @@
     "longname": "lib/parks/te2/te2.js~CaliforniasGreatAmerica#constructor",
     "access": "public",
     "description": null,
-    "lineNumber": 376,
+    "lineNumber": 377,
     "undocument": true
   },
   {
@@ -11454,7 +11454,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
     "importStyle": "{CanadasWonderland}",
     "description": null,
-    "lineNumber": 385,
+    "lineNumber": 386,
     "undocument": true,
     "interface": false,
     "extends": [
@@ -11472,7 +11472,7 @@
     "longname": "lib/parks/te2/te2.js~CanadasWonderland#constructor",
     "access": "public",
     "description": null,
-    "lineNumber": 386,
+    "lineNumber": 387,
     "undocument": true
   },
   {
@@ -11487,7 +11487,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
     "importStyle": "{Carowinds}",
     "description": null,
-    "lineNumber": 395,
+    "lineNumber": 396,
     "undocument": true,
     "interface": false,
     "extends": [
@@ -11505,7 +11505,7 @@
     "longname": "lib/parks/te2/te2.js~Carowinds#constructor",
     "access": "public",
     "description": null,
-    "lineNumber": 396,
+    "lineNumber": 397,
     "undocument": true
   },
   {
@@ -11520,7 +11520,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
     "importStyle": "{KingsIsland}",
     "description": null,
-    "lineNumber": 405,
+    "lineNumber": 406,
     "undocument": true,
     "interface": false,
     "extends": [
@@ -11538,7 +11538,7 @@
     "longname": "lib/parks/te2/te2.js~KingsIsland#constructor",
     "access": "public",
     "description": null,
-    "lineNumber": 406,
+    "lineNumber": 407,
     "undocument": true
   },
   {
@@ -11553,7 +11553,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
     "importStyle": "{DorneyPark}",
     "description": null,
-    "lineNumber": 415,
+    "lineNumber": 416,
     "undocument": true,
     "interface": false,
     "extends": [
@@ -11571,7 +11571,7 @@
     "longname": "lib/parks/te2/te2.js~DorneyPark#constructor",
     "access": "public",
     "description": null,
-    "lineNumber": 416,
+    "lineNumber": 417,
     "undocument": true
   },
   {
@@ -11586,7 +11586,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
     "importStyle": "{KingsDominion}",
     "description": null,
-    "lineNumber": 425,
+    "lineNumber": 426,
     "undocument": true,
     "interface": false,
     "extends": [
@@ -11604,7 +11604,7 @@
     "longname": "lib/parks/te2/te2.js~KingsDominion#constructor",
     "access": "public",
     "description": null,
-    "lineNumber": 426,
+    "lineNumber": 427,
     "undocument": true
   },
   {
@@ -11619,7 +11619,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
     "importStyle": "{MichigansAdventure}",
     "description": null,
-    "lineNumber": 435,
+    "lineNumber": 436,
     "undocument": true,
     "interface": false,
     "extends": [
@@ -11637,7 +11637,7 @@
     "longname": "lib/parks/te2/te2.js~MichigansAdventure#constructor",
     "access": "public",
     "description": null,
-    "lineNumber": 436,
+    "lineNumber": 437,
     "undocument": true
   },
   {
@@ -11652,7 +11652,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
     "importStyle": "{ValleyFair}",
     "description": null,
-    "lineNumber": 445,
+    "lineNumber": 446,
     "undocument": true,
     "interface": false,
     "extends": [
@@ -11670,7 +11670,7 @@
     "longname": "lib/parks/te2/te2.js~ValleyFair#constructor",
     "access": "public",
     "description": null,
-    "lineNumber": 446,
+    "lineNumber": 447,
     "undocument": true
   },
   {
@@ -11685,7 +11685,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
     "importStyle": "{WorldsOfFun}",
     "description": null,
-    "lineNumber": 455,
+    "lineNumber": 456,
     "undocument": true,
     "interface": false,
     "extends": [
@@ -11703,7 +11703,7 @@
     "longname": "lib/parks/te2/te2.js~WorldsOfFun#constructor",
     "access": "public",
     "description": null,
-    "lineNumber": 456,
+    "lineNumber": 457,
     "undocument": true
   },
   {
