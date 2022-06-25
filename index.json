@@ -2565,7 +2565,7 @@
     "__docId__": 125,
     "kind": "file",
     "name": "lib/index.js",
-    "content": "import Efteling from './parks/efteling/efteling.js';\nimport {\n  WaltDisneyWorldResort,\n  DisneylandResort,\n  HongKongDisneyland,\n} from './parks/wdw/waltdisneyworldbase.js';\nimport {\n  DisneylandParis,\n} from './parks/dlp/disneylandparis.js';\nimport {\n  ShanghaiDisneylandResort,\n} from './parks/shdr/shanghaidisneyresort.js';\nimport {\n  TokyoDisneyResort,\n} from './parks/tdr/tokyodisneyresort.js';\nimport {\n  // destinations\n  UniversalStudios,\n  UniversalOrlando,\n} from './parks/universal/universal.js';\nimport {\n  // destinations\n  EuropaPark,\n} from './parks/europa/europapark.js';\nimport {\n  ParcAsterix\n} from './parks/parcasterix/parcasterix.js';\nimport {\n  Phantasialand,\n} from './parks/phantasialand/phantasialand.js';\nimport {\n  SeaworldOrlando,\n  SeaworldSanAntonio,\n  SeaworldSanDiego,\n  BuschGardensTampa,\n  BuschGardensWilliamsburg,\n} from './parks/seaworld/seaworld.js';\nimport {\n  AltonTowers,\n  ThorpePark,\n  ChessingtonWorldOfAdventures,\n  LegolandWindsor,\n  LegolandOrlando,\n  Gardaland,\n  HeidePark,\n} from './parks/attractionsio/attractionsio.js';\nimport {\n  PortAventuraWorld,\n} from './parks/portaventura/portaventura.js';\nimport {\n  Toverland,\n} from './parks/toverland/toverland.js';\nimport {\n  Dollywood,\n  SilverDollarCity,\n} from './parks/herschend/herschendparks.js';\nimport {\n  Plopsaland,\n  HolidayPark,\n} from './parks/plopsaland/plopsa.js';\nimport {\n  Liseberg,\n} from './parks/liseberg/liseberg.js';\n\nexport default {\n  destinations: {\n    WaltDisneyWorldResort,\n    DisneylandResort,\n    DisneylandParis,\n    TokyoDisneyResort,\n    HongKongDisneyland,\n    ShanghaiDisneylandResort,\n    UniversalStudios,\n    UniversalOrlando,\n    EuropaPark,\n    Efteling,\n    Phantasialand,\n    SeaworldOrlando,\n    SeaworldSanAntonio,\n    SeaworldSanDiego,\n    BuschGardensTampa,\n    BuschGardensWilliamsburg,\n    AltonTowers,\n    ThorpePark,\n    ChessingtonWorldOfAdventures,\n    LegolandWindsor,\n    LegolandOrlando,\n    Gardaland,\n    PortAventuraWorld,\n    ParcAsterix,\n    Toverland,\n    Dollywood,\n    SilverDollarCity,\n    Plopsaland,\n    HolidayPark,\n    HeidePark,\n    Liseberg,\n  },\n};\n",
+    "content": "import Efteling from './parks/efteling/efteling.js';\nimport {\n  WaltDisneyWorldResort,\n  DisneylandResort,\n  HongKongDisneyland,\n} from './parks/wdw/waltdisneyworldbase.js';\nimport {\n  DisneylandParis,\n} from './parks/dlp/disneylandparis.js';\nimport {\n  ShanghaiDisneylandResort,\n} from './parks/shdr/shanghaidisneyresort.js';\nimport {\n  TokyoDisneyResort,\n} from './parks/tdr/tokyodisneyresort.js';\nimport {\n  // destinations\n  UniversalStudios,\n  UniversalOrlando,\n} from './parks/universal/universal.js';\nimport {\n  // destinations\n  EuropaPark,\n} from './parks/europa/europapark.js';\nimport {\n  ParcAsterix\n} from './parks/parcasterix/parcasterix.js';\nimport {\n  Phantasialand,\n} from './parks/phantasialand/phantasialand.js';\nimport {\n  SeaworldOrlando,\n  SeaworldSanAntonio,\n  SeaworldSanDiego,\n  BuschGardensTampa,\n  BuschGardensWilliamsburg,\n} from './parks/seaworld/seaworld.js';\nimport {\n  AltonTowers,\n  ThorpePark,\n  ChessingtonWorldOfAdventures,\n  LegolandWindsor,\n  LegolandOrlando,\n  Gardaland,\n  HeidePark,\n} from './parks/attractionsio/attractionsio.js';\nimport {\n  PortAventuraWorld,\n} from './parks/portaventura/portaventura.js';\nimport {\n  Toverland,\n} from './parks/toverland/toverland.js';\nimport {\n  Dollywood,\n  SilverDollarCity,\n} from './parks/herschend/herschendparks.js';\nimport {\n  Plopsaland,\n  HolidayPark,\n} from './parks/plopsaland/plopsa.js';\nimport {\n  Liseberg,\n} from './parks/liseberg/liseberg.js';\nimport {\n  CedarPoint,\n  KnottsBerryFarm,\n  CaliforniasGreatAmerica,\n  CanadasWonderland,\n  Carowinds,\n  KingsIsland,\n  DorneyPark,\n  KingsDominion,\n  MichigansAdventure,\n  ValleyFair,\n  WorldsOfFun,\n} from './parks/te2/te2.js';\n\nexport default {\n  destinations: {\n    WaltDisneyWorldResort,\n    DisneylandResort,\n    DisneylandParis,\n    TokyoDisneyResort,\n    HongKongDisneyland,\n    ShanghaiDisneylandResort,\n    UniversalStudios,\n    UniversalOrlando,\n    EuropaPark,\n    Efteling,\n    Phantasialand,\n    SeaworldOrlando,\n    SeaworldSanAntonio,\n    SeaworldSanDiego,\n    BuschGardensTampa,\n    BuschGardensWilliamsburg,\n    AltonTowers,\n    ThorpePark,\n    ChessingtonWorldOfAdventures,\n    LegolandWindsor,\n    LegolandOrlando,\n    Gardaland,\n    PortAventuraWorld,\n    ParcAsterix,\n    Toverland,\n    Dollywood,\n    SilverDollarCity,\n    Plopsaland,\n    HolidayPark,\n    HeidePark,\n    Liseberg,\n    CedarPoint,\n    KnottsBerryFarm,\n    CaliforniasGreatAmerica,\n    CanadasWonderland,\n    Carowinds,\n    KingsIsland,\n    DorneyPark,\n    KingsDominion,\n    MichigansAdventure,\n    ValleyFair,\n    WorldsOfFun,\n  },\n};\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/index.js",
     "access": "public",
@@ -6552,7 +6552,7 @@
     "__docId__": 314,
     "kind": "file",
     "name": "lib/parks/http.js",
-    "content": "import HarWriter from '../har.js';\nimport randomUseragent from 'random-useragent';\nimport moment from 'moment-timezone';\nimport sift from 'sift';\nimport needle from 'needle';\nimport promiseRetry from 'promise-retry';\n\nlet overrideFunc = null;\n/**\n * Set an override function to use for HTTP requests\n * Accepts (method, URL, data, options)\n * @param {function} fn\n */\nexport function setOverrideFunction(fn) {\n  overrideFunc = fn;\n}\n\n/**\n * Generate a random Android user agent for making network requests\n * @return {string}\n */\nexport function generateRandomAndroidUseragent() {\n  return randomUseragent.getRandom((ua) => {\n    return (ua.osName === 'Android');\n  });\n}\n\n// start our har writer (if debugging)\nconst harWriter = process.env['THEMEPARKS_HAR'] ?\n  new HarWriter({filename: `${process.env['THEMEPARKS_HAR']}.har`}) :\n  null;\n\n/**\n   * Write a HTTP response to HAR file for debugging\n   * @param {*} method\n   * @param {*} url\n   * @param {*} data\n   * @param {*} options\n   * @param {*} resp\n   * @param {*} startTime\n   * @param {*} timeTaken\n   * @private\n   */\nasync function writeToHAR(method, url, data, options, resp, startTime, timeTaken) {\n  const objToArr = (obj) => {\n    return Object.keys(obj).map((header) => {\n      return {name: header, value: obj[header].toString()};\n    });\n  };\n\n  const entry = {\n    startedDateTime: startTime,\n    time: timeTaken,\n    request: {\n      method: method,\n      url: url,\n      httpVersion: `HTTP/${resp.httpVersion}`, // this is actually the response, TODO\n      cookies: [],\n      headers: objToArr(options.headers), // not the actual headers needle sends - TODO, how to get these?\n      queryString: method === 'GET' ? objToArr(data) : [], // TODO - parse from needle's .path\n      postData: {\n        mimeType: options.json ? 'application/json' : (options.headers['content-type'] || ''),\n        params: method !== 'GET' ? [] : [],\n        text: '',\n      },\n      headersSize: -1,\n      bodySize: -1,\n    },\n    response: {\n      status: resp.statusCode,\n      statusText: resp.statusMessage,\n      httpVersion: `HTTP/${resp.httpVersion}`,\n      cookies: [],\n      headers: objToArr(resp.headers),\n      content: {\n        size: resp.raw.length || -1,\n        mimeType: resp.headers['content-type'],\n        text: resp.raw.toString('base64'),\n        encoding: 'base64',\n      },\n      redirectURL: '',\n      headersSize: -1,\n      bodySize: -1,\n    },\n    cache: {},\n    timings: {\n      send: -1,\n      wait: -1,\n      receive: -1,\n    },\n  };\n  await harWriter.recordEntry(entry);\n}\n\n/**\n * HTTP helper with injection\n * @return {*}\n */\nexport const HTTP = (function() {\n  this._httpInjections = [];\n  this._httpResponseInjections = [];\n  this.useragent = generateRandomAndroidUseragent();\n\n  /**\n   * Helper function to make an HTTP request for this park\n   * Parks can automatically add in authentication headers etc. to requests sent to this function\n   * @param {string} method HTTP method to use (GET,POST,DELETE, etc)\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options = {}] Object containing needle-compatible HTTP options\n   */\n  const mainFunction = async (method, url, data, options = {}) => {\n    // default to GET if we only have one argument\n    if (url === undefined && data === undefined) {\n      url = method;\n      method = 'GET';\n    }\n\n    // always have a headers array\n    if (!options.headers) {\n      options.headers = {};\n    }\n\n    // default to accepting compressed data\n    options.compressed = options.compressed === undefined ? true : options.compressed;\n\n    // 10 seconds default timeout opening response\n    options.response_timeout = options.response_timeout || 10000;\n    // 30 seconds default timeout for reading data (for large data streams)\n    options.read_timeout = options.read_timeout || 30000;\n\n    // inject custom standard user agent (if we have one)\n    //  do this before any custom injections so parks can optionally override this for each domain\n    if (this.useragent && !options.headers['user-agent']) {\n      options.headers['user-agent'] = this.useragent;\n    }\n\n    // check any hostname injections we have setup\n    const urlObj = new URL(url);\n    const urlFilter = {\n      protocol: urlObj.protocol,\n      host: urlObj.host,\n      hostname: urlObj.hostname,\n      pathname: urlObj.pathname,\n      search: urlObj.search,\n      hash: urlObj.hash,\n    };\n\n    // wrap our needle call in a retry\n    return await promiseRetry({\n      retries: options.retries === undefined ? 3 : options.retries,\n    }, async (retryFn) => {\n      // make sure we run initial injections on each retry\n      for (let injectionIDX = 0; injectionIDX < this._httpInjections.length; injectionIDX++) {\n        const injection = this._httpInjections[injectionIDX];\n\n        // check if the domain matches\n        if (injection.filter(urlFilter)) {\n          const injectionResp = await injection.func(method, url, data, options);\n          if (injectionResp) {\n            url = injectionResp.url || url;\n            method = injectionResp.method || method;\n            data = injectionResp.data || data;\n            options = injectionResp.options || options;\n          }\n        }\n      }\n\n      // record some stats for the optional HAR Writer\n      const startMs = +new Date();\n      const startTime = moment(startMs).toISOString();\n\n      // optionally override the HTTP function to use\n      const httpFunc = overrideFunc ? overrideFunc : needle;\n\n      return httpFunc(method, url, data, options).then(async (resp) => {\n        // intercept response to write to our .har file\n        if (harWriter) {\n          await writeToHAR(method, url, data, options, resp, startTime, (+new Date()) - startMs);\n        }\n\n        // call any response injections\n        for (let injectionIDX = 0; injectionIDX < this._httpResponseInjections.length; injectionIDX++) {\n          const injection = this._httpResponseInjections[injectionIDX];\n\n          // check if the domain matches\n          // (reuse urlFilter from the incoming injections)\n          if (injection.filter(urlFilter)) {\n            resp = await injection.func(resp);\n          }\n        }\n\n        // if our response if now undefined, retry our request\n        if (resp === undefined) {\n          return retryFn();\n        }\n\n        // if we got an error code, retry our request\n        if (!options.ignoreErrors && resp.statusCode >= 400) {\n          return retryFn();\n        }\n\n        // force response to JSON object if options.json is set\n        if (options.json && resp.body && typeof resp.body === 'string') {\n          try {\n            resp.body = JSON.parse(resp.body);\n          } catch (e) {\n            // ignore\n          }\n        }\n\n        return resp;\n      });\n    });\n  };\n\n  /**\n   * Register a new injection for a specific domain\n   * @param {object} filter Mongo-type query to use to match a URL\n   * @param {function} func Function to call with needle request to inject extra data into.\n   * Function will take arguments: (method, URL, data, options)\n   */\n  mainFunction.injectForDomain = (filter, func) => {\n    // add to our array of injections, this is processing by HTTP()\n    this._httpInjections.push({\n      filter: sift(filter),\n      func,\n    });\n  };\n\n  /**\n   * Register a new response injection for a specific domain\n   * @param {object} filter Mongo-type query to use to match a URL\n   * @param {function} func Function to call with needle response object to make changes\n   * Function will take arguments: (response)\n   * Function *must* return the response object back, or undefined if you want to force a retry\n   */\n  mainFunction.injectForDomainResponse = (filter, func) => {\n    this._httpResponseInjections.push({\n      filter: sift(filter),\n      func,\n    });\n  };\n\n  return mainFunction;\n});\n\n\nexport default HTTP;\n",
+    "content": "import HarWriter from '../har.js';\nimport randomUseragent from 'random-useragent';\nimport moment from 'moment-timezone';\nimport sift from 'sift';\nimport needle from 'needle';\nimport promiseRetry from 'promise-retry';\n\nlet overrideFunc = null;\n/**\n * Set an override function to use for HTTP requests\n * Accepts (method, URL, data, options)\n * @param {function} fn\n */\nexport function setOverrideFunction(fn) {\n  overrideFunc = fn;\n}\n\n/**\n * Generate a random Android user agent for making network requests\n * @return {string}\n */\nexport function generateRandomAndroidUseragent() {\n  return randomUseragent.getRandom((ua) => {\n    return (ua.osName === 'Android');\n  });\n}\n\n// start our har writer (if debugging)\nconst harWriter = process.env['THEMEPARKS_HAR'] ?\n  new HarWriter({filename: `${process.env['THEMEPARKS_HAR']}.har`}) :\n  null;\n\n/**\n   * Write a HTTP response to HAR file for debugging\n   * @param {*} method\n   * @param {*} url\n   * @param {*} data\n   * @param {*} options\n   * @param {*} resp\n   * @param {*} startTime\n   * @param {*} timeTaken\n   * @private\n   */\nasync function writeToHAR(method, url, data, options, resp, startTime, timeTaken) {\n  const objToArr = (obj) => {\n    return Object.keys(obj).map((header) => {\n      return {name: header, value: obj[header].toString()};\n    });\n  };\n\n  const entry = {\n    startedDateTime: startTime,\n    time: timeTaken,\n    request: {\n      method: method,\n      url: url,\n      httpVersion: `HTTP/${resp.httpVersion}`, // this is actually the response, TODO\n      cookies: [],\n      headers: objToArr(options.headers), // not the actual headers needle sends - TODO, how to get these?\n      queryString: method === 'GET' ? objToArr(data) : [], // TODO - parse from needle's .path\n      postData: {\n        mimeType: options.json ? 'application/json' : (options.headers['content-type'] || ''),\n        params: method !== 'GET' ? [] : [],\n        text: '',\n      },\n      headersSize: -1,\n      bodySize: -1,\n    },\n    response: {\n      status: resp.statusCode,\n      statusText: resp.statusMessage,\n      httpVersion: `HTTP/${resp.httpVersion}`,\n      cookies: [],\n      headers: objToArr(resp.headers),\n      content: {\n        size: resp.raw.length || -1,\n        mimeType: resp.headers['content-type'],\n        text: resp.raw.toString('base64'),\n        encoding: 'base64',\n      },\n      redirectURL: '',\n      headersSize: -1,\n      bodySize: -1,\n    },\n    cache: {},\n    timings: {\n      send: -1,\n      wait: -1,\n      receive: -1,\n    },\n  };\n  await harWriter.recordEntry(entry);\n}\n\n/**\n * HTTP helper with injection\n * @return {*}\n */\nexport const HTTP = (function() {\n  this._httpInjections = [];\n  this._httpResponseInjections = [];\n  this.useragent = generateRandomAndroidUseragent();\n\n  /**\n   * Helper function to make an HTTP request for this park\n   * Parks can automatically add in authentication headers etc. to requests sent to this function\n   * @param {string} method HTTP method to use (GET,POST,DELETE, etc)\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options = {}] Object containing needle-compatible HTTP options\n   */\n  const mainFunction = async (method, url, data, options = {}) => {\n    // default to GET if we only have one argument\n    if (url === undefined && data === undefined) {\n      url = method;\n      method = 'GET';\n    }\n\n    // always have a headers array\n    if (!options.headers) {\n      options.headers = {};\n    }\n\n    // default to accepting compressed data\n    options.compressed = options.compressed === undefined ? true : options.compressed;\n\n    // 10 seconds default timeout opening response\n    options.response_timeout = options.response_timeout || 10000;\n    // 30 seconds default timeout for reading data (for large data streams)\n    options.read_timeout = options.read_timeout || 30000;\n\n    // inject custom standard user agent (if we have one)\n    //  do this before any custom injections so parks can optionally override this for each domain\n    if (this.useragent && !options.headers['user-agent']) {\n      options.headers['user-agent'] = this.useragent;\n    }\n\n    if (!options.headers['user-agent'] && process.env.DEFAULT_USER_AGENT) {\n      // if no user-agent supplied, set a default one from the env\n      options.headers['user-agent'] = process.env.DEFAULT_USER_AGENT;\n    }\n\n    // check any hostname injections we have setup\n    const urlObj = new URL(url);\n    const urlFilter = {\n      protocol: urlObj.protocol,\n      host: urlObj.host,\n      hostname: urlObj.hostname,\n      pathname: urlObj.pathname,\n      search: urlObj.search,\n      hash: urlObj.hash,\n    };\n\n    // wrap our needle call in a retry\n    return await promiseRetry({\n      retries: options.retries === undefined ? 3 : options.retries,\n    }, async (retryFn) => {\n      // make sure we run initial injections on each retry\n      for (let injectionIDX = 0; injectionIDX < this._httpInjections.length; injectionIDX++) {\n        const injection = this._httpInjections[injectionIDX];\n\n        // check if the domain matches\n        if (injection.filter(urlFilter)) {\n          const injectionResp = await injection.func(method, url, data, options);\n          if (injectionResp) {\n            url = injectionResp.url || url;\n            method = injectionResp.method || method;\n            data = injectionResp.data || data;\n            options = injectionResp.options || options;\n          }\n        }\n      }\n\n      // record some stats for the optional HAR Writer\n      const startMs = +new Date();\n      const startTime = moment(startMs).toISOString();\n\n      // optionally override the HTTP function to use\n      const httpFunc = overrideFunc ? overrideFunc : needle;\n\n      return httpFunc(method, url, data, options).then(async (resp) => {\n        // intercept response to write to our .har file\n        if (harWriter) {\n          await writeToHAR(method, url, data, options, resp, startTime, (+new Date()) - startMs);\n        }\n\n        // call any response injections\n        for (let injectionIDX = 0; injectionIDX < this._httpResponseInjections.length; injectionIDX++) {\n          const injection = this._httpResponseInjections[injectionIDX];\n\n          // check if the domain matches\n          // (reuse urlFilter from the incoming injections)\n          if (injection.filter(urlFilter)) {\n            resp = await injection.func(resp);\n          }\n        }\n\n        // if our response if now undefined, retry our request\n        if (resp === undefined) {\n          return retryFn();\n        }\n\n        // if we got an error code, retry our request\n        if (!options.ignoreErrors && resp.statusCode >= 400) {\n          return retryFn();\n        }\n\n        // force response to JSON object if options.json is set\n        if (options.json && resp.body && typeof resp.body === 'string') {\n          try {\n            resp.body = JSON.parse(resp.body);\n          } catch (e) {\n            // ignore\n          }\n        }\n\n        return resp;\n      });\n    });\n  };\n\n  /**\n   * Register a new injection for a specific domain\n   * @param {object} filter Mongo-type query to use to match a URL\n   * @param {function} func Function to call with needle request to inject extra data into.\n   * Function will take arguments: (method, URL, data, options)\n   */\n  mainFunction.injectForDomain = (filter, func) => {\n    // add to our array of injections, this is processing by HTTP()\n    this._httpInjections.push({\n      filter: sift(filter),\n      func,\n    });\n  };\n\n  /**\n   * Register a new response injection for a specific domain\n   * @param {object} filter Mongo-type query to use to match a URL\n   * @param {function} func Function to call with needle response object to make changes\n   * Function will take arguments: (response)\n   * Function *must* return the response object back, or undefined if you want to force a retry\n   */\n  mainFunction.injectForDomainResponse = (filter, func) => {\n    this._httpResponseInjections.push({\n      filter: sift(filter),\n      func,\n    });\n  };\n\n  return mainFunction;\n});\n\n\nexport default HTTP;\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/http.js",
     "access": "public",
@@ -10838,6 +10838,877 @@
   {
     "__docId__": 501,
     "kind": "file",
+    "name": "lib/parks/te2/te2.js",
+    "content": "// te2.io / te2.biz interface\n\nimport {Destination} from '../destination.js';\nimport {attractionType, statusType, queueType, tagType, scheduleType, entityType} from '../parkTypes.js';\nimport {URL} from 'url';\n\nexport class TE2Destination extends Destination {\n  constructor(options = {}) {\n    // venue ID\n    options.destinationId = options.destinationId || '';\n    options.venueId = options.venueId || '';\n    options.subdomain = options.subdomain || 'cf';\n    options.apidomain = options.apidomain || 'te2.biz';\n    options.apiuser = options.apiuser || '';\n    options.apipass = options.apipass || '';\n    options.rideTypes = options.rideTypes || ['Ride', 'Coasters', 'Family', 'ThrillRides', 'Kids', 'Rides & Attractions'];\n    options.diningTypes = options.diningTypes || ['Snacks', 'wpDining', 'Meals', 'Dining'];\n\n    options.configPrefixes = ['TE2'];\n\n    super(options);\n\n    if (!this.config.destinationId) throw new Error('Missing destinationId');\n    if (!this.config.venueId) throw new Error('Missing venueId');\n    if (!this.config.subdomain) throw new Error('Missing subdomain');\n    if (!this.config.apidomain) throw new Error('Missing apidomain');\n    if (!this.config.apiuser) throw new Error('Missing apiuser');\n    if (!this.config.apipass) throw new Error('Missing apipass');\n    if (!this.config.rideTypes) throw new Error('Missing rideTypes');\n\n    // construct our destination's API base URL from the configured pieces\n    this.config.apiBase = this.config.apiBase || `https://${this.config.subdomain}.${this.config.apidomain}`;\n\n    // authenticate all our requests\n    const baseURLHostname = new URL(this.config.apiBase).hostname;\n\n    this.http.injectForDomain({\n      hostname: baseURLHostname,\n    }, async (method, url, data, options) => {\n      // extract path from url\n      const path = new URL(url).pathname;\n\n      // add core headers\n      options.headers = {\n        ...options.headers,\n        'Content-Type': 'application/json',\n      };\n\n      // use username:password credentials for /rest/ requests\n      if (path.startsWith('/rest/')) {\n        options.headers = {\n          ...options.headers,\n          Authorization: `Basic ${Buffer.from(`${this.config.apiuser}:${this.config.apipass}`).toString('base64')}`,\n        };\n      }\n    });\n  }\n\n  /**\n   * Get current POI data status\n   * @returns {array<object>}\n   */\n  async getPOIStatus() {\n    '@cache|1';\n    const resp = await this.http('GET', `${this.config.apiBase}/rest/venue/${this.config.venueId}/poi/all/status`);\n    return resp.body;\n  }\n\n  /**\n   * Get the destination data from the API (name, location, etc.)\n   * @returns {object}\n   */\n  async getDestinationData() {\n    // cache for a day\n    '@cache|1440';\n    const resp = await this.http('GET', `${this.config.apiBase}/rest/venue/${this.config.venueId}`);\n    return resp.body;\n  }\n\n  /**\n   * Get park POI data\n   * @returns {array<object>}\n   */\n  async getPOIData() {\n    // cache for a day\n    '@cache|1440';\n    const resp = await this.http('GET', `${this.config.apiBase}/rest/venue/${this.config.venueId}/poi/all`);\n    return resp.body;\n  }\n\n  /**\n   * Fetch the POI category data for this destination\n   */\n  async _fetchCategories() {\n    '@cache|1440'; // cache for a day\n    const resp = await this.http('GET', `${this.config.apiBase}/rest/app/${this.config.venueId}/displayCategories`);\n    return resp.body;\n  }\n\n  /**\n   * Get categories from API based on the configured initial types\n   * @param {object} params\n   * @param {array<string>} params.initialTypes\n   * @returns {object} - {types: {string: string}, entities: {string: string}}\n   */\n  async _getParsedCategories({initialTypes}) {\n    const types = [].concat(...initialTypes);\n    // some categories just list the POIs that belong to it\n    const entities = [];\n\n    const categoryData = await this._fetchCategories();\n\n    categoryData.categories.forEach((cat) => {\n      if (types.indexOf(cat.label) >= 0) {\n        if (types.indexOf(cat.id) < 0) {\n          types.push(cat.id);\n        }\n        if (cat.poi) {\n          entities.push(...cat.poi);\n        }\n      }\n      if (cat.parent && types.indexOf(cat.parent) >= 0) {\n        if (types.indexOf(cat.id) < 0) {\n          types.push(cat.id);\n        }\n        if (cat.poi) {\n          entities.push(...cat.poi);\n        }\n      }\n    });\n\n    return {\n      types,\n      entities: entities.filter((x, idx) => {\n        // remove duplicates\n        return entities.indexOf(x) === idx;\n      }),\n    };\n  }\n\n  /**\n   * Get the type IDs for this destination's attractions\n   */\n  async getAttractionTypes() {\n    return await this._getParsedCategories({\n      initialTypes: this.config.rideTypes,\n    });\n  }\n\n  /**\n   * Get the type IDs for this destination's dining\n   */\n  async getDiningTypes() {\n    return await this._getParsedCategories({\n      initialTypes: this.config.diningTypes,\n    });\n  }\n\n  /**\n   * Helper function to build a basic entity document\n   * Useful to avoid copy/pasting\n   * @param {object} data \n   * @returns {object}\n   */\n  buildBaseEntityObject(data) {\n    const entity = Destination.prototype.buildBaseEntityObject.call(this, data);\n\n    if (data) {\n      // name\n      entity.name = data.name || data.label;\n\n      entity._id = data.id || undefined;\n\n      // entity location\n      if (data.location) {\n        if (data.location.lon) {\n          entity.location = {\n            longitude: data.location.lon,\n            latitude: data.location.lat,\n          };\n        }\n        if (data.location.center?.lon) {\n          entity.location = {\n            longitude: data.location.center.lon,\n            latitude: data.location.center.lat,\n          };\n        }\n      }\n    }\n\n    return entity;\n  }\n\n  /**\n   * Build the destination entity representing this destination\n   */\n  async buildDestinationEntity() {\n    const destinationData = await this.getDestinationData();\n    return {\n      ...this.buildBaseEntityObject(destinationData),\n      _id: `${this.config.destinationId}_destination`,\n      slug: this.config.destinationId,\n      entityType: entityType.destination,\n    };\n  }\n\n  /**\n   * Build the park entities for this destination\n   */\n  async buildParkEntities() {\n    const destinationData = await this.getDestinationData();\n    return [\n      {\n        ...this.buildBaseEntityObject(destinationData),\n        _id: this.config.destinationId,\n        _destinationId: `${this.config.destinationId}_destination`,\n        _parentId: `${this.config.destinationId}_destination`,\n        slug: `${this.config.destinationId}park`,\n        entityType: entityType.park,\n      }\n    ];\n  }\n\n  async _getFilteredEntities({types, entities}, data) {\n    const poi = await this.getPOIData();\n    return poi.filter((entry) => {\n      // filter by rideTypes\n      return types.indexOf(entry.type) >= 0 || entities.indexOf(entry.id) >= 0;\n    }).map((entry) => {\n      // build the entity\n      return {\n        ...this.buildBaseEntityObject(entry),\n        _destinationId: `${this.config.destinationId}_destination`,\n        _parentId: this.config.destinationId,\n        ...data,\n      };\n    });\n  }\n\n  /**\n   * Build the attraction entities for this destination\n   */\n  async buildAttractionEntities() {\n    return await this._getFilteredEntities(\n      {\n        ...await this.getAttractionTypes(),\n      },\n      {\n        entityType: entityType.attraction,\n        attractionType: attractionType.ride,\n      }\n    );\n  }\n\n  /**\n   * Build the show entities for this destination\n   */\n  async buildShowEntities() {\n    return [];\n  }\n\n  /**\n   * Build the restaurant entities for this destination\n   */\n  async buildRestaurantEntities() {\n    return await this._getFilteredEntities(\n      {\n        ...await this.getDiningTypes(),\n      },\n      {\n        entityType: entityType.restaurant,\n      }\n    );\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async buildEntityLiveData() {\n    const statusData = await this.getPOIStatus();\n\n    return statusData.map((entry) => {\n      if (!entry.status || !entry.id) return null;\n\n      if (entry.id.indexOf('_STANDING_OFFER_BEACON') >= 0) {\n        return null;\n      }\n\n      const liveData = {\n        _id: entry.id,\n        status: statusType.closed,\n      };\n\n      if (!!entry.status.isOpen) {\n        liveData.status = statusType.operating;\n      }\n\n      if (entry.status.waitTime !== undefined) {\n        liveData.queue = {\n          [queueType.standBy]: {\n            waitTime: entry.status.waitTime,\n          },\n        };\n      }\n\n      return liveData;\n    }).filter((x) => !!x);\n  }\n\n  /**\n   * Get schedule data for this destination, with an optional number of days to fetch\n   * @param {object} [options]\n   * @param {number} [options.days] Number of days to fetch\n   * @returns {array<object>}\n   */\n  async _fetchScheduleData({days = 120} = {}) {\n    '@cache|1440'; // cache for a day\n    const resp = await this.http('GET', `${this.config.apiBase}/v2/venues/${this.config.venueId}/venue-hours?days=${days}`);\n    return resp.body;\n  }\n\n  /**\n   * Return schedule data for all scheduled entities in this destination\n   * Eg. parks\n   * @returns {array<object>}\n   */\n  async buildEntityScheduleData() {\n    const scheduleData = await this._fetchScheduleData();\n\n    const schedules = [];\n    scheduleData.days.forEach((x) => {\n      x.hours.forEach((hours) => {\n        if (x.label !== 'Park' && hours.status === 'CLOSED') return;\n\n        schedules.push({\n          date: x.date,\n          type: hours.label === 'Park' ? \"OPERATING\" : \"INFO\",\n          description: hours.label === 'Park' ? undefined : hours.label,\n          // bless you, API developer, for having the dates in a normal format\n          openingTime: hours.schedule.start,\n          closingTime: hours.schedule.end,\n        });\n      });\n    });\n\n    return [\n      {\n        _id: this.config.destinationId,\n        schedule: schedules,\n      }\n    ];\n  }\n}\n\nexport class CedarPoint extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/New_York';\n    options.venueId = 'CF_CP';\n    options.destinationId = 'centerpoint';\n\n    super(options);\n  }\n}\n\nexport class KnottsBerryFarm extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Los_Angeles';\n    options.venueId = 'CF_KBF';\n    options.destinationId = 'knottsberryfarm';\n\n    super(options);\n  }\n}\n\nexport class CaliforniasGreatAmerica extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Los_Angeles';\n    options.venueId = 'CF_GA';\n    options.destinationId = 'californiasgreatamerica';\n\n    super(options);\n  }\n}\n\nexport class CanadasWonderland extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Toronto';\n    options.venueId = 'CF_CW';\n    options.destinationId = 'canadaswonderland';\n\n    super(options);\n  }\n}\n\nexport class Carowinds extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/New_York';\n    options.venueId = 'CF_CA';\n    options.destinationId = 'carowinds';\n\n    super(options);\n  }\n}\n\nexport class KingsIsland extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/New_York';\n    options.venueId = 'CF_KI';\n    options.destinationId = 'kingsisland';\n\n    super(options);\n  }\n}\n\nexport class DorneyPark extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/New_York';\n    options.venueId = 'CF_DP';\n    options.destinationId = 'dorneypark';\n\n    super(options);\n  }\n}\n\nexport class KingsDominion extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/New_York';\n    options.venueId = 'CF_KD';\n    options.destinationId = 'kingsdominion';\n\n    super(options);\n  }\n}\n\nexport class MichigansAdventure extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Detroit';\n    options.venueId = 'CF_MA';\n    options.destinationId = 'michigansadventure';\n\n    super(options);\n  }\n}\n\nexport class ValleyFair extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Chicago';\n    options.venueId = 'CF_VF';\n    options.destinationId = 'valleyfair';\n\n    super(options);\n  }\n}\n\nexport class WorldsOfFun extends TE2Destination {\n  constructor(options = {}) {\n    options.timezone = 'America/Chicago';\n    options.venueId = 'CF_WF';\n    options.destinationId = 'worldsoffun';\n\n    super(options);\n  }\n}\n",
+    "static": true,
+    "longname": "/home/runner/work/parksapi/parksapi/lib/parks/te2/te2.js",
+    "access": "public",
+    "description": null,
+    "lineNumber": 1
+  },
+  {
+    "__docId__": 502,
+    "kind": "class",
+    "name": "TE2Destination",
+    "memberof": "lib/parks/te2/te2.js",
+    "static": true,
+    "longname": "lib/parks/te2/te2.js~TE2Destination",
+    "access": "public",
+    "export": true,
+    "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
+    "importStyle": "{TE2Destination}",
+    "description": null,
+    "lineNumber": 7,
+    "undocument": true,
+    "interface": false,
+    "extends": [
+      "lib/parks/destination.js~Destination"
+    ]
+  },
+  {
+    "__docId__": 503,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#constructor",
+    "access": "public",
+    "description": null,
+    "lineNumber": 8,
+    "undocument": true
+  },
+  {
+    "__docId__": 504,
+    "kind": "method",
+    "name": "getPOIStatus",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#getPOIStatus",
+    "access": "public",
+    "description": "Get current POI data status",
+    "lineNumber": 63,
+    "unknown": [
+      {
+        "tagName": "@returns",
+        "tagValue": "{array<object>}"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "array<object>"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "params": []
+  },
+  {
+    "__docId__": 505,
+    "kind": "method",
+    "name": "getDestinationData",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#getDestinationData",
+    "access": "public",
+    "description": "Get the destination data from the API (name, location, etc.)",
+    "lineNumber": 73,
+    "unknown": [
+      {
+        "tagName": "@returns",
+        "tagValue": "{object}"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "object"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "params": []
+  },
+  {
+    "__docId__": 506,
+    "kind": "method",
+    "name": "getPOIData",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#getPOIData",
+    "access": "public",
+    "description": "Get park POI data",
+    "lineNumber": 84,
+    "unknown": [
+      {
+        "tagName": "@returns",
+        "tagValue": "{array<object>}"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "array<object>"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "params": []
+  },
+  {
+    "__docId__": 507,
+    "kind": "method",
+    "name": "_fetchCategories",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#_fetchCategories",
+    "access": "private",
+    "description": "Fetch the POI category data for this destination",
+    "lineNumber": 94,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 508,
+    "kind": "method",
+    "name": "_getParsedCategories",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#_getParsedCategories",
+    "access": "private",
+    "description": "Get categories from API based on the configured initial types",
+    "lineNumber": 106,
+    "unknown": [
+      {
+        "tagName": "@returns",
+        "tagValue": "{object} - {types: {string: string}, entities: {string: string}}"
+      }
+    ],
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "params",
+        "description": ""
+      },
+      {
+        "nullable": null,
+        "types": [
+          "array<string>"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "params.initialTypes",
+        "description": ""
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "object"
+      ],
+      "spread": false,
+      "description": "{types: {string: string}, entities: {string: string}}"
+    }
+  },
+  {
+    "__docId__": 509,
+    "kind": "method",
+    "name": "getAttractionTypes",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#getAttractionTypes",
+    "access": "public",
+    "description": "Get the type IDs for this destination's attractions",
+    "lineNumber": 144,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 510,
+    "kind": "method",
+    "name": "getDiningTypes",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#getDiningTypes",
+    "access": "public",
+    "description": "Get the type IDs for this destination's dining",
+    "lineNumber": 153,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 511,
+    "kind": "method",
+    "name": "buildBaseEntityObject",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#buildBaseEntityObject",
+    "access": "public",
+    "description": "Helper function to build a basic entity document<br />Useful to avoid copy/pasting",
+    "lineNumber": 165,
+    "unknown": [
+      {
+        "tagName": "@returns",
+        "tagValue": "{object}"
+      }
+    ],
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "object"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "data",
+        "description": ""
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "object"
+      ],
+      "spread": false,
+      "description": ""
+    }
+  },
+  {
+    "__docId__": 512,
+    "kind": "method",
+    "name": "buildDestinationEntity",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#buildDestinationEntity",
+    "access": "public",
+    "description": "Build the destination entity representing this destination",
+    "lineNumber": 197,
+    "params": [],
+    "return": {
+      "types": [
+        "{...undefined: Object, \"_id\": *, \"slug\": *, \"entityType\": *}"
+      ]
+    }
+  },
+  {
+    "__docId__": 513,
+    "kind": "method",
+    "name": "buildParkEntities",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#buildParkEntities",
+    "access": "public",
+    "description": "Build the park entities for this destination",
+    "lineNumber": 210,
+    "params": [],
+    "return": {
+      "types": [
+        "undefined[]"
+      ]
+    }
+  },
+  {
+    "__docId__": 514,
+    "kind": "method",
+    "name": "_getFilteredEntities",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#_getFilteredEntities",
+    "access": "private",
+    "description": null,
+    "lineNumber": 224,
+    "undocument": true,
+    "params": [
+      {
+        "name": "objectPattern",
+        "types": [
+          "{\"types\": *, \"entities\": *}"
+        ],
+        "defaultRaw": {
+          "types": null,
+          "entities": null
+        },
+        "defaultValue": "{\"types\":null,\"entities\":null}"
+      },
+      {
+        "name": "data",
+        "types": [
+          "*"
+        ]
+      }
+    ],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 515,
+    "kind": "method",
+    "name": "buildAttractionEntities",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#buildAttractionEntities",
+    "access": "public",
+    "description": "Build the attraction entities for this destination",
+    "lineNumber": 243,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 516,
+    "kind": "method",
+    "name": "buildShowEntities",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#buildShowEntities",
+    "access": "public",
+    "description": "Build the show entities for this destination",
+    "lineNumber": 258,
+    "params": [],
+    "return": {
+      "types": [
+        "*[]"
+      ]
+    }
+  },
+  {
+    "__docId__": 517,
+    "kind": "method",
+    "name": "buildRestaurantEntities",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#buildRestaurantEntities",
+    "access": "public",
+    "description": "Build the restaurant entities for this destination",
+    "lineNumber": 265,
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 518,
+    "kind": "method",
+    "name": "buildEntityLiveData",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#buildEntityLiveData",
+    "access": "public",
+    "description": "",
+    "lineNumber": 279,
+    "unknown": [
+      {
+        "tagName": "@inheritdoc",
+        "tagValue": ""
+      }
+    ],
+    "params": [],
+    "return": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 519,
+    "kind": "method",
+    "name": "_fetchScheduleData",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#_fetchScheduleData",
+    "access": "private",
+    "description": "Get schedule data for this destination, with an optional number of days to fetch",
+    "lineNumber": 316,
+    "unknown": [
+      {
+        "tagName": "@returns",
+        "tagValue": "{array<object>}"
+      }
+    ],
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "object"
+        ],
+        "spread": false,
+        "optional": true,
+        "name": "options",
+        "description": ""
+      },
+      {
+        "nullable": null,
+        "types": [
+          "number"
+        ],
+        "spread": false,
+        "optional": true,
+        "name": "options.days",
+        "description": "Number of days to fetch"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "array<object>"
+      ],
+      "spread": false,
+      "description": ""
+    }
+  },
+  {
+    "__docId__": 520,
+    "kind": "method",
+    "name": "buildEntityScheduleData",
+    "memberof": "lib/parks/te2/te2.js~TE2Destination",
+    "generator": false,
+    "async": true,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~TE2Destination#buildEntityScheduleData",
+    "access": "public",
+    "description": "Return schedule data for all scheduled entities in this destination<br />Eg. parks",
+    "lineNumber": 327,
+    "unknown": [
+      {
+        "tagName": "@returns",
+        "tagValue": "{array<object>}"
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "array<object>"
+      ],
+      "spread": false,
+      "description": ""
+    },
+    "params": []
+  },
+  {
+    "__docId__": 521,
+    "kind": "class",
+    "name": "CedarPoint",
+    "memberof": "lib/parks/te2/te2.js",
+    "static": true,
+    "longname": "lib/parks/te2/te2.js~CedarPoint",
+    "access": "public",
+    "export": true,
+    "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
+    "importStyle": "{CedarPoint}",
+    "description": null,
+    "lineNumber": 355,
+    "undocument": true,
+    "interface": false,
+    "extends": [
+      "TE2Destination"
+    ]
+  },
+  {
+    "__docId__": 522,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/te2/te2.js~CedarPoint",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~CedarPoint#constructor",
+    "access": "public",
+    "description": null,
+    "lineNumber": 356,
+    "undocument": true
+  },
+  {
+    "__docId__": 523,
+    "kind": "class",
+    "name": "KnottsBerryFarm",
+    "memberof": "lib/parks/te2/te2.js",
+    "static": true,
+    "longname": "lib/parks/te2/te2.js~KnottsBerryFarm",
+    "access": "public",
+    "export": true,
+    "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
+    "importStyle": "{KnottsBerryFarm}",
+    "description": null,
+    "lineNumber": 365,
+    "undocument": true,
+    "interface": false,
+    "extends": [
+      "TE2Destination"
+    ]
+  },
+  {
+    "__docId__": 524,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/te2/te2.js~KnottsBerryFarm",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~KnottsBerryFarm#constructor",
+    "access": "public",
+    "description": null,
+    "lineNumber": 366,
+    "undocument": true
+  },
+  {
+    "__docId__": 525,
+    "kind": "class",
+    "name": "CaliforniasGreatAmerica",
+    "memberof": "lib/parks/te2/te2.js",
+    "static": true,
+    "longname": "lib/parks/te2/te2.js~CaliforniasGreatAmerica",
+    "access": "public",
+    "export": true,
+    "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
+    "importStyle": "{CaliforniasGreatAmerica}",
+    "description": null,
+    "lineNumber": 375,
+    "undocument": true,
+    "interface": false,
+    "extends": [
+      "TE2Destination"
+    ]
+  },
+  {
+    "__docId__": 526,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/te2/te2.js~CaliforniasGreatAmerica",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~CaliforniasGreatAmerica#constructor",
+    "access": "public",
+    "description": null,
+    "lineNumber": 376,
+    "undocument": true
+  },
+  {
+    "__docId__": 527,
+    "kind": "class",
+    "name": "CanadasWonderland",
+    "memberof": "lib/parks/te2/te2.js",
+    "static": true,
+    "longname": "lib/parks/te2/te2.js~CanadasWonderland",
+    "access": "public",
+    "export": true,
+    "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
+    "importStyle": "{CanadasWonderland}",
+    "description": null,
+    "lineNumber": 385,
+    "undocument": true,
+    "interface": false,
+    "extends": [
+      "TE2Destination"
+    ]
+  },
+  {
+    "__docId__": 528,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/te2/te2.js~CanadasWonderland",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~CanadasWonderland#constructor",
+    "access": "public",
+    "description": null,
+    "lineNumber": 386,
+    "undocument": true
+  },
+  {
+    "__docId__": 529,
+    "kind": "class",
+    "name": "Carowinds",
+    "memberof": "lib/parks/te2/te2.js",
+    "static": true,
+    "longname": "lib/parks/te2/te2.js~Carowinds",
+    "access": "public",
+    "export": true,
+    "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
+    "importStyle": "{Carowinds}",
+    "description": null,
+    "lineNumber": 395,
+    "undocument": true,
+    "interface": false,
+    "extends": [
+      "TE2Destination"
+    ]
+  },
+  {
+    "__docId__": 530,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/te2/te2.js~Carowinds",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~Carowinds#constructor",
+    "access": "public",
+    "description": null,
+    "lineNumber": 396,
+    "undocument": true
+  },
+  {
+    "__docId__": 531,
+    "kind": "class",
+    "name": "KingsIsland",
+    "memberof": "lib/parks/te2/te2.js",
+    "static": true,
+    "longname": "lib/parks/te2/te2.js~KingsIsland",
+    "access": "public",
+    "export": true,
+    "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
+    "importStyle": "{KingsIsland}",
+    "description": null,
+    "lineNumber": 405,
+    "undocument": true,
+    "interface": false,
+    "extends": [
+      "TE2Destination"
+    ]
+  },
+  {
+    "__docId__": 532,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/te2/te2.js~KingsIsland",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~KingsIsland#constructor",
+    "access": "public",
+    "description": null,
+    "lineNumber": 406,
+    "undocument": true
+  },
+  {
+    "__docId__": 533,
+    "kind": "class",
+    "name": "DorneyPark",
+    "memberof": "lib/parks/te2/te2.js",
+    "static": true,
+    "longname": "lib/parks/te2/te2.js~DorneyPark",
+    "access": "public",
+    "export": true,
+    "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
+    "importStyle": "{DorneyPark}",
+    "description": null,
+    "lineNumber": 415,
+    "undocument": true,
+    "interface": false,
+    "extends": [
+      "TE2Destination"
+    ]
+  },
+  {
+    "__docId__": 534,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/te2/te2.js~DorneyPark",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~DorneyPark#constructor",
+    "access": "public",
+    "description": null,
+    "lineNumber": 416,
+    "undocument": true
+  },
+  {
+    "__docId__": 535,
+    "kind": "class",
+    "name": "KingsDominion",
+    "memberof": "lib/parks/te2/te2.js",
+    "static": true,
+    "longname": "lib/parks/te2/te2.js~KingsDominion",
+    "access": "public",
+    "export": true,
+    "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
+    "importStyle": "{KingsDominion}",
+    "description": null,
+    "lineNumber": 425,
+    "undocument": true,
+    "interface": false,
+    "extends": [
+      "TE2Destination"
+    ]
+  },
+  {
+    "__docId__": 536,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/te2/te2.js~KingsDominion",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~KingsDominion#constructor",
+    "access": "public",
+    "description": null,
+    "lineNumber": 426,
+    "undocument": true
+  },
+  {
+    "__docId__": 537,
+    "kind": "class",
+    "name": "MichigansAdventure",
+    "memberof": "lib/parks/te2/te2.js",
+    "static": true,
+    "longname": "lib/parks/te2/te2.js~MichigansAdventure",
+    "access": "public",
+    "export": true,
+    "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
+    "importStyle": "{MichigansAdventure}",
+    "description": null,
+    "lineNumber": 435,
+    "undocument": true,
+    "interface": false,
+    "extends": [
+      "TE2Destination"
+    ]
+  },
+  {
+    "__docId__": 538,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/te2/te2.js~MichigansAdventure",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~MichigansAdventure#constructor",
+    "access": "public",
+    "description": null,
+    "lineNumber": 436,
+    "undocument": true
+  },
+  {
+    "__docId__": 539,
+    "kind": "class",
+    "name": "ValleyFair",
+    "memberof": "lib/parks/te2/te2.js",
+    "static": true,
+    "longname": "lib/parks/te2/te2.js~ValleyFair",
+    "access": "public",
+    "export": true,
+    "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
+    "importStyle": "{ValleyFair}",
+    "description": null,
+    "lineNumber": 445,
+    "undocument": true,
+    "interface": false,
+    "extends": [
+      "TE2Destination"
+    ]
+  },
+  {
+    "__docId__": 540,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/te2/te2.js~ValleyFair",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~ValleyFair#constructor",
+    "access": "public",
+    "description": null,
+    "lineNumber": 446,
+    "undocument": true
+  },
+  {
+    "__docId__": 541,
+    "kind": "class",
+    "name": "WorldsOfFun",
+    "memberof": "lib/parks/te2/te2.js",
+    "static": true,
+    "longname": "lib/parks/te2/te2.js~WorldsOfFun",
+    "access": "public",
+    "export": true,
+    "importPath": "@themeparks/parksapi/lib/parks/te2/te2.js",
+    "importStyle": "{WorldsOfFun}",
+    "description": null,
+    "lineNumber": 455,
+    "undocument": true,
+    "interface": false,
+    "extends": [
+      "TE2Destination"
+    ]
+  },
+  {
+    "__docId__": 542,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "lib/parks/te2/te2.js~WorldsOfFun",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "lib/parks/te2/te2.js~WorldsOfFun#constructor",
+    "access": "public",
+    "description": null,
+    "lineNumber": 456,
+    "undocument": true
+  },
+  {
+    "__docId__": 543,
+    "kind": "file",
     "name": "lib/parks/toverland/toverland.js",
     "content": "import moment from 'moment';\nimport {Destination} from '../destination.js';\nimport {attractionType, statusType, queueType, tagType, scheduleType, entityType} from '../parkTypes.js';\n\nexport class Toverland extends Destination {\n  constructor(options = {}) {\n    options.timezone = options.timezone || 'Europe/Amsterdam';\n\n    options.name = options.name || 'Attractiepark Toverland';\n    options.apiBase = options.apiBase || '';\n    options.calendarUrl = options.calendarUrl || '';\n    options.authToken = options.authToken || '';\n    options.languages = options.languages || ['en', 'nl', 'de'];\n\n    super(options);\n\n    if (!this.config.apiBase) throw new Error('Missing apiBase');\n    if (!this.config.authToken) throw new Error('Missing authToken');\n    if (!this.config.calendarUrl) throw new Error('Missing calendarUrl');\n\n    // add our auth token into any API requests\n    const baseURLHostname = new URL(this.config.apiBase).hostname;\n    this.http.injectForDomain({\n      hostname: baseURLHostname,\n    }, async (method, url, data, options) => {\n      options.headers = {\n        ...(options.headers || {}),\n        // inject auth token\n        'authorization': `Bearer ${this.config.authToken}`,\n      };\n    });\n  }\n\n  /**\n   * Fetch Toverland ride live data and names etc.\n   * These are in the same endpoint\n   */\n  async fetchRideData() {\n    '@cache|1'; // cache for 1 minute\n    const response = await this.http('GET', `${this.config.apiBase}park/ride/operationInfo/list`);\n    return response.body;\n  }\n\n  /**\n   * Fetch Toverland show data\n   */\n  async fetchShowData() {\n    '@cache|240'; // cache for 4 hours\n    const response = await this.http('GET', `${this.config.apiBase}park/show/operationInfo/list`);\n    return response.body;\n  }\n\n  /**\n   * Fetch Toverland dining data\n   */\n  async fetchDiningData() {\n    '@cache|480'; // cache for 8 hours\n    const response = await this.http('GET', `${this.config.apiBase}park/foodAndDrinks/operationInfo/list`);\n    return response.body;\n  }\n\n  /**\n   * Helper function to get a preferred translation of a string or object\n   * @param {object|string} obj \n   */\n  getLocString(obj) {\n    if (typeof obj === 'object') {\n      // look for localised strings in order of the languages in config\n      const lang = this.config.languages.find((x) => {\n        return !!obj[lang];\n      });\n      if (lang) return obj[lang];\n\n      // if failed, return first language found\n      return obj[Object.keys(obj)[0]];\n    }\n    return obj;\n  }\n\n  /**\n   * Helper function to build a basic entity document\n   * Useful to avoid copy/pasting\n   * @param {object} data \n   * @returns {object}\n   */\n  buildBaseEntityObject(data) {\n    const entity = Destination.prototype.buildBaseEntityObject.call(this, data);\n\n    if (data.id) {\n      entity._id = `${data.id}`;\n    }\n\n    if (data.name) {\n      entity.name = this.getLocString(data.name);\n    }\n\n    if (data.longitude && data.latitude) {\n      entity.location = {\n        longitude: Number(data.longitude),\n        latitude: Number(data.latitude),\n      };\n    }\n\n    return entity;\n  }\n\n  /**\n   * Build the destination entity representing this destination\n   */\n  async buildDestinationEntity() {\n    return {\n      ...this.buildBaseEntityObject({}),\n      _id: 'toverlandresort',\n      slug: 'toverlandresort',\n      name: this.config.name,\n      entityType: entityType.destination,\n    };\n  }\n\n  /**\n   * Build the park entities for this destination\n   */\n  async buildParkEntities() {\n    return [\n      {\n        ...this.buildBaseEntityObject({}),\n        _id: 'toverland',\n        _destinationId: 'toverlandresort',\n        _parentId: 'toverlandresort',\n        name: this.config.name,\n        slug: 'toverland',\n        entityType: entityType.park,\n      }\n    ];\n  }\n\n  async _buildEntityList(fetchFn, attributes = {}, id_prefix = '') {\n    const rides = await fetchFn();\n    return rides.map((x) => {\n      return {\n        ...this.buildBaseEntityObject({\n          ...x,\n          id: `${id_prefix}${x.id}`,\n        }),\n        _parentId: 'toverland',\n        _destinationId: 'toverlandresort',\n        _parkId: 'toverland',\n        ...attributes,\n      };\n    });\n  }\n\n  /**\n   * Build the attraction entities for this destination\n   */\n  async buildAttractionEntities() {\n    return await this._buildEntityList(this.fetchRideData.bind(this), {\n      entityType: entityType.attraction,\n      attractionType: attractionType.ride,\n    });\n  }\n\n  /**\n   * Build the show entities for this destination\n   */\n  async buildShowEntities() {\n    return await this._buildEntityList(this.fetchShowData.bind(this), {\n      entityType: entityType.show,\n    }, 'show_');\n  }\n\n  /**\n   * Build the restaurant entities for this destination\n   */\n  async buildRestaurantEntities() {\n    return await this._buildEntityList(this.fetchDiningData.bind(this), {\n      entityType: entityType.restaurant,\n    }, 'dining_');\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async buildEntityLiveData() {\n    const rides = await this.fetchRideData();\n    return rides.map((x) => {\n      const status = x?.last_status?.status?.name?.en;\n      if (!status) return null;\n\n      // other statuses include \"Variable schedule\", which we will leave as \"operating\"\n      let rideStatus = statusType.operating;\n      if (status.startsWith('Closed')) {\n        rideStatus = statusType.closed;\n      } else if (status.startsWith('Open')) {\n        rideStatus = statusType.operating;\n      } else if (status.startsWith('Maintenance')) {\n        rideStatus = statusType.refurbishment;\n      }\n\n      const waitTime = x?.last_waiting_time?.waiting_time;\n      if (waitTime === undefined) return null;\n\n      return {\n        _id: `${x.id}`,\n        status: rideStatus,\n        queue: {\n          [queueType.standBy]: {\n            waitTime: Number(waitTime),\n          }\n        }\n      };\n    }).filter((x) => !!x);\n  }\n\n  /**\n   * Fetch a week of calendar entries from a given date\n   * @param {string} date Date in YYYY-MM-DD format\n   */\n  async _fetchWeekCalendar(date) {\n    '@cache|1440'; // cache for 24 hours\n    const resp = await this.http('GET', `${this.config.calendarUrl}${date}`);\n    return resp.body;\n  }\n\n  /**\n   * Return schedule data for all scheduled entities in this destination\n   * Eg. parks\n   * @returns {array<object>}\n   */\n  async buildEntityScheduleData() {\n    const startDate = this.getTimeNowMoment().clone().startOf('week');\n    const endDate = startDate.clone().add(60, 'days');\n\n    // fetch data by week\n    const datesToFetch = [];\n    for(let i = startDate.clone(); i.isSameOrBefore(endDate, 'day'); i.add(7, 'days')) {\n      datesToFetch.push(i.format('YYYY-MM-DD'));\n    }\n\n    // collect all data together...\n    const calendarData = await Promise.all(datesToFetch.map((x) => this._fetchWeekCalendar(x)));\n\n    // smush data into a single array\n    const data = calendarData.reduce((acc, x) => {\n      return acc.concat(x.week);\n    }, []);\n\n    return [\n      {\n        _id: 'toverland',\n        schedule: data.map((x) => {\n          if (!x.time_open || !x.time_close || /^\\s*$/.test(x.time_open) || /^\\s*$/.test(x.time_close)) return null;\n\n          return {\n            date: x.date.full,\n            type: \"OPERATING\",\n            openingTime: moment(`${x.date.full}T${x.time_open}`, 'YYYY-MM-DDTHH:mm').tz(this.config.timezone, true).format(),\n            closingTime: moment(`${x.date.full}T${x.time_close}`, 'YYYY-MM-DDTHH:mm').tz(this.config.timezone, true).format(),\n          };\n        }).filter((x) => !!x),\n      },\n    ];\n  }\n}\n",
     "static": true,
@@ -10847,7 +11718,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 502,
+    "__docId__": 544,
     "kind": "class",
     "name": "Toverland",
     "memberof": "lib/parks/toverland/toverland.js",
@@ -10866,7 +11737,7 @@
     ]
   },
   {
-    "__docId__": 503,
+    "__docId__": 545,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/toverland/toverland.js~Toverland",
@@ -10880,7 +11751,7 @@
     "undocument": true
   },
   {
-    "__docId__": 504,
+    "__docId__": 546,
     "kind": "method",
     "name": "fetchRideData",
     "memberof": "lib/parks/toverland/toverland.js~Toverland",
@@ -10899,7 +11770,7 @@
     }
   },
   {
-    "__docId__": 505,
+    "__docId__": 547,
     "kind": "method",
     "name": "fetchShowData",
     "memberof": "lib/parks/toverland/toverland.js~Toverland",
@@ -10918,7 +11789,7 @@
     }
   },
   {
-    "__docId__": 506,
+    "__docId__": 548,
     "kind": "method",
     "name": "fetchDiningData",
     "memberof": "lib/parks/toverland/toverland.js~Toverland",
@@ -10937,7 +11808,7 @@
     }
   },
   {
-    "__docId__": 507,
+    "__docId__": 549,
     "kind": "method",
     "name": "getLocString",
     "memberof": "lib/parks/toverland/toverland.js~Toverland",
@@ -10968,7 +11839,7 @@
     }
   },
   {
-    "__docId__": 508,
+    "__docId__": 550,
     "kind": "method",
     "name": "buildBaseEntityObject",
     "memberof": "lib/parks/toverland/toverland.js~Toverland",
@@ -11007,7 +11878,7 @@
     }
   },
   {
-    "__docId__": 509,
+    "__docId__": 551,
     "kind": "method",
     "name": "buildDestinationEntity",
     "memberof": "lib/parks/toverland/toverland.js~Toverland",
@@ -11026,7 +11897,7 @@
     }
   },
   {
-    "__docId__": 510,
+    "__docId__": 552,
     "kind": "method",
     "name": "buildParkEntities",
     "memberof": "lib/parks/toverland/toverland.js~Toverland",
@@ -11045,7 +11916,7 @@
     }
   },
   {
-    "__docId__": 511,
+    "__docId__": 553,
     "kind": "method",
     "name": "_buildEntityList",
     "memberof": "lib/parks/toverland/toverland.js~Toverland",
@@ -11090,7 +11961,7 @@
     }
   },
   {
-    "__docId__": 512,
+    "__docId__": 554,
     "kind": "method",
     "name": "buildAttractionEntities",
     "memberof": "lib/parks/toverland/toverland.js~Toverland",
@@ -11109,7 +11980,7 @@
     }
   },
   {
-    "__docId__": 513,
+    "__docId__": 555,
     "kind": "method",
     "name": "buildShowEntities",
     "memberof": "lib/parks/toverland/toverland.js~Toverland",
@@ -11128,7 +11999,7 @@
     }
   },
   {
-    "__docId__": 514,
+    "__docId__": 556,
     "kind": "method",
     "name": "buildRestaurantEntities",
     "memberof": "lib/parks/toverland/toverland.js~Toverland",
@@ -11147,7 +12018,7 @@
     }
   },
   {
-    "__docId__": 515,
+    "__docId__": 557,
     "kind": "method",
     "name": "buildEntityLiveData",
     "memberof": "lib/parks/toverland/toverland.js~Toverland",
@@ -11172,7 +12043,7 @@
     }
   },
   {
-    "__docId__": 516,
+    "__docId__": 558,
     "kind": "method",
     "name": "_fetchWeekCalendar",
     "memberof": "lib/parks/toverland/toverland.js~Toverland",
@@ -11202,7 +12073,7 @@
     }
   },
   {
-    "__docId__": 517,
+    "__docId__": 559,
     "kind": "method",
     "name": "buildEntityScheduleData",
     "memberof": "lib/parks/toverland/toverland.js~Toverland",
@@ -11230,7 +12101,7 @@
     "params": []
   },
   {
-    "__docId__": 518,
+    "__docId__": 560,
     "kind": "file",
     "name": "lib/parks/universal/universal.js",
     "content": "import moment from 'moment-timezone';\nimport crypto from 'crypto';\n\nimport Destination from '../destination.js';\nimport {attractionType, entityType, queueType, scheduleType, statusType, tagType, returnTimeState} from '../parkTypes.js';\n\n// only return restaurants using these dining types\nconst wantedDiningTypes = [\n  'CasualDining',\n  'FineDining',\n];\n\n// only return live data for entities in these POI categories (see getPOI)\nconst wantedLiveDataPOITypes = [\n  'Rides',\n];\n\nexport class UniversalResortBase extends Destination {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.timezone = options.timezone || 'America/New_York';\n\n    options.secretKey = options.secretKey || '';\n    options.appKey = options.appKey || '';\n    options.city = options.city || '';\n    options.vQueueURL = options.vQueueURL || '';\n    options.baseURL = options.baseURL || '';\n    options.resortSlug = options.resortSlug || '';\n\n    // any custom environment variable prefixes we want to use for this park (optional)\n    options.configPrefixes = ['UNIVERSALSTUDIOS'].concat(options.configPrefixes || []);\n\n    super(options);\n\n    // here we can validate the resulting this.config object\n    if (!this.config.name) throw new Error('Missing Universal resort name');\n    if (!this.config.secretKey) throw new Error('Missing Universal secretKey');\n    if (!this.config.appKey) throw new Error('Missing Universal appKey');\n    if (!this.config.city) throw new Error('Missing Universal city');\n    if (!this.config.vQueueURL) throw new Error('Missing Universal vQueueURL');\n    if (!this.config.baseURL) throw new Error('Missing Universal baseURL');\n    if (!this.config.resortSlug) throw new Error('Missing Universal resortSlug');\n\n    const baseURLHostname = new URL(this.config.baseURL).hostname;\n\n    // add out ApiKey to all API requests\n    //  add our service token only if this is not the login request\n    //  set options.loginRequest=true to skip adding the service token\n    this.http.injectForDomain({\n      hostname: baseURLHostname,\n    }, async (method, url, data, options) => {\n      options.headers['X-UNIWebService-ApiKey'] = this.config.appKey;\n      if (!options.loginRequest) {\n        const token = await this.getServiceToken();\n        options.headers['X-UNIWebService-Token'] = token;\n      }\n    });\n\n    // if our API ever returns 401, refetch our service token with a new login\n    this.http.injectForDomainResponse({\n      hostname: baseURLHostname,\n    }, async (response) => {\n      if (response.statusCode === 401) {\n        // clear out our token and try again\n        await this.cache.set('servicetoken', undefined, -1);\n        return undefined;\n      }\n\n      return response;\n    });\n  }\n\n  /**\n   * Get a service auth token for Universal\n   */\n  async getServiceToken() {\n    let tokenExpiration = null;\n    return await this.cache.wrap('servicetoken', async () => {\n      // create signature to get access token\n      const today = `${moment.utc().format('ddd, DD MMM YYYY HH:mm:ss')} GMT`;\n      const signatureBuilder = crypto.createHmac('sha256', this.config.secretKey);\n      signatureBuilder.update(`${this.config.appKey}\\n${today}\\n`);\n      // generate hash from signature builder\n      //  also convert trailing equal signs to unicode. because. I don't know\n      const signature = signatureBuilder.digest('base64').replace(/=$/, '\\u003d');\n\n      const resp = await this.http('POST', `${this.config.baseURL}?city=${this.config.city}`, {\n        apikey: this.config.appKey,\n        signature,\n      }, {\n        headers: {\n          'Date': today,\n        },\n        // tell our HTTP injector to not add our (currently undefined) service token\n        loginRequest: true,\n        json: true,\n      });\n\n      // remember the expiration time\n      const expireTime = resp.body.TokenExpirationUnix * 1000;\n      tokenExpiration = Math.max(+new Date() + (1000 * 60 * 60), expireTime - (+new Date()) - (1000 * 60 * 60 * 12));\n\n      return resp.body.Token;\n    }, () => {\n      // return ttl for cached service token based on data in the token response\n      //  can define ttl as a function instead of a Number for dynamic cache timeouts\n      return tokenExpiration;\n    });\n  }\n\n  async _getParks() {\n    // cache for 3 hours\n    '@cache|180';\n    const resp = await this.http('GET', `${this.config.baseURL}/venues?city=${this.config.city}`);\n    return resp.body.Results.filter((x) => {\n      // skip \"parks\" which don't require admission (i.e, CityWalk)\n      return x.AdmissionRequired;\n    });\n  }\n\n  /**\n   * Get POI data from API for this resort\n   * @returns {Object}\n   */\n  async getPOI() {\n    // cache for 3 hours\n    '@cache|180';\n    const resp = await this.http('GET', `${this.config.baseURL}/pointsofinterest?city=${this.config.city}`);\n    return resp.body;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  buildBaseEntityObject(data) {\n    const entity = super.buildBaseEntityObject(data);\n\n    if (data) {\n      // add location data (if present)\n      if (data.Longitude && data.Latitude) {\n        entity.location = {\n          longitude: data.Longitude,\n          latitude: data.Latitude,\n        };\n      }\n\n      // grab entity name from incoming data\n      if (data.MblDisplayName) {\n        entity.name = data.MblDisplayName;\n      }\n    }\n\n    return entity;\n  }\n\n  /**\n   * Build the destination entity representing this resort\n   */\n  async buildDestinationEntity() {\n    return {\n      ...this.buildBaseEntityObject(),\n      _id: `universalresort_${this.config.city}`,\n      name: this.config.name,\n      entityType: entityType.destination,\n      slug: this.config.resortSlug,\n    };\n  }\n\n  /**\n   * Build the park entities for this resort\n   */\n  async buildParkEntities() {\n    const parks = await this._getParks();\n\n    return parks.map((x) => {\n      return {\n        ...this.buildBaseEntityObject(x),\n        // all IDs must be strings in ThemeParks.wiki\n        _id: x.Id.toString(),\n        // parented to the resort\n        _parentId: `universalresort_${this.config.city}`,\n        _contentId: x.ExternalIds.ContentId.slice(0, x.ExternalIds.ContentId.indexOf('.venues.')),\n        entityType: entityType.park,\n        slug: x.MblDisplayName.replace(/[^a-zA-Z]/g, '').toLowerCase(),\n      };\n    });\n  }\n\n  /**\n   * Build the attraction entities for this resort\n   */\n  async buildAttractionEntities() {\n    return (await this.getPOI()).Rides.map((x) => {\n      // what kind of attraction is this?\n      let type = attractionType.ride; // default to \"ride\"\n      // Hogwarts Express manually tag as \"transport\"\n      if (x.Tags.indexOf('train') >= 0) {\n        type = attractionType.transport;\n      }\n\n      // TODO - how to classify pool areas like Puka Uli Lagoon?\n\n      return {\n        ...this.buildBaseEntityObject(x),\n        _id: x.Id.toString(),\n        _parkId: x.VenueId.toString(),\n        _parentId: x.VenueId.toString(),\n        entityType: entityType.attraction,\n        attractionType: type,\n      };\n    });\n  }\n\n  /**\n   * Build the show entities for this resort\n   */\n  async buildShowEntities() {\n    return [];\n    // TODO - filter out meet & greets and street entertainment\n    return (await this.getPOI()).Shows.map((x) => {\n      return {\n        ...this.buildBaseEntityObject(x),\n        _id: x.Id.toString(),\n        _parkId: x.VenueId.toString(),\n        _parentId: x.VenueId.toString(),\n        entityType: entityType.show,\n      };\n    });\n  }\n\n  /**\n   * Build the restaurant entities for this resort\n   */\n  async buildRestaurantEntities() {\n    return (await this.getPOI()).DiningLocations.filter((x) => {\n      // only return dining locations that match our wantedDiningTypes list\n      //  eg. CasualDining, FineDining - skip coffee carts\n      if (!x.DiningTypes) return false;\n      return !!x.DiningTypes.find((type) => {\n        return wantedDiningTypes.indexOf(type) >= 0;\n      });\n    }).map((x) => {\n      return {\n        ...this.buildBaseEntityObject(x),\n        _id: x.Id.toString(),\n        _parkId: x.VenueId.toString(),\n        _parentId: x.VenueId.toString(),\n        entityType: entityType.restaurant,\n      };\n    });\n  }\n\n  /**\n   * Fetch wait time data\n   * @private\n   */\n  async _fetchWaitTimes() {\n    // cache for 1 minute\n    '@cache|1';\n    const resp = await this.http('GET', `${this.config.baseURL}/pointsofinterest/rides/waittimes`, {\n      city: this.config.city,\n      pageSize: 'All',\n    });\n    return resp.body;\n  }\n\n  /**\n   * Get the current state of virtual queues for the resort\n   * @private\n   */\n  async _fetchVirtualQueueStates() {\n    // cache for 1 minute\n    '@cache|1';\n    const virtualData = await this.http('GET', `${this.config.baseURL}/Queues`, {\n      city: this.config.city,\n      page: 1,\n      pageSize: 'all',\n    });\n    return virtualData?.body?.Results;\n  }\n\n  /**\n   * Fetch the virtual queue state for a specific ride\n   * @private\n   */\n  async _fetchVirtualQueueStateForRide(queueId) {\n    // cache for 1 minute\n    '@cache|1';\n    const todaysDate = (await this.getTimeNowMoment()).format('MM/DD/YYYY');\n    const res = await this.http(\n      'GET',\n      `${this.config.baseURL}/${this.config.vQueueURL}/${queueId}`, {\n      page: 1,\n      pageSize: 'all',\n      city: this.config.city,\n      appTimeForToday: todaysDate,\n    });\n\n    return res.body;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async buildEntityLiveData() {\n    // fetch standard wait times\n    const waittime = await this._fetchWaitTimes();\n\n    // fetch virtual lines state\n    //  this returns all the virtual queues and if they are running\n    const vQueueData = await this._fetchVirtualQueueStates();\n\n    // build a map of POI data to their poi type\n    //  so we can filter out entities we don't want to return live data for\n    // API returns live data for \"lands\" or other non-Ride things we don't want\n    const poiData = await this.getPOI();\n    const poiTypes = {};\n    Object.keys(poiData).forEach((type) => {\n      poiData[type].forEach((x) => {\n        poiTypes[`${x.Id}`] = type;\n      });\n    });\n\n    return Promise.all(waittime.Results.filter((x) => {\n      // filter all live data so we only return live data for things like Rides\n      //  (see wantedLiveDataPOITypes)\n      return wantedLiveDataPOITypes.indexOf(poiTypes[`${x.Key}`]) >= 0;\n    }).map(async (ride) => {\n      let queue = queueType.standBy;\n      let status = statusType.operating;\n      let postWaitTime = Math.max(0, ride.Value);\n      // figure out ride status and wait time based on ride.Value\n      //  generally anything < 0 is a special case\n      switch (ride.Value) {\n        case -50:\n          // wait time unknown\n          //  app just displays nothing for the ride status when -50\n          postWaitTime = null;\n          break;\n        case -9:\n          // this is a virtual line update, so bail out\n          queue = queueType.returnTime;\n          break;\n        case -8:\n          // not open yet\n          status = statusType.closed;\n          postWaitTime = null;\n          break;\n        case -7:\n          // \"ride now\"\n          break;\n        case -6:\n        case -5:\n          // \"closed inside of operating hours\", not sure what that means, but it's closed\n          status = statusType.closed;\n          postWaitTime = null;\n          break;\n        case -4:\n        case -3:\n          // bad weather\n          status = statusType.down;\n          postWaitTime = null;\n          break;\n        case -1:\n        // not open yet (too early)\n        case -2:\n          // \"delayed\", but expected to open\n          status = statusType.closed;\n          postWaitTime = null;\n          break;\n      }\n\n      const data = {\n        _id: ride.Key.toString(),\n        status,\n      };\n\n      data.queue = {};\n      if (queue == queueType.standBy) {\n        data.queue[queueType.standBy] = {\n          waitTime: postWaitTime,\n        };\n      }\n\n      if (queue == queueType.returnTime && !!vQueueData) {\n        // look for vqueue data for this attraction\n        const vQueue = vQueueData.find((x) => x.QueueEntityId === ride.Key);\n\n        if (vQueue && vQueue.IsEnabled) {\n          // hurray! we found some vqueue data in the state object\n          //  and it's enabled!\n\n          // get details about this queue\n          const vQueueFetchedData = await this._fetchVirtualQueueStateForRide(vQueue.Id);\n\n          // find and return the earliest appointment time available\n          const nextSlot = vQueueFetchedData.AppointmentTimes.reduce((p, x) => {\n            const startTime = moment.tz(x.StartTime, this.config.timezone);\n            if (p === undefined || startTime.isBefore(p.startTime)) {\n              const endTime = moment.tz(x.EndTime, this.config.timezone);\n              return {\n                startTime,\n                endTime,\n              };\n            }\n            return p;\n          }, undefined);\n\n          data.queue[queueType.returnTime] = {\n            returnStart: nextSlot === undefined ? null : nextSlot.startTime.format(),\n            returnEnd: nextSlot === undefined ? null : nextSlot.endTime.format(),\n            // TODO - can we tell the difference between temporarily full and finished for the day?\n            state: nextSlot === undefined ? returnTimeState.temporarilyFull : returnTimeState.available,\n          };\n        }\n      }\n\n      return data;\n    }).filter((x) => !!x));\n  }\n\n  /**\n   * Convert a time string from the API to a valid timestamp in our timezone\n   * @param {string} time \n   * @returns \n   */\n  _stringTimeToLocalTime(time) {\n    return moment.tz(time, this.config.timezone).format();\n  }\n\n  /**\n   * Get the latest raw opening hours for a given venue\n   */\n  async getLatestOpeningHoursForVenue(venueId) {\n    // cache for 12 hours\n    '@cache|720';\n    const now = this.getTimeNowMoment();\n    const cal = await this.http('GET', `${this.config.baseURL}/venues/${venueId}/hours`, {\n      endDate: now.clone().add(190, 'days').format('MM/DD/YYYY'),\n    });\n\n    const ret = [];\n    // loop over all hours data the API returns\n    cal.body.forEach((todaysCal) => {\n      // skip any Closed dates, just return nothing\n      if (todaysCal.VenueStatus === 'Closed') return;\n\n      ret.push({\n        date: todaysCal.Date,\n        openingTime: this._stringTimeToLocalTime(todaysCal.OpenTimeString),\n        closingTime: this._stringTimeToLocalTime(todaysCal.CloseTimeString),\n        type: scheduleType.operating,\n      });\n\n      if (todaysCal.EarlyEntryString) {\n        // extra hours\n        ret.push({\n          date: todaysCal.Date,\n          openingTime: this._stringTimeToLocalTime(todaysCal.EarlyEntryString),\n          closingTime: this._stringTimeToLocalTime(todaysCal.OpenTimeString),\n          type: scheduleType.extraHours,\n        });\n      }\n\n      // TODO - handle todaysCal.SpecialEntryString (when these exist)\n      if (todaysCal.SpecialEntryString) {\n        this.emit('error', new Error(`Unknown Universal SpecialEntryString ${todaysCal.SpecialEntryString}`));\n      }\n    });\n\n    return ret;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async buildEntityScheduleData() {\n    // get list of venues to fetch schedules for\n    const venues = (await this.getParkEntities()).map((x) => {\n      return x._id;\n    });\n\n    // loop over each venue and build up our return object\n    const returnData = [];\n    for (let i = 0; i < venues.length; i++) {\n      const venueScheduleData = await this.getLatestOpeningHoursForVenue(venues[i]);\n      returnData.push({\n        _id: venues[i],\n        schedule: venueScheduleData,\n      });\n    }\n    return returnData;\n  }\n}\n\nexport class UniversalOrlando extends UniversalResortBase {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.name = options.name || 'Universal Orlando Resort';\n    options.city = options.city || 'orlando';\n    options.timezone = options.timezone || 'America/New_York';\n    options.resortSlug = options.resortSlug || 'universalorlando';\n\n    super(options);\n  }\n}\n\nexport class UniversalStudios extends UniversalResortBase {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.name = options.name || 'Universal Studios';\n    options.city = options.city || 'hollywood';\n    options.timezone = options.timezone || 'America/Los_Angeles';\n    options.resortSlug = options.resortSlug || 'universalstudios';\n\n    super(options);\n  }\n}\n",
@@ -11241,7 +12112,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 519,
+    "__docId__": 561,
     "kind": "variable",
     "name": "wantedDiningTypes",
     "memberof": "lib/parks/universal/universal.js",
@@ -11262,7 +12133,7 @@
     "ignore": true
   },
   {
-    "__docId__": 520,
+    "__docId__": 562,
     "kind": "variable",
     "name": "wantedLiveDataPOITypes",
     "memberof": "lib/parks/universal/universal.js",
@@ -11283,7 +12154,7 @@
     "ignore": true
   },
   {
-    "__docId__": 521,
+    "__docId__": 563,
     "kind": "class",
     "name": "UniversalResortBase",
     "memberof": "lib/parks/universal/universal.js",
@@ -11302,7 +12173,7 @@
     ]
   },
   {
-    "__docId__": 522,
+    "__docId__": 564,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/universal/universal.js~UniversalResortBase",
@@ -11321,7 +12192,7 @@
     ]
   },
   {
-    "__docId__": 523,
+    "__docId__": 565,
     "kind": "method",
     "name": "getServiceToken",
     "memberof": "lib/parks/universal/universal.js~UniversalResortBase",
@@ -11340,7 +12211,7 @@
     }
   },
   {
-    "__docId__": 524,
+    "__docId__": 566,
     "kind": "method",
     "name": "_getParks",
     "memberof": "lib/parks/universal/universal.js~UniversalResortBase",
@@ -11360,7 +12231,7 @@
     }
   },
   {
-    "__docId__": 525,
+    "__docId__": 567,
     "kind": "method",
     "name": "getPOI",
     "memberof": "lib/parks/universal/universal.js~UniversalResortBase",
@@ -11388,7 +12259,7 @@
     "params": []
   },
   {
-    "__docId__": 526,
+    "__docId__": 568,
     "kind": "method",
     "name": "buildBaseEntityObject",
     "memberof": "lib/parks/universal/universal.js~UniversalResortBase",
@@ -11420,7 +12291,7 @@
     }
   },
   {
-    "__docId__": 527,
+    "__docId__": 569,
     "kind": "method",
     "name": "buildDestinationEntity",
     "memberof": "lib/parks/universal/universal.js~UniversalResortBase",
@@ -11439,7 +12310,7 @@
     }
   },
   {
-    "__docId__": 528,
+    "__docId__": 570,
     "kind": "method",
     "name": "buildParkEntities",
     "memberof": "lib/parks/universal/universal.js~UniversalResortBase",
@@ -11458,7 +12329,7 @@
     }
   },
   {
-    "__docId__": 529,
+    "__docId__": 571,
     "kind": "method",
     "name": "buildAttractionEntities",
     "memberof": "lib/parks/universal/universal.js~UniversalResortBase",
@@ -11477,7 +12348,7 @@
     }
   },
   {
-    "__docId__": 530,
+    "__docId__": 572,
     "kind": "method",
     "name": "buildShowEntities",
     "memberof": "lib/parks/universal/universal.js~UniversalResortBase",
@@ -11496,7 +12367,7 @@
     }
   },
   {
-    "__docId__": 531,
+    "__docId__": 573,
     "kind": "method",
     "name": "buildRestaurantEntities",
     "memberof": "lib/parks/universal/universal.js~UniversalResortBase",
@@ -11515,7 +12386,7 @@
     }
   },
   {
-    "__docId__": 532,
+    "__docId__": 574,
     "kind": "method",
     "name": "_fetchWaitTimes",
     "memberof": "lib/parks/universal/universal.js~UniversalResortBase",
@@ -11534,7 +12405,7 @@
     }
   },
   {
-    "__docId__": 533,
+    "__docId__": 575,
     "kind": "method",
     "name": "_fetchVirtualQueueStates",
     "memberof": "lib/parks/universal/universal.js~UniversalResortBase",
@@ -11553,7 +12424,7 @@
     }
   },
   {
-    "__docId__": 534,
+    "__docId__": 576,
     "kind": "method",
     "name": "_fetchVirtualQueueStateForRide",
     "memberof": "lib/parks/universal/universal.js~UniversalResortBase",
@@ -11579,7 +12450,7 @@
     }
   },
   {
-    "__docId__": 535,
+    "__docId__": 577,
     "kind": "method",
     "name": "buildEntityLiveData",
     "memberof": "lib/parks/universal/universal.js~UniversalResortBase",
@@ -11604,7 +12475,7 @@
     }
   },
   {
-    "__docId__": 536,
+    "__docId__": 578,
     "kind": "method",
     "name": "_stringTimeToLocalTime",
     "memberof": "lib/parks/universal/universal.js~UniversalResortBase",
@@ -11640,7 +12511,7 @@
     }
   },
   {
-    "__docId__": 537,
+    "__docId__": 579,
     "kind": "method",
     "name": "getLatestOpeningHoursForVenue",
     "memberof": "lib/parks/universal/universal.js~UniversalResortBase",
@@ -11666,7 +12537,7 @@
     }
   },
   {
-    "__docId__": 538,
+    "__docId__": 580,
     "kind": "method",
     "name": "buildEntityScheduleData",
     "memberof": "lib/parks/universal/universal.js~UniversalResortBase",
@@ -11691,7 +12562,7 @@
     }
   },
   {
-    "__docId__": 539,
+    "__docId__": 581,
     "kind": "class",
     "name": "UniversalOrlando",
     "memberof": "lib/parks/universal/universal.js",
@@ -11710,7 +12581,7 @@
     ]
   },
   {
-    "__docId__": 540,
+    "__docId__": 582,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/universal/universal.js~UniversalOrlando",
@@ -11729,7 +12600,7 @@
     ]
   },
   {
-    "__docId__": 541,
+    "__docId__": 583,
     "kind": "class",
     "name": "UniversalStudios",
     "memberof": "lib/parks/universal/universal.js",
@@ -11748,7 +12619,7 @@
     ]
   },
   {
-    "__docId__": 542,
+    "__docId__": 584,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/universal/universal.js~UniversalStudios",
@@ -11767,7 +12638,7 @@
     ]
   },
   {
-    "__docId__": 543,
+    "__docId__": 585,
     "kind": "file",
     "name": "lib/parks/universal/universalstudios.js",
     "content": "import {Park} from '../park.js';\nimport {attractionType, statusType, queueType, tagType, scheduleType, returnTimeState} from '../parkTypes.js';\nimport moment from 'moment-timezone';\nimport crypto from 'crypto';\nimport {URL} from 'url';\n\n/**\n * Sample Park Object\n */\nexport class UniversalParkBase extends Park {\n  /**\n   * Create a new Sample Park object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    options.name = options.name || 'Universal Park';\n    options.timezone = options.timezone || 'America/New_York';\n\n    options.secretKey = options.secretKey || '';\n    options.appKey = options.appKey || '';\n    options.venueID = options.venueID || '';\n    options.city = options.city || '';\n    options.vQueueURL = options.venueID || '';\n    options.baseURL = options.baseURL || '';\n    options.contentID = options.contentID || '';\n\n    // any custom environment variable prefixes we want to use for this park (optional)\n    options.configPrefixes = ['UNIVERSALSTUDIOS'].concat(options.configPrefixes || []);\n\n    super(options);\n\n    // here we can validate the resulting this.config object\n    if (!this.config.secretKey) throw new Error('Missing Universal secretKey');\n    if (!this.config.appKey) throw new Error('Missing Universal appKey');\n    if (!this.config.venueID) throw new Error('Missing Universal venueID');\n    this.config.venueID = Number(this.config.venueID);\n    if (!this.config.city) throw new Error('Missing Universal city');\n    if (!this.config.vQueueURL) throw new Error('Missing Universal vQueueURL');\n    if (!this.config.baseURL) throw new Error('Missing Universal baseURL');\n    if (!this.config.contentID) throw new Error('Missing Universal contentID');\n\n    const baseURLHostname = new URL(this.config.baseURL).hostname;\n\n    this.http.injectForDomain({\n      hostname: baseURLHostname,\n    }, async (method, url, data, options) => {\n      options.headers['X-UNIWebService-ApiKey'] = this.config.appKey;\n      if (!options.loginRequest) {\n        const token = await this.getServiceToken();\n        options.headers['X-UNIWebService-Token'] = token;\n      }\n    });\n\n    // listen to unauthorised responses, to generate a new token\n    this.http.injectForDomainResponse({\n      hostname: baseURLHostname,\n    }, async (response) => {\n      if (response.statusCode === 401) {\n        // clear out our token and try again\n        await this.cache.set('servicetoken', undefined, -1);\n        return undefined;\n      }\n\n      return response;\n    });\n  }\n\n  /**\n   * Get a service auth token for Universal\n   */\n  async getServiceToken() {\n    let tokenExpiration = null;\n    return await this.cache.wrap('servicetoken', async () => {\n      // create signature to get access token\n      const today = `${moment.utc().format('ddd, DD MMM YYYY HH:mm:ss')} GMT`;\n      const signatureBuilder = crypto.createHmac('sha256', this.config.secretKey);\n      signatureBuilder.update(`${this.config.appKey}\\n${today}\\n`);\n      // generate hash from signature builder\n      //  also convert trailing equal signs to unicode. because. I don't know\n      const signature = signatureBuilder.digest('base64').replace(/=$/, '\\u003d');\n\n      const resp = await this.http('POST', `${this.config.baseURL}?city=${this.config.city}`, {\n        apikey: this.config.appKey,\n        signature,\n      }, {\n        headers: {\n          'Date': today,\n        },\n        loginRequest: true,\n        json: true,\n      });\n\n      // remember the expiration time\n      const expireTime = resp.body.TokenExpirationUnix * 1000;\n      tokenExpiration = Math.max(+new Date() + (1000 * 60 * 60), expireTime - (+new Date()) - (1000 * 60 * 60 * 12));\n\n      return resp.body.Token;\n    }, () => {\n      return tokenExpiration;\n    });\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _init() {\n  }\n\n  /**\n   * Get all park POI data\n   */\n  async getPOI() {\n    return await this.cache.wrapGlobal(`universalstudios_${this.config.city}_poi`, async () => {\n      const data = await this.http('GET', `${this.config.baseURL}/pointsOfInterest`, {\n        city: this.config.city,\n      });\n      if (!data?.body?.Rides) {\n        throw new Error('Unable to fetch Universal POI data');\n      }\n      return data.body.Rides;\n    }, 1000 * 60 * 60 * 12); // 12 hours\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _buildAttractionObject(attractionID) {\n    const data = await this.getPOI();\n    if (data === undefined) return undefined;\n    const ride = data.find((x) => `${x.Id}` === attractionID && x.VenueId === this.config.venueID);\n    if (ride === undefined) return undefined;\n\n    const tags = [];\n\n    if (ride.Longitude && ride.Latitude) {\n      tags.push({\n        key: 'location',\n        type: tagType.location,\n        value: {\n          longitude: ride.Longitude,\n          latitude: ride.Latitude,\n        },\n      });\n    }\n\n    if (ride.MinHeightInInches) {\n      tags.push({\n        key: 'minimumHeight',\n        type: tagType.minimumHeight,\n        value: {\n          unit: 'in',\n          height: ride.MinHeightInInches,\n        },\n      });\n    }\n    if (ride.MaxHeightInInches) {\n      tags.push({\n        key: 'maximumHeight',\n        type: tagType.maximumHeight,\n        value: {\n          unit: 'in',\n          height: ride.MaxHeightInInches,\n        },\n      });\n    }\n\n    tags.push({\n      type: tagType.singleRider,\n      value: !!ride.HasSingleRiderLine,\n    });\n\n    tags.push({\n      type: tagType.fastPass,\n      value: !!ride.ExpressPassAccepted,\n    });\n\n    tags.push({\n      type: tagType.childSwap,\n      value: !!ride.HasChildSwap,\n    });\n\n    return {\n      name: ride.MblDisplayName,\n      type: attractionType.ride,\n      tags,\n    };\n  }\n\n  /**\n   * Get the current state of virtual queues for the resort\n   */\n  async getVirtualQueueStates() {\n    return await this.cache.wrap(`universalstudios_${this.config.city}_vqueuestate`, async () => {\n      const virtualData = await this.http('GET', `${this.config.baseURL}/Queues`, {\n        city: this.config.city,\n        page: 1,\n        pageSize: 'all',\n      });\n      return virtualData.body;\n    }, 1000 * 60); // 1 minute\n  }\n\n  /**\n   * Get current state for a virtual queue\n   * @param {number} queueId\n   * @return {object} Object containing startTime and endTime as a moment object.\n   * Or undefined if there are no times available.\n   */\n  async getVirtualQueueTimeForRide(queueId) {\n    return await this.cache.wrap(`vqueue_${queueId}`, async () => {\n      const todaysDate = (await this.getActiveParkDateMoment()).format('MM/DD/YYYY');\n      const res = await this.http(\n          'GET',\n          `${this.config.baseURL}/${this.config.vQueueURL}/${queueId}`, {\n            page: 1,\n            pageSize: 'all',\n            city: this.config.city,\n            appTimeForToday: todaysDate,\n          });\n\n      // find and return the earliest appointment time available\n      const earliestTime = res.body.AppointmentTimes.reduce((p, x) => {\n        const startTime = moment.tz(x.StartTime, this.config.timezone);\n        if (p === undefined || startTime.isBefore(p.startTime)) {\n          const endTime = moment.tz(x.EndTime, this.config.timezone);\n          return {\n            startTime,\n            endTime,\n          };\n        }\n        return p;\n      }, undefined);\n\n      return earliestTime;\n    }, 1000 * 60); // 1 minute\n  }\n\n  /**\n   * Fetch raw waiting times data\n   */\n  async getWaitingTimes() {\n    return await this.cache.wrapGlobal(`universalstudios_${this.config.city}_waittimes`, async () => {\n      const resp = await this.http('GET', `${this.config.baseURL}/pointsofinterest/rides/waittimes`, {\n        city: this.config.city,\n        pageSize: 'All',\n      });\n      return resp.body;\n    }, 1000 * 60); // cache for 1 minute\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _update() {\n    const data = await this.getWaitingTimes();\n\n    await Promise.allSettled(data.Results.filter(\n        (x) => x.ContentId.indexOf(this.config.contentID) === 0,\n    ).map(async (ride) => {\n      let queue = queueType.standBy;\n      let status = statusType.operating;\n      let postWaitTime = Math.max(0, ride.Value);\n      switch (ride.Value) {\n        case -50:\n          // wait time unknown\n          //  app just displays nothing for the ride status when -50\n          postWaitTime = null;\n          break;\n        case -9:\n          // this is a virtual line update, so bail out\n          queue = queueType.returnTime;\n          break;\n        case -8:\n          // \"coming soon\"\n          status = statusType.closed;\n          postWaitTime = null;\n          break;\n        case -7:\n          // \"ride now\"\n          //  fallthrough to default \"operating\" state\n          break;\n        case -6:\n          // not open yet\n        case -5:\n          // \"at capactity\"\n          status = statusType.closed;\n          postWaitTime = null;\n          break;\n        case -4:\n          // bad weather\n        case -2:\n          // \"Delayed\"\n          status = statusType.down;\n          postWaitTime = null;\n          break;\n        case -1:\n          // not open yet (too early)\n        case -3:\n          // closed, but expected to open during operating hours as normal\n          status = statusType.closed;\n          postWaitTime = null;\n          break;\n      }\n\n      await this.updateAttractionState(ride.Key, status);\n      if (queue == queueType.standBy) {\n        await this.updateAttractionQueue(ride.Key, postWaitTime, queueType.standBy);\n      } else {\n        await this.updateAttractionQueue(ride.Key, undefined, queueType.standBy);\n      }\n    }));\n\n    // also fetch virtual lines status\n    const virtualData = await this.getVirtualQueueStates();\n    const vResults = virtualData?.Results;\n    if (vResults !== undefined) {\n      await Promise.allSettled(vResults.map(async (ride) => {\n      // check the right this virtual queue is for is in this park\n        const actual = await this.findAttractionByID(ride.QueueEntityId);\n        if (actual === undefined) return;\n\n        if (ride.IsEnabled) {\n        // get next available slot\n          const nextSlot = await this.getVirtualQueueTimeForRide(ride.Id);\n\n          // update return time queue with slot data\n          await this.updateAttractionQueue(ride.QueueEntityId, {\n            returnStart: nextSlot === undefined ? null : nextSlot.startTime,\n            returnEnd: nextSlot === undefined ? null : nextSlot.endTime,\n            // TODO - can we tell the difference between temporarily full and finished for the day?\n            state: nextSlot === undefined ? returnTimeState.temporarilyFull : returnTimeState.available,\n          }, queueType.returnTime);\n        } else {\n        // virtual queue not enable, ensure return time queue type is not shown\n          await this.updateAttractionQueue(ride.QueueEntityId, undefined, queueType.returnTime);\n        }\n      }));\n    } else {\n      // virtual queue system is down, unset all virtual queues for this park\n      const toUpdate = this._attractions.map((x) => x.rideId);\n      for (let i=0; i<toUpdate.length; i++) {\n        await this.updateAttractionQueue(toUpdate[i], undefined, queueType.returnTime);\n      }\n    }\n  }\n\n  /**\n   * Get the latest raw opening hours for this park\n   */\n  async getLatestOpeningHours() {\n    return await this.cache.wrap('calendar_data', async () => {\n      const now = this.getTimeNowMoment();\n      const cal = await this.http('GET', `${this.config.baseURL}/venues/${this.config.venueID}/hours`, {\n        endDate: now.clone().add(120, 'days').format('MM/DD/YYYY'),\n      });\n      return cal.body;\n    }, 1000 * 60 * 60 * 24); // 1 day\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _getOperatingHoursForDate(date) {\n    const cal = await this.getLatestOpeningHours();\n    const dateFormatted = date.format('YYYY-MM-DD');\n    const todaysCal = cal.find((x) => x.Date === dateFormatted);\n    if (todaysCal === undefined) return undefined;\n\n    if (todaysCal.VenueStatus === 'Closed') return undefined;\n\n    const ret = [];\n    ret.push({\n      openingTime: todaysCal.OpenTimeString,\n      closingTime: todaysCal.CloseTimeString,\n      type: scheduleType.operating,\n    });\n\n    if (todaysCal.EarlyEntryString) {\n      // extra hours\n      ret.push({\n        openingTime: todaysCal.EarlyEntryString,\n        closingTime: todaysCal.OpenTimeString,\n        type: scheduleType.extraHours,\n      });\n    }\n\n    // TODO - handle todaysCal.SpecialEntryString (when these exist)\n    if (todaysCal.SpecialEntryString) {\n      this.emit('error', new Error(`Unknown Universal SpecialEntryString ${todaysCal.SpecialEntryString}`));\n    }\n\n    return ret;\n  }\n}\n\nexport default UniversalParkBase;\n\n/**\n * Universal Studios Florida Park\n */\nexport class UniversalStudiosFlorida extends UniversalParkBase {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.name = 'Universal Studios Florida';\n    options.venueID = 10010;\n    options.city = 'orlando';\n    options.contentID = 'com.uo.usf';\n\n    super(options);\n  }\n}\n\n/**\n * Islands Of Adventure Park\n */\nexport class UniversalIslandsOfAdventure extends UniversalParkBase {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.name = 'Universal\\'s Islands Of Adventure';\n    options.venueID = 10000;\n    options.city = 'orlando';\n    options.contentID = 'com.uo.ioa';\n\n    super(options);\n  }\n}\n\n/**\n * Volcano Bay\n */\nexport class UniversalVolcanoBay extends UniversalParkBase {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.name = 'Universal\\'s Volcano Bay';\n    options.venueID = 13801;\n    options.city = 'orlando';\n    options.contentID = 'com.uo.vb';\n\n    super(options);\n  }\n}\n\n/**\n * Universal Studios Hollywood\n */\nexport class UniversalStudios extends UniversalParkBase {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.name = 'Universal Studios';\n    options.venueID = 13825;\n    options.city = 'hollywood';\n    options.contentID = 'com.uo.us';\n\n    super(options);\n  }\n}\n",
@@ -11778,7 +12649,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 544,
+    "__docId__": 586,
     "kind": "class",
     "name": "UniversalParkBase",
     "memberof": "lib/parks/universal/universalstudios.js",
@@ -11796,7 +12667,7 @@
     ]
   },
   {
-    "__docId__": 545,
+    "__docId__": 587,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/universal/universalstudios.js~UniversalParkBase",
@@ -11821,7 +12692,7 @@
     ]
   },
   {
-    "__docId__": 546,
+    "__docId__": 588,
     "kind": "method",
     "name": "getServiceToken",
     "memberof": "lib/parks/universal/universalstudios.js~UniversalParkBase",
@@ -11840,7 +12711,7 @@
     }
   },
   {
-    "__docId__": 547,
+    "__docId__": 589,
     "kind": "method",
     "name": "_init",
     "memberof": "lib/parks/universal/universalstudios.js~UniversalParkBase",
@@ -11861,7 +12732,7 @@
     "return": null
   },
   {
-    "__docId__": 548,
+    "__docId__": 590,
     "kind": "method",
     "name": "getPOI",
     "memberof": "lib/parks/universal/universalstudios.js~UniversalParkBase",
@@ -11880,7 +12751,7 @@
     }
   },
   {
-    "__docId__": 549,
+    "__docId__": 591,
     "kind": "method",
     "name": "_buildAttractionObject",
     "memberof": "lib/parks/universal/universalstudios.js~UniversalParkBase",
@@ -11912,7 +12783,7 @@
     }
   },
   {
-    "__docId__": 550,
+    "__docId__": 592,
     "kind": "method",
     "name": "getVirtualQueueStates",
     "memberof": "lib/parks/universal/universalstudios.js~UniversalParkBase",
@@ -11931,7 +12802,7 @@
     }
   },
   {
-    "__docId__": 551,
+    "__docId__": 593,
     "kind": "method",
     "name": "getVirtualQueueTimeForRide",
     "memberof": "lib/parks/universal/universalstudios.js~UniversalParkBase",
@@ -11964,7 +12835,7 @@
     }
   },
   {
-    "__docId__": 552,
+    "__docId__": 594,
     "kind": "method",
     "name": "getWaitingTimes",
     "memberof": "lib/parks/universal/universalstudios.js~UniversalParkBase",
@@ -11983,7 +12854,7 @@
     }
   },
   {
-    "__docId__": 553,
+    "__docId__": 595,
     "kind": "method",
     "name": "_update",
     "memberof": "lib/parks/universal/universalstudios.js~UniversalParkBase",
@@ -12004,7 +12875,7 @@
     "return": null
   },
   {
-    "__docId__": 554,
+    "__docId__": 596,
     "kind": "method",
     "name": "getLatestOpeningHours",
     "memberof": "lib/parks/universal/universalstudios.js~UniversalParkBase",
@@ -12023,7 +12894,7 @@
     }
   },
   {
-    "__docId__": 555,
+    "__docId__": 597,
     "kind": "method",
     "name": "_getOperatingHoursForDate",
     "memberof": "lib/parks/universal/universalstudios.js~UniversalParkBase",
@@ -12055,7 +12926,7 @@
     }
   },
   {
-    "__docId__": 556,
+    "__docId__": 598,
     "kind": "class",
     "name": "UniversalStudiosFlorida",
     "memberof": "lib/parks/universal/universalstudios.js",
@@ -12073,7 +12944,7 @@
     ]
   },
   {
-    "__docId__": 557,
+    "__docId__": 599,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/universal/universalstudios.js~UniversalStudiosFlorida",
@@ -12092,7 +12963,7 @@
     ]
   },
   {
-    "__docId__": 558,
+    "__docId__": 600,
     "kind": "class",
     "name": "UniversalIslandsOfAdventure",
     "memberof": "lib/parks/universal/universalstudios.js",
@@ -12110,7 +12981,7 @@
     ]
   },
   {
-    "__docId__": 559,
+    "__docId__": 601,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/universal/universalstudios.js~UniversalIslandsOfAdventure",
@@ -12129,7 +13000,7 @@
     ]
   },
   {
-    "__docId__": 560,
+    "__docId__": 602,
     "kind": "class",
     "name": "UniversalVolcanoBay",
     "memberof": "lib/parks/universal/universalstudios.js",
@@ -12147,7 +13018,7 @@
     ]
   },
   {
-    "__docId__": 561,
+    "__docId__": 603,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/universal/universalstudios.js~UniversalVolcanoBay",
@@ -12166,7 +13037,7 @@
     ]
   },
   {
-    "__docId__": 562,
+    "__docId__": 604,
     "kind": "class",
     "name": "UniversalStudios",
     "memberof": "lib/parks/universal/universalstudios.js",
@@ -12184,7 +13055,7 @@
     ]
   },
   {
-    "__docId__": 563,
+    "__docId__": 605,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/universal/universalstudios.js~UniversalStudios",
@@ -12203,7 +13074,7 @@
     ]
   },
   {
-    "__docId__": 564,
+    "__docId__": 606,
     "kind": "file",
     "name": "lib/parks/wdw/waltdisneyworldbase.js",
     "content": "import moment from 'moment-timezone';\nimport {attractionType, boardingGroupState, entityType, queueType, scheduleType, statusType, returnTimeState} from '../parkTypes.js';\nimport Destination from '../destination.js';\nimport {getEntityID, IndexedWDWDB} from './wdwdb.js';\n\nlet wdwDB = null;\n/**\n * Get a reference to the WDW database\n * @return {IndexedWDWDB}\n */\nexport function getDatabase() {\n  if (!wdwDB) {\n    wdwDB = new IndexedWDWDB();\n  }\n  return wdwDB;\n}\n\n// entity types that count as \"parks\"\nconst parkTypes = [\n  'theme-park',\n  'water-park',\n];\n\n// scheduleTypes that are actually not a schedule\nconst invalidScheduleTypes = [\n  'Closed',\n  'No Performance',\n];\n\n/**\n * A Resort class for a Disney live resort (WDW, DLR, HKDR)\n */\nexport class DisneyLiveResort extends Destination {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.virtualQueueURL = options.virtualQueueURL || '';\n    options.genieData = options.genieData || '';\n\n    super(options);\n\n    this.resortId = options.resortId;\n    if (!this.resortId) {\n      throw new Error('Missing Resort ID');\n    }\n    this.resortShortcode = options.resortShortcode;\n    if (!this.resortShortcode) {\n      throw new Error('Missing Resort Shortcode');\n    }\n    this.destinationDocumentIDRegex = new RegExp(`^${this.resortId};entityType=destination`);\n    this.parkIds = options.parkIds || [];\n\n    this.db = getDatabase();\n  }\n\n  /**\n   * Initialise our Disney resort class\n   */\n  async _init() {\n    await this.db.init();\n\n    // setup our live status updating\n    this.initLiveStatusUpdates();\n  }\n\n  /**\n   * Get the channel ID for the facility status live update documents\n   * @return {string}\n   */\n  getFacilityStatusChannelID() {\n    return `${this.resortShortcode}.facilitystatus.1_0`;\n  }\n\n  /**\n   * @private\n   */\n  async fetchVirtualQueueData() {\n    // cache for 1 minute\n    '@cache|1';\n\n    if (!this.config.virtualQueueURL) return undefined;\n\n    return (await this.http('GET', this.config.virtualQueueURL, undefined, {\n      rejectUnauthorized: false,\n    })).body.queues;\n  }\n\n  async fetchGenieData() {\n    // cache for 1 minute\n    '@cache|1';\n\n    if (!this.config.genieData) return undefined;\n\n    return (await this.http('GET', this.config.genieData, undefined, {\n      rejectUnauthorized: false,\n    })).body?.entities;\n  }\n\n  /**\n   * Given a status doc, build a live data object\n   * @param {object} doc\n   */\n  async _buildLiveDataObject(doc) {\n    // get full facility doc\n    const entityId = getEntityID(doc.id || doc._id);\n    const entityDoc = await this.db.getEntityOne(entityId);\n    // if can't find it, or \"soft deleted\", or we get back the same facility update doc, return nothing\n    if (!entityDoc || entityDoc.softDeleted || entityDoc._id === doc._id) {\n      return undefined;\n    }\n\n    // get our entity type\n    const docEntityType = entityDoc.type;\n\n    // skip if this doc is not a valid entity type\n    /* if (docEntityType === undefined) {\n      this.emit('error', doc.id || doc._id, 'LIVEDATA_MISSING_ENTITYTYPE', {\n        message: `Live data for ${doc.id || doc._id} is missing a type. Expecting \"Attraction\", \"Entertainment\"...`,\n        entityDoc,\n      });\n      return undefined;\n    }*/\n\n    // figure out entity status\n    let status = statusType.operating;\n\n    // if name contains \"Temporarily Unavailable\", mark as closed\n    //  will be overriden by better metrics later, if any exist\n    if (entityDoc.name && entityDoc.name.indexOf('Temporarily Unavailable') > 0) {\n      // not refurb, as this more often than not \"unavailable\" is marked as just \"closed\"\n      status = statusType.closed;\n    }\n\n    // restaurants can have status \"Capacity\", \"Walk-Up Disabled\"\n    //  currently these fallback to \"Operating\", which matches the resturant state well enough\n    if (doc.status === 'Down') {\n      status = statusType.down;\n    } else if (doc.status === 'Closed') {\n      status = statusType.closed;\n    } else if (doc.status === 'Refurbishment') {\n      status = statusType.refurbishment;\n    }\n\n    // create base data object\n    const data = {\n      _id: entityDoc.id,\n      status: status,\n    };\n\n    // get our genie data\n    const genieData = await this.fetchGenieData();\n    if (genieData) {\n      const genieEntity = genieData.find((x) => {\n        return x.id === entityId;\n      });\n      if (genieEntity) {\n        const now = this.getTimeNowMoment();\n\n        if (genieEntity.flex) {\n          if (!data.queue) data.queue = {};\n\n          if (!genieEntity.flex.available) {\n            data.queue[queueType.returnTime] = {\n              returnStart: null,\n              returnEnd: null,\n              state: returnTimeState.finished,\n            };\n          } else {\n            const breakTime = genieEntity.flex.nextAvailableTime.split(':');\n\n            data.queue[queueType.returnTime] = {\n              returnStart: now.clone().set({\n                hours: Number(breakTime[0]),\n                minutes: Number(breakTime[1]),\n                seconds: 0,\n              }).format(),\n              returnEnd: null,\n              state: returnTimeState.available,\n            };\n          }\n        }\n\n        if (genieEntity.individual) {\n          if (!data.queue) data.queue = {};\n\n          if (!genieEntity.individual.available) {\n            data.queue[queueType.paidReturnTime] = {\n              returnStart: null,\n              returnEnd: null,\n              state: returnTimeState.finished,\n              price: genieEntity.individual?.price ? {\n                currency: 'USD',\n                amount: genieEntity.individual.price ? genieEntity.individual.price * 100 : null,\n              } : null,\n            };\n          } else {\n            const breakTime = genieEntity.individual.nextAvailableTime.split(':');\n\n            data.queue[queueType.paidReturnTime] = {\n              returnStart: now.clone().set({\n                hours: Number(breakTime[0]),\n                minutes: Number(breakTime[1]),\n                seconds: 0,\n              }).format(),\n              returnEnd: null,\n              state: returnTimeState.available,\n              price: {\n                currency: 'USD',\n                amount: genieEntity.individual.price ? genieEntity.individual.price * 100 : null,\n              },\n            };\n          }\n        }\n      }\n    }\n\n    // get our vqueue data\n    const vQueueData = await this.fetchVirtualQueueData();\n    if (vQueueData) {\n      // find matching queue data for this entity\n      const attractionVQueueData = vQueueData.find((x) => {\n        return x.externalDefinitionId === entityDoc.id;\n      });\n      if (attractionVQueueData) {\n        // we have found a virtual queue!\n        if (!data.queue) data.queue = {}; // make sure our queue object exists\n\n        // figure out our allocation status\n        //  default to available\n        let allocationStatus = boardingGroupState.available;\n\n        if (doc.status !== 'Virtual Queue' || attractionVQueueData.state === 'CLOSED') {\n          allocationStatus = boardingGroupState.closed;\n        }\n\n        // PAUSED state\n        if (attractionVQueueData.state === 'PAUSED') {\n          // if we have an upcoming allocation time, then we are temporarily paused\n          if (attractionVQueueData.nextScheduledOpenTime) {\n            allocationStatus = boardingGroupState.paused;\n          } else {\n            // otherwise... no future times? we're closed for the day\n            allocationStatus = boardingGroupState.closed;\n          }\n        }\n\n        // extract allocation time and present as a full datetime string\n        let nextAllocationTime = null;\n        if (attractionVQueueData.nextScheduledOpenTime) {\n          const nowDate = this.getTimeNowMoment().format('YYYY-MM-DD');\n          nextAllocationTime = moment.tz(\n            `${nowDate}T${attractionVQueueData.nextScheduledOpenTime}`,\n            this.config.timezone,\n          ).format();\n        }\n\n        // pull estimated wait data, if valid/exists\n        let estimatedWait = null;\n        if (allocationStatus === boardingGroupState.available) {\n          estimatedWait = attractionVQueueData.waitTimeMin || null;\n        }\n\n        data.queue[queueType.boardingGroup] = {\n          allocationStatus: allocationStatus,\n          currentGroupStart: attractionVQueueData.currentArrivingGroupStart || null,\n          currentGroupEnd: attractionVQueueData.currentArrivingGroupEnd || null,\n          nextAllocationTime: nextAllocationTime || null,\n          estimatedWait,\n        };\n      }\n    }\n\n    // inject prediction data from Genie\n    const forecastDocId = `${this.resortShortcode}.forecastedwaittimes.1_0.en_us.${data._id}`;\n    try {\n      const forecastDoc = await this.db.get(forecastDocId);\n      if (forecastDoc && forecastDoc.forecasts && forecastDoc.forecasts.length > 0) {\n        // check forecast data is relevant for current time\n\n        // get the largest timestamp from forecast data\n        const now = this.getTimeNowMoment();\n        const lastTimeslot = forecastDoc.forecasts.reduce((prev, curr) => {\n          if (!curr) return prev;\n          if (prev && prev.timestamp > curr.timestamp) {\n            return prev;\n          }\n          return curr;\n        });\n\n        if (lastTimeslot && lastTimeslot.timestamp) {\n          // forecasts are in hour slots, so add an hour to the last timestamp\n          const lastHour = moment(lastTimeslot.timestamp).add(1, 'hour');\n          if (lastHour.isAfter(now)) {\n            // we have a valid forecast for today, return it\n            data.forecast = forecastDoc.forecasts.map((x) => {\n              if (!x) return null;\n              return {\n                time: moment(x.timestamp).tz(this.config.timezone).format(),\n                waitTime: isNaN(x.forecastedWaitMinutes) ? null : x.forecastedWaitMinutes,\n                percentage: isNaN(x.percentage) ? null : x.percentage,\n              };\n            }).filter((x) => !!x);\n          }\n        }\n      }\n    } catch (e) { }\n\n    // add any data from daily Entertainment feed\n    if (docEntityType === 'Entertainment') {\n      // grab entity showtimes\n      // TODO - this is expensive to grab this for every single entity!!!\n      const entertainmentToday = await this.db.get(`${this.resortShortcode}.today.1_0.Entertainment`);\n      if (entertainmentToday && entertainmentToday.facilities) {\n        const showtimes = (entertainmentToday.facilities[doc.id] || []).filter((x) => {\n          // ignore invalid schedule types\n          return invalidScheduleTypes.indexOf(x.scheduleType) < 0;\n        });\n\n        if (showtimes.length === 0) {\n          data.status = statusType.closed;\n        }\n\n        // add showtimes to livedata\n        data.showtimes = showtimes.map((time) => {\n          return {\n            startTime: moment(time.startTime).tz(this.config.timezone).format(),\n            endTime: moment(time.endTime).tz(this.config.timezone).format(),\n            type: time.scheduleType,\n          };\n        });\n      }\n    } else if (docEntityType === 'restaurant') {\n      // TODO - restaurant specific live data\n    } else if (docEntityType === 'Attraction') {\n      // attraction-specific live data\n\n      // check today's schedule for refurbishments!\n      // TODO - this is expensive to grab for every single entity!\n      const attractionsToday = await this.db.get(`${this.resortShortcode}.today.1_0.Attraction`);\n      if (attractionsToday !== undefined && attractionsToday.facilities) {\n        const attractionSchedule = attractionsToday.facilities[doc.id];\n        if (attractionSchedule) {\n          // look for schedules with \"Closed\" or \"Refurb\"\n          if (attractionSchedule.length === 1) {\n            if (attractionSchedule[0].scheduleType === 'Closed') {\n              data.status = statusType.closed;\n            } else if (attractionSchedule[0].scheduleType === 'Refurbishment') {\n              data.status = statusType.refurbishment;\n            }\n          }\n\n          // TODO - store attraction operating hours in live data\n        }\n      }\n    }\n\n    // before we do any queue stuff, check if the lastUpdate is vaguely recent\n    const lastUpdateTime = moment(doc.lastUpdate || 0);\n    const now = moment();\n\n    // if status was updated in past ~2 months, then push queue data\n    //  otherwise, ignore, queues not used\n    const daysSinceLastUpdate = now.diff(lastUpdateTime, 'days');\n    if (daysSinceLastUpdate < 60) {\n      // report wait minutes for standBy line (if present)\n      //  pretty much any entity can have waitMinutes\n      // ignore if doc status is \"Virtual Queue\", which means only Virtual Queue is available for this attraction (right now)\n      if (doc.waitMinutes !== undefined && doc.status !== 'Virtual Queue') {\n        if (!data.queue) data.queue = {};\n        data.queue[queueType.standBy] = {\n          waitTime: doc.waitMinutes || null,\n        };\n      }\n\n      // populate the single ride queue status if this ride offers single rider\n      if (doc.singleRider) {\n        if (!data.queue) data.queue = {};\n        data.queue[queueType.singleRider] = {\n          // TODO - can we get single ride wait time?\n          waitTime: null,\n        };\n      }\n    }\n\n    return data;\n  }\n\n  /**\n   * Return all current live entity data\n   */\n  async buildEntityLiveData() {\n    // fetch the current attraction times\n    const allStatusDocs = await this.db.getByChannel(this.getFacilityStatusChannelID());\n    const docs = [];\n\n    for (let i = 0; i < allStatusDocs.length; i++) {\n      const liveDoc = await this._buildLiveDataObject(allStatusDocs[i]);\n      if (liveDoc) {\n        docs.push(liveDoc);\n      }\n    }\n\n    // TEMPORARY - Guardians of the Galaxy is missing from live data\n    //  so add it manually to get some data through\n    const isGotgAlreadyIn = docs.find((x) => x._id === '411499845;entityType=Attraction');\n    if (!isGotgAlreadyIn) {\n      docs.push(await this._buildLiveDataObject({\n        id: '411499845;entityType=Attraction',\n        status: 'Closed',\n        lastUpdate: \"2022-05-24T13:57:46.153Z\",\n      }));\n    }\n\n    // loop over entertainment and pretend we have facility update docs for them\n    const entertainmentToday = await this.db.get(`${this.resortShortcode}.today.1_0.Entertainment`);\n    if (entertainmentToday && entertainmentToday.facilities) {\n      const entertainmentEntities = Object.keys(entertainmentToday.facilities);\n      for (let i = 0; i < entertainmentEntities.length; i++) {\n        const facId = entertainmentEntities[i];\n        // look for existing live data doc that has a facility status entry\n        const liveDataIdx = docs.findIndex((x) => x._id === facId);\n        if (liveDataIdx < 0) {\n          // if we don't have a doc already, we create a \"fake\" one\n          // build a pretend facilitystatus doc and push to docs\n          const liveData = await this._buildLiveDataObject({\n            id: facId,\n          });\n          if (liveData) {\n            docs.push(liveData);\n          }\n        }\n      }\n    }\n    \n    // build pretend live entity objects for any attractions with schedules (but no live data!)\n    const attractionsToday = await this.db.get(`${this.resortShortcode}.today.1_0.Attraction`);\n    if (attractionsToday !== undefined && attractionsToday.facilities) {\n      const attractionsEntities = Object.keys(attractionsToday.facilities);\n      for (let i = 0; i < attractionsEntities.length; i++) {\n        const facId = attractionsEntities[i];\n        // look for existing live data doc that has a facility status entry\n        const liveDataIdx = docs.findIndex((x) => x._id === facId);\n        if (liveDataIdx < 0) {\n          const liveData = await this._buildLiveDataObject({\n            id: facId,\n          });\n          if (liveData) {\n            docs.push(liveData);\n          }\n        }\n      }\n    }\n\n    // TODO - do something with invalid objects (?!)\n    // const errors = docs.filter((x) => x.status !== 'fulfilled');\n\n    return docs;\n  }\n\n  /**\n   * Setup our live status update subscriptions\n   */\n  async initLiveStatusUpdates() {\n    // subscribe to any live facility status updates\n    this.db.subscribeToChannel(this.getFacilityStatusChannelID(), async (doc) => {\n      // create our live data object and submit to resort\n      const livedata = await this._buildLiveDataObject(doc);\n      if (!livedata) return; // skip any invalid livedata objects\n\n      try {\n        this.updateEntityLiveData(doc.id, livedata);\n      } catch (e) {\n        console.error(e);\n      }\n    });\n  }\n\n  /**\n   * Given a name for an entity, clean up any strings we don't want\n   * @param {string} name\n   * @return {string}\n   */\n  sanitizeEntityName(name) {\n    let newName = `${name}`;\n\n    // trim any name endings we don't want to transfer to our entity object\n    const cutoffExcessiveNameEndings = [\n      ' – Opens',\n      ' - Opens',\n      ' – Reopening',\n      ' - Reopening',\n      ' – Temporarily Unavailable',\n      ' - Temporarily Unavailable',\n      ' – Temporarily ',\n      ' - Temporarily ',\n      ' – Coming ',\n      ' - Coming ',\n      ' – Legacy Passholder Dining',\n      ' - Legacy Passholder Dining',\n      ' – Opening ',\n      ' - Opening ',\n      ' - Returning',\n      ' – Returning',\n      ' – Now Open!',\n    ];\n    cutoffExcessiveNameEndings.forEach((str) => {\n      const substrFound = newName.indexOf(str);\n      if (substrFound > 0) {\n        newName = newName.slice(0, substrFound);\n      }\n    });\n\n    return newName;\n  }\n\n  /**\n   * Given a basic document build a generic entity doc.\n   * This should include all fields that are in any entity type.\n   * @param {object} doc\n   * @return {object}\n   */\n  buildBaseEntityObject(doc) {\n    const entity = {\n      // add any resort-agnostic data from the parent first\n      ...super.buildBaseEntityObject(doc),\n      _id: doc.id,\n      _docId: doc._id,\n      name: this.sanitizeEntityName(doc.name),\n    };\n\n    if (doc.longitude && doc.latitude) {\n      entity.location = {\n        longitude: Number(doc.longitude),\n        latitude: Number(doc.latitude),\n        // TODO - return entrance/exit/shop/etc. interesting points\n        //  that aren't neccessarily the \"main location\"\n        pointsOfInterest: [],\n      };\n    }\n\n    // search for any related locations that is a theme-park - this tells us this entity is within this park!\n    //  set this so we can correctly build our entity heirarchy\n    // skip if our type is actuall \"theme-park\", as parks aren't parented to themselves\n    if (\n      parkTypes.indexOf(doc.type) < 0 &&\n      doc.relatedLocations &&\n      doc.relatedLocations.length > 0 &&\n      doc.relatedLocations[0].ancestors\n    ) {\n      // try to find parkId (if it exists)\n      const park = doc.relatedLocations[0].ancestors.find((x) => {\n        return parkTypes.indexOf(x.type) >= 0;\n      });\n      if (park) {\n        entity._parkId = park.id;\n      }\n    }\n\n    // tags\n    if (doc.facets) {\n      if (doc.facets.find((x) => x.id === 'expectant-mothers')) {\n        entity.unsuitableForPregnantPeople = true;\n      }\n    }\n\n    // TODO - rename so something park-agnostic?\n    if (doc.fastPassPlus !== undefined) {\n      entity.fastPass = !!doc.fastPassPlus;\n    }\n\n    // if we're not inside a park, parent ourselves to the *something*\n    const nonParkParentPriority = [\n      'theme-park',\n      'water-park',\n      'Entertainment-Venue', // eg. Disney Springs\n      'destination',\n    ];\n    // look through list in order until we find an entity we can attach to\n    let parentDoc;\n    if (doc.relatedLocations && doc.relatedLocations.length > 0 && doc.relatedLocations[0].ancestors) {\n      for (let parentTypeIdx = 0; parentTypeIdx < nonParkParentPriority.length; parentTypeIdx++) {\n        const parentType = nonParkParentPriority[parentTypeIdx];\n        parentDoc = doc.relatedLocations[0].ancestors.find((x) => {\n          return x.type === parentType && x.id !== doc.relatedLocations[0].id;\n        });\n        if (parentDoc) break;\n      }\n\n      if (parentDoc) {\n        entity._parentId = parentDoc.id;\n      }\n    }\n\n    return entity;\n  }\n\n  /**\n   * Return entity document for this destination\n   */\n  async buildDestinationEntity() {\n    const resortIndex = await this.db.getEntityIndex(this.resortId, {\n      entityType: 'destination',\n    });\n    if (resortIndex.length === 0) return undefined;\n\n    const doc = await this.db.get(resortIndex[0]._id);\n\n    return {\n      ...this.buildBaseEntityObject(doc),\n      entityType: entityType.destination,\n      slug: doc.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase(),\n    };\n  }\n\n  /**\n   * Return all park entities for this resort\n   */\n  async buildParkEntities() {\n    const parkData = (await Promise.all(this.parkIds.map(async (parkID) => {\n      return this.db.getEntityOne(parkID);\n    }))).filter((x) => !!x);\n\n    const resort = await this.getDestinationEntity();\n\n    return parkData.map((park) => {\n      return {\n        ...this.buildBaseEntityObject(park),\n        entityType: entityType.park,\n        // parks are parented to the resort\n        _parentId: resort._id,\n        slug: park.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase(),\n      };\n    });\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async buildAttractionEntities() {\n    const attractions = await this.db.find({\n      type: 'Attraction',\n      relatedLocations: {\n        $elemMatch: {\n          ancestors: {\n            $elemMatch: {\n              id: {\n                $regex: this.destinationDocumentIDRegex,\n              },\n            },\n          },\n        },\n      },\n      // ignore any attractions with zero facets\n      facets: {\n        $exists: true,\n      },\n    });\n\n    // filter out known bad names\n    const ignoreAttractions = [\n      /^Disney Park Pass$/,\n      /Park Pass \\- Afternoon$/,\n      /Play Disney Parks/,\n      /^Temporarily Unavailable Entertainment/,\n    ];\n\n    const entities = attractions.filter((attr) => {\n      return !ignoreAttractions.find((x) => {\n        return !!attr.name.match(x);\n      });\n    }).map((attraction) => {\n      // turn into entity objects\n\n      // TODO - add extra meta data to entity objects\n      let type = attractionType.unknown;\n      const hasFacet = (facet) => {\n        if (!attraction?.facets) return false;\n        return !!attraction.facets.find((x) => {\n          return x.id === facet;\n        });\n      };\n\n      // figure out ride type from available facets...\n      if (\n        hasFacet('slow-rides') ||\n        hasFacet('small-drops') ||\n        hasFacet('thrill-rides') ||\n        hasFacet('spinning')\n      ) {\n        type = attractionType.ride;\n      }\n\n      return {\n        ...this.buildBaseEntityObject(attraction),\n        entityType: entityType.attraction,\n        attractionType: type,\n      };\n    });\n\n    return entities;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async buildShowEntities() {\n    // filter out known bad names\n    const ignoreShows = [\n      /^Temporarily Unavailable Entertainment/,\n    ];\n\n    return (await this.db.find({\n      type: 'Entertainment',\n      relatedLocations: {\n        $elemMatch: {\n          ancestors: {\n            $elemMatch: {\n              id: {\n                $regex: this.destinationDocumentIDRegex,\n              },\n            },\n          },\n        },\n      },\n    })).filter((show) => {\n      return !ignoreShows.find((x) => {\n        return !!show.name.match(x);\n      });\n    }).map((re) => {\n      return {\n        ...this.buildBaseEntityObject(re),\n        entityType: entityType.show,\n      };\n    });\n  }\n\n  /**\n   * Fetch restaurant menu JSON\n   * @param {string} id\n   * @private\n   */\n  async _fetchRestaurantMenu(id) {\n    // TODO - implement a separate menu service\n    //  this API returns errors *a lot*, so we should fetch on a very gentle cycle and cache heavily\n    return null;\n\n    return this.cache.wrap(\n      `menu_${id}`,\n      async () => {\n        try {\n          const data = await this.http(\n            'GET',\n            `https://dining-menu-svc.wdprapps.disney.com/diningMenuSvc/orchestration/menus/${id}`,\n            null,\n            {\n              retries: 0,\n            },\n          );\n          if (data && data.body) {\n            return data.body;\n          }\n        } catch (e) { }\n        return null;\n      },\n      1000 * 60 * 60 * 6, // cache for 6 hours\n    );\n  }\n\n  /**\n   * Get the menu for a given resturant entity ID\n   * @param {string} id\n   */\n  async getRestaurantMenu(id) {\n    try {\n      const menu = await this._fetchRestaurantMenu(id);\n      if (!menu) return undefined;\n\n      const menuData = menu.menus.map((menuGroup) => {\n        if (!menuGroup.menuGroups) {\n          return undefined;\n        }\n\n        const items = [];\n\n        let groupPrice = null;\n\n        // WDW menus are split into Entree,Desert etc. \"menuGroups\" - loop through them all and build them into a list\n        menuGroup.menuGroups.forEach((group) => {\n          // look for buffet pricings\n          // extract characters and digits to find pricing categories\n          const findBuffetPrices = /([^\\/\\(]+\\d+\\.\\d+)/g;\n          let match;\n          while (match = findBuffetPrices.exec(group.names.PCLong)) {\n            // split each buffet price into name and USD\n            const nameAndPrice = /(.*)\\s+(\\d+\\.\\d+)/;\n            const priceData = nameAndPrice.exec(match[1]);\n            if (priceData) {\n              if (groupPrice === null) {\n                groupPrice = [];\n              }\n\n              // add each unique price name once\n              const priceName = priceData[1].trim();\n              if (groupPrice.findIndex((x) => x.name === priceName) < 0) {\n                groupPrice.push({\n                  name: priceData[1].trim(),\n                  USD: Number(priceData[2]) * 100,\n                });\n              }\n            }\n          }\n\n          group.menuItems.forEach((dish) => {\n            const newDish = {\n              name: dish.names.PCLong || dish.names.MobileLong || dish.names.PCShort || dish.names.MobileShort || null,\n              description: dish?.descriptions?.PCLong?.text ||\n                dish?.descriptions?.MobileLong?.text ||\n                dish?.descriptions?.MobileShort?.text ||\n                null,\n              group: group.menuGroupType,\n              price: null,\n            };\n\n            if (dish?.prices?.PerServing?.withoutTax) {\n              // standard per-serving prices\n              newDish.price = [{\n                USD: dish.prices.PerServing.withoutTax * 100,\n              }];\n            } else if (dish.prices) {\n              // not per serving price\n              newDish.price = Object.keys(dish.prices).map((x) => {\n                return {\n                  name: dish.prices[x].type,\n                  USD: dish.prices[x].withoutTax * 100,\n                };\n              });\n            }\n\n            items.push(newDish);\n          });\n        });\n\n        return {\n          type: menuGroup.menuType,\n          description: `${menuGroup.primaryCuisineType} - ${menuGroup.serviceStyle} - ${menuGroup.experienceType}`,\n          items,\n          price: groupPrice, // a menu can have a price (buffets etc.)\n        };\n      }).filter((x) => !!x);\n\n      return menuData;\n    } catch (e) {\n      console.error(e);\n    }\n    return undefined;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async buildRestaurantEntities() {\n    const restaurants = (await this.db.find({\n      type: 'restaurant',\n      relatedLocations: {\n        $elemMatch: {\n          ancestors: {\n            $elemMatch: {\n              id: {\n                $regex: this.destinationDocumentIDRegex,\n              },\n            },\n          },\n        },\n      },\n    })).filter((restaurant) => {\n      // only include \"proper\" resturants\n      //  avoid listing every coffee stand etc.\n\n      // determine resturant type using available facets\n      if (!restaurant.facets) return false;\n      const tableService = restaurant.facets.find((x) => x.id === 'table-service');\n      // some resturants are missing the 'table-service' facet, but have other facets that are similar\n      const tableReservations = restaurant.facets.find((x) => x.id === 'reservations-accepted');\n      // TODO - also add quick service\n      return !!tableService || !!tableReservations;\n    }).map((re) => {\n      // TODO - populate with any other interesting restaurant detail\n      return {\n        ...this.buildBaseEntityObject(re),\n        entityType: entityType.restaurant,\n        // list of available cuisines\n        cuisines: re.facets.filter((x) => x.group === 'cuisine').map((x) => {\n          return x.name;\n        }),\n      };\n    });\n\n    // fetch menus\n    /* for (let i = 0; i < restaurants.length; i++) {\n      restaurants[i].menus = (await this.getRestaurantMenu(restaurants[i]._id)) || null;\n    }*/\n\n    return restaurants;\n  }\n\n  /**\n   *\n   * @param {array<string>} ids document IDs to get schedules for\n   * @param {moment} date Moment date to get schedule data for\n   * @return {array<object>} Array of objects containing _id and schedule\n   */\n  async _getSchedulesForDate(ids, date) {\n    const dateCalendar = await this.db.getByChannel(\n      `${this.config.resortShortcode}.calendar.1_0`,\n      {\n        'id': date.format('DD-MM'),\n      },\n    );\n\n    if (dateCalendar.length === 0) {\n      return [];\n    }\n    const calendar = dateCalendar[0];\n\n    const hours = calendar.parkHours.filter((h) => {\n      // filter for hours for any of our parks\n      return ids.indexOf(h.facilityId) >= 0 &&\n        // that aren't closed hours (just ignore these)\n        h.scheduleType !== 'Closed' &&\n        // ignore annual pass blockout data\n        h.scheduleType.indexOf('blockout') < 0;\n    }).reduce((p, x) => {\n      let hoursType = scheduleType.operating;\n\n      switch (x.scheduleType) {\n        case 'Operating':\n          hoursType = scheduleType.operating;\n          break;\n        case 'Park Hopping':\n          hoursType = scheduleType.informational;\n          break;\n        case 'Refurbishment':\n          // return refurbishment hours as purely informational\n          hoursType = scheduleType.informational;\n          break;\n        default:\n          // default to a ticketed event\n          hoursType = scheduleType.ticketed;\n          break;\n      }\n\n      p[ids.indexOf(x.facilityId)].schedule.push({\n        date: moment(x.startTime).tz(this.config.timezone).format('YYYY-MM-DD'),\n        openingTime: moment(x.startTime).tz(this.config.timezone).format(),\n        closingTime: moment(x.endTime).tz(this.config.timezone).format(),\n        type: hoursType,\n        description: hoursType != scheduleType.operating ? x.scheduleType : undefined,\n      });\n\n      return p;\n    }, ids.map((x) => {\n      return {\n        _id: x,\n        schedule: [],\n      };\n    }));\n\n    return hours;\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async buildEntityScheduleData() {\n    // grab park IDs!\n    const parks = await this.getParkEntities();\n    const parkIds = parks.map((x) => {\n      return x._id;\n    });\n\n    // grab schedules for our parks\n    const daysToReturn = 150;\n    const now = this.getTimeNowMoment();\n    const endDate = now.clone().add(daysToReturn, 'day');\n    const returnData = parkIds.map((x) => {\n      return {\n        _id: x,\n        schedule: [],\n      };\n    });\n    for (; now.isSameOrBefore(endDate, 'day'); now.add(1, 'day')) {\n      const dateData = await this._getSchedulesForDate(parkIds, now);\n      dateData.forEach((entity) => {\n        returnData[parkIds.indexOf(entity._id)].schedule.push(...entity.schedule);\n      });\n    }\n    return returnData;\n  }\n};\n\n/**\n * Walt Disney World Resort\n */\nexport class WaltDisneyWorldResort extends DisneyLiveResort {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.name = options.name || 'Walt Disney World Resort';\n    options.timezone = options.timezone || 'America/New_York';\n\n    options.resortId = options.resortId || 80007798;\n    options.resortShortcode = options.resortShortcode || 'wdw';\n\n    options.parkIds = options.parkIds || [\n      80007944, // Magic Kingdom\n      80007838, // Epcot\n      80007998, // Hollywood Studios\n      80007823, // Animal Kingdom\n      // water parks\n      80007981, // Typhoon Lagoon\n      80007834, // Blizzard Beach\n    ];\n\n    super(options);\n  }\n}\n\n/**\n * Disneyland Resort\n */\nexport class DisneylandResort extends DisneyLiveResort {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.name = options.name || 'Disneyland Resort';\n    // TODO - calculate this from resort entity's location\n    options.timezone = options.timezone || 'America/Los_Angeles';\n\n    options.resortId = options.resortId || 80008297;\n    options.resortShortcode = options.resortShortcode || 'dlr';\n\n    options.parkIds = options.parkIds || [\n      330339, // Disneyland Park\n      336894, // California Adventure\n    ];\n\n    super(options);\n  }\n}\n\n/**\n * Hong Kong Disneyland Resort\n */\nexport class HongKongDisneyland extends DisneyLiveResort {\n  /**\n   * @inheritdoc\n   */\n  constructor(options = {}) {\n    options.name = options.name || 'HongKong Disneyland';\n    // TODO - calculate this from resort entity's location\n    options.timezone = options.timezone || 'Asia/Hong_Kong';\n\n    options.resortId = options.resortId || 'hkdl';\n    options.resortShortcode = options.resortShortcode || 'hkdl';\n\n    options.parkIds = options.parkIds || [\n      'desHongKongDisneyland',\n    ];\n\n    super(options);\n  }\n\n  /**\n   * HK stores menus as PDFs, this function does nothing (yet?)\n   * @return {null}\n   */\n  async _fetchRestaurantMenu() {\n    return null;\n  }\n}\n",
@@ -12214,7 +13085,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 565,
+    "__docId__": 607,
     "kind": "variable",
     "name": "wdwDB",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -12235,7 +13106,7 @@
     "ignore": true
   },
   {
-    "__docId__": 566,
+    "__docId__": 608,
     "kind": "function",
     "name": "getDatabase",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -12260,7 +13131,7 @@
     "params": []
   },
   {
-    "__docId__": 567,
+    "__docId__": 609,
     "kind": "variable",
     "name": "parkTypes",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -12281,7 +13152,7 @@
     "ignore": true
   },
   {
-    "__docId__": 568,
+    "__docId__": 610,
     "kind": "variable",
     "name": "invalidScheduleTypes",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -12302,7 +13173,7 @@
     "ignore": true
   },
   {
-    "__docId__": 569,
+    "__docId__": 611,
     "kind": "class",
     "name": "DisneyLiveResort",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -12320,7 +13191,7 @@
     ]
   },
   {
-    "__docId__": 570,
+    "__docId__": 612,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12339,7 +13210,7 @@
     ]
   },
   {
-    "__docId__": 571,
+    "__docId__": 613,
     "kind": "member",
     "name": "resortId",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12356,7 +13227,7 @@
     }
   },
   {
-    "__docId__": 572,
+    "__docId__": 614,
     "kind": "member",
     "name": "resortShortcode",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12373,7 +13244,7 @@
     }
   },
   {
-    "__docId__": 573,
+    "__docId__": 615,
     "kind": "member",
     "name": "destinationDocumentIDRegex",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12390,7 +13261,7 @@
     }
   },
   {
-    "__docId__": 574,
+    "__docId__": 616,
     "kind": "member",
     "name": "parkIds",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12407,7 +13278,7 @@
     }
   },
   {
-    "__docId__": 575,
+    "__docId__": 617,
     "kind": "member",
     "name": "db",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12424,7 +13295,7 @@
     }
   },
   {
-    "__docId__": 576,
+    "__docId__": 618,
     "kind": "method",
     "name": "_init",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12439,7 +13310,7 @@
     "return": null
   },
   {
-    "__docId__": 577,
+    "__docId__": 619,
     "kind": "method",
     "name": "getFacilityStatusChannelID",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12461,7 +13332,7 @@
     "params": []
   },
   {
-    "__docId__": 578,
+    "__docId__": 620,
     "kind": "method",
     "name": "fetchVirtualQueueData",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12480,7 +13351,7 @@
     }
   },
   {
-    "__docId__": 579,
+    "__docId__": 621,
     "kind": "method",
     "name": "fetchGenieData",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12500,7 +13371,7 @@
     }
   },
   {
-    "__docId__": 580,
+    "__docId__": 622,
     "kind": "method",
     "name": "_buildLiveDataObject",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12530,7 +13401,7 @@
     }
   },
   {
-    "__docId__": 581,
+    "__docId__": 623,
     "kind": "method",
     "name": "buildEntityLiveData",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12549,7 +13420,7 @@
     }
   },
   {
-    "__docId__": 582,
+    "__docId__": 624,
     "kind": "method",
     "name": "initLiveStatusUpdates",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12564,7 +13435,7 @@
     "return": null
   },
   {
-    "__docId__": 583,
+    "__docId__": 625,
     "kind": "method",
     "name": "sanitizeEntityName",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12597,7 +13468,7 @@
     }
   },
   {
-    "__docId__": 584,
+    "__docId__": 626,
     "kind": "method",
     "name": "buildBaseEntityObject",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12630,7 +13501,7 @@
     }
   },
   {
-    "__docId__": 585,
+    "__docId__": 627,
     "kind": "method",
     "name": "buildDestinationEntity",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12649,7 +13520,7 @@
     }
   },
   {
-    "__docId__": 586,
+    "__docId__": 628,
     "kind": "method",
     "name": "buildParkEntities",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12668,7 +13539,7 @@
     }
   },
   {
-    "__docId__": 587,
+    "__docId__": 629,
     "kind": "method",
     "name": "buildAttractionEntities",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12693,7 +13564,7 @@
     }
   },
   {
-    "__docId__": 588,
+    "__docId__": 630,
     "kind": "method",
     "name": "buildShowEntities",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12718,7 +13589,7 @@
     }
   },
   {
-    "__docId__": 589,
+    "__docId__": 631,
     "kind": "method",
     "name": "_fetchRestaurantMenu",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12748,7 +13619,7 @@
     }
   },
   {
-    "__docId__": 590,
+    "__docId__": 632,
     "kind": "method",
     "name": "getRestaurantMenu",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12778,7 +13649,7 @@
     }
   },
   {
-    "__docId__": 591,
+    "__docId__": 633,
     "kind": "method",
     "name": "buildRestaurantEntities",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12803,7 +13674,7 @@
     }
   },
   {
-    "__docId__": 592,
+    "__docId__": 634,
     "kind": "method",
     "name": "_getSchedulesForDate",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12846,7 +13717,7 @@
     }
   },
   {
-    "__docId__": 593,
+    "__docId__": 635,
     "kind": "method",
     "name": "buildEntityScheduleData",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort",
@@ -12871,7 +13742,7 @@
     }
   },
   {
-    "__docId__": 594,
+    "__docId__": 636,
     "kind": "class",
     "name": "WaltDisneyWorldResort",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -12889,7 +13760,7 @@
     ]
   },
   {
-    "__docId__": 595,
+    "__docId__": 637,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldResort",
@@ -12908,7 +13779,7 @@
     ]
   },
   {
-    "__docId__": 596,
+    "__docId__": 638,
     "kind": "class",
     "name": "DisneylandResort",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -12926,7 +13797,7 @@
     ]
   },
   {
-    "__docId__": 597,
+    "__docId__": 639,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~DisneylandResort",
@@ -12945,7 +13816,7 @@
     ]
   },
   {
-    "__docId__": 598,
+    "__docId__": 640,
     "kind": "class",
     "name": "HongKongDisneyland",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js",
@@ -12963,7 +13834,7 @@
     ]
   },
   {
-    "__docId__": 599,
+    "__docId__": 641,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~HongKongDisneyland",
@@ -12982,7 +13853,7 @@
     ]
   },
   {
-    "__docId__": 600,
+    "__docId__": 642,
     "kind": "method",
     "name": "_fetchRestaurantMenu",
     "memberof": "lib/parks/wdw/waltdisneyworldbase.js~HongKongDisneyland",
@@ -13004,7 +13875,7 @@
     "params": []
   },
   {
-    "__docId__": 601,
+    "__docId__": 643,
     "kind": "file",
     "name": "lib/parks/wdw/wdwdatabase.js",
     "content": "import Database from '../database.js';\nimport WDWDB from './wdwdb.js';\n\n/**\n * @inheritdoc\n */\nexport class DatabaseWDW extends Database {\n  /**\n   * @inheritdoc\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    super(options);\n\n    this.db = new WDWDB();\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async _getEntities() {\n    // make sure our synced database is up-to-date\n    await this.db.init();\n  }\n}\n\nexport default DatabaseWDW;\n",
@@ -13015,7 +13886,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 602,
+    "__docId__": 644,
     "kind": "class",
     "name": "DatabaseWDW",
     "memberof": "lib/parks/wdw/wdwdatabase.js",
@@ -13039,7 +13910,7 @@
     ]
   },
   {
-    "__docId__": 603,
+    "__docId__": 645,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/wdw/wdwdatabase.js~DatabaseWDW",
@@ -13070,7 +13941,7 @@
     ]
   },
   {
-    "__docId__": 604,
+    "__docId__": 646,
     "kind": "member",
     "name": "db",
     "memberof": "lib/parks/wdw/wdwdatabase.js~DatabaseWDW",
@@ -13087,7 +13958,7 @@
     }
   },
   {
-    "__docId__": 605,
+    "__docId__": 647,
     "kind": "method",
     "name": "_getEntities",
     "memberof": "lib/parks/wdw/wdwdatabase.js~DatabaseWDW",
@@ -13108,7 +13979,7 @@
     "return": null
   },
   {
-    "__docId__": 606,
+    "__docId__": 648,
     "kind": "file",
     "name": "lib/parks/wdw/wdwdb.js",
     "content": "import PouchDB from 'pouchdb';\nimport sift from 'sift';\nimport {promises as fs, constants as fsConstants, createReadStream, createWriteStream} from 'fs';\nimport path from 'path';\n\nimport {parseConfig} from '../../configBase.js';\n\n/**\n * Given a document, return it's entity ID for the WDW database\n * @param {object|string} doc CouchDB document or a document ID\n * @return {string}\n */\nexport function getEntityID(doc) {\n  const docId = doc?.id || doc;\n\n  if (!docId) {\n    console.trace('Unable to find ID from', JSON.stringify(doc));\n    return undefined;\n  }\n\n  const stack = docId.split(':');\n  const lowestLevelEntity = stack[stack.length - 1];\n\n  const parts = lowestLevelEntity.split(';');\n  if (parts <= 1) return undefined;\n\n  return parts.find((p) => {\n    // edge-case for some documents with no attraction attached (guessing test documents)\n    if (p === 'Unassigned') return false;\n\n    const keyval = p.split('=');\n    return (keyval.length === 1);\n  });\n}\n\n// internal key names for our indexes. Stored as constants to save typing these over and over\nconst constants = {\n  INDEX_FACILITYSTATUS: 'facilityStatus',\n  INDEX_CHANNELS: 'channels',\n  INDEX_ENTITIES: 'entities',\n  INDEX_CHILDREN: 'children',\n  INDEX_NAMES: 'names',\n  INDEX_IDS: 'ids',\n};\n\n// ancestors to include in our index\n//  we add these into our index objects to identify unique documents to index\nconst ancestorIndexes = [\n  {\n    key: 'ancestorLandId',\n    index: 'land_id',\n  },\n  {\n    key: 'ancestorResortId',\n    index: 'resort_id',\n  },\n  {\n    key: 'ancestorResortAreaId',\n    index: 'resort_area_id',\n  },\n  {\n    key: 'ancestorThemeParkId',\n    index: 'park_id',\n  },\n];\n\n// Super() function to call when we setup this class as a plugin\nconst pouchBulkDocs = PouchDB.prototype.bulkDocs;\n\n/**\n * An indexed live WDW database\n * Replicated WDW database to local disk for fast access\n * While replicating, will build an in-memory index of entities for fast lookup\n * Options to dump database to a single file or load a snapshot for quicker database boot ups\n */\nexport class IndexedWDWDB extends PouchDB {\n  /**\n   * Construct a new IndexedWDWDB object\n   * @param {object} opts PouchDB options object\n   * @param {string} [opts.remoteHost] Remote database to replicate\n   * @param {string} [opts.remoteUsername] Remote database username to authenticate\n   * @param {string} [opts.remotePassword] Remote database password to authenticate\n   * @param {string} [opts.dbName='wdw'] Local database name\n   * @param {string} [opts.snapshot] File location of a snapshot to 'seed' the database during startup\n   * @param {string} [opts.skipSync] Skip network replication, only use data already on disk\n   * @extends PouchDB\n   */\n  constructor(opts = {}) {\n    // default to enable auto_compaction\n    opts.auto_compaction = opts.auto_compaction || true;\n\n    opts.remoteHost = '';\n    opts.remoteUsername = '';\n    opts.remotePassword = '';\n    opts.dbName = opts.dbName || 'wdw';\n    opts.snapshot = ''; // optional snapshot to use when starting database\n    // 'name' is the config option pouchdb uses for the storage path\n    opts.name = opts.name || IndexedWDWDB.getDatabaseFilePath(opts.dbName);\n\n    opts.skipSync = opts.skipSync === undefined ? false : opts.skipSync;\n\n    opts.restartTimeout = opts.restartTimeout || 5;\n\n    opts.configPrefixes = ['WDWDB'].concat(opts.configPrefixes || []);\n    const config = parseConfig(opts);\n\n    super(config);\n    this.config = config;\n\n    // increase the maximum listeners to this database\n    this.setMaxListeners(50);\n\n    // setup our remote host to replicate locally\n    if (this.config.remoteHost) {\n      const remoteHostOptions = {\n        skip_setup: true,\n      };\n      if (this.config.remoteUsername && this.config.remotePassword) {\n        remoteHostOptions.auth = {\n          username: this.config.remoteUsername,\n          password: this.config.remotePassword,\n        };\n      }\n\n      this.remoteDB = new PouchDB(this.config.remoteHost, remoteHostOptions);\n    }\n\n    this.synced = false;\n    this.replicating = false;\n\n    this._index = {};\n    this._setupPromise = null;\n    this._indexSetup = false;\n  }\n\n  /**\n * Get the LevelDOWN database location to use\n * @param {string} name Database name\n * @return {string}\n */\n  static getDatabaseFilePath(name) {\n    return path.join(process.cwd(), `db.${name}`);\n  }\n\n  /**\n   * Initialise the live database, returns once finished an initial sync\n   */\n  async init() {\n    if (this.synced) {\n      return;\n    }\n\n    if (this.initPromiseSync) return this.initPromiseSync;\n\n    // first, syncronise our database before we start rolling updates\n    this.initPromiseSync = this._loadAndInit();\n    // keep the Promise as a variable so we can keep returning it for any additional init() calls\n    await this.initPromiseSync;\n    this.initPromiseSync = null;\n\n    console.log(`Database finished setup!`);\n\n    this.synced = true;\n\n    if (!this.config.skipSync && this.remoteDB) {\n      this._replicate();\n    }\n  }\n\n  /**\n   * Start database replication\n   * @private\n   */\n  _replicate() {\n    if (this.replicating) return;\n    this.replicating = true;\n\n    let noChangeTimeout = null;\n    let replicationHandle = null;\n\n    // how many minutes before killing and restarting replication\n    const noChangeTimer = Number(this.config.restartTimeout) || 5;\n\n    // function to reboot the replicate based on various possible failure states\n    const rebootReplicator = (err) => {\n      if (noChangeTimeout) {\n        clearTimeout(noChangeTimeout);\n      }\n      if (replicationHandle) {\n        replicationHandle.cancel();\n        replicationHandle = null;\n      }\n\n      if (err) {\n        console.error('Replication Error!', new Date(), err);\n      }\n\n      // console.log('Restarting replicator...');\n      this.replicating = false;\n      setTimeout(this._replicate.bind(this), 1000);\n    };\n\n    const resetTimeoutTimer = () => {\n      if (noChangeTimeout) {\n        clearTimeout(noChangeTimeout);\n      }\n      noChangeTimeout = setTimeout(() => {\n        // console.log('Replicator timed out...');\n        rebootReplicator();\n      }, 1000 * 60 * noChangeTimer);\n    };\n\n    try {\n      replicationHandle = PouchDB.replicate(this.remoteDB, this, {\n        live: true,\n        retry: true,\n      }).on('change', () => {\n        // reset a timer whenever we get a change\n        //  if the timer is ever fired, we will restart the replicator\n        resetTimeoutTimer();\n      }).on('error', (e) => {\n        rebootReplicator(e);\n      });\n\n      // always start the change timer immediately\n      //  otherwise if we start repliating in the middle of the night (when no changes are happening)\n      //  on('change') never fires, so we can lose connection and never fire the timeout\n      resetTimeoutTimer();\n    } catch (e) {\n      rebootReplicator(e);\n    }\n  }\n\n  /**\n   * Internal function\n   * Loads and performs an initial sync on the database\n   * @private\n   */\n  async _loadAndInit() {\n    // load up our indexes\n    await this._initIndexes();\n\n    // reindex every document once we've initialised from disk\n    //  do this before replication, since all new docs will be auto-indexed\n    const docs = await this.allDocs({\n      include_docs: true,\n    });\n    console.log('Building index...');\n    await Promise.allSettled(docs.rows.map((doc) => {\n      return this._indexWDWDocument(doc.doc);\n    }));\n\n    // optionally skip replicating with remote (for local fast testing)\n    if (this.config.skipSync || !this.remoteDB) {\n      return;\n    }\n\n    // then perform an initial replication from remote to local\n    console.log('Performing initial replication...');\n    return await PouchDB.replicate(this.remoteDB, this, {\n      batch_size: 500,\n    }).catch((e) => {\n      console.error(`Replication error: ${e}`);\n    });\n  }\n\n  /**\n   * Get the filename we use for saving backups of the database to disk\n   * Used for creating simple \"snapshots\" to reduce initial sync times\n   * @param {string} [postfix] Optional postfix for the filename\n   * eg. Use postfix to generate a temporary version of a file to write to before replacing the \"real\" database\n   * @return {string}\n   */\n  getDumpFilename(postfix = '') {\n    return path.join('localdb', `${this.config.dbName}${postfix}.db`);\n  }\n\n  /**\n   * Restore a database backup from disk\n   * Perform this after running \"dump()\" on a previous synced database\n   * This will help to reduce the initial sync time for large databases\n   * @param {string} [snapshotFile] File path of the snapshot to restore into the database\n   * snapshotFile will use default saveSnapshot result location if not supplied\n   */\n  async loadSnapshot(snapshotFile = '') {\n    throw new Error('Missing Implementation');\n    if (this.synced || this.replicating) {\n      console.warn('Trying to load database snapshot when replication has already started');\n      return;\n    }\n\n    const useCustomSnapshot = !!snapshotFile;\n    const dumpPath = useCustomSnapshot ? snapshotFile : this.getDumpFilename();\n\n    // if our database dump doesn't exist, then early out and we'll do a normal sync\n    try {\n      await fs.access(dumpPath, fsConstants.F_OK);\n    } catch (error) {\n      return;\n    }\n\n    console.log('Restoring database from disk...');\n\n    // otherwise, load up our database from disk\n    const ws = createReadStream(dumpPath);\n    return this.load(ws, {\n      batch_size: 500,\n    });\n  }\n\n  /**\n   * Save a snapshot of this live database to disk\n   * This will be used to \"seed\" the database to speed up syncs for future runs\n   * @return {string} Path to resulting database snapshot\n   */\n  async saveSnapshot() {\n    throw new Error('Missing Implementation');\n    if (this.databaseDumpPendingPromise) {\n      return this.databaseDumpPendingPromise;\n    }\n\n    console.log('Dumping database to disk...');\n\n    const dumpPath = this.getDumpFilename();\n    const dumpPathNew = this.getDumpFilename('_new');\n\n    // dump database to our new location\n    const ws = createWriteStream(dumpPathNew);\n    this.databaseDumpPendingPromise = this.dump(ws, {\n      batch_size: 500,\n    });\n    // save Promise so multiple \"dump()\" calls can stack cleanly\n    await this.databaseDumpPendingPromise;\n    this.databaseDumpPendingPromise = null;\n\n    // rename new database dump to our final intended location\n    return fs.rename(dumpPathNew, dumpPath).then(() => {\n      // finally, return the actual path of the snapshot\n      return dumpPath;\n    });\n  }\n\n  /**\n   * Index initialisation\n   * This function wraps taking care of creating our indexes once only\n   * @private\n   */\n  async _initIndexes() {\n    if (this._indexSetup) {\n      return;\n    }\n\n    if (this._setupPromise) {\n      return this._setupPromise;\n    }\n\n    this._setupPromise = this._createIndexes();\n    await this._setupPromise;\n    this._indexSetup = true;\n    return;\n  }\n\n  /**\n   * Setup our WDW indexes\n   * @private\n   */\n  async _createIndexes() {\n    await this._createIndex(constants.INDEX_ENTITIES);\n    await this._createIndex(constants.INDEX_CHANNELS);\n    await this._createIndex(constants.INDEX_FACILITYSTATUS, []);\n    await this._createIndex(constants.INDEX_CHILDREN);\n    await this._createIndex(constants.INDEX_NAMES);\n    await this._createIndex(constants.INDEX_IDS, []);\n  }\n\n  /**\n   * Get the internal index object for the given index type\n   * @param {object} name Index name (see constants.INDEX_*)\n   * @return {*}\n   * @private\n   */\n  getIndex(name) {\n    return this._index[name].index;\n  }\n\n  /**\n   * Create an index object to be used by this database\n   * @param {string} name Index name\n   * @param {*} defaultIndex Index initial object state\n   * @private\n   */\n  async _createIndex(name, defaultIndex = {}) {\n    this._index[name] = {\n      index: defaultIndex,\n    };\n  }\n\n  /**\n   * Given a WDW document, extract key identifiable data\n   * This is used to build a look-up index of unique document types\n   * See ancestorIndexes for some of the keys we use\n   * This is important so we can tell the difference between entities with the same ID, but different purposes\n   * eg. an entity ID can have multiple documents, one for the attraction itself, one for it's wait times, etc.\n   * These need to both be in the index under the same entity ID, but with different properties to make them distinct\n   * @param {object} doc WDW Database Document\n   * @return {object} Index object containing important identifying data\n   * @private\n   */\n  _extractEntityKeys(doc) {\n    if (!doc || !doc.id) return undefined;\n\n    // some IDs are stacked using :\n    const stack = doc.id.split(':');\n    const lowestLevelEntity = stack[stack.length - 1];\n\n    const parts = lowestLevelEntity.split(';');\n    if (parts <= 1) return undefined;\n\n    // some documents can have different parents, they're the same, but different path to get there\n    const parentStackEl = stack.length > 1 ? stack[stack.length - 2] : undefined;\n    const parent = parentStackEl ? this._extractEntityKeys({id: parentStackEl}).id : undefined;\n\n    const ret = {\n      parent,\n    };\n\n    // special case for calendars\n    if (doc.channels.find((x) => x.indexOf('.calendar.') >= 0) !== undefined) {\n      ret.entityType = 'calendar';\n    }\n\n    parts.forEach((p) => {\n      const keyval = p.split('=');\n      if (keyval.length === 1) {\n        ret.id = keyval[0];\n      } else {\n        ret[keyval[0]] = keyval[1];\n      }\n    });\n\n    // if this document is in a \"facilitystatus\" channel, add an extra tag\n    //  this is so we don't collide with the actaul document for this attraction\n    //  but also so we can filter it easier later\n    const facilityStatus = doc.channels && (doc.channels.find((x) => x.indexOf('facilitystatus') >= 0) !== undefined);\n    if (facilityStatus) {\n      ret.facilityStatus = true;\n    }\n\n    // include channels in our index\n    if (doc.channels) {\n      const channels = JSON.parse(JSON.stringify(doc.channels));\n      channels.sort();\n      ret.channel = channels.join(',');\n    }\n\n    // add any ancestor data to our index (that we a) care about and b) can find) - see ancestorIndexes\n    ancestorIndexes.forEach((ancestorIndex) => {\n      if (doc[ancestorIndex.key]) {\n        const ancestorID = getEntityID(doc[ancestorIndex.key]);\n        if (ancestorID) {\n          ret[ancestorIndex.index] = ancestorID;\n        }\n      }\n    });\n\n    return ret;\n  }\n\n  /**\n   * Given a WDW database document, try to return its language\n   * @param {object} doc\n   * @return {string} Language of this document. Eg. en_intl, en_us\n   * @private\n   */\n  _extractChannelLanguage(doc) {\n    // pull channel from doc\n    if (!doc.channels) return undefined;\n\n    const langs = doc.channels.map((x) => {\n      // extract last \\.* from the end of the channel name\n      // language-specific channels end with \"en_us\" or something\n      // channels without locale end with a version number eg. \"1_0\"\n      return x.slice(x.lastIndexOf('.') + 1);\n    }).filter((x) => {\n      // check each one to see the language tag starts with a version number\n      return isNaN(Number(x.slice(0, 1)));\n    });\n\n    // default to 'en_intl' if we cannot find a language in our channels\n    return langs[0] || 'en_intl';\n  }\n\n  /**\n   * Remove all indexes referencing docID from the given index\n   * @param {object} index\n   * @param {string} docID\n   */\n  _removeFromArrayIndex(index, docID) {\n    Object.keys(index).forEach((key) => {\n      const indexIDs = index[key].map(\n        (x, idx) => {\n          return x._id === docID ? idx : undefined;\n        }).\n        filter((x) => x !== undefined);\n\n      indexIDs.forEach((idx) => {\n        index[key].splice(idx, 1);\n      });\n    });\n  }\n\n  /**\n   * Add a document to the database index\n   * Used for fast lookups of entities etc. to the correct documents\n   * @param {object} doc CouchDB document to index\n   * @private\n   */\n  async _indexWDWDocument(doc) {\n    const idIndex = this.getIndex(constants.INDEX_IDS);\n\n    if (doc._deleted) {\n      // remove document from all indexes\n\n      // facility status\n      //  quick hack to turn the facility status index into the same type as the others so I can reuse my code\n      const facilityIndexObject = {index: this.getIndex(constants.INDEX_FACILITYSTATUS)};\n      this._removeFromArrayIndex(facilityIndexObject, doc._id);\n\n      // channels\n      this._removeFromArrayIndex(this.getIndex(constants.INDEX_CHANNELS), doc._id);\n\n      // entity index\n      this._removeFromArrayIndex(this.getIndex(constants.INDEX_ENTITIES), doc._id);\n\n      // id index\n      const idIndexIDX = idIndex.indexOf(doc._id);\n      if (idIndexIDX >= 0) {\n        idIndex.splice(idIndexIDX, 1);\n      }\n\n      // ancestor data\n      //  look through all ancestor index items and remove this document\n      const childIndex = this.getIndex(constants.INDEX_CHILDREN);\n      const indexIDs = Object.keys(childIndex);\n      indexIDs.forEach((index) => {\n        const idx = childIndex[index].indexOf(doc._id);\n        if (idx >= 0) {\n          childIndex[index].splice(idx, 1);\n        }\n      });\n\n      // name index\n      const nameIndex = this.getIndex(constants.INDEX_NAMES);\n      const nameIndexIDs = Object.keys(nameIndex);\n      nameIndexIDs.forEach((index) => {\n        const idx = childIndex[index].indexOf(doc._id);\n        if (idx >= 0) {\n          childIndex[index].splice(idx, 1);\n        }\n      });\n\n      return;\n    }\n\n    // always add doc ID to our ID index\n    if (idIndex.indexOf(doc._id) < 0) {\n      idIndex.push(doc._id);\n    }\n\n    const entity = this._extractEntityKeys(doc);\n    if (entity && entity.id && entity.entityType) {\n      const id = entity.id;\n\n      const newIndexEntry = {\n        ...entity,\n        language: this._extractChannelLanguage(doc),\n        _id: doc._id,\n      };\n\n      // special-case, index all facility status documents in another index\n      if (newIndexEntry.facilityStatus) {\n        const facilityIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);\n\n        const docExists = facilityIndex.findIndex((x) => {\n          return x.id === newIndexEntry.id;\n        });\n        if (docExists >= 0) {\n          facilityIndex[docExists] = newIndexEntry;\n        } else {\n          facilityIndex.push(newIndexEntry);\n        }\n      }\n\n      // index all documents based on channel\n      if (doc.channels) {\n        const channelIndex = this.getIndex(constants.INDEX_CHANNELS);\n        doc.channels.forEach((channel) => {\n          if (!channelIndex[channel]) {\n            channelIndex[channel] = [];\n          }\n          channelIndex[channel].push(newIndexEntry);\n        });\n      }\n\n      // index ancestors (so we can find all children of a given entity)\n      const locs = doc?.relatedLocations;\n      if (locs) {\n        const ancestors = locs ? locs.map((x) => x.ancestors || []).flat() : [];\n        const childrenIndex = this.getIndex(constants.INDEX_CHILDREN);\n        for (let i = 0; i < ancestors.length; i++) {\n          const entity = getEntityID(ancestors[i].id);\n          if (entity) {\n            // found entity ID for this ancestor, create or update an entry for it\n            if (childrenIndex[entity] === undefined) {\n              childrenIndex[entity] = [];\n            }\n            if (childrenIndex[entity].indexOf(doc._id) < 0) {\n              childrenIndex[entity].push(doc._id);\n            }\n          }\n        }\n      }\n\n      // index document names for text searching\n      let docName = doc?.name;\n      if (docName) {\n        // simplify our doc name to only alphanumeric characters\n        docName = docName.toLowerCase().replace(/[^a-z0-9]/g, '');\n        const nameIndex = this.getIndex(constants.INDEX_NAMES);\n        if (!nameIndex[docName]) {\n          nameIndex[docName] = [];\n        }\n        nameIndex[docName].push(doc._id);\n      }\n\n      const newIndexKeys = Object.keys(newIndexEntry);\n\n      const entityIndex = this.getIndex(constants.INDEX_ENTITIES);\n      if (!entityIndex[id]) {\n        entityIndex[id] = [];\n      }\n      const findExisting = entityIndex[id].findIndex((x) => {\n        // if # keys are different, not a match\n        if (Object.keys(x).length !== newIndexKeys.length) return false;\n\n        // look for any mismatches between the keys\n        const findMismatch = newIndexKeys.find((key) => {\n          // _id is supposed to be different, so ignore it regardless of if it matches or not\n          if (key === '_id') return false;\n          return (newIndexEntry[key] !== x[key]);\n        });\n        return !findMismatch;\n      });\n\n      if (findExisting < 0) {\n        // entry doesn't exist, add to our list\n        entityIndex[id].push(newIndexEntry);\n      } else {\n        // replace existing entry that matches all the same properties\n        if (entityIndex[id][findExisting]._id !== newIndexEntry._id) {\n          entityIndex[id][findExisting] = newIndexEntry;\n        }\n      }\n    }\n  }\n\n  /**\n   * Get an array of documents from an array of _id\n   * @param {array<string>} ids\n   */\n  async getDocsById(ids) {\n    await this.init();\n\n    return (await Promise.all(ids.map((id) => {\n      // fetch each document using our local DB\n      return this.get(id);\n    }))).filter((doc) => {\n      // filter our any docs that failed to be fetched (they have been deleted etc.)\n      return doc !== undefined;\n    });\n  }\n\n  /**\n   * Find search index entries by ID\n   * If you want the actual document and not just the meta-index data, use getEntity() instead\n   * @param {string} id\n   * @param {object} [filter]\n   * @return {array<object>} Returns the index data for this entity ID\n   */\n  async getEntityIndex(id, filter = {}) {\n    await this.init();\n\n    const entityIndex = this.getIndex(constants.INDEX_ENTITIES);\n    const indexEntry = entityIndex[id];\n    if (!indexEntry) return [];\n\n    // filter entries by supplied filter options before resolving\n    return indexEntry.filter(sift(filter));\n  }\n\n  /**\n   * Return an array of children document IDs for a given entity ID\n   * @param {string} id\n   */\n  async getDocChildren(id) {\n    await this.init();\n\n    const childrenIndex = this.getIndex(constants.INDEX_CHILDREN);\n    const children = childrenIndex[id];\n    if (!children) return [];\n    return children;\n  }\n\n  /**\n   * Very rudementary text search for documents matching the incoming name.\n   * name argument will be stripped of all non-alphanumeric characters for searching.\n   * Will return an array of document IDs with matching name substrings.\n   * @param {string} name\n   */\n  async getDocNameSearch(name) {\n    const searchName = name.toLowerCase().replace(/[^a-z0-9]/g, '');\n    const nameIndex = await this.getIndex(constants.INDEX_NAMES);\n    const names = Object.keys(nameIndex);\n    const found = names.filter((x) => {\n      return x.indexOf(searchName) >= 0;\n    });\n    return found.map((x) => nameIndex[x]).flat();\n  }\n\n  /**\n   * Search for an entity in the WDW database\n   * @param {string} id Entity ID\n   * @param {object} [filter] Filter index by field\n   * @return {array<object>} Returns all documents for this entity ID\n   */\n  async getEntity(id, filter = {}) {\n    const entities = await this.getEntityIndex(id, filter);\n\n    // resolve each index entry to our full documents\n    return this.getDocsById(entities.map((entry) => {\n      return entry._id;\n    }));\n  }\n\n\n  /**\n   * Search for an entity in the WDW database\n   * Attempts to return the \"best candidate\" single document that matches the incoming ID\n   * @param {string} id Entity ID\n   * @param {object} [filter] Optional index filter\n   * @return {object} Returns the best candidate single document, or undefined\n   */\n  async getEntityOne(id, filter = {}) {\n    const entities = await this.getEntityIndex(id, filter);\n    if (entities.length === 0) return undefined;\n\n    // filter to find the best document of the ones available\n    //  prioritise language en_intl\n    const enIntl = entities.find((doc) => {\n      return doc.language === 'en_intl' && !doc.facilityStatus; // don't include facilityStatus docs by-default\n    });\n    if (enIntl) {\n      return await this.get(enIntl._id);\n    }\n\n    //  2nd priority: en_US\n    const enUS = entities.find((doc) => {\n      return doc.language === 'en_us' && !doc.facilityStatus; // don't include facilityStatus docs by-default\n    });\n    if (enUS) {\n      return await this.get(enUS._id);\n    }\n\n    // otherwise just return the first entry in out list\n    return await this.get(entities[0]._id);\n  }\n\n  /**\n   * Get the live facility status for a given entity ID\n   * @param {string} id Entity ID\n   * @return {object} Facility status document, or undefined\n   */\n  async getFacilityStatus(id) {\n    await this.init();\n\n    const statusIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);\n\n    // look up entity ID in our facility status index\n    const indexEntity = statusIndex.find((x) => {\n      return x.id === id;\n    });\n    if (!indexEntity) return undefined;\n\n    return await this.get(indexEntity._id);\n  }\n\n  /**\n   * Find all documents by channel\n   * eg. 'wdw.facilitystatus.1_0' to get all WDW facility status documents\n   * @param {string} channel Channel ID\n   * @param {object} [filter] Optional document index filter\n   * @return {array<object>} All documents in this channel (or empty array)\n   */\n  async getByChannel(channel, filter = {}) {\n    await this.init();\n\n    const channelIndex = this.getIndex(constants.INDEX_CHANNELS);\n\n    const channelData = channelIndex[channel];\n    if (!channelData) {\n      return [];\n    }\n\n    // return resolved documents for the channel\n    return this.getDocsById(channelData.filter(sift(filter)).map((entry) => {\n      return entry._id;\n    }));\n  }\n\n  /**\n   * Return all documents in the database that match the given filter\n   * This is a slow operation! Use sparingly!\n   * @param {object} [filter]\n   * @return {array<object>}\n   */\n  async find(filter = {}) {\n    await this.init();\n\n    const docs = await this.allDocs({\n      include_docs: true,\n    });\n\n    return docs.rows.map((row) => row.doc).filter(sift(filter));\n  }\n\n  /**\n   * Subscribe to all database changes with an optional mongo-style filter\n   * @param {object} [filter]\n   * @param {function} callback\n   */\n  subscribeToChanges(filter, callback) {\n    if (typeof filter === 'function') {\n      // if no filter passed in, call ourselves with an empty set\n      this.subscribeToChanges({}, callback);\n    } else {\n      // listen to changes from now onwards, passing in our filter function\n      this.changes({\n        since: 'now',\n        live: true,\n        include_docs: true,\n        filter: sift(filter),\n      }).on('change', (change) => {\n        callback(change.doc);\n      });\n    }\n  }\n\n  /**\n   * Subscribe to all changes to a channel\n   * @param {string} channel\n   * @param {function} callback\n   */\n  subscribeToChannel(channel, callback) {\n    // only return documents that contain the supplied channel\n    this.subscribeToChanges({\n      channels: {\n        $elemMatch: channel,\n      },\n    }, callback);\n  }\n\n  /**\n   * Plugin function to intercept bulkDocs function\n   * We index any WDW documents we find for easier lookup later\n   * @param  {...any} args bulkDocs in\n   * @private\n   */\n  static async _pluginBulkDocs(...args) {\n    await this._initIndexes();\n\n    const body = args[0];\n    const docs = Array.isArray(body) ? body : body.docs;\n\n    // index each document being added to the database\n    await Promise.allSettled(docs.map((doc) => {\n      return this._indexWDWDocument(doc);\n    }));\n\n    // All documents check out. Pass them to PouchDB.\n    return pouchBulkDocs.call(this, ...args);\n  }\n}\n\n// add our plugin function\nIndexedWDWDB.plugin({\n  bulkDocs: IndexedWDWDB._pluginBulkDocs,\n});\n\nexport default IndexedWDWDB;\n",
@@ -13119,7 +13990,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 607,
+    "__docId__": 649,
     "kind": "function",
     "name": "getEntityID",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -13156,7 +14027,7 @@
     }
   },
   {
-    "__docId__": 608,
+    "__docId__": 650,
     "kind": "variable",
     "name": "constants",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -13177,7 +14048,7 @@
     "ignore": true
   },
   {
-    "__docId__": 609,
+    "__docId__": 651,
     "kind": "variable",
     "name": "ancestorIndexes",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -13198,7 +14069,7 @@
     "ignore": true
   },
   {
-    "__docId__": 610,
+    "__docId__": 652,
     "kind": "variable",
     "name": "pouchBulkDocs",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -13219,7 +14090,7 @@
     "ignore": true
   },
   {
-    "__docId__": 611,
+    "__docId__": 653,
     "kind": "class",
     "name": "IndexedWDWDB",
     "memberof": "lib/parks/wdw/wdwdb.js",
@@ -13237,7 +14108,7 @@
     ]
   },
   {
-    "__docId__": 612,
+    "__docId__": 654,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13330,7 +14201,7 @@
     ]
   },
   {
-    "__docId__": 613,
+    "__docId__": 655,
     "kind": "member",
     "name": "config",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13347,7 +14218,7 @@
     }
   },
   {
-    "__docId__": 614,
+    "__docId__": 656,
     "kind": "member",
     "name": "remoteDB",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13364,7 +14235,7 @@
     }
   },
   {
-    "__docId__": 615,
+    "__docId__": 657,
     "kind": "member",
     "name": "synced",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13381,7 +14252,7 @@
     }
   },
   {
-    "__docId__": 616,
+    "__docId__": 658,
     "kind": "member",
     "name": "replicating",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13398,7 +14269,7 @@
     }
   },
   {
-    "__docId__": 617,
+    "__docId__": 659,
     "kind": "member",
     "name": "_index",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13415,7 +14286,7 @@
     }
   },
   {
-    "__docId__": 618,
+    "__docId__": 660,
     "kind": "member",
     "name": "_setupPromise",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13432,7 +14303,7 @@
     }
   },
   {
-    "__docId__": 619,
+    "__docId__": 661,
     "kind": "member",
     "name": "_indexSetup",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13449,7 +14320,7 @@
     }
   },
   {
-    "__docId__": 620,
+    "__docId__": 662,
     "kind": "method",
     "name": "getDatabaseFilePath",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13482,7 +14353,7 @@
     }
   },
   {
-    "__docId__": 621,
+    "__docId__": 663,
     "kind": "method",
     "name": "init",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13501,7 +14372,7 @@
     }
   },
   {
-    "__docId__": 622,
+    "__docId__": 664,
     "kind": "member",
     "name": "initPromiseSync",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13518,7 +14389,7 @@
     }
   },
   {
-    "__docId__": 625,
+    "__docId__": 667,
     "kind": "method",
     "name": "_replicate",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13533,7 +14404,7 @@
     "return": null
   },
   {
-    "__docId__": 628,
+    "__docId__": 670,
     "kind": "method",
     "name": "_loadAndInit",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13552,7 +14423,7 @@
     }
   },
   {
-    "__docId__": 629,
+    "__docId__": 671,
     "kind": "method",
     "name": "getDumpFilename",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13585,7 +14456,7 @@
     }
   },
   {
-    "__docId__": 630,
+    "__docId__": 672,
     "kind": "method",
     "name": "loadSnapshot",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13615,7 +14486,7 @@
     }
   },
   {
-    "__docId__": 631,
+    "__docId__": 673,
     "kind": "method",
     "name": "saveSnapshot",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13637,7 +14508,7 @@
     "params": []
   },
   {
-    "__docId__": 632,
+    "__docId__": 674,
     "kind": "member",
     "name": "databaseDumpPendingPromise",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13654,7 +14525,7 @@
     }
   },
   {
-    "__docId__": 634,
+    "__docId__": 676,
     "kind": "method",
     "name": "_initIndexes",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13673,7 +14544,7 @@
     }
   },
   {
-    "__docId__": 637,
+    "__docId__": 679,
     "kind": "method",
     "name": "_createIndexes",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13688,7 +14559,7 @@
     "return": null
   },
   {
-    "__docId__": 638,
+    "__docId__": 680,
     "kind": "method",
     "name": "getIndex",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13721,7 +14592,7 @@
     }
   },
   {
-    "__docId__": 639,
+    "__docId__": 681,
     "kind": "method",
     "name": "_createIndex",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13757,7 +14628,7 @@
     "return": null
   },
   {
-    "__docId__": 640,
+    "__docId__": 682,
     "kind": "method",
     "name": "_extractEntityKeys",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13790,7 +14661,7 @@
     }
   },
   {
-    "__docId__": 641,
+    "__docId__": 683,
     "kind": "method",
     "name": "_extractChannelLanguage",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13823,7 +14694,7 @@
     }
   },
   {
-    "__docId__": 642,
+    "__docId__": 684,
     "kind": "method",
     "name": "_removeFromArrayIndex",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13859,7 +14730,7 @@
     "return": null
   },
   {
-    "__docId__": 643,
+    "__docId__": 685,
     "kind": "method",
     "name": "_indexWDWDocument",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13885,7 +14756,7 @@
     "return": null
   },
   {
-    "__docId__": 644,
+    "__docId__": 686,
     "kind": "method",
     "name": "getDocsById",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13915,7 +14786,7 @@
     }
   },
   {
-    "__docId__": 645,
+    "__docId__": 687,
     "kind": "method",
     "name": "getEntityIndex",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13958,7 +14829,7 @@
     }
   },
   {
-    "__docId__": 646,
+    "__docId__": 688,
     "kind": "method",
     "name": "getDocChildren",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -13988,7 +14859,7 @@
     }
   },
   {
-    "__docId__": 647,
+    "__docId__": 689,
     "kind": "method",
     "name": "getDocNameSearch",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -14018,7 +14889,7 @@
     }
   },
   {
-    "__docId__": 648,
+    "__docId__": 690,
     "kind": "method",
     "name": "getEntity",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -14061,7 +14932,7 @@
     }
   },
   {
-    "__docId__": 649,
+    "__docId__": 691,
     "kind": "method",
     "name": "getEntityOne",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -14104,7 +14975,7 @@
     }
   },
   {
-    "__docId__": 650,
+    "__docId__": 692,
     "kind": "method",
     "name": "getFacilityStatus",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -14137,7 +15008,7 @@
     }
   },
   {
-    "__docId__": 651,
+    "__docId__": 693,
     "kind": "method",
     "name": "getByChannel",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -14180,7 +15051,7 @@
     }
   },
   {
-    "__docId__": 652,
+    "__docId__": 694,
     "kind": "method",
     "name": "find",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -14213,7 +15084,7 @@
     }
   },
   {
-    "__docId__": 653,
+    "__docId__": 695,
     "kind": "method",
     "name": "subscribeToChanges",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -14249,7 +15120,7 @@
     "return": null
   },
   {
-    "__docId__": 654,
+    "__docId__": 696,
     "kind": "method",
     "name": "subscribeToChannel",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -14285,7 +15156,7 @@
     "return": null
   },
   {
-    "__docId__": 655,
+    "__docId__": 697,
     "kind": "method",
     "name": "_pluginBulkDocs",
     "memberof": "lib/parks/wdw/wdwdb.js~IndexedWDWDB",
@@ -14315,7 +15186,7 @@
     }
   },
   {
-    "__docId__": 656,
+    "__docId__": 698,
     "kind": "file",
     "name": "lib/reusePromises.js",
     "content": "/**\n * Module that wraps re-using the same Promise multiple times.\n * This allows a function to be called multiple times before returning, but only return once.\n * Useful for latent network requests,\n *  such as requesting a document from multiple sources, but only making one HTTP request.\n */\n\nconst activeFunctions = [];\n\n/**\n * Find the active function with these arguments\n * @param {*} self\n * @param {function} fn\n * @param {string} argsSerialised\n * @return {number}\n * @private\n */\nfunction findActiveFunctionIndex(self, fn, argsSerialised) {\n  return activeFunctions.findIndex((x) => {\n    return x.self === self && x.fn === fn && x.args === argsSerialised;\n  });\n}\n\n/**\n * Reuse a function until it resolves\n * @param {*} self\n * @param {function} fn\n * @param  {...any} args Arguments to pass to the function\n * @return {Promise}\n */\nexport function reusePromise(self, fn, ...args) {\n  return _reusePromise(false, self, fn, ...args);\n}\n\n/**\n * Reuse a function, returning it's result forever\n * @param {*} self\n * @param {function} fn\n * @param  {...any} args Arguments to pass to the function\n * @return {Promise}\n */\nexport function reusePromiseForever(self, fn, ...args) {\n  return _reusePromise(true, self, fn, ...args);\n}\n\n/**\n * Internal call to run a Promise once time (and optionally keep result forever)\n * @param {boolean} useResultForever\n * @param {*} self\n * @param {function} fn\n * @param  {...any} args\n * @return {Promise}\n * @private\n */\nfunction _reusePromise(useResultForever, self, fn, ...args) {\n  // search for existing promise that hasn't resolved yet\n  const argsSerialise = args ? JSON.stringify(args) : null;\n  const existingFunctionIndex = findActiveFunctionIndex(self, fn, argsSerialise);\n  const existingFunction = existingFunctionIndex >= 0 ? activeFunctions[existingFunctionIndex] : undefined;\n  if (existingFunction) {\n    if (existingFunction.resolved) {\n      return existingFunction.value;\n    }\n    return existingFunction.promise;\n  }\n\n  const cleanupPendingFunction = () => {\n    const pendingFunctionIDX = findActiveFunctionIndex(self, fn, argsSerialise);\n    if (pendingFunctionIDX >= 0) {\n      if (!useResultForever) {\n      // clean up pending Promise\n        activeFunctions.splice(pendingFunctionIDX, 1);\n      }\n    }\n  };\n\n  // didn't find a pending existing promise, make a new one!\n  const newPromise = (self !== null && self !== undefined) ? fn.apply(self, args) : fn(...args);\n  newPromise.then((value) => {\n    // clean up our pending Promise\n    if (!useResultForever) {\n      cleanupPendingFunction();\n    } else {\n      const pendingFunctionIDX = findActiveFunctionIndex(self, fn, argsSerialise);\n      if (pendingFunctionIDX >= 0) {\n      // store result so we can re-use it for future calls\n        activeFunctions[pendingFunctionIDX].resolved = true;\n        activeFunctions[pendingFunctionIDX].value = value;\n      }\n    }\n\n    return value;\n  }).catch((err) => {\n    cleanupPendingFunction();\n    throw err;\n  });\n  activeFunctions.push({\n    fn,\n    self,\n    args: argsSerialise,\n    promise: newPromise,\n    resolved: false,\n  });\n  return newPromise;\n}\n\nexport default reusePromise;\n",
@@ -14326,7 +15197,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 657,
+    "__docId__": 699,
     "kind": "variable",
     "name": "activeFunctions",
     "memberof": "lib/reusePromises.js",
@@ -14346,7 +15217,7 @@
     "ignore": true
   },
   {
-    "__docId__": 658,
+    "__docId__": 700,
     "kind": "function",
     "name": "findActiveFunctionIndex",
     "memberof": "lib/reusePromises.js",
@@ -14403,7 +15274,7 @@
     "ignore": true
   },
   {
-    "__docId__": 659,
+    "__docId__": 701,
     "kind": "function",
     "name": "reusePromise",
     "memberof": "lib/reusePromises.js",
@@ -14459,7 +15330,7 @@
     }
   },
   {
-    "__docId__": 660,
+    "__docId__": 702,
     "kind": "function",
     "name": "reusePromiseForever",
     "memberof": "lib/reusePromises.js",
@@ -14515,7 +15386,7 @@
     }
   },
   {
-    "__docId__": 661,
+    "__docId__": 703,
     "kind": "function",
     "name": "_reusePromise",
     "memberof": "lib/reusePromises.js",

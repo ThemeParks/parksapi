@@ -1,7 +1,7 @@
 {
-  "coverage": "76.44%",
-  "expectCount": 552,
-  "actualCount": 422,
+  "coverage": "73.86%",
+  "expectCount": 593,
+  "actualCount": 438,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 16,
@@ -259,6 +259,37 @@
       "actualCount": 22,
       "undocumentLines": [
         6
+      ]
+    },
+    "lib/parks/te2/te2.js": {
+      "expectCount": 41,
+      "actualCount": 16,
+      "undocumentLines": [
+        7,
+        8,
+        224,
+        355,
+        356,
+        365,
+        366,
+        375,
+        376,
+        385,
+        386,
+        395,
+        396,
+        405,
+        406,
+        415,
+        416,
+        425,
+        426,
+        435,
+        436,
+        445,
+        446,
+        455,
+        456
       ]
     },
     "lib/parks/toverland/toverland.js": {

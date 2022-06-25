@@ -36,6 +36,30 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "@themeparks/parksapi/lib/parks/te2/te2.js~californiasgreatamerica",
+    "class/lib/parks/te2/te2.js~CaliforniasGreatAmerica.html",
+    "<span>CaliforniasGreatAmerica</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/te2/te2.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/te2/te2.js~canadaswonderland",
+    "class/lib/parks/te2/te2.js~CanadasWonderland.html",
+    "<span>CanadasWonderland</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/te2/te2.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/te2/te2.js~carowinds",
+    "class/lib/parks/te2/te2.js~Carowinds.html",
+    "<span>Carowinds</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/te2/te2.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/te2/te2.js~cedarpoint",
+    "class/lib/parks/te2/te2.js~CedarPoint.html",
+    "<span>CedarPoint</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/te2/te2.js</span>",
+    "class"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js~chessingtonworldofadventures",
     "class/lib/parks/attractionsio/attractionsio.js~ChessingtonWorldOfAdventures.html",
     "<span>ChessingtonWorldOfAdventures</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js</span>",
@@ -87,6 +111,12 @@ window.esdocSearchIndex = [
     "@themeparks/parksapi/lib/parks/herschend/herschendparks.js~dollywood",
     "class/lib/parks/herschend/herschendparks.js~Dollywood.html",
     "<span>Dollywood</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/herschend/herschendparks.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/te2/te2.js~dorneypark",
+    "class/lib/parks/te2/te2.js~DorneyPark.html",
+    "<span>DorneyPark</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/te2/te2.js</span>",
     "class"
   ],
   [
@@ -150,6 +180,24 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "@themeparks/parksapi/lib/parks/te2/te2.js~kingsdominion",
+    "class/lib/parks/te2/te2.js~KingsDominion.html",
+    "<span>KingsDominion</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/te2/te2.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/te2/te2.js~kingsisland",
+    "class/lib/parks/te2/te2.js~KingsIsland.html",
+    "<span>KingsIsland</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/te2/te2.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/te2/te2.js~knottsberryfarm",
+    "class/lib/parks/te2/te2.js~KnottsBerryFarm.html",
+    "<span>KnottsBerryFarm</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/te2/te2.js</span>",
+    "class"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js~legolandorlando",
     "class/lib/parks/attractionsio/attractionsio.js~LegolandOrlando.html",
     "<span>LegolandOrlando</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/attractionsio/attractionsio.js</span>",
@@ -165,6 +213,12 @@ window.esdocSearchIndex = [
     "@themeparks/parksapi/lib/parks/liseberg/liseberg.js~liseberg",
     "class/lib/parks/liseberg/liseberg.js~Liseberg.html",
     "<span>Liseberg</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/liseberg/liseberg.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/te2/te2.js~michigansadventure",
+    "class/lib/parks/te2/te2.js~MichigansAdventure.html",
+    "<span>MichigansAdventure</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/te2/te2.js</span>",
     "class"
   ],
   [
@@ -213,6 +267,12 @@ window.esdocSearchIndex = [
     "@themeparks/parksapi/lib/parks/herschend/herschendparks.js~silverdollarcity",
     "class/lib/parks/herschend/herschendparks.js~SilverDollarCity.html",
     "<span>SilverDollarCity</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/herschend/herschendparks.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/te2/te2.js~te2destination",
+    "class/lib/parks/te2/te2.js~TE2Destination.html",
+    "<span>TE2Destination</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/te2/te2.js</span>",
     "class"
   ],
   [
@@ -282,9 +342,21 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "@themeparks/parksapi/lib/parks/te2/te2.js~valleyfair",
+    "class/lib/parks/te2/te2.js~ValleyFair.html",
+    "<span>ValleyFair</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/te2/te2.js</span>",
+    "class"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js~waltdisneyworldresort",
     "class/lib/parks/wdw/waltdisneyworldbase.js~WaltDisneyWorldResort.html",
     "<span>WaltDisneyWorldResort</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/wdw/waltdisneyworldbase.js</span>",
+    "class"
+  ],
+  [
+    "@themeparks/parksapi/lib/parks/te2/te2.js~worldsoffun",
+    "class/lib/parks/te2/te2.js~WorldsOfFun.html",
+    "<span>WorldsOfFun</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/te2/te2.js</span>",
     "class"
   ],
   [
@@ -2823,6 +2895,186 @@ window.esdocSearchIndex = [
     "lib/parks/tdr/tokyodisneyresort.js~tokyodisneyresort#getentitiesoftype",
     "class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html#instance-method-getEntitiesOfType",
     "lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort#getEntitiesOfType",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js",
+    "file/lib/parks/te2/te2.js.html",
+    "lib/parks/te2/te2.js",
+    "file"
+  ],
+  [
+    "lib/parks/te2/te2.js~californiasgreatamerica#constructor",
+    "class/lib/parks/te2/te2.js~CaliforniasGreatAmerica.html#instance-constructor-constructor",
+    "lib/parks/te2/te2.js~CaliforniasGreatAmerica#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~canadaswonderland#constructor",
+    "class/lib/parks/te2/te2.js~CanadasWonderland.html#instance-constructor-constructor",
+    "lib/parks/te2/te2.js~CanadasWonderland#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~carowinds#constructor",
+    "class/lib/parks/te2/te2.js~Carowinds.html#instance-constructor-constructor",
+    "lib/parks/te2/te2.js~Carowinds#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~cedarpoint#constructor",
+    "class/lib/parks/te2/te2.js~CedarPoint.html#instance-constructor-constructor",
+    "lib/parks/te2/te2.js~CedarPoint#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~dorneypark#constructor",
+    "class/lib/parks/te2/te2.js~DorneyPark.html#instance-constructor-constructor",
+    "lib/parks/te2/te2.js~DorneyPark#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~kingsdominion#constructor",
+    "class/lib/parks/te2/te2.js~KingsDominion.html#instance-constructor-constructor",
+    "lib/parks/te2/te2.js~KingsDominion#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~kingsisland#constructor",
+    "class/lib/parks/te2/te2.js~KingsIsland.html#instance-constructor-constructor",
+    "lib/parks/te2/te2.js~KingsIsland#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~knottsberryfarm#constructor",
+    "class/lib/parks/te2/te2.js~KnottsBerryFarm.html#instance-constructor-constructor",
+    "lib/parks/te2/te2.js~KnottsBerryFarm#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~michigansadventure#constructor",
+    "class/lib/parks/te2/te2.js~MichigansAdventure.html#instance-constructor-constructor",
+    "lib/parks/te2/te2.js~MichigansAdventure#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#_fetchcategories",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-method-_fetchCategories",
+    "lib/parks/te2/te2.js~TE2Destination#_fetchCategories",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#_fetchscheduledata",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-method-_fetchScheduleData",
+    "lib/parks/te2/te2.js~TE2Destination#_fetchScheduleData",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#_getfilteredentities",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-method-_getFilteredEntities",
+    "lib/parks/te2/te2.js~TE2Destination#_getFilteredEntities",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#_getparsedcategories",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-method-_getParsedCategories",
+    "lib/parks/te2/te2.js~TE2Destination#_getParsedCategories",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#buildattractionentities",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-method-buildAttractionEntities",
+    "lib/parks/te2/te2.js~TE2Destination#buildAttractionEntities",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#buildbaseentityobject",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-method-buildBaseEntityObject",
+    "lib/parks/te2/te2.js~TE2Destination#buildBaseEntityObject",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#builddestinationentity",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-method-buildDestinationEntity",
+    "lib/parks/te2/te2.js~TE2Destination#buildDestinationEntity",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#buildentitylivedata",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-method-buildEntityLiveData",
+    "lib/parks/te2/te2.js~TE2Destination#buildEntityLiveData",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#buildentityscheduledata",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-method-buildEntityScheduleData",
+    "lib/parks/te2/te2.js~TE2Destination#buildEntityScheduleData",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#buildparkentities",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-method-buildParkEntities",
+    "lib/parks/te2/te2.js~TE2Destination#buildParkEntities",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#buildrestaurantentities",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-method-buildRestaurantEntities",
+    "lib/parks/te2/te2.js~TE2Destination#buildRestaurantEntities",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#buildshowentities",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-method-buildShowEntities",
+    "lib/parks/te2/te2.js~TE2Destination#buildShowEntities",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#constructor",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-constructor-constructor",
+    "lib/parks/te2/te2.js~TE2Destination#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#getattractiontypes",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-method-getAttractionTypes",
+    "lib/parks/te2/te2.js~TE2Destination#getAttractionTypes",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#getdestinationdata",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-method-getDestinationData",
+    "lib/parks/te2/te2.js~TE2Destination#getDestinationData",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#getdiningtypes",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-method-getDiningTypes",
+    "lib/parks/te2/te2.js~TE2Destination#getDiningTypes",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#getpoidata",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-method-getPOIData",
+    "lib/parks/te2/te2.js~TE2Destination#getPOIData",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~te2destination#getpoistatus",
+    "class/lib/parks/te2/te2.js~TE2Destination.html#instance-method-getPOIStatus",
+    "lib/parks/te2/te2.js~TE2Destination#getPOIStatus",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~valleyfair#constructor",
+    "class/lib/parks/te2/te2.js~ValleyFair.html#instance-constructor-constructor",
+    "lib/parks/te2/te2.js~ValleyFair#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/te2/te2.js~worldsoffun#constructor",
+    "class/lib/parks/te2/te2.js~WorldsOfFun.html#instance-constructor-constructor",
+    "lib/parks/te2/te2.js~WorldsOfFun#constructor",
     "method"
   ],
   [
