@@ -6077,7 +6077,7 @@
     "__docId__": 292,
     "kind": "file",
     "name": "lib/parks/herschend/herschendparks.js",
-    "content": "import {Destination} from '../destination.js';\nimport {attractionType, statusType, queueType, tagType, scheduleType, entityType} from '../parkTypes.js';\nimport moment from 'moment-timezone';\n\nexport class HerschendDestination extends Destination {\n  constructor(options = {}) {\n    options.timezone = options.timezone || 'America/New_York';\n\n    // we have multiple Herschend parks, so we need to set the resortId\n    options.destinationId = options.destinationId || '';\n    // slug to use for this destination\n    options.destinationSlug = options.destinationSlug || '';\n\n    // base URL for live data API\n    options.apiBase = options.apiBase || '';\n\n    // base URL for the CRM API\n    options.crmBaseURL = options.crmBaseURL || '';\n    // auth credentials for accessing the CRM API\n    options.crmAuth = options.crmAuth || '';\n    // guid for this destination's calendar and POI data\n    options.crmGUID = options.crmGUID || '';\n    // categories for POI data\n    options.crmAttractionsId = options.crmAttractionsId || '';\n    options.crmDiningId = options.crmDiningId || '';\n    options.crmShowId = options.crmShowId || '';\n\n    // allow configuring all herschend parks with the HERSCHEND prefix env var\n    options.configPrefixes = options.configPrefixes || ['HERSCHEND'];\n\n    super(options);\n\n    if (!this.config.destinationId) throw new Error('Missing destinationId');\n    if (!this.config.destinationSlug) throw new Error('Missing destinationSlug');\n    if (!this.config.apiBase) throw new Error('HerschendDestination requires an apiBase');\n    if (!this.config.crmBaseURL) throw new Error('Missing crmBaseURL');\n    if (!this.config.crmAuth) throw new Error('Missing crmAuth');\n    if (!this.config.crmGUID) throw new Error('Missing crmGUID');\n    if (!this.config.crmAttractionsId) throw new Error('Missing crmAttractionsId');\n    if (!this.config.crmDiningId) throw new Error('Missing crmDiningId');\n    if (!this.config.crmShowId) throw new Error('Missing crmShowId');\n\n    this.config.parkId = this.config.parkId || `${this.config.destinationSlug}park`;\n\n    // inject into CRM API requests\n    const crmURLHostname = new URL(this.config.crmBaseURL).hostname;\n    this.http.injectForDomain({\n      hostname: crmURLHostname,\n    }, async (method, url, data, options) => {\n      // add our auth credentials to the request\n      options.headers = {\n        ...options.headers,\n        authorization: `Basic ${this.config.crmAuth}`,\n      };\n\n      options.json = true;\n    });\n  }\n\n  /**\n   * Get raw wait times data\n   */\n  async getWaitTimes() {\n    '@cache|1'; // cache for 1 minute\n    const resp = await this.http(`${this.config.apiBase}waitTimes/${this.config.destinationId}`);\n    return resp.body;\n  }\n\n  /**\n   * Get raw food wait times data\n   */\n  async getFoodWaitTimes() {\n    '@cache|1'; // cache for 1 minute\n    const resp = await this.http(`${this.config.apiBase}foodServiceWaitTimes/${this.config.destinationId}`);\n    return resp.body;\n  }\n\n  /**\n   * Get raw train times data\n   */\n  async getTrainTimes() {\n    '@cache|1'; // cache for 1 minute\n    const resp = await this.http(`${this.config.apiBase}trainServiceSchedules/${this.config.destinationId}`);\n    return resp.body;\n  }\n\n  /**\n   * Get raw attraction POI data\n   */\n  async getPOIData() {\n    // cache for 12 hours\n    '@cache|720';\n    const resp = await this.http(`${this.config.crmBaseURL}sitecore/api/hfe/hfedata/activitiesbypark/${this.config.crmGUID}`);\n    return resp.body;\n  }\n\n  /**\n   * Helper function to build a basic entity document\n   * Useful to avoid copy/pasting\n   * @param {object} data \n   * @returns {object}\n   */\n  buildBaseEntityObject(data) {\n    const entity = Destination.prototype.buildBaseEntityObject.call(this, data);\n\n    if (data) {\n      entity._tags = [];\n\n      if (data.id) {\n        entity._id = data.id;\n      }\n\n      // geo location\n      if (data.mapLocation && data.mapLocation.latitude && data.mapLocation.longitude) {\n        entity.longitude = Number(data.mapLocation.longitude);\n        entity.latitude = Number(data.mapLocation.latitude);\n      }\n\n      // entity name\n      if (data.title) {\n        entity.name = data.title;\n      }\n\n      if (data.heightRequirement && data.heightRequirement.minHeight > 0) {\n        // convert from inches to cm\n        const minHeightInCm = Math.floor(Number(data.heightRequirement.minHeight) * 2.54);\n\n        entity._tags.push({\n          id: 'minimumHeight',\n          value: minHeightInCm,\n        });\n      }\n    }\n\n    return entity;\n  }\n\n  /**\n   * Build the destination entity representing this destination\n   */\n  async buildDestinationEntity() {\n    const doc = {};\n    return {\n      ...this.buildBaseEntityObject(doc),\n      _id: this.config.destinationSlug,\n      slug: this.config.destinationSlug,\n      name: this.config.name,\n      entityType: entityType.destination,\n    };\n  }\n\n  /**\n   * Build the park entities for this destination\n   */\n  async buildParkEntities() {\n    return [\n      {\n        ...this.buildBaseEntityObject(null),\n        _id: this.config.parkId,\n        _destinationId: this.config.destinationSlug,\n        _parentId: this.config.destinationSlug,\n        name: this.config.name,\n        slug: this.config.parkId,\n        entityType: entityType.park,\n      }\n    ];\n  }\n\n  /**\n   * Helper function to filter POI data for a chosen category GUID\n   * @param {string} category \n   * @returns \n   */\n  async getPOIForCategory(category, filterSeasonal = true) {\n    const poiData = await this.getPOIData();\n\n    const now = this.getTimeNowMoment();\n\n    return poiData.activities.filter((x) => {\n      if (x.activityListId !== category) return false;\n\n      // check seasonality\n      if (filterSeasonal) {\n        if (x.seasonalStartDate) {\n          const startDate = moment(x.seasonalStartDate);\n          if (startDate.isAfter(now)) return false;\n        }\n        if (x.seasonalEndDate) {\n          const endDate = moment(x.seasonalEndDate);\n          if (endDate.isBefore(now)) return false;\n        }\n      }\n\n      return true;\n    });\n  }\n\n  /**\n   * Build the attraction entities for this destination\n   */\n  async buildAttractionEntities() {\n    const attrs = await this.getPOIForCategory(this.config.crmAttractionsId, false);\n\n    return attrs.map((x) => {\n      return {\n        ...this.buildBaseEntityObject(x),\n        entityType: entityType.attraction,\n        attractionType: attractionType.ride,\n        _destinationId: this.config.destinationSlug,\n        _parkId: this.config.parkId,\n        _parentId: this.config.parkId,\n      };\n    });\n  }\n\n  /**\n   * Build the show entities for this destination\n   */\n  async buildShowEntities() {\n    return [];\n\n    const attrs = await this.getPOIForCategory(this.config.crmShowId, true);\n\n    return attrs.map((x) => {\n      return {\n        ...this.buildBaseEntityObject(x),\n        entityType: entityType.show,\n        _destinationId: this.config.destinationSlug,\n        _parkId: this.config.parkId,\n        _parentId: this.config.parkId,\n      };\n    });\n  }\n\n  /**\n   * Build the restaurant entities for this destination\n   */\n  async buildRestaurantEntities() {\n    const attrs = await this.getPOIForCategory(this.config.crmDiningId, false);\n\n    return attrs.map((x) => {\n      return {\n        ...this.buildBaseEntityObject(x),\n        entityType: entityType.restaurant,\n        _destinationId: this.config.destinationSlug,\n        _parkId: this.config.parkId,\n        _parentId: this.config.parkId,\n      };\n    });\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async buildEntityLiveData() {\n    // get all the data we need\n    const liveData = await this.getWaitTimes();\n    const poiData = await this.getPOIData();\n\n    return liveData.map((x) => {\n      // find matching poiData for this live data\n      const rideId = `${x.rideId}`;\n      const poi = poiData.activities.find((y) => `${y.rideWaitTimeRideId}` === rideId);\n      if (!poi) return null;\n\n      const data = {\n        _id: poi.id,\n        status: statusType.closed,\n        queue: {},\n      };\n\n      if (x.operationStatus === 'CLOSED' || x.operationStatus === 'UNKNOWN') {\n        data.status = statusType.closed;\n      } else if (x.waitTimeDisplay.includes('UNDER')) {\n        // Wait time is not defined if text says \"Under x minutes\" - we'll set the ride time to x\n        try {\n          data.queue[queueType.standBy] = {\n            waitTime: parseInt(x.waitTimeDisplay.split(' ')[1], 10),\n          };\n        } catch (e) {\n          // fallback if formatting fails\n          data.queue[queueType.standBy] = {\n            waitTime: parseInt(x.waitTime, 10),\n          };\n        }\n      } else {\n        data.queue[queueType.standBy] = {\n          waitTime: parseInt(x.waitTime, 10),\n        };\n      }\n\n      return data;\n    }).filter((x) => !!x);\n  }\n\n  /**\n   * Fetch startdate and the following 4 days (total 5 days) of schedule data\n   * @param {string} startDate \n   * @returns \n   */\n  async fetchFiveDates(startDate) {\n    // cache for 12 hours\n    '@cache|720';\n    const resp = await this.http(`${this.config.crmBaseURL}sitecore/api/hfe/hfedata/dailyschedulebytime?parkids=${this.config.crmGUID}&date=${startDate}&days=5`);\n    return resp.body;\n  }\n\n  async fetchScheduleData(days = 90) {\n    // cache for 12 hours\n    '@cache|720';\n    const now = this.getTimeNowMoment();\n    const endDate = now.clone().add(days, 'days');\n    const datesToFetch = [];\n    while (now.isSameOrBefore(endDate, 'day')) {\n      datesToFetch.push(now.format('YYYY-MM-DD'));\n      now.add(5, 'day');\n    }\n\n    // fetch each date block\n    const data = [];\n    for (let i = 0; i < datesToFetch.length; i++) {\n      const resp = await this.fetchFiveDates(datesToFetch[i]);\n      data.push(...resp);\n    }\n\n    return data;\n  }\n\n  /**\n   * Return schedule data for all scheduled entities in this destination\n   * Eg. parks\n   * @returns {array<object>}\n   */\n  async buildEntityScheduleData() {\n    const parkHours = await this.fetchScheduleData();\n\n    return [\n      {\n        _id: this.config.parkId,\n        schedule: parkHours.map((x) => {\n          // step 1: extract park hours from schedule data\n          if (x?.schedule?.parkHours) {\n            return x.schedule.parkHours.find((y) => {\n              // step 2: filter out park hours that don't match our park ID\n              return y.id === this.config.crmGUID;\n            });\n          }\n          return null;\n        }).filter((x) => {\n          // step 3: filter out nulls\n          return x !== null && x?.from !== null && x?.to !== null;\n        }).map((x) => {\n          // step 4: convert to our format\n          const from = moment.tz(x.from, this.config.timezone);\n          const to = moment.tz(x.to, this.config.timezone);\n          return {\n            date: from.format('YYYY-MM-DD'),\n            type: \"OPERATING\",\n            openingTime: from.format(),\n            closingTime: to.format(),\n          };\n        }),\n      }\n    ];\n  }\n}\n\nexport class Dollywood extends HerschendDestination {\n  constructor(options = {}) {\n    options.timezone = \"America/New_York\";\n    options.name = \"Dollywood\";\n    options.destinationId = \"1\";\n    options.destinationSlug = \"dollywood\";\n    options.crmBaseURL = \"https://www.dollywood.com/\";\n\n    options.crmGUID = \"A8F3517D-4606-4387-B275-DC607DCD6DDE\";\n    options.crmAttractionsId = \"0B00A5A0-8389-40CD-866F-5A7048FE248F\";\n    options.crmDiningId = \"09E82561-D097-4612-BCCC-4E1F4E1AD0C6\";\n    options.crmShowId = \"FA6C7A55-2AE1-4A27-9E95-94D46977BA1C\";\n\n    super(options);\n  }\n}\n\nexport class SilverDollarCity extends HerschendDestination {\n  constructor(options = {}) {\n    options.timezone = \"America/Chicago\";\n    options.name = \"Silver Dollar City\";\n    options.destinationId = \"2\";\n    options.destinationSlug = \"silverdollarcity\";\n    options.crmBaseURL = \"https://www.silverdollarcity.com/\";\n\n    options.crmGUID = \"988C96B2-ED23-4422-987B-4DAAC045E3BA\";\n    options.crmAttractionsId = \"D69D844F-3D21-4E4E-8326-484AB575095C\";\n    options.crmDiningId = \"54D38926-7D3B-4948-9676-AB6ECFAAAAE4\";\n    options.crmShowId = \"2A28E900-9D3B-4939-B617-8B7B4D583421\";\n\n    super(options);\n  }\n}\n",
+    "content": "import {Destination} from '../destination.js';\nimport {attractionType, statusType, queueType, tagType, scheduleType, entityType} from '../parkTypes.js';\nimport moment from 'moment-timezone';\n\nexport class HerschendDestination extends Destination {\n  constructor(options = {}) {\n    options.timezone = options.timezone || 'America/New_York';\n\n    // we have multiple Herschend parks, so we need to set the resortId\n    options.destinationId = options.destinationId || '';\n    // slug to use for this destination\n    options.destinationSlug = options.destinationSlug || '';\n\n    // base URL for live data API\n    options.apiBase = options.apiBase || '';\n\n    // base URL for the CRM API\n    options.crmBaseURL = options.crmBaseURL || '';\n    // auth credentials for accessing the CRM API\n    options.crmAuth = options.crmAuth || '';\n    // guid for this destination's calendar and POI data\n    options.crmGUID = options.crmGUID || '';\n    // categories for POI data\n    options.crmAttractionsId = options.crmAttractionsId || '';\n    options.crmDiningId = options.crmDiningId || '';\n    options.crmShowId = options.crmShowId || '';\n\n    // allow configuring all herschend parks with the HERSCHEND prefix env var\n    options.configPrefixes = options.configPrefixes || ['HERSCHEND'];\n\n    options.cacheVersion = options.cacheVersion || '1';\n\n    super(options);\n\n    if (!this.config.destinationId) throw new Error('Missing destinationId');\n    if (!this.config.destinationSlug) throw new Error('Missing destinationSlug');\n    if (!this.config.apiBase) throw new Error('HerschendDestination requires an apiBase');\n    if (!this.config.crmBaseURL) throw new Error('Missing crmBaseURL');\n    if (!this.config.crmAuth) throw new Error('Missing crmAuth');\n    if (!this.config.crmGUID) throw new Error('Missing crmGUID');\n    if (!this.config.crmAttractionsId) throw new Error('Missing crmAttractionsId');\n    if (!this.config.crmDiningId) throw new Error('Missing crmDiningId');\n    if (!this.config.crmShowId) throw new Error('Missing crmShowId');\n\n    this.config.parkId = this.config.parkId || `${this.config.destinationSlug}park`;\n\n    // inject into CRM API requests\n    const crmURLHostname = new URL(this.config.crmBaseURL).hostname;\n    this.http.injectForDomain({\n      hostname: crmURLHostname,\n    }, async (method, url, data, options) => {\n      // add our auth credentials to the request\n      options.headers = {\n        ...options.headers,\n        authorization: `Basic ${this.config.crmAuth}`,\n      };\n\n      options.json = true;\n    });\n  }\n\n  /**\n   * Get raw wait times data\n   */\n  async getWaitTimes() {\n    '@cache|1'; // cache for 1 minute\n    const resp = await this.http(`${this.config.apiBase}waitTimes/${this.config.destinationId}`);\n    return resp.body;\n  }\n\n  /**\n   * Get raw food wait times data\n   */\n  async getFoodWaitTimes() {\n    '@cache|1'; // cache for 1 minute\n    const resp = await this.http(`${this.config.apiBase}foodServiceWaitTimes/${this.config.destinationId}`);\n    return resp.body;\n  }\n\n  /**\n   * Get raw train times data\n   */\n  async getTrainTimes() {\n    '@cache|1'; // cache for 1 minute\n    const resp = await this.http(`${this.config.apiBase}trainServiceSchedules/${this.config.destinationId}`);\n    return resp.body;\n  }\n\n  /**\n   * Get raw attraction POI data\n   */\n  async getPOIData() {\n    // cache for 12 hours\n    '@cache|720';\n    const resp = await this.http(`${this.config.crmBaseURL}api/park/activitiesbypark/${this.config.crmGUID}`);\n    return resp.body;\n  }\n\n  /**\n   * Helper function to build a basic entity document\n   * Useful to avoid copy/pasting\n   * @param {object} data \n   * @returns {object}\n   */\n  buildBaseEntityObject(data) {\n    const entity = Destination.prototype.buildBaseEntityObject.call(this, data);\n\n    if (data) {\n      entity._tags = [];\n\n      if (data.id) {\n        entity._id = data.id;\n      }\n\n      // geo location\n      if (data.mapLocation && data.mapLocation.latitude && data.mapLocation.longitude) {\n        entity.longitude = Number(data.mapLocation.longitude);\n        entity.latitude = Number(data.mapLocation.latitude);\n      }\n\n      // entity name\n      if (data.title) {\n        entity.name = data.title;\n      }\n\n      if (data.heightRequirement && data.heightRequirement.minHeight > 0) {\n        // convert from inches to cm\n        const minHeightInCm = Math.floor(Number(data.heightRequirement.minHeight) * 2.54);\n\n        entity._tags.push({\n          id: 'minimumHeight',\n          value: minHeightInCm,\n        });\n      }\n    }\n\n    return entity;\n  }\n\n  /**\n   * Build the destination entity representing this destination\n   */\n  async buildDestinationEntity() {\n    const doc = {};\n    return {\n      ...this.buildBaseEntityObject(doc),\n      _id: this.config.destinationSlug,\n      slug: this.config.destinationSlug,\n      name: this.config.name,\n      entityType: entityType.destination,\n    };\n  }\n\n  /**\n   * Build the park entities for this destination\n   */\n  async buildParkEntities() {\n    return [\n      {\n        ...this.buildBaseEntityObject(null),\n        _id: this.config.parkId,\n        _destinationId: this.config.destinationSlug,\n        _parentId: this.config.destinationSlug,\n        name: this.config.name,\n        slug: this.config.parkId,\n        entityType: entityType.park,\n      }\n    ];\n  }\n\n  /**\n   * Helper function to filter POI data for a chosen category GUID\n   * @param {string} category \n   * @returns \n   */\n  async getPOIForCategory(category, filterSeasonal = true) {\n    const poiData = await this.getPOIData();\n\n    const now = this.getTimeNowMoment();\n\n    return poiData.activities.filter((x) => {\n      if (x.activityListId !== category) return false;\n\n      // check seasonality\n      if (filterSeasonal) {\n        if (x.seasonalStartDate) {\n          const startDate = moment(x.seasonalStartDate);\n          if (startDate.isAfter(now)) return false;\n        }\n        if (x.seasonalEndDate) {\n          const endDate = moment(x.seasonalEndDate);\n          if (endDate.isBefore(now)) return false;\n        }\n      }\n\n      return true;\n    });\n  }\n\n  /**\n   * Build the attraction entities for this destination\n   */\n  async buildAttractionEntities() {\n    const attrs = await this.getPOIForCategory(this.config.crmAttractionsId, false);\n\n    return attrs.map((x) => {\n      return {\n        ...this.buildBaseEntityObject(x),\n        entityType: entityType.attraction,\n        attractionType: attractionType.ride,\n        _destinationId: this.config.destinationSlug,\n        _parkId: this.config.parkId,\n        _parentId: this.config.parkId,\n      };\n    });\n  }\n\n  /**\n   * Build the show entities for this destination\n   */\n  async buildShowEntities() {\n    return [];\n\n    const attrs = await this.getPOIForCategory(this.config.crmShowId, true);\n\n    return attrs.map((x) => {\n      return {\n        ...this.buildBaseEntityObject(x),\n        entityType: entityType.show,\n        _destinationId: this.config.destinationSlug,\n        _parkId: this.config.parkId,\n        _parentId: this.config.parkId,\n      };\n    });\n  }\n\n  /**\n   * Build the restaurant entities for this destination\n   */\n  async buildRestaurantEntities() {\n    const attrs = await this.getPOIForCategory(this.config.crmDiningId, false);\n\n    return attrs.map((x) => {\n      return {\n        ...this.buildBaseEntityObject(x),\n        entityType: entityType.restaurant,\n        _destinationId: this.config.destinationSlug,\n        _parkId: this.config.parkId,\n        _parentId: this.config.parkId,\n      };\n    });\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async buildEntityLiveData() {\n    // get all the data we need\n    const liveData = await this.getWaitTimes();\n    const poiData = await this.getPOIData();\n\n    return liveData.map((x) => {\n      // find matching poiData for this live data\n      const rideId = `${x.rideId}`;\n      const poi = poiData.activities.find((y) => `${y.rideWaitTimeRideId}` === rideId);\n      if (!poi) return null;\n\n      const data = {\n        _id: poi.id,\n        status: statusType.closed,\n        queue: {},\n      };\n\n      if (x.operationStatus === 'CLOSED' || x.operationStatus === 'UNKNOWN') {\n        data.status = statusType.closed;\n      } else if (x.operationStatus === 'TEMPORARILY CLOSED') {\n        data.status = statusType.down;\n      } else if (x.waitTimeDisplay.includes('UNDER')) {\n        data.status = statusType.operating;\n        // Wait time is not defined if text says \"Under x minutes\" - we'll set the ride time to x\n        try {\n          data.queue[queueType.standBy] = {\n            waitTime: parseInt(x.waitTimeDisplay.split(' ')[1], 10),\n          };\n        } catch (e) {\n          // fallback if formatting fails\n          data.queue[queueType.standBy] = {\n            waitTime: parseInt(x.waitTime, 10) || 0,\n          };\n        }\n      } else if (x.waitTime) {\n        data.status = statusType.operating;\n        data.queue[queueType.standBy] = {\n          waitTime: parseInt(x.waitTime, 10) || 0,\n        };\n      }\n\n      return data;\n    }).filter((x) => !!x);\n  }\n\n  /**\n   * Fetch startdate and the following 4 days (total 5 days) of schedule data\n   * @param {string} startDate \n   * @returns \n   */\n  async fetchFiveDates(startDate) {\n    // cache for 12 hours\n    '@cache|720';\n    const resp = await this.http(`${this.config.crmBaseURL}api/park/dailyschedulebytime?parkids=${this.config.crmGUID}&date=${startDate}&days=5`);\n    return resp.body;\n  }\n\n  async fetchScheduleData(days = 90) {\n    // cache for 12 hours\n    '@cache|720';\n    const now = this.getTimeNowMoment();\n    const endDate = now.clone().add(days, 'days');\n    const datesToFetch = [];\n    while (now.isSameOrBefore(endDate, 'day')) {\n      datesToFetch.push(now.format('YYYY-MM-DD'));\n      now.add(5, 'day');\n    }\n\n    // fetch each date block\n    const data = [];\n    for (let i = 0; i < datesToFetch.length; i++) {\n      const resp = await this.fetchFiveDates(datesToFetch[i]);\n      data.push(...resp);\n    }\n\n    return data;\n  }\n\n  /**\n   * Return schedule data for all scheduled entities in this destination\n   * Eg. parks\n   * @returns {array<object>}\n   */\n  async buildEntityScheduleData() {\n    const parkHours = await this.fetchScheduleData();\n\n    return [\n      {\n        _id: this.config.parkId,\n        schedule: parkHours.map((x) => {\n          // step 1: extract park hours from schedule data\n          if (x?.parkHours) {\n            return x.parkHours.find((y) => {\n              // step 2: filter out park hours that don't match our park ID\n              return y.cmsKey === this.config.crmGUID;\n            });\n          }\n          return null;\n        }).filter((x) => {\n          // step 3: filter out nulls\n          return !!x && !!x?.from && !!x?.to;\n        }).map((x) => {\n          // step 4: convert to our format\n          const from = moment.tz(x.from, this.config.timezone);\n          const to = moment.tz(x.to, this.config.timezone);\n          return {\n            date: from.format('YYYY-MM-DD'),\n            type: \"OPERATING\",\n            openingTime: from.format(),\n            closingTime: to.format(),\n          };\n        }),\n      }\n    ];\n  }\n}\n\nexport class Dollywood extends HerschendDestination {\n  constructor(options = {}) {\n    options.timezone = \"America/New_York\";\n    options.name = \"Dollywood\";\n    options.destinationId = \"1\";\n    options.destinationSlug = \"dollywood\";\n    options.crmBaseURL = \"https://www.dollywood.com/\";\n\n    options.crmGUID = \"e98c4ecb-550e-4f14-af2c-13f3cab1abf5\";\n    options.crmAttractionsId = \"96822fdb-77e5-4054-9f37-70f379f997d8\";\n    options.crmDiningId = \"9d3de6ae-ebb1-4cb8-9423-bee864daef3c\";\n    options.crmShowId = \"b9acfd27-0545-4bb2-a6e8-072fda3b06dd\";\n\n    super(options);\n  }\n}\n\nexport class SilverDollarCity extends HerschendDestination {\n  constructor(options = {}) {\n    options.timezone = \"America/Chicago\";\n    options.name = \"Silver Dollar City\";\n    options.destinationId = \"2\";\n    options.destinationSlug = \"silverdollarcity\";\n    options.crmBaseURL = \"https://prodcms.silverdollarcity.com/\";\n    \n    options.crmGUID = \"fa775492-947e-4798-b9f4-3e99c419dbb5\";\n    options.crmAttractionsId = \"6cbebd47-facc-4c26-b1b2-4e0da4de0e6e\";\n    options.crmDiningId = \"31b3a1c6-93cc-4b93-b84e-bf512afe770c\";\n    options.crmShowId = \"58a4e3a3-c889-4130-93d1-5ba802442444\";\n\n    super(options);\n  }\n}\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/herschend/herschendparks.js",
     "access": "public",
@@ -6128,7 +6128,7 @@
     "longname": "lib/parks/herschend/herschendparks.js~HerschendDestination#getWaitTimes",
     "access": "public",
     "description": "Get raw wait times data",
-    "lineNumber": 63,
+    "lineNumber": 65,
     "params": [],
     "return": {
       "types": [
@@ -6147,7 +6147,7 @@
     "longname": "lib/parks/herschend/herschendparks.js~HerschendDestination#getFoodWaitTimes",
     "access": "public",
     "description": "Get raw food wait times data",
-    "lineNumber": 72,
+    "lineNumber": 74,
     "params": [],
     "return": {
       "types": [
@@ -6166,7 +6166,7 @@
     "longname": "lib/parks/herschend/herschendparks.js~HerschendDestination#getTrainTimes",
     "access": "public",
     "description": "Get raw train times data",
-    "lineNumber": 81,
+    "lineNumber": 83,
     "params": [],
     "return": {
       "types": [
@@ -6185,7 +6185,7 @@
     "longname": "lib/parks/herschend/herschendparks.js~HerschendDestination#getPOIData",
     "access": "public",
     "description": "Get raw attraction POI data",
-    "lineNumber": 90,
+    "lineNumber": 92,
     "params": [],
     "return": {
       "types": [
@@ -6204,7 +6204,7 @@
     "longname": "lib/parks/herschend/herschendparks.js~HerschendDestination#buildBaseEntityObject",
     "access": "public",
     "description": "Helper function to build a basic entity document<br />Useful to avoid copy/pasting",
-    "lineNumber": 103,
+    "lineNumber": 105,
     "unknown": [
       {
         "tagName": "@returns",
@@ -6243,7 +6243,7 @@
     "longname": "lib/parks/herschend/herschendparks.js~HerschendDestination#buildDestinationEntity",
     "access": "public",
     "description": "Build the destination entity representing this destination",
-    "lineNumber": 141,
+    "lineNumber": 143,
     "params": [],
     "return": {
       "types": [
@@ -6262,7 +6262,7 @@
     "longname": "lib/parks/herschend/herschendparks.js~HerschendDestination#buildParkEntities",
     "access": "public",
     "description": "Build the park entities for this destination",
-    "lineNumber": 155,
+    "lineNumber": 157,
     "params": [],
     "return": {
       "types": [
@@ -6281,7 +6281,7 @@
     "longname": "lib/parks/herschend/herschendparks.js~HerschendDestination#getPOIForCategory",
     "access": "public",
     "description": "Helper function to filter POI data for a chosen category GUID",
-    "lineNumber": 174,
+    "lineNumber": 176,
     "unknown": [
       {
         "tagName": "@returns",
@@ -6317,7 +6317,7 @@
     "longname": "lib/parks/herschend/herschendparks.js~HerschendDestination#buildAttractionEntities",
     "access": "public",
     "description": "Build the attraction entities for this destination",
-    "lineNumber": 201,
+    "lineNumber": 203,
     "params": [],
     "return": {
       "types": [
@@ -6336,7 +6336,7 @@
     "longname": "lib/parks/herschend/herschendparks.js~HerschendDestination#buildShowEntities",
     "access": "public",
     "description": "Build the show entities for this destination",
-    "lineNumber": 219,
+    "lineNumber": 221,
     "params": [],
     "return": {
       "types": [
@@ -6355,7 +6355,7 @@
     "longname": "lib/parks/herschend/herschendparks.js~HerschendDestination#buildRestaurantEntities",
     "access": "public",
     "description": "Build the restaurant entities for this destination",
-    "lineNumber": 238,
+    "lineNumber": 240,
     "params": [],
     "return": {
       "types": [
@@ -6374,7 +6374,7 @@
     "longname": "lib/parks/herschend/herschendparks.js~HerschendDestination#buildEntityLiveData",
     "access": "public",
     "description": "",
-    "lineNumber": 255,
+    "lineNumber": 257,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -6399,7 +6399,7 @@
     "longname": "lib/parks/herschend/herschendparks.js~HerschendDestination#fetchFiveDates",
     "access": "public",
     "description": "Fetch startdate and the following 4 days (total 5 days) of schedule data",
-    "lineNumber": 301,
+    "lineNumber": 307,
     "unknown": [
       {
         "tagName": "@returns",
@@ -6435,7 +6435,7 @@
     "longname": "lib/parks/herschend/herschendparks.js~HerschendDestination#fetchScheduleData",
     "access": "public",
     "description": null,
-    "lineNumber": 308,
+    "lineNumber": 314,
     "undocument": true,
     "params": [
       {
@@ -6465,7 +6465,7 @@
     "longname": "lib/parks/herschend/herschendparks.js~HerschendDestination#buildEntityScheduleData",
     "access": "public",
     "description": "Return schedule data for all scheduled entities in this destination<br />Eg. parks",
-    "lineNumber": 334,
+    "lineNumber": 340,
     "unknown": [
       {
         "tagName": "@returns",
@@ -6494,7 +6494,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/herschend/herschendparks.js",
     "importStyle": "{Dollywood}",
     "description": null,
-    "lineNumber": 368,
+    "lineNumber": 374,
     "undocument": true,
     "interface": false,
     "extends": [
@@ -6512,7 +6512,7 @@
     "longname": "lib/parks/herschend/herschendparks.js~Dollywood#constructor",
     "access": "public",
     "description": null,
-    "lineNumber": 369,
+    "lineNumber": 375,
     "undocument": true
   },
   {
@@ -6527,7 +6527,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/herschend/herschendparks.js",
     "importStyle": "{SilverDollarCity}",
     "description": null,
-    "lineNumber": 385,
+    "lineNumber": 391,
     "undocument": true,
     "interface": false,
     "extends": [
@@ -6545,7 +6545,7 @@
     "longname": "lib/parks/herschend/herschendparks.js~SilverDollarCity#constructor",
     "access": "public",
     "description": null,
-    "lineNumber": 386,
+    "lineNumber": 392,
     "undocument": true
   },
   {

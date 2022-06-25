@@ -146,6 +146,8 @@ export class HerschendDestination extends Destination {
     // allow configuring all herschend parks with the HERSCHEND prefix env var
     options.configPrefixes = options.configPrefixes || [&apos;HERSCHEND&apos;];
 
+    options.cacheVersion = options.cacheVersion || &apos;1&apos;;
+
     super(options);
 
     if (!this.config.destinationId) throw new Error(&apos;Missing destinationId&apos;);
@@ -208,7 +210,7 @@ export class HerschendDestination extends Destination {
   async getPOIData() {
     // cache for 12 hours
     &apos;@cache|720&apos;;
-    const resp = await this.http(`${this.config.crmBaseURL}sitecore/api/hfe/hfedata/activitiesbypark/${this.config.crmGUID}`);
+    const resp = await this.http(`${this.config.crmBaseURL}api/park/activitiesbypark/${this.config.crmGUID}`);
     return resp.body;
   }
 
@@ -389,7 +391,10 @@ export class HerschendDestination extends Destination {
 
       if (x.operationStatus === &apos;CLOSED&apos; || x.operationStatus === &apos;UNKNOWN&apos;) {
         data.status = statusType.closed;
+      } else if (x.operationStatus === &apos;TEMPORARILY CLOSED&apos;) {
+        data.status = statusType.down;
       } else if (x.waitTimeDisplay.includes(&apos;UNDER&apos;)) {
+        data.status = statusType.operating;
         // Wait time is not defined if text says &quot;Under x minutes&quot; - we&apos;ll set the ride time to x
         try {
           data.queue[queueType.standBy] = {
@@ -398,12 +403,13 @@ export class HerschendDestination extends Destination {
         } catch (e) {
           // fallback if formatting fails
           data.queue[queueType.standBy] = {
-            waitTime: parseInt(x.waitTime, 10),
+            waitTime: parseInt(x.waitTime, 10) || 0,
           };
         }
-      } else {
+      } else if (x.waitTime) {
+        data.status = statusType.operating;
         data.queue[queueType.standBy] = {
-          waitTime: parseInt(x.waitTime, 10),
+          waitTime: parseInt(x.waitTime, 10) || 0,
         };
       }
 
@@ -419,7 +425,7 @@ export class HerschendDestination extends Destination {
   async fetchFiveDates(startDate) {
     // cache for 12 hours
     &apos;@cache|720&apos;;
-    const resp = await this.http(`${this.config.crmBaseURL}sitecore/api/hfe/hfedata/dailyschedulebytime?parkids=${this.config.crmGUID}&amp;date=${startDate}&amp;days=5`);
+    const resp = await this.http(`${this.config.crmBaseURL}api/park/dailyschedulebytime?parkids=${this.config.crmGUID}&amp;date=${startDate}&amp;days=5`);
     return resp.body;
   }
 
@@ -457,16 +463,16 @@ export class HerschendDestination extends Destination {
         _id: this.config.parkId,
         schedule: parkHours.map((x) =&gt; {
           // step 1: extract park hours from schedule data
-          if (x?.schedule?.parkHours) {
-            return x.schedule.parkHours.find((y) =&gt; {
+          if (x?.parkHours) {
+            return x.parkHours.find((y) =&gt; {
               // step 2: filter out park hours that don&apos;t match our park ID
-              return y.id === this.config.crmGUID;
+              return y.cmsKey === this.config.crmGUID;
             });
           }
           return null;
         }).filter((x) =&gt; {
           // step 3: filter out nulls
-          return x !== null &amp;&amp; x?.from !== null &amp;&amp; x?.to !== null;
+          return !!x &amp;&amp; !!x?.from &amp;&amp; !!x?.to;
         }).map((x) =&gt; {
           // step 4: convert to our format
           const from = moment.tz(x.from, this.config.timezone);
@@ -491,10 +497,10 @@ export class Dollywood extends HerschendDestination {
     options.destinationSlug = &quot;dollywood&quot;;
     options.crmBaseURL = &quot;https://www.dollywood.com/&quot;;
 
-    options.crmGUID = &quot;A8F3517D-4606-4387-B275-DC607DCD6DDE&quot;;
-    options.crmAttractionsId = &quot;0B00A5A0-8389-40CD-866F-5A7048FE248F&quot;;
-    options.crmDiningId = &quot;09E82561-D097-4612-BCCC-4E1F4E1AD0C6&quot;;
-    options.crmShowId = &quot;FA6C7A55-2AE1-4A27-9E95-94D46977BA1C&quot;;
+    options.crmGUID = &quot;e98c4ecb-550e-4f14-af2c-13f3cab1abf5&quot;;
+    options.crmAttractionsId = &quot;96822fdb-77e5-4054-9f37-70f379f997d8&quot;;
+    options.crmDiningId = &quot;9d3de6ae-ebb1-4cb8-9423-bee864daef3c&quot;;
+    options.crmShowId = &quot;b9acfd27-0545-4bb2-a6e8-072fda3b06dd&quot;;
 
     super(options);
   }
@@ -506,12 +512,12 @@ export class SilverDollarCity extends HerschendDestination {
     options.name = &quot;Silver Dollar City&quot;;
     options.destinationId = &quot;2&quot;;
     options.destinationSlug = &quot;silverdollarcity&quot;;
-    options.crmBaseURL = &quot;https://www.silverdollarcity.com/&quot;;
-
-    options.crmGUID = &quot;988C96B2-ED23-4422-987B-4DAAC045E3BA&quot;;
-    options.crmAttractionsId = &quot;D69D844F-3D21-4E4E-8326-484AB575095C&quot;;
-    options.crmDiningId = &quot;54D38926-7D3B-4948-9676-AB6ECFAAAAE4&quot;;
-    options.crmShowId = &quot;2A28E900-9D3B-4939-B617-8B7B4D583421&quot;;
+    options.crmBaseURL = &quot;https://prodcms.silverdollarcity.com/&quot;;
+    
+    options.crmGUID = &quot;fa775492-947e-4798-b9f4-3e99c419dbb5&quot;;
+    options.crmAttractionsId = &quot;6cbebd47-facc-4c26-b1b2-4e0da4de0e6e&quot;;
+    options.crmDiningId = &quot;31b3a1c6-93cc-4b93-b84e-bf512afe770c&quot;;
+    options.crmShowId = &quot;58a4e3a3-c889-4130-93d1-5ba802442444&quot;;
 
     super(options);
   }
