@@ -14,6 +14,7 @@
     "./parkTypes": "./lib/parks/parkTypes.js",
     "./cache/": "./lib/cache/",
     "./cache": "./lib/cache.js",
+    "./cache/scopedCache": "./lib/cache/scopedCache.js",
     "./tags": "./lib/parks/tags.js"
   },
   "scripts": {
@@ -42,7 +43,7 @@
     "json-diff": "^0.5.4",
     "leveldown": "^5.4.1",
     "levelup": "^4.1.0",
-    "lmdb-store": "^1.2.1",
+    "lmdb": "^2.5.2",
     "memdown": "^5.1.0",
     "mingo": "^3.0.6",
     "moment-timezone": "^0.5.31",
