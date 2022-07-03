@@ -42,27 +42,27 @@
     "filePath": "lib/parks/herschend/herschendparks.js",
     "lines": [
       {
-        "lineNumber": 170,
+        "lineNumber": 180,
         "line": "  /**"
       },
       {
-        "lineNumber": 171,
+        "lineNumber": 181,
         "line": "   * Helper function to filter POI data for a chosen category GUID"
       },
       {
-        "lineNumber": 172,
+        "lineNumber": 182,
         "line": "   * @param {string} category "
       },
       {
-        "lineNumber": 173,
+        "lineNumber": 183,
         "line": "   * @returns "
       },
       {
-        "lineNumber": 174,
+        "lineNumber": 184,
         "line": "   */"
       },
       {
-        "lineNumber": 175,
+        "lineNumber": 185,
         "line": "  async getPOIForCategory(category, filterSeasonal = true) {"
       }
     ],
