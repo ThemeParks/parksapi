@@ -6,7 +6,7 @@ import {promises as fs} from 'fs';
 
 const __dirname = path.dirname(process.argv[1]);
 
-const destination = new parksapi.destinations.Liseberg();
+const destination = new parksapi.destinations.EuropaPark();
 
 const logSuccess = (...msg) => {
   // print green tick
@@ -104,6 +104,9 @@ function TestEntity(ent) {
 function TestLiveData(data, ents) {
   if (!data._id) {
     throw new EntityError('Missing _id', data);
+  }
+  if (typeof data._id !== 'string') {
+    throw new EntityError('livedata _id must be a string', data);
   }
   if (!data.status) {
     throw new EntityError('Missing status', data);
