@@ -1938,6 +1938,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/europa/europaparkdb.js~databaseeuropapark#getshowtimes",
+    "class/lib/parks/europa/europaparkdb.js~DatabaseEuropaPark.html#instance-method-getShowTimes",
+    "lib/parks/europa/europaparkdb.js~DatabaseEuropaPark#getShowTimes",
+    "method"
+  ],
+  [
     "lib/parks/europa/europaparkdb.js~databaseeuropapark#gettoken",
     "class/lib/parks/europa/europaparkdb.js~DatabaseEuropaPark.html#instance-method-getToken",
     "lib/parks/europa/europaparkdb.js~DatabaseEuropaPark#getToken",

@@ -521,14 +521,14 @@ export class DisneyLiveResort extends Destination {
 
     // TEMPORARY - Guardians of the Galaxy is missing from live data
     //  so add it manually to get some data through
-    const isGotgAlreadyIn = docs.find((x) =&gt; x._id === &apos;411499845;entityType=Attraction&apos;);
+    /*const isGotgAlreadyIn = docs.find((x) =&gt; x._id === &apos;411499845;entityType=Attraction&apos;);
     if (!isGotgAlreadyIn) {
       docs.push(await this._buildLiveDataObject({
         id: &apos;411499845;entityType=Attraction&apos;,
         status: &apos;Closed&apos;,
         lastUpdate: &quot;2022-05-24T13:57:46.153Z&quot;,
       }));
-    }
+    }*/
 
     // loop over entertainment and pretend we have facility update docs for them
     const entertainmentToday = await this.db.get(`${this.resortShortcode}.today.1_0.Entertainment`);
