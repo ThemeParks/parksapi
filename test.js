@@ -238,6 +238,15 @@ async function TestDestination() {
   await fs.writeFile(scheduleDataFile, JSON.stringify(schedule, null, 4));
 
   const liveData = await destination.getEntityLiveData();
+  // test for duplicate live data entries
+  const liveDataIds = liveData.map((x) => x._id);
+  const duplicateLiveDataIds = liveDataIds.filter((x, i) => liveDataIds.indexOf(x) !== i);
+  if (duplicateLiveDataIds.length > 0) {
+    logError(`${duplicateLiveDataIds.length} live data ids are duplicated`);
+    console.log(duplicateLiveDataIds);
+  } else {
+    logSuccess(`No live data ids are duplicated`);
+  }
   for (const ent of liveData) {
     TestLiveData(ent, allEntities);
   }
