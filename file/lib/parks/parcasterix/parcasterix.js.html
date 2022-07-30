@@ -120,6 +120,25 @@
 import {attractionType, statusType, queueType, tagType, scheduleType, entityType} from &apos;../parkTypes.js&apos;;
 import moment from &apos;moment-timezone&apos;;
 
+const queries = {
+  getConfiguration: {
+    &quot;query&quot;: &quot;query getConfiguration($language: String!) {\n  configuration(localeFilters: {locale: $language}) {\n    parkIsOpen\n    parkOpeningTime\n    parkClosingTime\n    parkText\n    parkInfoBanner\n    parkLatitude\n    parkLongitude\n    parkRadiusMeters\n    welcomeImage\n    mapColorShow\n    mapColorRestaurant\n    minimumVersionIos\n    minimumVersionAndroid\n    cloudinaryProxyUrl\n    enableMapDirections\n    enableBillet\n    enableFavoris\n    __typename\n  }\n  locales {\n    iso\n    label\n    __typename\n  }\n}\n&quot;
+  },
+  getAttractions: {
+    &quot;query&quot;: &quot;query getAttractions($language: String!) {\n  openAttractions(localeFilters: {locale: $language}, orderBy: [{field: TITLE, order: ASC}]) {\n    id\n    drupalId\n    title\n    slug\n    summary\n    description\n    experience {\n      id\n      drupalId\n      label\n      color\n      __typename\n    }\n    mapId\n    latitude\n    longitude\n    features {\n      id\n      label\n      value\n      icon\n      __typename\n    }\n    headerV1\n    thumbnailV1\n    headerV2\n    thumbnailV2\n    sliders {\n      picture\n      order\n      __typename\n    }\n    minAge\n    order\n    isNew\n    isBest\n    hasQueuingCut\n    hasQueuingCutFear\n    hasPicturePoint\n    blocks\n    labels\n    __typename\n  }\n}\n&quot;,
+  },
+  spectacles: {
+    &quot;query&quot;: &quot;query spectacles($language: String!) {\n  openShows(localeFilters: {locale: $language}, orderBy: [{field: TITLE, order: ASC}]) {\n    id\n    drupalId\n    title\n    slug\n    summary\n    description\n    mapId\n    latitude\n    longitude\n    features {\n      label\n      value\n      icon\n      __typename\n    }\n    closingTimes {\n      startAt\n      endAt\n      timezone\n      __typename\n    }\n    headerV1\n    thumbnailV1\n    headerV2\n    thumbnailV2\n    sliders {\n      picture\n      order\n      __typename\n    }\n    minAge\n    order\n    isNew\n    isBest\n    schedules\n    scheduleIsFrom\n    blocks\n    labels\n    __typename\n  }\n}\n&quot;,
+  },
+  attractionLatency: {
+    &quot;query&quot;: &quot;query attractionLatency {\n  attractionLatency {\n    drupalId\n    latency\n    closingTime\n    __typename\n  }\n}\n&quot;
+  },
+  restaurants: {
+    &quot;query&quot;: &quot;query restaurants($language: String!) {\n  restaurants(localeFilters: {locale: $language}, orderBy: [{field: TITLE, order: ASC}]) {\n    id\n    drupalId\n    title\n    slug\n    type\n    kind\n    kindDrupalId\n    theme\n    themeDrupalId\n    universe\n    mealType\n    withTerrace\n    summary\n    description\n    header\n    sliders {\n      picture\n      order\n      __typename\n    }\n    mapId\n    latitude\n    longitude\n    menuUrl\n    mobileUrl\n    related {\n      id\n      __typename\n    }\n    blocks\n    labels\n    __typename\n  }\n}\n&quot;,
+  },
+
+}
+
 export class ParcAsterix extends Destination {
   constructor(options = {}) {
     options.timezone = options.timezone || &apos;Europe/Paris&apos;;
@@ -142,14 +161,30 @@ export class ParcAsterix extends Destination {
    * @returns 
    */
   async makeCachedQuery(operationName, queryHash) {
+    const query = {
+      operationName,
+      variables: {
+        language: this.config.language,
+      },
+    };
+
+    if (queries[operationName]) {
+      for(const k in queries[operationName]) {
+        query[k] = queries[operationName][k];
+      }
+    } else {
+      query.extensions = {
+        persistedQuery: {
+          version: 1,
+          sha256Hash: queryHash,
+        }
+      };
+    }
+
     const resp = (await this.http(
       &apos;GET&apos;,
       `${this.config.apiBase}graphql`,
-      {
-        operationName: operationName,
-        variables: `{&quot;language&quot;:&quot;${this.config.language}&quot;}`,
-        extensions: `{&quot;persistedQuery&quot;:{&quot;version&quot;:1,&quot;sha256Hash&quot;:&quot;${queryHash}&quot;}}`,
-      }
+      query,
     )).body;
 
     if (resp?.errors) {
