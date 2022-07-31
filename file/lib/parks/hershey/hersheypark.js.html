@@ -290,16 +290,17 @@ export class Hersheypark extends Destination {
       //  3: park closed
       //  2: &lt;unknown&gt; (assumed down)
       //  1: open
+      //  0: ride closed
 
       if (x.status === 2) {
         data.status = statusType.down;
       } else if (x.status === 1) {
         data.status = statusType.operating;
 
-        if (data.wait !== null &amp;&amp; data.wait !== undefined) {
+        if (x.wait !== null &amp;&amp; x.wait !== undefined) {
           data.queue = {
             [queueType.standBy]: {
-              waitTime: data.wait,
+              waitTime: x.wait,
             },
           };
         }
