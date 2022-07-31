@@ -368,6 +368,10 @@ export const HTTP = (function() {
 
   /**
    * Helper function to make a GET request
+   * @param {string} url URL to request
+   * @param {object} [data] data to send. Will become querystring for GET, body for POST
+   * @param {object} [options = {}] Object containing needle-compatible HTTP options
+   * @return {Promise&lt;*&gt;}
    */
   mainFunction.get = (url, data, options) =&gt; {
     return mainFunction(&apos;GET&apos;, url, data, options);
@@ -375,6 +379,10 @@ export const HTTP = (function() {
 
   /**
    * Helper function to make a POST request
+   * @param {string} url URL to request
+   * @param {object} [data] data to send. Will become querystring for GET, body for POST
+   * @param {object} [options = {}] Object containing needle-compatible HTTP options
+   * @return {Promise&lt;*&gt;}
    */
   mainFunction.post = (url, data, options) =&gt; {
     return mainFunction(&apos;POST&apos;, url, data, options);
@@ -382,6 +390,10 @@ export const HTTP = (function() {
 
   /**
    * Helper function to make a PUT request
+   * @param {string} url URL to request
+   * @param {object} [data] data to send. Will become querystring for GET, body for POST
+   * @param {object} [options = {}] Object containing needle-compatible HTTP options
+   * @return {Promise&lt;*&gt;}
    */
   mainFunction.put = (url, data, options) =&gt; {
     return mainFunction(&apos;PUT&apos;, url, data, options);
@@ -389,6 +401,10 @@ export const HTTP = (function() {
 
   /**
    * Helper function to make a DELETE request
+   * @param {string} url URL to request
+   * @param {object} [data] data to send. Will become querystring for GET, body for POST
+   * @param {object} [options = {}] Object containing needle-compatible HTTP options
+   * @return {Promise&lt;*&gt;}
    */
   mainFunction.delete = (url, data, options) =&gt; {
     return mainFunction(&apos;DELETE&apos;, url, data, options);
@@ -396,6 +412,10 @@ export const HTTP = (function() {
 
   /**
    * Helper function to make a PATCH request
+   * @param {string} url URL to request
+   * @param {object} [data] data to send. Will become querystring for GET, body for POST
+   * @param {object} [options = {}] Object containing needle-compatible HTTP options
+   * @return {Promise&lt;*&gt;}
    */
   mainFunction.patch = (url, data, options) =&gt; {
     return mainFunction(&apos;PATCH&apos;, url, data, options);
@@ -403,6 +423,10 @@ export const HTTP = (function() {
 
   /**
    * Helper function to make a HEAD request
+   * @param {string} url URL to request
+   * @param {object} [data] data to send. Will become querystring for GET, body for POST
+   * @param {object} [options = {}] Object containing needle-compatible HTTP options
+   * @return {Promise&lt;*&gt;}
    */
   mainFunction.head = (url, data, options) =&gt; {
     return mainFunction(&apos;HEAD&apos;, url, data, options);
@@ -410,6 +434,10 @@ export const HTTP = (function() {
 
   /**
    * Helper function to make a OPTIONS request
+   * @param {string} url URL to request
+   * @param {object} [data] data to send. Will become querystring for GET, body for POST
+   * @param {object} [options = {}] Object containing needle-compatible HTTP options
+   * @return {Promise&lt;*&gt;}
    */
   mainFunction.options = (url, data, options) =&gt; {
     return mainFunction(&apos;OPTIONS&apos;, url, data, options);
@@ -417,6 +445,10 @@ export const HTTP = (function() {
 
   /**
    * Helper function to make a TRACE request
+   * @param {string} url URL to request
+   * @param {object} [data] data to send. Will become querystring for GET, body for POST
+   * @param {object} [options = {}] Object containing needle-compatible HTTP options
+   * @return {Promise&lt;*&gt;}
    */
   mainFunction.trace = (url, data, options) =&gt; {
     return mainFunction(&apos;TRACE&apos;, url, data, options);

@@ -3616,7 +3616,7 @@
     "__docId__": 175,
     "kind": "file",
     "name": "lib/parks/destination.js",
-    "content": "import EventEmitter from 'events';\nimport objHash from 'object-hash';\nimport moment from 'moment-timezone';\n\nimport Cache from '../cache/scopedCache.js';\nimport {reusePromiseForever} from '../reusePromises.js';\nimport {entityType} from './parkTypes.js';\nimport {getLiveDataErrors} from './livedata.js';\nimport HTTP from './http.js';\n\nimport {parseConfig} from '../configBase.js';\nimport {validateEntitySchedule} from './scheduledata.js';\n\n/**\n * Return functions available on the supplied object as an array of strings\n * @param {object} obj\n * @return {Array<string>} array of function names\n */\nconst getMethods = (obj) => {\n  const properties = new Set();\n  let currentObj = obj;\n  do {\n    Object.getOwnPropertyNames(currentObj).map((item) => properties.add(item));\n  } while ((currentObj = Object.getPrototypeOf(currentObj)));\n  return [...properties.keys()].filter((item) => typeof obj[item] === 'function');\n};\n\n/**\n * Meta-programming commands\n * Functions can declare tags to add extra functionality to their behaviour.\n * This is a replacement for decorators until they actually exist.\n */\nconst metaCommands = {\n  // @cache|minutesToCache\n  cache: function(fnName, args) {\n    const originalFunction = this[fnName].bind(this);\n\n    this[fnName] = async (...originalFunctionArgs) => {\n      let funcCacheName = `metacache_${fnName}`;\n      if (originalFunctionArgs.length > 0) {\n        funcCacheName = `metacache_${fnName}_${originalFunctionArgs.map((x) => JSON.stringify(x)).join(',')}`;\n      }\n\n      // figure out cache time from args[0]\n      let cacheTime = 1000 * 60 * 5; // default to 5 minutes\n      if (args.length > 0) {\n        // look for units of time\n        const timeUnit = args[0].match(/^(\\d+)([mhd])$/);\n        if (timeUnit) {\n          const time = parseInt(timeUnit[1], 10);\n          const unit = timeUnit[2];\n          switch (unit) {\n            case 'm':\n              cacheTime = 1000 * 60 * time;\n              break;\n            case 'h':\n              cacheTime = 1000 * 60 * 60 * time;\n              break;\n            case 'd':\n              cacheTime = 1000 * 60 * 60 * 24 * time;\n              break;\n          }\n        } else {\n          // if no unit of time is supplied, assume minutes\n          cacheTime = parseInt(args[0], 10) * 1000 * 60;\n        }\n      }\n\n      // replace original function with a cache wrap\n      return this.cache.wrap(\n          // try and make a unique name based on our function name\n          //  to store in cache\n          funcCacheName,\n          // call original function if value not in cache\n          async () => {\n            return originalFunction(...originalFunctionArgs);\n          },\n          // @cache takes argument in minutes\n          parseInt(args[0], 10) * 1000 * 60,\n      );\n    };\n  },\n};\n\n/**\n * The base Destination object\n */\nexport class Destination extends EventEmitter {\n  /**\n   * Construct a new empty Destination object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    super();\n\n    // add class name to our $env options\n    options.configPrefixes = [this.constructor.name].concat(\n        options.configPrefixes || [],\n    );\n\n    // debug callback to list environment variables\n    if (options?.envCallback) {\n      const keys = Object.keys(options);\n      const prefix = this.constructor.name;\n      keys.map((x) => {\n        options?.envCallback(prefix, x);\n      });\n    }\n\n    // parse config from ENV by combining with options\n    const config = parseConfig(options);\n    this.config = config;\n\n    this._destinationEntityObject = null;\n\n    // create a new cache object for this destination\n    this.cache = new Cache(this.constructor.name, this.config.cacheVersion || 0);\n\n    this._allEntities = null;\n    this._allEntitiesLastStash = 0;\n\n    this.http = new HTTP();\n    if (this.config.useragent) {\n      this.http.useragent = this.config.useragent;\n    }\n\n    if (!this.config.timezone) {\n      throw new Error(`All destination objects must have a timezone! ${this.constructor.name}`);\n    }\n\n    // debug log all HTTP requests\n    this.http.injectForDomain({hostname: {$exists: true}}, (method, url) => {\n      this.log(method, url);\n    });\n\n    // get list of all class functions for some meta programming\n    const funcs = getMethods(this);\n    funcs.forEach((funcName) => {\n      // skip constructor\n      if (funcName === 'constructor') return;\n\n      // get function as a string\n      const funcStr = this[funcName].toString();\n      // match any lines that contain only a string starting with @\n      //  eg. '@cache()';\n      // TODO - match multiple times for complex meta functions\n      const match = /^\\s*(['\"`])\\s*@([^'\"`]+)\\1;?/mg.exec(funcStr);\n      if (match) {\n        const splits = match[2].split('|');\n        // look for matching meta function\n        const metaFn = metaCommands[splits[0]];\n        if (!metaFn) {\n          return;\n        }\n\n        // console.log(`Setting up ${splits[0]} for ${funcName}...`);\n\n        // call meta function\n        metaFn.call(this, funcName, splits.slice(1));\n      }\n    });\n  }\n\n  /**\n   * Debug log\n   * @param  {...any} args Message to debug log\n   */\n  log(...args) {\n    console.log(`[\\x1b[32m${this.constructor.name}\\x1b[0m]`, ...args);\n  }\n\n  /**\n   * Initialise the object. Will only be initialised once\n   */\n  async init() {\n    await reusePromiseForever(this, this._init);\n  }\n\n  /**\n   * Instance implementation of init, implement this function for a single-execution of init()\n   */\n  async _init() { }\n\n  /**\n   * Return the current time for this destination in its local timezone\n   * @return {moment}\n   */\n  getTimeNowMoment() {\n    return moment().tz(this.config.timezone);\n  }\n\n  /**\n   * Return the current time for this destination in its local timezone\n   * @return {string}\n   */\n  getTimeNow() {\n    return this.getTimeNowMoment().format();\n  }\n\n  /**\n   * Set local live data cache for an entity\n   * @param {string} id\n   * @param {object} data\n   * @param {object} [lock] Optional lock file to use for transactions\n   * @private\n   */\n  async setLiveCache(id, data, lock) {\n    const cache = lock ? lock : this.cache;\n    const cacheTime = 1000 * 60 * 60 * 24 * 30 * 6; // 6 months\n    await cache.set(`${id}_live`, data, cacheTime);\n    // generate hash and store separately\n    await cache.set(`${id}_livehash`, data ? objHash(data) : undefined, cacheTime);\n  }\n\n  /**\n   * Get the locally stored live data for an ID\n   * @param {string} id\n   * @param {object} [lock]\n   * @return {object}\n   */\n  async getLiveCache(id, lock) {\n    const cache = lock ? lock : this.cache;\n    return cache.get(`${id}_live`);\n  }\n\n  /**\n   * Get the hash of a stored live data of an entity\n   * @param {string} id\n   * @param {object} [lock] Optional lock file to use for transactions\n   * @private\n   */\n  async getLiveHash(id, lock) {\n    const cache = lock ? lock : this.cache;\n    return await cache.get(`${id}_livehash`);\n  }\n\n  /**\n   * Build a generic base entity object\n   * @param {object} data\n   * @return {object}\n   */\n  buildBaseEntityObject(data) {\n    const entity = {\n      timezone: this.config.timezone,\n    };\n\n    return entity;\n  }\n\n  /**\n   * Build the destination entity representing this destination\n   */\n  async buildDestinationEntity() {\n    throw new Error('buildDestinationEntity() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Build the park entities for this destination\n   */\n  async buildParkEntities() {\n    throw new Error('buildParkEntities() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Build the attraction entities for this destination\n   */\n  async buildAttractionEntities() {\n    throw new Error('buildAttractionEntities() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Build the show entities for this destination\n   */\n  async buildShowEntities() {\n    throw new Error('buildShowEntities() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Build the restaurant entities for this destination\n   */\n  async buildRestaurantEntities() {\n    throw new Error('buildRestaurantEntities() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Get the Entity object for this destination\n   * @return {Object}\n   */\n  async getDestinationEntity() {\n    await this.init();\n\n    // TODO - cache this?\n    if (!this._destinationEntityObject) {\n      this._destinationEntityObject = await this.buildDestinationEntity();\n    }\n    return this._destinationEntityObject;\n  }\n\n  /**\n   * Get all entities belonging to this destination.\n   */\n  async getAllEntities() {\n    const minCacheTime = +new Date() - (1000 * 60 * 5); // refresh every 5 minutes\n    if (this._allEntities && this._allEntitiesLastStash > minCacheTime) {\n      return this._allEntities;\n    }\n\n    // TODO - cache each of these calls for some time\n    // TODO - promise reuse this function\n    const destination = await this.getDestinationEntity();\n\n    this._allEntities = [].concat(\n        destination,\n        (await this.buildParkEntities()).map((x) => {\n          return {\n            ...x,\n            _destinationId: destination._id,\n          };\n        }),\n        (await this.buildAttractionEntities()).map((x) => {\n          return {\n            ...x,\n            _destinationId: destination._id,\n          };\n        }),\n        (await this.buildShowEntities()).map((x) => {\n          return {\n            ...x,\n            _destinationId: destination._id,\n          };\n        }),\n        (await this.buildRestaurantEntities()).map((x) => {\n          return {\n            ...x,\n            _destinationId: destination._id,\n          };\n        }),\n    );\n\n    this._allEntitiesLastStash = +new Date();\n    return this._allEntities;\n  }\n\n  /**\n   * Get all park entities within this destination.\n   */\n  async getParkEntities() {\n    const entities = await this.getAllEntities();\n    return entities.filter((e) => e.entityType === entityType.park);\n  }\n\n  /**\n   * Get all destination entities within this destination.\n   */\n  async getDestinationEntities() {\n    const entities = await this.getAllEntities();\n    return entities.filter((e) => e.entityType === entityType.destination);\n  }\n\n  /**\n   * Get all attraction entities within this destination.\n   */\n  async getAttractionEntities() {\n    const entities = await this.getAllEntities();\n    return entities.filter((e) => e.entityType === entityType.attraction);\n  }\n\n  /**\n   * Get all show entities within this destination.\n   */\n  async getShowEntities() {\n    const entities = await this.getAllEntities();\n    return entities.filter((e) => e.entityType === entityType.show);\n  }\n\n  /**\n   * Get all restaurant entities within this destination.\n   */\n  async getRestaurantEntities() {\n    const entities = await this.getAllEntities();\n    return entities.filter((e) => e.entityType === entityType.restaurant);\n  }\n\n  /**\n   * Given an internal entity ID, return it's full entity object\n   * @param {string} id\n   * @return {object}\n   */\n  async getEntityFromId(id) {\n    const entities = await this.getAllEntities();\n    return entities.find((x) => x._id === id);\n  }\n\n  // TODO - live data API methods in destination\n\n  /**\n   * Update an entity with livedata\n   * @param {string} internalId\n   * @param {object} data\n   */\n  async updateEntityLiveData(internalId, data) {\n    // format incoming livedata to iron our any weird sorting inconsistency\n    //  sort showtimes by startTime\n    if (data?.showtimes) {\n      data.showtimes.sort((a, b) => {\n        if (!a.startTime || !b.startTime) return false;\n        return moment(a.startTime).unix() - moment(b.startTime).unix();\n      });\n    }\n\n    // stack up any emit events we want to send\n    //  we will build these up inside our database transaction,\n    //  but don't actually send them until we've released our lock\n    const events = [];\n\n    // get our entity doc\n    const entity = await this.getEntityFromId(internalId);\n    if (!entity) {\n      return;\n\n      this.emit('error', internalId, 'UNKNOWN_ENTITY_LIVEDATA', {\n        message: `Trying to assign live data update to unknown entity ${internalId}`,\n        data,\n      });\n      return;\n    }\n\n    // validate incoming data\n    const validationErrors = getLiveDataErrors(data);\n    if (validationErrors !== null) {\n      this.emit('error', internalId, 'INVALID_LIVEDATA', {\n        message: `Error validating incoming live data [${internalId}] ${JSON.stringify(data)}.\n\\t${validationErrors.map((x) => `${x.dataPath} ${x.message}`).join('\\n\\t')}`,\n        data,\n      });\n      return;\n    }\n\n    // lock our live data in a transaction to avoid weird conflicts\n    await this.cache.runTransaction(async (lock) => {\n      try {\n        // check live data hasn't changed from cache\n        const storedHash = await this.getLiveHash(internalId, lock);\n\n        if (storedHash) {\n          const newHash = data ? objHash(data) : undefined;\n          if (newHash === storedHash) {\n            // incoming data matches stored data! no change\n            return;\n          }\n        }\n\n        // TODO - get previous data and diff\n        // const existingData = await this.getLiveCache(internalId, lock);\n\n        // TODO - identify specific live data type changes\n        //  eg. broadcast \"queueupdate\" changes etc.\n\n        // always push a general \"liveupdate\" event\n        events.push(['liveupdate', internalId, data]);\n\n        // store locally\n        await this.setLiveCache(internalId, data, lock);\n      } catch (e) {\n        console.error(e);\n      }\n    });\n\n    // emit all our events *outside* the database transaction\n    //  so we don't block database IO any longer than we need to\n    events.forEach((ev) => {\n      this.emit(...ev);\n    });\n  }\n\n  /**\n   * Build all live data for entities - implement this function in child class\n   */\n  async buildEntityLiveData() {\n    throw new Error('buildEntityLiveData() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Build all schedule data for entities - implement this function in child class\n   * Returns array of schedule objects\n   */\n  async buildEntityScheduleData() {\n    throw new Error('buildEntityScheduleData() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Get all live data for entities\n   */\n  async getEntityLiveData() {\n    await this.init();\n    const liveData = (await this.buildEntityLiveData()) || [];\n\n    // process all live data we generated\n    for (let liveDataIdx = 0; liveDataIdx < liveData.length; liveDataIdx++) {\n      const data = liveData[liveDataIdx];\n      try {\n        await this.updateEntityLiveData(data._id, data);\n      } catch (e) {\n        // if (!e instanceof EntityNotFound) {\n        console.error(`Failed to apply live data to ${data._id}`);\n        console.error(e);\n        // }\n        // 19411262;entityType=Attraction = Pop/Art Skyliner Line\n        // 19404062;entityType=Attraction = Hollywood Studios Skyliner Line\n        // 19404065;entityType=Attraction = Epcot Skyliner Line\n      }\n    }\n\n    return liveData;\n  }\n\n  /**\n   * Get all schedules for this destination's entites\n   * @return {Array<object>} Array of objects containing _id and schedules\n   */\n  async getEntitySchedules() {\n    await this.init();\n    const scheduleData = (await this.buildEntityScheduleData()) || [];\n\n    // validate schedule data\n    scheduleData.forEach((data, idx) => {\n      const errors = validateEntitySchedule(data);\n      if (errors) {\n        this.emit('error', data._id, 'INVALID_SCHEDULEDATA', {\n          message: `Destination returned invalid schedule data for ${data._id}`,\n          data: errors,\n        });\n        // clear out invalid schedule data\n        data.schedule = [];\n      } else {\n        // sort data by openingTime\n        data.schedule.sort((a, b) => {\n          return moment(a.openingTime).valueOf() - moment(b.openingTime).valueOf();\n        });\n      }\n    });\n\n    return scheduleData;\n  }\n\n  /**\n   * Clear the cache for a given meta function\n   * @private\n   * @param {string} functionName\n   * @param {Array<*>} args\n   */\n  async _clearFunctionCache(functionName, args = []) {\n    let funcCacheName = `metacache_${functionName}`;\n    if (args.length > 0) {\n      funcCacheName = `metacache_${functionName}_${args.map((x) => JSON.stringify(x)).join(',')}`;\n    }\n    await this.cache.set(funcCacheName, null, -1);\n  }\n\n  /**\n   * Helper function to call a function, passing in a date for each date x days in the future.\n   * First date will be current park date.\n   * @param {Function} func\n   * @param {Number} dates\n   */\n  async forEachUpcomingDate(func, dates = 30) {\n    const now = this.getTimeNowMoment();\n    const end = now.clone().add(dates, 'days');\n\n    const results = [];\n\n    for (; now.isSameOrBefore(end, 'day'); now.add(1, 'day')) {\n      const d = await func(now.clone());\n      if (d) {\n        results.push(d);\n      }\n    }\n\n    return results;\n  }\n\n  /**\n   * Get the app version of an Android package ID\n   * Only returns a valid response for apps tracked in the appwatch tracker service\n   * @param {string} packageId\n   * @return {string|undefined}\n   */\n  async getAndroidAPPVersion(packageId) {\n    // cache 12 hours\n    '@cache|720';\n    const resp = await this.http(\n        'GET',\n        `https://appwatch.themeparks.wiki/latest/${packageId}`,\n        {},\n    );\n    return resp?.body?.version || undefined;\n  }\n}\n\nexport default Destination;\n",
+    "content": "import EventEmitter from 'events';\nimport objHash from 'object-hash';\nimport moment from 'moment-timezone';\n\nimport Cache from '../cache/scopedCache.js';\nimport {reusePromiseForever} from '../reusePromises.js';\nimport {entityType} from './parkTypes.js';\nimport {getLiveDataErrors} from './livedata.js';\nimport HTTP from './http.js';\n\nimport {parseConfig} from '../configBase.js';\nimport {validateEntitySchedule} from './scheduledata.js';\n\n/**\n * Return functions available on the supplied object as an array of strings\n * @param {object} obj\n * @return {Array<string>} array of function names\n */\nconst getMethods = (obj) => {\n  const properties = new Set();\n  let currentObj = obj;\n  do {\n    Object.getOwnPropertyNames(currentObj).map((item) => properties.add(item));\n  } while ((currentObj = Object.getPrototypeOf(currentObj)));\n  return [...properties.keys()].filter((item) => typeof obj[item] === 'function');\n};\n\n/**\n * Meta-programming commands\n * Functions can declare tags to add extra functionality to their behaviour.\n * This is a replacement for decorators until they actually exist.\n */\nconst metaCommands = {\n  // @cache|minutesToCache\n  cache: function(fnName, args) {\n    const originalFunction = this[fnName].bind(this);\n\n    this[fnName] = async (...originalFunctionArgs) => {\n      let funcCacheName = `metacache_${fnName}`;\n      if (originalFunctionArgs.length > 0) {\n        funcCacheName = `metacache_${fnName}_${originalFunctionArgs.map((x) => JSON.stringify(x)).join(',')}`;\n      }\n\n      // figure out cache time from args[0]\n      let cacheTime = 1000 * 60 * 5; // default to 5 minutes\n      if (args.length > 0) {\n        // look for units of time\n        const timeUnit = args[0].match(/^(\\d+)([mhd])$/);\n        if (timeUnit) {\n          const time = parseInt(timeUnit[1], 10);\n          const unit = timeUnit[2];\n          switch (unit) {\n            case 'm':\n              cacheTime = 1000 * 60 * time;\n              break;\n            case 'h':\n              cacheTime = 1000 * 60 * 60 * time;\n              break;\n            case 'd':\n              cacheTime = 1000 * 60 * 60 * 24 * time;\n              break;\n          }\n        } else {\n          // if no unit of time is supplied, assume minutes\n          cacheTime = parseInt(args[0], 10) * 1000 * 60;\n        }\n      }\n\n      // replace original function with a cache wrap\n      return this.cache.wrap(\n          // try and make a unique name based on our function name\n          //  to store in cache\n          funcCacheName,\n          // call original function if value not in cache\n          async () => {\n            return originalFunction(...originalFunctionArgs);\n          },\n          cacheTime,\n      );\n    };\n  },\n};\n\n/**\n * The base Destination object\n */\nexport class Destination extends EventEmitter {\n  /**\n   * Construct a new empty Destination object\n   * @param {object} options\n   */\n  constructor(options = {}) {\n    super();\n\n    // add class name to our $env options\n    options.configPrefixes = [this.constructor.name].concat(\n        options.configPrefixes || [],\n    );\n\n    // debug callback to list environment variables\n    if (options?.envCallback) {\n      const keys = Object.keys(options);\n      const prefix = this.constructor.name;\n      keys.map((x) => {\n        options?.envCallback(prefix, x);\n      });\n    }\n\n    // parse config from ENV by combining with options\n    const config = parseConfig(options);\n    this.config = config;\n\n    this._destinationEntityObject = null;\n\n    // create a new cache object for this destination\n    this.cache = new Cache(this.constructor.name, this.config.cacheVersion || 0);\n\n    this._allEntities = null;\n    this._allEntitiesLastStash = 0;\n\n    this.http = new HTTP();\n    if (this.config.useragent) {\n      this.http.useragent = this.config.useragent;\n    }\n\n    if (!this.config.timezone) {\n      throw new Error(`All destination objects must have a timezone! ${this.constructor.name}`);\n    }\n\n    // debug log all HTTP requests\n    this.http.injectForDomain({hostname: {$exists: true}}, (method, url) => {\n      this.log(method, url);\n    });\n\n    // get list of all class functions for some meta programming\n    const funcs = getMethods(this);\n    funcs.forEach((funcName) => {\n      // skip constructor\n      if (funcName === 'constructor') return;\n\n      // get function as a string\n      const funcStr = this[funcName].toString();\n      // match any lines that contain only a string starting with @\n      //  eg. '@cache()';\n      // TODO - match multiple times for complex meta functions\n      const match = /^\\s*(['\"`])\\s*@([^'\"`]+)\\1;?/mg.exec(funcStr);\n      if (match) {\n        const splits = match[2].split('|');\n        // look for matching meta function\n        const metaFn = metaCommands[splits[0]];\n        if (!metaFn) {\n          return;\n        }\n\n        // console.log(`Setting up ${splits[0]} for ${funcName}...`);\n\n        // call meta function\n        metaFn.call(this, funcName, splits.slice(1));\n      }\n    });\n  }\n\n  /**\n   * Debug log\n   * @param  {...any} args Message to debug log\n   */\n  log(...args) {\n    console.log(`[\\x1b[32m${this.constructor.name}\\x1b[0m]`, ...args);\n  }\n\n  /**\n   * Initialise the object. Will only be initialised once\n   */\n  async init() {\n    await reusePromiseForever(this, this._init);\n  }\n\n  /**\n   * Instance implementation of init, implement this function for a single-execution of init()\n   */\n  async _init() { }\n\n  /**\n   * Return the current time for this destination in its local timezone\n   * @return {moment}\n   */\n  getTimeNowMoment() {\n    return moment().tz(this.config.timezone);\n  }\n\n  /**\n   * Return the current time for this destination in its local timezone\n   * @return {string}\n   */\n  getTimeNow() {\n    return this.getTimeNowMoment().format();\n  }\n\n  /**\n   * Set local live data cache for an entity\n   * @param {string} id\n   * @param {object} data\n   * @param {object} [lock] Optional lock file to use for transactions\n   * @private\n   */\n  async setLiveCache(id, data, lock) {\n    const cache = lock ? lock : this.cache;\n    const cacheTime = 1000 * 60 * 60 * 24 * 30 * 6; // 6 months\n    await cache.set(`${id}_live`, data, cacheTime);\n    // generate hash and store separately\n    await cache.set(`${id}_livehash`, data ? objHash(data) : undefined, cacheTime);\n  }\n\n  /**\n   * Get the locally stored live data for an ID\n   * @param {string} id\n   * @param {object} [lock]\n   * @return {object}\n   */\n  async getLiveCache(id, lock) {\n    const cache = lock ? lock : this.cache;\n    return cache.get(`${id}_live`);\n  }\n\n  /**\n   * Get the hash of a stored live data of an entity\n   * @param {string} id\n   * @param {object} [lock] Optional lock file to use for transactions\n   * @private\n   */\n  async getLiveHash(id, lock) {\n    const cache = lock ? lock : this.cache;\n    return await cache.get(`${id}_livehash`);\n  }\n\n  /**\n   * Build a generic base entity object\n   * @param {object} data\n   * @return {object}\n   */\n  buildBaseEntityObject(data) {\n    const entity = {\n      timezone: this.config.timezone,\n    };\n\n    return entity;\n  }\n\n  /**\n   * Build the destination entity representing this destination\n   */\n  async buildDestinationEntity() {\n    throw new Error('buildDestinationEntity() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Build the park entities for this destination\n   */\n  async buildParkEntities() {\n    throw new Error('buildParkEntities() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Build the attraction entities for this destination\n   */\n  async buildAttractionEntities() {\n    throw new Error('buildAttractionEntities() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Build the show entities for this destination\n   */\n  async buildShowEntities() {\n    throw new Error('buildShowEntities() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Build the restaurant entities for this destination\n   */\n  async buildRestaurantEntities() {\n    throw new Error('buildRestaurantEntities() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Get the Entity object for this destination\n   * @return {Object}\n   */\n  async getDestinationEntity() {\n    await this.init();\n\n    // TODO - cache this?\n    if (!this._destinationEntityObject) {\n      this._destinationEntityObject = await this.buildDestinationEntity();\n    }\n    return this._destinationEntityObject;\n  }\n\n  /**\n   * Get all entities belonging to this destination.\n   */\n  async getAllEntities() {\n    const minCacheTime = +new Date() - (1000 * 60 * 5); // refresh every 5 minutes\n    if (this._allEntities && this._allEntitiesLastStash > minCacheTime) {\n      return this._allEntities;\n    }\n\n    // TODO - cache each of these calls for some time\n    // TODO - promise reuse this function\n    const destination = await this.getDestinationEntity();\n\n    this._allEntities = [].concat(\n        destination,\n        (await this.buildParkEntities()).map((x) => {\n          return {\n            ...x,\n            _destinationId: destination._id,\n          };\n        }),\n        (await this.buildAttractionEntities()).map((x) => {\n          return {\n            ...x,\n            _destinationId: destination._id,\n          };\n        }),\n        (await this.buildShowEntities()).map((x) => {\n          return {\n            ...x,\n            _destinationId: destination._id,\n          };\n        }),\n        (await this.buildRestaurantEntities()).map((x) => {\n          return {\n            ...x,\n            _destinationId: destination._id,\n          };\n        }),\n    );\n\n    this._allEntitiesLastStash = +new Date();\n    return this._allEntities;\n  }\n\n  /**\n   * Get all park entities within this destination.\n   */\n  async getParkEntities() {\n    const entities = await this.getAllEntities();\n    return entities.filter((e) => e.entityType === entityType.park);\n  }\n\n  /**\n   * Get all destination entities within this destination.\n   */\n  async getDestinationEntities() {\n    const entities = await this.getAllEntities();\n    return entities.filter((e) => e.entityType === entityType.destination);\n  }\n\n  /**\n   * Get all attraction entities within this destination.\n   */\n  async getAttractionEntities() {\n    const entities = await this.getAllEntities();\n    return entities.filter((e) => e.entityType === entityType.attraction);\n  }\n\n  /**\n   * Get all show entities within this destination.\n   */\n  async getShowEntities() {\n    const entities = await this.getAllEntities();\n    return entities.filter((e) => e.entityType === entityType.show);\n  }\n\n  /**\n   * Get all restaurant entities within this destination.\n   */\n  async getRestaurantEntities() {\n    const entities = await this.getAllEntities();\n    return entities.filter((e) => e.entityType === entityType.restaurant);\n  }\n\n  /**\n   * Given an internal entity ID, return it's full entity object\n   * @param {string} id\n   * @return {object}\n   */\n  async getEntityFromId(id) {\n    const entities = await this.getAllEntities();\n    return entities.find((x) => x._id === id);\n  }\n\n  // TODO - live data API methods in destination\n\n  /**\n   * Update an entity with livedata\n   * @param {string} internalId\n   * @param {object} data\n   */\n  async updateEntityLiveData(internalId, data) {\n    // format incoming livedata to iron our any weird sorting inconsistency\n    //  sort showtimes by startTime\n    if (data?.showtimes) {\n      data.showtimes.sort((a, b) => {\n        if (!a.startTime || !b.startTime) return false;\n        return moment(a.startTime).unix() - moment(b.startTime).unix();\n      });\n    }\n\n    // stack up any emit events we want to send\n    //  we will build these up inside our database transaction,\n    //  but don't actually send them until we've released our lock\n    const events = [];\n\n    // get our entity doc\n    const entity = await this.getEntityFromId(internalId);\n    if (!entity) {\n      return;\n\n      this.emit('error', internalId, 'UNKNOWN_ENTITY_LIVEDATA', {\n        message: `Trying to assign live data update to unknown entity ${internalId}`,\n        data,\n      });\n      return;\n    }\n\n    // validate incoming data\n    const validationErrors = getLiveDataErrors(data);\n    if (validationErrors !== null) {\n      this.emit('error', internalId, 'INVALID_LIVEDATA', {\n        message: `Error validating incoming live data [${internalId}] ${JSON.stringify(data)}.\n\\t${validationErrors.map((x) => `${x.dataPath} ${x.message}`).join('\\n\\t')}`,\n        data,\n      });\n      return;\n    }\n\n    // lock our live data in a transaction to avoid weird conflicts\n    await this.cache.runTransaction(async (lock) => {\n      try {\n        // check live data hasn't changed from cache\n        const storedHash = await this.getLiveHash(internalId, lock);\n\n        if (storedHash) {\n          const newHash = data ? objHash(data) : undefined;\n          if (newHash === storedHash) {\n            // incoming data matches stored data! no change\n            return;\n          }\n        }\n\n        // TODO - get previous data and diff\n        // const existingData = await this.getLiveCache(internalId, lock);\n\n        // TODO - identify specific live data type changes\n        //  eg. broadcast \"queueupdate\" changes etc.\n\n        // always push a general \"liveupdate\" event\n        events.push(['liveupdate', internalId, data]);\n\n        // store locally\n        await this.setLiveCache(internalId, data, lock);\n      } catch (e) {\n        console.error(e);\n      }\n    });\n\n    // emit all our events *outside* the database transaction\n    //  so we don't block database IO any longer than we need to\n    events.forEach((ev) => {\n      this.emit(...ev);\n    });\n  }\n\n  /**\n   * Build all live data for entities - implement this function in child class\n   */\n  async buildEntityLiveData() {\n    throw new Error('buildEntityLiveData() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Build all schedule data for entities - implement this function in child class\n   * Returns array of schedule objects\n   */\n  async buildEntityScheduleData() {\n    throw new Error('buildEntityScheduleData() needs an implementation', this.constructor.name);\n  }\n\n  /**\n   * Get all live data for entities\n   */\n  async getEntityLiveData() {\n    await this.init();\n    const liveData = (await this.buildEntityLiveData()) || [];\n\n    // process all live data we generated\n    for (let liveDataIdx = 0; liveDataIdx < liveData.length; liveDataIdx++) {\n      const data = liveData[liveDataIdx];\n      try {\n        await this.updateEntityLiveData(data._id, data);\n      } catch (e) {\n        // if (!e instanceof EntityNotFound) {\n        console.error(`Failed to apply live data to ${data._id}`);\n        console.error(e);\n        // }\n        // 19411262;entityType=Attraction = Pop/Art Skyliner Line\n        // 19404062;entityType=Attraction = Hollywood Studios Skyliner Line\n        // 19404065;entityType=Attraction = Epcot Skyliner Line\n      }\n    }\n\n    return liveData;\n  }\n\n  /**\n   * Get all schedules for this destination's entites\n   * @return {Array<object>} Array of objects containing _id and schedules\n   */\n  async getEntitySchedules() {\n    await this.init();\n    const scheduleData = (await this.buildEntityScheduleData()) || [];\n\n    // validate schedule data\n    scheduleData.forEach((data, idx) => {\n      const errors = validateEntitySchedule(data);\n      if (errors) {\n        this.emit('error', data._id, 'INVALID_SCHEDULEDATA', {\n          message: `Destination returned invalid schedule data for ${data._id}`,\n          data: errors,\n        });\n        // clear out invalid schedule data\n        data.schedule = [];\n      } else {\n        // sort data by openingTime\n        data.schedule.sort((a, b) => {\n          return moment(a.openingTime).valueOf() - moment(b.openingTime).valueOf();\n        });\n      }\n    });\n\n    return scheduleData;\n  }\n\n  /**\n   * Clear the cache for a given meta function\n   * @private\n   * @param {string} functionName\n   * @param {Array<*>} args\n   */\n  async _clearFunctionCache(functionName, args = []) {\n    let funcCacheName = `metacache_${functionName}`;\n    if (args.length > 0) {\n      funcCacheName = `metacache_${functionName}_${args.map((x) => JSON.stringify(x)).join(',')}`;\n    }\n    await this.cache.set(funcCacheName, null, -1);\n  }\n\n  /**\n   * Helper function to call a function, passing in a date for each date x days in the future.\n   * First date will be current park date.\n   * @param {Function} func\n   * @param {Number} dates\n   */\n  async forEachUpcomingDate(func, dates = 30) {\n    const now = this.getTimeNowMoment();\n    const end = now.clone().add(dates, 'days');\n\n    const results = [];\n\n    for (; now.isSameOrBefore(end, 'day'); now.add(1, 'day')) {\n      const d = await func(now.clone());\n      if (d) {\n        results.push(d);\n      }\n    }\n\n    return results;\n  }\n\n  /**\n   * Get the app version of an Android package ID\n   * Only returns a valid response for apps tracked in the appwatch tracker service\n   * @param {string} packageId\n   * @return {string|undefined}\n   */\n  async getAndroidAPPVersion(packageId) {\n    // cache 12 hours\n    '@cache|720';\n    const resp = await this.http(\n        'GET',\n        `https://appwatch.themeparks.wiki/latest/${packageId}`,\n        {},\n    );\n    return resp?.body?.version || undefined;\n  }\n}\n\nexport default Destination;\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/destination.js",
     "access": "public",
@@ -3692,7 +3692,7 @@
     "importPath": "@themeparks/parksapi/lib/parks/destination.js",
     "importStyle": "{Destination}",
     "description": "The base Destination object",
-    "lineNumber": 88,
+    "lineNumber": 87,
     "interface": false,
     "extends": [
       "events~EventEmitter"
@@ -3709,7 +3709,7 @@
     "longname": "lib/parks/destination.js~Destination#constructor",
     "access": "public",
     "description": "Construct a new empty Destination object",
-    "lineNumber": 93,
+    "lineNumber": 92,
     "params": [
       {
         "nullable": null,
@@ -3732,7 +3732,7 @@
     "longname": "lib/parks/destination.js~Destination#config",
     "access": "public",
     "description": null,
-    "lineNumber": 112,
+    "lineNumber": 111,
     "undocument": true,
     "type": {
       "types": [
@@ -3749,7 +3749,7 @@
     "longname": "lib/parks/destination.js~Destination#_destinationEntityObject",
     "access": "private",
     "description": null,
-    "lineNumber": 114,
+    "lineNumber": 113,
     "undocument": true,
     "type": {
       "types": [
@@ -3766,7 +3766,7 @@
     "longname": "lib/parks/destination.js~Destination#cache",
     "access": "public",
     "description": null,
-    "lineNumber": 117,
+    "lineNumber": 116,
     "undocument": true,
     "type": {
       "types": [
@@ -3783,7 +3783,7 @@
     "longname": "lib/parks/destination.js~Destination#_allEntities",
     "access": "private",
     "description": null,
-    "lineNumber": 119,
+    "lineNumber": 118,
     "undocument": true,
     "type": {
       "types": [
@@ -3800,7 +3800,7 @@
     "longname": "lib/parks/destination.js~Destination#_allEntitiesLastStash",
     "access": "private",
     "description": null,
-    "lineNumber": 120,
+    "lineNumber": 119,
     "undocument": true,
     "type": {
       "types": [
@@ -3817,7 +3817,7 @@
     "longname": "lib/parks/destination.js~Destination#http",
     "access": "public",
     "description": null,
-    "lineNumber": 122,
+    "lineNumber": 121,
     "undocument": true,
     "type": {
       "types": [
@@ -3836,7 +3836,7 @@
     "longname": "lib/parks/destination.js~Destination#log",
     "access": "public",
     "description": "Debug log",
-    "lineNumber": 168,
+    "lineNumber": 167,
     "params": [
       {
         "nullable": null,
@@ -3862,7 +3862,7 @@
     "longname": "lib/parks/destination.js~Destination#init",
     "access": "public",
     "description": "Initialise the object. Will only be initialised once",
-    "lineNumber": 175,
+    "lineNumber": 174,
     "params": [],
     "return": null
   },
@@ -3877,7 +3877,7 @@
     "longname": "lib/parks/destination.js~Destination#_init",
     "access": "private",
     "description": "Instance implementation of init, implement this function for a single-execution of init()",
-    "lineNumber": 182,
+    "lineNumber": 181,
     "params": [],
     "return": null
   },
@@ -3892,7 +3892,7 @@
     "longname": "lib/parks/destination.js~Destination#getTimeNowMoment",
     "access": "public",
     "description": "Return the current time for this destination in its local timezone",
-    "lineNumber": 188,
+    "lineNumber": 187,
     "return": {
       "nullable": null,
       "types": [
@@ -3914,7 +3914,7 @@
     "longname": "lib/parks/destination.js~Destination#getTimeNow",
     "access": "public",
     "description": "Return the current time for this destination in its local timezone",
-    "lineNumber": 196,
+    "lineNumber": 195,
     "return": {
       "nullable": null,
       "types": [
@@ -3936,7 +3936,7 @@
     "longname": "lib/parks/destination.js~Destination#setLiveCache",
     "access": "private",
     "description": "Set local live data cache for an entity",
-    "lineNumber": 207,
+    "lineNumber": 206,
     "params": [
       {
         "nullable": null,
@@ -3982,7 +3982,7 @@
     "longname": "lib/parks/destination.js~Destination#getLiveCache",
     "access": "public",
     "description": "Get the locally stored live data for an ID",
-    "lineNumber": 221,
+    "lineNumber": 220,
     "params": [
       {
         "nullable": null,
@@ -4025,7 +4025,7 @@
     "longname": "lib/parks/destination.js~Destination#getLiveHash",
     "access": "private",
     "description": "Get the hash of a stored live data of an entity",
-    "lineNumber": 232,
+    "lineNumber": 231,
     "params": [
       {
         "nullable": null,
@@ -4065,7 +4065,7 @@
     "longname": "lib/parks/destination.js~Destination#buildBaseEntityObject",
     "access": "public",
     "description": "Build a generic base entity object",
-    "lineNumber": 242,
+    "lineNumber": 241,
     "params": [
       {
         "nullable": null,
@@ -4098,7 +4098,7 @@
     "longname": "lib/parks/destination.js~Destination#buildDestinationEntity",
     "access": "public",
     "description": "Build the destination entity representing this destination",
-    "lineNumber": 253,
+    "lineNumber": 252,
     "params": [],
     "return": null
   },
@@ -4113,7 +4113,7 @@
     "longname": "lib/parks/destination.js~Destination#buildParkEntities",
     "access": "public",
     "description": "Build the park entities for this destination",
-    "lineNumber": 260,
+    "lineNumber": 259,
     "params": [],
     "return": null
   },
@@ -4128,7 +4128,7 @@
     "longname": "lib/parks/destination.js~Destination#buildAttractionEntities",
     "access": "public",
     "description": "Build the attraction entities for this destination",
-    "lineNumber": 267,
+    "lineNumber": 266,
     "params": [],
     "return": null
   },
@@ -4143,7 +4143,7 @@
     "longname": "lib/parks/destination.js~Destination#buildShowEntities",
     "access": "public",
     "description": "Build the show entities for this destination",
-    "lineNumber": 274,
+    "lineNumber": 273,
     "params": [],
     "return": null
   },
@@ -4158,7 +4158,7 @@
     "longname": "lib/parks/destination.js~Destination#buildRestaurantEntities",
     "access": "public",
     "description": "Build the restaurant entities for this destination",
-    "lineNumber": 281,
+    "lineNumber": 280,
     "params": [],
     "return": null
   },
@@ -4173,7 +4173,7 @@
     "longname": "lib/parks/destination.js~Destination#getDestinationEntity",
     "access": "public",
     "description": "Get the Entity object for this destination",
-    "lineNumber": 289,
+    "lineNumber": 288,
     "return": {
       "nullable": null,
       "types": [
@@ -4195,7 +4195,7 @@
     "longname": "lib/parks/destination.js~Destination#getAllEntities",
     "access": "public",
     "description": "Get all entities belonging to this destination.",
-    "lineNumber": 302,
+    "lineNumber": 301,
     "params": [],
     "return": {
       "types": [
@@ -4214,7 +4214,7 @@
     "longname": "lib/parks/destination.js~Destination#getParkEntities",
     "access": "public",
     "description": "Get all park entities within this destination.",
-    "lineNumber": 347,
+    "lineNumber": 346,
     "params": [],
     "return": {
       "types": [
@@ -4233,7 +4233,7 @@
     "longname": "lib/parks/destination.js~Destination#getDestinationEntities",
     "access": "public",
     "description": "Get all destination entities within this destination.",
-    "lineNumber": 355,
+    "lineNumber": 354,
     "params": [],
     "return": {
       "types": [
@@ -4252,7 +4252,7 @@
     "longname": "lib/parks/destination.js~Destination#getAttractionEntities",
     "access": "public",
     "description": "Get all attraction entities within this destination.",
-    "lineNumber": 363,
+    "lineNumber": 362,
     "params": [],
     "return": {
       "types": [
@@ -4271,7 +4271,7 @@
     "longname": "lib/parks/destination.js~Destination#getShowEntities",
     "access": "public",
     "description": "Get all show entities within this destination.",
-    "lineNumber": 371,
+    "lineNumber": 370,
     "params": [],
     "return": {
       "types": [
@@ -4290,7 +4290,7 @@
     "longname": "lib/parks/destination.js~Destination#getRestaurantEntities",
     "access": "public",
     "description": "Get all restaurant entities within this destination.",
-    "lineNumber": 379,
+    "lineNumber": 378,
     "params": [],
     "return": {
       "types": [
@@ -4309,7 +4309,7 @@
     "longname": "lib/parks/destination.js~Destination#getEntityFromId",
     "access": "public",
     "description": "Given an internal entity ID, return it's full entity object",
-    "lineNumber": 389,
+    "lineNumber": 388,
     "params": [
       {
         "nullable": null,
@@ -4342,7 +4342,7 @@
     "longname": "lib/parks/destination.js~Destination#updateEntityLiveData",
     "access": "public",
     "description": "Update an entity with livedata",
-    "lineNumber": 401,
+    "lineNumber": 400,
     "params": [
       {
         "nullable": null,
@@ -4378,7 +4378,7 @@
     "longname": "lib/parks/destination.js~Destination#buildEntityLiveData",
     "access": "public",
     "description": "Build all live data for entities - implement this function in child class",
-    "lineNumber": 479,
+    "lineNumber": 478,
     "params": [],
     "return": null
   },
@@ -4393,7 +4393,7 @@
     "longname": "lib/parks/destination.js~Destination#buildEntityScheduleData",
     "access": "public",
     "description": "Build all schedule data for entities - implement this function in child class<br />Returns array of schedule objects",
-    "lineNumber": 487,
+    "lineNumber": 486,
     "params": [],
     "return": null
   },
@@ -4408,7 +4408,7 @@
     "longname": "lib/parks/destination.js~Destination#getEntityLiveData",
     "access": "public",
     "description": "Get all live data for entities",
-    "lineNumber": 494,
+    "lineNumber": 493,
     "params": [],
     "return": {
       "types": [
@@ -4427,7 +4427,7 @@
     "longname": "lib/parks/destination.js~Destination#getEntitySchedules",
     "access": "public",
     "description": "Get all schedules for this destination's entites",
-    "lineNumber": 521,
+    "lineNumber": 520,
     "return": {
       "nullable": null,
       "types": [
@@ -4449,7 +4449,7 @@
     "longname": "lib/parks/destination.js~Destination#_clearFunctionCache",
     "access": "private",
     "description": "Clear the cache for a given meta function",
-    "lineNumber": 552,
+    "lineNumber": 551,
     "params": [
       {
         "nullable": null,
@@ -4485,7 +4485,7 @@
     "longname": "lib/parks/destination.js~Destination#forEachUpcomingDate",
     "access": "public",
     "description": "Helper function to call a function, passing in a date for each date x days in the future.<br />First date will be current park date.",
-    "lineNumber": 566,
+    "lineNumber": 565,
     "params": [
       {
         "nullable": null,
@@ -4525,7 +4525,7 @@
     "longname": "lib/parks/destination.js~Destination#getAndroidAPPVersion",
     "access": "public",
     "description": "Get the app version of an Android package ID<br />Only returns a valid response for apps tracked in the appwatch tracker service",
-    "lineNumber": 588,
+    "lineNumber": 587,
     "params": [
       {
         "nullable": null,
@@ -6928,7 +6928,7 @@
     "__docId__": 332,
     "kind": "file",
     "name": "lib/parks/http.js",
-    "content": "import HarWriter from '../har.js';\nimport randomUseragent from 'random-useragent';\nimport moment from 'moment-timezone';\nimport sift from 'sift';\nimport needle from 'needle';\nimport promiseRetry from 'promise-retry';\n\nlet overrideFunc = null;\n/**\n * Set an override function to use for HTTP requests\n * Accepts (method, URL, data, options)\n * @param {function} fn\n */\nexport function setOverrideFunction(fn) {\n  overrideFunc = fn;\n}\n\n/**\n * Generate a random Android user agent for making network requests\n * @return {string}\n */\nexport function generateRandomAndroidUseragent() {\n  return randomUseragent.getRandom((ua) => {\n    return (ua.osName === 'Android');\n  });\n}\n\n// start our har writer (if debugging)\nconst harWriter = process.env['THEMEPARKS_HAR'] ?\n  new HarWriter({filename: `${process.env['THEMEPARKS_HAR']}.har`}) :\n  null;\n\n/**\n   * Write a HTTP response to HAR file for debugging\n   * @param {*} method\n   * @param {*} url\n   * @param {*} data\n   * @param {*} options\n   * @param {*} resp\n   * @param {*} startTime\n   * @param {*} timeTaken\n   * @private\n   */\nasync function writeToHAR(method, url, data, options, resp, startTime, timeTaken) {\n  const objToArr = (obj) => {\n    return Object.keys(obj).map((header) => {\n      return {name: header, value: obj[header].toString()};\n    });\n  };\n\n  const entry = {\n    startedDateTime: startTime,\n    time: timeTaken,\n    request: {\n      method: method,\n      url: url,\n      httpVersion: `HTTP/${resp.httpVersion}`, // this is actually the response, TODO\n      cookies: [],\n      headers: objToArr(options.headers), // not the actual headers needle sends - TODO, how to get these?\n      queryString: method === 'GET' ? objToArr(data) : [], // TODO - parse from needle's .path\n      postData: {\n        mimeType: options.json ? 'application/json' : (options.headers['content-type'] || ''),\n        params: method !== 'GET' ? [] : [],\n        text: '',\n      },\n      headersSize: -1,\n      bodySize: -1,\n    },\n    response: {\n      status: resp.statusCode,\n      statusText: resp.statusMessage,\n      httpVersion: `HTTP/${resp.httpVersion}`,\n      cookies: [],\n      headers: objToArr(resp.headers),\n      content: {\n        size: resp.raw.length || -1,\n        mimeType: resp.headers['content-type'],\n        text: resp.raw.toString('base64'),\n        encoding: 'base64',\n      },\n      redirectURL: '',\n      headersSize: -1,\n      bodySize: -1,\n    },\n    cache: {},\n    timings: {\n      send: -1,\n      wait: -1,\n      receive: -1,\n    },\n  };\n  await harWriter.recordEntry(entry);\n}\n\n/**\n * HTTP helper with injection\n * @return {*}\n */\nexport const HTTP = (function() {\n  this._httpInjections = [];\n  this._httpResponseInjections = [];\n  this.useragent = generateRandomAndroidUseragent();\n\n  /**\n   * Helper function to make an HTTP request for this park\n   * Parks can automatically add in authentication headers etc. to requests sent to this function\n   * @param {string} method HTTP method to use (GET,POST,DELETE, etc)\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options = {}] Object containing needle-compatible HTTP options\n   */\n  const mainFunction = async (method, url, data, options = {}) => {\n    // default to GET if we only have one argument\n    if (url === undefined && data === undefined) {\n      url = method;\n      method = 'GET';\n    }\n\n    // always have a headers array\n    if (!options.headers) {\n      options.headers = {};\n    }\n\n    // default to accepting compressed data\n    options.compressed = options.compressed === undefined ? true : options.compressed;\n\n    // 10 seconds default timeout opening response\n    options.response_timeout = options.response_timeout || 10000;\n    // 30 seconds default timeout for reading data (for large data streams)\n    options.read_timeout = options.read_timeout || 30000;\n\n    // inject custom standard user agent (if we have one)\n    //  do this before any custom injections so parks can optionally override this for each domain\n    if (this.useragent && !options.headers['user-agent']) {\n      options.headers['user-agent'] = this.useragent;\n    }\n\n    if (!options.headers['user-agent'] && process.env.DEFAULT_USER_AGENT) {\n      // if no user-agent supplied, set a default one from the env\n      options.headers['user-agent'] = process.env.DEFAULT_USER_AGENT;\n    }\n\n    // check any hostname injections we have setup\n    const urlObj = new URL(url);\n    const urlFilter = {\n      protocol: urlObj.protocol,\n      host: urlObj.host,\n      hostname: urlObj.hostname,\n      pathname: urlObj.pathname,\n      search: urlObj.search,\n      hash: urlObj.hash,\n    };\n\n    // wrap our needle call in a retry\n    return await promiseRetry({\n      retries: options.retries === undefined ? 3 : options.retries,\n    }, async (retryFn) => {\n      // make sure we run initial injections on each retry\n      for (let injectionIDX = 0; injectionIDX < this._httpInjections.length; injectionIDX++) {\n        const injection = this._httpInjections[injectionIDX];\n\n        // check if the domain matches\n        if (injection.filter(urlFilter)) {\n          const injectionResp = await injection.func(method, url, data, options);\n          if (injectionResp) {\n            url = injectionResp.url || url;\n            method = injectionResp.method || method;\n            data = injectionResp.data || data;\n            options = injectionResp.options || options;\n          }\n        }\n      }\n\n      // record some stats for the optional HAR Writer\n      const startMs = +new Date();\n      const startTime = moment(startMs).toISOString();\n\n      // optionally override the HTTP function to use\n      const httpFunc = overrideFunc ? overrideFunc : needle;\n\n      return httpFunc(method, url, data, options).then(async (resp) => {\n        // intercept response to write to our .har file\n        if (harWriter) {\n          await writeToHAR(method, url, data, options, resp, startTime, (+new Date()) - startMs);\n        }\n\n        // call any response injections\n        for (let injectionIDX = 0; injectionIDX < this._httpResponseInjections.length; injectionIDX++) {\n          const injection = this._httpResponseInjections[injectionIDX];\n\n          // check if the domain matches\n          // (reuse urlFilter from the incoming injections)\n          if (injection.filter(urlFilter)) {\n            resp = await injection.func(resp);\n          }\n        }\n\n        // if our response if now undefined, retry our request\n        if (resp === undefined) {\n          return retryFn();\n        }\n\n        // if we got an error code, retry our request\n        if (!options.ignoreErrors && resp.statusCode >= 400) {\n          return retryFn();\n        }\n\n        // force response to JSON object if options.json is set\n        if (options.json && resp.body && typeof resp.body === 'string') {\n          try {\n            resp.body = JSON.parse(resp.body);\n          } catch (e) {\n            // ignore\n          }\n        }\n\n        return resp;\n      });\n    });\n  };\n\n  /**\n   * Register a new injection for a specific domain\n   * @param {object} filter Mongo-type query to use to match a URL\n   * @param {function} func Function to call with needle request to inject extra data into.\n   * Function will take arguments: (method, URL, data, options)\n   */\n  mainFunction.injectForDomain = (filter, func) => {\n    // add to our array of injections, this is processing by HTTP()\n    this._httpInjections.push({\n      filter: sift(filter),\n      func,\n    });\n  };\n\n  /**\n   * Register a new response injection for a specific domain\n   * @param {object} filter Mongo-type query to use to match a URL\n   * @param {function} func Function to call with needle response object to make changes\n   * Function will take arguments: (response)\n   * Function *must* return the response object back, or undefined if you want to force a retry\n   */\n  mainFunction.injectForDomainResponse = (filter, func) => {\n    this._httpResponseInjections.push({\n      filter: sift(filter),\n      func,\n    });\n  };\n\n  /**\n   * Helper function to make a GET request\n   */\n  mainFunction.get = (url, data, options) => {\n    return mainFunction('GET', url, data, options);\n  };\n\n  /**\n   * Helper function to make a POST request\n   */\n  mainFunction.post = (url, data, options) => {\n    return mainFunction('POST', url, data, options);\n  };\n\n  /**\n   * Helper function to make a PUT request\n   */\n  mainFunction.put = (url, data, options) => {\n    return mainFunction('PUT', url, data, options);\n  };\n\n  /**\n   * Helper function to make a DELETE request\n   */\n  mainFunction.delete = (url, data, options) => {\n    return mainFunction('DELETE', url, data, options);\n  };\n\n  /**\n   * Helper function to make a PATCH request\n   */\n  mainFunction.patch = (url, data, options) => {\n    return mainFunction('PATCH', url, data, options);\n  };\n\n  /**\n   * Helper function to make a HEAD request\n   */\n  mainFunction.head = (url, data, options) => {\n    return mainFunction('HEAD', url, data, options);\n  };\n\n  /**\n   * Helper function to make a OPTIONS request\n   */\n  mainFunction.options = (url, data, options) => {\n    return mainFunction('OPTIONS', url, data, options);\n  };\n\n  /**\n   * Helper function to make a TRACE request\n   */\n  mainFunction.trace = (url, data, options) => {\n    return mainFunction('TRACE', url, data, options);\n  };\n\n  return mainFunction;\n});\n\n\nexport default HTTP;\n",
+    "content": "import HarWriter from '../har.js';\nimport randomUseragent from 'random-useragent';\nimport moment from 'moment-timezone';\nimport sift from 'sift';\nimport needle from 'needle';\nimport promiseRetry from 'promise-retry';\n\nlet overrideFunc = null;\n/**\n * Set an override function to use for HTTP requests\n * Accepts (method, URL, data, options)\n * @param {function} fn\n */\nexport function setOverrideFunction(fn) {\n  overrideFunc = fn;\n}\n\n/**\n * Generate a random Android user agent for making network requests\n * @return {string}\n */\nexport function generateRandomAndroidUseragent() {\n  return randomUseragent.getRandom((ua) => {\n    return (ua.osName === 'Android');\n  });\n}\n\n// start our har writer (if debugging)\nconst harWriter = process.env['THEMEPARKS_HAR'] ?\n  new HarWriter({filename: `${process.env['THEMEPARKS_HAR']}.har`}) :\n  null;\n\n/**\n   * Write a HTTP response to HAR file for debugging\n   * @param {*} method\n   * @param {*} url\n   * @param {*} data\n   * @param {*} options\n   * @param {*} resp\n   * @param {*} startTime\n   * @param {*} timeTaken\n   * @private\n   */\nasync function writeToHAR(method, url, data, options, resp, startTime, timeTaken) {\n  const objToArr = (obj) => {\n    return Object.keys(obj).map((header) => {\n      return {name: header, value: obj[header].toString()};\n    });\n  };\n\n  const entry = {\n    startedDateTime: startTime,\n    time: timeTaken,\n    request: {\n      method: method,\n      url: url,\n      httpVersion: `HTTP/${resp.httpVersion}`, // this is actually the response, TODO\n      cookies: [],\n      headers: objToArr(options.headers), // not the actual headers needle sends - TODO, how to get these?\n      queryString: method === 'GET' ? objToArr(data) : [], // TODO - parse from needle's .path\n      postData: {\n        mimeType: options.json ? 'application/json' : (options.headers['content-type'] || ''),\n        params: method !== 'GET' ? [] : [],\n        text: '',\n      },\n      headersSize: -1,\n      bodySize: -1,\n    },\n    response: {\n      status: resp.statusCode,\n      statusText: resp.statusMessage,\n      httpVersion: `HTTP/${resp.httpVersion}`,\n      cookies: [],\n      headers: objToArr(resp.headers),\n      content: {\n        size: resp.raw.length || -1,\n        mimeType: resp.headers['content-type'],\n        text: resp.raw.toString('base64'),\n        encoding: 'base64',\n      },\n      redirectURL: '',\n      headersSize: -1,\n      bodySize: -1,\n    },\n    cache: {},\n    timings: {\n      send: -1,\n      wait: -1,\n      receive: -1,\n    },\n  };\n  await harWriter.recordEntry(entry);\n}\n\n/**\n * HTTP helper with injection\n * @return {*}\n */\nexport const HTTP = (function() {\n  this._httpInjections = [];\n  this._httpResponseInjections = [];\n  this.useragent = generateRandomAndroidUseragent();\n\n  /**\n   * Helper function to make an HTTP request for this park\n   * Parks can automatically add in authentication headers etc. to requests sent to this function\n   * @param {string} method HTTP method to use (GET,POST,DELETE, etc)\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options = {}] Object containing needle-compatible HTTP options\n   */\n  const mainFunction = async (method, url, data, options = {}) => {\n    // default to GET if we only have one argument\n    if (url === undefined && data === undefined) {\n      url = method;\n      method = 'GET';\n    }\n\n    // always have a headers array\n    if (!options.headers) {\n      options.headers = {};\n    }\n\n    // default to accepting compressed data\n    options.compressed = options.compressed === undefined ? true : options.compressed;\n\n    // 10 seconds default timeout opening response\n    options.response_timeout = options.response_timeout || 10000;\n    // 30 seconds default timeout for reading data (for large data streams)\n    options.read_timeout = options.read_timeout || 30000;\n\n    // inject custom standard user agent (if we have one)\n    //  do this before any custom injections so parks can optionally override this for each domain\n    if (this.useragent && !options.headers['user-agent']) {\n      options.headers['user-agent'] = this.useragent;\n    }\n\n    if (!options.headers['user-agent'] && process.env.DEFAULT_USER_AGENT) {\n      // if no user-agent supplied, set a default one from the env\n      options.headers['user-agent'] = process.env.DEFAULT_USER_AGENT;\n    }\n\n    // check any hostname injections we have setup\n    const urlObj = new URL(url);\n    const urlFilter = {\n      protocol: urlObj.protocol,\n      host: urlObj.host,\n      hostname: urlObj.hostname,\n      pathname: urlObj.pathname,\n      search: urlObj.search,\n      hash: urlObj.hash,\n    };\n\n    // wrap our needle call in a retry\n    return await promiseRetry({\n      retries: options.retries === undefined ? 3 : options.retries,\n    }, async (retryFn) => {\n      // make sure we run initial injections on each retry\n      for (let injectionIDX = 0; injectionIDX < this._httpInjections.length; injectionIDX++) {\n        const injection = this._httpInjections[injectionIDX];\n\n        // check if the domain matches\n        if (injection.filter(urlFilter)) {\n          const injectionResp = await injection.func(method, url, data, options);\n          if (injectionResp) {\n            url = injectionResp.url || url;\n            method = injectionResp.method || method;\n            data = injectionResp.data || data;\n            options = injectionResp.options || options;\n          }\n        }\n      }\n\n      // record some stats for the optional HAR Writer\n      const startMs = +new Date();\n      const startTime = moment(startMs).toISOString();\n\n      // optionally override the HTTP function to use\n      const httpFunc = overrideFunc ? overrideFunc : needle;\n\n      return httpFunc(method, url, data, options).then(async (resp) => {\n        // intercept response to write to our .har file\n        if (harWriter) {\n          await writeToHAR(method, url, data, options, resp, startTime, (+new Date()) - startMs);\n        }\n\n        // call any response injections\n        for (let injectionIDX = 0; injectionIDX < this._httpResponseInjections.length; injectionIDX++) {\n          const injection = this._httpResponseInjections[injectionIDX];\n\n          // check if the domain matches\n          // (reuse urlFilter from the incoming injections)\n          if (injection.filter(urlFilter)) {\n            resp = await injection.func(resp);\n          }\n        }\n\n        // if our response if now undefined, retry our request\n        if (resp === undefined) {\n          return retryFn();\n        }\n\n        // if we got an error code, retry our request\n        if (!options.ignoreErrors && resp.statusCode >= 400) {\n          return retryFn();\n        }\n\n        // force response to JSON object if options.json is set\n        if (options.json && resp.body && typeof resp.body === 'string') {\n          try {\n            resp.body = JSON.parse(resp.body);\n          } catch (e) {\n            // ignore\n          }\n        }\n\n        return resp;\n      });\n    });\n  };\n\n  /**\n   * Register a new injection for a specific domain\n   * @param {object} filter Mongo-type query to use to match a URL\n   * @param {function} func Function to call with needle request to inject extra data into.\n   * Function will take arguments: (method, URL, data, options)\n   */\n  mainFunction.injectForDomain = (filter, func) => {\n    // add to our array of injections, this is processing by HTTP()\n    this._httpInjections.push({\n      filter: sift(filter),\n      func,\n    });\n  };\n\n  /**\n   * Register a new response injection for a specific domain\n   * @param {object} filter Mongo-type query to use to match a URL\n   * @param {function} func Function to call with needle response object to make changes\n   * Function will take arguments: (response)\n   * Function *must* return the response object back, or undefined if you want to force a retry\n   */\n  mainFunction.injectForDomainResponse = (filter, func) => {\n    this._httpResponseInjections.push({\n      filter: sift(filter),\n      func,\n    });\n  };\n\n  /**\n   * Helper function to make a GET request\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options = {}] Object containing needle-compatible HTTP options\n   * @return {Promise<*>}\n   */\n  mainFunction.get = (url, data, options) => {\n    return mainFunction('GET', url, data, options);\n  };\n\n  /**\n   * Helper function to make a POST request\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options = {}] Object containing needle-compatible HTTP options\n   * @return {Promise<*>}\n   */\n  mainFunction.post = (url, data, options) => {\n    return mainFunction('POST', url, data, options);\n  };\n\n  /**\n   * Helper function to make a PUT request\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options = {}] Object containing needle-compatible HTTP options\n   * @return {Promise<*>}\n   */\n  mainFunction.put = (url, data, options) => {\n    return mainFunction('PUT', url, data, options);\n  };\n\n  /**\n   * Helper function to make a DELETE request\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options = {}] Object containing needle-compatible HTTP options\n   * @return {Promise<*>}\n   */\n  mainFunction.delete = (url, data, options) => {\n    return mainFunction('DELETE', url, data, options);\n  };\n\n  /**\n   * Helper function to make a PATCH request\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options = {}] Object containing needle-compatible HTTP options\n   * @return {Promise<*>}\n   */\n  mainFunction.patch = (url, data, options) => {\n    return mainFunction('PATCH', url, data, options);\n  };\n\n  /**\n   * Helper function to make a HEAD request\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options = {}] Object containing needle-compatible HTTP options\n   * @return {Promise<*>}\n   */\n  mainFunction.head = (url, data, options) => {\n    return mainFunction('HEAD', url, data, options);\n  };\n\n  /**\n   * Helper function to make a OPTIONS request\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options = {}] Object containing needle-compatible HTTP options\n   * @return {Promise<*>}\n   */\n  mainFunction.options = (url, data, options) => {\n    return mainFunction('OPTIONS', url, data, options);\n  };\n\n  /**\n   * Helper function to make a TRACE request\n   * @param {string} url URL to request\n   * @param {object} [data] data to send. Will become querystring for GET, body for POST\n   * @param {object} [options = {}] Object containing needle-compatible HTTP options\n   * @return {Promise<*>}\n   */\n  mainFunction.trace = (url, data, options) => {\n    return mainFunction('TRACE', url, data, options);\n  };\n\n  return mainFunction;\n});\n\n\nexport default HTTP;\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/http.js",
     "access": "public",

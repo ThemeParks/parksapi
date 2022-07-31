@@ -100,12 +100,12 @@
       "expectCount": 40,
       "actualCount": 34,
       "undocumentLines": [
-        112,
-        114,
-        117,
+        111,
+        113,
+        116,
+        118,
         119,
-        120,
-        122
+        121
       ]
     },
     "lib/parks/efteling/efteling.js": {
