@@ -1,7 +1,7 @@
 {
-  "coverage": "73.41%",
-  "expectCount": 598,
-  "actualCount": 439,
+  "coverage": "73.64%",
+  "expectCount": 611,
+  "actualCount": 450,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 16,
@@ -100,12 +100,12 @@
       "expectCount": 40,
       "actualCount": 34,
       "undocumentLines": [
-        87,
-        89,
-        92,
-        94,
-        95,
-        97
+        112,
+        114,
+        117,
+        119,
+        120,
+        122
       ]
     },
     "lib/parks/efteling/efteling.js": {
@@ -162,6 +162,14 @@
         385,
         401,
         402
+      ]
+    },
+    "lib/parks/hershey/hersheypark.js": {
+      "expectCount": 13,
+      "actualCount": 11,
+      "undocumentLines": [
+        5,
+        6
       ]
     },
     "lib/parks/http.js": {

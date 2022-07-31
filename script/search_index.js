@@ -162,6 +162,12 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "@themeparks/parksapi/lib/parks/hershey/hersheypark.js~hersheypark",
+    "class/lib/parks/hershey/hersheypark.js~Hersheypark.html",
+    "<span>Hersheypark</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/hershey/hersheypark.js</span>",
+    "class"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/plopsaland/plopsa.js~holidaypark",
     "class/lib/parks/plopsaland/plopsa.js~HolidayPark.html",
     "<span>HolidayPark</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/plopsaland/plopsa.js</span>",
@@ -2067,6 +2073,84 @@ window.esdocSearchIndex = [
     "lib/parks/herschend/herschendparks.js~silverdollarcity#constructor",
     "class/lib/parks/herschend/herschendparks.js~SilverDollarCity.html#instance-constructor-constructor",
     "lib/parks/herschend/herschendparks.js~SilverDollarCity#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/hershey/hersheypark.js",
+    "file/lib/parks/hershey/hersheypark.js.html",
+    "lib/parks/hershey/hersheypark.js",
+    "file"
+  ],
+  [
+    "lib/parks/hershey/hersheypark.js~hersheypark#buildattractionentities",
+    "class/lib/parks/hershey/hersheypark.js~Hersheypark.html#instance-method-buildAttractionEntities",
+    "lib/parks/hershey/hersheypark.js~Hersheypark#buildAttractionEntities",
+    "method"
+  ],
+  [
+    "lib/parks/hershey/hersheypark.js~hersheypark#buildbaseentityobject",
+    "class/lib/parks/hershey/hersheypark.js~Hersheypark.html#instance-method-buildBaseEntityObject",
+    "lib/parks/hershey/hersheypark.js~Hersheypark#buildBaseEntityObject",
+    "method"
+  ],
+  [
+    "lib/parks/hershey/hersheypark.js~hersheypark#builddestinationentity",
+    "class/lib/parks/hershey/hersheypark.js~Hersheypark.html#instance-method-buildDestinationEntity",
+    "lib/parks/hershey/hersheypark.js~Hersheypark#buildDestinationEntity",
+    "method"
+  ],
+  [
+    "lib/parks/hershey/hersheypark.js~hersheypark#buildentitylivedata",
+    "class/lib/parks/hershey/hersheypark.js~Hersheypark.html#instance-method-buildEntityLiveData",
+    "lib/parks/hershey/hersheypark.js~Hersheypark#buildEntityLiveData",
+    "method"
+  ],
+  [
+    "lib/parks/hershey/hersheypark.js~hersheypark#buildentityscheduledata",
+    "class/lib/parks/hershey/hersheypark.js~Hersheypark.html#instance-method-buildEntityScheduleData",
+    "lib/parks/hershey/hersheypark.js~Hersheypark#buildEntityScheduleData",
+    "method"
+  ],
+  [
+    "lib/parks/hershey/hersheypark.js~hersheypark#buildparkentities",
+    "class/lib/parks/hershey/hersheypark.js~Hersheypark.html#instance-method-buildParkEntities",
+    "lib/parks/hershey/hersheypark.js~Hersheypark#buildParkEntities",
+    "method"
+  ],
+  [
+    "lib/parks/hershey/hersheypark.js~hersheypark#buildrestaurantentities",
+    "class/lib/parks/hershey/hersheypark.js~Hersheypark.html#instance-method-buildRestaurantEntities",
+    "lib/parks/hershey/hersheypark.js~Hersheypark#buildRestaurantEntities",
+    "method"
+  ],
+  [
+    "lib/parks/hershey/hersheypark.js~hersheypark#buildshowentities",
+    "class/lib/parks/hershey/hersheypark.js~Hersheypark.html#instance-method-buildShowEntities",
+    "lib/parks/hershey/hersheypark.js~Hersheypark#buildShowEntities",
+    "method"
+  ],
+  [
+    "lib/parks/hershey/hersheypark.js~hersheypark#constructor",
+    "class/lib/parks/hershey/hersheypark.js~Hersheypark.html#instance-constructor-constructor",
+    "lib/parks/hershey/hersheypark.js~Hersheypark#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/hershey/hersheypark.js~hersheypark#fetchpoidata",
+    "class/lib/parks/hershey/hersheypark.js~Hersheypark.html#instance-method-fetchPOIData",
+    "lib/parks/hershey/hersheypark.js~Hersheypark#fetchPOIData",
+    "method"
+  ],
+  [
+    "lib/parks/hershey/hersheypark.js~hersheypark#fetchstatusdata",
+    "class/lib/parks/hershey/hersheypark.js~Hersheypark.html#instance-method-fetchStatusData",
+    "lib/parks/hershey/hersheypark.js~Hersheypark#fetchStatusData",
+    "method"
+  ],
+  [
+    "lib/parks/hershey/hersheypark.js~hersheypark#getparkpoidata",
+    "class/lib/parks/hershey/hersheypark.js~Hersheypark.html#instance-method-getParkPOIData",
+    "lib/parks/hershey/hersheypark.js~Hersheypark#getParkPOIData",
     "method"
   ],
   [

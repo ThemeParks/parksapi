@@ -75,6 +75,7 @@
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-herschend">parks/herschend</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/herschend/herschendparks.js~Dollywood.html">Dollywood</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/herschend/herschendparks.js~HerschendDestination.html">HerschendDestination</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/herschend/herschendparks.js~SilverDollarCity.html">SilverDollarCity</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-hershey">parks/hershey</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/hershey/hersheypark.js~Hersheypark.html">Hersheypark</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-liseberg">parks/liseberg</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/liseberg/liseberg.js~Liseberg.html">Liseberg</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-parcasterix">parks/parcasterix</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/parcasterix/parcasterix.js~ParcAsterix.html">ParcAsterix</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-phantasialand">parks/phantasialand</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/phantasialand/phantasialand.js~Phantasialand.html">Phantasialand</a></span></span></li>
@@ -157,6 +158,31 @@ const metaCommands = {
       let funcCacheName = `metacache_${fnName}`;
       if (originalFunctionArgs.length &gt; 0) {
         funcCacheName = `metacache_${fnName}_${originalFunctionArgs.map((x) =&gt; JSON.stringify(x)).join(&apos;,&apos;)}`;
+      }
+
+      // figure out cache time from args[0]
+      let cacheTime = 1000 * 60 * 5; // default to 5 minutes
+      if (args.length &gt; 0) {
+        // look for units of time
+        const timeUnit = args[0].match(/^(\d+)([mhd])$/);
+        if (timeUnit) {
+          const time = parseInt(timeUnit[1], 10);
+          const unit = timeUnit[2];
+          switch (unit) {
+            case &apos;m&apos;:
+              cacheTime = 1000 * 60 * time;
+              break;
+            case &apos;h&apos;:
+              cacheTime = 1000 * 60 * 60 * time;
+              break;
+            case &apos;d&apos;:
+              cacheTime = 1000 * 60 * 60 * 24 * time;
+              break;
+          }
+        } else {
+          // if no unit of time is supplied, assume minutes
+          cacheTime = parseInt(args[0], 10) * 1000 * 60;
+        }
       }
 
       // replace original function with a cache wrap

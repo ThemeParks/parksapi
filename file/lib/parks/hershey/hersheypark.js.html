@@ -2,8 +2,8 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <base data-ice="baseUrl" href="../../">
-  <title data-ice="title">ConfigBase | @themeparks/parksapi</title>
+  <base data-ice="baseUrl" href="../../../../">
+  <title data-ice="title">lib/parks/hershey/hersheypark.js | @themeparks/parksapi</title>
   <link type="text/css" rel="stylesheet" href="css/style.css">
   <link type="text/css" rel="stylesheet" href="css/prettify-tomorrow.css">
   <script src="script/prettify/prettify.js"></script>
@@ -116,235 +116,245 @@
 </div>
 </nav>
 
-<div class="content" data-ice="content"><div class="header-notice">
-  <div data-ice="importPath" class="import-path"><pre class="prettyprint"><code data-ice="importPathCode">import {ConfigBase} from &apos;<span><a href="file/lib/configBase.js.html#lineNumber69">@themeparks/parksapi/lib/configBase.js</a></span>&apos;</code></pre></div>
-  <span data-ice="access">public</span>
-  <span data-ice="kind">class</span>
-  
-  
-  
-  <span data-ice="source">| <span><a href="file/lib/configBase.js.html#lineNumber69">source</a></span></span>
-</div>
+<div class="content" data-ice="content"><h1 data-ice="title">lib/parks/hershey/hersheypark.js</h1>
+<pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import {Destination} from &apos;../destination.js&apos;;
+import {attractionType, statusType, queueType, tagType, scheduleType, entityType} from &apos;../parkTypes.js&apos;;
+import moment from &apos;moment&apos;;
 
-<div class="self-detail detail">
-  <h1 data-ice="name">ConfigBase</h1>
-
-  
-
-  
-  
-  <div class="flat-list" data-ice="extendsChain"><h4>Extends:</h4><div><span>events~EventEmitter</span> &#x2192; ConfigBase</div></div>
-  <div class="flat-list" data-ice="directSubclass"><h4>Direct Subclass:</h4><div><span><a href="class/lib/parks/database.js~Database.html">Database</a></span>, <span><a href="class/lib/parks/entity.js~Entity.html">Entity</a></span></div></div>
-  <div class="flat-list" data-ice="indirectSubclass"><h4>Indirect Subclass:</h4><div><span><a href="class/lib/parks/europa/europaparkdb.js~DatabaseEuropaPark.html">DatabaseEuropaPark</a></span>, <span><a href="class/lib/parks/wdw/wdwdatabase.js~DatabaseWDW.html">DatabaseWDW</a></span>, <span><a href="class/lib/parks/park.js~Park.html">Park</a></span>, <span><a href="class/lib/parks/universal/universalstudios.js~UniversalIslandsOfAdventure.html">UniversalIslandsOfAdventure</a></span>, <span><a href="class/lib/parks/universal/universalstudios.js~UniversalParkBase.html">UniversalParkBase</a></span>, <span><a href="class/lib/parks/universal/universalstudios.js~UniversalStudios.html">UniversalStudios</a></span>, <span><a href="class/lib/parks/universal/universalstudios.js~UniversalStudiosFlorida.html">UniversalStudiosFlorida</a></span>, <span><a href="class/lib/parks/universal/universalstudios.js~UniversalVolcanoBay.html">UniversalVolcanoBay</a></span></div></div>
-  
-  
-  
-  
-
-  
-  
-  <div class="description" data-ice="description"><p>Base Config Object<br>Supports classes with a single argument &quot;options&quot;<br>These will be sorted into a member called &quot;this.config&quot; containing all the same keys<br><br>Crucially, these can also be overriden through environment variables<br>For example, for a config option &quot;timeout&quot; for class Database, this could be overriden through either:<br>  env.THEMEPARKS_TIMEOUT (using a &quot;global module name&quot;)<br>  env.DATABASE_TIMEOUT (using the class name)<br><br>Classes can also add additional prefixes to the supported environment variables through:<br>  new ClassInstance({configPrefixes: [&apos;myCustomPrefix&apos;]});<br>Which would also allow env.MYCUSTOMPREFIX_TIMEOUT to be used<br><br>Note that a default value must be supplied for the environment variable to be processed<br>If the default value is a number, the environment variable will be cast to a number as well</p>
-</div>
-  
-
-  
-
-  
-
-  
-
-  
-</div>
-
-
-
-<div data-ice="constructorSummary"><h2>Constructor Summary</h2><table class="summary" data-ice="summary">
-  <thead><tr><td data-ice="title" colspan="3">Public Constructor</td></tr></thead>
-  <tbody>
-  
-  <tr data-ice="target">
-    <td>
-      <span class="access" data-ice="access">public</span>
-      
-      
-      
-      <span class="override" data-ice="override"></span>
-    </td>
-    <td>
-      <div>
-        <p>
-          
-          
-          
-          <span class="code" data-ice="name"><span><a href="class/lib/configBase.js~ConfigBase.html#instance-constructor-constructor">constructor</a></span></span><span class="code" data-ice="signature">(options: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span>)</span>
-        </p>
-      </div>
-      <div>
-        
-        
-        <div data-ice="description"><p>A base class that can be configured through environment variables</p>
-</div>
-      </div>
-    </td>
-    <td>
-      
-      
-    </td>
-  </tr>
-</tbody>
-</table>
-</div>
-<div data-ice="memberSummary"><h2>Member Summary</h2><table class="summary" data-ice="summary">
-  <thead><tr><td data-ice="title" colspan="3">Public Members</td></tr></thead>
-  <tbody>
-  
-  <tr data-ice="target">
-    <td>
-      <span class="access" data-ice="access">public</span>
-      
-      
-      
-      <span class="override" data-ice="override"></span>
-    </td>
-    <td>
-      <div>
-        <p>
-          
-          
-          
-          <span class="code" data-ice="name"><span><a href="class/lib/configBase.js~ConfigBase.html#instance-member-config">config</a></span></span><span class="code" data-ice="signature">: <span>*</span></span>
-        </p>
-      </div>
-      <div>
-        
-        
-        
-      </div>
-    </td>
-    <td>
-      
-      
-    </td>
-  </tr>
-</tbody>
-</table>
-</div>
-
-
-
-
-
-
-<div data-ice="constructorDetails"><h2 data-ice="title">Public Constructors</h2>
-
-<div class="detail" data-ice="detail">
-  <h3 data-ice="anchor" id="instance-constructor-constructor">
-    <span class="access" data-ice="access">public</span>
+export class Hersheypark extends Destination {
+  constructor(options = {}) {
+    options.timezone = options.timezone || &apos;America/New_York&apos;;
     
+    options.apiKey = options.apiKey || &apos;&apos;;
+    options.baseURL = options.baseURL || &apos;https://hpapp.hersheypa.com&apos;;
     
-    
-    
-    
-    <span class="code" data-ice="name">constructor</span><span class="code" data-ice="signature">(options: <span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span>)</span>
-    <span class="right-info">
-      
-      
-      <span data-ice="source"><span><a href="file/lib/configBase.js.html#lineNumber74">source</a></span></span>
-    </span>
-  </h3>
+    super(options);
 
-  
-  
-  
-  <div data-ice="description"><p>A base class that can be configured through environment variables</p>
-</div>
+    if (!this.config.apiKey) throw new Error(&apos;Missing apiKey&apos;);
 
-  
+    // hook into the base API URL to add our api key
+    const baseURLHostname = new URL(this.config.baseURL).hostname;
+    this.http.injectForDomain({
+      hostname: baseURLHostname,
+    }, async (method, url, data, options) =&gt; {
+      options.headers = {
+        ...options.headers,
+        &apos;x-api-key&apos;: this.config.apiKey,
+      };
+    });
+  }
 
-  <div data-ice="properties"><div data-ice="properties">
-  <h4 data-ice="title">Params:</h4>
-  <table class="params">
-    <thead>
-    <tr><td>Name</td><td>Type</td><td>Attribute</td><td>Description</td></tr>
-    </thead>
-    <tbody>
-    
-    <tr data-ice="property" data-depth="0">
-      <td data-ice="name" class="code" data-depth="0">options</td>
-      <td data-ice="type" class="code"><span><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">object</a></span></td>
-      <td data-ice="appendix"></td>
-      <td data-ice="description"><p>Config for instantiating this object</p>
-</td>
-    </tr>
-</tbody>
-  </table>
-</div>
-</div>
+  /**
+   * Fetch the POI data for this destination
+   * @returns 
+   */
+  async fetchPOIData() {
+    // cache for 1 day
+    &apos;@cache|1d&apos;;
+    // fetch the park data from the API
+    const response = await this.http.get(`${this.config.baseURL}/v2/index`);
+    // return the park data
+    return response.body;
+  }
 
-  
+  /**
+   * Fetch the live data for all entities in this destination
+   */
+  async fetchStatusData() {
+    &apos;@cache|2m&apos;; // cache for 2 minutes
+    const response = await this.http.get(`${this.config.baseURL}/v2/status`);
+    return response.body;
+  }
 
-  
+  /**
+   * Get the main park POI data
+   */
+  async getParkPOIData() {
+    &apos;@cache|6h&apos;; // cache for 6 hours
+    const poi = await this.fetchPOIData();
 
-  
+    const parkData = poi.explore.find((x) =&gt; x.isHersheyPark);
+    if (!parkData) {
+      throw new Error(&apos;Missing park data&apos;);
+    }
 
-  
+    return parkData;
+  }
 
-  
+  /**
+   * Helper function to build a basic entity document
+   * Useful to avoid copy/pasting
+   * @param {object} data 
+   * @returns {object}
+   */
+  buildBaseEntityObject(data) {
+    const entity = Destination.prototype.buildBaseEntityObject.call(this, data);
 
-  
+    if (data) {
+      entity.name = data.name || undefined;
 
-  
+      if (data.latitude &amp;&amp; data.longitude) {
+        entity.location = {
+          latitude: data.latitude,
+          longitude: data.longitude,
+        };
+      }
+    }
 
-  
-  
-</div>
-</div>
-<div data-ice="memberDetails"><h2 data-ice="title">Public Members</h2>
+    return entity;
+  }
 
-<div class="detail" data-ice="detail">
-  <h3 data-ice="anchor" id="instance-member-config">
-    <span class="access" data-ice="access">public</span>
-    
-    
-    
-    
-    
-    <span class="code" data-ice="name">config</span><span class="code" data-ice="signature">: <span>*</span></span>
-    <span class="right-info">
-      
-      
-      <span data-ice="source"><span><a href="file/lib/configBase.js.html#lineNumber81">source</a></span></span>
-    </span>
-  </h3>
+  /**
+   * Build the destination entity representing this destination
+   */
+  async buildDestinationEntity() {
+    return {
+      ...this.buildBaseEntityObject(null),
+      _id: &apos;hersheypark&apos;,
+      slug: &apos;hersheypark&apos;,
+      name: &apos;Hersheypark&apos;,
+      entityType: entityType.destination,
+    };
+  }
 
-  
-  
-  
-  
+  /**
+   * Build the park entities for this destination
+   */
+  async buildParkEntities() {
+    const parkData = await this.getParkPOIData();
 
-  
+    return [
+      {
+        ...this.buildBaseEntityObject(parkData),
+        _id: &apos;hersheyparkthemepark&apos;,
+        _destinationId: &apos;hersheypark&apos;,
+        _parentId: &apos;hersheypark&apos;,
+        slug: &apos;hersheyparkthemepark&apos;,
+        entityType: entityType.park,
+      }
+    ];
+  }
 
-  <div data-ice="properties">
-</div>
+  /**
+   * Build the attraction entities for this destination
+   */
+  async buildAttractionEntities() {
+    const poi = await this.fetchPOIData();
+    const entities = [];
+    for(const ride of poi.rides) {
+      entities.push({
+        ...this.buildBaseEntityObject(ride),
+        _id: `rides_${ride.id}`,
+        _destinationId: &apos;hersheypark&apos;,
+        _parentId: &apos;hersheyparkthemepark&apos;,
+        _parkId: &apos;hersheyparkthemepark&apos;,
+        entityType: entityType.attraction,
+        attractionType: attractionType.ride,
+      });
+    }
+    return entities;
+  }
 
-  
+  /**
+   * Build the show entities for this destination
+   */
+  async buildShowEntities() {
+    return [];
+  }
 
-  
+  /**
+   * Build the restaurant entities for this destination
+   */
+  async buildRestaurantEntities() {
+    return [];
+  }
 
-  
+  /**
+   * @inheritdoc
+   */
+  async buildEntityLiveData() {
+    const liveData = await this.fetchStatusData();
 
-  
+    return liveData.map((x) =&gt; {
+      // only support live data for rides, update this to add support for other entities
+      if (x.type !== &apos;rides&apos;) {
+        return null;
+      }
 
-  
+      const data = {
+        _id: `${x.type}_${x.id}`,
+        status: statusType.closed,
+      };
 
-  
+      // statuses:
+      //  3: park closed
+      //  2: &lt;unknown&gt; (assumed down)
+      //  1: open
 
-  
+      if (x.status === 2) {
+        data.status = statusType.down;
+      } else if (x.status === 1) {
+        data.status = statusType.operating;
 
-  
-  
-</div>
-</div>
+        if (data.wait !== null &amp;&amp; data.wait !== undefined) {
+          data.queue = {
+            [queueType.standBy]: {
+              waitTime: data.wait,
+            },
+          };
+        }
+      }
+
+      return data;
+    }).filter((x) =&gt; !!x);
+  }
+
+  /**
+   * Return schedule data for all scheduled entities in this destination
+   * Eg. parks
+   * @returns {array&lt;object&gt;}
+   */
+  async buildEntityScheduleData() {
+    // find park ID so we can grab schedule from exploreHours
+    const parkData = await this.getParkPOIData();
+    const parkId = parkData.id;
+
+    const allPOIData = await this.fetchPOIData();
+
+    const schedule = [];
+    for(const date in allPOIData.exploreHours) {
+      const hours = allPOIData.exploreHours[date];
+      const parkHours = hours[parkId];
+      if (!parkHours) {
+        continue;
+      }
+
+      // parkHours is a string in the format: &quot;10:00 AM - 10:00 PM&quot;
+      const [start, end] = parkHours.split(&apos; - &apos;);
+      if (!start || !end) {
+        continue;
+      }
+
+      const startTime = moment.tz(`${date} ${start}`, &apos;YYYY-MM-DD h:mma&apos;, this.config.timezone);
+      const endTime = moment.tz(`${date} ${end}`, &apos;YYYY-MM-DD h:mma&apos;, this.config.timezone);
+
+      schedule.push({
+        date: date,
+        openingTime: startTime.format(),
+        closingTime: endTime.format(),
+        type: &apos;OPERATING&apos;,
+      });
+    }
+
+    return [
+      {
+        _id: &apos;hersheyparkthemepark&apos;,
+        schedule,
+      }
+    ];
+  }
+}
+</code></pre>
 
 </div>
 
