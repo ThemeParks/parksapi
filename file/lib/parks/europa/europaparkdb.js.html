@@ -368,6 +368,15 @@ export class DatabaseEuropaPark extends Database {
   }
 
   /**
+   * Get Europa Park live opening hours
+   */
+  async getLiveCalendar() {
+    return this.cache.wrap(&apos;livecalendar&apos;, async () =&gt; {
+      return (await this.http(&apos;GET&apos;, `${this.config.apiBase}/api/v1/opentime/europapark/en`)).body;
+    }, 1000 * 60 * 5); // cache for 5 minutes
+  }
+
+  /**
    * Get Europa Park show times
    */
   async getShowTimes() {
