@@ -463,29 +463,32 @@ export class UniversalResortBase extends Destination {
           queue = queueType.returnTime;
           break;
         case -8:
-          // not open yet
+          // &quot;coming soon&quot;
           status = statusType.closed;
           postWaitTime = null;
           break;
         case -7:
           // &quot;ride now&quot;
+          //  fallthrough to default &quot;operating&quot; state
           break;
         case -6:
+          // not open yet
         case -5:
-          // &quot;closed inside of operating hours&quot;, not sure what that means, but it&apos;s closed
+          // &quot;at capactity&quot;
           status = statusType.closed;
           postWaitTime = null;
           break;
         case -4:
-        case -3:
           // bad weather
+        case -2:
+          // &quot;Delayed&quot;
           status = statusType.down;
           postWaitTime = null;
           break;
         case -1:
-        // not open yet (too early)
-        case -2:
-          // &quot;delayed&quot;, but expected to open
+          // not open yet (too early)
+        case -3:
+          // closed, but expected to open during operating hours as normal
           status = statusType.closed;
           postWaitTime = null;
           break;
