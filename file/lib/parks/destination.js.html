@@ -411,7 +411,8 @@ export class Destination extends EventEmitter {
     if (!this._destinationEntityObject) {
       this._destinationEntityObject = await this.buildDestinationEntity();
     }
-    return this._destinationEntityObject;
+    // force to array (for multi-destination destinations)
+    return [].concat(this._destinationEntityObject);
   }
 
   /**
@@ -429,30 +430,10 @@ export class Destination extends EventEmitter {
 
     this._allEntities = [].concat(
         destination,
-        (await this.buildParkEntities()).map((x) =&gt; {
-          return {
-            ...x,
-            _destinationId: destination._id,
-          };
-        }),
-        (await this.buildAttractionEntities()).map((x) =&gt; {
-          return {
-            ...x,
-            _destinationId: destination._id,
-          };
-        }),
-        (await this.buildShowEntities()).map((x) =&gt; {
-          return {
-            ...x,
-            _destinationId: destination._id,
-          };
-        }),
-        (await this.buildRestaurantEntities()).map((x) =&gt; {
-          return {
-            ...x,
-            _destinationId: destination._id,
-          };
-        }),
+        (await this.buildParkEntities()),
+        (await this.buildAttractionEntities()),
+        (await this.buildShowEntities()),
+        (await this.buildRestaurantEntities()),
     );
 
     this._allEntitiesLastStash = +new Date();
