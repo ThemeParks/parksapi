@@ -37,7 +37,6 @@ const requiredFields = {
   ],
   [entityType.park]: [
     ..._requiredFields,
-    'slug',
     '_parentId',
     '_destinationId',
   ],
@@ -185,7 +184,10 @@ function TestSchedule(scheduleData, entityId) {
 }
 
 async function TestDestination() {
-  TestEntity(await destination.buildDestinationEntity());
+  const destinations = [].concat(await destination.buildDestinationEntity());
+  for (const dest of destinations) {
+    TestEntity(dest);
+  }
 
   const allEntities = await destination.getAllEntities();
   for (const ent of allEntities) {
