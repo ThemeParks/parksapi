@@ -3570,6 +3570,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#culturefilter",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-member-cultureFilter",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#cultureFilter",
+    "member"
+  ],
+  [
     "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#db",
     "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-member-db",
     "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#db",
@@ -3579,6 +3585,12 @@ window.esdocSearchIndex = [
     "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#destinationdocumentidregex",
     "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-member-destinationDocumentIDRegex",
     "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#destinationDocumentIDRegex",
+    "member"
+  ],
+  [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#destinationid",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-member-destinationId",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#destinationId",
     "member"
   ],
   [

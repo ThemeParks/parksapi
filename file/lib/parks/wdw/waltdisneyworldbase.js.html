@@ -167,8 +167,11 @@ export class DisneyLiveResort extends Destination {
     if (!this.resortShortcode) {
       throw new Error(&apos;Missing Resort Shortcode&apos;);
     }
+    this.destinationId = this.config.destinationId || `${this.resortId};entityType=destination`;
     this.destinationDocumentIDRegex = new RegExp(`^${this.resortId};entityType=destination`);
     this.parkIds = options.parkIds || [];
+
+    this.cultureFilter = this.config.cultureFilter || undefined;
 
     this.db = getDatabase();
   }
@@ -211,9 +214,11 @@ export class DisneyLiveResort extends Destination {
 
     if (!this.config.genieData) return undefined;
 
-    return (await this.http(&apos;GET&apos;, this.config.genieData, undefined, {
+    const resp = await this.http(&apos;GET&apos;, this.config.genieData, undefined, {
       rejectUnauthorized: false,
-    })).body?.entities;
+    });
+
+    return resp.body?.entities;
   }
 
   /**
@@ -514,7 +519,8 @@ export class DisneyLiveResort extends Destination {
     const docs = [];
 
     for (let i = 0; i &lt; allStatusDocs.length; i++) {
-      const liveDoc = await this._buildLiveDataObject(allStatusDocs[i]);
+      const doc = allStatusDocs[i];
+      const liveDoc = await this._buildLiveDataObject(doc);
       if (liveDoc) {
         docs.push(liveDoc);
       }
@@ -740,15 +746,13 @@ export class DisneyLiveResort extends Destination {
       return this.db.getEntityOne(parkID);
     }))).filter((x) =&gt; !!x);
 
-    const resort = await this.getDestinationEntity();
-
     return parkData.map((park) =&gt; {
       return {
         ...this.buildBaseEntityObject(park),
         entityType: entityType.park,
+        _destinationId: this.destinationId,
         // parks are parented to the resort
-        _parentId: resort._id,
-        slug: park.name.replace(/[^a-zA-Z0-9]/g, &apos;&apos;).toLowerCase(),
+        _parentId: this.destinationId,
       };
     });
   }
@@ -757,7 +761,7 @@ export class DisneyLiveResort extends Destination {
    * @inheritdoc
    */
   async buildAttractionEntities() {
-    const attractions = await this.db.find({
+    const search = {
       type: &apos;Attraction&apos;,
       relatedLocations: {
         $elemMatch: {
@@ -774,7 +778,17 @@ export class DisneyLiveResort extends Destination {
       facets: {
         $exists: true,
       },
-    });
+    };
+
+    // optional culture filter
+    //  hkdl has multiple versions of all entities
+    if (this.config.cultureFilter) {
+      search._id = {
+        $regex: new RegExp(this.config.cultureFilter),
+      };
+    }
+
+    const attractions = await this.db.find(search);
 
     // filter out known bad names
     const ignoreAttractions = [
@@ -812,6 +826,7 @@ export class DisneyLiveResort extends Destination {
 
       return {
         ...this.buildBaseEntityObject(attraction),
+        _destinationId: this.destinationId,
         entityType: entityType.attraction,
         attractionType: type,
       };
@@ -829,7 +844,7 @@ export class DisneyLiveResort extends Destination {
       /^Temporarily Unavailable Entertainment/,
     ];
 
-    return (await this.db.find({
+    const search = {
       type: &apos;Entertainment&apos;,
       relatedLocations: {
         $elemMatch: {
@@ -842,13 +857,24 @@ export class DisneyLiveResort extends Destination {
           },
         },
       },
-    })).filter((show) =&gt; {
+    };
+
+    // optional culture filter
+    //  hkdl has multiple versions of all entities
+    if (this.config.cultureFilter) {
+      search._id = {
+        $regex: new RegExp(this.config.cultureFilter),
+      };
+    }
+
+    return (await this.db.find(search)).filter((show) =&gt; {
       return !ignoreShows.find((x) =&gt; {
         return !!show.name.match(x);
       });
     }).map((re) =&gt; {
       return {
         ...this.buildBaseEntityObject(re),
+        _destinationId: this.destinationId,
         entityType: entityType.show,
       };
     });
@@ -979,7 +1005,7 @@ export class DisneyLiveResort extends Destination {
    * @inheritdoc
    */
   async buildRestaurantEntities() {
-    const restaurants = (await this.db.find({
+    const search = {
       type: &apos;restaurant&apos;,
       relatedLocations: {
         $elemMatch: {
@@ -992,7 +1018,17 @@ export class DisneyLiveResort extends Destination {
           },
         },
       },
-    })).filter((restaurant) =&gt; {
+    };
+
+    // optional culture filter
+    //  hkdl has multiple versions of all entities
+    if (this.config.cultureFilter) {
+      search._id = {
+        $regex: new RegExp(this.config.cultureFilter),
+      };
+    }
+
+    const restaurants = (await this.db.find(search)).filter((restaurant) =&gt; {
       // only include &quot;proper&quot; resturants
       //  avoid listing every coffee stand etc.
 
@@ -1007,6 +1043,7 @@ export class DisneyLiveResort extends Destination {
       // TODO - populate with any other interesting restaurant detail
       return {
         ...this.buildBaseEntityObject(re),
+        _destinationId: this.destinationId,
         entityType: entityType.restaurant,
         // list of available cuisines
         cuisines: re.facets.filter((x) =&gt; x.group === &apos;cuisine&apos;).map((x) =&gt; {
@@ -1183,7 +1220,10 @@ export class HongKongDisneyland extends DisneyLiveResort {
     options.timezone = options.timezone || &apos;Asia/Hong_Kong&apos;;
 
     options.resortId = options.resortId || &apos;hkdl&apos;;
+    options.destinationId = options.destinationId || &apos;hkdl;entityType=destination;destination=hkdl&apos;;
     options.resortShortcode = options.resortShortcode || &apos;hkdl&apos;;
+
+    options.cultureFilter = &apos;\.en_intl\.&apos;;
 
     options.parkIds = options.parkIds || [
       &apos;desHongKongDisneyland&apos;,

@@ -298,6 +298,7 @@ export class UniversalResortBase extends Destination {
         ...this.buildBaseEntityObject(x),
         // all IDs must be strings in ThemeParks.wiki
         _id: x.Id.toString(),
+        _destinationId: `universalresort_${this.config.city}`,
         // parented to the resort
         _parentId: `universalresort_${this.config.city}`,
         _contentId: x.ExternalIds.ContentId.slice(0, x.ExternalIds.ContentId.indexOf(&apos;.venues.&apos;)),
@@ -324,6 +325,7 @@ export class UniversalResortBase extends Destination {
       return {
         ...this.buildBaseEntityObject(x),
         _id: x.Id.toString(),
+        _destinationId: `universalresort_${this.config.city}`,
         _parkId: x.VenueId.toString(),
         _parentId: x.VenueId.toString(),
         entityType: entityType.attraction,
@@ -342,6 +344,7 @@ export class UniversalResortBase extends Destination {
       return {
         ...this.buildBaseEntityObject(x),
         _id: x.Id.toString(),
+        _destinationId: `universalresort_${this.config.city}`,
         _parkId: x.VenueId.toString(),
         _parentId: x.VenueId.toString(),
         entityType: entityType.show,
@@ -364,6 +367,7 @@ export class UniversalResortBase extends Destination {
       return {
         ...this.buildBaseEntityObject(x),
         _id: x.Id.toString(),
+        _destinationId: `universalresort_${this.config.city}`,
         _parkId: x.VenueId.toString(),
         _parentId: x.VenueId.toString(),
         entityType: entityType.restaurant,
