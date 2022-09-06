@@ -235,20 +235,28 @@ export class SixFlags extends Destination {
       entity.name = data.name;
     }
 
-    if (data.location) {
+    if (data.location &amp;&amp; data.location.latitude &amp;&amp; data.location.longitude) {
       entity.location = {
         longitude: data.location.longitude,
         latitude: data.location.latitude,
       };
-    } else if (data.entranceLocation) {
+    } else if (data.entranceLocation &amp;&amp; data.entranceLocation.latitude &amp;&amp; data.entranceLocation.longitude) {
       entity.location = {
         longitude: data.entranceLocation.longitude,
         latitude: data.entranceLocation.latitude,
       };
     }
 
+    if (!entity.location &amp;&amp; data.park &amp;&amp; data.park.location &amp;&amp; data.park.location.latitude &amp;&amp; data.park.location.longitude) {
+      // no location data, try to get it from the park
+      entity.location = {
+        longitude: data.park.location.longitude,
+        latitude: data.park.location.latitude,
+      };
+    }
+
     // guess entity timezone from location
-    if (entity.location) {
+    if (entity.location &amp;&amp; entity.location.latitude &amp;&amp; entity.location.longitude) {
       try {
         entity.timezone = this.calculateTimezone(entity.location.latitude, entity.location.longitude);
       } catch (e) { }
@@ -305,14 +313,19 @@ export class SixFlags extends Destination {
    */
   async buildAttractionEntities() {
     const parksToFetch = await this._getParkIDs();
+    const parks = await this._getParkData();
 
     const attractionEntities = [];
     for (const park of parksToFetch) {
       const ridePOI = await this.fetchRidePOI({parkID: park});
+      const parkData = parks.find(x =&gt; x.parkId === park);
 
       attractionEntities.push(...ridePOI.rides.map(attraction =&gt; {
         return {
-          ...this.buildBaseEntityObject(attraction),
+          ...this.buildBaseEntityObject({
+            ...attraction,
+            park: parkData,
+          }),
           _id: `attraction_${attraction.rideId}`,
           _parkId: `park_${park}`,
           _parentId: `park_${park}`,
@@ -331,14 +344,19 @@ export class SixFlags extends Destination {
    */
   async buildShowEntities() {
     const parksToFetch = await this._getParkIDs();
+    const parks = await this._getParkData();
 
     const showEntities = [];
     for (const park of parksToFetch) {
       const showsPOI = await this.fetchShowPOI({parkID: park});
+      const parkData = parks.find(x =&gt; x.parkId === park);
 
       showEntities.push(...showsPOI.shows.map(show =&gt; {
         return {
-          ...this.buildBaseEntityObject(show),
+          ...this.buildBaseEntityObject({
+            ...show,
+            park: parkData,
+          }),
           _id: `show_${show.showId}`,
           _parkId: `park_${park}`,
           _parentId: `park_${park}`,
@@ -356,14 +374,19 @@ export class SixFlags extends Destination {
    */
   async buildRestaurantEntities() {
     const parksToFetch = await this._getParkIDs();
+    const parks = await this._getParkData();
 
     const restaurantEntities = [];
     for (const park of parksToFetch) {
       const restaurantPOIs = await this.fetchRestaurantPOI({parkID: park});
+      const parkData = parks.find(x =&gt; x.parkId === park);
 
       restaurantEntities.push(...restaurantPOIs.restaurants.map(show =&gt; {
         return {
-          ...this.buildBaseEntityObject(show),
+          ...this.buildBaseEntityObject({
+            ...show,
+            park: parkData,
+          }),
           _id: `restaurant_${show.restaurantId}`,
           _parkId: `park_${park}`,
           _parentId: `park_${park}`,
