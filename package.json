@@ -55,6 +55,7 @@
     "random-useragent": "^0.4.0",
     "sift": "^13.1.10",
     "tough-cookie": "^4.0.0",
+    "tz-lookup": "^6.1.25",
     "uuid": "^8.3.0",
     "yauzl": "^2.10.0"
   },
