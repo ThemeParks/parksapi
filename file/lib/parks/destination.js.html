@@ -121,7 +121,7 @@
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import EventEmitter from &apos;events&apos;;
 import objHash from &apos;object-hash&apos;;
 import moment from &apos;moment-timezone&apos;;
-import tz_lookup from &apos;tz-lookup&apos;;
+import tzLookup from &apos;tz-lookup&apos;;
 
 import Cache from &apos;../cache/scopedCache.js&apos;;
 import {reusePromiseForever} from &apos;../reusePromises.js&apos;;
@@ -697,8 +697,14 @@ export class Destination extends EventEmitter {
     return resp?.body?.version || undefined;
   }
 
+  /**
+   * Given a longitude and latitude, return the timezone estimate for that location
+   * @param {Number} longitude
+   * @param {Number} latitude
+   * @return {string}
+   */
   calculateTimezone(longitude, latitude) {
-    return tz_lookup(longitude, latitude);
+    return tzLookup(longitude, latitude);
   }
 }
 
