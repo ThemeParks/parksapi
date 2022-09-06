@@ -276,6 +276,12 @@ window.esdocSearchIndex = [
     "class"
   ],
   [
+    "@themeparks/parksapi/lib/parks/sixflags/sixflags.js~sixflags",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html",
+    "<span>SixFlags</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/sixflags/sixflags.js</span>",
+    "class"
+  ],
+  [
     "@themeparks/parksapi/lib/parks/te2/te2.js~te2destination",
     "class/lib/parks/te2/te2.js~TE2Destination.html",
     "<span>TE2Destination</span> <span class=\"search-result-import-path\">@themeparks/parksapi/lib/parks/te2/te2.js</span>",
@@ -1450,6 +1456,12 @@ window.esdocSearchIndex = [
     "class/lib/parks/destination.js~Destination.html#instance-member-cache",
     "lib/parks/destination.js~Destination#cache",
     "member"
+  ],
+  [
+    "lib/parks/destination.js~destination#calculatetimezone",
+    "class/lib/parks/destination.js~Destination.html#instance-method-calculateTimezone",
+    "lib/parks/destination.js~Destination#calculateTimezone",
+    "method"
   ],
   [
     "lib/parks/destination.js~destination#config",
@@ -2854,6 +2866,120 @@ window.esdocSearchIndex = [
     "file/lib/parks/sieve.js.html",
     "lib/parks/sieve.js",
     "file"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js",
+    "file/lib/parks/sixflags/sixflags.js.html",
+    "lib/parks/sixflags/sixflags.js",
+    "file"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#_getparkdata",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-method-_getParkData",
+    "lib/parks/sixflags/sixflags.js~SixFlags#_getParkData",
+    "method"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#_getparkids",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-method-_getParkIDs",
+    "lib/parks/sixflags/sixflags.js~SixFlags#_getParkIDs",
+    "method"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#buildattractionentities",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-method-buildAttractionEntities",
+    "lib/parks/sixflags/sixflags.js~SixFlags#buildAttractionEntities",
+    "method"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#buildbaseentityobject",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-method-buildBaseEntityObject",
+    "lib/parks/sixflags/sixflags.js~SixFlags#buildBaseEntityObject",
+    "method"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#builddestinationentity",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-method-buildDestinationEntity",
+    "lib/parks/sixflags/sixflags.js~SixFlags#buildDestinationEntity",
+    "method"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#buildentitylivedata",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-method-buildEntityLiveData",
+    "lib/parks/sixflags/sixflags.js~SixFlags#buildEntityLiveData",
+    "method"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#buildentityscheduledata",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-method-buildEntityScheduleData",
+    "lib/parks/sixflags/sixflags.js~SixFlags#buildEntityScheduleData",
+    "method"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#buildparkentities",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-method-buildParkEntities",
+    "lib/parks/sixflags/sixflags.js~SixFlags#buildParkEntities",
+    "method"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#buildrestaurantentities",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-method-buildRestaurantEntities",
+    "lib/parks/sixflags/sixflags.js~SixFlags#buildRestaurantEntities",
+    "method"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#buildshowentities",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-method-buildShowEntities",
+    "lib/parks/sixflags/sixflags.js~SixFlags#buildShowEntities",
+    "method"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#constructor",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-constructor-constructor",
+    "lib/parks/sixflags/sixflags.js~SixFlags#constructor",
+    "method"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#fetchalldestinations",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-method-fetchAllDestinations",
+    "lib/parks/sixflags/sixflags.js~SixFlags#fetchAllDestinations",
+    "method"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#fetchauthtoken",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-method-fetchAuthToken",
+    "lib/parks/sixflags/sixflags.js~SixFlags#fetchAuthToken",
+    "method"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#fetchparkhours",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-method-fetchParkHours",
+    "lib/parks/sixflags/sixflags.js~SixFlags#fetchParkHours",
+    "method"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#fetchrestaurantpoi",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-method-fetchRestaurantPOI",
+    "lib/parks/sixflags/sixflags.js~SixFlags#fetchRestaurantPOI",
+    "method"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#fetchridepoi",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-method-fetchRidePOI",
+    "lib/parks/sixflags/sixflags.js~SixFlags#fetchRidePOI",
+    "method"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#fetchridestatus",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-method-fetchRideStatus",
+    "lib/parks/sixflags/sixflags.js~SixFlags#fetchRideStatus",
+    "method"
+  ],
+  [
+    "lib/parks/sixflags/sixflags.js~sixflags#fetchshowpoi",
+    "class/lib/parks/sixflags/sixflags.js~SixFlags.html#instance-method-fetchShowPOI",
+    "lib/parks/sixflags/sixflags.js~SixFlags#fetchShowPOI",
+    "method"
   ],
   [
     "lib/parks/tags.js",

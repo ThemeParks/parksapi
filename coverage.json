@@ -1,7 +1,7 @@
 {
-  "coverage": "73.45%",
-  "expectCount": 614,
-  "actualCount": 451,
+  "coverage": "72.39%",
+  "expectCount": 634,
+  "actualCount": 459,
   "files": {
     "lib/cache/cacheBase.js": {
       "expectCount": 16,
@@ -97,15 +97,16 @@
       ]
     },
     "lib/parks/destination.js": {
-      "expectCount": 40,
+      "expectCount": 41,
       "actualCount": 34,
       "undocumentLines": [
-        111,
-        113,
-        116,
-        118,
+        112,
+        114,
+        117,
         119,
-        121
+        120,
+        122,
+        580
       ]
     },
     "lib/parks/efteling/efteling.js": {
@@ -260,6 +261,23 @@
       "expectCount": 1,
       "actualCount": 1,
       "undocumentLines": []
+    },
+    "lib/parks/sixflags/sixflags.js": {
+      "expectCount": 19,
+      "actualCount": 8,
+      "undocumentLines": [
+        5,
+        6,
+        50,
+        65,
+        71,
+        77,
+        83,
+        89,
+        95,
+        140,
+        146
+      ]
     },
     "lib/parks/tags.js": {
       "expectCount": 8,

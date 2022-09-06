@@ -82,6 +82,7 @@
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-plopsaland">parks/plopsaland</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/plopsaland/plopsa.js~HolidayPark.html">HolidayPark</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/plopsaland/plopsa.js~PlopsaBase.html">PlopsaBase</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/plopsaland/plopsa.js~Plopsaland.html">Plopsaland</a></span></span></li>
+<li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-sixflags">parks/sixflags</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/sixflags/sixflags.js~SixFlags.html">SixFlags</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-tdr">parks/tdr</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/tdr/tokyodisneyresort.js~TokyoDisneyResort.html">TokyoDisneyResort</a></span></span></li>
 <li data-ice="doc"><a data-ice="dirPath" class="nav-dir-path" href="identifiers.html#parks-te2">parks/te2</a><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/te2/te2.js~CaliforniasGreatAmerica.html">CaliforniasGreatAmerica</a></span></span></li>
 <li data-ice="doc"><span data-ice="kind" class="kind-class">C</span><span data-ice="name"><span><a href="class/lib/parks/te2/te2.js~CanadasWonderland.html">CanadasWonderland</a></span></span></li>
@@ -120,6 +121,7 @@
 <pre class="source-code line-number raw-source-code"><code class="prettyprint linenums" data-ice="content">import EventEmitter from &apos;events&apos;;
 import objHash from &apos;object-hash&apos;;
 import moment from &apos;moment-timezone&apos;;
+import tz_lookup from &apos;tz-lookup&apos;;
 
 import Cache from &apos;../cache/scopedCache.js&apos;;
 import {reusePromiseForever} from &apos;../reusePromises.js&apos;;
@@ -693,6 +695,10 @@ export class Destination extends EventEmitter {
         {},
     );
     return resp?.body?.version || undefined;
+  }
+
+  calculateTimezone(longitude, latitude) {
+    return tz_lookup(longitude, latitude);
   }
 }
 
