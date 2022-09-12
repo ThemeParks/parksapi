@@ -38,6 +38,47 @@
     ]
   },
   {
+    "name": "Destination#getAndroidAPPVersion",
+    "filePath": "lib/parks/destination.js",
+    "lines": [
+      {
+        "lineNumber": 562,
+        "line": "  /**"
+      },
+      {
+        "lineNumber": 563,
+        "line": "   * Get the app version of an Android package ID"
+      },
+      {
+        "lineNumber": 564,
+        "line": "   * Only returns a valid response for apps tracked in the appwatch tracker service"
+      },
+      {
+        "lineNumber": 565,
+        "line": "   * @param {string} packageId"
+      },
+      {
+        "lineNumber": 566,
+        "line": "   * @return {string|undefined}"
+      },
+      {
+        "lineNumber": 567,
+        "line": "   */"
+      },
+      {
+        "lineNumber": 568,
+        "line": "  async getAndroidAPPVersion(packageId, fallback = undefined) {"
+      }
+    ],
+    "codeParams": [
+      "packageId",
+      "fallback"
+    ],
+    "docParams": [
+      "packageId"
+    ]
+  },
+  {
     "name": "HerschendDestination#getPOIForCategory",
     "filePath": "lib/parks/herschend/herschendparks.js",
     "lines": [
