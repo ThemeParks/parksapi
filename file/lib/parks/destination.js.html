@@ -153,7 +153,7 @@ const getMethods = (obj) =&gt; {
  */
 const metaCommands = {
   // @cache|minutesToCache
-  cache: function (fnName, args) {
+  cache: function(fnName, args) {
     const originalFunction = this[fnName].bind(this);
 
     this[fnName] = async (...originalFunctionArgs) =&gt; {
@@ -189,14 +189,14 @@ const metaCommands = {
 
       // replace original function with a cache wrap
       return this.cache.wrap(
-        // try and make a unique name based on our function name
-        //  to store in cache
-        funcCacheName,
-        // call original function if value not in cache
-        async () =&gt; {
-          return originalFunction(...originalFunctionArgs);
-        },
-        cacheTime,
+          // try and make a unique name based on our function name
+          //  to store in cache
+          funcCacheName,
+          // call original function if value not in cache
+          async () =&gt; {
+            return originalFunction(...originalFunctionArgs);
+          },
+          cacheTime,
       );
     };
   },
@@ -215,7 +215,7 @@ export class Destination extends EventEmitter {
 
     // add class name to our $env options
     options.configPrefixes = [this.constructor.name].concat(
-      options.configPrefixes || [],
+        options.configPrefixes || [],
     );
 
     // debug callback to list environment variables
@@ -431,11 +431,11 @@ export class Destination extends EventEmitter {
     const destination = await this.getDestinationEntity();
 
     this._allEntities = [].concat(
-      destination,
-      (await this.buildParkEntities()),
-      (await this.buildAttractionEntities()),
-      (await this.buildShowEntities()),
-      (await this.buildRestaurantEntities()),
+        destination,
+        (await this.buildParkEntities()),
+        (await this.buildAttractionEntities()),
+        (await this.buildShowEntities()),
+        (await this.buildRestaurantEntities()),
     );
 
     this._allEntitiesLastStash = +new Date();
@@ -684,6 +684,7 @@ export class Destination extends EventEmitter {
    * Get the app version of an Android package ID
    * Only returns a valid response for apps tracked in the appwatch tracker service
    * @param {string} packageId
+   * @param {string} [fallback] Fallback version to return if no version is found
    * @return {string|undefined}
    */
   async getAndroidAPPVersion(packageId, fallback = undefined) {
@@ -691,9 +692,9 @@ export class Destination extends EventEmitter {
     &apos;@cache|720&apos;;
     try {
       const resp = await this.http(
-        &apos;GET&apos;,
-        `https://api.themeparks.wiki/appwatch/latest/${packageId}`,
-        {},
+          &apos;GET&apos;,
+          `https://api.themeparks.wiki/appwatch/latest/${packageId}`,
+          {},
       );
       return resp?.body?.version || undefined;
     } catch (e) {
