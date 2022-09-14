@@ -692,7 +692,7 @@ export class Destination extends EventEmitter {
     try {
       const resp = await this.http(
         &apos;GET&apos;,
-        `https://appwatch.themeparks.wiki/latest/${packageId}`,
+        `https://api.themeparks.wiki/appwatch/latest/${packageId}`,
         {},
       );
       return resp?.body?.version || undefined;

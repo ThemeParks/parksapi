@@ -233,18 +233,7 @@ export class TokyoDisneyResort extends Destination {
   async fetchLatestVersion() {
     // cache 2 hours
     &apos;@cache|120&apos;;
-    // use the themeparks.wiki appstore watcher API
-    try {
-      const resp = await this.http(
-        &apos;GET&apos;,
-        &apos;https://appwatch.themeparks.wiki/latest/jp.tokyodisneyresort.portalapp&apos;,
-        {},
-      );
-      return resp.body.version;
-    } catch(e) {
-      console.error(&apos;Error fetching TDR app version&apos;, e);
-      return this.config.apiVersion;
-    }
+    return this.getAndroidAPPVersion(&apos;jp.tokyodisneyresort.portalapp&apos;);
   }
 
   /**
