@@ -583,6 +583,11 @@ export class TokyoDisneyResort extends Destination {
   async getEntitiesOfType(filterFn) {
     const poiData = await this.fetchFacilitiesData();
 
+    if (!poiData) {
+      // throw error
+      throw new Error(&apos;Failed to fetch POI data&apos;);
+    }
+
     return poiData.filter(sift(filterFn)).map((x) =&gt; {
       return {
         ...this.buildBaseEntityObject(x),
