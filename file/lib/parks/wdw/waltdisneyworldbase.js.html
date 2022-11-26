@@ -158,6 +158,8 @@ export class DisneyLiveResort extends Destination {
     options.virtualQueueURL = options.virtualQueueURL || &apos;&apos;;
     options.genieData = options.genieData || &apos;&apos;;
 
+    options.slug = options.slug || &apos;&apos;;
+
     super(options);
 
     this.resortId = options.resortId;
@@ -173,6 +175,8 @@ export class DisneyLiveResort extends Destination {
     this.parkIds = options.parkIds || [];
 
     this.cultureFilter = this.config.cultureFilter || undefined;
+
+    this.slug = this.config.slug || &apos;&apos;;
 
     this.db = getDatabase();
   }
@@ -745,7 +749,7 @@ export class DisneyLiveResort extends Destination {
     return {
       ...this.buildBaseEntityObject(doc),
       entityType: entityType.destination,
-      slug: doc.name.replace(/[^a-zA-Z0-9]/g, &apos;&apos;).toLowerCase(),
+      slug: this.config.slug == &apos;&apos; ? doc.name.replace(/[^a-zA-Z0-9]/g, &apos;&apos;).toLowerCase() : this.config.slug,
     };
   }
 
@@ -1239,6 +1243,8 @@ export class HongKongDisneyland extends DisneyLiveResort {
     options.parkIds = options.parkIds || [
       &apos;desHongKongDisneyland&apos;,
     ];
+
+    options.slug = &apos;hongkongdisneylandpark&apos;;
 
     super(options);
   }

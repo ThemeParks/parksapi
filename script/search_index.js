@@ -3774,6 +3774,12 @@ window.esdocSearchIndex = [
     "method"
   ],
   [
+    "lib/parks/wdw/waltdisneyworldbase.js~disneyliveresort#slug",
+    "class/lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort.html#instance-member-slug",
+    "lib/parks/wdw/waltdisneyworldbase.js~DisneyLiveResort#slug",
+    "member"
+  ],
+  [
     "lib/parks/wdw/waltdisneyworldbase.js~disneylandresort#constructor",
     "class/lib/parks/wdw/waltdisneyworldbase.js~DisneylandResort.html#instance-constructor-constructor",
     "lib/parks/wdw/waltdisneyworldbase.js~DisneylandResort#constructor",
