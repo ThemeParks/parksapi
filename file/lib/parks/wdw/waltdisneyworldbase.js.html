@@ -204,9 +204,14 @@ export class DisneyLiveResort extends Destination {
 
     if (!this.config.virtualQueueURL) return undefined;
 
-    return (await this.http(&apos;GET&apos;, this.config.virtualQueueURL, undefined, {
-      rejectUnauthorized: false,
-    })).body.queues;
+    try {
+      return (await this.http(&apos;GET&apos;, this.config.virtualQueueURL, undefined, {
+        rejectUnauthorized: false,
+      })).body.queues;
+    } catch (e) {
+      console.error(e);
+      return undefined;
+    }
   }
 
   async fetchGenieData() {
@@ -215,11 +220,16 @@ export class DisneyLiveResort extends Destination {
 
     if (!this.config.genieData) return undefined;
 
-    const resp = await this.http(&apos;GET&apos;, this.config.genieData, undefined, {
-      rejectUnauthorized: false,
-    });
+    try {
+      const resp = await this.http(&apos;GET&apos;, this.config.genieData, undefined, {
+        rejectUnauthorized: false,
+      });
 
-    return resp.body?.entities;
+      return resp.body?.entities;
+    } catch (e) {
+      console.error(e);
+      return undefined;
+    }
   }
 
   /**
@@ -558,7 +568,7 @@ export class DisneyLiveResort extends Destination {
         }
       }
     }
-    
+
     // build pretend live entity objects for any attractions with schedules (but no live data!)
     const attractionsToday = await this.db.get(`${this.resortShortcode}.today.1_0.Attraction`);
     if (attractionsToday !== undefined &amp;&amp; attractionsToday.facilities) {

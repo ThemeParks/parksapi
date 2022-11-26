@@ -351,7 +351,12 @@ export class SixFlags extends Destination {
       const showsPOI = await this.fetchShowPOI({parkID: park});
       const parkData = parks.find(x =&gt; x.parkId === park);
 
-      showEntities.push(...showsPOI.shows.map(show =&gt; {
+      const showObj = showsPOI?.shows;
+      if (!showObj) {
+        continue;
+      }
+
+      showEntities.push(...showObj.map(show =&gt; {
         return {
           ...this.buildBaseEntityObject({
             ...show,
