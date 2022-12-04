@@ -444,6 +444,10 @@ export class Phantasialand extends Destination {
         };
       }
 
+      if (x.waitTime === null &amp;&amp; x.showTimes === null &amp;&amp; x.open !== null) {
+        liveData.status = x.open ? statusType.operating : statusType.closed;
+      }
+
       return liveData;
     }).filter((x) =&gt; !!x);
   }
