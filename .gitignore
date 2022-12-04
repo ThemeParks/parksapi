@@ -10,6 +10,7 @@ test*.js
 !test.js
 *.har
 .vscode
+.idea
 *.themepark
 menus/
 scan.js
