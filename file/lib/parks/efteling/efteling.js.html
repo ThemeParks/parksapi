@@ -556,7 +556,7 @@ export class Efteling extends Destination {
 
     for (let i = 0; i &lt; attractions.length; i++) {
       const entry = attractions[i];
-      if (entry.Type !== &apos;Attraction&apos;) continue;
+      if (entry.Type !== &apos;Attraction&apos; &amp;&amp; entry.Type !== &apos;Attracties&apos;) continue;
       if (poiData[entry.Id] === undefined) continue;
 
       const live = {
