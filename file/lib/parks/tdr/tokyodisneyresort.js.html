@@ -258,8 +258,8 @@ export class TokyoDisneyResort extends Destination {
    * Get the latest facilities data for the entire resort
    */
   async fetchAllFacilitiesData() {
-    // cache 2 hours
-    &apos;@cache|120&apos;;
+    // cache 20 hours
+    &apos;@cache|1200&apos;;
     const headers = {};
     const lastModifiedTime = await this.cache.get(&apos;tdr_facilities_last_modified&apos;);
     if (lastModifiedTime !== undefined) {
@@ -299,8 +299,8 @@ export class TokyoDisneyResort extends Destination {
    * Get facilities data for this park
    */
   async fetchFacilitiesData() {
-    // cache 5 minutes
-    &apos;@cache|5&apos;;
+    // cache 1 hour
+    &apos;@cache|60&apos;;
     const parkIdsUpper = this.config.parkIds.map((x) =&gt; x.toUpperCase());
     const resortData = await this.fetchAllFacilitiesData();
     return resortData.filter((x) =&gt; parkIdsUpper.indexOf(x.parkType) &gt;= 0);
@@ -584,6 +584,7 @@ export class TokyoDisneyResort extends Destination {
     const poiData = await this.fetchFacilitiesData();
 
     if (!poiData) {
+      return [];
       // throw error
       throw new Error(&apos;Failed to fetch POI data&apos;);
     }
