@@ -452,45 +452,47 @@ export class SixFlags extends Destination {
 
       // also fetch show times
       const showsPOI = await this.fetchShowPOI({parkID: park});
-      liveData.push(...showsPOI.shows.map(show =&gt; {
-        const showLiveData = {
-          _id: `show_${show.showId}`,
-          status: statusType.operating,
-        };
+      if (showsPOI?.shows) {
+        liveData.push(...showsPOI.shows.map(show =&gt; {
+          const showLiveData = {
+            _id: `show_${show.showId}`,
+            status: statusType.operating,
+          };
 
-        if (show.startTimes &amp;&amp; show.startTimes.length &gt; 0) {
-          showLiveData.showTimes = show.startTimes.map((x) =&gt; {
-            const showTime = moment.tz(x, &apos;YYYY-MM-DDTHH:mm:ss&apos;, parkEntity.timezone);
-            const showEndTime = showTime.clone();
+          if (show.startTimes &amp;&amp; show.startTimes.length &gt; 0) {
+            showLiveData.showTimes = show.startTimes.map((x) =&gt; {
+              const showTime = moment.tz(x, &apos;YYYY-MM-DDTHH:mm:ss&apos;, parkEntity.timezone);
+              const showEndTime = showTime.clone();
 
-            // try to figure out show end time
-            //  sometimes it&apos;s just a number, sometimes it&apos;s a number with &quot;min&quot; appended
-            if (show.duration) {
-              const regexMinutes = /^([0-9]+) min$/;
-              const match = regexMinutes.exec(show.duration);
-              if (match) {
-                showEndTime.add(Number(match[1]), &apos;minutes&apos;);
-              } else {
-                const assumeMinutes = /^([0-9]+)$/;
-                const match = assumeMinutes.exec(show.duration);
+              // try to figure out show end time
+              //  sometimes it&apos;s just a number, sometimes it&apos;s a number with &quot;min&quot; appended
+              if (show.duration) {
+                const regexMinutes = /^([0-9]+) min$/;
+                const match = regexMinutes.exec(show.duration);
                 if (match) {
                   showEndTime.add(Number(match[1]), &apos;minutes&apos;);
                 } else {
-                  this.log(`Unknown show duration: ${show.duration}`);
+                  const assumeMinutes = /^([0-9]+)$/;
+                  const match = assumeMinutes.exec(show.duration);
+                  if (match) {
+                    showEndTime.add(Number(match[1]), &apos;minutes&apos;);
+                  } else {
+                    this.log(`Unknown show duration: ${show.duration}`);
+                  }
                 }
               }
-            }
 
-            return {
-              startTime: showTime.format(),
-              endTime: showEndTime.format(),
-              type: &quot;Performance Time&quot;,
-            };
-          })
-        }
+              return {
+                startTime: showTime.format(),
+                endTime: showEndTime.format(),
+                type: &quot;Performance Time&quot;,
+              };
+            })
+          }
 
-        return showLiveData;
-      }).filter((x) =&gt; !!x));
+          return showLiveData;
+        }).filter((x) =&gt; !!x));
+      }
     }
 
     return liveData;
