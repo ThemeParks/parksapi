@@ -6706,7 +6706,7 @@
     "__docId__": 320,
     "kind": "file",
     "name": "lib/parks/hershey/hersheypark.js",
-    "content": "import {Destination} from '../destination.js';\nimport {attractionType, statusType, queueType, tagType, scheduleType, entityType} from '../parkTypes.js';\nimport moment from 'moment';\n\nexport class Hersheypark extends Destination {\n  constructor(options = {}) {\n    options.timezone = options.timezone || 'America/New_York';\n    \n    options.apiKey = options.apiKey || '';\n    options.baseURL = options.baseURL || 'https://hpapp.hersheypa.com';\n    \n    super(options);\n\n    if (!this.config.apiKey) throw new Error('Missing apiKey');\n\n    // hook into the base API URL to add our api key\n    const baseURLHostname = new URL(this.config.baseURL).hostname;\n    this.http.injectForDomain({\n      hostname: baseURLHostname,\n    }, async (method, url, data, options) => {\n      options.headers = {\n        ...options.headers,\n        'x-api-key': this.config.apiKey,\n      };\n    });\n  }\n\n  /**\n   * Fetch the POI data for this destination\n   * @returns \n   */\n  async fetchPOIData() {\n    // cache for 1 day\n    '@cache|1d';\n    // fetch the park data from the API\n    const response = await this.http.get(`${this.config.baseURL}/v2/index`);\n    // return the park data\n    return response.body;\n  }\n\n  /**\n   * Fetch the live data for all entities in this destination\n   */\n  async fetchStatusData() {\n    '@cache|2m'; // cache for 2 minutes\n    const response = await this.http.get(`${this.config.baseURL}/v2/status`);\n    return response.body;\n  }\n\n  /**\n   * Get the main park POI data\n   */\n  async getParkPOIData() {\n    '@cache|6h'; // cache for 6 hours\n    const poi = await this.fetchPOIData();\n\n    const parkData = poi.explore.find((x) => x.isHersheyPark);\n    if (!parkData) {\n      throw new Error('Missing park data');\n    }\n\n    return parkData;\n  }\n\n  /**\n   * Helper function to build a basic entity document\n   * Useful to avoid copy/pasting\n   * @param {object} data \n   * @returns {object}\n   */\n  buildBaseEntityObject(data) {\n    const entity = Destination.prototype.buildBaseEntityObject.call(this, data);\n\n    if (data) {\n      entity.name = data.name || undefined;\n\n      if (data.latitude && data.longitude) {\n        entity.location = {\n          latitude: data.latitude,\n          longitude: data.longitude,\n        };\n      }\n    }\n\n    return entity;\n  }\n\n  /**\n   * Build the destination entity representing this destination\n   */\n  async buildDestinationEntity() {\n    return {\n      ...this.buildBaseEntityObject(null),\n      _id: 'hersheypark',\n      slug: 'hersheypark',\n      name: 'Hersheypark',\n      entityType: entityType.destination,\n    };\n  }\n\n  /**\n   * Build the park entities for this destination\n   */\n  async buildParkEntities() {\n    const parkData = await this.getParkPOIData();\n\n    return [\n      {\n        ...this.buildBaseEntityObject(parkData),\n        _id: 'hersheyparkthemepark',\n        _destinationId: 'hersheypark',\n        _parentId: 'hersheypark',\n        slug: 'hersheyparkthemepark',\n        entityType: entityType.park,\n      }\n    ];\n  }\n\n  /**\n   * Build the attraction entities for this destination\n   */\n  async buildAttractionEntities() {\n    const poi = await this.fetchPOIData();\n    const entities = [];\n    for(const ride of poi.rides) {\n      entities.push({\n        ...this.buildBaseEntityObject(ride),\n        _id: `rides_${ride.id}`,\n        _destinationId: 'hersheypark',\n        _parentId: 'hersheyparkthemepark',\n        _parkId: 'hersheyparkthemepark',\n        entityType: entityType.attraction,\n        attractionType: attractionType.ride,\n      });\n    }\n    return entities;\n  }\n\n  /**\n   * Build the show entities for this destination\n   */\n  async buildShowEntities() {\n    return [];\n  }\n\n  /**\n   * Build the restaurant entities for this destination\n   */\n  async buildRestaurantEntities() {\n    return [];\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async buildEntityLiveData() {\n    const liveData = await this.fetchStatusData();\n\n    return liveData.map((x) => {\n      // only support live data for rides, update this to add support for other entities\n      if (x.type !== 'rides') {\n        return null;\n      }\n\n      const data = {\n        _id: `${x.type}_${x.id}`,\n        status: statusType.closed,\n      };\n\n      // statuses:\n      //  3: park closed\n      //  2: <unknown> (assumed down)\n      //  1: open\n      //  0: ride closed\n\n      if (x.status === 2) {\n        data.status = statusType.down;\n      } else if (x.status === 1) {\n        data.status = statusType.operating;\n\n        if (x.wait !== null && x.wait !== undefined) {\n          data.queue = {\n            [queueType.standBy]: {\n              waitTime: x.wait,\n            },\n          };\n        }\n      }\n\n      return data;\n    }).filter((x) => !!x);\n  }\n\n  /**\n   * Return schedule data for all scheduled entities in this destination\n   * Eg. parks\n   * @returns {array<object>}\n   */\n  async buildEntityScheduleData() {\n    // find park ID so we can grab schedule from exploreHours\n    const parkData = await this.getParkPOIData();\n    const parkId = parkData.id;\n\n    const allPOIData = await this.fetchPOIData();\n\n    const schedule = [];\n    for(const date in allPOIData.exploreHours) {\n      const hours = allPOIData.exploreHours[date];\n      const parkHours = hours[parkId];\n      if (!parkHours) {\n        continue;\n      }\n\n      // parkHours is a string in the format: \"10:00 AM - 10:00 PM\"\n      const [start, end] = parkHours.split(' - ');\n      if (!start || !end) {\n        continue;\n      }\n\n      const startTime = moment.tz(`${date} ${start}`, 'YYYY-MM-DD h:mma', this.config.timezone);\n      const endTime = moment.tz(`${date} ${end}`, 'YYYY-MM-DD h:mma', this.config.timezone);\n\n      schedule.push({\n        date: date,\n        openingTime: startTime.format(),\n        closingTime: endTime.format(),\n        type: 'OPERATING',\n      });\n    }\n\n    return [\n      {\n        _id: 'hersheyparkthemepark',\n        schedule,\n      }\n    ];\n  }\n}\n",
+    "content": "import {Destination} from '../destination.js';\nimport {attractionType, statusType, queueType, tagType, scheduleType, entityType} from '../parkTypes.js';\nimport moment from 'moment';\n\nexport class Hersheypark extends Destination {\n  constructor(options = {}) {\n    options.timezone = options.timezone || 'America/New_York';\n    \n    options.apiKey = options.apiKey || '';\n    options.baseURL = options.baseURL || 'https://hpapp.hersheypa.com';\n    \n    super(options);\n\n    if (!this.config.apiKey) throw new Error('Missing apiKey');\n\n    // hook into the base API URL to add our api key\n    const baseURLHostname = new URL(this.config.baseURL).hostname;\n    this.http.injectForDomain({\n      hostname: baseURLHostname,\n    }, async (method, url, data, options) => {\n      options.rejectUnauthorized = false;\n      options.headers = {\n        ...options.headers,\n        'x-api-key': this.config.apiKey,\n      };\n    });\n  }\n\n  /**\n   * Fetch the POI data for this destination\n   * @returns \n   */\n  async fetchPOIData() {\n    // cache for 1 day\n    '@cache|1d';\n    // fetch the park data from the API\n    const response = await this.http.get(`${this.config.baseURL}/v2/index`);\n    // return the park data\n    return response.body;\n  }\n\n  /**\n   * Fetch the live data for all entities in this destination\n   */\n  async fetchStatusData() {\n    '@cache|2m'; // cache for 2 minutes\n    const response = await this.http.get(`${this.config.baseURL}/v2/status`);\n    return response.body;\n  }\n\n  /**\n   * Get the main park POI data\n   */\n  async getParkPOIData() {\n    '@cache|6h'; // cache for 6 hours\n    const poi = await this.fetchPOIData();\n\n    const parkData = poi.explore.find((x) => x.isHersheyPark);\n    if (!parkData) {\n      throw new Error('Missing park data');\n    }\n\n    return parkData;\n  }\n\n  /**\n   * Helper function to build a basic entity document\n   * Useful to avoid copy/pasting\n   * @param {object} data \n   * @returns {object}\n   */\n  buildBaseEntityObject(data) {\n    const entity = Destination.prototype.buildBaseEntityObject.call(this, data);\n\n    if (data) {\n      entity.name = data.name || undefined;\n\n      if (data.latitude && data.longitude) {\n        entity.location = {\n          latitude: data.latitude,\n          longitude: data.longitude,\n        };\n      }\n    }\n\n    return entity;\n  }\n\n  /**\n   * Build the destination entity representing this destination\n   */\n  async buildDestinationEntity() {\n    return {\n      ...this.buildBaseEntityObject(null),\n      _id: 'hersheypark',\n      slug: 'hersheypark',\n      name: 'Hersheypark',\n      entityType: entityType.destination,\n    };\n  }\n\n  /**\n   * Build the park entities for this destination\n   */\n  async buildParkEntities() {\n    const parkData = await this.getParkPOIData();\n\n    return [\n      {\n        ...this.buildBaseEntityObject(parkData),\n        _id: 'hersheyparkthemepark',\n        _destinationId: 'hersheypark',\n        _parentId: 'hersheypark',\n        slug: 'hersheyparkthemepark',\n        entityType: entityType.park,\n      }\n    ];\n  }\n\n  /**\n   * Build the attraction entities for this destination\n   */\n  async buildAttractionEntities() {\n    const poi = await this.fetchPOIData();\n    const entities = [];\n    for(const ride of poi.rides) {\n      entities.push({\n        ...this.buildBaseEntityObject(ride),\n        _id: `rides_${ride.id}`,\n        _destinationId: 'hersheypark',\n        _parentId: 'hersheyparkthemepark',\n        _parkId: 'hersheyparkthemepark',\n        entityType: entityType.attraction,\n        attractionType: attractionType.ride,\n      });\n    }\n    return entities;\n  }\n\n  /**\n   * Build the show entities for this destination\n   */\n  async buildShowEntities() {\n    return [];\n  }\n\n  /**\n   * Build the restaurant entities for this destination\n   */\n  async buildRestaurantEntities() {\n    return [];\n  }\n\n  /**\n   * @inheritdoc\n   */\n  async buildEntityLiveData() {\n    const liveData = await this.fetchStatusData();\n\n    return liveData.map((x) => {\n      // only support live data for rides, update this to add support for other entities\n      if (x.type !== 'rides') {\n        return null;\n      }\n\n      const data = {\n        _id: `${x.type}_${x.id}`,\n        status: statusType.closed,\n      };\n\n      // statuses:\n      //  3: park closed\n      //  2: <unknown> (assumed down)\n      //  1: open\n      //  0: ride closed\n\n      if (x.status === 2) {\n        data.status = statusType.down;\n      } else if (x.status === 1) {\n        data.status = statusType.operating;\n\n        if (x.wait !== null && x.wait !== undefined) {\n          data.queue = {\n            [queueType.standBy]: {\n              waitTime: x.wait,\n            },\n          };\n        }\n      }\n\n      return data;\n    }).filter((x) => !!x);\n  }\n\n  /**\n   * Return schedule data for all scheduled entities in this destination\n   * Eg. parks\n   * @returns {array<object>}\n   */\n  async buildEntityScheduleData() {\n    // find park ID so we can grab schedule from exploreHours\n    const parkData = await this.getParkPOIData();\n    const parkId = parkData.id;\n\n    const allPOIData = await this.fetchPOIData();\n\n    const schedule = [];\n    for(const date in allPOIData.exploreHours) {\n      const hours = allPOIData.exploreHours[date];\n      const parkHours = hours[parkId];\n      if (!parkHours) {\n        continue;\n      }\n\n      // parkHours is a string in the format: \"10:00 AM - 10:00 PM\"\n      const [start, end] = parkHours.split(' - ');\n      if (!start || !end) {\n        continue;\n      }\n\n      const startTime = moment.tz(`${date} ${start}`, 'YYYY-MM-DD h:mma', this.config.timezone);\n      const endTime = moment.tz(`${date} ${end}`, 'YYYY-MM-DD h:mma', this.config.timezone);\n\n      schedule.push({\n        date: date,\n        openingTime: startTime.format(),\n        closingTime: endTime.format(),\n        type: 'OPERATING',\n      });\n    }\n\n    return [\n      {\n        _id: 'hersheyparkthemepark',\n        schedule,\n      }\n    ];\n  }\n}\n",
     "static": true,
     "longname": "/home/runner/work/parksapi/parksapi/lib/parks/hershey/hersheypark.js",
     "access": "public",
@@ -6757,7 +6757,7 @@
     "longname": "lib/parks/hershey/hersheypark.js~Hersheypark#fetchPOIData",
     "access": "public",
     "description": "Fetch the POI data for this destination",
-    "lineNumber": 32,
+    "lineNumber": 33,
     "unknown": [
       {
         "tagName": "@returns",
@@ -6782,7 +6782,7 @@
     "longname": "lib/parks/hershey/hersheypark.js~Hersheypark#fetchStatusData",
     "access": "public",
     "description": "Fetch the live data for all entities in this destination",
-    "lineNumber": 44,
+    "lineNumber": 45,
     "params": [],
     "return": {
       "types": [
@@ -6801,7 +6801,7 @@
     "longname": "lib/parks/hershey/hersheypark.js~Hersheypark#getParkPOIData",
     "access": "public",
     "description": "Get the main park POI data",
-    "lineNumber": 53,
+    "lineNumber": 54,
     "params": [],
     "return": {
       "types": [
@@ -6820,7 +6820,7 @@
     "longname": "lib/parks/hershey/hersheypark.js~Hersheypark#buildBaseEntityObject",
     "access": "public",
     "description": "Helper function to build a basic entity document<br />Useful to avoid copy/pasting",
-    "lineNumber": 71,
+    "lineNumber": 72,
     "unknown": [
       {
         "tagName": "@returns",
@@ -6859,7 +6859,7 @@
     "longname": "lib/parks/hershey/hersheypark.js~Hersheypark#buildDestinationEntity",
     "access": "public",
     "description": "Build the destination entity representing this destination",
-    "lineNumber": 91,
+    "lineNumber": 92,
     "params": [],
     "return": {
       "types": [
@@ -6878,7 +6878,7 @@
     "longname": "lib/parks/hershey/hersheypark.js~Hersheypark#buildParkEntities",
     "access": "public",
     "description": "Build the park entities for this destination",
-    "lineNumber": 104,
+    "lineNumber": 105,
     "params": [],
     "return": {
       "types": [
@@ -6897,7 +6897,7 @@
     "longname": "lib/parks/hershey/hersheypark.js~Hersheypark#buildAttractionEntities",
     "access": "public",
     "description": "Build the attraction entities for this destination",
-    "lineNumber": 122,
+    "lineNumber": 123,
     "params": [],
     "return": {
       "types": [
@@ -6916,7 +6916,7 @@
     "longname": "lib/parks/hershey/hersheypark.js~Hersheypark#buildShowEntities",
     "access": "public",
     "description": "Build the show entities for this destination",
-    "lineNumber": 142,
+    "lineNumber": 143,
     "params": [],
     "return": {
       "types": [
@@ -6935,7 +6935,7 @@
     "longname": "lib/parks/hershey/hersheypark.js~Hersheypark#buildRestaurantEntities",
     "access": "public",
     "description": "Build the restaurant entities for this destination",
-    "lineNumber": 149,
+    "lineNumber": 150,
     "params": [],
     "return": {
       "types": [
@@ -6954,7 +6954,7 @@
     "longname": "lib/parks/hershey/hersheypark.js~Hersheypark#buildEntityLiveData",
     "access": "public",
     "description": "",
-    "lineNumber": 156,
+    "lineNumber": 157,
     "unknown": [
       {
         "tagName": "@inheritdoc",
@@ -6979,7 +6979,7 @@
     "longname": "lib/parks/hershey/hersheypark.js~Hersheypark#buildEntityScheduleData",
     "access": "public",
     "description": "Return schedule data for all scheduled entities in this destination<br />Eg. parks",
-    "lineNumber": 199,
+    "lineNumber": 200,
     "unknown": [
       {
         "tagName": "@returns",

@@ -138,6 +138,7 @@ export class Hersheypark extends Destination {
     this.http.injectForDomain({
       hostname: baseURLHostname,
     }, async (method, url, data, options) =&gt; {
+      options.rejectUnauthorized = false;
       options.headers = {
         ...options.headers,
         &apos;x-api-key&apos;: this.config.apiKey,
