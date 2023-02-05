@@ -188,6 +188,7 @@ export class TokyoDisneyResort extends Destination {
 
       if (!options.ignoreDeviceID) {
         const deviceID = await this.fetchDeviceID();
+        if (!deviceID) throw new Error(&apos;Failed to fetch device ID for Tokyo Disney Resort API&apos;);
         options.headers[&apos;X-PORTAL-DEVICE-ID&apos;] = deviceID;
         options.headers[&apos;X-PORTAL-AUTH&apos;] = this.config.apiAuth;
       }
