@@ -201,7 +201,10 @@ export class SixFlags extends Destination {
   }
 
   async fetchShowPOI({parkID}) {
-    &apos;@cache|1d&apos;; // cache for 1 day
+    //&apos;@cache|1d&apos;; // cache for 1 day
+    // TODO - fix show times
+    return {};
+
     const resp = await this.http.get(`${this.config.baseURL}/mobileapi/v1/park/${parkID}/entertainment`);
     return resp.body;
   }
