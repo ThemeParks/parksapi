@@ -343,6 +343,9 @@ export class SixFlags extends Destination {
    * Build the show entities for this destination
    */
   async buildShowEntities() {
+    // TODO - fix shows for Six Flags
+    return [];
+
     const parksToFetch = await this._getParkIDs();
     const parks = await this._getParkData();
 
