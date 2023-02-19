@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>Home - Documentation</title>
+    <title>parks/efteling/efteling.js - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -35,292 +35,555 @@
 
 <div id="main">
     
+    <h1 class="page-title">parks/efteling/efteling.js</h1>
+    
 
     
 
 
 
     
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import {attractionType, statusType, queueType, tagType, scheduleType, entityType} from '../parkTypes.js';
+import moment from 'moment-timezone';
+import Destination from '../destination.js';
 
+/**
+ * Efteling Park Object
+ */
+export class Efteling extends Destination {
+  /**
+   * Create a new Efteling Park object
+   * @param {object} options
+   */
+  constructor(options = {}) {
+    options.name = options.name || 'Efteling';
+    options.timezone = options.timezone || 'Europe/Amsterdam';
 
-    <section class="package">
-        <h3> </h3>		
-    </section>
+    options.apiKey = options.apiKey || '';
+    options.apiVersion = options.apiVersion || '';
+    options.appVersion = options.appVersion || '';
 
+    options.searchUrl = options.searchUrl || 'https://prd-search-acs.efteling.com/2013-01-01/search';
+    options.waitTimesUrl = options.waitTimesUrl || 'https://api.efteling.com/app/wis/';
 
+    // bump cache to invalidate the POI data that has been updated
+    options.cacheVersion = 1;
 
+    super(options);
 
+    if (!this.config.apiKey) throw new Error('Missing Efteling apiKey');
+    if (!this.config.apiVersion) throw new Error('Missing Efteling apiVersion');
+    if (!this.config.appVersion) throw new Error('Missing Efteling appVersion');
 
+    this.http.injectForDomain({
+      // match either of the API domains
+      $or: [
+        {
+          hostname: 'api.efteling.com',
+        },
+        {
+          hostname: 'prd-search-acs.efteling.com',
+        },
+      ],
+    }, (method, url, data, options) => {
+      // all requests from the app to any efteling subdomain should send these headers
+      options.headers['x-app-version'] = this.config.appVersion;
+      options.headers['x-app-name'] = 'Efteling';
+      options.headers['x-app-id'] = 'nl.efteling.android';
+      options.headers['x-app-platform'] = 'Android';
+      options.headers['x-app-language'] = 'en';
+      options.headers['x-app-timezone'] = this.config.timezone;
+      // override user-agent here, rather than class-wide
+      //  any other non-Efteling API requests can use the default user-agent
+      options.headers['user-agent'] = 'okhttp/4.4.0';
+      options.compressed = true;
+    });
 
+    this.http.injectForDomain({
+      // only use these headers for the main API domain
+      hostname: 'api.efteling.com',
+    }, (method, url, data, options) => {
+      // api.efteling.com requries an API key as well as the above headers
+      options.headers['x-api-key'] = this.config.apiKey;
+      options.headers['x-api-version'] = this.config.apiVersion;
+    });
+  }
 
+  /**
+   * Fetch POI data from Efteling API
+   * @return {array&lt;object>}
+   */
+  async _fetchPOIData({language = en} = {}) {
+    // cache for 12 hours
+    '@cache|720';
 
+    // curl -H 'Host: prd-search-acs.efteling.com' -H 'user-agent: okhttp/4.4.0' -H 'x-app-version: v3.7.1' -H 'x-app-name: Efteling' -H 'x-app-id: nl.efteling.android' -H 'x-app-platform: Android' -H 'x-app-language: en' -H 'x-app-timezone: Europe/London' --compressed 'https://prd-search-acs.efteling.com/2013-01-01/search?q.parser=structured&amp;size=1000&amp;q=%28and%20%28phrase%20field%3Dlanguage%20%27en%27%29%29'
+    const fetchedPOIData = await this.http('GET', this.config.searchUrl, {
+      'size': 1000,
+      'q.parser': 'structured',
+      'q': `(and (phrase field=language \'${language}\'))`,
+    });
 
-    
+    return fetchedPOIData?.body?.hits?.hit;
+  }
 
+  /**
+   * Get Efteling POI data
+   * This data contains general ride names, descriptions etc.
+   * Wait time data references this to get ride names
+   */
+  async getPOIData() {
+    '@cache|5';
 
+    // grab English data first
+    const data = await this._fetchPOIData({language: 'en'});
+    if (!data) {
+      throw new Error('Failed to fetch Efteling POI data [en]');
+    }
 
-    <section class="readme usertext">
-        <article><h1>ThemeParks.wiki Parks API</h1>
-<p><img src="https://github.com/ThemeParks/parksapi/workflows/Unit%20Test/badge.svg" alt="Unit Test"> <img src="https://github.com/ThemeParks/parksapi/workflows/ESDoc/badge.svg" alt="Documentation Build"></p>
-<p><a href="https://themeparks.github.io/parksapi/">API Documentation</a></p>
-<p>This is a backend module to fetch and query live data for themeparks. This source code powers the free-to-use API at <a href="https://themeparks.wiki">ThemeParks.wiki</a></p>
-<p>To fetch data from the API, you should look at the client libraries:</p>
-<ul>
-<li>https://github.com/ThemeParks/ThemeParks_JavaScript</li>
-<li>https://github.com/ThemeParks/ThemeParks_Python</li>
-</ul>
-<p>Fetching and parsing logic is provided in this source code. Most parks require some form of credentials, which are not supplied in this repo. You will need to source these yourself.</p>
-<p>General support is available for the ThemeParks.wiki API, and not this source code (except for Sponsors with support benefits).</p>
-<p><code>test.js</code> contains a basic set of sanity checks and output validation, which also shows how a destination object can be accessed.</p>
-<p>Each destination generates <em>entities</em>. Entities can be of various types:</p>
-<ul>
-<li>Destinations
-<ul>
-<li>i.e, Resorts</li>
-<li>These are not called resorts to avoid confusion for parks that are not part of resorts</li>
-<li>eg. Walt Disney World Resort</li>
-</ul>
-</li>
-<li>Parks
-<ul>
-<li>All parks must be within a Destination entity</li>
-<li>eg. Magic Kingdom</li>
-</ul>
-</li>
-<li>Attraction
-<ul>
-<li>A ride / transport / etc.</li>
-<li>Attraction entities must be within a Destination entity (usually also within a park, but not always)</li>
-<li>eg. Pirates of the Carribean</li>
-</ul>
-</li>
-<li>Resturant
-<ul>
-<li>A dining location within a destination</li>
-<li>eg. Casey's Corner</li>
-</ul>
-</li>
-<li>Show
-<ul>
-<li>A show / parade entity with scheduled show times</li>
-<li>eg. Main Street Electrical Parade</li>
-</ul>
-</li>
-</ul>
-<p><em>Entity Types Being Finalised - Destinations, Parks, and Attractions however, are well supported and unlikely to change</em></p>
-<h2>Adding Destinations</h2>
-<p>Best current documentation for this is to check out <code>scripts/templateDestination.js</code> and look at the existing supported destinations.</p>
-<p>Setup <code>index.js</code> with your new class, and edit <code>test.js</code> to test your destination to check everything is setup correctly.</p>
-<h2>Destinations</h2>
-<!-- BEGIN_DESTINATIONS -->
-<ul>
-<li>WaltDisneyWorldResort</li>
-<li>DisneylandResort</li>
-<li>DisneylandParis</li>
-<li>TokyoDisneyResort</li>
-<li>HongKongDisneyland</li>
-<li>ShanghaiDisneylandResort</li>
-<li>UniversalStudios</li>
-<li>UniversalOrlando</li>
-<li>EuropaPark</li>
-<li>Efteling</li>
-<li>Phantasialand</li>
-<li>SeaworldOrlando</li>
-<li>SeaworldSanAntonio</li>
-<li>SeaworldSanDiego</li>
-<li>AltonTowers</li>
-<li>ThorpePark</li>
-<li>ChessingtonWorldOfAdventures</li>
-<li>LegolandWindsor</li>
-<li>LegolandOrlando</li>
-<li>Gardaland</li>
-<li>PortAventuraWorld</li>
-<li>ParcAsterix</li>
-<li>Toverland</li>
-<li>Dollywood</li>
-<li>SilverDollarCity</li>
-<li>Plopsaland</li>
-<li>HolidayPark</li>
-</ul>
-<!-- END_DESTINATIONS -->
-<h2>Configuration</h2>
-<p>Destination objects can be configured by either passing an object of variables into the constructor, or using environment variables (the preferred way).</p>
-<p>To use environment variables, create a file called <code>.env</code> in the working directory of your project.</p>
-<p>Environment variables are structured as:</p>
-<ul>
-<li>Class name (upper case)</li>
-<li>Underscore _</li>
-<li>Variable name (upper case)</li>
-</ul>
-<p>For example, the class <code>WaltDisneyWorldResort</code> has a <code>resortId</code> configuration variable which can be loaded through the environment variable <code>WALTDISNEYWORLDRESORT_RESORTID</code></p>
-<p>Some classes expose &quot;parent scopes&quot; to allow configuring environment variables once for a range of destinations. For example, Attractions.io's base URL can be configured once through <code>ATTRACTIONSIO_BASEURL</code> rather than configuring it identically for every destination.</p>
-<p>Environment Variables (auto-generated):</p>
-<!-- BEGIN_ENV -->
-<pre class="prettyprint source"><code>WALTDISNEYWORLDRESORT_RESORTID
-WALTDISNEYWORLDRESORT_RESORTSHORTCODE
-WALTDISNEYWORLDRESORT_PARKIDS
-WALTDISNEYWORLDRESORT_VIRTUALQUEUEURL
-WALTDISNEYWORLDRESORT_GENIEDATA
-DISNEYLANDRESORT_RESORTID
-DISNEYLANDRESORT_RESORTSHORTCODE
-DISNEYLANDRESORT_PARKIDS
-DISNEYLANDRESORT_VIRTUALQUEUEURL
-DISNEYLANDRESORT_GENIEDATA
-DISNEYLANDPARIS_APIKEY
-DISNEYLANDPARIS_APIBASE
-DISNEYLANDPARIS_APIBASEWAITTIMES
-DISNEYLANDPARIS_LANGUAGE
-DISNEYLANDPARIS_STANDBYAPIBASE
-DISNEYLANDPARIS_STANDBYAPIKEY
-DISNEYLANDPARIS_STANDBYAUTHURL
-DISNEYLANDPARIS_STANDBYAPIREFRESHTOKEN
-DISNEYLANDPARIS_PREMIERACCESSAPIKEY
-DISNEYLANDPARIS_PREMIERACCESSURL
-DISNEYLANDPARIS_USERAGENT
-TOKYODISNEYRESORT_APIKEY
-TOKYODISNEYRESORT_APIAUTH
-TOKYODISNEYRESORT_APIOS
-TOKYODISNEYRESORT_APIBASE
-TOKYODISNEYRESORT_APIVERSION
-TOKYODISNEYRESORT_PARKIDS
-HONGKONGDISNEYLAND_RESORTID
-HONGKONGDISNEYLAND_RESORTSHORTCODE
-HONGKONGDISNEYLAND_PARKIDS
-HONGKONGDISNEYLAND_VIRTUALQUEUEURL
-HONGKONGDISNEYLAND_GENIEDATA
-SHANGHAIDISNEYLANDRESORT_APIBASE
-SHANGHAIDISNEYLANDRESORT_APIAUTH
-SHANGHAIDISNEYLANDRESORT_PARKIDS
-UNIVERSALSTUDIOS_CITY
-UNIVERSALSTUDIOS_RESORTSLUG
-UNIVERSALSTUDIOS_SECRETKEY
-UNIVERSALSTUDIOS_APPKEY
-UNIVERSALSTUDIOS_VQUEUEURL
-UNIVERSALSTUDIOS_BASEURL
-UNIVERSALORLANDO_CITY
-UNIVERSALORLANDO_RESORTSLUG
-UNIVERSALORLANDO_SECRETKEY
-UNIVERSALORLANDO_APPKEY
-UNIVERSALORLANDO_VQUEUEURL
-UNIVERSALORLANDO_BASEURL
-EUROPAPARK_PARKS
-EFTELING_APIKEY
-EFTELING_APIVERSION
-EFTELING_APPVERSION
-EFTELING_SEARCHURL
-EFTELING_WAITTIMESURL
-PHANTASIALAND_APIBASE
-SEAWORLDORLANDO_RESORTIDS
-SEAWORLDORLANDO_RESORTID
-SEAWORLDORLANDO_RESORTSLUG
-SEAWORLDORLANDO_APPID
-SEAWORLDORLANDO_BASEURL
-SEAWORLDSANANTONIO_RESORTIDS
-SEAWORLDSANANTONIO_RESORTID
-SEAWORLDSANANTONIO_RESORTSLUG
-SEAWORLDSANANTONIO_APPID
-SEAWORLDSANANTONIO_BASEURL
-SEAWORLDSANDIEGO_RESORTIDS
-SEAWORLDSANDIEGO_RESORTID
-SEAWORLDSANDIEGO_RESORTSLUG
-SEAWORLDSANDIEGO_APPID
-SEAWORLDSANDIEGO_BASEURL
-ALTONTOWERS_DESTINATIONID
-ALTONTOWERS_PARKID
-ALTONTOWERS_INITIALDATAVERSION
-ALTONTOWERS_APPBUILD
-ALTONTOWERS_APPVERSION
-ALTONTOWERS_BASEURL
-ALTONTOWERS_DEVICEIDENTIFIER
-ALTONTOWERS_APIKEY
-ALTONTOWERS_CALENDARURL
-THORPEPARK_DESTINATIONID
-THORPEPARK_PARKID
-THORPEPARK_INITIALDATAVERSION
-THORPEPARK_APPBUILD
-THORPEPARK_APPVERSION
-THORPEPARK_BASEURL
-THORPEPARK_DEVICEIDENTIFIER
-THORPEPARK_APIKEY
-THORPEPARK_CALENDARURL
-CHESSINGTONWORLDOFADVENTURES_DESTINATIONID
-CHESSINGTONWORLDOFADVENTURES_PARKID
-CHESSINGTONWORLDOFADVENTURES_INITIALDATAVERSION
-CHESSINGTONWORLDOFADVENTURES_APPBUILD
-CHESSINGTONWORLDOFADVENTURES_APPVERSION
-CHESSINGTONWORLDOFADVENTURES_BASEURL
-CHESSINGTONWORLDOFADVENTURES_DEVICEIDENTIFIER
-CHESSINGTONWORLDOFADVENTURES_APIKEY
-CHESSINGTONWORLDOFADVENTURES_CALENDARURL
-LEGOLANDWINDSOR_DESTINATIONID
-LEGOLANDWINDSOR_PARKID
-LEGOLANDWINDSOR_INITIALDATAVERSION
-LEGOLANDWINDSOR_APPBUILD
-LEGOLANDWINDSOR_APPVERSION
-LEGOLANDWINDSOR_BASEURL
-LEGOLANDWINDSOR_DEVICEIDENTIFIER
-LEGOLANDWINDSOR_APIKEY
-LEGOLANDWINDSOR_CALENDARURL
-LEGOLANDORLANDO_DESTINATIONID
-LEGOLANDORLANDO_PARKID
-LEGOLANDORLANDO_INITIALDATAVERSION
-LEGOLANDORLANDO_APPBUILD
-LEGOLANDORLANDO_APPVERSION
-LEGOLANDORLANDO_BASEURL
-LEGOLANDORLANDO_DEVICEIDENTIFIER
-LEGOLANDORLANDO_APIKEY
-LEGOLANDORLANDO_CALENDARURL
-GARDALAND_DESTINATIONID
-GARDALAND_PARKID
-GARDALAND_INITIALDATAVERSION
-GARDALAND_APPBUILD
-GARDALAND_APPVERSION
-GARDALAND_BASEURL
-GARDALAND_DEVICEIDENTIFIER
-GARDALAND_APIKEY
-GARDALAND_CALENDARURL
-PORTAVENTURAWORLD_APIBASE
-PARCASTERIX_APIBASE
-PARCASTERIX_LANGUAGE
-TOVERLAND_APIBASE
-TOVERLAND_CALENDARURL
-TOVERLAND_AUTHTOKEN
-TOVERLAND_LANGUAGES
-DOLLYWOOD_DESTINATIONID
-DOLLYWOOD_DESTINATIONSLUG
-DOLLYWOOD_CRMBASEURL
-DOLLYWOOD_CRMGUID
-DOLLYWOOD_CRMATTRACTIONSID
-DOLLYWOOD_CRMDININGID
-DOLLYWOOD_CRMSHOWID
-DOLLYWOOD_APIBASE
-DOLLYWOOD_CRMAUTH
-SILVERDOLLARCITY_DESTINATIONID
-SILVERDOLLARCITY_DESTINATIONSLUG
-SILVERDOLLARCITY_CRMBASEURL
-SILVERDOLLARCITY_CRMGUID
-SILVERDOLLARCITY_CRMATTRACTIONSID
-SILVERDOLLARCITY_CRMDININGID
-SILVERDOLLARCITY_CRMSHOWID
-SILVERDOLLARCITY_APIBASE
-SILVERDOLLARCITY_CRMAUTH
-PLOPSALAND_DESTINATIONSLUG
-PLOPSALAND_PARKSLUG
-PLOPSALAND_BASEURL
-PLOPSALAND_BASELANG
-PLOPSALAND_CLIENTID
-PLOPSALAND_CLIENTSECRET
-HOLIDAYPARK_DESTINATIONSLUG
-HOLIDAYPARK_PARKSLUG
-HOLIDAYPARK_BASEURL
-HOLIDAYPARK_BASELANG
-HOLIDAYPARK_CLIENTID
-HOLIDAYPARK_CLIENTSECRET
+    // also grab native language data and insert any missing entries
+    const nativeData = await this._fetchPOIData({language: 'nl'});
+    if (!nativeData) {
+      throw new Error('Failed to fetch Efteling POI data [nl]');
+    }
+
+    // merge the two arrays with English data replacing NL data
+    const mergedData = nativeData.map((nativeItem) => {
+      const englishItem = data.find((item) => item.fields.id === nativeItem.fields.id);
+      if (!englishItem) {
+        // if the native item is missing, add it to the end of the array
+        return nativeItem;
+      }
+
+      // if English version exists, use that one
+      return englishItem;
+    });
+
+    const poiData = {};
+    mergedData.forEach((hit) => {
+      // skip any entries that aren't shown in the app
+      if (hit.hide_in_app) return;
+
+      if (hit.fields) {
+        poiData[hit.fields.id] = {
+          id: hit.fields.id,
+          name: hit.fields.name,
+          type: hit.fields.category,
+          props: hit.fields.properties,
+        };
+
+        // hard-code station names so they can be distinct
+        if (hit.fields.id === 'stoomtreinr') {
+          poiData[hit.fields.id].name = poiData[hit.fields.id].name + ' - Oost';
+        }
+        if (hit.fields.id === 'stoomtreinm') {
+          poiData[hit.fields.id].name = poiData[hit.fields.id].name + ' - Marerijk';
+        }
+
+        // try to parse lat/long
+        //  edge-case: some rides have dud "0.0,0.0" location, ignore these
+        if (hit.fields.latlon &amp;&amp; hit.fields.latlon !== '0.0,0.0') {
+          const match = /([0-9.]+),([0-9.]+)/.exec(hit.fields.latlon);
+          if (match) {
+            poiData[hit.fields.id].location = {
+              latitude: Number(match[1]),
+              longitude: Number(match[2]),
+            };
+          }
+        }
+
+        // check for any alternative versions of the ride
+        //  this is usually the single rider line, though one is a "boatride"
+        if (hit.fields.alternateid &amp;&amp; hit.fields.alternatetype === 'singlerider') {
+          poiData[hit.fields.id].singleRiderId = hit.fields.alternateid;
+        }
+      }
+    });
+
+    return poiData;
+  }
+
+  /**
+   * Get calendar data for the given month and year
+   * @param {string} month
+   * @param {string} year
+   * @return {array&lt;object>}
+   */
+  async getCalendarMonth(month, year) {
+    return await this.cache.wrap(`calendar_${year}_${month}`, async () => {
+      const data = await this.http(
+        'GET',
+        `https://www.efteling.com/service/cached/getpoiinfo/en/${year}/${month}`,
+        null,
+        {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'referer': 'https://www.efteling.com/en/park/opening-hours?app=true',
+            'cookie': 'website#lang=en',
+          },
+          json: true,
+        },
+      );
+
+      // Efteling returns 400 once the month is in the past
+      if (data.statusCode === 400) {
+        return undefined;
+      }
+
+      if (!data?.body?.OpeningHours) throw new Error(`Unable to find opening hours for Efteling ${data.body}`);
+
+      return data.body;
+    }, 1000 * 60 * 60 * 12); // 12 hours
+  }
+
+  /**
+ * Get restaurant operating hours from API
+ * @param {string} day
+ * @param {string} month
+ * @param {string} year
+ */
+  async getRestaurantOperatingHours(day, month, year) {
+    return await this.cache.wrap(`restaurant_${year}_${month}_${day}`, async () => {
+      const waitTimes = await this.http('GET', this.config.waitTimesUrl, {
+        language: 'en',
+      });
+
+      if (!waitTimes?.body?.AttractionInfo) {
+        throw new Error(`Unable to find restaurant operating hours for Efteling ${data.body}`);
+      }
+
+      return waitTimes.body;
+    }, 1000 * 60 * 60 * 12); // 12 hours
+  }
+
+  /**
+   * Return restaurant operating hours for the supplied date
+   * @param {moment} date
+   */
+  async _getRestaurantOperatingHoursForDate(date) {
+    const cal = await this.getRestaurantOperatingHours(date.format('D'), date.format('M'), date.format('YYYY'));
+
+    if (cal === undefined) return undefined;
+
+    const data = cal.AttractionInfo;
+
+    return data.map((entry) => {
+      if (entry.Type !== 'Horeca') return;
+
+      if (!entry.OpeningTimes || entry.OpeningTimes.length == 0) {
+        return {
+          restaurantID: entry.Id,
+          openingTime: 0,
+          closingTime: 0,
+          status: statusType.closed,
+        };
+      }
+
+      const openingTimes = entry.OpeningTimes;
+
+      return {
+        restaurantID: entry.Id,
+        openingTime: moment(openingTimes[0].HourFrom).format(),
+        closingTime: moment(openingTimes[0].HourTo).format(),
+        type: scheduleType.operating,
+      };
+    }).filter((x) => x !== undefined);
+  }
+
+  /**
+   * Helper function to build a basic entity document
+   * Useful to avoid copy/pasting
+   * @param {object} data 
+   * @returns {object}
+   */
+  buildBaseEntityObject(data) {
+    const entity = Destination.prototype.buildBaseEntityObject.call(this, data);
+
+    entity._id = data?.id || entity._id;
+    entity.name = data?.name || entity.name;
+
+    // add location (if found)
+    if (data?.location !== undefined) {
+      entity.location = {
+        longitude: data.location.longitude,
+        latitude: data.location.latitude,
+      };
+    }
+
+    // TODO - extra facet data
+    /*
+    // look for any other useful tags
+    // may get wet
+    await this.toggleAttractionTag(id, tagType.mayGetWet, p.props.indexOf('wet') >= 0);
+    // tag "pregnant people should not ride" attractions
+    await this.toggleAttractionTag(
+      id,
+      tagType.unsuitableForPregnantPeople,
+      p.props.indexOf('pregnantwomen') >= 0,
+    );
+
+    // single rider queue available?
+    await this.setAttractionTag(
+      id,
+      null,
+      tagType.singleRider,
+      !!p.singleRiderId,
+    );
+
+    // look for attraction minimum height
+    const minHeightProp = p.props.find((prop) => prop.indexOf('minimum') === 0);
+    if (minHeightProp !== undefined) {
+      const minHeightNumber = Number(minHeightProp.slice(7));
+      if (!isNaN(minHeightNumber)) {
+        await this.setAttractionTag(id, 'minimumHeight', tagType.minimumHeight, {
+          height: minHeightNumber,
+          unit: 'cm',
+        });
+      }
+    }*/
+
+    return entity;
+  }
+
+  /**
+   * Build the destination entity representing this destination
+   */
+  async buildDestinationEntity() {
+    return {
+      ...this.buildBaseEntityObject({
+        name: "Efteling Themepark Resort",
+      }),
+      _id: 'eftelingresort',
+      slug: 'eftelingresort',
+      entityType: entityType.destination,
+    };
+  }
+
+  /**
+   * Build the park entities for this destination
+   */
+  async buildParkEntities() {
+    const destination = await this.buildDestinationEntity();
+    return [
+      {
+        ...this.buildBaseEntityObject({
+          name: this.config.name,
+        }),
+        _id: 'efteling',
+        _destinationId: destination._id,
+        _parentId: destination._id,
+        slug: 'efteling',
+        entityType: entityType.park,
+      },
+    ];
+  }
+
+  async _buildArrayOfEntitiesOfType(type, fields = {}) {
+    const destination = await this.buildDestinationEntity();
+    const poi = await this.getPOIData();
+
+    // some valid attraction types from the Efteling API:
+    // 'attraction', 'show', 'merchandise', 'restaurant', 'fairytale', 'facilities-toilets', 'facilities-generic', 'eventlocation', 'game'
+
+    const attrs = [];
+
+    const poiKeys = Object.keys(poi);
+    for (let i = 0; i &lt; poiKeys.length; i++) {
+      const id = poiKeys[i];
+      const p = poi[id];
+
+      // if poi data matches our wanted types
+      if (p.type === type) {
+        const attr = {
+          ...fields,
+          ...this.buildBaseEntityObject(p),
+          _destinationId: destination._id,
+          // TODO - are all rides/shows inside the park?
+          _parkId: 'efteling',
+          _parentId: 'efteling',
+        };
+
+        attrs.push(attr);
+      }
+    }
+
+    return attrs;
+  }
+
+  /**
+   * Build the attraction entities for this destination
+   */
+  async buildAttractionEntities() {
+    return this._buildArrayOfEntitiesOfType('attraction', {
+      entityType: entityType.attraction,
+      attractionType: attractionType.ride,
+    });
+  }
+
+  /**
+   * Build the show entities for this destination
+   */
+  async buildShowEntities() {
+    return this._buildArrayOfEntitiesOfType('show', {
+      entityType: entityType.show,
+    });
+  }
+
+  /**
+   * Build the restaurant entities for this destination
+   */
+  async buildRestaurantEntities() {
+    // TODO
+    return [];
+  }
+
+  async _fetchWaitTimes() {
+    // cache 1 minute
+    '@cache|1';
+    return (await this.http('GET', this.config.waitTimesUrl, {
+      language: 'en',
+    })).body;
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async buildEntityLiveData() {
+    const poiData = await this.getPOIData();
+
+    // this function should return all the live data for all entities in this destination
+    const waitTimes = await this._fetchWaitTimes();
+
+    const attractions = waitTimes?.AttractionInfo;
+    if (!attractions) throw new Error('Efteling wait times response missing AttractionInfo');
+
+    const livedata = [];
+
+    // first, look for single-rider entries
+    const singleRiderData = [];
+    for (let i = 0; i &lt; attractions.length; i++) {
+      const entry = attractions[i];
+      if (poiData[entry.Id] === undefined) {
+        // if we don't have POI data for this attraction, check for single rider IDs and update the main attraction
+        const singleRiderPOI = Object.keys(poiData).find((k) => {
+          return poiData[k].singleRiderId &amp;&amp; poiData[k].singleRiderId === entry.Id;
+        });
+
+        if (singleRiderPOI !== undefined) {
+          // we have found a matching single-rider entry!
+          singleRiderData.push({
+            id: singleRiderPOI,
+            time: parseInt(entry.WaitingTime, 10),
+          });
+        }
+      }
+    }
+
+    for (let i = 0; i &lt; attractions.length; i++) {
+      const entry = attractions[i];
+      if (entry.Type !== 'Attraction' &amp;&amp; entry.Type !== 'Attracties') continue;
+      if (poiData[entry.Id] === undefined) continue;
+
+      const live = {
+        _id: entry.Id,
+      };
+
+      let rideStatus = null;
+      const rideWaitTime = parseInt(entry.WaitingTime, 10);
+      const rideState = entry.State.toLowerCase();
+      // update ride with wait time data
+      if (rideState === 'storing' || rideState === 'tijdelijkbuitenbedrijf') {
+        // Ride down because of an interruption
+        rideStatus = statusType.down;
+      } else if (rideState === 'buitenbedrijf') {
+        // ride is closed "for the day"
+        rideStatus = statusType.closed;
+      } else if (rideState === 'inonderhoud') {
+        // Ride down because of maintenance/refurbishment
+        rideStatus = statusType.refurbishment;
+      } else if (rideState === 'gesloten' || rideState === '' || rideState === 'wachtrijgesloten' || rideState === 'nognietopen') {
+        // ride is "closed"
+        rideStatus = statusType.closed;
+      } else if (rideState === 'open') {
+        // Ride operating
+        rideStatus = statusType.operating;
+      }
+
+      if (rideStatus === null) {
+        this.emit('error', new Error(`Unknown Efteling rideStatus ${JSON.stringify(rideState)}`));
+        console.log('Unknown Efteling rideStatus', JSON.stringify(rideState));
+      }
+
+      live.status = rideStatus;
+      live.queue = {
+        [queueType.standBy]: {
+          waitTime: rideStatus == statusType.operating ? rideWaitTime : null,
+        },
+      };
+
+      // add any single rider data (if available)
+      const singleRider = singleRiderData.find((x) => x.id === entry.Id);
+      if (singleRider) {
+        live.queue[queueType.singleRider] = {
+          waitTime: rideStatus == statusType.operating ? singleRider.time : null,
+        };
+      }
+
+      livedata.push(live);
+    }
+
+    return livedata;
+  }
+
+  /**
+   * Return schedule data for all scheduled entities in this destination
+   * Eg. parks
+   * @returns {array&lt;object>}
+   */
+  async buildEntityScheduleData() {
+    // get operating hours for next x months
+    const parkSchedule = [];
+
+    const now = this.getTimeNowMoment();
+    const monthsToFetch = 3;
+    const end = now.clone().add(monthsToFetch, 'months');
+    for (; now.isSameOrBefore(end, 'month'); now.add(1, 'month')) {
+      const calData = await this.getCalendarMonth(now.format('M'), now.format('YYYY'));
+      if (calData === undefined) continue;
+
+      calData.OpeningHours.forEach((x) => {
+        const date = moment.tz(x.Date, 'YYYY-MM-DD', this.config.timezone);
+        x.OpeningHours.sort((a, b) => a.Open - b.Open);
+        x.OpeningHours.forEach((d, idx) => {
+          const open = d.Open.split(':').map(Number);
+          const close = d.Close.split(':').map(Number);
+          parkSchedule.push({
+            date: date.format('YYYY-MM-DD'),
+            openingTime: date.clone().set('hour', open[0]).set('minute', open[1]).format(),
+            closingTime: date.clone().set('hour', close[0]).set('minute', close[1]).format(),
+            type: idx === 0 ? scheduleType.operating : scheduleType.informational,
+            description: idx === 0 ? undefined : 'Evening Hours',
+          });
+        });
+      });
+    }
+
+    return [
+      {
+        _id: 'efteling',
+        schedule: parkSchedule,
+      }
+    ];
+  }
+
+}
+
+export default Efteling;
 </code></pre>
-<!-- END_ENV --></article>
+        </article>
     </section>
-
-
 
 
 

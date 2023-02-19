@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>Home - Documentation</title>
+    <title>parks/phantasialand/phantasialand.js - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -35,292 +35,423 @@
 
 <div id="main">
     
+    <h1 class="page-title">parks/phantasialand/phantasialand.js</h1>
+    
 
     
 
 
 
     
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import {Destination} from '../destination.js';
+import {attractionType, statusType, queueType, tagType, scheduleType, entityType} from '../parkTypes.js';
 
+import {v4 as uuidv4} from 'uuid';
 
-    <section class="package">
-        <h3> </h3>		
-    </section>
+import sift from 'sift';
+import moment from 'moment-timezone';
 
+import cheerio from 'cheerio';
 
+export class Phantasialand extends Destination {
+  constructor(options = {}) {
+    options.timezone = options.timezone || 'Europe/Berlin';
 
+    options.apiBase = options.apiBase || '';
 
+    super(options);
 
+    if (!this.config.apiBase) throw new Error('Missing API Base URL (apiBase)');
 
+    const baseURLHostname = new URL(this.config.apiBase).hostname;
 
+    this.http.useragent = 'okhttp/3.12.1';
 
+    this.http.injectForDomain({
+      hostname: baseURLHostname,
+    }, async (method, url, data, options) => {
+      const isLoginRequest = url.indexOf('app-users') >= 0;
+      if (!isLoginRequest &amp;&amp; method === 'GET') {
+        // fetch our cached access token
+        data.access_token = await this.fetchAccessToken();
+      }
+    });
 
-    
+    // similarly, we can also inject into HTTP responses
+    //  if we detect an unauthorised response, we can unset our local auth tokens so they are refetched
+    this.http.injectForDomainResponse({
+      hostname: baseURLHostname,
+    }, async (response) => {
+      // look for 401 HTTP code (unauthorised)
+      if (response.statusCode === 401) {
+        // clear our access token on unauthorised responses
+        await this._clearFunctionCache('fetchAccessToken');
+        return undefined;
+      }
 
+      // otherwise, return the actual response
+      return response;
+    });
+  }
 
+  /**
+   * Create or fetch existing user for app login
+   */
+  async createUser() {
+    '@cache|481801'; // cache 11 months
 
-    <section class="readme usertext">
-        <article><h1>ThemeParks.wiki Parks API</h1>
-<p><img src="https://github.com/ThemeParks/parksapi/workflows/Unit%20Test/badge.svg" alt="Unit Test"> <img src="https://github.com/ThemeParks/parksapi/workflows/ESDoc/badge.svg" alt="Documentation Build"></p>
-<p><a href="https://themeparks.github.io/parksapi/">API Documentation</a></p>
-<p>This is a backend module to fetch and query live data for themeparks. This source code powers the free-to-use API at <a href="https://themeparks.wiki">ThemeParks.wiki</a></p>
-<p>To fetch data from the API, you should look at the client libraries:</p>
-<ul>
-<li>https://github.com/ThemeParks/ThemeParks_JavaScript</li>
-<li>https://github.com/ThemeParks/ThemeParks_Python</li>
-</ul>
-<p>Fetching and parsing logic is provided in this source code. Most parks require some form of credentials, which are not supplied in this repo. You will need to source these yourself.</p>
-<p>General support is available for the ThemeParks.wiki API, and not this source code (except for Sponsors with support benefits).</p>
-<p><code>test.js</code> contains a basic set of sanity checks and output validation, which also shows how a destination object can be accessed.</p>
-<p>Each destination generates <em>entities</em>. Entities can be of various types:</p>
-<ul>
-<li>Destinations
-<ul>
-<li>i.e, Resorts</li>
-<li>These are not called resorts to avoid confusion for parks that are not part of resorts</li>
-<li>eg. Walt Disney World Resort</li>
-</ul>
-</li>
-<li>Parks
-<ul>
-<li>All parks must be within a Destination entity</li>
-<li>eg. Magic Kingdom</li>
-</ul>
-</li>
-<li>Attraction
-<ul>
-<li>A ride / transport / etc.</li>
-<li>Attraction entities must be within a Destination entity (usually also within a park, but not always)</li>
-<li>eg. Pirates of the Carribean</li>
-</ul>
-</li>
-<li>Resturant
-<ul>
-<li>A dining location within a destination</li>
-<li>eg. Casey's Corner</li>
-</ul>
-</li>
-<li>Show
-<ul>
-<li>A show / parade entity with scheduled show times</li>
-<li>eg. Main Street Electrical Parade</li>
-</ul>
-</li>
-</ul>
-<p><em>Entity Types Being Finalised - Destinations, Parks, and Attractions however, are well supported and unlikely to change</em></p>
-<h2>Adding Destinations</h2>
-<p>Best current documentation for this is to check out <code>scripts/templateDestination.js</code> and look at the existing supported destinations.</p>
-<p>Setup <code>index.js</code> with your new class, and edit <code>test.js</code> to test your destination to check everything is setup correctly.</p>
-<h2>Destinations</h2>
-<!-- BEGIN_DESTINATIONS -->
-<ul>
-<li>WaltDisneyWorldResort</li>
-<li>DisneylandResort</li>
-<li>DisneylandParis</li>
-<li>TokyoDisneyResort</li>
-<li>HongKongDisneyland</li>
-<li>ShanghaiDisneylandResort</li>
-<li>UniversalStudios</li>
-<li>UniversalOrlando</li>
-<li>EuropaPark</li>
-<li>Efteling</li>
-<li>Phantasialand</li>
-<li>SeaworldOrlando</li>
-<li>SeaworldSanAntonio</li>
-<li>SeaworldSanDiego</li>
-<li>AltonTowers</li>
-<li>ThorpePark</li>
-<li>ChessingtonWorldOfAdventures</li>
-<li>LegolandWindsor</li>
-<li>LegolandOrlando</li>
-<li>Gardaland</li>
-<li>PortAventuraWorld</li>
-<li>ParcAsterix</li>
-<li>Toverland</li>
-<li>Dollywood</li>
-<li>SilverDollarCity</li>
-<li>Plopsaland</li>
-<li>HolidayPark</li>
-</ul>
-<!-- END_DESTINATIONS -->
-<h2>Configuration</h2>
-<p>Destination objects can be configured by either passing an object of variables into the constructor, or using environment variables (the preferred way).</p>
-<p>To use environment variables, create a file called <code>.env</code> in the working directory of your project.</p>
-<p>Environment variables are structured as:</p>
-<ul>
-<li>Class name (upper case)</li>
-<li>Underscore _</li>
-<li>Variable name (upper case)</li>
-</ul>
-<p>For example, the class <code>WaltDisneyWorldResort</code> has a <code>resortId</code> configuration variable which can be loaded through the environment variable <code>WALTDISNEYWORLDRESORT_RESORTID</code></p>
-<p>Some classes expose &quot;parent scopes&quot; to allow configuring environment variables once for a range of destinations. For example, Attractions.io's base URL can be configured once through <code>ATTRACTIONSIO_BASEURL</code> rather than configuring it identically for every destination.</p>
-<p>Environment Variables (auto-generated):</p>
-<!-- BEGIN_ENV -->
-<pre class="prettyprint source"><code>WALTDISNEYWORLDRESORT_RESORTID
-WALTDISNEYWORLDRESORT_RESORTSHORTCODE
-WALTDISNEYWORLDRESORT_PARKIDS
-WALTDISNEYWORLDRESORT_VIRTUALQUEUEURL
-WALTDISNEYWORLDRESORT_GENIEDATA
-DISNEYLANDRESORT_RESORTID
-DISNEYLANDRESORT_RESORTSHORTCODE
-DISNEYLANDRESORT_PARKIDS
-DISNEYLANDRESORT_VIRTUALQUEUEURL
-DISNEYLANDRESORT_GENIEDATA
-DISNEYLANDPARIS_APIKEY
-DISNEYLANDPARIS_APIBASE
-DISNEYLANDPARIS_APIBASEWAITTIMES
-DISNEYLANDPARIS_LANGUAGE
-DISNEYLANDPARIS_STANDBYAPIBASE
-DISNEYLANDPARIS_STANDBYAPIKEY
-DISNEYLANDPARIS_STANDBYAUTHURL
-DISNEYLANDPARIS_STANDBYAPIREFRESHTOKEN
-DISNEYLANDPARIS_PREMIERACCESSAPIKEY
-DISNEYLANDPARIS_PREMIERACCESSURL
-DISNEYLANDPARIS_USERAGENT
-TOKYODISNEYRESORT_APIKEY
-TOKYODISNEYRESORT_APIAUTH
-TOKYODISNEYRESORT_APIOS
-TOKYODISNEYRESORT_APIBASE
-TOKYODISNEYRESORT_APIVERSION
-TOKYODISNEYRESORT_PARKIDS
-HONGKONGDISNEYLAND_RESORTID
-HONGKONGDISNEYLAND_RESORTSHORTCODE
-HONGKONGDISNEYLAND_PARKIDS
-HONGKONGDISNEYLAND_VIRTUALQUEUEURL
-HONGKONGDISNEYLAND_GENIEDATA
-SHANGHAIDISNEYLANDRESORT_APIBASE
-SHANGHAIDISNEYLANDRESORT_APIAUTH
-SHANGHAIDISNEYLANDRESORT_PARKIDS
-UNIVERSALSTUDIOS_CITY
-UNIVERSALSTUDIOS_RESORTSLUG
-UNIVERSALSTUDIOS_SECRETKEY
-UNIVERSALSTUDIOS_APPKEY
-UNIVERSALSTUDIOS_VQUEUEURL
-UNIVERSALSTUDIOS_BASEURL
-UNIVERSALORLANDO_CITY
-UNIVERSALORLANDO_RESORTSLUG
-UNIVERSALORLANDO_SECRETKEY
-UNIVERSALORLANDO_APPKEY
-UNIVERSALORLANDO_VQUEUEURL
-UNIVERSALORLANDO_BASEURL
-EUROPAPARK_PARKS
-EFTELING_APIKEY
-EFTELING_APIVERSION
-EFTELING_APPVERSION
-EFTELING_SEARCHURL
-EFTELING_WAITTIMESURL
-PHANTASIALAND_APIBASE
-SEAWORLDORLANDO_RESORTIDS
-SEAWORLDORLANDO_RESORTID
-SEAWORLDORLANDO_RESORTSLUG
-SEAWORLDORLANDO_APPID
-SEAWORLDORLANDO_BASEURL
-SEAWORLDSANANTONIO_RESORTIDS
-SEAWORLDSANANTONIO_RESORTID
-SEAWORLDSANANTONIO_RESORTSLUG
-SEAWORLDSANANTONIO_APPID
-SEAWORLDSANANTONIO_BASEURL
-SEAWORLDSANDIEGO_RESORTIDS
-SEAWORLDSANDIEGO_RESORTID
-SEAWORLDSANDIEGO_RESORTSLUG
-SEAWORLDSANDIEGO_APPID
-SEAWORLDSANDIEGO_BASEURL
-ALTONTOWERS_DESTINATIONID
-ALTONTOWERS_PARKID
-ALTONTOWERS_INITIALDATAVERSION
-ALTONTOWERS_APPBUILD
-ALTONTOWERS_APPVERSION
-ALTONTOWERS_BASEURL
-ALTONTOWERS_DEVICEIDENTIFIER
-ALTONTOWERS_APIKEY
-ALTONTOWERS_CALENDARURL
-THORPEPARK_DESTINATIONID
-THORPEPARK_PARKID
-THORPEPARK_INITIALDATAVERSION
-THORPEPARK_APPBUILD
-THORPEPARK_APPVERSION
-THORPEPARK_BASEURL
-THORPEPARK_DEVICEIDENTIFIER
-THORPEPARK_APIKEY
-THORPEPARK_CALENDARURL
-CHESSINGTONWORLDOFADVENTURES_DESTINATIONID
-CHESSINGTONWORLDOFADVENTURES_PARKID
-CHESSINGTONWORLDOFADVENTURES_INITIALDATAVERSION
-CHESSINGTONWORLDOFADVENTURES_APPBUILD
-CHESSINGTONWORLDOFADVENTURES_APPVERSION
-CHESSINGTONWORLDOFADVENTURES_BASEURL
-CHESSINGTONWORLDOFADVENTURES_DEVICEIDENTIFIER
-CHESSINGTONWORLDOFADVENTURES_APIKEY
-CHESSINGTONWORLDOFADVENTURES_CALENDARURL
-LEGOLANDWINDSOR_DESTINATIONID
-LEGOLANDWINDSOR_PARKID
-LEGOLANDWINDSOR_INITIALDATAVERSION
-LEGOLANDWINDSOR_APPBUILD
-LEGOLANDWINDSOR_APPVERSION
-LEGOLANDWINDSOR_BASEURL
-LEGOLANDWINDSOR_DEVICEIDENTIFIER
-LEGOLANDWINDSOR_APIKEY
-LEGOLANDWINDSOR_CALENDARURL
-LEGOLANDORLANDO_DESTINATIONID
-LEGOLANDORLANDO_PARKID
-LEGOLANDORLANDO_INITIALDATAVERSION
-LEGOLANDORLANDO_APPBUILD
-LEGOLANDORLANDO_APPVERSION
-LEGOLANDORLANDO_BASEURL
-LEGOLANDORLANDO_DEVICEIDENTIFIER
-LEGOLANDORLANDO_APIKEY
-LEGOLANDORLANDO_CALENDARURL
-GARDALAND_DESTINATIONID
-GARDALAND_PARKID
-GARDALAND_INITIALDATAVERSION
-GARDALAND_APPBUILD
-GARDALAND_APPVERSION
-GARDALAND_BASEURL
-GARDALAND_DEVICEIDENTIFIER
-GARDALAND_APIKEY
-GARDALAND_CALENDARURL
-PORTAVENTURAWORLD_APIBASE
-PARCASTERIX_APIBASE
-PARCASTERIX_LANGUAGE
-TOVERLAND_APIBASE
-TOVERLAND_CALENDARURL
-TOVERLAND_AUTHTOKEN
-TOVERLAND_LANGUAGES
-DOLLYWOOD_DESTINATIONID
-DOLLYWOOD_DESTINATIONSLUG
-DOLLYWOOD_CRMBASEURL
-DOLLYWOOD_CRMGUID
-DOLLYWOOD_CRMATTRACTIONSID
-DOLLYWOOD_CRMDININGID
-DOLLYWOOD_CRMSHOWID
-DOLLYWOOD_APIBASE
-DOLLYWOOD_CRMAUTH
-SILVERDOLLARCITY_DESTINATIONID
-SILVERDOLLARCITY_DESTINATIONSLUG
-SILVERDOLLARCITY_CRMBASEURL
-SILVERDOLLARCITY_CRMGUID
-SILVERDOLLARCITY_CRMATTRACTIONSID
-SILVERDOLLARCITY_CRMDININGID
-SILVERDOLLARCITY_CRMSHOWID
-SILVERDOLLARCITY_APIBASE
-SILVERDOLLARCITY_CRMAUTH
-PLOPSALAND_DESTINATIONSLUG
-PLOPSALAND_PARKSLUG
-PLOPSALAND_BASEURL
-PLOPSALAND_BASELANG
-PLOPSALAND_CLIENTID
-PLOPSALAND_CLIENTSECRET
-HOLIDAYPARK_DESTINATIONSLUG
-HOLIDAYPARK_PARKSLUG
-HOLIDAYPARK_BASEURL
-HOLIDAYPARK_BASELANG
-HOLIDAYPARK_CLIENTID
-HOLIDAYPARK_CLIENTSECRET
+    // generate login
+    const username = `${uuidv4()}@android.com`;
+    const password = uuidv4();
+
+    // create our user
+    const userCreationResp = await this.http(
+      'POST',
+      `${this.config.apiBase}app-users`,
+      {
+        "email": username,
+        "language": "en",
+        "password": password,
+        "platform": "android"
+      },
+      {
+        json: true,
+      },
+    );
+
+    if (userCreationResp.body.email !== username) {
+      return undefined;
+    }
+
+    return {
+      "email": username,
+      "password": password,
+    };
+  }
+
+  /**
+   * Fetch cached access token, or fetch new one if expired
+   * @returns {string}
+   */
+  async fetchAccessToken() {
+    '@cache|481801'; // cache 11 months
+
+    // create user
+    const user = await this.createUser();
+    if (user === undefined) {
+      return undefined;
+    }
+
+    // login and get access token
+    const accessTokenResp = await this.http(
+      'POST',
+      `${this.config.apiBase}app-users/login`,
+      {
+        "email": user.email,
+        "password": user.password,
+        "ttl": 31556926, // 1 year, matching app behaviour
+      },
+      {
+        json: true,
+      },
+    );
+
+    this.log('Got new access token', accessTokenResp?.body?.id);
+
+    // return our new access token
+    return accessTokenResp?.body?.id;
+  }
+
+  /**
+   * Get the POI data objects from the API
+   * @returns {Array&lt;Object>}
+   */
+  async getPOIData() {
+    '@cache|360'; // cache 6 hours
+    const POI = await this.http(
+      'GET',
+      `${this.config.apiBase}pois`,
+      {
+        'filter[where][seasons][like]': '%',
+        compact: true,
+      },
+    );
+
+    return POI.body;
+  }
+
+  /**
+   * Helper function to build a basic entity document
+   * Useful to avoid copy/pasting
+   * @param {object} data 
+   * @returns {object}
+   */
+  buildBaseEntityObject(data) {
+    const entity = super.buildBaseEntityObject(data);
+
+    if (data) {
+      if (data.adminOnly) return undefined;
+
+      // not on the map, ignore
+      if (!data.poiNumber) {
+        return undefined;
+      }
+
+      // if has no seasons, ignore
+      if (!data.seasons || data.seasons.length === 0) {
+        return undefined;
+      }
+
+      if (data.id !== undefined) {
+        entity._id = `${data.id}`;
+      }
+
+      // entity name
+      entity.name = data.title?.en || data._title?.en || data.title?.de || data._title?.de || undefined;
+
+      // entity location
+      const location = data.entrance?.world || data._entrance?.world;
+      if (location) {
+        entity.location = {
+          longitude: location.lng,
+          latitude: location.lat,
+        };
+      }
+    }
+
+    return entity;
+  }
+
+  /**
+   * Build the destination entity representing this destination
+   */
+  async buildDestinationEntity() {
+    return {
+      ...this.buildBaseEntityObject(null),
+      _id: 'phantasialanddest',
+      slug: 'phantasialand', // all destinations must have a unique slug
+      name: 'Phantasialand',
+      entityType: entityType.destination,
+    };
+  }
+
+  /**
+   * Build the park entities for this destination
+   */
+  async buildParkEntities() {
+    return [
+      {
+        ...this.buildBaseEntityObject(null),
+        _id: 'phantasialand',
+        _destinationId: 'phantasialanddest',
+        _parentId: 'phantasialanddest',
+        slug: 'phantasialandpark',
+        name: 'Phantasialand',
+        entityType: entityType.park,
+      }
+    ];
+  }
+
+  async _buildEntitiesFromCategory(filter, extraFields = {}) {
+    const entities = await this.getPOIData();
+
+    return entities.filter(sift(filter)).map((x) => {
+      const ent = this.buildBaseEntityObject(x);
+      if (!ent) return undefined;
+      return {
+        ...ent,
+        _destinationId: 'phantasialanddest',
+        _parentId: 'phantasialand',
+        _parkId: 'phantasialand',
+        ...extraFields,
+      };
+    }).filter((x) => !!x);
+  }
+
+  /**
+   * Build the attraction entities for this destination
+   */
+  async buildAttractionEntities() {
+    return await this._buildEntitiesFromCategory({
+      category: 'ATTRACTIONS',
+    }, {
+      entityType: entityType.attraction,
+      attractionType: attractionType.ride,
+    });
+  }
+
+  /**
+   * Build the show entities for this destination
+   */
+  async buildShowEntities() {
+    return await this._buildEntitiesFromCategory({
+      category: {
+        $or: ['SHOWS', 'THE_SIX_DRAGONS', 'THEATER'],
+      },
+    }, {
+      entityType: entityType.show,
+    });
+  }
+
+  /**
+   * Build the restaurant entities for this destination
+   */
+  async buildRestaurantEntities() {
+    return await this._buildEntitiesFromCategory({
+      category: {
+        $or: ['RESTAURANTS_AND_SNACKS', 'PHANTASIALAND_HOTELS_RESTAURANTS'],
+      },
+      tags: {
+        $elemMatch: 'RESTAURANT',
+      },
+    }, {
+      entityType: entityType.restaurant,
+    });
+  }
+
+  /**
+   * Get a random lat/lon position within this destination
+   */
+  getRandomLocation() {
+    return {
+      longitude: 6.878342628 + (Math.random() * (6.877570152 - 6.878342628)),
+      latitude: 50.800659529 + (Math.random() * (50.799683077 - 50.800659529)),
+    };
+  }
+
+  /**
+   * Fetch live data from API
+   */
+  async fetchLiveData() {
+    '@cache|1'; // cache 1 minute
+    const randomLoc = this.getRandomLocation();
+
+    const waitData = await this.http('GET',
+      `${this.config.apiBase}signage-snapshots`,
+      {
+        loc: `${randomLoc.latitude.toFixed(14)},${randomLoc.longitude.toFixed(14)}`,
+      },
+    );
+
+    return waitData?.body;
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async buildEntityLiveData() {
+    const liveData = await this.fetchLiveData();
+
+    return liveData.map((x) => {
+      const liveData = {
+        _id: `${x.poiId}`,
+        status: statusType.operating,
+      };
+
+      if (x.showTimes !== null) {
+        liveData.status = x.showTimes.length > 0 ? statusType.operating : statusType.closed;
+        liveData.showtimes = x.showTimes.map((x) => {
+          return {
+            type: "Performance Time",
+            startTime: moment.tz(x, "YYYY-MM-DD HH:mm:ss", this.config.timezone).format(),
+            // return null for endTime as we don't have a show length available
+            endTime: null,
+          };
+        });
+      }
+
+      if (x.waitTime !== null) {
+        liveData.status = x.open ? statusType.operating : statusType.closed;
+        liveData.queue = {
+          [queueType.standBy]: {
+            waitTime: x.waitTime,
+          },
+        };
+      }
+
+      if (x.waitTime === null &amp;&amp; x.showTimes === null &amp;&amp; x.open !== null) {
+        liveData.status = x.open ? statusType.operating : statusType.closed;
+      }
+
+      return liveData;
+    }).filter((x) => !!x);
+  }
+
+  /**
+   * Fetch calendar HTML data
+   */
+  async fetchCalendarData() {
+    '@cache|120';
+    const html = await this.http('GET', 'https://www.phantasialand.de/en/theme-park/opening-hours/');
+    return html.body;
+  }
+
+  /**
+   * Parse calendar data JSON from webpage
+   */
+  async getCalendarJSON() {
+    const data = await this.fetchCalendarData();
+    if (!data) return null;
+
+    try {
+      const $ = cheerio.load(data);
+      const json = $('.phl-date-picker');
+      const jsonData = JSON.parse(json.attr('data-calendar'));
+      return jsonData;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * Return schedule data for all scheduled entities in this destination
+   * Eg. parks
+   * @returns {array&lt;object>}
+   */
+  async buildEntityScheduleData() {
+    const calendarData = await this.getCalendarJSON();
+
+    if (!calendarData) return [];
+
+    const parkSchedule = [];
+
+    const hoursRegex = /([0-9]{1,2}):([0-9]{2}).*\s([0-9]{1,2}):([0-9]{2})/;
+
+    calendarData.forEach((x) => {
+      // skip closed entries
+      if (x.title_en === 'Closed') return;
+
+      if (!x.days_selected) return;
+
+      const openingTimes = hoursRegex.exec(x.title);
+      if (openingTimes) {
+        const openingTime = moment.tz(`${openingTimes[1]}:${openingTimes[2]}`, 'HH:mm', this.config.timezone);
+        const closingTime = moment.tz(`${openingTimes[3]}:${openingTimes[4]}`, 'HH:mm', this.config.timezone);
+
+        x.days_selected.forEach((day) => {
+          parkSchedule.push({
+            "date": day,
+            "type": "OPERATING",
+            "openingTime": moment.tz(`${day} ${openingTime.format('HH:mm')}`, 'YYYY-MM-DD HH:mm', this.config.timezone).format(),
+            "closingTime": moment.tz(`${day} ${closingTime.format('HH:mm')}`, 'YYYY-MM-DD HH:mm', this.config.timezone).format(),
+          });
+        });
+      }
+    });
+
+    return [
+      {
+        _id: 'phantasialand',
+        schedule: parkSchedule,
+      },
+    ];
+  }
+}
 </code></pre>
-<!-- END_ENV --></article>
+        </article>
     </section>
-
-
 
 
 

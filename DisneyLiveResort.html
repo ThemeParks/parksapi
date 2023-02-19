@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>Home - Documentation</title>
+    <title>DisneyLiveResort - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -35,17 +35,86 @@
 
 <div id="main">
     
+    <h1 class="page-title">DisneyLiveResort</h1>
+    
 
     
 
 
 
+
+<section>
+
+<header>
+    
+        <h2>
+        
+            DisneyLiveResort
+        
+        </h2>
+        
+            <div class="class-description usertext">A Resort class for a Disney live resort (WDW, DLR, HKDR)</div>
+        
+    
+</header>
+
+<article>
+    
+        <div class="container-overview">
+        
+            
+
+    
+    <h2>Constructor</h2>
+    
+
+    <h4 class="name" id="DisneyLiveResort"><span class="type-signature"></span>new DisneyLiveResort<span class="signature">()</span><span class="type-signature"></span></h4>
+
     
 
 
-    <section class="package">
-        <h3> </h3>		
-    </section>
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_wdw_waltdisneyworldbase.js.html">parks/wdw/waltdisneyworldbase.js</a>, <a href="parks_wdw_waltdisneyworldbase.js.html#line33">line 33</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
 
 
 
@@ -54,273 +123,1762 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+        </div>
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Classes</h3>
+
+        <dl>
+            <dt><a href="DisneyLiveResort.html">DisneyLiveResort</a></dt>
+            <dd></dd>
+        </dl>
+    
+    
+    
+
+     
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Methods</h3>
+
+        
+            
+
+    
+
+    <h4 class="name" id="_fetchRestaurantMenu"><span class="type-signature type-signature-async, private">(async, private) </span>_fetchRestaurantMenu<span class="signature">(id)</span><span class="type-signature"></span></h4>
 
     
 
 
 
-    <section class="readme usertext">
-        <article><h1>ThemeParks.wiki Parks API</h1>
-<p><img src="https://github.com/ThemeParks/parksapi/workflows/Unit%20Test/badge.svg" alt="Unit Test"> <img src="https://github.com/ThemeParks/parksapi/workflows/ESDoc/badge.svg" alt="Documentation Build"></p>
-<p><a href="https://themeparks.github.io/parksapi/">API Documentation</a></p>
-<p>This is a backend module to fetch and query live data for themeparks. This source code powers the free-to-use API at <a href="https://themeparks.wiki">ThemeParks.wiki</a></p>
-<p>To fetch data from the API, you should look at the client libraries:</p>
-<ul>
-<li>https://github.com/ThemeParks/ThemeParks_JavaScript</li>
-<li>https://github.com/ThemeParks/ThemeParks_Python</li>
-</ul>
-<p>Fetching and parsing logic is provided in this source code. Most parks require some form of credentials, which are not supplied in this repo. You will need to source these yourself.</p>
-<p>General support is available for the ThemeParks.wiki API, and not this source code (except for Sponsors with support benefits).</p>
-<p><code>test.js</code> contains a basic set of sanity checks and output validation, which also shows how a destination object can be accessed.</p>
-<p>Each destination generates <em>entities</em>. Entities can be of various types:</p>
-<ul>
-<li>Destinations
-<ul>
-<li>i.e, Resorts</li>
-<li>These are not called resorts to avoid confusion for parks that are not part of resorts</li>
-<li>eg. Walt Disney World Resort</li>
-</ul>
-</li>
-<li>Parks
-<ul>
-<li>All parks must be within a Destination entity</li>
-<li>eg. Magic Kingdom</li>
-</ul>
-</li>
-<li>Attraction
-<ul>
-<li>A ride / transport / etc.</li>
-<li>Attraction entities must be within a Destination entity (usually also within a park, but not always)</li>
-<li>eg. Pirates of the Carribean</li>
-</ul>
-</li>
-<li>Resturant
-<ul>
-<li>A dining location within a destination</li>
-<li>eg. Casey's Corner</li>
-</ul>
-</li>
-<li>Show
-<ul>
-<li>A show / parade entity with scheduled show times</li>
-<li>eg. Main Street Electrical Parade</li>
-</ul>
-</li>
-</ul>
-<p><em>Entity Types Being Finalised - Destinations, Parks, and Attractions however, are well supported and unlikely to change</em></p>
-<h2>Adding Destinations</h2>
-<p>Best current documentation for this is to check out <code>scripts/templateDestination.js</code> and look at the existing supported destinations.</p>
-<p>Setup <code>index.js</code> with your new class, and edit <code>test.js</code> to test your destination to check everything is setup correctly.</p>
-<h2>Destinations</h2>
-<!-- BEGIN_DESTINATIONS -->
-<ul>
-<li>WaltDisneyWorldResort</li>
-<li>DisneylandResort</li>
-<li>DisneylandParis</li>
-<li>TokyoDisneyResort</li>
-<li>HongKongDisneyland</li>
-<li>ShanghaiDisneylandResort</li>
-<li>UniversalStudios</li>
-<li>UniversalOrlando</li>
-<li>EuropaPark</li>
-<li>Efteling</li>
-<li>Phantasialand</li>
-<li>SeaworldOrlando</li>
-<li>SeaworldSanAntonio</li>
-<li>SeaworldSanDiego</li>
-<li>AltonTowers</li>
-<li>ThorpePark</li>
-<li>ChessingtonWorldOfAdventures</li>
-<li>LegolandWindsor</li>
-<li>LegolandOrlando</li>
-<li>Gardaland</li>
-<li>PortAventuraWorld</li>
-<li>ParcAsterix</li>
-<li>Toverland</li>
-<li>Dollywood</li>
-<li>SilverDollarCity</li>
-<li>Plopsaland</li>
-<li>HolidayPark</li>
-</ul>
-<!-- END_DESTINATIONS -->
-<h2>Configuration</h2>
-<p>Destination objects can be configured by either passing an object of variables into the constructor, or using environment variables (the preferred way).</p>
-<p>To use environment variables, create a file called <code>.env</code> in the working directory of your project.</p>
-<p>Environment variables are structured as:</p>
-<ul>
-<li>Class name (upper case)</li>
-<li>Underscore _</li>
-<li>Variable name (upper case)</li>
-</ul>
-<p>For example, the class <code>WaltDisneyWorldResort</code> has a <code>resortId</code> configuration variable which can be loaded through the environment variable <code>WALTDISNEYWORLDRESORT_RESORTID</code></p>
-<p>Some classes expose &quot;parent scopes&quot; to allow configuring environment variables once for a range of destinations. For example, Attractions.io's base URL can be configured once through <code>ATTRACTIONSIO_BASEURL</code> rather than configuring it identically for every destination.</p>
-<p>Environment Variables (auto-generated):</p>
-<!-- BEGIN_ENV -->
-<pre class="prettyprint source"><code>WALTDISNEYWORLDRESORT_RESORTID
-WALTDISNEYWORLDRESORT_RESORTSHORTCODE
-WALTDISNEYWORLDRESORT_PARKIDS
-WALTDISNEYWORLDRESORT_VIRTUALQUEUEURL
-WALTDISNEYWORLDRESORT_GENIEDATA
-DISNEYLANDRESORT_RESORTID
-DISNEYLANDRESORT_RESORTSHORTCODE
-DISNEYLANDRESORT_PARKIDS
-DISNEYLANDRESORT_VIRTUALQUEUEURL
-DISNEYLANDRESORT_GENIEDATA
-DISNEYLANDPARIS_APIKEY
-DISNEYLANDPARIS_APIBASE
-DISNEYLANDPARIS_APIBASEWAITTIMES
-DISNEYLANDPARIS_LANGUAGE
-DISNEYLANDPARIS_STANDBYAPIBASE
-DISNEYLANDPARIS_STANDBYAPIKEY
-DISNEYLANDPARIS_STANDBYAUTHURL
-DISNEYLANDPARIS_STANDBYAPIREFRESHTOKEN
-DISNEYLANDPARIS_PREMIERACCESSAPIKEY
-DISNEYLANDPARIS_PREMIERACCESSURL
-DISNEYLANDPARIS_USERAGENT
-TOKYODISNEYRESORT_APIKEY
-TOKYODISNEYRESORT_APIAUTH
-TOKYODISNEYRESORT_APIOS
-TOKYODISNEYRESORT_APIBASE
-TOKYODISNEYRESORT_APIVERSION
-TOKYODISNEYRESORT_PARKIDS
-HONGKONGDISNEYLAND_RESORTID
-HONGKONGDISNEYLAND_RESORTSHORTCODE
-HONGKONGDISNEYLAND_PARKIDS
-HONGKONGDISNEYLAND_VIRTUALQUEUEURL
-HONGKONGDISNEYLAND_GENIEDATA
-SHANGHAIDISNEYLANDRESORT_APIBASE
-SHANGHAIDISNEYLANDRESORT_APIAUTH
-SHANGHAIDISNEYLANDRESORT_PARKIDS
-UNIVERSALSTUDIOS_CITY
-UNIVERSALSTUDIOS_RESORTSLUG
-UNIVERSALSTUDIOS_SECRETKEY
-UNIVERSALSTUDIOS_APPKEY
-UNIVERSALSTUDIOS_VQUEUEURL
-UNIVERSALSTUDIOS_BASEURL
-UNIVERSALORLANDO_CITY
-UNIVERSALORLANDO_RESORTSLUG
-UNIVERSALORLANDO_SECRETKEY
-UNIVERSALORLANDO_APPKEY
-UNIVERSALORLANDO_VQUEUEURL
-UNIVERSALORLANDO_BASEURL
-EUROPAPARK_PARKS
-EFTELING_APIKEY
-EFTELING_APIVERSION
-EFTELING_APPVERSION
-EFTELING_SEARCHURL
-EFTELING_WAITTIMESURL
-PHANTASIALAND_APIBASE
-SEAWORLDORLANDO_RESORTIDS
-SEAWORLDORLANDO_RESORTID
-SEAWORLDORLANDO_RESORTSLUG
-SEAWORLDORLANDO_APPID
-SEAWORLDORLANDO_BASEURL
-SEAWORLDSANANTONIO_RESORTIDS
-SEAWORLDSANANTONIO_RESORTID
-SEAWORLDSANANTONIO_RESORTSLUG
-SEAWORLDSANANTONIO_APPID
-SEAWORLDSANANTONIO_BASEURL
-SEAWORLDSANDIEGO_RESORTIDS
-SEAWORLDSANDIEGO_RESORTID
-SEAWORLDSANDIEGO_RESORTSLUG
-SEAWORLDSANDIEGO_APPID
-SEAWORLDSANDIEGO_BASEURL
-ALTONTOWERS_DESTINATIONID
-ALTONTOWERS_PARKID
-ALTONTOWERS_INITIALDATAVERSION
-ALTONTOWERS_APPBUILD
-ALTONTOWERS_APPVERSION
-ALTONTOWERS_BASEURL
-ALTONTOWERS_DEVICEIDENTIFIER
-ALTONTOWERS_APIKEY
-ALTONTOWERS_CALENDARURL
-THORPEPARK_DESTINATIONID
-THORPEPARK_PARKID
-THORPEPARK_INITIALDATAVERSION
-THORPEPARK_APPBUILD
-THORPEPARK_APPVERSION
-THORPEPARK_BASEURL
-THORPEPARK_DEVICEIDENTIFIER
-THORPEPARK_APIKEY
-THORPEPARK_CALENDARURL
-CHESSINGTONWORLDOFADVENTURES_DESTINATIONID
-CHESSINGTONWORLDOFADVENTURES_PARKID
-CHESSINGTONWORLDOFADVENTURES_INITIALDATAVERSION
-CHESSINGTONWORLDOFADVENTURES_APPBUILD
-CHESSINGTONWORLDOFADVENTURES_APPVERSION
-CHESSINGTONWORLDOFADVENTURES_BASEURL
-CHESSINGTONWORLDOFADVENTURES_DEVICEIDENTIFIER
-CHESSINGTONWORLDOFADVENTURES_APIKEY
-CHESSINGTONWORLDOFADVENTURES_CALENDARURL
-LEGOLANDWINDSOR_DESTINATIONID
-LEGOLANDWINDSOR_PARKID
-LEGOLANDWINDSOR_INITIALDATAVERSION
-LEGOLANDWINDSOR_APPBUILD
-LEGOLANDWINDSOR_APPVERSION
-LEGOLANDWINDSOR_BASEURL
-LEGOLANDWINDSOR_DEVICEIDENTIFIER
-LEGOLANDWINDSOR_APIKEY
-LEGOLANDWINDSOR_CALENDARURL
-LEGOLANDORLANDO_DESTINATIONID
-LEGOLANDORLANDO_PARKID
-LEGOLANDORLANDO_INITIALDATAVERSION
-LEGOLANDORLANDO_APPBUILD
-LEGOLANDORLANDO_APPVERSION
-LEGOLANDORLANDO_BASEURL
-LEGOLANDORLANDO_DEVICEIDENTIFIER
-LEGOLANDORLANDO_APIKEY
-LEGOLANDORLANDO_CALENDARURL
-GARDALAND_DESTINATIONID
-GARDALAND_PARKID
-GARDALAND_INITIALDATAVERSION
-GARDALAND_APPBUILD
-GARDALAND_APPVERSION
-GARDALAND_BASEURL
-GARDALAND_DEVICEIDENTIFIER
-GARDALAND_APIKEY
-GARDALAND_CALENDARURL
-PORTAVENTURAWORLD_APIBASE
-PARCASTERIX_APIBASE
-PARCASTERIX_LANGUAGE
-TOVERLAND_APIBASE
-TOVERLAND_CALENDARURL
-TOVERLAND_AUTHTOKEN
-TOVERLAND_LANGUAGES
-DOLLYWOOD_DESTINATIONID
-DOLLYWOOD_DESTINATIONSLUG
-DOLLYWOOD_CRMBASEURL
-DOLLYWOOD_CRMGUID
-DOLLYWOOD_CRMATTRACTIONSID
-DOLLYWOOD_CRMDININGID
-DOLLYWOOD_CRMSHOWID
-DOLLYWOOD_APIBASE
-DOLLYWOOD_CRMAUTH
-SILVERDOLLARCITY_DESTINATIONID
-SILVERDOLLARCITY_DESTINATIONSLUG
-SILVERDOLLARCITY_CRMBASEURL
-SILVERDOLLARCITY_CRMGUID
-SILVERDOLLARCITY_CRMATTRACTIONSID
-SILVERDOLLARCITY_CRMDININGID
-SILVERDOLLARCITY_CRMSHOWID
-SILVERDOLLARCITY_APIBASE
-SILVERDOLLARCITY_CRMAUTH
-PLOPSALAND_DESTINATIONSLUG
-PLOPSALAND_PARKSLUG
-PLOPSALAND_BASEURL
-PLOPSALAND_BASELANG
-PLOPSALAND_CLIENTID
-PLOPSALAND_CLIENTSECRET
-HOLIDAYPARK_DESTINATIONSLUG
-HOLIDAYPARK_PARKSLUG
-HOLIDAYPARK_BASEURL
-HOLIDAYPARK_BASELANG
-HOLIDAYPARK_CLIENTID
-HOLIDAYPARK_CLIENTSECRET
-</code></pre>
-<!-- END_ENV --></article>
-    </section>
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Fetch restaurant menu JSON</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_wdw_waltdisneyworldbase.js.html">parks/wdw/waltdisneyworldbase.js</a>, <a href="parks_wdw_waltdisneyworldbase.js.html#line783">line 783</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
 
 
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>id</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="_getSchedulesForDate"><span class="type-signature type-signature-async">(async) </span>_getSchedulesForDate<span class="signature">(ids, date)</span><span class="type-signature"> &rarr; {array.&lt;object>}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_wdw_waltdisneyworldbase.js.html">parks/wdw/waltdisneyworldbase.js</a>, <a href="parks_wdw_waltdisneyworldbase.js.html#line964">line 964</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>ids</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">array.&lt;string></span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">document IDs to get schedules for</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>date</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">moment</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Moment date to get schedule data for</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    Array of objects containing _id and schedule
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">array.&lt;object></span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="_init"><span class="type-signature type-signature-async">(async) </span>_init<span class="signature">()</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Initialise our Disney resort class</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_wdw_waltdisneyworldbase.js.html">parks/wdw/waltdisneyworldbase.js</a>, <a href="parks_wdw_waltdisneyworldbase.js.html#line67">line 67</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="buildAttractionEntities"><span class="type-signature type-signature-async">(async) </span>buildAttractionEntities<span class="signature">()</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_wdw_waltdisneyworldbase.js.html">parks/wdw/waltdisneyworldbase.js</a>, <a href="parks_wdw_waltdisneyworldbase.js.html#line658">line 658</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="buildBaseEntityObject"><span class="type-signature"></span>buildBaseEntityObject<span class="signature">(doc)</span><span class="type-signature"> &rarr; {object}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Given a basic document build a generic entity doc.
+This should include all fields that are in any entity type.</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_wdw_waltdisneyworldbase.js.html">parks/wdw/waltdisneyworldbase.js</a>, <a href="parks_wdw_waltdisneyworldbase.js.html#line543">line 543</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>doc</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="buildDestinationEntity"><span class="type-signature type-signature-async">(async) </span>buildDestinationEntity<span class="signature">()</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Return entity document for this destination</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_wdw_waltdisneyworldbase.js.html">parks/wdw/waltdisneyworldbase.js</a>, <a href="parks_wdw_waltdisneyworldbase.js.html#line621">line 621</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="buildEntityLiveData"><span class="type-signature type-signature-async">(async) </span>buildEntityLiveData<span class="signature">()</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Return all current live entity data</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_wdw_waltdisneyworldbase.js.html">parks/wdw/waltdisneyworldbase.js</a>, <a href="parks_wdw_waltdisneyworldbase.js.html#line411">line 411</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="buildEntityScheduleData"><span class="type-signature type-signature-async">(async) </span>buildEntityScheduleData<span class="signature">()</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_wdw_waltdisneyworldbase.js.html">parks/wdw/waltdisneyworldbase.js</a>, <a href="parks_wdw_waltdisneyworldbase.js.html#line1026">line 1026</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="buildParkEntities"><span class="type-signature type-signature-async">(async) </span>buildParkEntities<span class="signature">()</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Return all park entities for this resort</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_wdw_waltdisneyworldbase.js.html">parks/wdw/waltdisneyworldbase.js</a>, <a href="parks_wdw_waltdisneyworldbase.js.html#line639">line 639</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="buildRestaurantEntities"><span class="type-signature type-signature-async">(async) </span>buildRestaurantEntities<span class="signature">()</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_wdw_waltdisneyworldbase.js.html">parks/wdw/waltdisneyworldbase.js</a>, <a href="parks_wdw_waltdisneyworldbase.js.html#line902">line 902</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="buildShowEntities"><span class="type-signature type-signature-async">(async) </span>buildShowEntities<span class="signature">()</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_wdw_waltdisneyworldbase.js.html">parks/wdw/waltdisneyworldbase.js</a>, <a href="parks_wdw_waltdisneyworldbase.js.html#line736">line 736</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="fetchVirtualQueueData"><span class="type-signature type-signature-async, private">(async, private) </span>fetchVirtualQueueData<span class="signature">()</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_wdw_waltdisneyworldbase.js.html">parks/wdw/waltdisneyworldbase.js</a>, <a href="parks_wdw_waltdisneyworldbase.js.html#line85">line 85</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="getFacilityStatusChannelID"><span class="type-signature"></span>getFacilityStatusChannelID<span class="signature">()</span><span class="type-signature"> &rarr; {string}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Get the channel ID for the facility status live update documents</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_wdw_waltdisneyworldbase.js.html">parks/wdw/waltdisneyworldbase.js</a>, <a href="parks_wdw_waltdisneyworldbase.js.html#line78">line 78</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="getRestaurantMenu"><span class="type-signature type-signature-async">(async) </span>getRestaurantMenu<span class="signature">(id)</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Get the menu for a given resturant entity ID</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_wdw_waltdisneyworldbase.js.html">parks/wdw/waltdisneyworldbase.js</a>, <a href="parks_wdw_waltdisneyworldbase.js.html#line814">line 814</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>id</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="initLiveStatusUpdates"><span class="type-signature type-signature-async">(async) </span>initLiveStatusUpdates<span class="signature">()</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Setup our live status update subscriptions</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_wdw_waltdisneyworldbase.js.html">parks/wdw/waltdisneyworldbase.js</a>, <a href="parks_wdw_waltdisneyworldbase.js.html#line484">line 484</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="sanitizeEntityName"><span class="type-signature"></span>sanitizeEntityName<span class="signature">(name)</span><span class="type-signature"> &rarr; {string}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Given a name for an entity, clean up any strings we don't want</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_wdw_waltdisneyworldbase.js.html">parks/wdw/waltdisneyworldbase.js</a>, <a href="parks_wdw_waltdisneyworldbase.js.html#line504">line 504</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>name</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">string</span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+    
+
+    
+
+    
+</article>
+
+</section>
 
 
 
@@ -332,7 +1890,7 @@ HOLIDAYPARK_CLIENTSECRET
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.1</a> on Sun Feb 19 2023 21:20:22 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.1</a> on Sun Feb 19 2023 21:20:23 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>

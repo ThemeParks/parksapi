@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>parks/wdw/wdwdb.js - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ConfigBase.html">ConfigBase</a></li><li><a href="Database.html">Database</a><ul class='methods'><li data-type='method'><a href="Database.html#_getEntities">_getEntities</a></li><li data-type='method'><a href="Database.html#_init">_init</a></li><li data-type='method'><a href="Database.html#findEntity">findEntity</a></li><li data-type='method'><a href="Database.html#getEntities">getEntities</a></li><li data-type='method'><a href="Database.html#getEntitiyById">getEntitiyById</a></li><li data-type='method'><a href="Database.html#init">init</a></li><li data-type='method'><a href="Database.html#log">log</a></li><li data-type='method'><a href="Database.html#.get">get</a></li></ul></li><li><a href="DatabaseEuropaPark.html">DatabaseEuropaPark</a><ul class='methods'><li data-type='method'><a href="DatabaseEuropaPark.html#_getEntities">_getEntities</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#_init">_init</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getCalendar">getCalendar</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getConfig">getConfig</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getFirebaseID">getFirebaseID</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getLiveCalendar">getLiveCalendar</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getParkData">getParkData</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getShowTimes">getShowTimes</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getToken">getToken</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getWaitingTimes">getWaitingTimes</a></li></ul></li><li><a href="DatabaseWDW.html">DatabaseWDW</a><ul class='methods'><li data-type='method'><a href="DatabaseWDW.html#_getEntities">_getEntities</a></li></ul></li><li><a href="Destination.html">Destination</a><ul class='methods'><li data-type='method'><a href="Destination.html#_clearFunctionCache">_clearFunctionCache</a></li><li data-type='method'><a href="Destination.html#_init">_init</a></li><li data-type='method'><a href="Destination.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="Destination.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="Destination.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="Destination.html#buildEntityLiveData">buildEntityLiveData</a></li><li data-type='method'><a href="Destination.html#buildEntityScheduleData">buildEntityScheduleData</a></li><li data-type='method'><a href="Destination.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="Destination.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="Destination.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="Destination.html#forEachUpcomingDate">forEachUpcomingDate</a></li><li data-type='method'><a href="Destination.html#getAllEntities">getAllEntities</a></li><li data-type='method'><a href="Destination.html#getAndroidAPPVersion">getAndroidAPPVersion</a></li><li data-type='method'><a href="Destination.html#getAttractionEntities">getAttractionEntities</a></li><li data-type='method'><a href="Destination.html#getDestinationEntities">getDestinationEntities</a></li><li data-type='method'><a href="Destination.html#getDestinationEntity">getDestinationEntity</a></li><li data-type='method'><a href="Destination.html#getEntityFromId">getEntityFromId</a></li><li data-type='method'><a href="Destination.html#getEntityLiveData">getEntityLiveData</a></li><li data-type='method'><a href="Destination.html#getEntitySchedules">getEntitySchedules</a></li><li data-type='method'><a href="Destination.html#getLiveCache">getLiveCache</a></li><li data-type='method'><a href="Destination.html#getLiveHash">getLiveHash</a></li><li data-type='method'><a href="Destination.html#getParkEntities">getParkEntities</a></li><li data-type='method'><a href="Destination.html#getRestaurantEntities">getRestaurantEntities</a></li><li data-type='method'><a href="Destination.html#getShowEntities">getShowEntities</a></li><li data-type='method'><a href="Destination.html#getTimeNow">getTimeNow</a></li><li data-type='method'><a href="Destination.html#getTimeNowMoment">getTimeNowMoment</a></li><li data-type='method'><a href="Destination.html#init">init</a></li><li data-type='method'><a href="Destination.html#log">log</a></li><li data-type='method'><a href="Destination.html#setLiveCache">setLiveCache</a></li><li data-type='method'><a href="Destination.html#updateEntityLiveData">updateEntityLiveData</a></li></ul></li><li><a href="DisneyLiveResort.html">DisneyLiveResort</a><ul class='methods'><li data-type='method'><a href="DisneyLiveResort.html#_fetchRestaurantMenu">_fetchRestaurantMenu</a></li><li data-type='method'><a href="DisneyLiveResort.html#_getSchedulesForDate">_getSchedulesForDate</a></li><li data-type='method'><a href="DisneyLiveResort.html#_init">_init</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildEntityLiveData">buildEntityLiveData</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildEntityScheduleData">buildEntityScheduleData</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="DisneyLiveResort.html#fetchVirtualQueueData">fetchVirtualQueueData</a></li><li data-type='method'><a href="DisneyLiveResort.html#getFacilityStatusChannelID">getFacilityStatusChannelID</a></li><li data-type='method'><a href="DisneyLiveResort.html#getRestaurantMenu">getRestaurantMenu</a></li><li data-type='method'><a href="DisneyLiveResort.html#initLiveStatusUpdates">initLiveStatusUpdates</a></li><li data-type='method'><a href="DisneyLiveResort.html#sanitizeEntityName">sanitizeEntityName</a></li></ul></li><li><a href="DisneylandParis.html">DisneylandParis</a><ul class='methods'><li data-type='method'><a href="DisneylandParis.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="DisneylandParis.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="DisneylandParis.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="DisneylandParis.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="DisneylandParis.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="DisneylandParis.html#fetchResortScheduleForDate">fetchResortScheduleForDate</a></li><li data-type='method'><a href="DisneylandParis.html#fetchWaitData">fetchWaitData</a></li><li data-type='method'><a href="DisneylandParis.html#getAuthApiKey">getAuthApiKey</a></li><li data-type='method'><a href="DisneylandParis.html#getAuthToken">getAuthToken</a></li><li data-type='method'><a href="DisneylandParis.html#getPOIData">getPOIData</a></li><li data-type='method'><a href="DisneylandParis.html#getRefreshToken">getRefreshToken</a></li><li data-type='method'><a href="DisneylandParis.html#refreshAuthToken">refreshAuthToken</a></li></ul></li><li><a href="DisneylandResort.html">DisneylandResort</a></li><li><a href="Efteling.html">Efteling</a><ul class='methods'><li data-type='method'><a href="Efteling.html#_fetchPOIData">_fetchPOIData</a></li><li data-type='method'><a href="Efteling.html#_getRestaurantOperatingHoursForDate">_getRestaurantOperatingHoursForDate</a></li><li data-type='method'><a href="Efteling.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="Efteling.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="Efteling.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="Efteling.html#buildEntityScheduleData">buildEntityScheduleData</a></li><li data-type='method'><a href="Efteling.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="Efteling.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="Efteling.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="Efteling.html#getRestaurantOperatingHours">getRestaurantOperatingHours</a></li></ul></li><li><a href="Entity.html">Entity</a><ul class='methods'><li data-type='method'><a href="Entity.html#_postOfflineLoad">_postOfflineLoad</a></li><li data-type='method'><a href="Entity.html#ensureHasOfflineData">ensureHasOfflineData</a></li><li data-type='method'><a href="Entity.html#getTimeNow">getTimeNow</a></li><li data-type='method'><a href="Entity.html#getTimeNowMoment">getTimeNowMoment</a></li><li data-type='method'><a href="Entity.html#getUniqueID">getUniqueID</a></li><li data-type='method'><a href="Entity.html#injectForDomain">injectForDomain</a></li><li data-type='method'><a href="Entity.html#log">log</a></li><li data-type='method'><a href="Entity.html#registerOfflineFunction">registerOfflineFunction</a></li><li data-type='method'><a href="Entity.html#serialise">serialise</a></li></ul></li><li><a href="HarWriter.html">HarWriter</a><ul class='methods'><li data-type='method'><a href="HarWriter.html#createLogObject">createLogObject</a></li><li data-type='method'><a href="HarWriter.html#getProjectVersion">getProjectVersion</a></li><li data-type='method'><a href="HarWriter.html#recordEntry">recordEntry</a></li><li data-type='method'><a href="HarWriter.html#toJSON">toJSON</a></li><li data-type='method'><a href="HarWriter.html#write">write</a></li></ul></li><li><a href="HongKongDisneyland.html">HongKongDisneyland</a><ul class='methods'><li data-type='method'><a href="HongKongDisneyland.html#_fetchRestaurantMenu">_fetchRestaurantMenu</a></li></ul></li><li><a href="IndexedWDWDB.html">IndexedWDWDB</a><ul class='methods'><li data-type='method'><a href="IndexedWDWDB.html#_createIndex">_createIndex</a></li><li data-type='method'><a href="IndexedWDWDB.html#_createIndexes">_createIndexes</a></li><li data-type='method'><a href="IndexedWDWDB.html#_extractChannelLanguage">_extractChannelLanguage</a></li><li data-type='method'><a href="IndexedWDWDB.html#_extractEntityKeys">_extractEntityKeys</a></li><li data-type='method'><a href="IndexedWDWDB.html#_indexWDWDocument">_indexWDWDocument</a></li><li data-type='method'><a href="IndexedWDWDB.html#_initIndexes">_initIndexes</a></li><li data-type='method'><a href="IndexedWDWDB.html#_loadAndInit">_loadAndInit</a></li><li data-type='method'><a href="IndexedWDWDB.html#_removeFromArrayIndex">_removeFromArrayIndex</a></li><li data-type='method'><a href="IndexedWDWDB.html#_replicate">_replicate</a></li><li data-type='method'><a href="IndexedWDWDB.html#find">find</a></li><li data-type='method'><a href="IndexedWDWDB.html#getByChannel">getByChannel</a></li><li data-type='method'><a href="IndexedWDWDB.html#getDocChildren">getDocChildren</a></li><li data-type='method'><a href="IndexedWDWDB.html#getDocNameSearch">getDocNameSearch</a></li><li data-type='method'><a href="IndexedWDWDB.html#getDocsById">getDocsById</a></li><li data-type='method'><a href="IndexedWDWDB.html#getDumpFilename">getDumpFilename</a></li><li data-type='method'><a href="IndexedWDWDB.html#getEntity">getEntity</a></li><li data-type='method'><a href="IndexedWDWDB.html#getEntityIndex">getEntityIndex</a></li><li data-type='method'><a href="IndexedWDWDB.html#getEntityOne">getEntityOne</a></li><li data-type='method'><a href="IndexedWDWDB.html#getFacilityStatus">getFacilityStatus</a></li><li data-type='method'><a href="IndexedWDWDB.html#getIndex">getIndex</a></li><li data-type='method'><a href="IndexedWDWDB.html#init">init</a></li><li data-type='method'><a href="IndexedWDWDB.html#loadSnapshot">loadSnapshot</a></li><li data-type='method'><a href="IndexedWDWDB.html#saveSnapshot">saveSnapshot</a></li><li data-type='method'><a href="IndexedWDWDB.html#subscribeToChanges">subscribeToChanges</a></li><li data-type='method'><a href="IndexedWDWDB.html#subscribeToChannel">subscribeToChannel</a></li><li data-type='method'><a href="IndexedWDWDB.html#._pluginBulkDocs">_pluginBulkDocs</a></li><li data-type='method'><a href="IndexedWDWDB.html#.getDatabaseFilePath">getDatabaseFilePath</a></li></ul></li><li><a href="Park.html">Park</a><ul class='methods'><li data-type='method'><a href="Park.html#_buildAttractionObject">_buildAttractionObject</a></li><li data-type='method'><a href="Park.html#_checkDate">_checkDate</a></li><li data-type='method'><a href="Park.html#_dateRefresh">_dateRefresh</a></li><li data-type='method'><a href="Park.html#_findAttractionByID">_findAttractionByID</a></li><li data-type='method'><a href="Park.html#_getAttractionByIDInternal">_getAttractionByIDInternal</a></li><li data-type='method'><a href="Park.html#_getOperatingHoursForDate">_getOperatingHoursForDate</a></li><li data-type='method'><a href="Park.html#_getRestaurantOperatingHoursForDate">_getRestaurantOperatingHoursForDate</a></li><li data-type='method'><a href="Park.html#_init">_init</a></li><li data-type='method'><a href="Park.html#_postInit">_postInit</a></li><li data-type='method'><a href="Park.html#_postOfflineLoad">_postOfflineLoad</a></li><li data-type='method'><a href="Park.html#_runInit">_runInit</a></li><li data-type='method'><a href="Park.html#_runUpdate">_runUpdate</a></li><li data-type='method'><a href="Park.html#_update">_update</a></li><li data-type='method'><a href="Park.html#cacheAttractionObject">cacheAttractionObject</a></li><li data-type='method'><a href="Park.html#ensureReady">ensureReady</a></li><li data-type='method'><a href="Park.html#findAttractionByID">findAttractionByID</a></li><li data-type='method'><a href="Park.html#getActiveParkDate">getActiveParkDate</a></li><li data-type='method'><a href="Park.html#getActiveParkDateMoment">getActiveParkDateMoment</a></li><li data-type='method'><a href="Park.html#getAttractions">getAttractions</a></li><li data-type='method'><a href="Park.html#getCalendar">getCalendar</a></li><li data-type='method'><a href="Park.html#getCalendarForToday">getCalendarForToday</a></li><li data-type='method'><a href="Park.html#getCalendarForTomorrow">getCalendarForTomorrow</a></li><li data-type='method'><a href="Park.html#getNextClosingTime">getNextClosingTime</a></li><li data-type='method'><a href="Park.html#getNextOpeningTime">getNextOpeningTime</a></li><li data-type='method'><a href="Park.html#getNextOpeningTimeMomentDuration">getNextOpeningTimeMomentDuration</a></li><li data-type='method'><a href="Park.html#getOperatingHoursForDate">getOperatingHoursForDate</a></li><li data-type='method'><a href="Park.html#getParkUniqueID">getParkUniqueID</a></li><li data-type='method'><a href="Park.html#getRestaurantOperatingHoursForDate">getRestaurantOperatingHoursForDate</a></li><li data-type='method'><a href="Park.html#init">init</a></li><li data-type='method'><a href="Park.html#postUpdate">postUpdate</a></li><li data-type='method'><a href="Park.html#removeAttractionTag">removeAttractionTag</a></li><li data-type='method'><a href="Park.html#setAttractionTag">setAttractionTag</a></li><li data-type='method'><a href="Park.html#shutdown">shutdown</a></li><li data-type='method'><a href="Park.html#toggleAttractionTag">toggleAttractionTag</a></li><li data-type='method'><a href="Park.html#update">update</a></li><li data-type='method'><a href="Park.html#updateAttractionQueue">updateAttractionQueue</a></li><li data-type='method'><a href="Park.html#updateAttractionState">updateAttractionState</a></li></ul></li><li><a href="ScopedCache.html">ScopedCache</a><ul class='methods'><li data-type='method'><a href="ScopedCache.html#_initCache">_initCache</a></li><li data-type='method'><a href="ScopedCache.html#blockOnPendingTransactions">blockOnPendingTransactions</a></li><li data-type='method'><a href="ScopedCache.html#generateScopedKey">generateScopedKey</a></li><li data-type='method'><a href="ScopedCache.html#get">get</a></li><li data-type='method'><a href="ScopedCache.html#getGlobal">getGlobal</a></li><li data-type='method'><a href="ScopedCache.html#getKeys">getKeys</a></li><li data-type='method'><a href="ScopedCache.html#initCache">initCache</a></li><li data-type='method'><a href="ScopedCache.html#runTransaction">runTransaction</a></li><li data-type='method'><a href="ScopedCache.html#set">set</a></li><li data-type='method'><a href="ScopedCache.html#setGlobal">setGlobal</a></li><li data-type='method'><a href="ScopedCache.html#wrap">wrap</a></li><li data-type='method'><a href="ScopedCache.html#wrapGlobal">wrapGlobal</a></li></ul></li><li><a href="ShanghaiDisneylandResort.html">ShanghaiDisneylandResort</a><ul class='methods'><li data-type='method'><a href="ShanghaiDisneylandResort.html#_buildAttractionObject">_buildAttractionObject</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_buildEntities">_buildEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_dumpDB">_dumpDB</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_fetchWaitTimes">_fetchWaitTimes</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_init">_init</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_loadDB">_loadDB</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#extractEntityData">extractEntityData</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#getAccessToken">getAccessToken</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#getAllEntityKeys">getAllEntityKeys</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#getAttractionData">getAttractionData</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#getEntity">getEntity</a></li></ul></li><li><a href="TokyoDisneyResort.html">TokyoDisneyResort</a><ul class='methods'><li data-type='method'><a href="TokyoDisneyResort.html#_fetchWaitTimes">_fetchWaitTimes</a></li><li data-type='method'><a href="TokyoDisneyResort.html#_getRestaurantOperatingHoursForDate">_getRestaurantOperatingHoursForDate</a></li><li data-type='method'><a href="TokyoDisneyResort.html#_update">_update</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildEntityScheduleData">buildEntityScheduleData</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="TokyoDisneyResort.html#fetchCalendar">fetchCalendar</a></li><li data-type='method'><a href="TokyoDisneyResort.html#fetchLatestVersion">fetchLatestVersion</a></li><li data-type='method'><a href="TokyoDisneyResort.html#fetchRestaurantOperatingHours">fetchRestaurantOperatingHours</a></li><li data-type='method'><a href="TokyoDisneyResort.html#getEntitiesOfType">getEntitiesOfType</a></li></ul></li><li><a href="UniversalIslandsOfAdventure.html">UniversalIslandsOfAdventure</a></li><li><a href="UniversalOrlando_UniversalOrlando.html">UniversalOrlando</a></li><li><a href="UniversalParkBase.html">UniversalParkBase</a><ul class='methods'><li data-type='method'><a href="UniversalParkBase.html#_buildAttractionObject">_buildAttractionObject</a></li><li data-type='method'><a href="UniversalParkBase.html#_getOperatingHoursForDate">_getOperatingHoursForDate</a></li><li data-type='method'><a href="UniversalParkBase.html#_init">_init</a></li><li data-type='method'><a href="UniversalParkBase.html#_update">_update</a></li><li data-type='method'><a href="UniversalParkBase.html#getLatestOpeningHours">getLatestOpeningHours</a></li><li data-type='method'><a href="UniversalParkBase.html#getPOI">getPOI</a></li><li data-type='method'><a href="UniversalParkBase.html#getServiceToken">getServiceToken</a></li><li data-type='method'><a href="UniversalParkBase.html#getVirtualQueueStates">getVirtualQueueStates</a></li><li data-type='method'><a href="UniversalParkBase.html#getVirtualQueueTimeForRide">getVirtualQueueTimeForRide</a></li><li data-type='method'><a href="UniversalParkBase.html#getWaitingTimes">getWaitingTimes</a></li></ul></li><li><a href="UniversalResortBase_UniversalResortBase.html">UniversalResortBase</a></li><li><a href="UniversalStudios.html">UniversalStudios</a></li><li><a href="UniversalStudios_UniversalStudios.html">UniversalStudios</a></li><li><a href="UniversalStudiosFlorida.html">UniversalStudiosFlorida</a></li><li><a href="UniversalVolcanoBay.html">UniversalVolcanoBay</a></li><li><a href="WaltDisneyWorldResort.html">WaltDisneyWorldResort</a></li><li><a href="module.exports.html">exports</a></li><li></li><li></li><li></li></ul><h3>Global</h3><ul><li><a href="global.html#HTTP">HTTP</a></li><li><a href="global.html#Sieve">Sieve</a></li><li><a href="global.html#_del">_del</a></li><li><a href="global.html#_get">_get</a></li><li><a href="global.html#_getKeys">_getKeys</a></li><li><a href="global.html#_reusePromise">_reusePromise</a></li><li><a href="global.html#_set">_set</a></li><li><a href="global.html#activeFunctions">activeFunctions</a></li><li><a href="global.html#attractionType">attractionType</a></li><li><a href="global.html#blockOnPendingTransactions">blockOnPendingTransactions</a></li><li><a href="global.html#boardingGroupState">boardingGroupState</a></li><li><a href="global.html#createCacheInstance">createCacheInstance</a></li><li><a href="global.html#entityType">entityType</a></li><li><a href="global.html#extractName">extractName</a></li><li><a href="global.html#findActiveFunctionIndex">findActiveFunctionIndex</a></li><li><a href="global.html#generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></li><li><a href="global.html#get">get</a></li><li><a href="global.html#getCache">getCache</a></li><li><a href="global.html#getDatabase">getDatabase</a></li><li><a href="global.html#getEntityID">getEntityID</a></li><li><a href="global.html#getKeys">getKeys</a></li><li><a href="global.html#getLiveDataErrors">getLiveDataErrors</a></li><li><a href="global.html#getMethods">getMethods</a></li><li><a href="global.html#getValidTagObject">getValidTagObject</a></li><li><a href="global.html#isSimpleTagType">isSimpleTagType</a></li><li><a href="global.html#isValidTag">isValidTag</a></li><li><a href="global.html#isValidTagType">isValidTagType</a></li><li><a href="global.html#metaCommands">metaCommands</a></li><li><a href="global.html#parseConfig">parseConfig</a></li><li><a href="global.html#queueType">queueType</a></li><li><a href="global.html#returnTimeState">returnTimeState</a></li><li><a href="global.html#reusePromise">reusePromise</a></li><li><a href="global.html#reusePromiseForever">reusePromiseForever</a></li><li><a href="global.html#riderHeightValidate">riderHeightValidate</a></li><li><a href="global.html#runTransaction">runTransaction</a></li><li><a href="global.html#scheduleType">scheduleType</a></li><li><a href="global.html#set">set</a></li><li><a href="global.html#setOverrideFunction">setOverrideFunction</a></li><li><a href="global.html#simpleTags">simpleTags</a></li><li><a href="global.html#statusType">statusType</a></li><li><a href="global.html#tagType">tagType</a></li><li><a href="global.html#validateEntitySchedule">validateEntitySchedule</a></li><li><a href="global.html#validateObjectContainsOnlyGivenKeys">validateObjectContainsOnlyGivenKeys</a></li><li><a href="global.html#validators">validators</a></li><li><a href="global.html#wrap">wrap</a></li><li><a href="global.html#writeToHAR">writeToHAR</a></li></ul>
+    
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">parks/wdw/wdwdb.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import PouchDB from 'pouchdb';
+import sift from 'sift';
+import {promises as fs, constants as fsConstants, createReadStream, createWriteStream} from 'fs';
+import path from 'path';
+
+import {parseConfig} from '../../configBase.js';
+
+/**
+ * Given a document, return it's entity ID for the WDW database
+ * @param {object|string} doc CouchDB document or a document ID
+ * @return {string}
+ */
+export function getEntityID(doc) {
+  const docId = doc?.id || doc;
+
+  if (!docId) {
+    console.trace('Unable to find ID from', JSON.stringify(doc));
+    return undefined;
+  }
+
+  const stack = docId.split(':');
+  const lowestLevelEntity = stack[stack.length - 1];
+
+  const parts = lowestLevelEntity.split(';');
+  if (parts &lt;= 1) return undefined;
+
+  return parts.find((p) => {
+    // edge-case for some documents with no attraction attached (guessing test documents)
+    if (p === 'Unassigned') return false;
+
+    const keyval = p.split('=');
+    return (keyval.length === 1);
+  });
+}
+
+// internal key names for our indexes. Stored as constants to save typing these over and over
+const constants = {
+  INDEX_FACILITYSTATUS: 'facilityStatus',
+  INDEX_CHANNELS: 'channels',
+  INDEX_ENTITIES: 'entities',
+  INDEX_CHILDREN: 'children',
+  INDEX_NAMES: 'names',
+  INDEX_IDS: 'ids',
+};
+
+// ancestors to include in our index
+//  we add these into our index objects to identify unique documents to index
+const ancestorIndexes = [
+  {
+    key: 'ancestorLandId',
+    index: 'land_id',
+  },
+  {
+    key: 'ancestorResortId',
+    index: 'resort_id',
+  },
+  {
+    key: 'ancestorResortAreaId',
+    index: 'resort_area_id',
+  },
+  {
+    key: 'ancestorThemeParkId',
+    index: 'park_id',
+  },
+];
+
+// Super() function to call when we setup this class as a plugin
+const pouchBulkDocs = PouchDB.prototype.bulkDocs;
+
+/**
+ * An indexed live WDW database
+ * Replicated WDW database to local disk for fast access
+ * While replicating, will build an in-memory index of entities for fast lookup
+ * Options to dump database to a single file or load a snapshot for quicker database boot ups
+ */
+export class IndexedWDWDB extends PouchDB {
+  /**
+   * Construct a new IndexedWDWDB object
+   * @param {object} opts PouchDB options object
+   * @param {string} [opts.remoteHost] Remote database to replicate
+   * @param {string} [opts.remoteUsername] Remote database username to authenticate
+   * @param {string} [opts.remotePassword] Remote database password to authenticate
+   * @param {string} [opts.dbName='wdw'] Local database name
+   * @param {string} [opts.snapshot] File location of a snapshot to 'seed' the database during startup
+   * @param {string} [opts.skipSync] Skip network replication, only use data already on disk
+   * @extends PouchDB
+   */
+  constructor(opts = {}) {
+    // default to enable auto_compaction
+    opts.auto_compaction = opts.auto_compaction || true;
+
+    opts.remoteHost = '';
+    opts.remoteUsername = '';
+    opts.remotePassword = '';
+    opts.dbName = opts.dbName || 'wdw';
+    opts.snapshot = ''; // optional snapshot to use when starting database
+    // 'name' is the config option pouchdb uses for the storage path
+    opts.name = opts.name || IndexedWDWDB.getDatabaseFilePath(opts.dbName);
+
+    opts.skipSync = opts.skipSync === undefined ? false : opts.skipSync;
+
+    opts.restartTimeout = opts.restartTimeout || 5;
+
+    opts.configPrefixes = ['WDWDB'].concat(opts.configPrefixes || []);
+    const config = parseConfig(opts);
+
+    super(config);
+    this.config = config;
+
+    // increase the maximum listeners to this database
+    this.setMaxListeners(50);
+
+    // setup our remote host to replicate locally
+    if (this.config.remoteHost) {
+      const remoteHostOptions = {
+        skip_setup: true,
+      };
+      if (this.config.remoteUsername &amp;&amp; this.config.remotePassword) {
+        remoteHostOptions.auth = {
+          username: this.config.remoteUsername,
+          password: this.config.remotePassword,
+        };
+      }
+
+      this.remoteDB = new PouchDB(this.config.remoteHost, remoteHostOptions);
+    }
+
+    this.synced = false;
+    this.replicating = false;
+
+    this._index = {};
+    this._setupPromise = null;
+    this._indexSetup = false;
+  }
+
+  /**
+ * Get the LevelDOWN database location to use
+ * @param {string} name Database name
+ * @return {string}
+ */
+  static getDatabaseFilePath(name) {
+    return path.join(process.cwd(), `db.${name}`);
+  }
+
+  /**
+   * Initialise the live database, returns once finished an initial sync
+   */
+  async init() {
+    if (this.synced) {
+      return;
+    }
+
+    if (this.initPromiseSync) return this.initPromiseSync;
+
+    // first, syncronise our database before we start rolling updates
+    this.initPromiseSync = this._loadAndInit();
+    // keep the Promise as a variable so we can keep returning it for any additional init() calls
+    await this.initPromiseSync;
+    this.initPromiseSync = null;
+
+    console.log(`Database finished setup!`);
+
+    this.synced = true;
+
+    if (!this.config.skipSync &amp;&amp; this.remoteDB) {
+      this._replicate();
+    }
+  }
+
+  /**
+   * Start database replication
+   * @private
+   */
+  _replicate() {
+    if (this.replicating) return;
+    this.replicating = true;
+
+    let noChangeTimeout = null;
+    let replicationHandle = null;
+
+    // how many minutes before killing and restarting replication
+    const noChangeTimer = Number(this.config.restartTimeout) || 5;
+
+    // function to reboot the replicate based on various possible failure states
+    const rebootReplicator = (err) => {
+      if (noChangeTimeout) {
+        clearTimeout(noChangeTimeout);
+      }
+      if (replicationHandle) {
+        replicationHandle.cancel();
+        replicationHandle = null;
+      }
+
+      if (err) {
+        console.error('Replication Error!', new Date(), err);
+      }
+
+      // console.log('Restarting replicator...');
+      this.replicating = false;
+      setTimeout(this._replicate.bind(this), 1000);
+    };
+
+    const resetTimeoutTimer = () => {
+      if (noChangeTimeout) {
+        clearTimeout(noChangeTimeout);
+      }
+      noChangeTimeout = setTimeout(() => {
+        // console.log('Replicator timed out...');
+        rebootReplicator();
+      }, 1000 * 60 * noChangeTimer);
+    };
+
+    try {
+      replicationHandle = PouchDB.replicate(this.remoteDB, this, {
+        live: true,
+        retry: true,
+      }).on('change', () => {
+        // reset a timer whenever we get a change
+        //  if the timer is ever fired, we will restart the replicator
+        resetTimeoutTimer();
+      }).on('error', (e) => {
+        rebootReplicator(e);
+      });
+
+      // always start the change timer immediately
+      //  otherwise if we start repliating in the middle of the night (when no changes are happening)
+      //  on('change') never fires, so we can lose connection and never fire the timeout
+      resetTimeoutTimer();
+    } catch (e) {
+      rebootReplicator(e);
+    }
+  }
+
+  /**
+   * Internal function
+   * Loads and performs an initial sync on the database
+   * @private
+   */
+  async _loadAndInit() {
+    // load up our indexes
+    await this._initIndexes();
+
+    // reindex every document once we've initialised from disk
+    //  do this before replication, since all new docs will be auto-indexed
+    const docs = await this.allDocs({
+      include_docs: true,
+    });
+    console.log('Building index...');
+    await Promise.allSettled(docs.rows.map((doc) => {
+      return this._indexWDWDocument(doc.doc);
+    }));
+
+    // optionally skip replicating with remote (for local fast testing)
+    if (this.config.skipSync || !this.remoteDB) {
+      return;
+    }
+
+    // then perform an initial replication from remote to local
+    console.log('Performing initial replication...');
+    return await PouchDB.replicate(this.remoteDB, this, {
+      batch_size: 500,
+    }).catch((e) => {
+      console.error(`Replication error: ${e}`);
+    });
+  }
+
+  /**
+   * Get the filename we use for saving backups of the database to disk
+   * Used for creating simple "snapshots" to reduce initial sync times
+   * @param {string} [postfix] Optional postfix for the filename
+   * eg. Use postfix to generate a temporary version of a file to write to before replacing the "real" database
+   * @return {string}
+   */
+  getDumpFilename(postfix = '') {
+    return path.join('localdb', `${this.config.dbName}${postfix}.db`);
+  }
+
+  /**
+   * Restore a database backup from disk
+   * Perform this after running "dump()" on a previous synced database
+   * This will help to reduce the initial sync time for large databases
+   * @param {string} [snapshotFile] File path of the snapshot to restore into the database
+   * snapshotFile will use default saveSnapshot result location if not supplied
+   */
+  async loadSnapshot(snapshotFile = '') {
+    throw new Error('Missing Implementation');
+    if (this.synced || this.replicating) {
+      console.warn('Trying to load database snapshot when replication has already started');
+      return;
+    }
+
+    const useCustomSnapshot = !!snapshotFile;
+    const dumpPath = useCustomSnapshot ? snapshotFile : this.getDumpFilename();
+
+    // if our database dump doesn't exist, then early out and we'll do a normal sync
+    try {
+      await fs.access(dumpPath, fsConstants.F_OK);
+    } catch (error) {
+      return;
+    }
+
+    console.log('Restoring database from disk...');
+
+    // otherwise, load up our database from disk
+    const ws = createReadStream(dumpPath);
+    return this.load(ws, {
+      batch_size: 500,
+    });
+  }
+
+  /**
+   * Save a snapshot of this live database to disk
+   * This will be used to "seed" the database to speed up syncs for future runs
+   * @return {string} Path to resulting database snapshot
+   */
+  async saveSnapshot() {
+    throw new Error('Missing Implementation');
+    if (this.databaseDumpPendingPromise) {
+      return this.databaseDumpPendingPromise;
+    }
+
+    console.log('Dumping database to disk...');
+
+    const dumpPath = this.getDumpFilename();
+    const dumpPathNew = this.getDumpFilename('_new');
+
+    // dump database to our new location
+    const ws = createWriteStream(dumpPathNew);
+    this.databaseDumpPendingPromise = this.dump(ws, {
+      batch_size: 500,
+    });
+    // save Promise so multiple "dump()" calls can stack cleanly
+    await this.databaseDumpPendingPromise;
+    this.databaseDumpPendingPromise = null;
+
+    // rename new database dump to our final intended location
+    return fs.rename(dumpPathNew, dumpPath).then(() => {
+      // finally, return the actual path of the snapshot
+      return dumpPath;
+    });
+  }
+
+  /**
+   * Index initialisation
+   * This function wraps taking care of creating our indexes once only
+   * @private
+   */
+  async _initIndexes() {
+    if (this._indexSetup) {
+      return;
+    }
+
+    if (this._setupPromise) {
+      return this._setupPromise;
+    }
+
+    this._setupPromise = this._createIndexes();
+    await this._setupPromise;
+    this._indexSetup = true;
+    return;
+  }
+
+  /**
+   * Setup our WDW indexes
+   * @private
+   */
+  async _createIndexes() {
+    await this._createIndex(constants.INDEX_ENTITIES);
+    await this._createIndex(constants.INDEX_CHANNELS);
+    await this._createIndex(constants.INDEX_FACILITYSTATUS, []);
+    await this._createIndex(constants.INDEX_CHILDREN);
+    await this._createIndex(constants.INDEX_NAMES);
+    await this._createIndex(constants.INDEX_IDS, []);
+  }
+
+  /**
+   * Get the internal index object for the given index type
+   * @param {object} name Index name (see constants.INDEX_*)
+   * @return {*}
+   * @private
+   */
+  getIndex(name) {
+    return this._index[name].index;
+  }
+
+  /**
+   * Create an index object to be used by this database
+   * @param {string} name Index name
+   * @param {*} defaultIndex Index initial object state
+   * @private
+   */
+  async _createIndex(name, defaultIndex = {}) {
+    this._index[name] = {
+      index: defaultIndex,
+    };
+  }
+
+  /**
+   * Given a WDW document, extract key identifiable data
+   * This is used to build a look-up index of unique document types
+   * See ancestorIndexes for some of the keys we use
+   * This is important so we can tell the difference between entities with the same ID, but different purposes
+   * eg. an entity ID can have multiple documents, one for the attraction itself, one for it's wait times, etc.
+   * These need to both be in the index under the same entity ID, but with different properties to make them distinct
+   * @param {object} doc WDW Database Document
+   * @return {object} Index object containing important identifying data
+   * @private
+   */
+  _extractEntityKeys(doc) {
+    if (!doc || !doc.id) return undefined;
+
+    // some IDs are stacked using :
+    const stack = doc.id.split(':');
+    const lowestLevelEntity = stack[stack.length - 1];
+
+    const parts = lowestLevelEntity.split(';');
+    if (parts &lt;= 1) return undefined;
+
+    // some documents can have different parents, they're the same, but different path to get there
+    const parentStackEl = stack.length > 1 ? stack[stack.length - 2] : undefined;
+    const parent = parentStackEl ? this._extractEntityKeys({id: parentStackEl}).id : undefined;
+
+    const ret = {
+      parent,
+    };
+
+    // special case for calendars
+    if (doc.channels.find((x) => x.indexOf('.calendar.') >= 0) !== undefined) {
+      ret.entityType = 'calendar';
+    }
+
+    parts.forEach((p) => {
+      const keyval = p.split('=');
+      if (keyval.length === 1) {
+        ret.id = keyval[0];
+      } else {
+        ret[keyval[0]] = keyval[1];
+      }
+    });
+
+    // if this document is in a "facilitystatus" channel, add an extra tag
+    //  this is so we don't collide with the actaul document for this attraction
+    //  but also so we can filter it easier later
+    const facilityStatus = doc.channels &amp;&amp; (doc.channels.find((x) => x.indexOf('facilitystatus') >= 0) !== undefined);
+    if (facilityStatus) {
+      ret.facilityStatus = true;
+    }
+
+    // include channels in our index
+    if (doc.channels) {
+      const channels = JSON.parse(JSON.stringify(doc.channels));
+      channels.sort();
+      ret.channel = channels.join(',');
+    }
+
+    // add any ancestor data to our index (that we a) care about and b) can find) - see ancestorIndexes
+    ancestorIndexes.forEach((ancestorIndex) => {
+      if (doc[ancestorIndex.key]) {
+        const ancestorID = getEntityID(doc[ancestorIndex.key]);
+        if (ancestorID) {
+          ret[ancestorIndex.index] = ancestorID;
+        }
+      }
+    });
+
+    return ret;
+  }
+
+  /**
+   * Given a WDW database document, try to return its language
+   * @param {object} doc
+   * @return {string} Language of this document. Eg. en_intl, en_us
+   * @private
+   */
+  _extractChannelLanguage(doc) {
+    // pull channel from doc
+    if (!doc.channels) return undefined;
+
+    const langs = doc.channels.map((x) => {
+      // extract last \.* from the end of the channel name
+      // language-specific channels end with "en_us" or something
+      // channels without locale end with a version number eg. "1_0"
+      return x.slice(x.lastIndexOf('.') + 1);
+    }).filter((x) => {
+      // check each one to see the language tag starts with a version number
+      return isNaN(Number(x.slice(0, 1)));
+    });
+
+    // default to 'en_intl' if we cannot find a language in our channels
+    return langs[0] || 'en_intl';
+  }
+
+  /**
+   * Remove all indexes referencing docID from the given index
+   * @param {object} index
+   * @param {string} docID
+   */
+  _removeFromArrayIndex(index, docID) {
+    Object.keys(index).forEach((key) => {
+      const indexIDs = index[key].map(
+        (x, idx) => {
+          return x._id === docID ? idx : undefined;
+        }).
+        filter((x) => x !== undefined);
+
+      indexIDs.forEach((idx) => {
+        index[key].splice(idx, 1);
+      });
+    });
+  }
+
+  /**
+   * Add a document to the database index
+   * Used for fast lookups of entities etc. to the correct documents
+   * @param {object} doc CouchDB document to index
+   * @private
+   */
+  async _indexWDWDocument(doc) {
+    const idIndex = this.getIndex(constants.INDEX_IDS);
+
+    if (doc._deleted) {
+      // remove document from all indexes
+
+      // facility status
+      //  quick hack to turn the facility status index into the same type as the others so I can reuse my code
+      const facilityIndexObject = {index: this.getIndex(constants.INDEX_FACILITYSTATUS)};
+      this._removeFromArrayIndex(facilityIndexObject, doc._id);
+
+      // channels
+      this._removeFromArrayIndex(this.getIndex(constants.INDEX_CHANNELS), doc._id);
+
+      // entity index
+      this._removeFromArrayIndex(this.getIndex(constants.INDEX_ENTITIES), doc._id);
+
+      // id index
+      const idIndexIDX = idIndex.indexOf(doc._id);
+      if (idIndexIDX >= 0) {
+        idIndex.splice(idIndexIDX, 1);
+      }
+
+      // ancestor data
+      //  look through all ancestor index items and remove this document
+      const childIndex = this.getIndex(constants.INDEX_CHILDREN);
+      const indexIDs = Object.keys(childIndex);
+      indexIDs.forEach((index) => {
+        const idx = childIndex[index].indexOf(doc._id);
+        if (idx >= 0) {
+          childIndex[index].splice(idx, 1);
+        }
+      });
+
+      // name index
+      const nameIndex = this.getIndex(constants.INDEX_NAMES);
+      const nameIndexIDs = Object.keys(nameIndex);
+      nameIndexIDs.forEach((index) => {
+        const idx = childIndex[index].indexOf(doc._id);
+        if (idx >= 0) {
+          childIndex[index].splice(idx, 1);
+        }
+      });
+
+      return;
+    }
+
+    // always add doc ID to our ID index
+    if (idIndex.indexOf(doc._id) &lt; 0) {
+      idIndex.push(doc._id);
+    }
+
+    const entity = this._extractEntityKeys(doc);
+    if (entity &amp;&amp; entity.id &amp;&amp; entity.entityType) {
+      const id = entity.id;
+
+      const newIndexEntry = {
+        ...entity,
+        language: this._extractChannelLanguage(doc),
+        _id: doc._id,
+      };
+
+      // special-case, index all facility status documents in another index
+      if (newIndexEntry.facilityStatus) {
+        const facilityIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);
+
+        const docExists = facilityIndex.findIndex((x) => {
+          return x.id === newIndexEntry.id;
+        });
+        if (docExists >= 0) {
+          facilityIndex[docExists] = newIndexEntry;
+        } else {
+          facilityIndex.push(newIndexEntry);
+        }
+      }
+
+      // index all documents based on channel
+      if (doc.channels) {
+        const channelIndex = this.getIndex(constants.INDEX_CHANNELS);
+        doc.channels.forEach((channel) => {
+          if (!channelIndex[channel]) {
+            channelIndex[channel] = [];
+          }
+          channelIndex[channel].push(newIndexEntry);
+        });
+      }
+
+      // index ancestors (so we can find all children of a given entity)
+      const locs = doc?.relatedLocations;
+      if (locs) {
+        const ancestors = locs ? locs.map((x) => x.ancestors || []).flat() : [];
+        const childrenIndex = this.getIndex(constants.INDEX_CHILDREN);
+        for (let i = 0; i &lt; ancestors.length; i++) {
+          const entity = getEntityID(ancestors[i].id);
+          if (entity) {
+            // found entity ID for this ancestor, create or update an entry for it
+            if (childrenIndex[entity] === undefined) {
+              childrenIndex[entity] = [];
+            }
+            if (childrenIndex[entity].indexOf(doc._id) &lt; 0) {
+              childrenIndex[entity].push(doc._id);
+            }
+          }
+        }
+      }
+
+      // index document names for text searching
+      let docName = doc?.name;
+      if (docName) {
+        // simplify our doc name to only alphanumeric characters
+        docName = docName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const nameIndex = this.getIndex(constants.INDEX_NAMES);
+        if (!nameIndex[docName]) {
+          nameIndex[docName] = [];
+        }
+        nameIndex[docName].push(doc._id);
+      }
+
+      const newIndexKeys = Object.keys(newIndexEntry);
+
+      const entityIndex = this.getIndex(constants.INDEX_ENTITIES);
+      if (!entityIndex[id]) {
+        entityIndex[id] = [];
+      }
+      const findExisting = entityIndex[id].findIndex((x) => {
+        // if # keys are different, not a match
+        if (Object.keys(x).length !== newIndexKeys.length) return false;
+
+        // look for any mismatches between the keys
+        const findMismatch = newIndexKeys.find((key) => {
+          // _id is supposed to be different, so ignore it regardless of if it matches or not
+          if (key === '_id') return false;
+          return (newIndexEntry[key] !== x[key]);
+        });
+        return !findMismatch;
+      });
+
+      if (findExisting &lt; 0) {
+        // entry doesn't exist, add to our list
+        entityIndex[id].push(newIndexEntry);
+      } else {
+        // replace existing entry that matches all the same properties
+        if (entityIndex[id][findExisting]._id !== newIndexEntry._id) {
+          entityIndex[id][findExisting] = newIndexEntry;
+        }
+      }
+    }
+  }
+
+  /**
+   * Get an array of documents from an array of _id
+   * @param {array&lt;string>} ids
+   */
+  async getDocsById(ids) {
+    await this.init();
+
+    return (await Promise.all(ids.map((id) => {
+      // fetch each document using our local DB
+      return this.get(id);
+    }))).filter((doc) => {
+      // filter our any docs that failed to be fetched (they have been deleted etc.)
+      return doc !== undefined;
+    });
+  }
+
+  /**
+   * Find search index entries by ID
+   * If you want the actual document and not just the meta-index data, use getEntity() instead
+   * @param {string} id
+   * @param {object} [filter]
+   * @return {array&lt;object>} Returns the index data for this entity ID
+   */
+  async getEntityIndex(id, filter = {}) {
+    await this.init();
+
+    const entityIndex = this.getIndex(constants.INDEX_ENTITIES);
+    const indexEntry = entityIndex[id];
+    if (!indexEntry) return [];
+
+    // filter entries by supplied filter options before resolving
+    return indexEntry.filter(sift(filter));
+  }
+
+  /**
+   * Return an array of children document IDs for a given entity ID
+   * @param {string} id
+   */
+  async getDocChildren(id) {
+    await this.init();
+
+    const childrenIndex = this.getIndex(constants.INDEX_CHILDREN);
+    const children = childrenIndex[id];
+    if (!children) return [];
+    return children;
+  }
+
+  /**
+   * Very rudementary text search for documents matching the incoming name.
+   * name argument will be stripped of all non-alphanumeric characters for searching.
+   * Will return an array of document IDs with matching name substrings.
+   * @param {string} name
+   */
+  async getDocNameSearch(name) {
+    const searchName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const nameIndex = await this.getIndex(constants.INDEX_NAMES);
+    const names = Object.keys(nameIndex);
+    const found = names.filter((x) => {
+      return x.indexOf(searchName) >= 0;
+    });
+    return found.map((x) => nameIndex[x]).flat();
+  }
+
+  /**
+   * Search for an entity in the WDW database
+   * @param {string} id Entity ID
+   * @param {object} [filter] Filter index by field
+   * @return {array&lt;object>} Returns all documents for this entity ID
+   */
+  async getEntity(id, filter = {}) {
+    const entities = await this.getEntityIndex(id, filter);
+
+    // resolve each index entry to our full documents
+    return this.getDocsById(entities.map((entry) => {
+      return entry._id;
+    }));
+  }
+
+
+  /**
+   * Search for an entity in the WDW database
+   * Attempts to return the "best candidate" single document that matches the incoming ID
+   * @param {string} id Entity ID
+   * @param {object} [filter] Optional index filter
+   * @return {object} Returns the best candidate single document, or undefined
+   */
+  async getEntityOne(id, filter = {}) {
+    const entities = await this.getEntityIndex(id, filter);
+    if (entities.length === 0) return undefined;
+
+    // filter to find the best document of the ones available
+    //  prioritise language en_intl
+    const enIntl = entities.find((doc) => {
+      return doc.language === 'en_intl' &amp;&amp; !doc.facilityStatus; // don't include facilityStatus docs by-default
+    });
+    if (enIntl) {
+      return await this.get(enIntl._id);
+    }
+
+    //  2nd priority: en_US
+    const enUS = entities.find((doc) => {
+      return doc.language === 'en_us' &amp;&amp; !doc.facilityStatus; // don't include facilityStatus docs by-default
+    });
+    if (enUS) {
+      return await this.get(enUS._id);
+    }
+
+    // otherwise just return the first entry in out list
+    return await this.get(entities[0]._id);
+  }
+
+  /**
+   * Get the live facility status for a given entity ID
+   * @param {string} id Entity ID
+   * @return {object} Facility status document, or undefined
+   */
+  async getFacilityStatus(id) {
+    await this.init();
+
+    const statusIndex = this.getIndex(constants.INDEX_FACILITYSTATUS);
+
+    // look up entity ID in our facility status index
+    const indexEntity = statusIndex.find((x) => {
+      return x.id === id;
+    });
+    if (!indexEntity) return undefined;
+
+    return await this.get(indexEntity._id);
+  }
+
+  /**
+   * Find all documents by channel
+   * eg. 'wdw.facilitystatus.1_0' to get all WDW facility status documents
+   * @param {string} channel Channel ID
+   * @param {object} [filter] Optional document index filter
+   * @return {array&lt;object>} All documents in this channel (or empty array)
+   */
+  async getByChannel(channel, filter = {}) {
+    await this.init();
+
+    const channelIndex = this.getIndex(constants.INDEX_CHANNELS);
+
+    const channelData = channelIndex[channel];
+    if (!channelData) {
+      return [];
+    }
+
+    // return resolved documents for the channel
+    return this.getDocsById(channelData.filter(sift(filter)).map((entry) => {
+      return entry._id;
+    }));
+  }
+
+  /**
+   * Return all documents in the database that match the given filter
+   * This is a slow operation! Use sparingly!
+   * @param {object} [filter]
+   * @return {array&lt;object>}
+   */
+  async find(filter = {}) {
+    await this.init();
+
+    const docs = await this.allDocs({
+      include_docs: true,
+    });
+
+    return docs.rows.map((row) => row.doc).filter(sift(filter));
+  }
+
+  /**
+   * Subscribe to all database changes with an optional mongo-style filter
+   * @param {object} [filter]
+   * @param {function} callback
+   */
+  subscribeToChanges(filter, callback) {
+    if (typeof filter === 'function') {
+      // if no filter passed in, call ourselves with an empty set
+      this.subscribeToChanges({}, callback);
+    } else {
+      // listen to changes from now onwards, passing in our filter function
+      this.changes({
+        since: 'now',
+        live: true,
+        include_docs: true,
+        filter: sift(filter),
+      }).on('change', (change) => {
+        callback(change.doc);
+      });
+    }
+  }
+
+  /**
+   * Subscribe to all changes to a channel
+   * @param {string} channel
+   * @param {function} callback
+   */
+  subscribeToChannel(channel, callback) {
+    // only return documents that contain the supplied channel
+    this.subscribeToChanges({
+      channels: {
+        $elemMatch: channel,
+      },
+    }, callback);
+  }
+
+  /**
+   * Plugin function to intercept bulkDocs function
+   * We index any WDW documents we find for easier lookup later
+   * @param  {...any} args bulkDocs in
+   * @private
+   */
+  static async _pluginBulkDocs(...args) {
+    await this._initIndexes();
+
+    const body = args[0];
+    const docs = Array.isArray(body) ? body : body.docs;
+
+    // index each document being added to the database
+    await Promise.allSettled(docs.map((doc) => {
+      return this._indexWDWDocument(doc);
+    }));
+
+    // All documents check out. Pass them to PouchDB.
+    return pouchBulkDocs.call(this, ...args);
+  }
+}
+
+// add our plugin function
+IndexedWDWDB.plugin({
+  bulkDocs: IndexedWDWDB._pluginBulkDocs,
+});
+
+export default IndexedWDWDB;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.1</a> on Sun Feb 19 2023 21:20:22 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+
+
+</body>
+</html>

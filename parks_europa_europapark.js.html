@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>Home - Documentation</title>
+    <title>parks/europa/europapark.js - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -35,292 +35,462 @@
 
 <div id="main">
     
+    <h1 class="page-title">parks/europa/europapark.js</h1>
+    
 
     
 
 
 
     
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import EuropaParkDB from './europaparkdb.js';
+import {statusType, queueType, scheduleType, returnTimeState, entityType, attractionType} from '../parkTypes.js';
+import moment from 'moment-timezone';
+import Destination from '../destination.js';
 
+export class EuropaPark extends Destination {
+  constructor(options = {}) {
+    options.name = options.name || "Europa-Park";
+    options.timezone = options.timezone || 'Europe/Berlin';
 
-    <section class="package">
-        <h3> </h3>		
-    </section>
+    options.parks = [
+      {
+        id: 493,
+        scope: 'europapark',
+      },
+      {
+        id: 494,
+        scope: 'rulantica',
+      },
+    ];
 
+    super(options);
 
+    if (!this.config.parks) throw new Error('Missing Europa Park Configs');
+  }
 
+  /**
+   * Get our resort database
+   */
+  get db() {
+    return EuropaParkDB.get();
+  }
 
+  static idToString(id) {
+    return `europa_${id}`;
+  }
 
+  /**
+   * @inheritdoc
+   */
+  buildBaseEntityObject(data) {
+    const entity = Destination.prototype.buildBaseEntityObject.call(this, data);
 
+    entity.name = data?.name;
 
+    // add any entity locations
+    if (data?.longitude &amp;&amp; data?.latitude) {
+      entity.location = {
+        latitude: data.latitude,
+        longitude: data.longitude,
+      };
+    } else if (data?._src?.longitude &amp;&amp; data?._src?.latitude) {
+      entity.location = {
+        latitude: data._src.latitude,
+        longitude: data._src.longitude,
+      };
+    }
 
+    if (data?.id) {
+      entity._id = `${data.id}`;
+    }
 
-    
+    return entity;
+  }
 
+  /**
+   * Build the destination entity representing this resort
+   */
+  async buildDestinationEntity() {
+    return {
+      ...this.buildBaseEntityObject({
+        name: this.config.name,
+      }),
+      _id: 'europapark',
+      slug: 'europa',
+      entityType: entityType.destination,
+    };
+  }
 
+  /**
+   * Build the park entities for this resort
+   */
+  async buildParkEntities() {
+    // find all our parks
+    const poiData = await this.db.getParkData();
 
-    <section class="readme usertext">
-        <article><h1>ThemeParks.wiki Parks API</h1>
-<p><img src="https://github.com/ThemeParks/parksapi/workflows/Unit%20Test/badge.svg" alt="Unit Test"> <img src="https://github.com/ThemeParks/parksapi/workflows/ESDoc/badge.svg" alt="Documentation Build"></p>
-<p><a href="https://themeparks.github.io/parksapi/">API Documentation</a></p>
-<p>This is a backend module to fetch and query live data for themeparks. This source code powers the free-to-use API at <a href="https://themeparks.wiki">ThemeParks.wiki</a></p>
-<p>To fetch data from the API, you should look at the client libraries:</p>
-<ul>
-<li>https://github.com/ThemeParks/ThemeParks_JavaScript</li>
-<li>https://github.com/ThemeParks/ThemeParks_Python</li>
-</ul>
-<p>Fetching and parsing logic is provided in this source code. Most parks require some form of credentials, which are not supplied in this repo. You will need to source these yourself.</p>
-<p>General support is available for the ThemeParks.wiki API, and not this source code (except for Sponsors with support benefits).</p>
-<p><code>test.js</code> contains a basic set of sanity checks and output validation, which also shows how a destination object can be accessed.</p>
-<p>Each destination generates <em>entities</em>. Entities can be of various types:</p>
-<ul>
-<li>Destinations
-<ul>
-<li>i.e, Resorts</li>
-<li>These are not called resorts to avoid confusion for parks that are not part of resorts</li>
-<li>eg. Walt Disney World Resort</li>
-</ul>
-</li>
-<li>Parks
-<ul>
-<li>All parks must be within a Destination entity</li>
-<li>eg. Magic Kingdom</li>
-</ul>
-</li>
-<li>Attraction
-<ul>
-<li>A ride / transport / etc.</li>
-<li>Attraction entities must be within a Destination entity (usually also within a park, but not always)</li>
-<li>eg. Pirates of the Carribean</li>
-</ul>
-</li>
-<li>Resturant
-<ul>
-<li>A dining location within a destination</li>
-<li>eg. Casey's Corner</li>
-</ul>
-</li>
-<li>Show
-<ul>
-<li>A show / parade entity with scheduled show times</li>
-<li>eg. Main Street Electrical Parade</li>
-</ul>
-</li>
-</ul>
-<p><em>Entity Types Being Finalised - Destinations, Parks, and Attractions however, are well supported and unlikely to change</em></p>
-<h2>Adding Destinations</h2>
-<p>Best current documentation for this is to check out <code>scripts/templateDestination.js</code> and look at the existing supported destinations.</p>
-<p>Setup <code>index.js</code> with your new class, and edit <code>test.js</code> to test your destination to check everything is setup correctly.</p>
-<h2>Destinations</h2>
-<!-- BEGIN_DESTINATIONS -->
-<ul>
-<li>WaltDisneyWorldResort</li>
-<li>DisneylandResort</li>
-<li>DisneylandParis</li>
-<li>TokyoDisneyResort</li>
-<li>HongKongDisneyland</li>
-<li>ShanghaiDisneylandResort</li>
-<li>UniversalStudios</li>
-<li>UniversalOrlando</li>
-<li>EuropaPark</li>
-<li>Efteling</li>
-<li>Phantasialand</li>
-<li>SeaworldOrlando</li>
-<li>SeaworldSanAntonio</li>
-<li>SeaworldSanDiego</li>
-<li>AltonTowers</li>
-<li>ThorpePark</li>
-<li>ChessingtonWorldOfAdventures</li>
-<li>LegolandWindsor</li>
-<li>LegolandOrlando</li>
-<li>Gardaland</li>
-<li>PortAventuraWorld</li>
-<li>ParcAsterix</li>
-<li>Toverland</li>
-<li>Dollywood</li>
-<li>SilverDollarCity</li>
-<li>Plopsaland</li>
-<li>HolidayPark</li>
-</ul>
-<!-- END_DESTINATIONS -->
-<h2>Configuration</h2>
-<p>Destination objects can be configured by either passing an object of variables into the constructor, or using environment variables (the preferred way).</p>
-<p>To use environment variables, create a file called <code>.env</code> in the working directory of your project.</p>
-<p>Environment variables are structured as:</p>
-<ul>
-<li>Class name (upper case)</li>
-<li>Underscore _</li>
-<li>Variable name (upper case)</li>
-</ul>
-<p>For example, the class <code>WaltDisneyWorldResort</code> has a <code>resortId</code> configuration variable which can be loaded through the environment variable <code>WALTDISNEYWORLDRESORT_RESORTID</code></p>
-<p>Some classes expose &quot;parent scopes&quot; to allow configuring environment variables once for a range of destinations. For example, Attractions.io's base URL can be configured once through <code>ATTRACTIONSIO_BASEURL</code> rather than configuring it identically for every destination.</p>
-<p>Environment Variables (auto-generated):</p>
-<!-- BEGIN_ENV -->
-<pre class="prettyprint source"><code>WALTDISNEYWORLDRESORT_RESORTID
-WALTDISNEYWORLDRESORT_RESORTSHORTCODE
-WALTDISNEYWORLDRESORT_PARKIDS
-WALTDISNEYWORLDRESORT_VIRTUALQUEUEURL
-WALTDISNEYWORLDRESORT_GENIEDATA
-DISNEYLANDRESORT_RESORTID
-DISNEYLANDRESORT_RESORTSHORTCODE
-DISNEYLANDRESORT_PARKIDS
-DISNEYLANDRESORT_VIRTUALQUEUEURL
-DISNEYLANDRESORT_GENIEDATA
-DISNEYLANDPARIS_APIKEY
-DISNEYLANDPARIS_APIBASE
-DISNEYLANDPARIS_APIBASEWAITTIMES
-DISNEYLANDPARIS_LANGUAGE
-DISNEYLANDPARIS_STANDBYAPIBASE
-DISNEYLANDPARIS_STANDBYAPIKEY
-DISNEYLANDPARIS_STANDBYAUTHURL
-DISNEYLANDPARIS_STANDBYAPIREFRESHTOKEN
-DISNEYLANDPARIS_PREMIERACCESSAPIKEY
-DISNEYLANDPARIS_PREMIERACCESSURL
-DISNEYLANDPARIS_USERAGENT
-TOKYODISNEYRESORT_APIKEY
-TOKYODISNEYRESORT_APIAUTH
-TOKYODISNEYRESORT_APIOS
-TOKYODISNEYRESORT_APIBASE
-TOKYODISNEYRESORT_APIVERSION
-TOKYODISNEYRESORT_PARKIDS
-HONGKONGDISNEYLAND_RESORTID
-HONGKONGDISNEYLAND_RESORTSHORTCODE
-HONGKONGDISNEYLAND_PARKIDS
-HONGKONGDISNEYLAND_VIRTUALQUEUEURL
-HONGKONGDISNEYLAND_GENIEDATA
-SHANGHAIDISNEYLANDRESORT_APIBASE
-SHANGHAIDISNEYLANDRESORT_APIAUTH
-SHANGHAIDISNEYLANDRESORT_PARKIDS
-UNIVERSALSTUDIOS_CITY
-UNIVERSALSTUDIOS_RESORTSLUG
-UNIVERSALSTUDIOS_SECRETKEY
-UNIVERSALSTUDIOS_APPKEY
-UNIVERSALSTUDIOS_VQUEUEURL
-UNIVERSALSTUDIOS_BASEURL
-UNIVERSALORLANDO_CITY
-UNIVERSALORLANDO_RESORTSLUG
-UNIVERSALORLANDO_SECRETKEY
-UNIVERSALORLANDO_APPKEY
-UNIVERSALORLANDO_VQUEUEURL
-UNIVERSALORLANDO_BASEURL
-EUROPAPARK_PARKS
-EFTELING_APIKEY
-EFTELING_APIVERSION
-EFTELING_APPVERSION
-EFTELING_SEARCHURL
-EFTELING_WAITTIMESURL
-PHANTASIALAND_APIBASE
-SEAWORLDORLANDO_RESORTIDS
-SEAWORLDORLANDO_RESORTID
-SEAWORLDORLANDO_RESORTSLUG
-SEAWORLDORLANDO_APPID
-SEAWORLDORLANDO_BASEURL
-SEAWORLDSANANTONIO_RESORTIDS
-SEAWORLDSANANTONIO_RESORTID
-SEAWORLDSANANTONIO_RESORTSLUG
-SEAWORLDSANANTONIO_APPID
-SEAWORLDSANANTONIO_BASEURL
-SEAWORLDSANDIEGO_RESORTIDS
-SEAWORLDSANDIEGO_RESORTID
-SEAWORLDSANDIEGO_RESORTSLUG
-SEAWORLDSANDIEGO_APPID
-SEAWORLDSANDIEGO_BASEURL
-ALTONTOWERS_DESTINATIONID
-ALTONTOWERS_PARKID
-ALTONTOWERS_INITIALDATAVERSION
-ALTONTOWERS_APPBUILD
-ALTONTOWERS_APPVERSION
-ALTONTOWERS_BASEURL
-ALTONTOWERS_DEVICEIDENTIFIER
-ALTONTOWERS_APIKEY
-ALTONTOWERS_CALENDARURL
-THORPEPARK_DESTINATIONID
-THORPEPARK_PARKID
-THORPEPARK_INITIALDATAVERSION
-THORPEPARK_APPBUILD
-THORPEPARK_APPVERSION
-THORPEPARK_BASEURL
-THORPEPARK_DEVICEIDENTIFIER
-THORPEPARK_APIKEY
-THORPEPARK_CALENDARURL
-CHESSINGTONWORLDOFADVENTURES_DESTINATIONID
-CHESSINGTONWORLDOFADVENTURES_PARKID
-CHESSINGTONWORLDOFADVENTURES_INITIALDATAVERSION
-CHESSINGTONWORLDOFADVENTURES_APPBUILD
-CHESSINGTONWORLDOFADVENTURES_APPVERSION
-CHESSINGTONWORLDOFADVENTURES_BASEURL
-CHESSINGTONWORLDOFADVENTURES_DEVICEIDENTIFIER
-CHESSINGTONWORLDOFADVENTURES_APIKEY
-CHESSINGTONWORLDOFADVENTURES_CALENDARURL
-LEGOLANDWINDSOR_DESTINATIONID
-LEGOLANDWINDSOR_PARKID
-LEGOLANDWINDSOR_INITIALDATAVERSION
-LEGOLANDWINDSOR_APPBUILD
-LEGOLANDWINDSOR_APPVERSION
-LEGOLANDWINDSOR_BASEURL
-LEGOLANDWINDSOR_DEVICEIDENTIFIER
-LEGOLANDWINDSOR_APIKEY
-LEGOLANDWINDSOR_CALENDARURL
-LEGOLANDORLANDO_DESTINATIONID
-LEGOLANDORLANDO_PARKID
-LEGOLANDORLANDO_INITIALDATAVERSION
-LEGOLANDORLANDO_APPBUILD
-LEGOLANDORLANDO_APPVERSION
-LEGOLANDORLANDO_BASEURL
-LEGOLANDORLANDO_DEVICEIDENTIFIER
-LEGOLANDORLANDO_APIKEY
-LEGOLANDORLANDO_CALENDARURL
-GARDALAND_DESTINATIONID
-GARDALAND_PARKID
-GARDALAND_INITIALDATAVERSION
-GARDALAND_APPBUILD
-GARDALAND_APPVERSION
-GARDALAND_BASEURL
-GARDALAND_DEVICEIDENTIFIER
-GARDALAND_APIKEY
-GARDALAND_CALENDARURL
-PORTAVENTURAWORLD_APIBASE
-PARCASTERIX_APIBASE
-PARCASTERIX_LANGUAGE
-TOVERLAND_APIBASE
-TOVERLAND_CALENDARURL
-TOVERLAND_AUTHTOKEN
-TOVERLAND_LANGUAGES
-DOLLYWOOD_DESTINATIONID
-DOLLYWOOD_DESTINATIONSLUG
-DOLLYWOOD_CRMBASEURL
-DOLLYWOOD_CRMGUID
-DOLLYWOOD_CRMATTRACTIONSID
-DOLLYWOOD_CRMDININGID
-DOLLYWOOD_CRMSHOWID
-DOLLYWOOD_APIBASE
-DOLLYWOOD_CRMAUTH
-SILVERDOLLARCITY_DESTINATIONID
-SILVERDOLLARCITY_DESTINATIONSLUG
-SILVERDOLLARCITY_CRMBASEURL
-SILVERDOLLARCITY_CRMGUID
-SILVERDOLLARCITY_CRMATTRACTIONSID
-SILVERDOLLARCITY_CRMDININGID
-SILVERDOLLARCITY_CRMSHOWID
-SILVERDOLLARCITY_APIBASE
-SILVERDOLLARCITY_CRMAUTH
-PLOPSALAND_DESTINATIONSLUG
-PLOPSALAND_PARKSLUG
-PLOPSALAND_BASEURL
-PLOPSALAND_BASELANG
-PLOPSALAND_CLIENTID
-PLOPSALAND_CLIENTSECRET
-HOLIDAYPARK_DESTINATIONSLUG
-HOLIDAYPARK_PARKSLUG
-HOLIDAYPARK_BASEURL
-HOLIDAYPARK_BASELANG
-HOLIDAYPARK_CLIENTID
-HOLIDAYPARK_CLIENTSECRET
+    const parks = poiData.filter((x) => {
+      return x.type === 'park';
+    });
+
+    const destination = await this.buildDestinationEntity();
+
+    return this.config.parks.map((parkConfig) => {
+      const park = parks.find((x) => x.id === parkConfig.id);
+      if (!park) return undefined;
+
+      return {
+        ...this.buildBaseEntityObject(park),
+        _id: `park_${park.id}`,
+        _destinationId: destination._id,
+        _parentId: destination._id,
+        entityType: entityType.park,
+        slug: parkConfig.scope,
+      };
+    }).filter((x) => !!x);
+  }
+
+  /**
+   * Build the attraction entities for this destination
+   */
+  async buildAttractionEntities() {
+    const attr = [];
+    const destination = await this.buildDestinationEntity();
+
+    for (let i = 0; i &lt; this.config.parks.length; i++) {
+      const scope = this.config.parks[i].scope;
+      const parkId = `park_${this.config.parks[i].id}`;
+
+      // get attractions for each park scope
+      const attractions = await this.db.getEntities({
+        '_src.scopes': {
+          $elemMatch: {
+            $eq: scope,
+          },
+        },
+        entityType: {
+          $ne: 'SHOW',
+        },
+      });
+
+      attractions.filter((x) => {
+        // don't send + Pass entrances as separate entities
+        if (x?._src?.name &amp;&amp; x._src.name.indexOf('+ Pass entrance') > 0) {
+          return false;
+        }
+        return true;
+      }).forEach((a) => {
+        // push all our attractions into a big array
+        attr.push({
+          ...this.buildBaseEntityObject(a),
+          _parentId: parkId,
+          _parkId: parkId,
+          _destinationId: destination._id,
+          entityType: entityType.attraction,
+          // TODO - detect other types
+          attractionType: attractionType.ride,
+        });
+      });
+    }
+
+    return attr;
+  }
+
+  /**
+   * Build the show entities for this destination
+   */
+  async buildShowEntities() {
+    const destination = await this.buildDestinationEntity();
+
+    const attrs = await this.db.getEntities({
+      entityType: 'SHOW',
+    });
+
+    const shows = [];
+
+    const parkId = `park_${this.config.parks[0].id}`;
+    attrs.forEach((a) => {
+      shows.push({
+        ...this.buildBaseEntityObject(a),
+        _parentId: parkId,
+        _parkId: parkId,
+        _destinationId: destination._id,
+        entityType: entityType.show,
+      });
+    });
+
+    return shows;
+  }
+
+  /**
+   * Build the restaurant entities for this destination
+   */
+  async buildRestaurantEntities() {
+    // TODO
+    return [];
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async buildEntityLiveData() {
+    const attrs = await this.db.getEntities();
+
+    const codeToEntityId = attrs.filter((x) => {
+      return !!x._src.code;
+    }).reduce((acc, x) => {
+      if (x.id) {
+        acc[x._src.code] = x.id;
+      }
+      return acc;
+    }, {});
+
+    const waits = await this.db.getWaitingTimes();
+    const showtimes = await this.db.getShowTimes();
+
+    const livedata = [];
+
+    // first, extract out all the virtual queue data
+    const vQueueData = [];
+    for (let i = 0; i &lt; waits.waitingtimes.length; i++) {
+      const wait = waits.waitingtimes[i];
+
+      const realRide = await this.db.findEntity({
+        '_src.vQueue.code': {
+          $eq: wait.code,
+        },
+      });
+
+      if (realRide !== undefined) {
+        // we found a "ride" that has a matching virtual queue
+        //  so this is a "dummy" ride that we want to inject back into the actual ride entity
+        let state = returnTimeState.available;
+        switch (wait.time) {
+          case 666:
+            state = returnTimeState.temporarilyFull;
+            break;
+          case 777:
+            state = returnTimeState.finished;
+            break;
+          case (wait.time &lt;= 91):
+            state = returnTimeState.available;
+            break;
+        }
+
+        // store vqueue data so we can pull this when looping over the actual wait time data
+        const entityId = codeToEntityId[realRide._src.code];
+        if (entityId) {
+          vQueueData.push({
+            _id: `${entityId}`,
+            _ignoreCode: wait.code,
+            returnStart: wait.startAt,
+            returnEnd: wait.endAt,
+            state,
+          });
+        }
+      }
+    }
+
+    const getLiveDataEntry = (id) => {
+      // search livedata for existing entry with this ID
+      const existing = livedata.find((x) => x._id === id);
+      if (existing) {
+        return existing;
+      }
+
+      // create a new entry
+      const newEntry = {
+        _id: id,
+        status: statusType.operating,
+      };
+      livedata.push(newEntry);
+      return newEntry;
+    };
+
+    // now actually loop over the wait data
+    for (let i = 0; i &lt; waits.waitingtimes.length; i++) {
+      const wait = waits.waitingtimes[i];
+
+      // first check if this is a virtual queue "dummy" entry, and ignore
+      if (vQueueData.find((x) => x._ignoreCode === wait.code)) {
+        continue;
+      }
+
+      // get entity Id from waittime code
+      const entityId = codeToEntityId[wait.code];
+      if (!entityId) continue;
+
+      const live = getLiveDataEntry(entityId);
+
+      // if time &lt;= 90, wait time is value in minutes
+      // time == 91, wait time is reported as 90+ in-app
+      // time == 999, down
+      // time == 222, closed refurb
+      // time == 333, closed
+      // time == 444, closed becaue weather
+      // time == 555, closed because ice
+      // time == 666, virtual queue is "temporarily full"
+      // time == 777, virtual queue is completely full
+      switch (wait.time) {
+        case 999:
+        case 444: // weather
+        case 555: // ice
+          live.status = statusType.down;
+          break;
+        case 222:
+          live.status = statusType.refurbishment;
+          break;
+        case 333:
+          live.status = statusType.closed;
+          break;
+      }
+
+      // stand-by wait time
+      if (!live.queue) live.queue = {};
+      live.queue[queueType.standBy] = {
+        waitTime: wait.time &lt;= 91 ? Math.min(wait.time, 90) : null,
+      };
+
+      // look for any virtual queue data
+      const vQ = vQueueData.find((x) => `${x._id}` === `${entityId}`);
+      if (vQ) {
+        live.queue[queueType.returnTime] = {
+          returnStart: vQ.returnStart,
+          returnEnd: vQ.returnEnd,
+          state: vQ.state,
+        };
+      }
+    }
+
+    // showtimes
+    showtimes.showtimes.forEach((show) => {
+      const live = getLiveDataEntry(`shows_${show.showId}`);
+
+      const showEnt = attrs.find((x) => x.id === `shows_${show.showId}`);
+      if (!showEnt) {
+        return;
+      }
+
+      live.showtimes = show.today.map((startTime) => {
+        // startTime is a time string
+        return {
+          startTime: moment(startTime).tz(this.config.timezone).format(),
+          endTime: moment(startTime).add(showEnt._src.duration || 0, 'minutes').tz(this.config.timezone).format(),
+          type: 'Performance',
+        };
+      });
+
+      // show status based on showtimes available
+      if (live.showtimes.length === 0) {
+        live.status = statusType.closed;
+      } else {
+        // if last show has ended, then mark as closed
+        const lastTime = live.showtimes.reduce((acc, x) => {
+          if (moment(x.endTime).isAfter(acc)) {
+            return moment(x.endTime);
+          }
+          return acc;
+        }, moment(live.showtimes[0].startTime));
+
+        const now = this.getTimeNowMoment();
+        if (now.isAfter(lastTime)) {
+          live.status = statusType.closed;
+        }
+      }
+    });
+
+    return livedata;
+  }
+
+  async _getCalendarForPark(parkConfig) {
+    const cal = await this.db.getCalendar();
+    const now = this.getTimeNowMoment();
+
+    const parkTimes = cal.seasons.filter(
+      // filter opening hours for actual opening times (ignore closed times)
+      // filter by scopes including our park Id
+      (x) => !x.closed &amp;&amp; x.scopes.indexOf(parkConfig.scope) >= 0,
+    );
+
+    const times = [];
+
+    const buildDateString = (inDate, date) => {
+      return moment.tz(inDate, this.config.timezone).set({
+        year: date.year(),
+        month: date.month(),
+        date: date.date(),
+      }).format();
+    };
+
+    parkTimes.forEach((hoursRange) => {
+
+      const start = moment(hoursRange.startAt);
+      const end = moment(hoursRange.endAt);
+
+      for (let date = start.clone(); date.isSameOrBefore(end, 'day'); date.add(1, 'day')) {
+        // ignore dates before now
+        if (date.isBefore(now, 'day')) continue;
+
+        times.push({
+          date: date.format('YYYY-MM-DD'),
+          openingTime: buildDateString(hoursRange.startAt, date),
+          closingTime: buildDateString(hoursRange.endAt, date),
+          type: scheduleType.operating,
+        });
+
+        // hotel extra hours
+        if (hoursRange.hotelStartAt &amp;&amp; hoursRange.hotelEndAt) {
+          times.push({
+            date: date.format('YYYY-MM-DD'),
+            openingTime: buildDateString(hoursRange.hotelStartAt, date),
+            closingTime: buildDateString(hoursRange.hotelEndAt, date),
+            type: scheduleType.extraHours,
+            description: 'Open To Hotel Guests',
+          });
+        }
+      }
+    });
+
+    // fetch live opening times to inject on top
+    if (parkConfig.scope === 'europapark') { // only do this for the actual theme park
+      const livedata = await this.db.getLiveCalendar();
+      if (livedata?.opentime?.today) {
+        const date = livedata.opentime.today.date.substring(0, 10);
+        const matchingDates = times.find((x) => x.date === date);
+        if (matchingDates) {
+          // replace existing opening times with live data
+          matchingDates.openingTime = livedata.opentime.today.start;
+          matchingDates.closingTime = livedata.opentime.today.end;
+        }
+      }
+    }
+
+    return {
+      _id: `park_${parkConfig.id}`,
+      schedule: times,
+    };
+  }
+
+  /**
+   * Return schedule data for all scheduled entities in this destination
+   * Eg. parks
+   * @returns {array&lt;object>}
+   */
+  async buildEntityScheduleData() {
+    const scheds = [];
+    for (let i = 0; i &lt; this.config.parks.length; i++) {
+      scheds.push(await this._getCalendarForPark(this.config.parks[i]));
+    }
+    return scheds;
+  }
+}
+
+export default EuropaPark;
 </code></pre>
-<!-- END_ENV --></article>
+        </article>
     </section>
-
-
 
 
 

@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>Home - Documentation</title>
+    <title>parks/seaworld/seaworld.js - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -35,292 +35,437 @@
 
 <div id="main">
     
+    <h1 class="page-title">parks/seaworld/seaworld.js</h1>
+    
 
     
 
 
 
     
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import {statusType, queueType, scheduleType, entityType, attractionType} from '../parkTypes.js';
+import moment from 'moment-timezone';
+import Destination from '../destination.js';
 
+export class SeaworldDestination extends Destination {
+  constructor(options = {}) {
 
-    <section class="package">
-        <h3> </h3>		
-    </section>
+    options.resortId = options.resortId || '';
+    options.resortSlug = options.resortSlug || '';
 
+    // seaworld resort ID
+    options.resortIds = options.resortIds || [];
+    // the Android App ID for this resort
+    options.appId = options.appId || 'com.seaworld.mobile';
+    // hardcoded fallback version
+    options.appVersion = options.appVersion || '7.0.14.61969';
 
+    // base URL for API requests
+    options.baseURL = options.baseURL || '';
 
+    options.configPrefixes = ['SEAWORLD'].concat(options.configPrefixes || []);
 
+    super(options);
 
+    if (!this.config.resortIds || this.config.resortIds.length &lt;= 0) throw new Error('Missing resortIds');
+    if (!this.config.resortId) throw new Error('Missing resortId');
+    if (!this.config.resortSlug) throw new Error('Missing resortSlug');
+    if (!this.config.appId) throw new Error('Missing appId');
+    if (!this.config.name) throw new Error('Missing name');
 
+    // setup API hooks
+    const baseURLHostname = new URL(this.config.baseURL).hostname;
+    this.http.injectForDomain({
+      hostname: baseURLHostname,
+    }, async (method, url, data, options) => {
+      // add app version to headers
+      const appVersion = await this.getAndroidAPPVersion(this.config.appId, this.config.appVersion);
 
+      if (!options) options = {};
 
+      options.headers = {
+        ...options.headers,
+        'app_version': appVersion,
+      };
+    });
+  }
 
-    
+  /**
+   * Get the raw park data for a given park ID
+   * @param parkId {string} the park ID
+   * @returns {object} the park data
+   */
+  async getParkData(parkId) {
+    // cache 12 hours
+    '@cache|720';
 
+    // get the park data
+    return (await this.http(
+      'GET',
+      `${this.config.baseURL}v1/park/${parkId}`,
+    ))?.body;
+  }
 
+  /**
+   * Get park POI data
+   * @param parkId {string} the park ID
+   * @returns {object} the park POI data
+   */
+  async getParkPOI(parkId) {
+    // cache 12 hours
+    '@cache|720';
 
-    <section class="readme usertext">
-        <article><h1>ThemeParks.wiki Parks API</h1>
-<p><img src="https://github.com/ThemeParks/parksapi/workflows/Unit%20Test/badge.svg" alt="Unit Test"> <img src="https://github.com/ThemeParks/parksapi/workflows/ESDoc/badge.svg" alt="Documentation Build"></p>
-<p><a href="https://themeparks.github.io/parksapi/">API Documentation</a></p>
-<p>This is a backend module to fetch and query live data for themeparks. This source code powers the free-to-use API at <a href="https://themeparks.wiki">ThemeParks.wiki</a></p>
-<p>To fetch data from the API, you should look at the client libraries:</p>
-<ul>
-<li>https://github.com/ThemeParks/ThemeParks_JavaScript</li>
-<li>https://github.com/ThemeParks/ThemeParks_Python</li>
-</ul>
-<p>Fetching and parsing logic is provided in this source code. Most parks require some form of credentials, which are not supplied in this repo. You will need to source these yourself.</p>
-<p>General support is available for the ThemeParks.wiki API, and not this source code (except for Sponsors with support benefits).</p>
-<p><code>test.js</code> contains a basic set of sanity checks and output validation, which also shows how a destination object can be accessed.</p>
-<p>Each destination generates <em>entities</em>. Entities can be of various types:</p>
-<ul>
-<li>Destinations
-<ul>
-<li>i.e, Resorts</li>
-<li>These are not called resorts to avoid confusion for parks that are not part of resorts</li>
-<li>eg. Walt Disney World Resort</li>
-</ul>
-</li>
-<li>Parks
-<ul>
-<li>All parks must be within a Destination entity</li>
-<li>eg. Magic Kingdom</li>
-</ul>
-</li>
-<li>Attraction
-<ul>
-<li>A ride / transport / etc.</li>
-<li>Attraction entities must be within a Destination entity (usually also within a park, but not always)</li>
-<li>eg. Pirates of the Carribean</li>
-</ul>
-</li>
-<li>Resturant
-<ul>
-<li>A dining location within a destination</li>
-<li>eg. Casey's Corner</li>
-</ul>
-</li>
-<li>Show
-<ul>
-<li>A show / parade entity with scheduled show times</li>
-<li>eg. Main Street Electrical Parade</li>
-</ul>
-</li>
-</ul>
-<p><em>Entity Types Being Finalised - Destinations, Parks, and Attractions however, are well supported and unlikely to change</em></p>
-<h2>Adding Destinations</h2>
-<p>Best current documentation for this is to check out <code>scripts/templateDestination.js</code> and look at the existing supported destinations.</p>
-<p>Setup <code>index.js</code> with your new class, and edit <code>test.js</code> to test your destination to check everything is setup correctly.</p>
-<h2>Destinations</h2>
-<!-- BEGIN_DESTINATIONS -->
-<ul>
-<li>WaltDisneyWorldResort</li>
-<li>DisneylandResort</li>
-<li>DisneylandParis</li>
-<li>TokyoDisneyResort</li>
-<li>HongKongDisneyland</li>
-<li>ShanghaiDisneylandResort</li>
-<li>UniversalStudios</li>
-<li>UniversalOrlando</li>
-<li>EuropaPark</li>
-<li>Efteling</li>
-<li>Phantasialand</li>
-<li>SeaworldOrlando</li>
-<li>SeaworldSanAntonio</li>
-<li>SeaworldSanDiego</li>
-<li>AltonTowers</li>
-<li>ThorpePark</li>
-<li>ChessingtonWorldOfAdventures</li>
-<li>LegolandWindsor</li>
-<li>LegolandOrlando</li>
-<li>Gardaland</li>
-<li>PortAventuraWorld</li>
-<li>ParcAsterix</li>
-<li>Toverland</li>
-<li>Dollywood</li>
-<li>SilverDollarCity</li>
-<li>Plopsaland</li>
-<li>HolidayPark</li>
-</ul>
-<!-- END_DESTINATIONS -->
-<h2>Configuration</h2>
-<p>Destination objects can be configured by either passing an object of variables into the constructor, or using environment variables (the preferred way).</p>
-<p>To use environment variables, create a file called <code>.env</code> in the working directory of your project.</p>
-<p>Environment variables are structured as:</p>
-<ul>
-<li>Class name (upper case)</li>
-<li>Underscore _</li>
-<li>Variable name (upper case)</li>
-</ul>
-<p>For example, the class <code>WaltDisneyWorldResort</code> has a <code>resortId</code> configuration variable which can be loaded through the environment variable <code>WALTDISNEYWORLDRESORT_RESORTID</code></p>
-<p>Some classes expose &quot;parent scopes&quot; to allow configuring environment variables once for a range of destinations. For example, Attractions.io's base URL can be configured once through <code>ATTRACTIONSIO_BASEURL</code> rather than configuring it identically for every destination.</p>
-<p>Environment Variables (auto-generated):</p>
-<!-- BEGIN_ENV -->
-<pre class="prettyprint source"><code>WALTDISNEYWORLDRESORT_RESORTID
-WALTDISNEYWORLDRESORT_RESORTSHORTCODE
-WALTDISNEYWORLDRESORT_PARKIDS
-WALTDISNEYWORLDRESORT_VIRTUALQUEUEURL
-WALTDISNEYWORLDRESORT_GENIEDATA
-DISNEYLANDRESORT_RESORTID
-DISNEYLANDRESORT_RESORTSHORTCODE
-DISNEYLANDRESORT_PARKIDS
-DISNEYLANDRESORT_VIRTUALQUEUEURL
-DISNEYLANDRESORT_GENIEDATA
-DISNEYLANDPARIS_APIKEY
-DISNEYLANDPARIS_APIBASE
-DISNEYLANDPARIS_APIBASEWAITTIMES
-DISNEYLANDPARIS_LANGUAGE
-DISNEYLANDPARIS_STANDBYAPIBASE
-DISNEYLANDPARIS_STANDBYAPIKEY
-DISNEYLANDPARIS_STANDBYAUTHURL
-DISNEYLANDPARIS_STANDBYAPIREFRESHTOKEN
-DISNEYLANDPARIS_PREMIERACCESSAPIKEY
-DISNEYLANDPARIS_PREMIERACCESSURL
-DISNEYLANDPARIS_USERAGENT
-TOKYODISNEYRESORT_APIKEY
-TOKYODISNEYRESORT_APIAUTH
-TOKYODISNEYRESORT_APIOS
-TOKYODISNEYRESORT_APIBASE
-TOKYODISNEYRESORT_APIVERSION
-TOKYODISNEYRESORT_PARKIDS
-HONGKONGDISNEYLAND_RESORTID
-HONGKONGDISNEYLAND_RESORTSHORTCODE
-HONGKONGDISNEYLAND_PARKIDS
-HONGKONGDISNEYLAND_VIRTUALQUEUEURL
-HONGKONGDISNEYLAND_GENIEDATA
-SHANGHAIDISNEYLANDRESORT_APIBASE
-SHANGHAIDISNEYLANDRESORT_APIAUTH
-SHANGHAIDISNEYLANDRESORT_PARKIDS
-UNIVERSALSTUDIOS_CITY
-UNIVERSALSTUDIOS_RESORTSLUG
-UNIVERSALSTUDIOS_SECRETKEY
-UNIVERSALSTUDIOS_APPKEY
-UNIVERSALSTUDIOS_VQUEUEURL
-UNIVERSALSTUDIOS_BASEURL
-UNIVERSALORLANDO_CITY
-UNIVERSALORLANDO_RESORTSLUG
-UNIVERSALORLANDO_SECRETKEY
-UNIVERSALORLANDO_APPKEY
-UNIVERSALORLANDO_VQUEUEURL
-UNIVERSALORLANDO_BASEURL
-EUROPAPARK_PARKS
-EFTELING_APIKEY
-EFTELING_APIVERSION
-EFTELING_APPVERSION
-EFTELING_SEARCHURL
-EFTELING_WAITTIMESURL
-PHANTASIALAND_APIBASE
-SEAWORLDORLANDO_RESORTIDS
-SEAWORLDORLANDO_RESORTID
-SEAWORLDORLANDO_RESORTSLUG
-SEAWORLDORLANDO_APPID
-SEAWORLDORLANDO_BASEURL
-SEAWORLDSANANTONIO_RESORTIDS
-SEAWORLDSANANTONIO_RESORTID
-SEAWORLDSANANTONIO_RESORTSLUG
-SEAWORLDSANANTONIO_APPID
-SEAWORLDSANANTONIO_BASEURL
-SEAWORLDSANDIEGO_RESORTIDS
-SEAWORLDSANDIEGO_RESORTID
-SEAWORLDSANDIEGO_RESORTSLUG
-SEAWORLDSANDIEGO_APPID
-SEAWORLDSANDIEGO_BASEURL
-ALTONTOWERS_DESTINATIONID
-ALTONTOWERS_PARKID
-ALTONTOWERS_INITIALDATAVERSION
-ALTONTOWERS_APPBUILD
-ALTONTOWERS_APPVERSION
-ALTONTOWERS_BASEURL
-ALTONTOWERS_DEVICEIDENTIFIER
-ALTONTOWERS_APIKEY
-ALTONTOWERS_CALENDARURL
-THORPEPARK_DESTINATIONID
-THORPEPARK_PARKID
-THORPEPARK_INITIALDATAVERSION
-THORPEPARK_APPBUILD
-THORPEPARK_APPVERSION
-THORPEPARK_BASEURL
-THORPEPARK_DEVICEIDENTIFIER
-THORPEPARK_APIKEY
-THORPEPARK_CALENDARURL
-CHESSINGTONWORLDOFADVENTURES_DESTINATIONID
-CHESSINGTONWORLDOFADVENTURES_PARKID
-CHESSINGTONWORLDOFADVENTURES_INITIALDATAVERSION
-CHESSINGTONWORLDOFADVENTURES_APPBUILD
-CHESSINGTONWORLDOFADVENTURES_APPVERSION
-CHESSINGTONWORLDOFADVENTURES_BASEURL
-CHESSINGTONWORLDOFADVENTURES_DEVICEIDENTIFIER
-CHESSINGTONWORLDOFADVENTURES_APIKEY
-CHESSINGTONWORLDOFADVENTURES_CALENDARURL
-LEGOLANDWINDSOR_DESTINATIONID
-LEGOLANDWINDSOR_PARKID
-LEGOLANDWINDSOR_INITIALDATAVERSION
-LEGOLANDWINDSOR_APPBUILD
-LEGOLANDWINDSOR_APPVERSION
-LEGOLANDWINDSOR_BASEURL
-LEGOLANDWINDSOR_DEVICEIDENTIFIER
-LEGOLANDWINDSOR_APIKEY
-LEGOLANDWINDSOR_CALENDARURL
-LEGOLANDORLANDO_DESTINATIONID
-LEGOLANDORLANDO_PARKID
-LEGOLANDORLANDO_INITIALDATAVERSION
-LEGOLANDORLANDO_APPBUILD
-LEGOLANDORLANDO_APPVERSION
-LEGOLANDORLANDO_BASEURL
-LEGOLANDORLANDO_DEVICEIDENTIFIER
-LEGOLANDORLANDO_APIKEY
-LEGOLANDORLANDO_CALENDARURL
-GARDALAND_DESTINATIONID
-GARDALAND_PARKID
-GARDALAND_INITIALDATAVERSION
-GARDALAND_APPBUILD
-GARDALAND_APPVERSION
-GARDALAND_BASEURL
-GARDALAND_DEVICEIDENTIFIER
-GARDALAND_APIKEY
-GARDALAND_CALENDARURL
-PORTAVENTURAWORLD_APIBASE
-PARCASTERIX_APIBASE
-PARCASTERIX_LANGUAGE
-TOVERLAND_APIBASE
-TOVERLAND_CALENDARURL
-TOVERLAND_AUTHTOKEN
-TOVERLAND_LANGUAGES
-DOLLYWOOD_DESTINATIONID
-DOLLYWOOD_DESTINATIONSLUG
-DOLLYWOOD_CRMBASEURL
-DOLLYWOOD_CRMGUID
-DOLLYWOOD_CRMATTRACTIONSID
-DOLLYWOOD_CRMDININGID
-DOLLYWOOD_CRMSHOWID
-DOLLYWOOD_APIBASE
-DOLLYWOOD_CRMAUTH
-SILVERDOLLARCITY_DESTINATIONID
-SILVERDOLLARCITY_DESTINATIONSLUG
-SILVERDOLLARCITY_CRMBASEURL
-SILVERDOLLARCITY_CRMGUID
-SILVERDOLLARCITY_CRMATTRACTIONSID
-SILVERDOLLARCITY_CRMDININGID
-SILVERDOLLARCITY_CRMSHOWID
-SILVERDOLLARCITY_APIBASE
-SILVERDOLLARCITY_CRMAUTH
-PLOPSALAND_DESTINATIONSLUG
-PLOPSALAND_PARKSLUG
-PLOPSALAND_BASEURL
-PLOPSALAND_BASELANG
-PLOPSALAND_CLIENTID
-PLOPSALAND_CLIENTSECRET
-HOLIDAYPARK_DESTINATIONSLUG
-HOLIDAYPARK_PARKSLUG
-HOLIDAYPARK_BASEURL
-HOLIDAYPARK_BASELANG
-HOLIDAYPARK_CLIENTID
-HOLIDAYPARK_CLIENTSECRET
+    const parkData = await this.getParkData(parkId);
+    return parkData?.POIs;
+  }
+
+  /**
+   * Helper function to build a basic entity document
+   * Useful to avoid copy/pasting
+   * @param {object} data 
+   * @returns {object}
+   */
+  buildBaseEntityObject(data) {
+    const entity = Destination.prototype.buildBaseEntityObject.call(this, data);
+
+    entity._id = data?.Id;
+
+    entity.name = data?.park_Name || data?.Name || undefined;
+    if (data?.park_Name) {
+      entity.slug = data.park_Name.toLowerCase().replace(/[^a-z0-9]+/g, '');
+    }
+
+    // park location
+    if (data?.map_center) {
+      entity.location = {
+        longitude: data.map_center.Longitude,
+        latitude: data.map_center.Latitude,
+      };
+    }
+
+    // entity location
+    if (data?.Coordinate) {
+      entity.location = {
+        longitude: data.Coordinate.Longitude,
+        latitude: data.Coordinate.Latitude,
+      };
+    }
+
+    return entity;
+  }
+
+  /**
+   * Build the destination entity representing this destination
+   */
+  async buildDestinationEntity() {
+    return {
+      ...this.buildBaseEntityObject(),
+      _id: this.config.resortId,
+      slug: this.config.resortSlug,
+      name: this.config.name,
+      entityType: entityType.destination,
+    };
+  }
+
+  /**
+   * Build the park entities for this destination
+   */
+  async buildParkEntities() {
+    const parks = await Promise.all(this.config.resortIds.map(async (parkId) => {
+      const parkData = await this.getParkData(parkId);
+
+      return {
+        ...this.buildBaseEntityObject(parkData),
+        _destinationId: this.config.resortId,
+        _parentId: this.config.resortId,
+        entityType: entityType.park,
+      };
+    }));
+
+    return parks;
+  }
+
+  /**
+   * Get seaworld entity array based on parkId, poiType
+   */
+  async getEntitiesOfTypeForPark(parkId, poiTypes, entityData) {
+    const parkData = await this.getParkData(parkId);
+    if (!parkData?.POIs) return [];
+
+    // some entities are in the wrong high-level group, so iterate through them all
+    const pois = [].concat(...Object.keys(parkData.POIs).map((poiType) => {
+      return parkData.POIs[poiType].filter((x) => {
+        return poiTypes.includes(x.Type);
+      });
+    }));
+
+    return pois.map((poi) => {
+      return {
+        ...this.buildBaseEntityObject(poi),
+        _parentId: parkId,
+        _parkId: parkId,
+        _destinationId: this.config.resortId,
+        ...entityData,
+      };
+    });
+  }
+
+  /**
+   * Get all entities for this resort with the given poi type
+   */
+  async getEntitiesOfTypeForAllParks(poiTypes, entityData) {
+    const parks = await Promise.all(this.config.resortIds.map((parkId) => {
+      return this.getEntitiesOfTypeForPark(parkId, poiTypes, entityData);
+    }));
+    return [].concat(...parks);
+  }
+
+  /**
+   * Build the attraction entities for this destination
+   */
+  async buildAttractionEntities() {
+    return this.getEntitiesOfTypeForAllParks(['Rides', 'Slides'], {
+      entityType: entityType.attraction,
+      attractionType: attractionType.ride,
+    });
+  }
+
+  /**
+   * Build the show entities for this destination
+   */
+  async buildShowEntities() {
+    return this.getEntitiesOfTypeForAllParks(['Shows'], {
+      entityType: entityType.show,
+    });
+  }
+
+  /**
+   * Build the restaurant entities for this destination
+   */
+  async buildRestaurantEntities() {
+    return this.getEntitiesOfTypeForAllParks(['Dining'], {
+      entityType: entityType.restaurant,
+    });
+  }
+
+  /**
+   * Fetch waittime data for a given park
+   */
+  async fetchWaitTimeData(parkId) {
+    // cache 1 minute
+    '@cache|1';
+
+    const waitTimeData = await this.http(
+      'GET',
+      `${this.config.baseURL}v1/park/${parkId}/availability/`,
+    );
+
+    if (!waitTimeData || !waitTimeData.body) return [];
+
+    return [].concat(...Object.values(waitTimeData.body));
+  }
+
+  /**
+   * Fetch wait time data for all parks
+   */
+  async fetchResortWaitTimes() {
+    const data = await Promise.all(this.config.resortIds.map(this.fetchWaitTimeData.bind(this)));
+    return [].concat(...data);
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async buildEntityLiveData() {
+    const waitTimes = await this.fetchResortWaitTimes();
+
+    const liveData = [];
+
+    waitTimes.forEach((waitTime) => {
+      // find or create live data entry
+      let liveObj = liveData.find((x) => x._id === waitTime.Id);
+      if (!liveObj) {
+        liveObj = liveData[liveData.push({
+          _id: waitTime.Id,
+          // default to closed, override if we find any data
+          status: statusType.closed,
+        }) - 1];
+      }
+
+      // find any show times
+      if (waitTime.ShowTimes !== undefined &amp;&amp; waitTime.ShowTimes !== null) {
+        liveObj.status = statusType.operating;
+        liveObj.showtimes = waitTime.ShowTimes.map((time) => {
+          // dates are returned as UTC timestamps, but with times for local timezone
+          // so input as UTC and convert to local timezone preserving actual time data
+          const startTime = moment.utc(time.StartTime).tz(this.config.timezone, true);
+          const endTime = moment.utc(time.EndTime).tz(this.config.timezone, true);
+          return {
+            startTime: startTime.format(),
+            endTime: endTime.format(),
+            type: 'Performance',
+          };
+        });
+      }
+
+      // wait times
+      if (waitTime.Minutes !== undefined) {
+        // TODO - detect down/refurbishment
+        liveObj.status = statusType.operating;
+        liveObj.queue = {};
+
+        if (waitTime.Minutes &lt; 0) {
+          // rides closed when Minutes &lt; 0 (eg. -1)
+          //  -1: "Closed Temporarily"
+          liveObj.status = statusType.closed;
+          liveObj.queue[queueType.standBy] = {
+            waitTime: null,
+          };
+        } else {
+          liveObj.queue[queueType.standBy] = {
+            waitTime: waitTime.Minutes === undefined ? null : waitTime.Minutes,
+          };
+        }
+      }
+    });
+
+    return liveData;
+  }
+
+  /**
+   * Return schedule data for all scheduled entities in this destination
+   * Eg. parks
+   * @returns {array&lt;object>}
+   */
+  async buildEntityScheduleData() {
+    // return park opening hours
+    const parks = await Promise.all(this.config.resortIds.map(async (parkId) => {
+      const parkData = await this.getParkData(parkId);
+      if (!parkData?.open_hours) return null;
+
+      return {
+        _id: parkId,
+        schedule: parkData.open_hours.map((open_hour) => {
+          // dates are returned as UTC timestamps, but with times for local timezone
+          //  so input as UTC and convert to local timezone preserving actual time data: ..., true)
+          const openTime = moment.utc(open_hour.opens_at).tz(this.config.timezone, true /* Preserve incoming time data */);
+          const closingTime = moment.utc(open_hour.closes_at).tz(this.config.timezone, true);
+          return {
+            openingTime: openTime.format(),
+            closingTime: closingTime.format(),
+            type: scheduleType.operating,
+            date: openTime.format('YYYY-MM-DD'),
+          };
+        }),
+      };
+    }));
+
+    return parks.filter((x) => !!x);
+  }
+}
+
+export class SeaworldOrlando extends SeaworldDestination {
+  constructor(options = {}) {
+    options.resortIds = [
+      // seaworld orlando
+      "AC3AF402-3C62-4893-8B05-822F19B9D2BC",
+      // aquatica orlando
+      "4B040706-968A-41B4-9967-D93C7814E665",
+      // discovery cove orlando
+      // "1FB04DFC-B6C0-4918-BE36-EE6DD14FE741",
+    ];
+
+    options.timezone = 'America/New_York';
+
+    // https://en.wikipedia.org/wiki/SeaWorld_Orlando
+    //  "When combined with its neighbor Discovery Cove and Aquatica, it forms SeaWorld Parks and Resorts Orlando"
+    options.name = 'SeaWorld Parks and Resorts Orlando';
+
+    options.resortId = 'seaworldorlandoresort';
+    options.resortSlug = 'seaworldorlandoresort';
+
+    super(options);
+  }
+}
+
+export class SeaworldSanAntonio extends SeaworldDestination {
+  constructor(options = {}) {
+    options.resortIds = [
+      // seaworld san antonio
+      "F4040D22-8B8D-4394-AEC7-D05FA5DEA945",
+    ];
+
+    options.timezone = 'America/Chicago';
+
+    options.name = 'SeaWorld San Antonio';
+
+    options.resortId = 'seaworldsanantonio';
+    options.resortSlug = 'seaworldsanantonio';
+
+    super(options);
+  }
+}
+
+export class SeaworldSanDiego extends SeaworldDestination {
+  constructor(options = {}) {
+    options.resortIds = [
+      // seaworld san diego
+      "4325312F-FDF1-41FF-ABF4-361A4FF03443",
+    ];
+
+    options.timezone = 'America/Los_Angeles';
+
+    options.name = 'SeaWorld San Diego';
+
+    options.resortId = 'seaworldsandiego';
+    options.resortSlug = 'seaworldsandiego';
+
+    super(options);
+  }
+}
+
+export class BuschGardensTampa extends SeaworldDestination {
+  constructor(options = {}) {
+    options.resortIds = [
+      "C001866B-555D-4E92-B48E-CC67E195DE96",
+    ];
+
+    options.timezone = 'America/New_York';
+
+    options.name = 'Busch Gardens Tampa';
+
+    options.resortId = 'buschgardenstampa';
+    options.resortSlug = 'buschgardenstampa';
+
+    options.appId = 'com.buschgardens.mobile';
+
+    super(options);
+  }
+}
+
+export class BuschGardensWilliamsburg extends SeaworldDestination {
+  constructor(options = {}) {
+    options.resortIds = [
+      "45FE1F31-D4E4-4B1E-90E0-5255111070F2",
+    ];
+
+    options.timezone = 'America/New_York';
+
+    options.name = 'Busch Gardens Williamsburg';
+
+    options.resortId = 'buschgardenswillamsburg';
+    options.resortSlug = 'buschgardenswillamsburg';
+
+    options.appId = 'com.buschgardens.mobile';
+
+    super(options);
+  }
+}
 </code></pre>
-<!-- END_ENV --></article>
+        </article>
     </section>
-
-
 
 
 

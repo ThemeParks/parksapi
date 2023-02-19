@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>Home - Documentation</title>
+    <title>parks/parcasterix/parcasterix.js - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -35,292 +35,354 @@
 
 <div id="main">
     
+    <h1 class="page-title">parks/parcasterix/parcasterix.js</h1>
+    
 
     
 
 
 
     
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import { Destination } from '../destination.js';
+import { attractionType, statusType, queueType, tagType, scheduleType, entityType } from '../parkTypes.js';
+import moment from 'moment-timezone';
 
+const queries = {
+  getConfiguration: {
+    "query": "query getConfiguration($language: String!) {\n  configuration(localeFilters: {locale: $language}) {\n    parkIsOpen\n    parkOpeningTime\n    parkClosingTime\n    parkText\n    parkInfoBanner\n    parkLatitude\n    parkLongitude\n    parkRadiusMeters\n    welcomeImage\n    mapColorShow\n    mapColorRestaurant\n    minimumVersionIos\n    minimumVersionAndroid\n    cloudinaryProxyUrl\n    enableMapDirections\n    enableBillet\n    enableFavoris\n    __typename\n  }\n  locales {\n    iso\n    label\n    __typename\n  }\n}\n"
+  },
+  getAttractions: {
+    "query": "query getAttractions($language: String!) {\n  openAttractions(localeFilters: {locale: $language}, orderBy: [{field: TITLE, order: ASC}]) {\n    id\n    drupalId\n    title\n    slug\n    summary\n    description\n    experience {\n      id\n      drupalId\n      label\n      color\n      __typename\n    }\n    mapId\n    latitude\n    longitude\n    features {\n      id\n      label\n      value\n      icon\n      __typename\n    }\n    headerV1\n    thumbnailV1\n    headerV2\n    thumbnailV2\n    sliders {\n      picture\n      order\n      __typename\n    }\n    minAge\n    order\n    isNew\n    isBest\n    hasQueuingCut\n    hasQueuingCutFear\n    hasPicturePoint\n    blocks\n    labels\n    __typename\n  }\n}\n",
+  },
+  spectacles: {
+    "query": "query spectacles($language: String!) {\n  openShows(localeFilters: {locale: $language}, orderBy: [{field: TITLE, order: ASC}]) {\n    id\n    drupalId\n    title\n    slug\n    summary\n    description\n    mapId\n    latitude\n    longitude\n    features {\n      label\n      value\n      icon\n      __typename\n    }\n    closingTimes {\n      startAt\n      endAt\n      timezone\n      __typename\n    }\n    headerV1\n    thumbnailV1\n    headerV2\n    thumbnailV2\n    sliders {\n      picture\n      order\n      __typename\n    }\n    minAge\n    order\n    isNew\n    isBest\n    schedules\n    scheduleIsFrom\n    blocks\n    labels\n    __typename\n  }\n}\n",
+  },
+  attractionLatency: {
+    "query": "query attractionLatency {\n  attractionLatency {\n    drupalId\n    latency\n    closingTime\n    __typename\n  }\n}\n"
+  },
+  restaurants: {
+    "query": "query restaurants($language: String!) {\n  restaurants(localeFilters: {locale: $language}, orderBy: [{field: TITLE, order: ASC}]) {\n    id\n    drupalId\n    title\n    slug\n    type\n    kind\n    kindDrupalId\n    theme\n    themeDrupalId\n    universe\n    mealType\n    withTerrace\n    summary\n    description\n    header\n    sliders {\n      picture\n      order\n      __typename\n    }\n    mapId\n    latitude\n    longitude\n    menuUrl\n    mobileUrl\n    related {\n      id\n      __typename\n    }\n    blocks\n    labels\n    __typename\n  }\n}\n",
+  },
+  getCalendar: {
+    "query": "query getCalendar {\n  calendar {\n    day\n    times\n    type\n    __typename\n  }\n}\n",
+  },
+}
 
-    <section class="package">
-        <h3> </h3>		
-    </section>
+export class ParcAsterix extends Destination {
+  constructor(options = {}) {
+    options.timezone = options.timezone || 'Europe/Paris';
 
+    options.apiBase = options.apiBase || '';
+    options.language = options.language || 'en';
 
+    // bump cache version when we need to wipe our cached query state
+    options.cacheVersion = options.cacheVersion || 2;
 
+    super(options);
 
+    if (!this.config.apiBase) throw new Error('Missing apiBase');
+  }
 
+  /**
+   * Make a graphql query against the API using a query hash
+   * @param {string} operationName 
+   * @param {string} queryHash 
+   * @returns {object}
+   */
+  async makeCachedQuery(operationName, queryHash) {
+    const query = {
+      operationName,
+      variables: {
+        language: this.config.language,
+      },
+    };
 
+    if (queries[operationName]) {
+      for (const k in queries[operationName]) {
+        query[k] = queries[operationName][k];
+      }
+    } else {
+      query.extensions = {
+        persistedQuery: {
+          version: 1,
+          sha256Hash: queryHash,
+        }
+      };
+    }
 
+    const resp = (await this.http(
+      'GET',
+      `${this.config.apiBase}graphql`,
+      query,
+    )).body;
 
+    if (resp?.errors) {
+      if (resp.errors[0] &amp;&amp; resp.errors[0].message) {
+        throw new Error(`makeCachedQuery ${operationName} error: ${resp.errors[0].message}`);
+      }
+      throw new Error(`makeCachedQuery ${operationName} error: ${JSON.stringify(resp.errors)}`);
+    }
 
-    
+    return resp;
+  }
 
+  /**
+   * Get some key resort data
+   */
+  async getResortData() {
+    // cache for 6 hours
+    '@cache|360';
+    return this.makeCachedQuery('getConfiguration', '765d8930f5d5a09ca39affd57e43630246b2fb683331e18938d5b2dba7cb8e8a');
+  }
 
+  /**
+   * Get raw attraction data
+   */
+  async getAttractionData() {
+    // cache for 6 hours
+    '@cache|360';
+    return this.makeCachedQuery('getAttractions', '5609363783d826ec6c460caa620e3ca28e651897febf6753159836ab72d8139b');
+  }
 
-    <section class="readme usertext">
-        <article><h1>ThemeParks.wiki Parks API</h1>
-<p><img src="https://github.com/ThemeParks/parksapi/workflows/Unit%20Test/badge.svg" alt="Unit Test"> <img src="https://github.com/ThemeParks/parksapi/workflows/ESDoc/badge.svg" alt="Documentation Build"></p>
-<p><a href="https://themeparks.github.io/parksapi/">API Documentation</a></p>
-<p>This is a backend module to fetch and query live data for themeparks. This source code powers the free-to-use API at <a href="https://themeparks.wiki">ThemeParks.wiki</a></p>
-<p>To fetch data from the API, you should look at the client libraries:</p>
-<ul>
-<li>https://github.com/ThemeParks/ThemeParks_JavaScript</li>
-<li>https://github.com/ThemeParks/ThemeParks_Python</li>
-</ul>
-<p>Fetching and parsing logic is provided in this source code. Most parks require some form of credentials, which are not supplied in this repo. You will need to source these yourself.</p>
-<p>General support is available for the ThemeParks.wiki API, and not this source code (except for Sponsors with support benefits).</p>
-<p><code>test.js</code> contains a basic set of sanity checks and output validation, which also shows how a destination object can be accessed.</p>
-<p>Each destination generates <em>entities</em>. Entities can be of various types:</p>
-<ul>
-<li>Destinations
-<ul>
-<li>i.e, Resorts</li>
-<li>These are not called resorts to avoid confusion for parks that are not part of resorts</li>
-<li>eg. Walt Disney World Resort</li>
-</ul>
-</li>
-<li>Parks
-<ul>
-<li>All parks must be within a Destination entity</li>
-<li>eg. Magic Kingdom</li>
-</ul>
-</li>
-<li>Attraction
-<ul>
-<li>A ride / transport / etc.</li>
-<li>Attraction entities must be within a Destination entity (usually also within a park, but not always)</li>
-<li>eg. Pirates of the Carribean</li>
-</ul>
-</li>
-<li>Resturant
-<ul>
-<li>A dining location within a destination</li>
-<li>eg. Casey's Corner</li>
-</ul>
-</li>
-<li>Show
-<ul>
-<li>A show / parade entity with scheduled show times</li>
-<li>eg. Main Street Electrical Parade</li>
-</ul>
-</li>
-</ul>
-<p><em>Entity Types Being Finalised - Destinations, Parks, and Attractions however, are well supported and unlikely to change</em></p>
-<h2>Adding Destinations</h2>
-<p>Best current documentation for this is to check out <code>scripts/templateDestination.js</code> and look at the existing supported destinations.</p>
-<p>Setup <code>index.js</code> with your new class, and edit <code>test.js</code> to test your destination to check everything is setup correctly.</p>
-<h2>Destinations</h2>
-<!-- BEGIN_DESTINATIONS -->
-<ul>
-<li>WaltDisneyWorldResort</li>
-<li>DisneylandResort</li>
-<li>DisneylandParis</li>
-<li>TokyoDisneyResort</li>
-<li>HongKongDisneyland</li>
-<li>ShanghaiDisneylandResort</li>
-<li>UniversalStudios</li>
-<li>UniversalOrlando</li>
-<li>EuropaPark</li>
-<li>Efteling</li>
-<li>Phantasialand</li>
-<li>SeaworldOrlando</li>
-<li>SeaworldSanAntonio</li>
-<li>SeaworldSanDiego</li>
-<li>AltonTowers</li>
-<li>ThorpePark</li>
-<li>ChessingtonWorldOfAdventures</li>
-<li>LegolandWindsor</li>
-<li>LegolandOrlando</li>
-<li>Gardaland</li>
-<li>PortAventuraWorld</li>
-<li>ParcAsterix</li>
-<li>Toverland</li>
-<li>Dollywood</li>
-<li>SilverDollarCity</li>
-<li>Plopsaland</li>
-<li>HolidayPark</li>
-</ul>
-<!-- END_DESTINATIONS -->
-<h2>Configuration</h2>
-<p>Destination objects can be configured by either passing an object of variables into the constructor, or using environment variables (the preferred way).</p>
-<p>To use environment variables, create a file called <code>.env</code> in the working directory of your project.</p>
-<p>Environment variables are structured as:</p>
-<ul>
-<li>Class name (upper case)</li>
-<li>Underscore _</li>
-<li>Variable name (upper case)</li>
-</ul>
-<p>For example, the class <code>WaltDisneyWorldResort</code> has a <code>resortId</code> configuration variable which can be loaded through the environment variable <code>WALTDISNEYWORLDRESORT_RESORTID</code></p>
-<p>Some classes expose &quot;parent scopes&quot; to allow configuring environment variables once for a range of destinations. For example, Attractions.io's base URL can be configured once through <code>ATTRACTIONSIO_BASEURL</code> rather than configuring it identically for every destination.</p>
-<p>Environment Variables (auto-generated):</p>
-<!-- BEGIN_ENV -->
-<pre class="prettyprint source"><code>WALTDISNEYWORLDRESORT_RESORTID
-WALTDISNEYWORLDRESORT_RESORTSHORTCODE
-WALTDISNEYWORLDRESORT_PARKIDS
-WALTDISNEYWORLDRESORT_VIRTUALQUEUEURL
-WALTDISNEYWORLDRESORT_GENIEDATA
-DISNEYLANDRESORT_RESORTID
-DISNEYLANDRESORT_RESORTSHORTCODE
-DISNEYLANDRESORT_PARKIDS
-DISNEYLANDRESORT_VIRTUALQUEUEURL
-DISNEYLANDRESORT_GENIEDATA
-DISNEYLANDPARIS_APIKEY
-DISNEYLANDPARIS_APIBASE
-DISNEYLANDPARIS_APIBASEWAITTIMES
-DISNEYLANDPARIS_LANGUAGE
-DISNEYLANDPARIS_STANDBYAPIBASE
-DISNEYLANDPARIS_STANDBYAPIKEY
-DISNEYLANDPARIS_STANDBYAUTHURL
-DISNEYLANDPARIS_STANDBYAPIREFRESHTOKEN
-DISNEYLANDPARIS_PREMIERACCESSAPIKEY
-DISNEYLANDPARIS_PREMIERACCESSURL
-DISNEYLANDPARIS_USERAGENT
-TOKYODISNEYRESORT_APIKEY
-TOKYODISNEYRESORT_APIAUTH
-TOKYODISNEYRESORT_APIOS
-TOKYODISNEYRESORT_APIBASE
-TOKYODISNEYRESORT_APIVERSION
-TOKYODISNEYRESORT_PARKIDS
-HONGKONGDISNEYLAND_RESORTID
-HONGKONGDISNEYLAND_RESORTSHORTCODE
-HONGKONGDISNEYLAND_PARKIDS
-HONGKONGDISNEYLAND_VIRTUALQUEUEURL
-HONGKONGDISNEYLAND_GENIEDATA
-SHANGHAIDISNEYLANDRESORT_APIBASE
-SHANGHAIDISNEYLANDRESORT_APIAUTH
-SHANGHAIDISNEYLANDRESORT_PARKIDS
-UNIVERSALSTUDIOS_CITY
-UNIVERSALSTUDIOS_RESORTSLUG
-UNIVERSALSTUDIOS_SECRETKEY
-UNIVERSALSTUDIOS_APPKEY
-UNIVERSALSTUDIOS_VQUEUEURL
-UNIVERSALSTUDIOS_BASEURL
-UNIVERSALORLANDO_CITY
-UNIVERSALORLANDO_RESORTSLUG
-UNIVERSALORLANDO_SECRETKEY
-UNIVERSALORLANDO_APPKEY
-UNIVERSALORLANDO_VQUEUEURL
-UNIVERSALORLANDO_BASEURL
-EUROPAPARK_PARKS
-EFTELING_APIKEY
-EFTELING_APIVERSION
-EFTELING_APPVERSION
-EFTELING_SEARCHURL
-EFTELING_WAITTIMESURL
-PHANTASIALAND_APIBASE
-SEAWORLDORLANDO_RESORTIDS
-SEAWORLDORLANDO_RESORTID
-SEAWORLDORLANDO_RESORTSLUG
-SEAWORLDORLANDO_APPID
-SEAWORLDORLANDO_BASEURL
-SEAWORLDSANANTONIO_RESORTIDS
-SEAWORLDSANANTONIO_RESORTID
-SEAWORLDSANANTONIO_RESORTSLUG
-SEAWORLDSANANTONIO_APPID
-SEAWORLDSANANTONIO_BASEURL
-SEAWORLDSANDIEGO_RESORTIDS
-SEAWORLDSANDIEGO_RESORTID
-SEAWORLDSANDIEGO_RESORTSLUG
-SEAWORLDSANDIEGO_APPID
-SEAWORLDSANDIEGO_BASEURL
-ALTONTOWERS_DESTINATIONID
-ALTONTOWERS_PARKID
-ALTONTOWERS_INITIALDATAVERSION
-ALTONTOWERS_APPBUILD
-ALTONTOWERS_APPVERSION
-ALTONTOWERS_BASEURL
-ALTONTOWERS_DEVICEIDENTIFIER
-ALTONTOWERS_APIKEY
-ALTONTOWERS_CALENDARURL
-THORPEPARK_DESTINATIONID
-THORPEPARK_PARKID
-THORPEPARK_INITIALDATAVERSION
-THORPEPARK_APPBUILD
-THORPEPARK_APPVERSION
-THORPEPARK_BASEURL
-THORPEPARK_DEVICEIDENTIFIER
-THORPEPARK_APIKEY
-THORPEPARK_CALENDARURL
-CHESSINGTONWORLDOFADVENTURES_DESTINATIONID
-CHESSINGTONWORLDOFADVENTURES_PARKID
-CHESSINGTONWORLDOFADVENTURES_INITIALDATAVERSION
-CHESSINGTONWORLDOFADVENTURES_APPBUILD
-CHESSINGTONWORLDOFADVENTURES_APPVERSION
-CHESSINGTONWORLDOFADVENTURES_BASEURL
-CHESSINGTONWORLDOFADVENTURES_DEVICEIDENTIFIER
-CHESSINGTONWORLDOFADVENTURES_APIKEY
-CHESSINGTONWORLDOFADVENTURES_CALENDARURL
-LEGOLANDWINDSOR_DESTINATIONID
-LEGOLANDWINDSOR_PARKID
-LEGOLANDWINDSOR_INITIALDATAVERSION
-LEGOLANDWINDSOR_APPBUILD
-LEGOLANDWINDSOR_APPVERSION
-LEGOLANDWINDSOR_BASEURL
-LEGOLANDWINDSOR_DEVICEIDENTIFIER
-LEGOLANDWINDSOR_APIKEY
-LEGOLANDWINDSOR_CALENDARURL
-LEGOLANDORLANDO_DESTINATIONID
-LEGOLANDORLANDO_PARKID
-LEGOLANDORLANDO_INITIALDATAVERSION
-LEGOLANDORLANDO_APPBUILD
-LEGOLANDORLANDO_APPVERSION
-LEGOLANDORLANDO_BASEURL
-LEGOLANDORLANDO_DEVICEIDENTIFIER
-LEGOLANDORLANDO_APIKEY
-LEGOLANDORLANDO_CALENDARURL
-GARDALAND_DESTINATIONID
-GARDALAND_PARKID
-GARDALAND_INITIALDATAVERSION
-GARDALAND_APPBUILD
-GARDALAND_APPVERSION
-GARDALAND_BASEURL
-GARDALAND_DEVICEIDENTIFIER
-GARDALAND_APIKEY
-GARDALAND_CALENDARURL
-PORTAVENTURAWORLD_APIBASE
-PARCASTERIX_APIBASE
-PARCASTERIX_LANGUAGE
-TOVERLAND_APIBASE
-TOVERLAND_CALENDARURL
-TOVERLAND_AUTHTOKEN
-TOVERLAND_LANGUAGES
-DOLLYWOOD_DESTINATIONID
-DOLLYWOOD_DESTINATIONSLUG
-DOLLYWOOD_CRMBASEURL
-DOLLYWOOD_CRMGUID
-DOLLYWOOD_CRMATTRACTIONSID
-DOLLYWOOD_CRMDININGID
-DOLLYWOOD_CRMSHOWID
-DOLLYWOOD_APIBASE
-DOLLYWOOD_CRMAUTH
-SILVERDOLLARCITY_DESTINATIONID
-SILVERDOLLARCITY_DESTINATIONSLUG
-SILVERDOLLARCITY_CRMBASEURL
-SILVERDOLLARCITY_CRMGUID
-SILVERDOLLARCITY_CRMATTRACTIONSID
-SILVERDOLLARCITY_CRMDININGID
-SILVERDOLLARCITY_CRMSHOWID
-SILVERDOLLARCITY_APIBASE
-SILVERDOLLARCITY_CRMAUTH
-PLOPSALAND_DESTINATIONSLUG
-PLOPSALAND_PARKSLUG
-PLOPSALAND_BASEURL
-PLOPSALAND_BASELANG
-PLOPSALAND_CLIENTID
-PLOPSALAND_CLIENTSECRET
-HOLIDAYPARK_DESTINATIONSLUG
-HOLIDAYPARK_PARKSLUG
-HOLIDAYPARK_BASEURL
-HOLIDAYPARK_BASELANG
-HOLIDAYPARK_CLIENTID
-HOLIDAYPARK_CLIENTSECRET
+  /**
+   * Get raw wait time data
+   */
+  async getWaitTimeData() {
+    '@cache|1';
+    return this.makeCachedQuery('attractionLatency', '41154df6dc22d5444dcfa749b69f3f177a3736031b0ed675c1730e7c7dfc9894');
+  }
+
+  /**
+   * Get raw calendar data
+   */
+  async getCalendarData() {
+    // cache for 6 hours
+    '@cache|360';
+    return this.makeCachedQuery('getCalendar', '4981b5364f50dce42cfc579b6e5cbe144f8ef12e6a5d1a6c2e8681c99545f39e');
+  }
+
+  /**
+   * Get raw restaurant data
+   */
+  async getRestaurantData() {
+    // cache for 6 hours
+    '@cache|360';
+    return this.makeCachedQuery('restaurants', '857561404b9f5c69e651d74e0f5c0403f5bd3bd02491a0958d11d60bd8526cc9');
+  }
+
+  /**
+   * Get raw show data
+   */
+  async getShowData() {
+    // cache for 6 hours
+    '@cache|360';
+    return this.makeCachedQuery('spectacles', 'a3a067a0edbfb3666228d5d966d5933b1572e271b4c7f2858ce1758a2490227e');
+  }
+
+  /**
+   * Helper function to build a basic entity document
+   * Useful to avoid copy/pasting
+   * @param {object} data 
+   * @returns {object}
+   */
+  buildBaseEntityObject(data) {
+    const entity = Destination.prototype.buildBaseEntityObject.call(this, data);
+
+    if (data) {
+      entity.name = data.title || undefined;
+
+      entity._id = data.drupalId;
+
+      if (data.latitude &amp;&amp; data.longitude) {
+        entity.location = {
+          latitude: data.latitude,
+          longitude: data.longitude,
+        };
+      }
+
+      entity.fastPass = !!data.hasQueuingCut;
+    }
+
+    return entity;
+  }
+
+  /**
+   * Build the destination entity representing this destination
+   */
+  async buildDestinationEntity() {
+    return {
+      ...this.buildBaseEntityObject(),
+      _id: 'parcasterix',
+      slug: 'parcasterix', // all destinations must have a unique slug
+      name: 'Parc Asterix',
+      entityType: entityType.destination,
+    };
+  }
+
+  /**
+   * Build the park entities for this destination
+   */
+  async buildParkEntities() {
+    const parkData = await this.getResortData();
+
+    return [
+      {
+        ...this.buildBaseEntityObject(null),
+        _id: 'parcasterixpark',
+        _destinationId: 'parcasterix',
+        _parentId: 'parcasterix',
+        slug: 'ParcAsterixPark',
+        name: 'Parc Asterix',
+        entityType: entityType.park,
+        location: {
+          longitude: parkData.data.configuration.longitude,
+          latitude: parkData.data.configuration.latitude,
+        },
+      }
+    ];
+  }
+
+  /**
+   * Build the attraction entities for this destination
+   */
+  async buildAttractionEntities() {
+    const attrs = await this.getAttractionData();
+
+    return attrs.data.openAttractions.filter((x) => {
+      return x.__typename === 'Attraction';
+    }).map((x) => {
+      return {
+        ...this.buildBaseEntityObject(x),
+        entityType: entityType.attraction,
+        attractionType: attractionType.ride,
+        _destinationId: 'parcasterix',
+        _parentId: 'parcasterixpark',
+        _parkId: 'parcasterixpark',
+      };
+    }).filter((x) => {
+      return !!x &amp;&amp; x._id;
+    });
+  }
+
+  /**
+   * Build the show entities for this destination
+   */
+  async buildShowEntities() {
+    const attrs = await this.getShowData();
+
+    return [];
+
+    // TODO - format shows when app returns some data
+    return attrs.data.openShows.map((x) => {
+      return {
+        ...this.buildBaseEntityObject(x),
+        entityType: entityType.show,
+        _destinationId: 'parcasterix',
+        _parentId: 'parcasterixpark',
+        _parkId: 'parcasterixpark',
+      };
+    }).filter((x) => {
+      return !!x &amp;&amp; x._id;
+    });
+  }
+
+  /**
+   * Build the restaurant entities for this destination
+   */
+  async buildRestaurantEntities() {
+    const attrs = await this.getRestaurantData();
+
+    return attrs.data.restaurants.filter((x) => {
+      return x.__typename === 'Restaurant';
+    }).map((x) => {
+      return {
+        ...this.buildBaseEntityObject(x),
+        entityType: entityType.restaurant,
+        _destinationId: 'parcasterix',
+        _parentId: 'parcasterixpark',
+        _parkId: 'parcasterixpark',
+      };
+    }).filter((x) => {
+      return !!x &amp;&amp; x._id;
+    });
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async buildEntityLiveData() {
+    const waitTimes = await this.getWaitTimeData();
+
+    return waitTimes.data.attractionLatency.map((x) => {
+      const data = {
+        _id: x.drupalId,
+      };
+
+      data.status = statusType.operating;
+
+      if (x.latency === 'FERME') {
+        data.status = statusType.closed;
+      } else if (x.latency !== 'OUVERT') {
+        data.queue = {
+          [queueType.standBy]: {
+            waitTime: null,
+          }
+        };
+
+        if (x.latency !== null) {
+          if (x.latency.match(/^\d+$/)) {
+            data.queue[queueType.standBy].waitTime = parseInt(x.latency, 10);
+          } else {
+            // TODO - report error in parsing latency, unknown string!
+            // assume closed
+            data.status = statusType.closed;
+          }
+        }
+      }
+
+      return data;
+    });
+  }
+
+  /**
+   * Return schedule data for all scheduled entities in this destination
+   * Eg. parks
+   * @returns {array&lt;object>}
+   */
+  async buildEntityScheduleData() {
+    const calendarData = await this.getCalendarData();
+
+    const dates = [];
+    const matchHours = /(\d+)h - (\d+)h/;
+    calendarData.data.calendar.forEach((x) => {
+      x.times.split(' et ').forEach((times) => {
+        const match = matchHours.exec(times);
+        if (match) {
+          const date = moment.tz(x.day, 'YYYY-MM-DD', this.config.timezone);
+          date.set('minute', 0).set('hour', 0).set('second', 0).set('millisecond', 0);
+          dates.push({
+            date: x.day,
+            type: "OPERATING",
+            openingTime: date.clone().set('hour', parseInt(match[1], 10)).format(),
+            closingTime: date.clone().set('hour', parseInt(match[2], 10)).format(),
+          });
+        }
+      });
+    });
+
+    return [
+      {
+        _id: 'parcasterixpark',
+        schedule: dates,
+      },
+    ];
+  }
+}
 </code></pre>
-<!-- END_ENV --></article>
+        </article>
     </section>
-
-
 
 
 

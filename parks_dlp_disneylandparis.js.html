@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>parks/dlp/disneylandparis.js - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ConfigBase.html">ConfigBase</a></li><li><a href="Database.html">Database</a><ul class='methods'><li data-type='method'><a href="Database.html#_getEntities">_getEntities</a></li><li data-type='method'><a href="Database.html#_init">_init</a></li><li data-type='method'><a href="Database.html#findEntity">findEntity</a></li><li data-type='method'><a href="Database.html#getEntities">getEntities</a></li><li data-type='method'><a href="Database.html#getEntitiyById">getEntitiyById</a></li><li data-type='method'><a href="Database.html#init">init</a></li><li data-type='method'><a href="Database.html#log">log</a></li><li data-type='method'><a href="Database.html#.get">get</a></li></ul></li><li><a href="DatabaseEuropaPark.html">DatabaseEuropaPark</a><ul class='methods'><li data-type='method'><a href="DatabaseEuropaPark.html#_getEntities">_getEntities</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#_init">_init</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getCalendar">getCalendar</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getConfig">getConfig</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getFirebaseID">getFirebaseID</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getLiveCalendar">getLiveCalendar</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getParkData">getParkData</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getShowTimes">getShowTimes</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getToken">getToken</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getWaitingTimes">getWaitingTimes</a></li></ul></li><li><a href="DatabaseWDW.html">DatabaseWDW</a><ul class='methods'><li data-type='method'><a href="DatabaseWDW.html#_getEntities">_getEntities</a></li></ul></li><li><a href="Destination.html">Destination</a><ul class='methods'><li data-type='method'><a href="Destination.html#_clearFunctionCache">_clearFunctionCache</a></li><li data-type='method'><a href="Destination.html#_init">_init</a></li><li data-type='method'><a href="Destination.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="Destination.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="Destination.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="Destination.html#buildEntityLiveData">buildEntityLiveData</a></li><li data-type='method'><a href="Destination.html#buildEntityScheduleData">buildEntityScheduleData</a></li><li data-type='method'><a href="Destination.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="Destination.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="Destination.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="Destination.html#forEachUpcomingDate">forEachUpcomingDate</a></li><li data-type='method'><a href="Destination.html#getAllEntities">getAllEntities</a></li><li data-type='method'><a href="Destination.html#getAndroidAPPVersion">getAndroidAPPVersion</a></li><li data-type='method'><a href="Destination.html#getAttractionEntities">getAttractionEntities</a></li><li data-type='method'><a href="Destination.html#getDestinationEntities">getDestinationEntities</a></li><li data-type='method'><a href="Destination.html#getDestinationEntity">getDestinationEntity</a></li><li data-type='method'><a href="Destination.html#getEntityFromId">getEntityFromId</a></li><li data-type='method'><a href="Destination.html#getEntityLiveData">getEntityLiveData</a></li><li data-type='method'><a href="Destination.html#getEntitySchedules">getEntitySchedules</a></li><li data-type='method'><a href="Destination.html#getLiveCache">getLiveCache</a></li><li data-type='method'><a href="Destination.html#getLiveHash">getLiveHash</a></li><li data-type='method'><a href="Destination.html#getParkEntities">getParkEntities</a></li><li data-type='method'><a href="Destination.html#getRestaurantEntities">getRestaurantEntities</a></li><li data-type='method'><a href="Destination.html#getShowEntities">getShowEntities</a></li><li data-type='method'><a href="Destination.html#getTimeNow">getTimeNow</a></li><li data-type='method'><a href="Destination.html#getTimeNowMoment">getTimeNowMoment</a></li><li data-type='method'><a href="Destination.html#init">init</a></li><li data-type='method'><a href="Destination.html#log">log</a></li><li data-type='method'><a href="Destination.html#setLiveCache">setLiveCache</a></li><li data-type='method'><a href="Destination.html#updateEntityLiveData">updateEntityLiveData</a></li></ul></li><li><a href="DisneyLiveResort.html">DisneyLiveResort</a><ul class='methods'><li data-type='method'><a href="DisneyLiveResort.html#_fetchRestaurantMenu">_fetchRestaurantMenu</a></li><li data-type='method'><a href="DisneyLiveResort.html#_getSchedulesForDate">_getSchedulesForDate</a></li><li data-type='method'><a href="DisneyLiveResort.html#_init">_init</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildEntityLiveData">buildEntityLiveData</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildEntityScheduleData">buildEntityScheduleData</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="DisneyLiveResort.html#fetchVirtualQueueData">fetchVirtualQueueData</a></li><li data-type='method'><a href="DisneyLiveResort.html#getFacilityStatusChannelID">getFacilityStatusChannelID</a></li><li data-type='method'><a href="DisneyLiveResort.html#getRestaurantMenu">getRestaurantMenu</a></li><li data-type='method'><a href="DisneyLiveResort.html#initLiveStatusUpdates">initLiveStatusUpdates</a></li><li data-type='method'><a href="DisneyLiveResort.html#sanitizeEntityName">sanitizeEntityName</a></li></ul></li><li><a href="DisneylandParis.html">DisneylandParis</a><ul class='methods'><li data-type='method'><a href="DisneylandParis.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="DisneylandParis.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="DisneylandParis.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="DisneylandParis.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="DisneylandParis.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="DisneylandParis.html#fetchResortScheduleForDate">fetchResortScheduleForDate</a></li><li data-type='method'><a href="DisneylandParis.html#fetchWaitData">fetchWaitData</a></li><li data-type='method'><a href="DisneylandParis.html#getAuthApiKey">getAuthApiKey</a></li><li data-type='method'><a href="DisneylandParis.html#getAuthToken">getAuthToken</a></li><li data-type='method'><a href="DisneylandParis.html#getPOIData">getPOIData</a></li><li data-type='method'><a href="DisneylandParis.html#getRefreshToken">getRefreshToken</a></li><li data-type='method'><a href="DisneylandParis.html#refreshAuthToken">refreshAuthToken</a></li></ul></li><li><a href="DisneylandResort.html">DisneylandResort</a></li><li><a href="Efteling.html">Efteling</a><ul class='methods'><li data-type='method'><a href="Efteling.html#_fetchPOIData">_fetchPOIData</a></li><li data-type='method'><a href="Efteling.html#_getRestaurantOperatingHoursForDate">_getRestaurantOperatingHoursForDate</a></li><li data-type='method'><a href="Efteling.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="Efteling.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="Efteling.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="Efteling.html#buildEntityScheduleData">buildEntityScheduleData</a></li><li data-type='method'><a href="Efteling.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="Efteling.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="Efteling.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="Efteling.html#getRestaurantOperatingHours">getRestaurantOperatingHours</a></li></ul></li><li><a href="Entity.html">Entity</a><ul class='methods'><li data-type='method'><a href="Entity.html#_postOfflineLoad">_postOfflineLoad</a></li><li data-type='method'><a href="Entity.html#ensureHasOfflineData">ensureHasOfflineData</a></li><li data-type='method'><a href="Entity.html#getTimeNow">getTimeNow</a></li><li data-type='method'><a href="Entity.html#getTimeNowMoment">getTimeNowMoment</a></li><li data-type='method'><a href="Entity.html#getUniqueID">getUniqueID</a></li><li data-type='method'><a href="Entity.html#injectForDomain">injectForDomain</a></li><li data-type='method'><a href="Entity.html#log">log</a></li><li data-type='method'><a href="Entity.html#registerOfflineFunction">registerOfflineFunction</a></li><li data-type='method'><a href="Entity.html#serialise">serialise</a></li></ul></li><li><a href="HarWriter.html">HarWriter</a><ul class='methods'><li data-type='method'><a href="HarWriter.html#createLogObject">createLogObject</a></li><li data-type='method'><a href="HarWriter.html#getProjectVersion">getProjectVersion</a></li><li data-type='method'><a href="HarWriter.html#recordEntry">recordEntry</a></li><li data-type='method'><a href="HarWriter.html#toJSON">toJSON</a></li><li data-type='method'><a href="HarWriter.html#write">write</a></li></ul></li><li><a href="HongKongDisneyland.html">HongKongDisneyland</a><ul class='methods'><li data-type='method'><a href="HongKongDisneyland.html#_fetchRestaurantMenu">_fetchRestaurantMenu</a></li></ul></li><li><a href="IndexedWDWDB.html">IndexedWDWDB</a><ul class='methods'><li data-type='method'><a href="IndexedWDWDB.html#_createIndex">_createIndex</a></li><li data-type='method'><a href="IndexedWDWDB.html#_createIndexes">_createIndexes</a></li><li data-type='method'><a href="IndexedWDWDB.html#_extractChannelLanguage">_extractChannelLanguage</a></li><li data-type='method'><a href="IndexedWDWDB.html#_extractEntityKeys">_extractEntityKeys</a></li><li data-type='method'><a href="IndexedWDWDB.html#_indexWDWDocument">_indexWDWDocument</a></li><li data-type='method'><a href="IndexedWDWDB.html#_initIndexes">_initIndexes</a></li><li data-type='method'><a href="IndexedWDWDB.html#_loadAndInit">_loadAndInit</a></li><li data-type='method'><a href="IndexedWDWDB.html#_removeFromArrayIndex">_removeFromArrayIndex</a></li><li data-type='method'><a href="IndexedWDWDB.html#_replicate">_replicate</a></li><li data-type='method'><a href="IndexedWDWDB.html#find">find</a></li><li data-type='method'><a href="IndexedWDWDB.html#getByChannel">getByChannel</a></li><li data-type='method'><a href="IndexedWDWDB.html#getDocChildren">getDocChildren</a></li><li data-type='method'><a href="IndexedWDWDB.html#getDocNameSearch">getDocNameSearch</a></li><li data-type='method'><a href="IndexedWDWDB.html#getDocsById">getDocsById</a></li><li data-type='method'><a href="IndexedWDWDB.html#getDumpFilename">getDumpFilename</a></li><li data-type='method'><a href="IndexedWDWDB.html#getEntity">getEntity</a></li><li data-type='method'><a href="IndexedWDWDB.html#getEntityIndex">getEntityIndex</a></li><li data-type='method'><a href="IndexedWDWDB.html#getEntityOne">getEntityOne</a></li><li data-type='method'><a href="IndexedWDWDB.html#getFacilityStatus">getFacilityStatus</a></li><li data-type='method'><a href="IndexedWDWDB.html#getIndex">getIndex</a></li><li data-type='method'><a href="IndexedWDWDB.html#init">init</a></li><li data-type='method'><a href="IndexedWDWDB.html#loadSnapshot">loadSnapshot</a></li><li data-type='method'><a href="IndexedWDWDB.html#saveSnapshot">saveSnapshot</a></li><li data-type='method'><a href="IndexedWDWDB.html#subscribeToChanges">subscribeToChanges</a></li><li data-type='method'><a href="IndexedWDWDB.html#subscribeToChannel">subscribeToChannel</a></li><li data-type='method'><a href="IndexedWDWDB.html#._pluginBulkDocs">_pluginBulkDocs</a></li><li data-type='method'><a href="IndexedWDWDB.html#.getDatabaseFilePath">getDatabaseFilePath</a></li></ul></li><li><a href="Park.html">Park</a><ul class='methods'><li data-type='method'><a href="Park.html#_buildAttractionObject">_buildAttractionObject</a></li><li data-type='method'><a href="Park.html#_checkDate">_checkDate</a></li><li data-type='method'><a href="Park.html#_dateRefresh">_dateRefresh</a></li><li data-type='method'><a href="Park.html#_findAttractionByID">_findAttractionByID</a></li><li data-type='method'><a href="Park.html#_getAttractionByIDInternal">_getAttractionByIDInternal</a></li><li data-type='method'><a href="Park.html#_getOperatingHoursForDate">_getOperatingHoursForDate</a></li><li data-type='method'><a href="Park.html#_getRestaurantOperatingHoursForDate">_getRestaurantOperatingHoursForDate</a></li><li data-type='method'><a href="Park.html#_init">_init</a></li><li data-type='method'><a href="Park.html#_postInit">_postInit</a></li><li data-type='method'><a href="Park.html#_postOfflineLoad">_postOfflineLoad</a></li><li data-type='method'><a href="Park.html#_runInit">_runInit</a></li><li data-type='method'><a href="Park.html#_runUpdate">_runUpdate</a></li><li data-type='method'><a href="Park.html#_update">_update</a></li><li data-type='method'><a href="Park.html#cacheAttractionObject">cacheAttractionObject</a></li><li data-type='method'><a href="Park.html#ensureReady">ensureReady</a></li><li data-type='method'><a href="Park.html#findAttractionByID">findAttractionByID</a></li><li data-type='method'><a href="Park.html#getActiveParkDate">getActiveParkDate</a></li><li data-type='method'><a href="Park.html#getActiveParkDateMoment">getActiveParkDateMoment</a></li><li data-type='method'><a href="Park.html#getAttractions">getAttractions</a></li><li data-type='method'><a href="Park.html#getCalendar">getCalendar</a></li><li data-type='method'><a href="Park.html#getCalendarForToday">getCalendarForToday</a></li><li data-type='method'><a href="Park.html#getCalendarForTomorrow">getCalendarForTomorrow</a></li><li data-type='method'><a href="Park.html#getNextClosingTime">getNextClosingTime</a></li><li data-type='method'><a href="Park.html#getNextOpeningTime">getNextOpeningTime</a></li><li data-type='method'><a href="Park.html#getNextOpeningTimeMomentDuration">getNextOpeningTimeMomentDuration</a></li><li data-type='method'><a href="Park.html#getOperatingHoursForDate">getOperatingHoursForDate</a></li><li data-type='method'><a href="Park.html#getParkUniqueID">getParkUniqueID</a></li><li data-type='method'><a href="Park.html#getRestaurantOperatingHoursForDate">getRestaurantOperatingHoursForDate</a></li><li data-type='method'><a href="Park.html#init">init</a></li><li data-type='method'><a href="Park.html#postUpdate">postUpdate</a></li><li data-type='method'><a href="Park.html#removeAttractionTag">removeAttractionTag</a></li><li data-type='method'><a href="Park.html#setAttractionTag">setAttractionTag</a></li><li data-type='method'><a href="Park.html#shutdown">shutdown</a></li><li data-type='method'><a href="Park.html#toggleAttractionTag">toggleAttractionTag</a></li><li data-type='method'><a href="Park.html#update">update</a></li><li data-type='method'><a href="Park.html#updateAttractionQueue">updateAttractionQueue</a></li><li data-type='method'><a href="Park.html#updateAttractionState">updateAttractionState</a></li></ul></li><li><a href="ScopedCache.html">ScopedCache</a><ul class='methods'><li data-type='method'><a href="ScopedCache.html#_initCache">_initCache</a></li><li data-type='method'><a href="ScopedCache.html#blockOnPendingTransactions">blockOnPendingTransactions</a></li><li data-type='method'><a href="ScopedCache.html#generateScopedKey">generateScopedKey</a></li><li data-type='method'><a href="ScopedCache.html#get">get</a></li><li data-type='method'><a href="ScopedCache.html#getGlobal">getGlobal</a></li><li data-type='method'><a href="ScopedCache.html#getKeys">getKeys</a></li><li data-type='method'><a href="ScopedCache.html#initCache">initCache</a></li><li data-type='method'><a href="ScopedCache.html#runTransaction">runTransaction</a></li><li data-type='method'><a href="ScopedCache.html#set">set</a></li><li data-type='method'><a href="ScopedCache.html#setGlobal">setGlobal</a></li><li data-type='method'><a href="ScopedCache.html#wrap">wrap</a></li><li data-type='method'><a href="ScopedCache.html#wrapGlobal">wrapGlobal</a></li></ul></li><li><a href="ShanghaiDisneylandResort.html">ShanghaiDisneylandResort</a><ul class='methods'><li data-type='method'><a href="ShanghaiDisneylandResort.html#_buildAttractionObject">_buildAttractionObject</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_buildEntities">_buildEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_dumpDB">_dumpDB</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_fetchWaitTimes">_fetchWaitTimes</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_init">_init</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_loadDB">_loadDB</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#extractEntityData">extractEntityData</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#getAccessToken">getAccessToken</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#getAllEntityKeys">getAllEntityKeys</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#getAttractionData">getAttractionData</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#getEntity">getEntity</a></li></ul></li><li><a href="TokyoDisneyResort.html">TokyoDisneyResort</a><ul class='methods'><li data-type='method'><a href="TokyoDisneyResort.html#_fetchWaitTimes">_fetchWaitTimes</a></li><li data-type='method'><a href="TokyoDisneyResort.html#_getRestaurantOperatingHoursForDate">_getRestaurantOperatingHoursForDate</a></li><li data-type='method'><a href="TokyoDisneyResort.html#_update">_update</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildEntityScheduleData">buildEntityScheduleData</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="TokyoDisneyResort.html#fetchCalendar">fetchCalendar</a></li><li data-type='method'><a href="TokyoDisneyResort.html#fetchLatestVersion">fetchLatestVersion</a></li><li data-type='method'><a href="TokyoDisneyResort.html#fetchRestaurantOperatingHours">fetchRestaurantOperatingHours</a></li><li data-type='method'><a href="TokyoDisneyResort.html#getEntitiesOfType">getEntitiesOfType</a></li></ul></li><li><a href="UniversalIslandsOfAdventure.html">UniversalIslandsOfAdventure</a></li><li><a href="UniversalOrlando_UniversalOrlando.html">UniversalOrlando</a></li><li><a href="UniversalParkBase.html">UniversalParkBase</a><ul class='methods'><li data-type='method'><a href="UniversalParkBase.html#_buildAttractionObject">_buildAttractionObject</a></li><li data-type='method'><a href="UniversalParkBase.html#_getOperatingHoursForDate">_getOperatingHoursForDate</a></li><li data-type='method'><a href="UniversalParkBase.html#_init">_init</a></li><li data-type='method'><a href="UniversalParkBase.html#_update">_update</a></li><li data-type='method'><a href="UniversalParkBase.html#getLatestOpeningHours">getLatestOpeningHours</a></li><li data-type='method'><a href="UniversalParkBase.html#getPOI">getPOI</a></li><li data-type='method'><a href="UniversalParkBase.html#getServiceToken">getServiceToken</a></li><li data-type='method'><a href="UniversalParkBase.html#getVirtualQueueStates">getVirtualQueueStates</a></li><li data-type='method'><a href="UniversalParkBase.html#getVirtualQueueTimeForRide">getVirtualQueueTimeForRide</a></li><li data-type='method'><a href="UniversalParkBase.html#getWaitingTimes">getWaitingTimes</a></li></ul></li><li><a href="UniversalResortBase_UniversalResortBase.html">UniversalResortBase</a></li><li><a href="UniversalStudios.html">UniversalStudios</a></li><li><a href="UniversalStudios_UniversalStudios.html">UniversalStudios</a></li><li><a href="UniversalStudiosFlorida.html">UniversalStudiosFlorida</a></li><li><a href="UniversalVolcanoBay.html">UniversalVolcanoBay</a></li><li><a href="WaltDisneyWorldResort.html">WaltDisneyWorldResort</a></li><li><a href="module.exports.html">exports</a></li><li></li><li></li><li></li></ul><h3>Global</h3><ul><li><a href="global.html#HTTP">HTTP</a></li><li><a href="global.html#Sieve">Sieve</a></li><li><a href="global.html#_del">_del</a></li><li><a href="global.html#_get">_get</a></li><li><a href="global.html#_getKeys">_getKeys</a></li><li><a href="global.html#_reusePromise">_reusePromise</a></li><li><a href="global.html#_set">_set</a></li><li><a href="global.html#activeFunctions">activeFunctions</a></li><li><a href="global.html#attractionType">attractionType</a></li><li><a href="global.html#blockOnPendingTransactions">blockOnPendingTransactions</a></li><li><a href="global.html#boardingGroupState">boardingGroupState</a></li><li><a href="global.html#createCacheInstance">createCacheInstance</a></li><li><a href="global.html#entityType">entityType</a></li><li><a href="global.html#extractName">extractName</a></li><li><a href="global.html#findActiveFunctionIndex">findActiveFunctionIndex</a></li><li><a href="global.html#generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></li><li><a href="global.html#get">get</a></li><li><a href="global.html#getCache">getCache</a></li><li><a href="global.html#getDatabase">getDatabase</a></li><li><a href="global.html#getEntityID">getEntityID</a></li><li><a href="global.html#getKeys">getKeys</a></li><li><a href="global.html#getLiveDataErrors">getLiveDataErrors</a></li><li><a href="global.html#getMethods">getMethods</a></li><li><a href="global.html#getValidTagObject">getValidTagObject</a></li><li><a href="global.html#isSimpleTagType">isSimpleTagType</a></li><li><a href="global.html#isValidTag">isValidTag</a></li><li><a href="global.html#isValidTagType">isValidTagType</a></li><li><a href="global.html#metaCommands">metaCommands</a></li><li><a href="global.html#parseConfig">parseConfig</a></li><li><a href="global.html#queueType">queueType</a></li><li><a href="global.html#returnTimeState">returnTimeState</a></li><li><a href="global.html#reusePromise">reusePromise</a></li><li><a href="global.html#reusePromiseForever">reusePromiseForever</a></li><li><a href="global.html#riderHeightValidate">riderHeightValidate</a></li><li><a href="global.html#runTransaction">runTransaction</a></li><li><a href="global.html#scheduleType">scheduleType</a></li><li><a href="global.html#set">set</a></li><li><a href="global.html#setOverrideFunction">setOverrideFunction</a></li><li><a href="global.html#simpleTags">simpleTags</a></li><li><a href="global.html#statusType">statusType</a></li><li><a href="global.html#tagType">tagType</a></li><li><a href="global.html#validateEntitySchedule">validateEntitySchedule</a></li><li><a href="global.html#validateObjectContainsOnlyGivenKeys">validateObjectContainsOnlyGivenKeys</a></li><li><a href="global.html#validators">validators</a></li><li><a href="global.html#wrap">wrap</a></li><li><a href="global.html#writeToHAR">writeToHAR</a></li></ul>
+    
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">parks/dlp/disneylandparis.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import {v4 as uuid} from 'uuid';
+import {Destination} from '../destination.js';
+import {attractionType, statusType, queueType, scheduleType, returnTimeState, entityType} from '../parkTypes.js';
+import moment from 'moment-timezone';
+import sift from 'sift';
+
+const ignoreEntities = [
+  '00000', // Avengers Campus
+  'P1NA18', // duplicate princess pavilion
+  'test2', // test entity
+  'P2AC00-REMOVED', // removed entity
+  'P2AC00', // Avenger's Campus land
+  'armageddon', // Defunct Armageddon attraction
+];
+
+/**
+ * Disneyland Paris Park Object
+ */
+export class DisneylandParis extends Destination {
+  /**
+   * Create a new DisneylandParis object
+   * @param {object} options
+   */
+  constructor(options = {}) {
+    options.name = options.name || 'Disneyland Paris';
+    options.timezone = options.timezone || 'Europe/Paris';
+
+    options.apiKey = options.apiKey || '';
+    options.apiBase = options.apiBase || '';
+    options.apiBaseWaitTimes = options.apiBaseWaitTimes || '';
+    options.language = options.language || 'en-gb';
+
+    options.standbyApiBase = options.standbyApiBase || '';
+    options.standbyApiKey = options.standbyApiKey || '';
+    options.standbyAuthURL = options.standbyAuthURL || '';
+
+    options.standbyApiRefreshToken = options.standbyApiRefreshToken || '';
+
+    options.premierAccessApiKey = options.premierAccessApiKey || '';
+    options.premierAccessURL = options.premierAccessURL || '';
+
+    options.useragent = options.useragent || 'okhttp/3.12.1';
+
+    options.configPrefixes = ['DLP'].concat(options.configPrefixes || []);
+
+    options.cacheVersion = 3;
+
+    super(options);
+
+    if (!this.config.apiKey) throw new Error('Missing Disneyland Paris apiKey');
+    if (!this.config.apiBase) throw new Error('Missing Disneyland Paris apiBase');
+    if (!this.config.apiBaseWaitTimes) throw new Error('Missing Disneyland Paris apiBaseWaitTimes');
+
+    if (!this.config.standbyApiBase) throw new Error('Missing Disneyland Paris standbyApiBase');
+    if (!this.config.standbyApiKey) throw new Error('Missing Disneyland Paris standbyApiKey');
+    if (!this.config.standbyAuthURL) throw new Error('Missing Disneyland Paris standbyAuthURL');
+
+    if (!this.config.standbyApiRefreshToken) {
+      console.log(`Missing DLP standby API token - will be missing standby (virtual) queue data`);
+    }
+
+    if (!this.config.premierAccessURL) throw new Error('Missing Disneyland Paris premierAccessURL');
+    if (!this.config.premierAccessApiKey) throw new Error('Missing Disneyland Paris premierAccessApiKey');
+
+    // attraction data domain
+    this.http.injectForDomain({
+      hostname: new URL(this.config.apiBase).hostname,
+    }, async (method, url, data, options) => {
+      options.headers['x-application-id'] = 'mobile-app';
+      options.headers['x-request-id'] = uuid();
+      options.json = true;
+    });
+
+    // live wait time domain
+    this.http.injectForDomain({
+      hostname: new URL(this.config.apiBaseWaitTimes).hostname,
+    }, async (method, url, data, options) => {
+      options.headers['x-api-key'] = this.config.apiKey,
+        options.headers.accept = 'application/json, text/plain, */*';
+    });
+
+    // virtual queue domain
+    this.http.injectForDomain({
+      hostname: new URL(this.config.standbyApiBase).hostname,
+    }, async (method, url, data, options) => {
+      const authData = await this.getAuthToken();
+      if (!authData) {
+        throw new Error(`Unable to get auth token for DLP virtual queue access: ${JSON.stringify(authData)}`);
+      }
+
+      options.headers['x-api-key'] = this.config.standbyApiKey;
+      options.headers['authorization'] = `BEARER ${authData}`;
+      options.headers.accept = 'application/json, text/plain, */*';
+    });
+
+    this.http.injectForDomainResponse({
+      $or: [
+        {hostname: new URL(this.config.standbyApiBase).hostname},
+        {hostname: new URL(this.config.premierAccessURL).hostname}
+      ],
+    }, async (resp) => {
+      if (resp.statusCode === 401) {
+        // unset our api key so we refetch it
+        console.log('Failed to get vqueue, fetch our auth key again...');
+        await this.cache.set('dlp_apikey', undefined, -1);
+        return undefined;
+      }
+
+      return resp;
+    });
+
+    this.http.injectForDomainResponse({
+      $or: [
+        {hostname: new URL(this.config.standbyApiBase).hostname},
+        {hostname: new URL(this.config.premierAccessURL).hostname},
+        {hostname: new URL(this.config.standbyAuthURL).hostname},
+      ],
+    }, async (resp) => {
+      if (resp.statusCode === 400) {
+        // fetch our API key and try again
+        await this.cache.set('dlp_authapikey', undefined, -1);
+        return undefined;
+      }
+
+      return resp;
+    });
+
+    // premier access domain
+    this.http.injectForDomain({
+      hostname: new URL(this.config.premierAccessURL).hostname,
+    }, async (method, url, data, options) => {
+      options.headers['x-api-key'] = this.config.premierAccessApiKey;
+      options.headers.accept = 'application/json, text/plain, */*';
+    });
+  }
+
+  /*
+  async _buildAttractionObject(attractionID) {
+    const parkData = await this.getParkData();
+
+    const attr = parkData.find((x) => {
+      return x.id === attractionID;
+    });
+    if (attr === undefined) return undefined;
+
+    // attraction tags
+    const tags = [];
+
+    // attraction have fastpass?
+    tags.push({
+      type: tagType.fastPass,
+      value: !!attr.fastPass,
+    });
+
+    // on-ride photos?
+    tags.push({
+      type: tagType.onRidePhoto,
+      value: !!attr.photopass,
+    });
+
+    // single rider queue available?
+    tags.push({
+      type: tagType.singleRider,
+      value: !!attr.singleRider,
+    });
+
+    // location
+    if (attr.coordinates) {
+      const entrance = attr.coordinates.find((x) => x.type === 'Guest Entrance');
+      if (entrance) {
+        tags.push({
+          type: tagType.location,
+          key: 'location',
+          value: {
+            longitude: entrance.lng,
+            latitude: entrance.lat,
+          },
+        });
+      }
+    }
+
+    // height tag
+    if (attr.height !== undefined) {
+      attr.height.forEach((height) => {
+        // skip attractions for "any height"
+        if (height.id === 'anyHeight') return;
+
+        const heightVal = /([\d\.]+)\s+(\w+)/.exec(height.value);
+        if (heightVal) {
+          const unit = heightVal[2];
+          tags.push({
+            type: tagType.minimumHeight,
+            key: height.id,
+            value: {
+              height: Number(heightVal[1]) * (unit === 'm' ? 100 : 1),
+              unit: 'cm',
+            },
+          });
+        }
+      });
+    }
+
+    // may get wet
+    tags.push({
+      type: tagType.mayGetWet,
+      value: attr.interests ? !!attr.interests.find((x) => x.id === 'guestMayGetSplashed') : false,
+    });
+
+    // pregnant riders
+    tags.push({
+      type: tagType.unsuitableForPregnantPeople,
+      value: attr.physicalConsiderations ?
+        !!attr.physicalConsiderations.find((x) => x.id === 'expectantMothersMayNotRide') :
+        false,
+    });
+
+    return {
+      name: attr.name,
+      // TODO - sort rides from other attractions
+      type: attr.contentType === 'Attraction' ? attractionType.ride : attractionType.other,
+      tags,
+    };
+  }*/
+
+  /**
+   * Get API key for authentication
+   * @returns {string}
+   */
+  async getAuthApiKey() {
+    return await this.cache.wrap(`dlp_authapikey`, async () => {
+      const data = await this.http('POST', `${this.config.standbyAuthURL}api-key`, null);
+      return data?.headers?.['api-key'];
+    }, 1000 * 60 * 60 * 24); // 24-hours, will be refreshed if we need to fetch a new one
+  }
+
+  /**
+   * Get our latest refresh token
+   */
+  async getRefreshToken() {
+    // return refresh token from env or local cache
+    return await this.cache.wrap(`refreshtoken`, async () => {
+      return this.config.standbyApiRefreshToken;
+    }, 1000 * 60 * 60 * 24 * 180); // keep using cached token for 180 days
+    //  we update our token in refreshAuthToken with updated token values
+  }
+
+  /**
+   * Use a refresh token to get a new token object
+   */
+  async refreshAuthToken(refreshToken) {
+    this.log('Refreshing DLP token...');
+    const apiKey = await this.getAuthApiKey();
+
+    const resp = await this.http('POST', `${this.config.standbyAuthURL}guest/refresh-auth`, {
+      'refreshToken': refreshToken,
+    }, {
+      headers: {
+        'x-api-key': apiKey,
+        'authorization': `APIKEY ${apiKey}`,
+        'x-requested-with': 'fr.disneylandparis.android',
+        "user-agent": 'okhttp/3.14.7',
+        "cache-control": "no-cache",
+        "accept-language": "en-gb",
+      },
+      json: true,
+    });
+
+    this.log(`Receieved new refresh token ${resp?.body?.data?.token?.refresh_token}`);
+
+    // if we get a new refresh token, store it for later use
+    if (resp?.body?.data?.token?.refresh_token) {
+      await this.cache.set('refreshtoken', resp?.body?.data?.token?.refresh_token, 1000 * 60 * 60 * 24 * 180);
+    }
+
+    return resp?.body?.data?.token;
+  }
+
+  /**
+   * Fetch our auth token to access the HTTP API
+   * @returns {string}
+   */
+  async getAuthToken() {
+    let expiryTime = 1000 * 60 * 60; // default: 1 hour
+    return await this.cache.wrap(`authtoken`, async () => {
+      // use refresh token to fetch new auth token
+      const token = await this.refreshAuthToken(this.config.standbyApiRefreshToken);
+
+      expiryTime = token.ttl * 1000;
+
+      return token.access_token;
+    }, () => {
+      return expiryTime;
+    });
+  }
+
+  /**
+   * Get park POI data
+   * @returns &lt;object>
+   */
+  async getPOIData() {
+    // cache 12 hours
+    '@cache|720';
+
+    const entityProps = `id
+    name
+    type: __typename
+    hideFunctionality
+    location {
+      id
+      value
+    }
+    coordinates {
+      lat
+      lng
+    }
+    schedules {
+      language
+      date
+      startTime
+      endTime
+      status
+      closed
+    }
+    subType`;
+
+    const fetchedData = await this.http('POST', `${this.config.apiBase}/query`, {
+      // eslint-disable-next-line max-len
+      query: `
+      query activities($market: String!) {
+        Attraction: activities(market: $market, types: "Attraction") {
+          ${entityProps}
+        }
+        ,
+        DiningEvent: activities(market: $market, types: "DiningEvent") {
+          ${entityProps}
+        }
+        ,
+        DinnerShow: activities(market: $market, types: "DinnerShow") {
+          ${entityProps}
+        }
+        ,
+        Entertainment: activities(market: $market, types: "Entertainment") {
+          ${entityProps}
+        }
+        ,
+        Event: activities(market: $market, types: "Event") {
+          ${entityProps}
+        }
+        ,
+        GuestService: activities(market: $market, types: "GuestService") {
+          ${entityProps}
+        }
+        ,
+        Recreation: activities(market: $market, types: "Recreation") {
+          ${entityProps}
+        }
+        ,
+        Resort: activities(market: $market, types: "Resort") {
+          ${entityProps}
+        }
+        ,
+        Restaurant: activities(market: $market, types: "Restaurant") {
+          ${entityProps}
+        }
+        ,
+        Shop: activities(market: $market, types: "Shop") {
+          ${entityProps}
+        }
+        ,
+        Spa: activities(market: $market, types: "Spa") {
+          ${entityProps}
+        }
+        ,
+        Tour: activities(market: $market, types: "Tour") {
+          ${entityProps}
+        },
+        ThemePark: activities(market: $market, types: "ThemePark") {
+          ${entityProps}
+        }
+      }
+      `,
+      variables: {
+        market: this.config.language,
+      },
+    });
+
+    return fetchedData.body.data;
+  }
+
+  /**
+   * Helper function to build a basic entity document
+   * Useful to avoid copy/pasting
+   * @param {object} data 
+   * @returns {object}
+   */
+  buildBaseEntityObject(data) {
+    const entity = Destination.prototype.buildBaseEntityObject.call(this, data);
+
+    entity._id = data?.id;
+    entity.name = data?.name;
+    entity._tags = [];
+
+    // try and find location data
+    if (data?.coordinates) {
+      const entrance = data.coordinates.find((x) => x.type === 'Guest Entrance' || x.type === undefined);
+      if (entrance) {
+        entity.location = {
+          longitude: entrance.lng,
+          latitude: entrance.lat,
+        };
+      }
+    }
+
+    // facets
+    if (data?.height) {
+      const noHeightLimit = !!data.height.find((x) => x.id === 'anyHeight');
+      if (!noHeightLimit) {
+        // TODO - find mix/max height
+        const minHeightData = data.height.find((x) => x.iconFont.indexOf('min-height') > -1);
+        if (minHeightData) {
+          const val = minHeightData.value.split(' ');
+          if (val[1] === 'm') {
+            entity._tags.push({
+              id: 'minimumHeight',
+              value: Number(Number(val[0]) * 100),
+            });
+          } else if (val[1] === 'cm') {
+            entity._tags.push({
+              id: 'minimumHeight',
+              value: Number(Number(val[0])),
+            });
+          } else {
+            // TODO - emit error
+            console.error('Unknown height unit', val);
+          }
+        }
+      } else {
+        entity._tags.push({
+          id: 'minimumHeight',
+          value: 0,
+        });
+      }
+    }
+
+    // this policy line takes priotity over any other tags
+    if (data?.guestPolicies) {
+      if (data.guestPolicies.indexOf('Expectant Mothers may not ride') >= 0) {
+        entity._tags.push({
+          id: 'suitableForPregnantPeople',
+          value: false,
+        });
+      }
+    }
+    if (!entity._tags.find((x) => x.id === 'suitableForPregnantPeople') &amp;&amp; data?.mobilityDisabilities) {
+      // find pregnancy tag
+      const pregnancy = data.mobilityDisabilities.find((x) => x.id === 'accessibleToPregnantWomen');
+      if (pregnancy) {
+        // major discrepencies between accessibility brochure (https://brochure.disneylandparis.com/HCP/UK/catalogue/index.html)
+        //  and the DLP app. Not comfortable in reporting any ride as "suitable".
+        // will keep an eye on, and likely manually evaluate rides as app data is useless here.
+        /*entity._tags.push({
+          id: 'suitableForPregnantPeople',
+          value: true,
+        });*/
+      }
+    }
+    if (!entity._tags.find((x) => x.id === 'suitableForPregnantPeople') &amp;&amp; data?.physicalConsiderations) {
+      // find rides explicitly marked as not suitable for pregnant people
+      const pregnancy = data.physicalConsiderations.find((x) => x.id === 'expectantMothersMayNotRide');
+      if (pregnancy) {
+        entity._tags.push({
+          id: 'suitableForPregnantPeople',
+          value: false,
+        });
+      }
+    }
+
+    return entity;
+  }
+
+  /**
+   * Build the destination entity representing this destination
+   */
+  async buildDestinationEntity() {
+    return {
+      ...this.buildBaseEntityObject(),
+      _id: 'dlp',
+      name: this.config.name,
+      slug: 'disneylandparis',
+      entityType: entityType.destination,
+    };
+  }
+
+  /**
+   * Build the park entities for this destination
+   */
+  async buildParkEntities() {
+    // find all destination parks
+    const poiData = await this.getPOIData();
+    const parks = poiData.ThemePark;
+
+    // parks like to vanish from the POI data sometimes (???)
+    //  inject Studios manually into returned data if it's not in the API
+    if (parks.findIndex((x) => x.id === 'P2') === -1) {
+      parks.push({
+        "id": "P2",
+        "name": "Walt Disney Studios Park",
+        "coordinates": [
+          {
+            "lat": 48.868391,
+            "lng": 2.780802,
+            "type": "Guest Entrance"
+          }
+        ],
+      });
+    }
+
+    const destination = await this.buildDestinationEntity();
+
+    return parks.map((x) => {
+      return {
+        ...this.buildBaseEntityObject(x),
+        _destinationId: destination._id,
+        _parentId: destination._id,
+        slug: x.name.toLowerCase().replace(/[^a-z]/g, ''),
+        entityType: entityType.park,
+      };
+    });
+  }
+
+  async filterPOIData(filterObj) {
+    const parkData = await this.getPOIData();
+    if (!parkData) return [];
+
+    const hideRules = [
+      'Hide from Web List + Mobile App',
+      'Hide from the Service',
+      'Hide from Mobile App',
+    ];
+
+    // reduce fields
+    const attrs = Object.keys(parkData).reduce((prev, curr) => {
+      return [
+        ...prev,
+        ...parkData[curr].map((x) => {
+          // inject category from field name
+          return {
+            ...x,
+            category: curr,
+          };
+        })
+      ];
+    }, []).filter((x) => {
+      return x?.location?.id === 'P1' || x?.location?.id === 'P2';
+    }).filter((x) => {
+      // remove any entities that are "hidden from the app"
+      return hideRules.indexOf(x.hideFunctionality) === -1;
+    });
+
+    return attrs.filter(sift(filterObj));
+  }
+
+  async getEntitiesOfTypes(filterObj, data) {
+    const attrs = await this.filterPOIData(filterObj);
+
+    const destination = await this.buildDestinationEntity();
+
+    return attrs.map((x) => {
+      // skip placeholders
+      if (ignoreEntities.indexOf(x?.id) >= 0) return undefined;
+
+      return {
+        ...this.buildBaseEntityObject(x),
+        ...data,
+        _destinationId: destination._id,
+        _parentId: x?.location?.id,
+        _parkId: x?.location?.id,
+      };
+    }).filter((x) => !!x);
+  }
+
+  /**
+   * Build the attraction entities for this destination
+   */
+  async buildAttractionEntities() {
+    return this.getEntitiesOfTypes({
+      category: 'Attraction',
+    }, {
+      entityType: entityType.attraction,
+      attractionType: attractionType.ride,
+    });
+  }
+
+  _getShowSubtypes() {
+    return [
+      "Stage Show",
+      "Fireworks",
+      "Atmosphere",
+      "Parade",
+    ];
+  }
+
+  /**
+   * Build the show entities for this destination
+   */
+  async buildShowEntities() {
+    return this.getEntitiesOfTypes({
+      $or: this._getShowSubtypes().map((x) => {
+        return {
+          subType: x,
+        };
+      }),
+    }, {
+      entityType: entityType.show,
+    });
+  }
+
+  /**
+   * Build the restaurant entities for this destination
+   */
+  async buildRestaurantEntities() {
+    return this.getEntitiesOfTypes({
+      category: "Restaurant",
+    }, {
+      entityType: entityType.restaurant,
+    });
+  }
+
+  /**
+   * Get wait time raw data
+   * @returns {object}
+   */
+  async fetchWaitData() {
+    '@cache|1';
+    try {
+      return (await this.http('GET', `${this.config.apiBaseWaitTimes}waitTimes`)).body;
+    } catch (e) {
+      console.error(`DLP error: getResortWaitTimes ${e}`);
+      throw e;
+    }
+  }
+
+  /**
+   * Fetch virtual queue status
+   * @returns {array}
+   */
+  async fetchVirtualQueueData() {
+    '@cache|1';
+    // skip if we have no auth token refresher
+    if (!this.config.standbyApiRefreshToken) {
+      return [];
+    }
+
+    try {
+      const standByVirtualData = await this.http('GET', this.config.standbyApiBase);
+      return standByVirtualData.body;
+    } catch (e) {
+      console.error(`DLP error: getResortVirtualQueues ${e}`);
+      throw e;
+    }
+  }
+
+  /**
+   * Fetch premier access data
+   * @returns {array}
+   */
+  async fetchPremierAccessData() {
+    '@cache|1';
+    // skip if we have no premier access API Key
+    if (!this.config.premierAccessApiKey) {
+      return [];
+    }
+
+    try {
+      const standByPremierData = await this.http('GET', this.config.premierAccessURL);
+      return standByPremierData.body;
+    } catch (e) {
+      console.error(`DLP error: getResortPremierAccess ${e}`);
+      throw e;
+    }
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async buildEntityLiveData() {
+    // this function should return all the live data for all entities in this destination
+    const waits = await this.fetchWaitData();
+
+    if (!Array.isArray(waits)) {
+      // DLP is offline (?!)
+      //  DLP servers go offline briefly most nights
+      return [];
+    }
+
+    // virtual queue data
+    const vQData = await this.fetchVirtualQueueData();
+
+    // premier access data
+    const premierAccessData = await this.fetchPremierAccessData();
+
+    // today's schedule data
+    const today = this.getTimeNowMoment().format('YYYY-MM-DD');
+    const scheduleData = await this.fetchResortScheduleForDate(today);
+
+    // get POI data for shows so we can use their duration data
+    const showPOIData = await this.filterPOIData({
+      $or: this._getShowSubtypes().map((x) => {
+        return {
+          subType: x,
+        };
+      }),
+    });
+
+    const livedata = waits.filter((x) => x.type === 'Attraction' &amp;&amp; ignoreEntities.indexOf(x.entityId) &lt; 0).map((time) => {
+      const live = {
+        _id: time.entityId,
+        status: statusType.operating,
+      };
+
+      if (time.status === 'DOWN') {
+        live.status = statusType.down;
+      } else if (time.status === 'REFURBISHMENT') {
+        // it may say "refurbishment", but the DLP app actaully displays this as "Closed"
+        // live.status = statusType.refurbishment;
+        live.status = statusType.closed;
+      } else if (time.status === 'CLOSED' || time.status === null) {
+        live.status = statusType.closed;
+      }
+
+      // stand-by time
+      live.queue = {
+        [queueType.standBy]: {
+          waitTime: live.status === statusType.operating ?
+            Number(time.postedWaitMinutes) :
+            null,
+        },
+      };
+
+      // single-rider time
+      if (time.singleRider?.isAvailable === true) {
+        live.queue[queueType.singleRider] = {
+          waitTime: live.status === statusType.operating ?
+            Number(time.singleRider.singleRiderWaitMinutes) :
+            null,
+        };
+      }
+
+      // look for virtual queue entries
+      const rideVQueue = vQData &amp;&amp; vQData.find((x) => x?.attractionId == time.entityId);
+      if (rideVQueue !== undefined) {
+        live.queue[queueType.returnTime] = {
+          returnStart: rideVQueue.timeSlotStartDatetime ? moment.tz(rideVQueue.timeSlotStartDatetime, 'YYYY-MM-DD HH:mm', this.config.timezone).format() : null,
+          returnEnd: rideVQueue.timeSlotEndDatetime ? moment.tz(rideVQueue.timeSlotEndDatetime, 'YYYY-MM-DD HH:mm', this.config.timezone).format() : null,
+          state: rideVQueue.uiStatus === 'Available' ? returnTimeState.available : returnTimeState.finished,
+        };
+      }
+
+      // look for premier access entries
+      const access = premierAccessData &amp;&amp; premierAccessData.find((x) => x?.attractionId == time.entityId);
+      if (access !== undefined) {
+        live.queue[queueType.paidReturnTime] = {
+          returnStart: access.nextTimeSlotStartDateTime ? moment.tz(access.nextTimeSlotStartDateTime, this.config.timezone).format() : null,
+          returnEnd: access.nextTimeSlotEndDateTime ? moment.tz(access.nextTimeSlotEndDateTime, this.config.timezone).format() : null,
+          state: !!access.available ? returnTimeState.available : returnTimeState.finished,
+          price: {
+            currency: 'EUR',
+            amount: access.price ? access.price * 100 : null,
+          },
+        };
+      }
+
+      return live;
+    });
+
+    // find all running shows
+    scheduleData.forEach((sched) => {
+      if (!sched?.schedules) return;
+
+      const performances = sched.schedules.filter((s) => {
+        return s.status === 'PERFORMANCE_TIME';
+      });
+
+      if (performances.length > 0) {
+        // find show length from POI data
+        let showDuration = 0;
+        const show = showPOIData.find((x) => x?.id === sched.id);
+        if (show &amp;&amp; show.duration) {
+          // calculate show duration in minutes
+          showDuration = (show.duration.minutes || 0) + ((show.duration.hours || 0) * 60);
+        }
+
+        // generate showtime data
+        const showtimes = performances.map((p) => {
+          const endTimeString = showDuration === 0 ? p.endTime : p.startTime;
+          return {
+            startTime: moment.tz(`${today}T${p.startTime}`, 'YYYY-MM-DDTHH:mm:ss', this.config.timezone).format(),
+            endTime: moment.tz(`${today}T${endTimeString}`, 'YYYY-MM-DDTHH:mm:ss', this.config.timezone).add(showDuration, 'minutes').format(),
+            type: "Performance Time",
+          };
+        });
+
+        // look for existing livedata and inject, or create new entry
+        const existingEntry = livedata.find((x) => x._id === sched.id);
+        if (existingEntry) {
+          existingEntry.showtimes = showtimes;
+        } else {
+          livedata.push({
+            _id: sched.id,
+            status: statusType.operating,
+            showtimes,
+          });
+        }
+      }
+    });
+
+    return livedata;
+  }
+
+  /**
+   * Fetch schedule data for a specific day
+   * DLP's API returns one day at a time
+   * @param {string} date YYYY-MM-DD format
+   * @returns {array&lt;schedule>}
+   */
+  async fetchResortScheduleForDate(date) {
+    // cache for a week
+    '@cache|10080';
+    const fetchedData = await this.http('POST', `${this.config.apiBase}/query`, {
+      // eslint-disable-next-line max-len
+      'query': 'query activitySchedules($market: String!, $types: [ActivityScheduleStatusInput]!, $date: String!) { activitySchedules(market: $market, date: $date, types: $types) { __typename id name subType url pageLink { url regions { contentId templateId schemaId } } heroMediaMobile { url alt } squareMediaMobile { url alt } hideFunctionality containerTcmId urlFriendlyId location { ...location } subLocation { ...location } type subType schedules(date: $date, types: $types) { startTime endTime date status closed language } } } fragment location on Location { id value urlFriendlyId iconFont pageLink { url tcmId title regions { contentId templateId schemaId } } } ',
+      'variables': {
+        'market': 'en-gb',
+        'types': [{
+          'type': 'ThemePark',
+          'status': ['OPERATING', 'EXTRA_MAGIC_HOURS'],
+        }, {
+          'type': 'Entertainment',
+          'status': ['PERFORMANCE_TIME'],
+        }, {
+          'type': 'Attraction',
+          'status': ['OPERATING', 'REFURBISHMENT', 'CLOSED'],
+        }, {
+          'type': 'Resort',
+          'status': ['OPERATING', 'REFURBISHMENT', 'CLOSED'],
+        }, {
+          'type': 'Shop',
+          'status': ['REFURBISHMENT', 'CLOSED'],
+        }, {
+          'type': 'Restaurant',
+          'status': ['REFURBISHMENT', 'CLOSED', 'OPERATING'],
+        }, {
+          'type': 'DiningEvent',
+          'status': ['REFURBISHMENT', 'CLOSED'],
+        }, {
+          'type': 'DinnerShow',
+          'status': ['REFURBISHMENT', 'CLOSED'],
+        }],
+        'date': date,
+      },
+    });
+
+    return fetchedData.body.data.activitySchedules;
+  }
+
+  /**
+   * Return schedule data for all scheduled entities in this destination
+   * Eg. parks
+   * @returns {array&lt;object>}
+   */
+  async buildEntityScheduleData() {
+    // TODO - fetch schedule data some way into the future
+    const now = this.getTimeNowMoment();
+    const end = now.clone().add(60, 'days');
+
+    const scheduleData = [];
+    const momentParseFormat = 'YYYY-MM-DDTHH:mm:ss';
+
+    for (; now.isSameOrBefore(end, 'day'); now.add(1, 'day')) {
+      const dateString = now.format('YYYY-MM-DD');
+      const dateData = await this.fetchResortScheduleForDate(dateString);
+      if (!dateData) continue;
+
+      dateData.forEach((x) => {
+        if (ignoreEntities.indexOf(x?.id) >= 0) return;
+
+        let sched = scheduleData.find((a) => a._id === x.id);
+        if (!sched) {
+          sched = scheduleData[scheduleData.push({
+            _id: x.id,
+            schedule: [],
+          }) - 1];
+        }
+
+        x.schedules.forEach((hours) => {
+          const open = moment.tz(`${dateString}T${hours.startTime}`, momentParseFormat, this.config.timezone);
+          const close = moment.tz(`${dateString}T${hours.endTime}`, momentParseFormat, this.config.timezone);
+          // handle closing times after midnight
+          if (close.isBefore(open)) {
+            close.add(1, 'day');
+          }
+          sched.schedule.push({
+            date: dateString,
+            openingTime: open.format(),
+            closingTime: close.format(),
+            // our graphql query only wants types of "OPERATING" or "EXTRA_MAGIC_HOURS", so we can ternery op this
+            type: hours.status === 'EXTRA_MAGIC_HOURS' ? scheduleType.extraHours : scheduleType.operating,
+            description: hours.status === 'EXTRA_MAGIC_HOURS' ? 'Extra Magic Hours' : undefined,
+          });
+        });
+      });
+    }
+
+    return scheduleData;
+  }
+
+
+}
+
+export default DisneylandParis;
+
+/*
+export class DisneylandParisMagicKingdom extends DisneylandParis {
+  constructor(options = {}) {
+    options.name = options.name || 'Disneyland Paris - Magic Kingdom';
+    options.parkId = options.parkId || 'P1';
+    super(options);
+  }
+}
+
+export class DisneylandParisWaltDisneyStudios extends DisneylandParis {
+  constructor(options = {}) {
+    options.name = options.name || 'Disneyland Paris - Walt Disney Studios';
+    options.parkId = options.parkId || 'P2';
+    super(options);
+  }
+}
+*/</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.1</a> on Sun Feb 19 2023 21:20:22 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+
+
+</body>
+</html>

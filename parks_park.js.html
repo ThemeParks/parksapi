@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>parks/park.js - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ConfigBase.html">ConfigBase</a></li><li><a href="Database.html">Database</a><ul class='methods'><li data-type='method'><a href="Database.html#_getEntities">_getEntities</a></li><li data-type='method'><a href="Database.html#_init">_init</a></li><li data-type='method'><a href="Database.html#findEntity">findEntity</a></li><li data-type='method'><a href="Database.html#getEntities">getEntities</a></li><li data-type='method'><a href="Database.html#getEntitiyById">getEntitiyById</a></li><li data-type='method'><a href="Database.html#init">init</a></li><li data-type='method'><a href="Database.html#log">log</a></li><li data-type='method'><a href="Database.html#.get">get</a></li></ul></li><li><a href="DatabaseEuropaPark.html">DatabaseEuropaPark</a><ul class='methods'><li data-type='method'><a href="DatabaseEuropaPark.html#_getEntities">_getEntities</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#_init">_init</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getCalendar">getCalendar</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getConfig">getConfig</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getFirebaseID">getFirebaseID</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getLiveCalendar">getLiveCalendar</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getParkData">getParkData</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getShowTimes">getShowTimes</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getToken">getToken</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getWaitingTimes">getWaitingTimes</a></li></ul></li><li><a href="DatabaseWDW.html">DatabaseWDW</a><ul class='methods'><li data-type='method'><a href="DatabaseWDW.html#_getEntities">_getEntities</a></li></ul></li><li><a href="Destination.html">Destination</a><ul class='methods'><li data-type='method'><a href="Destination.html#_clearFunctionCache">_clearFunctionCache</a></li><li data-type='method'><a href="Destination.html#_init">_init</a></li><li data-type='method'><a href="Destination.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="Destination.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="Destination.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="Destination.html#buildEntityLiveData">buildEntityLiveData</a></li><li data-type='method'><a href="Destination.html#buildEntityScheduleData">buildEntityScheduleData</a></li><li data-type='method'><a href="Destination.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="Destination.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="Destination.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="Destination.html#forEachUpcomingDate">forEachUpcomingDate</a></li><li data-type='method'><a href="Destination.html#getAllEntities">getAllEntities</a></li><li data-type='method'><a href="Destination.html#getAndroidAPPVersion">getAndroidAPPVersion</a></li><li data-type='method'><a href="Destination.html#getAttractionEntities">getAttractionEntities</a></li><li data-type='method'><a href="Destination.html#getDestinationEntities">getDestinationEntities</a></li><li data-type='method'><a href="Destination.html#getDestinationEntity">getDestinationEntity</a></li><li data-type='method'><a href="Destination.html#getEntityFromId">getEntityFromId</a></li><li data-type='method'><a href="Destination.html#getEntityLiveData">getEntityLiveData</a></li><li data-type='method'><a href="Destination.html#getEntitySchedules">getEntitySchedules</a></li><li data-type='method'><a href="Destination.html#getLiveCache">getLiveCache</a></li><li data-type='method'><a href="Destination.html#getLiveHash">getLiveHash</a></li><li data-type='method'><a href="Destination.html#getParkEntities">getParkEntities</a></li><li data-type='method'><a href="Destination.html#getRestaurantEntities">getRestaurantEntities</a></li><li data-type='method'><a href="Destination.html#getShowEntities">getShowEntities</a></li><li data-type='method'><a href="Destination.html#getTimeNow">getTimeNow</a></li><li data-type='method'><a href="Destination.html#getTimeNowMoment">getTimeNowMoment</a></li><li data-type='method'><a href="Destination.html#init">init</a></li><li data-type='method'><a href="Destination.html#log">log</a></li><li data-type='method'><a href="Destination.html#setLiveCache">setLiveCache</a></li><li data-type='method'><a href="Destination.html#updateEntityLiveData">updateEntityLiveData</a></li></ul></li><li><a href="DisneyLiveResort.html">DisneyLiveResort</a><ul class='methods'><li data-type='method'><a href="DisneyLiveResort.html#_fetchRestaurantMenu">_fetchRestaurantMenu</a></li><li data-type='method'><a href="DisneyLiveResort.html#_getSchedulesForDate">_getSchedulesForDate</a></li><li data-type='method'><a href="DisneyLiveResort.html#_init">_init</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildEntityLiveData">buildEntityLiveData</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildEntityScheduleData">buildEntityScheduleData</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="DisneyLiveResort.html#fetchVirtualQueueData">fetchVirtualQueueData</a></li><li data-type='method'><a href="DisneyLiveResort.html#getFacilityStatusChannelID">getFacilityStatusChannelID</a></li><li data-type='method'><a href="DisneyLiveResort.html#getRestaurantMenu">getRestaurantMenu</a></li><li data-type='method'><a href="DisneyLiveResort.html#initLiveStatusUpdates">initLiveStatusUpdates</a></li><li data-type='method'><a href="DisneyLiveResort.html#sanitizeEntityName">sanitizeEntityName</a></li></ul></li><li><a href="DisneylandParis.html">DisneylandParis</a><ul class='methods'><li data-type='method'><a href="DisneylandParis.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="DisneylandParis.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="DisneylandParis.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="DisneylandParis.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="DisneylandParis.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="DisneylandParis.html#fetchResortScheduleForDate">fetchResortScheduleForDate</a></li><li data-type='method'><a href="DisneylandParis.html#fetchWaitData">fetchWaitData</a></li><li data-type='method'><a href="DisneylandParis.html#getAuthApiKey">getAuthApiKey</a></li><li data-type='method'><a href="DisneylandParis.html#getAuthToken">getAuthToken</a></li><li data-type='method'><a href="DisneylandParis.html#getPOIData">getPOIData</a></li><li data-type='method'><a href="DisneylandParis.html#getRefreshToken">getRefreshToken</a></li><li data-type='method'><a href="DisneylandParis.html#refreshAuthToken">refreshAuthToken</a></li></ul></li><li><a href="DisneylandResort.html">DisneylandResort</a></li><li><a href="Efteling.html">Efteling</a><ul class='methods'><li data-type='method'><a href="Efteling.html#_fetchPOIData">_fetchPOIData</a></li><li data-type='method'><a href="Efteling.html#_getRestaurantOperatingHoursForDate">_getRestaurantOperatingHoursForDate</a></li><li data-type='method'><a href="Efteling.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="Efteling.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="Efteling.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="Efteling.html#buildEntityScheduleData">buildEntityScheduleData</a></li><li data-type='method'><a href="Efteling.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="Efteling.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="Efteling.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="Efteling.html#getRestaurantOperatingHours">getRestaurantOperatingHours</a></li></ul></li><li><a href="Entity.html">Entity</a><ul class='methods'><li data-type='method'><a href="Entity.html#_postOfflineLoad">_postOfflineLoad</a></li><li data-type='method'><a href="Entity.html#ensureHasOfflineData">ensureHasOfflineData</a></li><li data-type='method'><a href="Entity.html#getTimeNow">getTimeNow</a></li><li data-type='method'><a href="Entity.html#getTimeNowMoment">getTimeNowMoment</a></li><li data-type='method'><a href="Entity.html#getUniqueID">getUniqueID</a></li><li data-type='method'><a href="Entity.html#injectForDomain">injectForDomain</a></li><li data-type='method'><a href="Entity.html#log">log</a></li><li data-type='method'><a href="Entity.html#registerOfflineFunction">registerOfflineFunction</a></li><li data-type='method'><a href="Entity.html#serialise">serialise</a></li></ul></li><li><a href="HarWriter.html">HarWriter</a><ul class='methods'><li data-type='method'><a href="HarWriter.html#createLogObject">createLogObject</a></li><li data-type='method'><a href="HarWriter.html#getProjectVersion">getProjectVersion</a></li><li data-type='method'><a href="HarWriter.html#recordEntry">recordEntry</a></li><li data-type='method'><a href="HarWriter.html#toJSON">toJSON</a></li><li data-type='method'><a href="HarWriter.html#write">write</a></li></ul></li><li><a href="HongKongDisneyland.html">HongKongDisneyland</a><ul class='methods'><li data-type='method'><a href="HongKongDisneyland.html#_fetchRestaurantMenu">_fetchRestaurantMenu</a></li></ul></li><li><a href="IndexedWDWDB.html">IndexedWDWDB</a><ul class='methods'><li data-type='method'><a href="IndexedWDWDB.html#_createIndex">_createIndex</a></li><li data-type='method'><a href="IndexedWDWDB.html#_createIndexes">_createIndexes</a></li><li data-type='method'><a href="IndexedWDWDB.html#_extractChannelLanguage">_extractChannelLanguage</a></li><li data-type='method'><a href="IndexedWDWDB.html#_extractEntityKeys">_extractEntityKeys</a></li><li data-type='method'><a href="IndexedWDWDB.html#_indexWDWDocument">_indexWDWDocument</a></li><li data-type='method'><a href="IndexedWDWDB.html#_initIndexes">_initIndexes</a></li><li data-type='method'><a href="IndexedWDWDB.html#_loadAndInit">_loadAndInit</a></li><li data-type='method'><a href="IndexedWDWDB.html#_removeFromArrayIndex">_removeFromArrayIndex</a></li><li data-type='method'><a href="IndexedWDWDB.html#_replicate">_replicate</a></li><li data-type='method'><a href="IndexedWDWDB.html#find">find</a></li><li data-type='method'><a href="IndexedWDWDB.html#getByChannel">getByChannel</a></li><li data-type='method'><a href="IndexedWDWDB.html#getDocChildren">getDocChildren</a></li><li data-type='method'><a href="IndexedWDWDB.html#getDocNameSearch">getDocNameSearch</a></li><li data-type='method'><a href="IndexedWDWDB.html#getDocsById">getDocsById</a></li><li data-type='method'><a href="IndexedWDWDB.html#getDumpFilename">getDumpFilename</a></li><li data-type='method'><a href="IndexedWDWDB.html#getEntity">getEntity</a></li><li data-type='method'><a href="IndexedWDWDB.html#getEntityIndex">getEntityIndex</a></li><li data-type='method'><a href="IndexedWDWDB.html#getEntityOne">getEntityOne</a></li><li data-type='method'><a href="IndexedWDWDB.html#getFacilityStatus">getFacilityStatus</a></li><li data-type='method'><a href="IndexedWDWDB.html#getIndex">getIndex</a></li><li data-type='method'><a href="IndexedWDWDB.html#init">init</a></li><li data-type='method'><a href="IndexedWDWDB.html#loadSnapshot">loadSnapshot</a></li><li data-type='method'><a href="IndexedWDWDB.html#saveSnapshot">saveSnapshot</a></li><li data-type='method'><a href="IndexedWDWDB.html#subscribeToChanges">subscribeToChanges</a></li><li data-type='method'><a href="IndexedWDWDB.html#subscribeToChannel">subscribeToChannel</a></li><li data-type='method'><a href="IndexedWDWDB.html#._pluginBulkDocs">_pluginBulkDocs</a></li><li data-type='method'><a href="IndexedWDWDB.html#.getDatabaseFilePath">getDatabaseFilePath</a></li></ul></li><li><a href="Park.html">Park</a><ul class='methods'><li data-type='method'><a href="Park.html#_buildAttractionObject">_buildAttractionObject</a></li><li data-type='method'><a href="Park.html#_checkDate">_checkDate</a></li><li data-type='method'><a href="Park.html#_dateRefresh">_dateRefresh</a></li><li data-type='method'><a href="Park.html#_findAttractionByID">_findAttractionByID</a></li><li data-type='method'><a href="Park.html#_getAttractionByIDInternal">_getAttractionByIDInternal</a></li><li data-type='method'><a href="Park.html#_getOperatingHoursForDate">_getOperatingHoursForDate</a></li><li data-type='method'><a href="Park.html#_getRestaurantOperatingHoursForDate">_getRestaurantOperatingHoursForDate</a></li><li data-type='method'><a href="Park.html#_init">_init</a></li><li data-type='method'><a href="Park.html#_postInit">_postInit</a></li><li data-type='method'><a href="Park.html#_postOfflineLoad">_postOfflineLoad</a></li><li data-type='method'><a href="Park.html#_runInit">_runInit</a></li><li data-type='method'><a href="Park.html#_runUpdate">_runUpdate</a></li><li data-type='method'><a href="Park.html#_update">_update</a></li><li data-type='method'><a href="Park.html#cacheAttractionObject">cacheAttractionObject</a></li><li data-type='method'><a href="Park.html#ensureReady">ensureReady</a></li><li data-type='method'><a href="Park.html#findAttractionByID">findAttractionByID</a></li><li data-type='method'><a href="Park.html#getActiveParkDate">getActiveParkDate</a></li><li data-type='method'><a href="Park.html#getActiveParkDateMoment">getActiveParkDateMoment</a></li><li data-type='method'><a href="Park.html#getAttractions">getAttractions</a></li><li data-type='method'><a href="Park.html#getCalendar">getCalendar</a></li><li data-type='method'><a href="Park.html#getCalendarForToday">getCalendarForToday</a></li><li data-type='method'><a href="Park.html#getCalendarForTomorrow">getCalendarForTomorrow</a></li><li data-type='method'><a href="Park.html#getNextClosingTime">getNextClosingTime</a></li><li data-type='method'><a href="Park.html#getNextOpeningTime">getNextOpeningTime</a></li><li data-type='method'><a href="Park.html#getNextOpeningTimeMomentDuration">getNextOpeningTimeMomentDuration</a></li><li data-type='method'><a href="Park.html#getOperatingHoursForDate">getOperatingHoursForDate</a></li><li data-type='method'><a href="Park.html#getParkUniqueID">getParkUniqueID</a></li><li data-type='method'><a href="Park.html#getRestaurantOperatingHoursForDate">getRestaurantOperatingHoursForDate</a></li><li data-type='method'><a href="Park.html#init">init</a></li><li data-type='method'><a href="Park.html#postUpdate">postUpdate</a></li><li data-type='method'><a href="Park.html#removeAttractionTag">removeAttractionTag</a></li><li data-type='method'><a href="Park.html#setAttractionTag">setAttractionTag</a></li><li data-type='method'><a href="Park.html#shutdown">shutdown</a></li><li data-type='method'><a href="Park.html#toggleAttractionTag">toggleAttractionTag</a></li><li data-type='method'><a href="Park.html#update">update</a></li><li data-type='method'><a href="Park.html#updateAttractionQueue">updateAttractionQueue</a></li><li data-type='method'><a href="Park.html#updateAttractionState">updateAttractionState</a></li></ul></li><li><a href="ScopedCache.html">ScopedCache</a><ul class='methods'><li data-type='method'><a href="ScopedCache.html#_initCache">_initCache</a></li><li data-type='method'><a href="ScopedCache.html#blockOnPendingTransactions">blockOnPendingTransactions</a></li><li data-type='method'><a href="ScopedCache.html#generateScopedKey">generateScopedKey</a></li><li data-type='method'><a href="ScopedCache.html#get">get</a></li><li data-type='method'><a href="ScopedCache.html#getGlobal">getGlobal</a></li><li data-type='method'><a href="ScopedCache.html#getKeys">getKeys</a></li><li data-type='method'><a href="ScopedCache.html#initCache">initCache</a></li><li data-type='method'><a href="ScopedCache.html#runTransaction">runTransaction</a></li><li data-type='method'><a href="ScopedCache.html#set">set</a></li><li data-type='method'><a href="ScopedCache.html#setGlobal">setGlobal</a></li><li data-type='method'><a href="ScopedCache.html#wrap">wrap</a></li><li data-type='method'><a href="ScopedCache.html#wrapGlobal">wrapGlobal</a></li></ul></li><li><a href="ShanghaiDisneylandResort.html">ShanghaiDisneylandResort</a><ul class='methods'><li data-type='method'><a href="ShanghaiDisneylandResort.html#_buildAttractionObject">_buildAttractionObject</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_buildEntities">_buildEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_dumpDB">_dumpDB</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_fetchWaitTimes">_fetchWaitTimes</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_init">_init</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_loadDB">_loadDB</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#extractEntityData">extractEntityData</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#getAccessToken">getAccessToken</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#getAllEntityKeys">getAllEntityKeys</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#getAttractionData">getAttractionData</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#getEntity">getEntity</a></li></ul></li><li><a href="TokyoDisneyResort.html">TokyoDisneyResort</a><ul class='methods'><li data-type='method'><a href="TokyoDisneyResort.html#_fetchWaitTimes">_fetchWaitTimes</a></li><li data-type='method'><a href="TokyoDisneyResort.html#_getRestaurantOperatingHoursForDate">_getRestaurantOperatingHoursForDate</a></li><li data-type='method'><a href="TokyoDisneyResort.html#_update">_update</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildEntityScheduleData">buildEntityScheduleData</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="TokyoDisneyResort.html#fetchCalendar">fetchCalendar</a></li><li data-type='method'><a href="TokyoDisneyResort.html#fetchLatestVersion">fetchLatestVersion</a></li><li data-type='method'><a href="TokyoDisneyResort.html#fetchRestaurantOperatingHours">fetchRestaurantOperatingHours</a></li><li data-type='method'><a href="TokyoDisneyResort.html#getEntitiesOfType">getEntitiesOfType</a></li></ul></li><li><a href="UniversalIslandsOfAdventure.html">UniversalIslandsOfAdventure</a></li><li><a href="UniversalOrlando_UniversalOrlando.html">UniversalOrlando</a></li><li><a href="UniversalParkBase.html">UniversalParkBase</a><ul class='methods'><li data-type='method'><a href="UniversalParkBase.html#_buildAttractionObject">_buildAttractionObject</a></li><li data-type='method'><a href="UniversalParkBase.html#_getOperatingHoursForDate">_getOperatingHoursForDate</a></li><li data-type='method'><a href="UniversalParkBase.html#_init">_init</a></li><li data-type='method'><a href="UniversalParkBase.html#_update">_update</a></li><li data-type='method'><a href="UniversalParkBase.html#getLatestOpeningHours">getLatestOpeningHours</a></li><li data-type='method'><a href="UniversalParkBase.html#getPOI">getPOI</a></li><li data-type='method'><a href="UniversalParkBase.html#getServiceToken">getServiceToken</a></li><li data-type='method'><a href="UniversalParkBase.html#getVirtualQueueStates">getVirtualQueueStates</a></li><li data-type='method'><a href="UniversalParkBase.html#getVirtualQueueTimeForRide">getVirtualQueueTimeForRide</a></li><li data-type='method'><a href="UniversalParkBase.html#getWaitingTimes">getWaitingTimes</a></li></ul></li><li><a href="UniversalResortBase_UniversalResortBase.html">UniversalResortBase</a></li><li><a href="UniversalStudios.html">UniversalStudios</a></li><li><a href="UniversalStudios_UniversalStudios.html">UniversalStudios</a></li><li><a href="UniversalStudiosFlorida.html">UniversalStudiosFlorida</a></li><li><a href="UniversalVolcanoBay.html">UniversalVolcanoBay</a></li><li><a href="WaltDisneyWorldResort.html">WaltDisneyWorldResort</a></li><li><a href="module.exports.html">exports</a></li><li></li><li></li><li></li></ul><h3>Global</h3><ul><li><a href="global.html#HTTP">HTTP</a></li><li><a href="global.html#Sieve">Sieve</a></li><li><a href="global.html#_del">_del</a></li><li><a href="global.html#_get">_get</a></li><li><a href="global.html#_getKeys">_getKeys</a></li><li><a href="global.html#_reusePromise">_reusePromise</a></li><li><a href="global.html#_set">_set</a></li><li><a href="global.html#activeFunctions">activeFunctions</a></li><li><a href="global.html#attractionType">attractionType</a></li><li><a href="global.html#blockOnPendingTransactions">blockOnPendingTransactions</a></li><li><a href="global.html#boardingGroupState">boardingGroupState</a></li><li><a href="global.html#createCacheInstance">createCacheInstance</a></li><li><a href="global.html#entityType">entityType</a></li><li><a href="global.html#extractName">extractName</a></li><li><a href="global.html#findActiveFunctionIndex">findActiveFunctionIndex</a></li><li><a href="global.html#generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></li><li><a href="global.html#get">get</a></li><li><a href="global.html#getCache">getCache</a></li><li><a href="global.html#getDatabase">getDatabase</a></li><li><a href="global.html#getEntityID">getEntityID</a></li><li><a href="global.html#getKeys">getKeys</a></li><li><a href="global.html#getLiveDataErrors">getLiveDataErrors</a></li><li><a href="global.html#getMethods">getMethods</a></li><li><a href="global.html#getValidTagObject">getValidTagObject</a></li><li><a href="global.html#isSimpleTagType">isSimpleTagType</a></li><li><a href="global.html#isValidTag">isValidTag</a></li><li><a href="global.html#isValidTagType">isValidTagType</a></li><li><a href="global.html#metaCommands">metaCommands</a></li><li><a href="global.html#parseConfig">parseConfig</a></li><li><a href="global.html#queueType">queueType</a></li><li><a href="global.html#returnTimeState">returnTimeState</a></li><li><a href="global.html#reusePromise">reusePromise</a></li><li><a href="global.html#reusePromiseForever">reusePromiseForever</a></li><li><a href="global.html#riderHeightValidate">riderHeightValidate</a></li><li><a href="global.html#runTransaction">runTransaction</a></li><li><a href="global.html#scheduleType">scheduleType</a></li><li><a href="global.html#set">set</a></li><li><a href="global.html#setOverrideFunction">setOverrideFunction</a></li><li><a href="global.html#simpleTags">simpleTags</a></li><li><a href="global.html#statusType">statusType</a></li><li><a href="global.html#tagType">tagType</a></li><li><a href="global.html#validateEntitySchedule">validateEntitySchedule</a></li><li><a href="global.html#validateObjectContainsOnlyGivenKeys">validateObjectContainsOnlyGivenKeys</a></li><li><a href="global.html#validators">validators</a></li><li><a href="global.html#wrap">wrap</a></li><li><a href="global.html#writeToHAR">writeToHAR</a></li></ul>
+    
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">parks/park.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import promiseRetry from 'promise-retry';
+import Entity from './entity.js';
+import moment from 'moment-timezone';
+import Cache from '../cache/scopedCache.js';
+import * as tags from './tags.js';
+import {reusePromise, reusePromiseForever} from '../reusePromises.js';
+import {queueType, returnTimeState} from './parkTypes.js';
+
+// quick helper function to wait x milliseconds as a Promise
+const delay = (milliseconds) => {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
+};
+
+/**
+ * Base Park Object
+ * @class
+ */
+export class Park extends Entity {
+  /**
+   * Create a new park object
+   * @param {object} options
+   */
+  constructor(options = {}) {
+    // how often to wait between updates to run another update
+    options.updateInterval = 1000 * 60 * 5; // 5 minutes
+    // disable auto-update for this object
+    //  set this if the update is being handled by an external system
+    options.disableParkUpdate = false;
+
+    super(options);
+
+    // create a new cache object for this park
+    this.cache = new Cache(this.constructor.name, this.config.cacheVersion || 0);
+
+    this.initialised = false;
+    this.hasRunPostInit = false;
+    this.hasRunUpdate = false;
+    this._pendingTags = {};
+
+    this._attractions = [];
+
+    // track the park's current date
+    //  we'll fire an event whenever this changes
+    this._currentDate = null;
+
+    // make attractions and calendar functions work offline
+    this.registerOfflineFunction('getAttractions');
+    this.registerOfflineFunction('getCalendar');
+  }
+
+  /**
+   * Call this to shutdown the park object.
+   * This is an async call, so wait until it has resolved to continue.
+   */
+  async shutdown() {
+    // disable any park updates
+    this.config.disableParkUpdate = true;
+  }
+
+  /**
+   * Get a globally unique ID for this park
+   * @return {string}
+   */
+  getParkUniqueID() {
+    return this.getUniqueID();
+  }
+
+  /**
+   * Get Park Attractions
+   */
+  async getAttractions() {
+    await this.ensureReady();
+
+    return this._attractions;
+  }
+
+  /**
+   * Setup the park for use
+   * Call to ensure the object has been initialised before accessing data
+   */
+  async init() {
+    // skip init if we're offline
+    if (this.offline) {
+      this.initialised = true;
+      this.hasRunUpdate = true;
+      return;
+    }
+
+    await reusePromiseForever(this, this._runInit);
+    if (!this.hasRunPostInit) {
+      this.hasRunPostInit = true;
+      await this._postInit();
+    }
+  }
+
+  /**
+   * @inheritdocs
+   */
+  async _postOfflineLoad() {
+    await this.postUpdate();
+  }
+
+  /**
+   * Run all the internal stages of the init process
+   * @private
+   */
+  async _runInit() {
+    try {
+      await this._init();
+      this.initialised = true;
+
+      if (!this.config.disableParkUpdate &amp;&amp; !this.offline) {
+        // start an update loop
+
+        // use a separate function so we can quickly loop back around
+        const scheduleUpdate = async () => {
+          // pause for our updateInterval time
+          await delay(this.config.updateInterval);
+
+          // if our udpates get disabled during our timer, then skip and exit our
+          if (this.config.disableParkUpdate) return;
+
+          // wait for Promise to resolve, grab any catches, then continue anyway
+          this.update().then().catch().then(() => {
+            if (this.config.disableParkUpdate) return;
+
+            // schedule another update
+            setImmediate(scheduleUpdate.bind(this));
+          });
+        };
+
+        // start the first loop timer
+        scheduleUpdate();
+      }
+    } catch (e) {
+      console.error('Error initialising park', e);
+    }
+  }
+
+  /**
+   * Awaits until park is initalised and has run at least one update.
+   * @return {Promise}
+   */
+  async ensureReady() {
+    await this.init();
+
+    if (!this.hasRunUpdate) {
+      await this.update();
+    }
+
+    await this.ensureHasOfflineData();
+  }
+
+  /**
+   * Cache an attraction
+   * @param {string} attractionID ID of the attraction to be cached
+   */
+  async cacheAttractionObject(attractionID) {
+    // find our attraction
+    //  don't call the standard "find" function, as this will also create the object
+    //  we don't want to actually create ths attraction if it doesn't exist, just ignore it
+    const uniqueAttractionID = `${this.getParkUniqueID()}_${attractionID}`;
+    const attraction = this._attractions.find((attr) => attr.id == uniqueAttractionID);
+    if (attraction !== undefined) {
+      await this.cache.set(uniqueAttractionID, attraction, Number.MAX_SAFE_INTEGER);
+    }
+  }
+
+  /**
+   * Build an object representing an attraction from sourced data
+   * This object should not contain any "state" data, just static information about the attraction
+   * @param {string} attractionID Unique Attraction ID
+   * @return {object} Object containing at least 'name'.
+   * Also accepts 'type', which is an {@link attractionType}
+   */
+  async _buildAttractionObject(attractionID) {
+    throw new Error('Missing _buildAttractionObject Implementation', this.constructor.name);
+  }
+
+  /**
+   * Get the attraction object for a given ID (skips all generation/safety checks etc,)
+   * @param {string} attractionID
+   * @return {object}
+   * @private
+   */
+  _getAttractionByIDInternal(attractionID) {
+    // search our existing store for this attraction
+    const attraction = this._attractions.find((attr) => attr.rideId == attractionID);
+    if (attraction) {
+      return attraction;
+    }
+    return undefined;
+  }
+
+  /**
+   * Get data about a attraction from its ID
+   * @param {string} attractionID Unique Attraction ID
+   * @return {object} The attraction object for the given ID, or undefined
+   */
+  async findAttractionByID(attractionID) {
+    // wrap our actual function so multiple calls will return the same object
+    return await reusePromise(this, this._findAttractionByID, `${attractionID}`);
+  }
+
+  /**
+   * Get data about a attraction from its ID
+   * @param {string} attractionID Unique Attraction ID
+   * @return {object} The attraction object for the given ID, or undefined
+   * @private
+   */
+  async _findAttractionByID(attractionID) {
+    // search our existing store for this attraction
+    const attraction = this._getAttractionByIDInternal(attractionID);
+    if (attraction) {
+      return attraction;
+    }
+
+    // build a unique attraction ID by prefixing the park's unique ID
+    const uniqueAttractionID = `${this.getParkUniqueID()}_${attractionID}`;
+
+    // attraction wasn't found, try and add one to our store
+    const newAttraction = {
+      id: uniqueAttractionID,
+      // TODO - rename to attractionID
+      rideId: attractionID, // unique attraction ID without the park prefix
+      name: undefined,
+      type: null,
+      status: {
+        status: null,
+        lastUpdated: null,
+        lastChanged: null,
+      },
+      queue: {},
+      tags: [],
+    };
+
+    // list of fields we want to accept from the park class
+    //  we don't want the park to add random fields to our attraction object
+    //  park-specific data should be added using "tags" instead, so our object structure is the same for all parks
+    const fieldsToCopyFromParkClass = [
+      'name',
+      'type', // TODO - rename this to attractionType, or some other morphing type based on entityType
+      'entityType', // TODO - validate incoming types
+    ];
+
+    // restore stored live attraction data from a cache
+    //  restore from cache *before* we build the actual attraction data
+    //  this will allow the park API to fill in any out-of-date fields with live data
+    const cachedAttraction = await this.cache.get(uniqueAttractionID);
+    if (cachedAttraction !== undefined) {
+      Object.keys(cachedAttraction).forEach((key) => {
+        // TODO - do we need to do anyhting special here for sub-fields?
+        if (key === 'tags') {
+          // TODO - re-validate tags
+        }
+        newAttraction[key] = cachedAttraction[key];
+      });
+    }
+
+    // ask the park implementation to supply us with some basic attraction information (name, type, etc.)
+    //  we'll then inject this into our attraction object, assuming it returns successfully
+    try {
+      const builtAttractionObject = {
+        // clone the object, to ensure we don't mess with the original
+        ...(await this._buildAttractionObject(attractionID)),
+      };
+      if (builtAttractionObject !== undefined &amp;&amp; !!builtAttractionObject.name) {
+        // clear out any _src data (if present)
+        delete builtAttractionObject._src;
+
+        // add to our attractions array once we've got a valid attraction (not undefined) from child class
+        this._attractions.push(newAttraction);
+
+        // copy fields we're interested in into our new attraction object
+        fieldsToCopyFromParkClass.forEach((key) => {
+          if (builtAttractionObject[key] !== undefined) {
+            newAttraction[key] = builtAttractionObject[key];
+          }
+        });
+
+        const tags = (this._pendingTags[attractionID] || []).concat(builtAttractionObject.tags || []);
+        delete this._pendingTags[attractionID];
+
+        // we also manually accept the "tags" field
+        //  add each tag to the attraction after it's added to our object above
+        await Promise.allSettled(tags.map((tag) => {
+          return this.setAttractionTag(attractionID, tag.key, tag.type, tag.value);
+        }));
+
+        // cache attraction object so it can be restored quickly on future app intialisations
+        await this.cacheAttractionObject(attractionID);
+
+        return newAttraction;
+      }
+    } catch (e) {
+      this.emit('error', e);
+      console.error('Error building attraction object:', e);
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Remove a tag from a given attraction ID
+   * @param {string} attractionID
+   * @param {string} key
+   * @param {tagType} type
+   */
+  async removeAttractionTag(attractionID, key, type) {
+    const attraction = await this._getAttractionByIDInternal(attractionID);
+    if (!attraction) return;
+
+    const existingTag = attraction.tags.findIndex((t) => t.key === key &amp;&amp; t.type === type);
+    if (existingTag >= 0) {
+      attraction.tags.splice(existingTag, 1);
+      await this.cacheAttractionObject(attractionID);
+    }
+  }
+
+  /**
+   * Set a toggle tag for an attraction.
+   * This is different from more complex tags that expect a data structure.
+   * Use this for tags that don't have any actual value, but are just present. Eg. FastPass as a feature.
+   * @param {string} attractionID
+   * @param {tagType} type
+   * @param {boolean} value
+   */
+  async toggleAttractionTag(attractionID, type, value) {
+    return await this.setAttractionTag(attractionID, null, type, value);
+  }
+
+  /**
+   * Set an attraction tag
+   * Used for metadata on rides, such as location, thrill level, fastpass availability etc.
+   * @param {string|object} attractionID Attraction ID to update (or the actual object)
+   * @param {string} key Tag key to set
+   * @param {tagType} type Tag type to use
+   * @param {*} value Tag value to set
+   * @return {boolean} True if tag was stored successfully
+   */
+  async setAttractionTag(attractionID, key, type, value) {
+    // validate tag value
+    const newTag = tags.getValidTagObject(key, type, value);
+    if (newTag === undefined) {
+      return false;
+    }
+
+    // different path for simple tags that are being removed
+    if (tags.isSimpleTagType(type) &amp;&amp; !value) {
+      // if value is false, remove the key
+      return await this.removeAttractionTag(attractionID, newTag.key, type);
+    }
+
+    // find attraction and apply tag to it
+    const attraction = await this._getAttractionByIDInternal(attractionID);
+    if (attraction) {
+      const existingTag = attraction.tags.findIndex((t) => t.key === newTag.key &amp;&amp; t.type === newTag.type);
+      if (existingTag &lt; 0) {
+        // push our new tag onto our attraction
+        attraction.tags.push(newTag);
+      } else {
+        // update existing tag entry
+        attraction.tags[existingTag] = newTag;
+      }
+      await this.cacheAttractionObject(attractionID);
+      return true;
+    } else {
+      // attraction isn't valid. Push to our pending array to process when/if it does become valid
+      this._pendingTags[attractionID] = [{key, type, value}].concat(
+          this._pendingTags[attractionID] || [],
+      );
+    }
+
+    return false;
+  }
+
+  /**
+   * Update an attraction state
+   * @param {string} attractionID Unique Attraction ID
+   * @param {statusType} status New Attraction state
+   */
+  async updateAttractionState(attractionID, status) {
+    if (attractionID === undefined) return;
+
+    const existingRide = await this.findAttractionByID(attractionID);
+    if (existingRide) {
+      // if we found a matching attraction, update its "state" property with our new data
+      const now = this.getTimeNow();
+
+      // last updated is always kept up-to-date, regardless of whether the data changed
+      existingRide.status.lastUpdated = now;
+
+      // only update "lastChanged" if the status has changed
+      const previousStatus = existingRide.status.status;
+      if (previousStatus !== status || existingRide.status.lastChanged === null) {
+        existingRide.status.status = status;
+        existingRide.status.lastChanged = now;
+
+        // broadcast updated ride event
+        //  try to make sure we have updated everything before we fire this event
+        this.emit('attractionStatus', existingRide, previousStatus);
+      }
+
+      // write updated attraction data to cache
+      await this.cacheAttractionObject(attractionID);
+    }
+  }
+
+  /**
+   * Update the queue status for an attraction
+   * @param {string} attractionID Attraction ID to update
+   * @param {number|object} queueValue Updated Wait Time in minutes, or null if wait time doesn't exist or isn't valid.
+   * Set waitTime to undefined to remove this queue type from the attraction.
+   * BoardingGroup and ReturnTime types expect an object containing queue details instead of a number
+   * @param {queueType} type Type of queue to update (standup, virtual, fastpass etc.)
+   */
+  async updateAttractionQueue(attractionID, queueValue = undefined, type = type.standBy) {
+    if (attractionID === undefined) return;
+
+    const existingRide = await this.findAttractionByID(attractionID);
+    if (existingRide) {
+      if (!existingRide.queue) {
+        existingRide.queue = {};
+      }
+
+      // edge-case, if we supply undefined, the queue has been removed
+      //  (or never existed and we're just double-checking it's not present)
+      if (queueValue === undefined) {
+        if (existingRide.queue[type] !== undefined) {
+          const previousWaitTime = existingRide.queue[type].waitTime;
+          delete existingRide.queue[type];
+
+          // fire event anyway, the queue has technically been updated (it's just not present at all now)
+          this.emit('attractionQueue', existingRide, type, previousWaitTime);
+
+          await this.cacheAttractionObject(attractionID);
+        }
+
+        // don't continue operations, early exit here
+        return;
+      }
+
+      if (!existingRide.queue[type]) {
+        existingRide.queue[type] = {
+          lastUpdated: null,
+          lastChanged: null,
+        };
+
+        if (type === queueType.standBy) {
+          // default standby state
+          existingRide.queue[type].waitTime = null;
+        } else if (type === queueType.returnTime) {
+          // default return time state
+          existingRide.queue[type].returnStart = null;
+          existingRide.queue[type].returnEnd = null;
+          existingRide.queue[type].state = null;
+        }
+      }
+
+      const queueData = existingRide.queue[type];
+
+      const now = this.getTimeNow();
+
+      if (type == queueType.standBy || type == queueType.singleRider) {
+        // wait times must be a positive number (in minutes)
+        //  if wait time is unknown (because it is not tracker or there is some issue), waitTime should be null
+        const newWaitTime = (isNaN(queueValue) || queueValue &lt; 0) ? null : queueValue;
+        const previousWaitTime = queueData.waitTime;
+
+        // store last updated time
+        queueData.lastUpdated = now;
+
+        if (newWaitTime !== previousWaitTime || queueData.lastChanged === null) {
+          queueData.waitTime = newWaitTime;
+          queueData.lastChanged = now;
+
+          // broadcast updated ride event
+          //  try to make sure we have updated everything before we fire this event
+          this.emit('attractionQueue', existingRide, type, previousWaitTime);
+        }
+      } else if (type == queueType.returnTime) {
+        // handle "return time" style queue updates
+        // validate incoming data
+        if (
+          queueValue?.returnStart === undefined ||
+          queueValue?.returnEnd === undefined ||
+          // state can be null for "unknown" states
+          (queueValue?.state !== null &amp;&amp; Object.values(returnTimeState).indexOf(queueValue?.state) &lt; 0)
+        ) {
+          this.emit(
+              'error',
+              new Error(`Invalid return time object used ${JSON.stringify(queueValue)} (${attractionID})`),
+          );
+          return;
+        }
+
+        // make sure we're moment formatted strings
+        queueValue.returnStart = queueValue.returnStart === null ? null :
+          moment.tz(queueValue.returnStart, this.config.timezone).format();
+        queueValue.returnEnd = queueValue.returnEnd === null ? null :
+          moment.tz(queueValue.returnEnd, this.config.timezone).format();
+
+        const originalReturnTime = {
+          returnStart: queueData?.returnStart,
+          returnEnd: queueData?.returnEnd,
+          state: queueData?.state,
+        };
+
+        // mark data as "updated", even if it hasn't changed
+        queueData.lastUpdated = now;
+
+        if (
+          queueValue.returnStart != originalReturnTime.returnStart ||
+          queueValue.returnEnd != originalReturnTime.returnEnd ||
+          queueValue.state != originalReturnTime.state
+        ) {
+          // return time has changed!
+          queueData.returnStart = queueValue.returnStart;
+          queueData.returnEnd = queueValue.returnEnd;
+          queueData.state = queueValue.state;
+          queueData.lastChanged = now;
+
+          // broadcast updated ride event
+          this.emit('attractionQueue', existingRide, type, originalReturnTime);
+        }
+      } else if (type == queueType.boardingGroup) {
+        // TODO - handle baording group style queues
+        return;
+      }
+
+      // write updated attraction data to cache
+      await this.cacheAttractionObject(attractionID);
+    }
+  }
+
+  /**
+   * Called after each successful update, handle any clean-up or extra work here
+   * @private
+   */
+  async postUpdate() {
+    // check if our date has changed
+    await this._checkDate();
+  }
+
+  /**
+   * Update this park
+   * This is automatically called for you unless disableParkUpdate is set to false
+   */
+  async update() {
+    return reusePromise(this, this._runUpdate);
+  }
+
+  /**
+   * Internal method to actually run our update
+   * @private
+   */
+  async _runUpdate() {
+    // wait and catch the update Promise
+    try {
+    // start the _update call in a retry loop
+      await promiseRetry({
+        retries: 5,
+      }, (retryFn) => {
+        return this._update().catch(retryFn);
+      });
+    } catch (e) {
+      // emit error and print to screen
+      console.error('Error running _update()', e);
+      this.emit('error', e);
+      return;
+    }
+
+    this.hasRunUpdate = true;
+
+    try {
+      await this.postUpdate();
+    } catch (e) {
+      console.error('Error running postUpdate()', e);
+      this.emit('error', e);
+    }
+  }
+
+  /**
+   * Called when the park's date changes
+   * Eg. when passing midnight in the park's local timezone
+   *  or if late opening hours finish the morning after (eg. open until 2am, will be called just after 2am)
+   * @param {string} newDate Current Park Date
+   * @param {string} oldDate The previous date for this park before the update (can be null if park just initialised)
+   * @abstract
+   */
+  async _dateRefresh(newDate, oldDate) {}
+
+  /**
+   * Check if the park's "active date" has changed
+   */
+  async _checkDate() {
+    const todaysDate = await this.getActiveParkDate();
+    if (this._currentDate !== todaysDate) {
+      // store the previous date and update the current date immediately
+      //  this makes sure the park object is in the correct state before firing the newDate events
+      const originalDate = this._currentDate;
+      this._currentDate = todaysDate;
+
+      // broadcast event when the park's day changes
+      //  we can use this to update ride schedules etc.
+      await this._dateRefresh(todaysDate, originalDate);
+      this.emit('newDate', todaysDate, originalDate);
+    }
+  }
+
+  /**
+   * Internal function
+   * Called by init() to initialise the object
+   * @private
+   * @abstract
+   */
+  async _init() {
+    // implementation should be setup in child classes
+    throw new Error('_init() needs an implementation', this.constructor.name);
+  }
+
+  /**
+   * Internal function
+   * Called by init() to initialise the object
+   * @private
+   * @abstract
+   */
+  async _postInit() {
+    // implementation should be setup in child classes
+  }
+
+  /**
+   * Update function the park object calls on interval to update internal state
+   * @private
+   * @abstract
+   */
+  async _update() {
+    // implementation should be setup in child classes
+    throw new Error('_update() needs an implementation', this.constructor.name);
+  }
+
+  /**
+   * Given a moment date, return an array of opening hours for this park, or undefined
+   * Each entry should contain openingTime, closingTime, and type (of scheduleType)
+   * @param {moment} date
+   * @private
+   * @abstract
+   */
+  async _getOperatingHoursForDate(date) {
+    // implementation should be setup in child classes
+    throw new Error('_getOperatingHoursForDate() needs an implementation', this.constructor.name);
+  }
+
+  /**
+   * Get the operating hours for the supplied date
+   * Will return undefined if the park API cannot return data for this date
+   *  (park is closed, too far in future, too far in past, etc.)
+   * @param {moment} date A momentjs object
+   * @return {object}
+   */
+  async getOperatingHoursForDate(date) {
+    // cache each calendar date to avoid recalculating it all the time
+    return this.cache.wrap(`calendar_${date.format('YYYY-MM-DD')}`, async () => {
+      return await this._getOperatingHoursForDate(date);
+    }, 1000 * 60 * 60 * 6); // cache for 6 hours
+  }
+
+  /**
+   * Given a moment date, return an array of opening hours for the restaurants in this park, or undefined
+   * Ech entry should contain openingTime closingTime
+   * @param {moment} date
+   */
+  async _getRestaurantOperatingHoursForDate(date) {
+    // implementation should be setup in child classes
+    throw new Error('_getRestaurantOperatingHoursForDate() needs an implementation', this.constructor.name);
+  }
+
+  /**
+   * Get the restaurant operating hours for the supplied date
+   * @param {moment} date
+   */
+  async getRestaurantOperatingHoursForDate(date) {
+    return this.cache.wrap(`restaurant_${date.format('YYYY-MM-DD')}`, async () => {
+      return await this._getRestaurantOperatingHoursForDate(date);
+    }, 1000 * 60 * 60 * 6); // cache for 6 hours
+  }
+
+  /**
+   * Get Operating Calendar for this park
+   * @return{object} Object keyed to dates in YYYY-MM-DD format.
+   * Each date entry will contain an array of operating hours.
+   */
+  async getCalendar() {
+    try {
+      // make sure the park is initialised before continuing
+      await this.init();
+
+      // populate from yesterday onwards (if the API even gives us yesterday)
+      //  try to catch weird edge-cases where we're just past midnight but the park is still open
+      const yesterday = this.getTimeNowMoment().subtract(1, 'days');
+      // populate forward up to 60 days
+      const endFillDate = yesterday.clone().add(60 + 1, 'days');
+
+      const now = this.getTimeNowMoment();
+
+      const dates = {};
+      // get calendar by looping over each date
+      for (let date = yesterday; date.isSameOrBefore(endFillDate); date.add(1, 'day')) {
+        const hours = await this.getOperatingHoursForDate(date);
+        if (hours !== undefined) {
+          if (!Array.isArray(hours)) {
+            this.emit(
+                'error',
+                new Error(
+                    // eslint-disable-next-line max-len
+                    `Hours for ${this.name} date ${date.format('YYYY-MM-DD')} returned invalid non-Array ${JSON.stringify(hours)}`,
+                ),
+            );
+            continue;
+          }
+          // ignore if we're not within the operating hours AND the date is in the past
+          //  this will strip out yesterday once we've left that day's opening hours
+          const isInsideAnyDateHours = hours.find((h) => {
+            return now.isBetween(h.openingTime, h.closingTime);
+          });
+          if (now.isAfter(date, 'day') &amp;&amp; isInsideAnyDateHours === undefined) {
+            continue;
+          }
+          dates[date.format('YYYY-MM-DD')] = hours;
+        }
+      }
+
+      return dates;
+    } catch (err) {
+      console.error('Error getting calendar', err);
+      this.emit('error', err);
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Return the number of milliseconds until the next time the park is open.
+   * Will return 0 if park is already open.
+   * @return{number} Milliseconds until the park is open
+   */
+  async getNextOpeningTime() {
+    const calendar = await this.getCalendar();
+    const now = this.getTimeNowMoment();
+
+    const dates = Object.keys(calendar);
+    const nextOpeningTime = dates.reduce((p, date) => {
+      return Math.min(p, calendar[date].reduce((p2, time) => {
+        const msUntilOpening = moment(time.openingTime).diff(now);
+        // if the opening time is in the past, is the closing time in the future?
+        if (msUntilOpening &lt;= 0) {
+          if (moment(time.closingTime).diff(now) > 0) {
+            return 0;
+          } else {
+            // otherwise this entire time block is in the past, ignore it
+            return p2;
+          }
+        }
+        return Math.min(p2, msUntilOpening);
+      }, Number.MAX_SAFE_INTEGER));
+    }, Number.MAX_SAFE_INTEGER);
+
+    return nextOpeningTime === Number.MAX_SAFE_INTEGER ? null : nextOpeningTime;
+  }
+
+  /**
+   * Return the number of milliseconds until closing time. Or 0 if already closed.
+   * @return {number}
+   */
+  async getNextClosingTime() {
+    const today = await this.getCalendarForToday();
+    if (today !== undefined) {
+      const now = this.getTimeNowMoment();
+      const closingTime = today.reduce((p, hours) => {
+        if (!now.isBetween(hours.openingTime, hours.closingTime)) {
+          return 0;
+        }
+
+        return Math.max(moment(hours.closingTime).diff(now), p);
+      }, 0);
+
+      return closingTime;
+    }
+    return 0;
+  }
+
+  /**
+   * Return the time until the park is open.
+   * @return{momentDuration} Time until park opens as a Moment Duration.
+   * Zero if already open, or null if unable to find time
+   */
+  async getNextOpeningTimeMomentDuration() {
+    const ms = await this.getNextOpeningTime();
+
+    if (ms === null) return null;
+    return moment.duration(ms, 'milliseconds');
+  }
+
+  /**
+   * Get the current park date, taking into consideration park hours past midnight etc.
+   * Eg. if the park is open past midnight, return yesterday's date.
+   * @return{moment} Park's "active date" as a Moment object
+   */
+  async getActiveParkDateMoment() {
+    const calendar = await this.getCalendar();
+
+    const nowInPark = moment(this.getTimeNow()).tz(this.config.timezone);
+    // check yesterday, today, and tomorrow to find any park hours that we're currently in
+    //  (including any extra hours etc.)
+    //  we will fall-back to the current date if none of these match
+    const isInParkHours = [
+      nowInPark.clone().add(-1, 'day'),
+      nowInPark,
+      nowInPark.clone().add(1, 'day'),
+    ].map((date) => {
+      // build array of our park calendar entries
+      return {
+        date,
+        data: calendar[date.format('YYYY-MM-DD')],
+      };
+    }).filter((parkHours) => {
+      // filter out any park hours that doesn't include the current time
+      if (!parkHours.data) return false;
+      const isInAnyParkHours = parkHours.data.find((hours) => {
+        return (nowInPark.isBetween(moment(hours.openingTime), moment(hours.closingTime)));
+      });
+      return !!isInAnyParkHours;
+    });
+
+    if (isInParkHours.length === 0) {
+      // just return today's calendar
+      return nowInPark;
+    }
+    // otherwise return the hours that we currently match
+    return isInParkHours[0].date;
+  }
+
+  /**
+   * Get the current park date, taking into consideration park hours past midnight etc.
+   * Eg. if the park is open past midnight, return yesterday's date.
+   * @return{string} Date in YYYY-MM-DD format
+   */
+  async getActiveParkDate() {
+    return (await this.getActiveParkDateMoment()).format('YYYY-MM-DD');
+  }
+
+  /**
+   * Get the park opening hours for today
+   */
+  async getCalendarForToday() {
+    const todaysDate = await this.getActiveParkDate();
+    const calendar = await this.getCalendar();
+    return calendar[todaysDate];
+  }
+
+  /**
+   * Get the park opening hours for tomorrow
+   */
+  async getCalendarForTomorrow() {
+    const todaysDate = await this.getActiveParkDate();
+    const tomorrow = moment(todaysDate, 'YYYY-MM-DD').add(1, 'day');
+    const calendar = await this.getCalendar();
+    return calendar[tomorrow.format('YYYY-MM-DD')];
+  }
+}
+
+export default Park;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.1</a> on Sun Feb 19 2023 21:20:22 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+
+
+</body>
+</html>

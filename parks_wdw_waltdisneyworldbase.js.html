@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>parks/wdw/waltdisneyworldbase.js - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ConfigBase.html">ConfigBase</a></li><li><a href="Database.html">Database</a><ul class='methods'><li data-type='method'><a href="Database.html#_getEntities">_getEntities</a></li><li data-type='method'><a href="Database.html#_init">_init</a></li><li data-type='method'><a href="Database.html#findEntity">findEntity</a></li><li data-type='method'><a href="Database.html#getEntities">getEntities</a></li><li data-type='method'><a href="Database.html#getEntitiyById">getEntitiyById</a></li><li data-type='method'><a href="Database.html#init">init</a></li><li data-type='method'><a href="Database.html#log">log</a></li><li data-type='method'><a href="Database.html#.get">get</a></li></ul></li><li><a href="DatabaseEuropaPark.html">DatabaseEuropaPark</a><ul class='methods'><li data-type='method'><a href="DatabaseEuropaPark.html#_getEntities">_getEntities</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#_init">_init</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getCalendar">getCalendar</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getConfig">getConfig</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getFirebaseID">getFirebaseID</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getLiveCalendar">getLiveCalendar</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getParkData">getParkData</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getShowTimes">getShowTimes</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getToken">getToken</a></li><li data-type='method'><a href="DatabaseEuropaPark.html#getWaitingTimes">getWaitingTimes</a></li></ul></li><li><a href="DatabaseWDW.html">DatabaseWDW</a><ul class='methods'><li data-type='method'><a href="DatabaseWDW.html#_getEntities">_getEntities</a></li></ul></li><li><a href="Destination.html">Destination</a><ul class='methods'><li data-type='method'><a href="Destination.html#_clearFunctionCache">_clearFunctionCache</a></li><li data-type='method'><a href="Destination.html#_init">_init</a></li><li data-type='method'><a href="Destination.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="Destination.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="Destination.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="Destination.html#buildEntityLiveData">buildEntityLiveData</a></li><li data-type='method'><a href="Destination.html#buildEntityScheduleData">buildEntityScheduleData</a></li><li data-type='method'><a href="Destination.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="Destination.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="Destination.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="Destination.html#forEachUpcomingDate">forEachUpcomingDate</a></li><li data-type='method'><a href="Destination.html#getAllEntities">getAllEntities</a></li><li data-type='method'><a href="Destination.html#getAndroidAPPVersion">getAndroidAPPVersion</a></li><li data-type='method'><a href="Destination.html#getAttractionEntities">getAttractionEntities</a></li><li data-type='method'><a href="Destination.html#getDestinationEntities">getDestinationEntities</a></li><li data-type='method'><a href="Destination.html#getDestinationEntity">getDestinationEntity</a></li><li data-type='method'><a href="Destination.html#getEntityFromId">getEntityFromId</a></li><li data-type='method'><a href="Destination.html#getEntityLiveData">getEntityLiveData</a></li><li data-type='method'><a href="Destination.html#getEntitySchedules">getEntitySchedules</a></li><li data-type='method'><a href="Destination.html#getLiveCache">getLiveCache</a></li><li data-type='method'><a href="Destination.html#getLiveHash">getLiveHash</a></li><li data-type='method'><a href="Destination.html#getParkEntities">getParkEntities</a></li><li data-type='method'><a href="Destination.html#getRestaurantEntities">getRestaurantEntities</a></li><li data-type='method'><a href="Destination.html#getShowEntities">getShowEntities</a></li><li data-type='method'><a href="Destination.html#getTimeNow">getTimeNow</a></li><li data-type='method'><a href="Destination.html#getTimeNowMoment">getTimeNowMoment</a></li><li data-type='method'><a href="Destination.html#init">init</a></li><li data-type='method'><a href="Destination.html#log">log</a></li><li data-type='method'><a href="Destination.html#setLiveCache">setLiveCache</a></li><li data-type='method'><a href="Destination.html#updateEntityLiveData">updateEntityLiveData</a></li></ul></li><li><a href="DisneyLiveResort.html">DisneyLiveResort</a><ul class='methods'><li data-type='method'><a href="DisneyLiveResort.html#_fetchRestaurantMenu">_fetchRestaurantMenu</a></li><li data-type='method'><a href="DisneyLiveResort.html#_getSchedulesForDate">_getSchedulesForDate</a></li><li data-type='method'><a href="DisneyLiveResort.html#_init">_init</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildEntityLiveData">buildEntityLiveData</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildEntityScheduleData">buildEntityScheduleData</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="DisneyLiveResort.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="DisneyLiveResort.html#fetchVirtualQueueData">fetchVirtualQueueData</a></li><li data-type='method'><a href="DisneyLiveResort.html#getFacilityStatusChannelID">getFacilityStatusChannelID</a></li><li data-type='method'><a href="DisneyLiveResort.html#getRestaurantMenu">getRestaurantMenu</a></li><li data-type='method'><a href="DisneyLiveResort.html#initLiveStatusUpdates">initLiveStatusUpdates</a></li><li data-type='method'><a href="DisneyLiveResort.html#sanitizeEntityName">sanitizeEntityName</a></li></ul></li><li><a href="DisneylandParis.html">DisneylandParis</a><ul class='methods'><li data-type='method'><a href="DisneylandParis.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="DisneylandParis.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="DisneylandParis.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="DisneylandParis.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="DisneylandParis.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="DisneylandParis.html#fetchResortScheduleForDate">fetchResortScheduleForDate</a></li><li data-type='method'><a href="DisneylandParis.html#fetchWaitData">fetchWaitData</a></li><li data-type='method'><a href="DisneylandParis.html#getAuthApiKey">getAuthApiKey</a></li><li data-type='method'><a href="DisneylandParis.html#getAuthToken">getAuthToken</a></li><li data-type='method'><a href="DisneylandParis.html#getPOIData">getPOIData</a></li><li data-type='method'><a href="DisneylandParis.html#getRefreshToken">getRefreshToken</a></li><li data-type='method'><a href="DisneylandParis.html#refreshAuthToken">refreshAuthToken</a></li></ul></li><li><a href="DisneylandResort.html">DisneylandResort</a></li><li><a href="Efteling.html">Efteling</a><ul class='methods'><li data-type='method'><a href="Efteling.html#_fetchPOIData">_fetchPOIData</a></li><li data-type='method'><a href="Efteling.html#_getRestaurantOperatingHoursForDate">_getRestaurantOperatingHoursForDate</a></li><li data-type='method'><a href="Efteling.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="Efteling.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="Efteling.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="Efteling.html#buildEntityScheduleData">buildEntityScheduleData</a></li><li data-type='method'><a href="Efteling.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="Efteling.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="Efteling.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="Efteling.html#getRestaurantOperatingHours">getRestaurantOperatingHours</a></li></ul></li><li><a href="Entity.html">Entity</a><ul class='methods'><li data-type='method'><a href="Entity.html#_postOfflineLoad">_postOfflineLoad</a></li><li data-type='method'><a href="Entity.html#ensureHasOfflineData">ensureHasOfflineData</a></li><li data-type='method'><a href="Entity.html#getTimeNow">getTimeNow</a></li><li data-type='method'><a href="Entity.html#getTimeNowMoment">getTimeNowMoment</a></li><li data-type='method'><a href="Entity.html#getUniqueID">getUniqueID</a></li><li data-type='method'><a href="Entity.html#injectForDomain">injectForDomain</a></li><li data-type='method'><a href="Entity.html#log">log</a></li><li data-type='method'><a href="Entity.html#registerOfflineFunction">registerOfflineFunction</a></li><li data-type='method'><a href="Entity.html#serialise">serialise</a></li></ul></li><li><a href="HarWriter.html">HarWriter</a><ul class='methods'><li data-type='method'><a href="HarWriter.html#createLogObject">createLogObject</a></li><li data-type='method'><a href="HarWriter.html#getProjectVersion">getProjectVersion</a></li><li data-type='method'><a href="HarWriter.html#recordEntry">recordEntry</a></li><li data-type='method'><a href="HarWriter.html#toJSON">toJSON</a></li><li data-type='method'><a href="HarWriter.html#write">write</a></li></ul></li><li><a href="HongKongDisneyland.html">HongKongDisneyland</a><ul class='methods'><li data-type='method'><a href="HongKongDisneyland.html#_fetchRestaurantMenu">_fetchRestaurantMenu</a></li></ul></li><li><a href="IndexedWDWDB.html">IndexedWDWDB</a><ul class='methods'><li data-type='method'><a href="IndexedWDWDB.html#_createIndex">_createIndex</a></li><li data-type='method'><a href="IndexedWDWDB.html#_createIndexes">_createIndexes</a></li><li data-type='method'><a href="IndexedWDWDB.html#_extractChannelLanguage">_extractChannelLanguage</a></li><li data-type='method'><a href="IndexedWDWDB.html#_extractEntityKeys">_extractEntityKeys</a></li><li data-type='method'><a href="IndexedWDWDB.html#_indexWDWDocument">_indexWDWDocument</a></li><li data-type='method'><a href="IndexedWDWDB.html#_initIndexes">_initIndexes</a></li><li data-type='method'><a href="IndexedWDWDB.html#_loadAndInit">_loadAndInit</a></li><li data-type='method'><a href="IndexedWDWDB.html#_removeFromArrayIndex">_removeFromArrayIndex</a></li><li data-type='method'><a href="IndexedWDWDB.html#_replicate">_replicate</a></li><li data-type='method'><a href="IndexedWDWDB.html#find">find</a></li><li data-type='method'><a href="IndexedWDWDB.html#getByChannel">getByChannel</a></li><li data-type='method'><a href="IndexedWDWDB.html#getDocChildren">getDocChildren</a></li><li data-type='method'><a href="IndexedWDWDB.html#getDocNameSearch">getDocNameSearch</a></li><li data-type='method'><a href="IndexedWDWDB.html#getDocsById">getDocsById</a></li><li data-type='method'><a href="IndexedWDWDB.html#getDumpFilename">getDumpFilename</a></li><li data-type='method'><a href="IndexedWDWDB.html#getEntity">getEntity</a></li><li data-type='method'><a href="IndexedWDWDB.html#getEntityIndex">getEntityIndex</a></li><li data-type='method'><a href="IndexedWDWDB.html#getEntityOne">getEntityOne</a></li><li data-type='method'><a href="IndexedWDWDB.html#getFacilityStatus">getFacilityStatus</a></li><li data-type='method'><a href="IndexedWDWDB.html#getIndex">getIndex</a></li><li data-type='method'><a href="IndexedWDWDB.html#init">init</a></li><li data-type='method'><a href="IndexedWDWDB.html#loadSnapshot">loadSnapshot</a></li><li data-type='method'><a href="IndexedWDWDB.html#saveSnapshot">saveSnapshot</a></li><li data-type='method'><a href="IndexedWDWDB.html#subscribeToChanges">subscribeToChanges</a></li><li data-type='method'><a href="IndexedWDWDB.html#subscribeToChannel">subscribeToChannel</a></li><li data-type='method'><a href="IndexedWDWDB.html#._pluginBulkDocs">_pluginBulkDocs</a></li><li data-type='method'><a href="IndexedWDWDB.html#.getDatabaseFilePath">getDatabaseFilePath</a></li></ul></li><li><a href="Park.html">Park</a><ul class='methods'><li data-type='method'><a href="Park.html#_buildAttractionObject">_buildAttractionObject</a></li><li data-type='method'><a href="Park.html#_checkDate">_checkDate</a></li><li data-type='method'><a href="Park.html#_dateRefresh">_dateRefresh</a></li><li data-type='method'><a href="Park.html#_findAttractionByID">_findAttractionByID</a></li><li data-type='method'><a href="Park.html#_getAttractionByIDInternal">_getAttractionByIDInternal</a></li><li data-type='method'><a href="Park.html#_getOperatingHoursForDate">_getOperatingHoursForDate</a></li><li data-type='method'><a href="Park.html#_getRestaurantOperatingHoursForDate">_getRestaurantOperatingHoursForDate</a></li><li data-type='method'><a href="Park.html#_init">_init</a></li><li data-type='method'><a href="Park.html#_postInit">_postInit</a></li><li data-type='method'><a href="Park.html#_postOfflineLoad">_postOfflineLoad</a></li><li data-type='method'><a href="Park.html#_runInit">_runInit</a></li><li data-type='method'><a href="Park.html#_runUpdate">_runUpdate</a></li><li data-type='method'><a href="Park.html#_update">_update</a></li><li data-type='method'><a href="Park.html#cacheAttractionObject">cacheAttractionObject</a></li><li data-type='method'><a href="Park.html#ensureReady">ensureReady</a></li><li data-type='method'><a href="Park.html#findAttractionByID">findAttractionByID</a></li><li data-type='method'><a href="Park.html#getActiveParkDate">getActiveParkDate</a></li><li data-type='method'><a href="Park.html#getActiveParkDateMoment">getActiveParkDateMoment</a></li><li data-type='method'><a href="Park.html#getAttractions">getAttractions</a></li><li data-type='method'><a href="Park.html#getCalendar">getCalendar</a></li><li data-type='method'><a href="Park.html#getCalendarForToday">getCalendarForToday</a></li><li data-type='method'><a href="Park.html#getCalendarForTomorrow">getCalendarForTomorrow</a></li><li data-type='method'><a href="Park.html#getNextClosingTime">getNextClosingTime</a></li><li data-type='method'><a href="Park.html#getNextOpeningTime">getNextOpeningTime</a></li><li data-type='method'><a href="Park.html#getNextOpeningTimeMomentDuration">getNextOpeningTimeMomentDuration</a></li><li data-type='method'><a href="Park.html#getOperatingHoursForDate">getOperatingHoursForDate</a></li><li data-type='method'><a href="Park.html#getParkUniqueID">getParkUniqueID</a></li><li data-type='method'><a href="Park.html#getRestaurantOperatingHoursForDate">getRestaurantOperatingHoursForDate</a></li><li data-type='method'><a href="Park.html#init">init</a></li><li data-type='method'><a href="Park.html#postUpdate">postUpdate</a></li><li data-type='method'><a href="Park.html#removeAttractionTag">removeAttractionTag</a></li><li data-type='method'><a href="Park.html#setAttractionTag">setAttractionTag</a></li><li data-type='method'><a href="Park.html#shutdown">shutdown</a></li><li data-type='method'><a href="Park.html#toggleAttractionTag">toggleAttractionTag</a></li><li data-type='method'><a href="Park.html#update">update</a></li><li data-type='method'><a href="Park.html#updateAttractionQueue">updateAttractionQueue</a></li><li data-type='method'><a href="Park.html#updateAttractionState">updateAttractionState</a></li></ul></li><li><a href="ScopedCache.html">ScopedCache</a><ul class='methods'><li data-type='method'><a href="ScopedCache.html#_initCache">_initCache</a></li><li data-type='method'><a href="ScopedCache.html#blockOnPendingTransactions">blockOnPendingTransactions</a></li><li data-type='method'><a href="ScopedCache.html#generateScopedKey">generateScopedKey</a></li><li data-type='method'><a href="ScopedCache.html#get">get</a></li><li data-type='method'><a href="ScopedCache.html#getGlobal">getGlobal</a></li><li data-type='method'><a href="ScopedCache.html#getKeys">getKeys</a></li><li data-type='method'><a href="ScopedCache.html#initCache">initCache</a></li><li data-type='method'><a href="ScopedCache.html#runTransaction">runTransaction</a></li><li data-type='method'><a href="ScopedCache.html#set">set</a></li><li data-type='method'><a href="ScopedCache.html#setGlobal">setGlobal</a></li><li data-type='method'><a href="ScopedCache.html#wrap">wrap</a></li><li data-type='method'><a href="ScopedCache.html#wrapGlobal">wrapGlobal</a></li></ul></li><li><a href="ShanghaiDisneylandResort.html">ShanghaiDisneylandResort</a><ul class='methods'><li data-type='method'><a href="ShanghaiDisneylandResort.html#_buildAttractionObject">_buildAttractionObject</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_buildEntities">_buildEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_dumpDB">_dumpDB</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_fetchWaitTimes">_fetchWaitTimes</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_init">_init</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#_loadDB">_loadDB</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#extractEntityData">extractEntityData</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#getAccessToken">getAccessToken</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#getAllEntityKeys">getAllEntityKeys</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#getAttractionData">getAttractionData</a></li><li data-type='method'><a href="ShanghaiDisneylandResort.html#getEntity">getEntity</a></li></ul></li><li><a href="TokyoDisneyResort.html">TokyoDisneyResort</a><ul class='methods'><li data-type='method'><a href="TokyoDisneyResort.html#_fetchWaitTimes">_fetchWaitTimes</a></li><li data-type='method'><a href="TokyoDisneyResort.html#_getRestaurantOperatingHoursForDate">_getRestaurantOperatingHoursForDate</a></li><li data-type='method'><a href="TokyoDisneyResort.html#_update">_update</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildAttractionEntities">buildAttractionEntities</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildBaseEntityObject">buildBaseEntityObject</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildDestinationEntity">buildDestinationEntity</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildEntityScheduleData">buildEntityScheduleData</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildParkEntities">buildParkEntities</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildRestaurantEntities">buildRestaurantEntities</a></li><li data-type='method'><a href="TokyoDisneyResort.html#buildShowEntities">buildShowEntities</a></li><li data-type='method'><a href="TokyoDisneyResort.html#fetchCalendar">fetchCalendar</a></li><li data-type='method'><a href="TokyoDisneyResort.html#fetchLatestVersion">fetchLatestVersion</a></li><li data-type='method'><a href="TokyoDisneyResort.html#fetchRestaurantOperatingHours">fetchRestaurantOperatingHours</a></li><li data-type='method'><a href="TokyoDisneyResort.html#getEntitiesOfType">getEntitiesOfType</a></li></ul></li><li><a href="UniversalIslandsOfAdventure.html">UniversalIslandsOfAdventure</a></li><li><a href="UniversalOrlando_UniversalOrlando.html">UniversalOrlando</a></li><li><a href="UniversalParkBase.html">UniversalParkBase</a><ul class='methods'><li data-type='method'><a href="UniversalParkBase.html#_buildAttractionObject">_buildAttractionObject</a></li><li data-type='method'><a href="UniversalParkBase.html#_getOperatingHoursForDate">_getOperatingHoursForDate</a></li><li data-type='method'><a href="UniversalParkBase.html#_init">_init</a></li><li data-type='method'><a href="UniversalParkBase.html#_update">_update</a></li><li data-type='method'><a href="UniversalParkBase.html#getLatestOpeningHours">getLatestOpeningHours</a></li><li data-type='method'><a href="UniversalParkBase.html#getPOI">getPOI</a></li><li data-type='method'><a href="UniversalParkBase.html#getServiceToken">getServiceToken</a></li><li data-type='method'><a href="UniversalParkBase.html#getVirtualQueueStates">getVirtualQueueStates</a></li><li data-type='method'><a href="UniversalParkBase.html#getVirtualQueueTimeForRide">getVirtualQueueTimeForRide</a></li><li data-type='method'><a href="UniversalParkBase.html#getWaitingTimes">getWaitingTimes</a></li></ul></li><li><a href="UniversalResortBase_UniversalResortBase.html">UniversalResortBase</a></li><li><a href="UniversalStudios.html">UniversalStudios</a></li><li><a href="UniversalStudios_UniversalStudios.html">UniversalStudios</a></li><li><a href="UniversalStudiosFlorida.html">UniversalStudiosFlorida</a></li><li><a href="UniversalVolcanoBay.html">UniversalVolcanoBay</a></li><li><a href="WaltDisneyWorldResort.html">WaltDisneyWorldResort</a></li><li><a href="module.exports.html">exports</a></li><li></li><li></li><li></li></ul><h3>Global</h3><ul><li><a href="global.html#HTTP">HTTP</a></li><li><a href="global.html#Sieve">Sieve</a></li><li><a href="global.html#_del">_del</a></li><li><a href="global.html#_get">_get</a></li><li><a href="global.html#_getKeys">_getKeys</a></li><li><a href="global.html#_reusePromise">_reusePromise</a></li><li><a href="global.html#_set">_set</a></li><li><a href="global.html#activeFunctions">activeFunctions</a></li><li><a href="global.html#attractionType">attractionType</a></li><li><a href="global.html#blockOnPendingTransactions">blockOnPendingTransactions</a></li><li><a href="global.html#boardingGroupState">boardingGroupState</a></li><li><a href="global.html#createCacheInstance">createCacheInstance</a></li><li><a href="global.html#entityType">entityType</a></li><li><a href="global.html#extractName">extractName</a></li><li><a href="global.html#findActiveFunctionIndex">findActiveFunctionIndex</a></li><li><a href="global.html#generateRandomAndroidUseragent">generateRandomAndroidUseragent</a></li><li><a href="global.html#get">get</a></li><li><a href="global.html#getCache">getCache</a></li><li><a href="global.html#getDatabase">getDatabase</a></li><li><a href="global.html#getEntityID">getEntityID</a></li><li><a href="global.html#getKeys">getKeys</a></li><li><a href="global.html#getLiveDataErrors">getLiveDataErrors</a></li><li><a href="global.html#getMethods">getMethods</a></li><li><a href="global.html#getValidTagObject">getValidTagObject</a></li><li><a href="global.html#isSimpleTagType">isSimpleTagType</a></li><li><a href="global.html#isValidTag">isValidTag</a></li><li><a href="global.html#isValidTagType">isValidTagType</a></li><li><a href="global.html#metaCommands">metaCommands</a></li><li><a href="global.html#parseConfig">parseConfig</a></li><li><a href="global.html#queueType">queueType</a></li><li><a href="global.html#returnTimeState">returnTimeState</a></li><li><a href="global.html#reusePromise">reusePromise</a></li><li><a href="global.html#reusePromiseForever">reusePromiseForever</a></li><li><a href="global.html#riderHeightValidate">riderHeightValidate</a></li><li><a href="global.html#runTransaction">runTransaction</a></li><li><a href="global.html#scheduleType">scheduleType</a></li><li><a href="global.html#set">set</a></li><li><a href="global.html#setOverrideFunction">setOverrideFunction</a></li><li><a href="global.html#simpleTags">simpleTags</a></li><li><a href="global.html#statusType">statusType</a></li><li><a href="global.html#tagType">tagType</a></li><li><a href="global.html#validateEntitySchedule">validateEntitySchedule</a></li><li><a href="global.html#validateObjectContainsOnlyGivenKeys">validateObjectContainsOnlyGivenKeys</a></li><li><a href="global.html#validators">validators</a></li><li><a href="global.html#wrap">wrap</a></li><li><a href="global.html#writeToHAR">writeToHAR</a></li></ul>
+    
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">parks/wdw/waltdisneyworldbase.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import moment from 'moment-timezone';
+import {attractionType, boardingGroupState, entityType, queueType, scheduleType, statusType, returnTimeState} from '../parkTypes.js';
+import Destination from '../destination.js';
+import {getEntityID, IndexedWDWDB} from './wdwdb.js';
+
+let wdwDB = null;
+/**
+ * Get a reference to the WDW database
+ * @return {IndexedWDWDB}
+ */
+export function getDatabase() {
+  if (!wdwDB) {
+    wdwDB = new IndexedWDWDB();
+  }
+  return wdwDB;
+}
+
+// entity types that count as "parks"
+const parkTypes = [
+  'theme-park',
+  'water-park',
+];
+
+// scheduleTypes that are actually not a schedule
+const invalidScheduleTypes = [
+  'Closed',
+  'No Performance',
+];
+
+/**
+ * A Resort class for a Disney live resort (WDW, DLR, HKDR)
+ */
+export class DisneyLiveResort extends Destination {
+  /**
+   * @inheritdoc
+   */
+  constructor(options = {}) {
+    options.virtualQueueURL = options.virtualQueueURL || '';
+    options.genieData = options.genieData || '';
+
+    options.slug = options.slug || '';
+
+    super(options);
+
+    this.resortId = options.resortId;
+    if (!this.resortId) {
+      throw new Error('Missing Resort ID');
+    }
+    this.resortShortcode = options.resortShortcode;
+    if (!this.resortShortcode) {
+      throw new Error('Missing Resort Shortcode');
+    }
+    this.destinationId = this.config.destinationId || `${this.resortId};entityType=destination`;
+    this.destinationDocumentIDRegex = new RegExp(`^${this.resortId};entityType=destination`);
+    this.parkIds = options.parkIds || [];
+
+    this.cultureFilter = this.config.cultureFilter || undefined;
+
+    this.slug = this.config.slug || '';
+
+    this.db = getDatabase();
+  }
+
+  /**
+   * Initialise our Disney resort class
+   */
+  async _init() {
+    await this.db.init();
+
+    // setup our live status updating
+    this.initLiveStatusUpdates();
+  }
+
+  /**
+   * Get the channel ID for the facility status live update documents
+   * @return {string}
+   */
+  getFacilityStatusChannelID() {
+    return `${this.resortShortcode}.facilitystatus.1_0`;
+  }
+
+  /**
+   * @private
+   */
+  async fetchVirtualQueueData() {
+    // cache for 1 minute
+    '@cache|1';
+
+    if (!this.config.virtualQueueURL) return undefined;
+
+    try {
+      return (await this.http('GET', this.config.virtualQueueURL, undefined, {
+        rejectUnauthorized: false,
+      })).body.queues;
+    } catch (e) {
+      console.error(e);
+      return undefined;
+    }
+  }
+
+  async fetchGenieData() {
+    // cache for 1 minute
+    '@cache|1';
+
+    if (!this.config.genieData) return undefined;
+
+    try {
+      const resp = await this.http('GET', this.config.genieData, undefined, {
+        rejectUnauthorized: false,
+      });
+
+      return resp.body?.entities;
+    } catch (e) {
+      console.error(e);
+      return undefined;
+    }
+  }
+
+  /**
+   * Given a status doc, build a live data object
+   * @param {object} doc
+   */
+  async _buildLiveDataObject(doc) {
+    // get full facility doc
+    const entityId = getEntityID(doc.id || doc._id);
+    const entityDoc = await this.db.getEntityOne(entityId);
+    // if can't find it, or "soft deleted", or we get back the same facility update doc, return nothing
+    if (!entityDoc || entityDoc.softDeleted || entityDoc._id === doc._id) {
+      return undefined;
+    }
+
+    // get our entity type
+    const docEntityType = entityDoc.type;
+
+    // skip if this doc is not a valid entity type
+    /* if (docEntityType === undefined) {
+      this.emit('error', doc.id || doc._id, 'LIVEDATA_MISSING_ENTITYTYPE', {
+        message: `Live data for ${doc.id || doc._id} is missing a type. Expecting "Attraction", "Entertainment"...`,
+        entityDoc,
+      });
+      return undefined;
+    }*/
+
+    // figure out entity status
+    let status = statusType.operating;
+
+    // if name contains "Temporarily Unavailable", mark as closed
+    //  will be overriden by better metrics later, if any exist
+    if (entityDoc.name &amp;&amp; entityDoc.name.indexOf('Temporarily Unavailable') > 0) {
+      // not refurb, as this more often than not "unavailable" is marked as just "closed"
+      status = statusType.closed;
+    }
+
+    // restaurants can have status "Capacity", "Walk-Up Disabled"
+    //  currently these fallback to "Operating", which matches the resturant state well enough
+    if (doc.status === 'Down') {
+      status = statusType.down;
+    } else if (doc.status === 'Closed') {
+      status = statusType.closed;
+    } else if (doc.status === 'Refurbishment') {
+      status = statusType.refurbishment;
+    }
+
+    // create base data object
+    const data = {
+      _id: entityDoc.id,
+      status: status,
+    };
+
+    // get our genie data
+    const genieData = await this.fetchGenieData();
+    if (genieData) {
+      const genieEntity = genieData.find((x) => {
+        return x.id === entityId;
+      });
+      if (genieEntity) {
+        const now = this.getTimeNowMoment();
+
+        if (genieEntity.flex) {
+          if (!data.queue) data.queue = {};
+
+          if (!genieEntity.flex.available) {
+            data.queue[queueType.returnTime] = {
+              returnStart: null,
+              returnEnd: null,
+              state: returnTimeState.finished,
+            };
+          } else {
+            const breakTime = genieEntity.flex.nextAvailableTime.split(':');
+
+            data.queue[queueType.returnTime] = {
+              returnStart: now.clone().set({
+                hours: Number(breakTime[0]),
+                minutes: Number(breakTime[1]),
+                seconds: 0,
+              }).format(),
+              returnEnd: null,
+              state: returnTimeState.available,
+            };
+          }
+        }
+
+        if (genieEntity.individual) {
+          if (!data.queue) data.queue = {};
+
+          if (!genieEntity.individual.available) {
+            data.queue[queueType.paidReturnTime] = {
+              returnStart: null,
+              returnEnd: null,
+              state: returnTimeState.finished,
+              price: genieEntity.individual?.price ? {
+                currency: 'USD',
+                amount: genieEntity.individual.price ? genieEntity.individual.price * 100 : null,
+              } : null,
+            };
+          } else {
+            const breakTime = genieEntity.individual.nextAvailableTime.split(':');
+
+            data.queue[queueType.paidReturnTime] = {
+              returnStart: now.clone().set({
+                hours: Number(breakTime[0]),
+                minutes: Number(breakTime[1]),
+                seconds: 0,
+              }).format(),
+              returnEnd: null,
+              state: returnTimeState.available,
+              price: {
+                currency: 'USD',
+                amount: genieEntity.individual.price ? genieEntity.individual.price * 100 : null,
+              },
+            };
+          }
+        }
+      }
+    }
+
+    // get our vqueue data
+    const vQueueData = await this.fetchVirtualQueueData();
+    if (vQueueData) {
+      // find matching queue data for this entity
+      const attractionVQueueData = vQueueData.find((x) => {
+        return x.externalDefinitionId === entityDoc.id;
+      });
+      if (attractionVQueueData) {
+        // we have found a virtual queue!
+        if (!data.queue) data.queue = {}; // make sure our queue object exists
+
+        // figure out our allocation status
+        //  default to available
+        let allocationStatus = boardingGroupState.available;
+
+        if (doc.status !== 'Virtual Queue' || attractionVQueueData.state === 'CLOSED') {
+          allocationStatus = boardingGroupState.closed;
+        }
+
+        // PAUSED state
+        if (attractionVQueueData.state === 'PAUSED') {
+          // if we have an upcoming allocation time, then we are temporarily paused
+          if (attractionVQueueData.nextScheduledOpenTime) {
+            allocationStatus = boardingGroupState.paused;
+          } else {
+            // otherwise... no future times? we're closed for the day
+            allocationStatus = boardingGroupState.closed;
+          }
+        }
+
+        // extract allocation time and present as a full datetime string
+        let nextAllocationTime = null;
+        if (attractionVQueueData.nextScheduledOpenTime) {
+          const nowDate = this.getTimeNowMoment().format('YYYY-MM-DD');
+          nextAllocationTime = moment.tz(
+            `${nowDate}T${attractionVQueueData.nextScheduledOpenTime}`,
+            this.config.timezone,
+          ).format();
+        }
+
+        // pull estimated wait data, if valid/exists
+        let estimatedWait = null;
+        if (allocationStatus === boardingGroupState.available) {
+          estimatedWait = attractionVQueueData.waitTimeMin || null;
+        }
+
+        data.queue[queueType.boardingGroup] = {
+          allocationStatus: allocationStatus,
+          currentGroupStart: attractionVQueueData.currentArrivingGroupStart || null,
+          currentGroupEnd: attractionVQueueData.currentArrivingGroupEnd || null,
+          nextAllocationTime: nextAllocationTime || null,
+          estimatedWait,
+        };
+      }
+    }
+
+    // inject prediction data from Genie
+    const forecastDocId = `${this.resortShortcode}.forecastedwaittimes.1_0.en_us.${data._id}`;
+    try {
+      const forecastDoc = await this.db.get(forecastDocId);
+      if (forecastDoc &amp;&amp; forecastDoc.forecasts &amp;&amp; forecastDoc.forecasts.length > 0) {
+        // check forecast data is relevant for current time
+
+        // get the largest timestamp from forecast data
+        const now = this.getTimeNowMoment();
+        const lastTimeslot = forecastDoc.forecasts.reduce((prev, curr) => {
+          if (!curr) return prev;
+          if (prev &amp;&amp; prev.timestamp > curr.timestamp) {
+            return prev;
+          }
+          return curr;
+        });
+
+        if (lastTimeslot &amp;&amp; lastTimeslot.timestamp) {
+          // forecasts are in hour slots, so add an hour to the last timestamp
+          const lastHour = moment(lastTimeslot.timestamp).add(1, 'hour');
+          if (lastHour.isAfter(now)) {
+            // we have a valid forecast for today, return it
+            data.forecast = forecastDoc.forecasts.map((x) => {
+              if (!x) return null;
+              return {
+                time: moment(x.timestamp).tz(this.config.timezone).format(),
+                waitTime: isNaN(x.forecastedWaitMinutes) ? null : x.forecastedWaitMinutes,
+                percentage: isNaN(x.percentage) ? null : x.percentage,
+              };
+            }).filter((x) => !!x);
+          }
+        }
+      }
+    } catch (e) { }
+
+    // add any data from daily Entertainment feed
+    if (docEntityType === 'Entertainment') {
+      // grab entity showtimes
+      // TODO - this is expensive to grab this for every single entity!!!
+      const entertainmentToday = await this.db.get(`${this.resortShortcode}.today.1_0.Entertainment`);
+      if (entertainmentToday &amp;&amp; entertainmentToday.facilities) {
+        const showtimes = (entertainmentToday.facilities[doc.id] || []).filter((x) => {
+          // ignore invalid schedule types
+          return invalidScheduleTypes.indexOf(x.scheduleType) &lt; 0;
+        });
+
+        if (showtimes.length === 0) {
+          data.status = statusType.closed;
+        }
+
+        // add showtimes to livedata
+        data.showtimes = showtimes.map((time) => {
+          return {
+            startTime: moment(time.startTime).tz(this.config.timezone).format(),
+            endTime: moment(time.endTime).tz(this.config.timezone).format(),
+            type: time.scheduleType,
+          };
+        });
+      }
+    } else if (docEntityType === 'restaurant') {
+      // TODO - restaurant specific live data
+    } else if (docEntityType === 'Attraction') {
+      // attraction-specific live data
+
+      // check today's schedule for refurbishments!
+      // TODO - this is expensive to grab for every single entity!
+      const attractionsToday = await this.db.get(`${this.resortShortcode}.today.1_0.Attraction`);
+      if (attractionsToday !== undefined &amp;&amp; attractionsToday.facilities) {
+        const attractionSchedule = attractionsToday.facilities[doc.id];
+        if (attractionSchedule) {
+          // look for schedules with "Closed" or "Refurb"
+          if (attractionSchedule.length === 1) {
+            if (attractionSchedule[0].scheduleType === 'Closed') {
+              data.status = statusType.closed;
+            } else if (attractionSchedule[0].scheduleType === 'Refurbishment') {
+              data.status = statusType.refurbishment;
+            }
+          }
+
+          // TODO - store attraction operating hours in live data
+        }
+      }
+    }
+
+    // before we do any queue stuff, check if the lastUpdate is vaguely recent
+    const lastUpdateTime = moment(doc.lastUpdate || 0);
+    const now = moment();
+
+    // if status was updated in past ~2 months, then push queue data
+    //  otherwise, ignore, queues not used
+    const daysSinceLastUpdate = now.diff(lastUpdateTime, 'days');
+    if (daysSinceLastUpdate &lt; 60) {
+      // report wait minutes for standBy line (if present)
+      //  pretty much any entity can have waitMinutes
+      // ignore if doc status is "Virtual Queue", which means only Virtual Queue is available for this attraction (right now)
+      if (doc.waitMinutes !== undefined &amp;&amp; doc.status !== 'Virtual Queue') {
+        if (!data.queue) data.queue = {};
+        data.queue[queueType.standBy] = {
+          waitTime: doc.waitMinutes || null,
+        };
+      }
+
+      // populate the single ride queue status if this ride offers single rider
+      if (doc.singleRider) {
+        if (!data.queue) data.queue = {};
+        data.queue[queueType.singleRider] = {
+          // TODO - can we get single ride wait time?
+          waitTime: null,
+        };
+      }
+    }
+
+    return data;
+  }
+
+  /**
+   * Return all current live entity data
+   */
+  async buildEntityLiveData() {
+    // fetch the current attraction times
+    const allStatusDocs = await this.db.getByChannel(this.getFacilityStatusChannelID());
+    const docs = [];
+
+    for (let i = 0; i &lt; allStatusDocs.length; i++) {
+      const doc = allStatusDocs[i];
+      const liveDoc = await this._buildLiveDataObject(doc);
+      if (liveDoc) {
+        docs.push(liveDoc);
+      }
+    }
+
+    // TEMPORARY - Guardians of the Galaxy is missing from live data
+    //  so add it manually to get some data through
+    /*const isGotgAlreadyIn = docs.find((x) => x._id === '411499845;entityType=Attraction');
+    if (!isGotgAlreadyIn) {
+      docs.push(await this._buildLiveDataObject({
+        id: '411499845;entityType=Attraction',
+        status: 'Closed',
+        lastUpdate: "2022-05-24T13:57:46.153Z",
+      }));
+    }*/
+
+    // loop over entertainment and pretend we have facility update docs for them
+    const entertainmentToday = await this.db.get(`${this.resortShortcode}.today.1_0.Entertainment`);
+    if (entertainmentToday &amp;&amp; entertainmentToday.facilities) {
+      const entertainmentEntities = Object.keys(entertainmentToday.facilities);
+      for (let i = 0; i &lt; entertainmentEntities.length; i++) {
+        const facId = entertainmentEntities[i];
+        // look for existing live data doc that has a facility status entry
+        const liveDataIdx = docs.findIndex((x) => x._id === facId);
+        if (liveDataIdx &lt; 0) {
+          // if we don't have a doc already, we create a "fake" one
+          // build a pretend facilitystatus doc and push to docs
+          const liveData = await this._buildLiveDataObject({
+            id: facId,
+          });
+          if (liveData) {
+            docs.push(liveData);
+          }
+        }
+      }
+    }
+
+    // build pretend live entity objects for any attractions with schedules (but no live data!)
+    const attractionsToday = await this.db.get(`${this.resortShortcode}.today.1_0.Attraction`);
+    if (attractionsToday !== undefined &amp;&amp; attractionsToday.facilities) {
+      const attractionsEntities = Object.keys(attractionsToday.facilities);
+      for (let i = 0; i &lt; attractionsEntities.length; i++) {
+        const facId = attractionsEntities[i];
+        // look for existing live data doc that has a facility status entry
+        const liveDataIdx = docs.findIndex((x) => x._id === facId);
+        if (liveDataIdx &lt; 0) {
+          const liveData = await this._buildLiveDataObject({
+            id: facId,
+          });
+          if (liveData) {
+            docs.push(liveData);
+          }
+        }
+      }
+    }
+
+    // TODO - do something with invalid objects (?!)
+    // const errors = docs.filter((x) => x.status !== 'fulfilled');
+
+    return docs;
+  }
+
+  /**
+   * Setup our live status update subscriptions
+   */
+  async initLiveStatusUpdates() {
+    // subscribe to any live facility status updates
+    this.db.subscribeToChannel(this.getFacilityStatusChannelID(), async (doc) => {
+      // create our live data object and submit to resort
+      const livedata = await this._buildLiveDataObject(doc);
+      if (!livedata) return; // skip any invalid livedata objects
+
+      try {
+        this.updateEntityLiveData(doc.id, livedata);
+      } catch (e) {
+        console.error(e);
+      }
+    });
+  }
+
+  /**
+   * Given a name for an entity, clean up any strings we don't want
+   * @param {string} name
+   * @return {string}
+   */
+  sanitizeEntityName(name) {
+    let newName = `${name}`;
+
+    // trim any name endings we don't want to transfer to our entity object
+    const cutoffExcessiveNameEndings = [
+      ' – Opens',
+      ' - Opens',
+      ' – Reopening',
+      ' - Reopening',
+      ' – Temporarily Unavailable',
+      ' - Temporarily Unavailable',
+      ' – Temporarily ',
+      ' - Temporarily ',
+      ' – Coming ',
+      ' - Coming ',
+      ' – Legacy Passholder Dining',
+      ' - Legacy Passholder Dining',
+      ' – Opening ',
+      ' - Opening ',
+      ' - Returning',
+      ' – Returning',
+      ' – Now Open!',
+    ];
+    cutoffExcessiveNameEndings.forEach((str) => {
+      const substrFound = newName.indexOf(str);
+      if (substrFound > 0) {
+        newName = newName.slice(0, substrFound);
+      }
+    });
+
+    return newName;
+  }
+
+  /**
+   * Given a basic document build a generic entity doc.
+   * This should include all fields that are in any entity type.
+   * @param {object} doc
+   * @return {object}
+   */
+  buildBaseEntityObject(doc) {
+    const entity = {
+      // add any resort-agnostic data from the parent first
+      ...super.buildBaseEntityObject(doc),
+      _id: doc.id,
+      _docId: doc._id,
+      name: this.sanitizeEntityName(doc.name),
+    };
+
+    if (doc.longitude &amp;&amp; doc.latitude) {
+      entity.location = {
+        longitude: Number(doc.longitude),
+        latitude: Number(doc.latitude),
+        // TODO - return entrance/exit/shop/etc. interesting points
+        //  that aren't neccessarily the "main location"
+        pointsOfInterest: [],
+      };
+    }
+
+    // search for any related locations that is a theme-park - this tells us this entity is within this park!
+    //  set this so we can correctly build our entity heirarchy
+    // skip if our type is actuall "theme-park", as parks aren't parented to themselves
+    if (
+      parkTypes.indexOf(doc.type) &lt; 0 &amp;&amp;
+      doc.relatedLocations &amp;&amp;
+      doc.relatedLocations.length > 0 &amp;&amp;
+      doc.relatedLocations[0].ancestors
+    ) {
+      // try to find parkId (if it exists)
+      const park = doc.relatedLocations[0].ancestors.find((x) => {
+        return parkTypes.indexOf(x.type) >= 0;
+      });
+      if (park) {
+        entity._parkId = park.id;
+      }
+    }
+
+    // tags
+    if (doc.facets) {
+      if (doc.facets.find((x) => x.id === 'expectant-mothers')) {
+        entity.unsuitableForPregnantPeople = true;
+      }
+    }
+
+    // TODO - rename so something park-agnostic?
+    if (doc.fastPassPlus !== undefined) {
+      entity.fastPass = !!doc.fastPassPlus;
+    }
+
+    // if we're not inside a park, parent ourselves to the *something*
+    const nonParkParentPriority = [
+      'theme-park',
+      'water-park',
+      'Entertainment-Venue', // eg. Disney Springs
+      'destination',
+    ];
+    // look through list in order until we find an entity we can attach to
+    let parentDoc;
+    if (doc.relatedLocations &amp;&amp; doc.relatedLocations.length > 0 &amp;&amp; doc.relatedLocations[0].ancestors) {
+      for (let parentTypeIdx = 0; parentTypeIdx &lt; nonParkParentPriority.length; parentTypeIdx++) {
+        const parentType = nonParkParentPriority[parentTypeIdx];
+        parentDoc = doc.relatedLocations[0].ancestors.find((x) => {
+          return x.type === parentType &amp;&amp; x.id !== doc.relatedLocations[0].id;
+        });
+        if (parentDoc) break;
+      }
+
+      if (parentDoc) {
+        entity._parentId = parentDoc.id;
+      }
+    }
+
+    return entity;
+  }
+
+  /**
+   * Return entity document for this destination
+   */
+  async buildDestinationEntity() {
+    const resortIndex = await this.db.getEntityIndex(this.resortId, {
+      entityType: 'destination',
+    });
+    if (resortIndex.length === 0) return undefined;
+
+    const doc = await this.db.get(resortIndex[0]._id);
+
+    return {
+      ...this.buildBaseEntityObject(doc),
+      entityType: entityType.destination,
+      slug: this.config.slug == '' ? doc.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : this.config.slug,
+    };
+  }
+
+  /**
+   * Return all park entities for this resort
+   */
+  async buildParkEntities() {
+    const parkData = (await Promise.all(this.parkIds.map(async (parkID) => {
+      return this.db.getEntityOne(parkID);
+    }))).filter((x) => !!x);
+
+    return parkData.map((park) => {
+      return {
+        ...this.buildBaseEntityObject(park),
+        entityType: entityType.park,
+        _destinationId: this.destinationId,
+        // parks are parented to the resort
+        _parentId: this.destinationId,
+      };
+    });
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async buildAttractionEntities() {
+    const search = {
+      type: 'Attraction',
+      relatedLocations: {
+        $elemMatch: {
+          ancestors: {
+            $elemMatch: {
+              id: {
+                $regex: this.destinationDocumentIDRegex,
+              },
+            },
+          },
+        },
+      },
+      // ignore any attractions with zero facets
+      facets: {
+        $exists: true,
+      },
+    };
+
+    // optional culture filter
+    //  hkdl has multiple versions of all entities
+    if (this.config.cultureFilter) {
+      search._id = {
+        $regex: new RegExp(this.config.cultureFilter),
+      };
+    }
+
+    const attractions = await this.db.find(search);
+
+    // filter out known bad names
+    const ignoreAttractions = [
+      /^Disney Park Pass$/,
+      /Park Pass \- Afternoon$/,
+      /Play Disney Parks/,
+      /^Temporarily Unavailable Entertainment/,
+    ];
+
+    const entities = attractions.filter((attr) => {
+      return !ignoreAttractions.find((x) => {
+        return !!attr.name.match(x);
+      });
+    }).map((attraction) => {
+      // turn into entity objects
+
+      // TODO - add extra meta data to entity objects
+      let type = attractionType.unknown;
+      const hasFacet = (facet) => {
+        if (!attraction?.facets) return false;
+        return !!attraction.facets.find((x) => {
+          return x.id === facet;
+        });
+      };
+
+      // figure out ride type from available facets...
+      if (
+        hasFacet('slow-rides') ||
+        hasFacet('small-drops') ||
+        hasFacet('thrill-rides') ||
+        hasFacet('spinning')
+      ) {
+        type = attractionType.ride;
+      }
+
+      return {
+        ...this.buildBaseEntityObject(attraction),
+        _destinationId: this.destinationId,
+        entityType: entityType.attraction,
+        attractionType: type,
+      };
+    });
+
+    return entities;
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async buildShowEntities() {
+    // filter out known bad names
+    const ignoreShows = [
+      /^Temporarily Unavailable Entertainment/,
+    ];
+
+    const search = {
+      type: 'Entertainment',
+      relatedLocations: {
+        $elemMatch: {
+          ancestors: {
+            $elemMatch: {
+              id: {
+                $regex: this.destinationDocumentIDRegex,
+              },
+            },
+          },
+        },
+      },
+    };
+
+    // optional culture filter
+    //  hkdl has multiple versions of all entities
+    if (this.config.cultureFilter) {
+      search._id = {
+        $regex: new RegExp(this.config.cultureFilter),
+      };
+    }
+
+    return (await this.db.find(search)).filter((show) => {
+      return !ignoreShows.find((x) => {
+        return !!show.name.match(x);
+      });
+    }).map((re) => {
+      return {
+        ...this.buildBaseEntityObject(re),
+        _destinationId: this.destinationId,
+        entityType: entityType.show,
+      };
+    });
+  }
+
+  /**
+   * Fetch restaurant menu JSON
+   * @param {string} id
+   * @private
+   */
+  async _fetchRestaurantMenu(id) {
+    // TODO - implement a separate menu service
+    //  this API returns errors *a lot*, so we should fetch on a very gentle cycle and cache heavily
+    return null;
+
+    return this.cache.wrap(
+      `menu_${id}`,
+      async () => {
+        try {
+          const data = await this.http(
+            'GET',
+            `https://dining-menu-svc.wdprapps.disney.com/diningMenuSvc/orchestration/menus/${id}`,
+            null,
+            {
+              retries: 0,
+            },
+          );
+          if (data &amp;&amp; data.body) {
+            return data.body;
+          }
+        } catch (e) { }
+        return null;
+      },
+      1000 * 60 * 60 * 6, // cache for 6 hours
+    );
+  }
+
+  /**
+   * Get the menu for a given resturant entity ID
+   * @param {string} id
+   */
+  async getRestaurantMenu(id) {
+    try {
+      const menu = await this._fetchRestaurantMenu(id);
+      if (!menu) return undefined;
+
+      const menuData = menu.menus.map((menuGroup) => {
+        if (!menuGroup.menuGroups) {
+          return undefined;
+        }
+
+        const items = [];
+
+        let groupPrice = null;
+
+        // WDW menus are split into Entree,Desert etc. "menuGroups" - loop through them all and build them into a list
+        menuGroup.menuGroups.forEach((group) => {
+          // look for buffet pricings
+          // extract characters and digits to find pricing categories
+          const findBuffetPrices = /([^\/\(]+\d+\.\d+)/g;
+          let match;
+          while (match = findBuffetPrices.exec(group.names.PCLong)) {
+            // split each buffet price into name and USD
+            const nameAndPrice = /(.*)\s+(\d+\.\d+)/;
+            const priceData = nameAndPrice.exec(match[1]);
+            if (priceData) {
+              if (groupPrice === null) {
+                groupPrice = [];
+              }
+
+              // add each unique price name once
+              const priceName = priceData[1].trim();
+              if (groupPrice.findIndex((x) => x.name === priceName) &lt; 0) {
+                groupPrice.push({
+                  name: priceData[1].trim(),
+                  USD: Number(priceData[2]) * 100,
+                });
+              }
+            }
+          }
+
+          group.menuItems.forEach((dish) => {
+            const newDish = {
+              name: dish.names.PCLong || dish.names.MobileLong || dish.names.PCShort || dish.names.MobileShort || null,
+              description: dish?.descriptions?.PCLong?.text ||
+                dish?.descriptions?.MobileLong?.text ||
+                dish?.descriptions?.MobileShort?.text ||
+                null,
+              group: group.menuGroupType,
+              price: null,
+            };
+
+            if (dish?.prices?.PerServing?.withoutTax) {
+              // standard per-serving prices
+              newDish.price = [{
+                USD: dish.prices.PerServing.withoutTax * 100,
+              }];
+            } else if (dish.prices) {
+              // not per serving price
+              newDish.price = Object.keys(dish.prices).map((x) => {
+                return {
+                  name: dish.prices[x].type,
+                  USD: dish.prices[x].withoutTax * 100,
+                };
+              });
+            }
+
+            items.push(newDish);
+          });
+        });
+
+        return {
+          type: menuGroup.menuType,
+          description: `${menuGroup.primaryCuisineType} - ${menuGroup.serviceStyle} - ${menuGroup.experienceType}`,
+          items,
+          price: groupPrice, // a menu can have a price (buffets etc.)
+        };
+      }).filter((x) => !!x);
+
+      return menuData;
+    } catch (e) {
+      console.error(e);
+    }
+    return undefined;
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async buildRestaurantEntities() {
+    const search = {
+      type: 'restaurant',
+      relatedLocations: {
+        $elemMatch: {
+          ancestors: {
+            $elemMatch: {
+              id: {
+                $regex: this.destinationDocumentIDRegex,
+              },
+            },
+          },
+        },
+      },
+    };
+
+    // optional culture filter
+    //  hkdl has multiple versions of all entities
+    if (this.config.cultureFilter) {
+      search._id = {
+        $regex: new RegExp(this.config.cultureFilter),
+      };
+    }
+
+    const restaurants = (await this.db.find(search)).filter((restaurant) => {
+      // only include "proper" resturants
+      //  avoid listing every coffee stand etc.
+
+      // determine resturant type using available facets
+      if (!restaurant.facets) return false;
+      const tableService = restaurant.facets.find((x) => x.id === 'table-service');
+      // some resturants are missing the 'table-service' facet, but have other facets that are similar
+      const tableReservations = restaurant.facets.find((x) => x.id === 'reservations-accepted');
+      // TODO - also add quick service
+      return !!tableService || !!tableReservations;
+    }).map((re) => {
+      // TODO - populate with any other interesting restaurant detail
+      return {
+        ...this.buildBaseEntityObject(re),
+        _destinationId: this.destinationId,
+        entityType: entityType.restaurant,
+        // list of available cuisines
+        cuisines: re.facets.filter((x) => x.group === 'cuisine').map((x) => {
+          return x.name;
+        }),
+      };
+    });
+
+    // fetch menus
+    /* for (let i = 0; i &lt; restaurants.length; i++) {
+      restaurants[i].menus = (await this.getRestaurantMenu(restaurants[i]._id)) || null;
+    }*/
+
+    return restaurants;
+  }
+
+  /**
+   *
+   * @param {array&lt;string>} ids document IDs to get schedules for
+   * @param {moment} date Moment date to get schedule data for
+   * @return {array&lt;object>} Array of objects containing _id and schedule
+   */
+  async _getSchedulesForDate(ids, date) {
+    const dateCalendar = await this.db.getByChannel(
+      `${this.config.resortShortcode}.calendar.1_0`,
+      {
+        'id': date.format('DD-MM'),
+      },
+    );
+
+    if (dateCalendar.length === 0) {
+      return [];
+    }
+    const calendar = dateCalendar[0];
+
+    const hours = calendar.parkHours.filter((h) => {
+      // filter for hours for any of our parks
+      return ids.indexOf(h.facilityId) >= 0 &amp;&amp;
+        // that aren't closed hours (just ignore these)
+        h.scheduleType !== 'Closed' &amp;&amp;
+        // ignore annual pass blockout data
+        h.scheduleType.indexOf('blockout') &lt; 0;
+    }).reduce((p, x) => {
+      let hoursType = scheduleType.operating;
+
+      switch (x.scheduleType) {
+        case 'Operating':
+          hoursType = scheduleType.operating;
+          break;
+        case 'Park Hopping':
+          hoursType = scheduleType.informational;
+          break;
+        case 'Refurbishment':
+          // return refurbishment hours as purely informational
+          hoursType = scheduleType.informational;
+          break;
+        default:
+          // default to a ticketed event
+          hoursType = scheduleType.ticketed;
+          break;
+      }
+
+      p[ids.indexOf(x.facilityId)].schedule.push({
+        date: moment(x.startTime).tz(this.config.timezone).format('YYYY-MM-DD'),
+        openingTime: moment(x.startTime).tz(this.config.timezone).format(),
+        closingTime: moment(x.endTime).tz(this.config.timezone).format(),
+        type: hoursType,
+        description: hoursType != scheduleType.operating ? x.scheduleType : undefined,
+      });
+
+      return p;
+    }, ids.map((x) => {
+      return {
+        _id: x,
+        schedule: [],
+      };
+    }));
+
+    return hours;
+  }
+
+  /**
+   * @inheritdoc
+   */
+  async buildEntityScheduleData() {
+    // grab park IDs!
+    const parks = await this.getParkEntities();
+    const parkIds = parks.map((x) => {
+      return x._id;
+    });
+
+    // grab schedules for our parks
+    const daysToReturn = 150;
+    const now = this.getTimeNowMoment();
+    const endDate = now.clone().add(daysToReturn, 'day');
+    const returnData = parkIds.map((x) => {
+      return {
+        _id: x,
+        schedule: [],
+      };
+    });
+    for (; now.isSameOrBefore(endDate, 'day'); now.add(1, 'day')) {
+      const dateData = await this._getSchedulesForDate(parkIds, now);
+      dateData.forEach((entity) => {
+        returnData[parkIds.indexOf(entity._id)].schedule.push(...entity.schedule);
+      });
+    }
+    return returnData;
+  }
+};
+
+/**
+ * Walt Disney World Resort
+ */
+export class WaltDisneyWorldResort extends DisneyLiveResort {
+  /**
+   * @inheritdoc
+   */
+  constructor(options = {}) {
+    options.name = options.name || 'Walt Disney World Resort';
+    options.timezone = options.timezone || 'America/New_York';
+
+    options.resortId = options.resortId || 80007798;
+    options.resortShortcode = options.resortShortcode || 'wdw';
+
+    options.parkIds = options.parkIds || [
+      80007944, // Magic Kingdom
+      80007838, // Epcot
+      80007998, // Hollywood Studios
+      80007823, // Animal Kingdom
+      // water parks
+      80007981, // Typhoon Lagoon
+      80007834, // Blizzard Beach
+    ];
+
+    super(options);
+  }
+}
+
+/**
+ * Disneyland Resort
+ */
+export class DisneylandResort extends DisneyLiveResort {
+  /**
+   * @inheritdoc
+   */
+  constructor(options = {}) {
+    options.name = options.name || 'Disneyland Resort';
+    // TODO - calculate this from resort entity's location
+    options.timezone = options.timezone || 'America/Los_Angeles';
+
+    options.resortId = options.resortId || 80008297;
+    options.resortShortcode = options.resortShortcode || 'dlr';
+
+    options.parkIds = options.parkIds || [
+      330339, // Disneyland Park
+      336894, // California Adventure
+    ];
+
+    super(options);
+  }
+}
+
+/**
+ * Hong Kong Disneyland Resort
+ */
+export class HongKongDisneyland extends DisneyLiveResort {
+  /**
+   * @inheritdoc
+   */
+  constructor(options = {}) {
+    options.name = options.name || 'HongKong Disneyland';
+    // TODO - calculate this from resort entity's location
+    options.timezone = options.timezone || 'Asia/Hong_Kong';
+
+    options.resortId = options.resortId || 'hkdl';
+    options.destinationId = options.destinationId || 'hkdl;entityType=destination;destination=hkdl';
+    options.resortShortcode = options.resortShortcode || 'hkdl';
+
+    options.cultureFilter = '\.en_intl\.';
+
+    options.parkIds = options.parkIds || [
+      'desHongKongDisneyland',
+    ];
+
+    options.slug = 'hongkongdisneylandpark';
+
+    super(options);
+  }
+
+  /**
+   * HK stores menus as PDFs, this function does nothing (yet?)
+   * @return {null}
+   */
+  async _fetchRestaurantMenu() {
+    return null;
+  }
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.1</a> on Sun Feb 19 2023 21:20:22 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+
+
+</body>
+</html>
