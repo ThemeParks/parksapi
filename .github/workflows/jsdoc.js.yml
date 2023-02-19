@@ -1,4 +1,4 @@
-name: ESDoc
+name: JSDoc
 
 on:
   push:
