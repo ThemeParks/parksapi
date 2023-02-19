@@ -19,7 +19,7 @@
   },
   "scripts": {
     "test": "npm run lint && npm run mocha",
-    "docs": "esdoc",
+    "docs": "./node_modules/.bin/jsdoc -c .jsdoc.json -R README.md",
     "mocha": "mocha",
     "lint": "eslint ./lib/**/*.js",
     "lintfix": "eslint ./lib/**/*.js --fix"
@@ -61,11 +61,10 @@
   },
   "devDependencies": {
     "@babel/traverse": "^7.11.0",
-    "esdoc": "^1.1.0",
-    "esdoc-ecmascript-proposal-plugin": "^1.0.0",
-    "esdoc-standard-plugin": "^1.0.0",
+    "docdash": "^2.0.1",
     "eslint": "^7.4.0",
     "eslint-config-google": "^0.14.0",
+    "jsdoc": "^4.0.1",
     "mocha": "^10.0.0"
   }
 }
