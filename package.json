@@ -40,6 +40,7 @@
     "dotenv": "^8.2.0",
     "egoroof-blowfish": "^2.2.2",
     "fetch-cookie": "^0.10.1",
+    "hpagent": "^1.2.0",
     "json-diff": "^0.5.4",
     "leveldown": "^5.4.1",
     "levelup": "^4.1.0",
