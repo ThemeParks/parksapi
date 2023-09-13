@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>reusePromises.js - Documentation</title>
+    <title>parks/globalinjections.js - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -35,7 +35,7 @@
 
 <div id="main">
     
-    <h1 class="page-title">reusePromises.js</h1>
+    <h1 class="page-title">parks/globalinjections.js</h1>
     
 
     
@@ -45,113 +45,143 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>/**
- * Module that wraps re-using the same Promise multiple times.
- * This allows a function to be called multiple times before returning, but only return once.
- * Useful for latent network requests,
- *  such as requesting a document from multiple sources, but only making one HTTP request.
- */
-
-const activeFunctions = [];
+            <pre class="prettyprint source linenums"><code>import {HttpsProxyAgent} from 'hpagent';
 
 /**
- * Find the active function with these arguments
- * @param {*} self
- * @param {function} fn
- * @param {string} argsSerialised
- * @return {number}
- * @private
+ *  Inject CrawlBase proxy into HTTP object
+ * @param {*} param0
  */
-function findActiveFunctionIndex(self, fn, argsSerialised) {
-  return activeFunctions.findIndex((x) => {
-    return x.self === self &amp;&amp; x.fn === fn &amp;&amp; x.args === argsSerialised;
-  });
-}
-
-/**
- * Reuse a function until it resolves
- * @param {*} self
- * @param {function} fn
- * @param  {...any} args Arguments to pass to the function
- * @return {Promise}
- */
-export function reusePromise(self, fn, ...args) {
-  return _reusePromise(false, self, fn, ...args);
-}
-
-/**
- * Reuse a function, returning it's result forever
- * @param {*} self
- * @param {function} fn
- * @param  {...any} args Arguments to pass to the function
- * @return {Promise}
- */
-export function reusePromiseForever(self, fn, ...args) {
-  return _reusePromise(true, self, fn, ...args);
-}
-
-/**
- * Internal call to run a Promise once time (and optionally keep result forever)
- * @param {boolean} useResultForever
- * @param {*} self
- * @param {function} fn
- * @param  {...any} args
- * @return {Promise}
- * @private
- */
-function _reusePromise(useResultForever, self, fn, ...args) {
-  // search for existing promise that hasn't resolved yet
-  const argsSerialise = args ? JSON.stringify(args) : null;
-  const existingFunctionIndex = findActiveFunctionIndex(self, fn, argsSerialise);
-  const existingFunction = existingFunctionIndex >= 0 ? activeFunctions[existingFunctionIndex] : undefined;
-  if (existingFunction) {
-    if (existingFunction.resolved) {
-      return existingFunction.value;
-    }
-    return existingFunction.promise;
+function injectCrawlBase({
+  httpObject = null,
+  args = {},
+}) {
+  if (!httpObject) {
+    throw new Error('httpObject is required');
   }
 
-  const cleanupPendingFunction = () => {
-    const pendingFunctionIDX = findActiveFunctionIndex(self, fn, argsSerialise);
-    if (pendingFunctionIDX >= 0) {
-      if (!useResultForever) {
-      // clean up pending Promise
-        activeFunctions.splice(pendingFunctionIDX, 1);
-      }
-    }
-  };
+  const apikey = args.apikey;
+  if (!apikey) {
+    throw new Error('apikey for CrawlBase is required');
+  }
 
-  // didn't find a pending existing promise, make a new one!
-  const newPromise = (self !== null &amp;&amp; self !== undefined) ? fn.apply(self, args) : fn(...args);
-  newPromise.then((value) => {
-    // clean up our pending Promise
-    if (!useResultForever) {
-      cleanupPendingFunction();
-    } else {
-      const pendingFunctionIDX = findActiveFunctionIndex(self, fn, argsSerialise);
-      if (pendingFunctionIDX >= 0) {
-      // store result so we can re-use it for future calls
-        activeFunctions[pendingFunctionIDX].resolved = true;
-        activeFunctions[pendingFunctionIDX].value = value;
-      }
-    }
-
-    return value;
-  }).catch((err) => {
-    cleanupPendingFunction();
-    throw err;
+  httpObject.injectForDomain({}, (method, url, data, options) => {
+    // route via proxy
+    return {
+      url: `https://api.crawlbase.com/?url=${encodeURIComponent(url)}&amp;token=${apikey}`,
+    };
   });
-  activeFunctions.push({
-    fn,
-    self,
-    args: argsSerialise,
-    promise: newPromise,
-    resolved: false,
-  });
-  return newPromise;
 }
 
-export default reusePromise;
+/**
+ * Inject Scrapfly proxy into HTTP object
+ * @param {*} param0
+ */
+function injectScrapfly({
+  httpObject = null,
+  args = {},
+}) {
+  if (!httpObject) {
+    throw new Error('httpObject is required');
+  }
+
+  const apikey = args.apikey;
+  if (!apikey) {
+    throw new Error('apikey for Scrapfly is required');
+  }
+
+  httpObject.injectForDomain({}, (method, url, data, options) => {
+    // route via proxy
+    return {
+      url: `https://api.scrapfly.io/scrape?url=${encodeURIComponent(url)}&amp;key=${apikey}`,
+    };
+  });
+
+  httpObject.injectForDomainResponse({}, (resp) => {
+    // convert scrapfly response to standard response
+    return {
+      body: resp.body.result.content,
+      headers: resp.body.result.response_headers,
+      status: resp.body.result.status_code,
+    };
+  });
+}
+
+/**
+ * Inject basic proxy into HTTP object
+ * @param {*} param0
+ */
+function injectBasicProxy({
+  httpObject = null,
+  args = {},
+}) {
+  if (!httpObject) {
+    throw new Error('httpObject is required');
+  }
+
+  const proxy = args.proxy;
+  if (!proxy) {
+    throw new Error('proxy is required');
+  }
+
+  const agent = new HttpsProxyAgent({
+    proxy: proxy,
+  });
+
+  httpObject.injectForDomain({}, (method, url, data, options) => {
+    // route via proxy
+    return {
+      options: {
+        agent: agent,
+        ...options,
+      },
+    };
+  });
+}
+
+const injectionTypes = {
+  CRAWLBASE: injectCrawlBase,
+  SCRAPFLY: injectScrapfly,
+  BASICPROXY: injectBasicProxy,
+};
+const injectionKeys = Object.keys(injectionTypes);
+
+/**
+ * Add global injections to HTTP object to support general proxies etc.
+ * @param {*} param0
+ */
+export function addGlobalInjections({
+  httpObject = null,
+  configPrefixes = [],
+}) {
+  if (!httpObject) {
+    throw new Error('httpObject is required');
+  }
+
+  if (!configPrefixes) {
+    throw new Error('configPrefixes is required');
+  }
+
+  // loop over all config prefixes
+  configPrefixes.forEach((prefix) => {
+    // find matching environment variables
+    injectionKeys.forEach((key) => {
+      const envVar = `${prefix}_${key}`;
+      const envVal = process.env[envVar];
+      if (envVal) {
+        let jsonVal = null;
+        try {
+          jsonVal = JSON.parse(envVal);
+        } catch (e) {
+        }
+        // add injection
+        injectionTypes[key]({
+          httpObject,
+          args: jsonVal,
+        });
+      }
+    });
+  });
+}
 </code></pre>
         </article>
     </section>
