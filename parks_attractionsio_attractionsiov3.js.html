@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>parks/parcasterix/parcasterix.js - Documentation</title>
+    <title>parks/attractionsio/attractionsiov3.js - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -35,7 +35,7 @@
 
 <div id="main">
     
-    <h1 class="page-title">parks/parcasterix/parcasterix.js</h1>
+    <h1 class="page-title">parks/attractionsio/attractionsiov3.js</h1>
     
 
     
@@ -45,140 +45,64 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>import { Destination } from '../destination.js';
-import { attractionType, statusType, queueType, tagType, scheduleType, entityType } from '../parkTypes.js';
-import moment from 'moment-timezone';
+            <pre class="prettyprint source linenums"><code>// Support for Attractions.io v3 API
+import {Destination} from '../destination.js';
+import {attractionType, statusType, queueType, tagType, scheduleType, entityType} from '../parkTypes.js';
 
-const queries = {
-  getConfiguration: {
-    "query": "query getConfiguration($language: String!) {\n  configuration(localeFilters: {locale: $language}) {\n    parkIsOpen\n    parkOpeningTime\n    parkClosingTime\n    parkText\n    parkInfoBanner\n    parkLatitude\n    parkLongitude\n    parkRadiusMeters\n    welcomeImage\n    mapColorShow\n    mapColorRestaurant\n    minimumVersionIos\n    minimumVersionAndroid\n    cloudinaryProxyUrl\n    enableMapDirections\n    enableBillet\n    enableFavoris\n    __typename\n  }\n  locales {\n    iso\n    label\n    __typename\n  }\n}\n"
-  },
-  getAttractions: {
-    "query": "query getAttractions($language: String!) {\n  openAttractions(localeFilters: {locale: $language}, orderBy: [{field: TITLE, order: ASC}]) {\n    id\n    drupalId\n    title\n    slug\n    summary\n    description\n    experience {\n      id\n      drupalId\n      label\n      color\n      __typename\n    }\n    mapId\n    latitude\n    longitude\n    features {\n      id\n      label\n      value\n      icon\n      __typename\n    }\n    headerV1\n    thumbnailV1\n    headerV2\n    thumbnailV2\n    sliders {\n      picture\n      order\n      __typename\n    }\n    minAge\n    order\n    isNew\n    isBest\n    hasQueuingCut\n    hasQueuingCutFear\n    hasPicturePoint\n    blocks\n    labels\n    __typename\n  }\n}\n",
-  },
-  spectacles: {
-    "query": "query spectacles($language: String!) {\n  openShows(localeFilters: {locale: $language}, orderBy: [{field: TITLE, order: ASC}]) {\n    id\n    drupalId\n    title\n    slug\n    summary\n    description\n    mapId\n    latitude\n    longitude\n    features {\n      label\n      value\n      icon\n      __typename\n    }\n    closingTimes {\n      startAt\n      endAt\n      timezone\n      __typename\n    }\n    headerV1\n    thumbnailV1\n    headerV2\n    thumbnailV2\n    sliders {\n      picture\n      order\n      __typename\n    }\n    minAge\n    order\n    isNew\n    isBest\n    schedules\n    scheduleIsFrom\n    blocks\n    labels\n    __typename\n  }\n}\n",
-  },
-  attractionLatency: {
-    "query": "query attractionLatency {\n  attractionLatency {\n    drupalId\n    latency\n    closingTime\n    __typename\n  }\n}\n"
-  },
-  restaurants: {
-    "query": "query restaurants($language: String!) {\n  restaurants(localeFilters: {locale: $language}, orderBy: [{field: TITLE, order: ASC}]) {\n    id\n    drupalId\n    title\n    slug\n    type\n    kind\n    kindDrupalId\n    theme\n    themeDrupalId\n    universe\n    mealType\n    withTerrace\n    summary\n    description\n    header\n    sliders {\n      picture\n      order\n      __typename\n    }\n    mapId\n    latitude\n    longitude\n    menuUrl\n    mobileUrl\n    related {\n      id\n      __typename\n    }\n    blocks\n    labels\n    __typename\n  }\n}\n",
-  },
-  getCalendar: {
-    "query": "query getCalendar {\n  calendar {\n    day\n    times\n    type\n    __typename\n  }\n}\n",
-  },
-}
+import moment from 'moment';
 
-export class ParcAsterix extends Destination {
+export class AttractionsIOV3 extends Destination {
   constructor(options = {}) {
-    options.timezone = options.timezone || 'Europe/Paris';
+    options.baseURL = options.baseURL || 'https://api.attractions.io';
+    options.realTimeBaseURL = options.realTimeBaseURL || "";
+    options.parkId = options.parkId || "";
 
-    options.apiBase = options.apiBase || '';
-    options.language = options.language || 'en';
+    // optional latitude and longitude override for the park
+    //  will try and search POI data for "Main Entrance" if not provided
+    options.longitude = options.longitude || 0;
+    options.latitude = options.latitude || 0;
 
-    // bump cache version when we need to wipe our cached query state
-    options.cacheVersion = options.cacheVersion || 2;
+    // optional extra category types to include
+    //  the POI config can miss some categories, so we can add them here
+    options.extraAttractionCategoryTypes = options.extraAttractionCategoryTypes || [];
+    options.extraShowCategoryTypes = options.extraShowCategoryTypes || [];
+    options.extraRestaurantCategoryTypes = options.extraRestaurantCategoryTypes || [];
+
+    // category names for each type of entity
+    //  we use these to filter POI data
+    options.attractionCategories = options.attractionCategories || ['Rides'];
+    options.showCategories = options.showCategories || ['Shows'];
+    options.diningCategories = options.diningCategories || ['Dining'];
+
+    options.configPrefixes = ['ATTRACTIONSIOV3'];
 
     super(options);
 
-    if (!this.config.apiBase) throw new Error('Missing apiBase');
-  }
-
-  /**
-   * Make a graphql query against the API using a query hash
-   * @param {string} operationName 
-   * @param {string} queryHash 
-   * @returns {object}
-   */
-  async makeCachedQuery(operationName, queryHash) {
-    const query = {
-      operationName,
-      variables: {
-        language: this.config.language,
-      },
-    };
-
-    if (queries[operationName]) {
-      for (const k in queries[operationName]) {
-        query[k] = queries[operationName][k];
-      }
-    } else {
-      query.extensions = {
-        persistedQuery: {
-          version: 1,
-          sha256Hash: queryHash,
-        }
-      };
+    if (!this.config.realTimeBaseURL) {
+      throw new Error('realTimeBaseURL is required for Attractions.io v3 parks');
     }
 
-    const resp = (await this.http(
-      'GET',
-      `${this.config.apiBase}graphql`,
-      query,
-    )).body;
-
-    if (resp?.errors) {
-      if (resp.errors[0] &amp;&amp; resp.errors[0].message) {
-        throw new Error(`makeCachedQuery ${operationName} error: ${resp.errors[0].message}`);
-      }
-      throw new Error(`makeCachedQuery ${operationName} error: ${JSON.stringify(resp.errors)}`);
+    if (!this.config.parkId) {
+      throw new Error('parkId is required for Attractions.io v3 parks');
     }
-
-    return resp;
   }
 
-  /**
-   * Get some key resort data
-   */
-  async getResortData() {
-    // cache for 6 hours
-    '@cache|360';
-    return this.makeCachedQuery('getConfiguration', '765d8930f5d5a09ca39affd57e43630246b2fb683331e18938d5b2dba7cb8e8a');
+  async fetchWaitTimes() {
+    '@cache|1'; // cache for 1 minute
+    const response = await this.http('GET', `${this.config.realTimeBaseURL}/wait-times/park/${this.config.parkId}`);
+    return response.body;
   }
 
-  /**
-   * Get raw attraction data
-   */
-  async getAttractionData() {
-    // cache for 6 hours
-    '@cache|360';
-    return this.makeCachedQuery('getAttractions', '5609363783d826ec6c460caa620e3ca28e651897febf6753159836ab72d8139b');
+  async fetchParkConfig() {
+    '@cache|1d'; // cache for 1 day
+    const response = await this.http('GET', `${this.config.realTimeBaseURL}/config/park/${this.config.parkId}`);
+    return response.body;
   }
 
-  /**
-   * Get raw wait time data
-   */
-  async getWaitTimeData() {
-    '@cache|1';
-    return this.makeCachedQuery('attractionLatency', '41154df6dc22d5444dcfa749b69f3f177a3736031b0ed675c1730e7c7dfc9894');
-  }
-
-  /**
-   * Get raw calendar data
-   */
-  async getCalendarData() {
-    // cache for 6 hours
-    '@cache|360';
-    return this.makeCachedQuery('getCalendar', '4981b5364f50dce42cfc579b6e5cbe144f8ef12e6a5d1a6c2e8681c99545f39e');
-  }
-
-  /**
-   * Get raw restaurant data
-   */
-  async getRestaurantData() {
-    // cache for 6 hours
-    '@cache|360';
-    return this.makeCachedQuery('restaurants', '857561404b9f5c69e651d74e0f5c0403f5bd3bd02491a0958d11d60bd8526cc9');
-  }
-
-  /**
-   * Get raw show data
-   */
-  async getShowData() {
-    // cache for 6 hours
-    '@cache|360';
-    return this.makeCachedQuery('spectacles', 'a3a067a0edbfb3666228d5d966d5933b1572e271b4c7f2858ce1758a2490227e');
+  async fetchParkPOI() {
+    '@cache|1d'; // cache for 1 day
+    const response = await this.http('GET', `${this.config.realTimeBaseURL}/poi/park/${this.config.parkId}`);
+    return response.body;
   }
 
   /**
@@ -190,34 +114,83 @@ export class ParcAsterix extends Destination {
   buildBaseEntityObject(data) {
     const entity = Destination.prototype.buildBaseEntityObject.call(this, data);
 
-    if (data) {
-      entity.name = data.title || undefined;
+    if (data?.name) {
+      entity.name = data.name;
+    }
 
-      entity._id = data.drupalId;
+    // we are using the fimsId as our unique ID
+    //  as this is also used for the live wait times
+    if (data?.fimsId) {
+      entity._id = `${data.fimsId}`;
+    }
 
-      if (data.latitude &amp;&amp; data.longitude) {
-        entity.location = {
-          latitude: data.latitude,
-          longitude: data.longitude,
-        };
-      }
-
-      entity.fastPass = !!data.hasQueuingCut;
+    if (data?.location &amp;&amp; data.location.latitude &amp;&amp; data.location.longitude) {
+      entity.location = {
+        latitude: Number(data.location.latitude),
+        longitude: Number(data.location.longitude),
+      };
     }
 
     return entity;
+  }
+
+  async getParkEntranceLocation() {
+    // get POI data and search for Main Entrance
+    const parkConfig = await this.fetchParkPOI();
+
+    const searchForPOI = (name) => {
+      // test if the POI name begins with the name we're looking for
+      const poiEnt = parkConfig.find((poi) => poi &amp;&amp; poi.name &amp;&amp; poi.name.startsWith(name));
+      if (!poiEnt || !poiEnt.location || !poiEnt.location.latitude || !poiEnt.location.longitude) {
+        return null;
+      }
+
+      return {
+        latitude: Number(poiEnt.location.latitude),
+        longitude: Number(poiEnt.location.longitude),
+      };
+    };
+
+    const entanceNames = [
+      "Main Entrance",
+      "Accessible Gate",
+      "Front Gate",
+    ];
+    
+    for (const name of entanceNames) {
+      const location = searchForPOI(name);
+      if (location) {
+        return location;
+      }
+    }
+    
+    // otherwise, fallback on any configured latitude/longitude
+    if (this.config.latitude &amp;&amp; this.config.longitude) {
+      return {
+        latitude: this.config.latitude,
+        longitude: this.config.longitude,
+      };
+    }
+
+    return undefined;
   }
 
   /**
    * Build the destination entity representing this destination
    */
   async buildDestinationEntity() {
+    const parkConfig = await this.fetchParkConfig();
+    const entranceLocation = await this.getParkEntranceLocation();
+
+    const doc = {
+      name: parkConfig.parkName,
+    };
     return {
-      ...this.buildBaseEntityObject(),
-      _id: 'parcasterix',
-      slug: 'parcasterix', // all destinations must have a unique slug
-      name: 'Parc Asterix',
+      ...this.buildBaseEntityObject(doc),
+      _id: this.config.destinationId + "_destination",
+      slug: this.config.destinationId,
       entityType: entityType.destination,
+      location: entranceLocation,
     };
   }
 
@@ -225,125 +198,193 @@ export class ParcAsterix extends Destination {
    * Build the park entities for this destination
    */
   async buildParkEntities() {
-    const parkData = await this.getResortData();
+    const parkConfig = await this.fetchParkConfig();
+    const entranceLocation = await this.getParkEntranceLocation();
+
+    const doc = {
+      name: parkConfig.parkName,
+    };
 
     return [
       {
-        ...this.buildBaseEntityObject(null),
-        _id: 'parcasterixpark',
-        _destinationId: 'parcasterix',
-        _parentId: 'parcasterix',
-        slug: 'ParcAsterixPark',
-        name: 'Parc Asterix',
+        ...this.buildBaseEntityObject(doc),
+        _id: this.config.destinationId,
+        _destinationId: this.config.destinationId + "_destination",
+        _parentId: this.config.destinationId + "_destination",
         entityType: entityType.park,
-        location: {
-          longitude: parkData.data.configuration.longitude,
-          latitude: parkData.data.configuration.latitude,
-        },
+        location: entranceLocation,
       }
     ];
+  }
+
+  async getTypesFromCategories(categories, fieldFilter = "type") {
+    '@cache|1d'; // cache for 1 day
+
+    // fetch attraction types from park config
+    const parkConfig = await this.fetchParkConfig();
+
+    if (!parkConfig || !parkConfig.poi_config || !parkConfig.poi_config.parkModes) {
+      return [];
+    }
+
+    const types = [];
+    // walk through all the park modes and find the valid categories
+    //  then grab all the filter IDs from the "type" field
+    parkConfig.poi_config.parkModes.forEach((mode) => {
+      if (!mode.category || !mode.category.values) return;
+      mode.category.values.forEach((cat) => {
+        if (categories.indexOf(cat.label || cat.title) >= 0) {
+          cat.filters.forEach((filter) => {
+            if (!filter.fieldName || !filter.values) return;
+            // check if this is the field we're looking for
+            //  rides are "type", shows are "showType" etc.
+            if (filter.fieldName == fieldFilter) {
+              filter.values.forEach((filterValue) => {
+                // don't duplicate types
+                if (types.indexOf(filterValue.value) &lt; 0) {
+                  types.push(filterValue.value);
+                }
+              });
+            }
+          });
+        }
+      });
+    });
+
+    return types;
+  }
+
+  async getEntitiesForCategory(categories, fieldName, entityData, extraCategoryTypes = []) {
+    const types = [].concat(await this.getTypesFromCategories(categories, fieldName)).concat(extraCategoryTypes);
+    const poiData = await this.fetchParkPOI();
+
+    // filter out any POI that doesn't have a valid type
+    const entities = poiData.filter((poi) => {
+      if (!poi || !poi[fieldName] || poi[fieldName]?.id === undefined) return false;
+      return types.indexOf(poi[fieldName].id) >= 0;
+    });
+
+    return entities.map((ride) => {
+      return {
+        ...this.buildBaseEntityObject(ride),
+        ...entityData,
+        _destinationId: this.config.destinationId + "_destination",
+        _parentId: this.config.destinationId,
+        _parkId: this.config.destinationId,
+      };
+    });
   }
 
   /**
    * Build the attraction entities for this destination
    */
   async buildAttractionEntities() {
-    const attrs = await this.getAttractionData();
-
-    return attrs.data.openAttractions.filter((x) => {
-      return x.__typename === 'Attraction';
-    }).map((x) => {
-      return {
-        ...this.buildBaseEntityObject(x),
-        entityType: entityType.attraction,
-        attractionType: attractionType.ride,
-        _destinationId: 'parcasterix',
-        _parentId: 'parcasterixpark',
-        _parkId: 'parcasterixpark',
-      };
-    }).filter((x) => {
-      return !!x &amp;&amp; x._id;
-    });
+    return this.getEntitiesForCategory(this.config.attractionCategories, "type", {
+      entityType: entityType.attraction,
+      attractionType: attractionType.ride,
+    }, this.config.extraAttractionCategoryTypes);
   }
 
   /**
    * Build the show entities for this destination
    */
   async buildShowEntities() {
-    const attrs = await this.getShowData();
-
-    return [];
-
-    // TODO - format shows when app returns some data
-    return attrs.data.openShows.map((x) => {
-      return {
-        ...this.buildBaseEntityObject(x),
-        entityType: entityType.show,
-        _destinationId: 'parcasterix',
-        _parentId: 'parcasterixpark',
-        _parkId: 'parcasterixpark',
-      };
-    }).filter((x) => {
-      return !!x &amp;&amp; x._id;
-    });
+    return this.getEntitiesForCategory(this.config.showCategories, "showType", {
+      entityType: entityType.show,
+    }, this.config.extraShowCategoryTypes);
   }
 
   /**
    * Build the restaurant entities for this destination
    */
   async buildRestaurantEntities() {
-    const attrs = await this.getRestaurantData();
-
-    return attrs.data.restaurants.filter((x) => {
-      return x.__typename === 'Restaurant';
-    }).map((x) => {
-      return {
-        ...this.buildBaseEntityObject(x),
-        entityType: entityType.restaurant,
-        _destinationId: 'parcasterix',
-        _parentId: 'parcasterixpark',
-        _parkId: 'parcasterixpark',
-      };
-    }).filter((x) => {
-      return !!x &amp;&amp; x._id;
-    });
+    return await this.getEntitiesForCategory(this.config.diningCategories, "foodTypes", {
+      entityType: entityType.restaurant,
+    }, this.config.extraRestaurantCategoryTypes);
   }
 
   /**
    * @inheritdoc
    */
   async buildEntityLiveData() {
-    const waitTimes = await this.getWaitTimeData();
+    const liveData = await this.fetchWaitTimes();
 
-    return waitTimes.data.attractionLatency.map((x) => {
-      const data = {
-        _id: x.drupalId,
+    const entries = liveData.venues.reduce((x, venue) => {
+      x.push(...venue.details);
+      return x;
+    }, []);
+
+    return entries.map((x) => {
+      const entry = {
+        _id: `${x.fimsId}`,
+        status: statusType.closed,
       };
 
-      data.status = statusType.operating;
-
-      if (x.latency === 'FERME') {
-        data.status = statusType.closed;
-      } else if (x.latency !== 'OUVERT') {
-        data.queue = {
-          [queueType.standBy]: {
-            waitTime: null,
-          }
-        };
-
-        if (x.latency !== null) {
-          if (x.latency.match(/^\d+$/)) {
-            data.queue[queueType.standBy].waitTime = parseInt(x.latency, 10);
-          } else {
-            // TODO - report error in parsing latency, unknown string!
-            // assume closed
-            data.status = statusType.closed;
-          }
+      // add standby time (if present)
+      if (x.regularWaittime &amp;&amp; x.regularWaittime.createdDateTime) {
+        if (!entry.queue) {
+          entry.queue = {};
         }
+        entry.status = statusType.operating;
+        entry.queue[queueType.standBy] = {
+          waitTime: x.regularWaittime.waitTime || 0,
+        };
       }
 
-      return data;
+      // add fastpass time (if present)
+      if (x.fastlaneWaittime &amp;&amp; x.fastlaneWaittime.createdDateTime) {
+        if (!entry.queue) {
+          entry.queue = {};
+        }
+        entry.status = statusType.operating;
+        // paid standby type, basically normal queueing, but you get your own line
+        entry.queue[queueType.paidStandBy] = {
+          waitTime: x.fastlaneWaittime.waitTime || 0,
+        };
+      }
+
+      return entry;
     });
+  }
+
+  async fetchScheduleDataForDate(momentDate) {
+    // cache this data for 1 day, unless it's in the next 3 days, then cache for 4 hours
+    const cacheTime = momentDate.isBefore(moment().add(3, 'days')) ? 1000 * 60 * 60 * 4 : 1000 * 60 * 60 * 24;
+    return this.cache.wrap(`schedule_${momentDate.format('YYYY-MM-DD')}`, async () => {
+      // https://2qi9ynkg9d.execute-api.us-east-2.amazonaws.com/operating-hours/park/4?date=20240306
+      const date = momentDate.format('YYYYMMDD');
+      const response = await this.http('GET', `${this.config.realTimeBaseURL}/operating-hours/park/${this.config.parkId}?date=${date}`);
+
+      if (!response.body || !response.body.operatings || !response.body.operatings.length) {
+        return null;
+      }
+
+      if (response.body.isParkClosed) {
+        return [];
+      }
+
+      return response.body.operatings.reduce((arr, operating) => {
+        if (!operating.items) return arr;
+
+        if (operating.operatingTypeName != 'Park Hours') return;
+
+        operating.items.forEach((item) => {
+          if (!item.timeFrom || !item.timeTo) return;
+
+          const openTime = moment(`${date}T${item.timeFrom}`, "YYYYMMDDTHH:mm").tz(this.config.timezone, true);
+          const closeTime = moment(`${date}T${item.timeTo}`, "YYYYMMDDTHH:mm").tz(this.config.timezone, true);
+
+          arr.push({
+            date: moment(date).format('YYYY-MM-DD'),
+            type: statusType.operating,
+            // opening time comes in format "HH:mm" in timeFrom field
+            openingTime: openTime.format(),
+            closingTime: closeTime.format(),
+          });
+        });
+        return arr;
+      }, []);
+    }, cacheTime);
   }
 
   /**
@@ -352,32 +393,69 @@ export class ParcAsterix extends Destination {
    * @returns {array&lt;object>}
    */
   async buildEntityScheduleData() {
-    const calendarData = await this.getCalendarData();
+    // fetch next 90 days of schedule data
+    const now = moment();
+    const nextMonth = moment().add(3, 'month');
+    const datesToFetch = [];
+    for (const date = now.clone(); date.isBefore(nextMonth); date.add(1, 'day')) {
+      datesToFetch.push(date.clone());
+    }
 
-    const dates = [];
-    const matchHours = /(\d+)h - (\d+)h/;
-    calendarData.data.calendar.forEach((x) => {
-      x.times.split(' et ').forEach((times) => {
-        const match = matchHours.exec(times);
-        if (match) {
-          const date = moment.tz(x.day, 'YYYY-MM-DD', this.config.timezone);
-          date.set('minute', 0).set('hour', 0).set('second', 0).set('millisecond', 0);
-          dates.push({
-            date: x.day,
-            type: "OPERATING",
-            openingTime: date.clone().set('hour', parseInt(match[1], 10)).format(),
-            closingTime: date.clone().set('hour', parseInt(match[2], 10)).format(),
-          });
-        }
-      });
-    });
+    const scheduleData = [];
+    for (const date of datesToFetch) {
+      const data = await this.fetchScheduleDataForDate(date);
+      if (data) {
+        scheduleData.push(...data);
+      }
+    }
 
     return [
       {
-        _id: 'parcasterixpark',
-        schedule: dates,
-      },
+        _id: this.config.destinationId,
+        schedule: scheduleData,
+      }
     ];
+  }
+}
+
+export class KnottsBerryFarm extends AttractionsIOV3 {
+  constructor(options = {}) {
+    options.timezone = 'America/Los_Angeles';
+    options.parkId = options.parkId || "4";
+    options.destinationId = 'knottsberryfarm';
+    options.extraAttractionCategoryTypes = [19]; // 19 is missing from POI config data (water rides)
+
+    super(options);
+  }
+}
+
+export class KingsIsland extends AttractionsIOV3 {
+  constructor(options = {}) {
+    options.timezone = 'America/New_York';
+    options.parkId = options.parkId || "20";
+    options.destinationId = 'kingsisland';
+
+    super(options);
+  }
+}
+
+export class Carowinds extends AttractionsIOV3 {
+  constructor(options = {}) {
+    options.timezone = 'America/New_York';
+    options.parkId = options.parkId || "30";
+    options.destinationId = 'carowinds';
+
+    super(options);
+  }
+}
+
+export class CanadasWonderland extends AttractionsIOV3 {
+  constructor(options = {}) {
+    options.timezone = 'America/Toronto';
+    options.parkId = options.parkId || "40";
+    options.destinationId = 'canadaswonderland';
+
+    super(options);
   }
 }
 </code></pre>
