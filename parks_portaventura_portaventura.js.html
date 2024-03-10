@@ -47,6 +47,7 @@
         <article>
             <pre class="prettyprint source linenums"><code>import {Destination} from '../destination.js';
 import {attractionType, statusType, queueType, tagType, scheduleType, entityType} from '../parkTypes.js';
+import moment from 'moment-timezone';
 
 export class PortAventuraWorld extends Destination {
   constructor(options = {}) {
@@ -55,9 +56,17 @@ export class PortAventuraWorld extends Destination {
     // accept overriding the API base URL
     options.apiBase = options.apiBase || false;
 
+    options.guestUsername = 'guest';
+    options.guestPassword = options.guestPassword || "";
+
+    options.waitTimeURL = options.waitTimeURL || "";
+
     super(options);
 
     if (!this.config.apiBase) throw new Error('Missing apiBase');
+    if (!this.config.guestUsername) throw new Error('Missing guestUsername');
+    if (!this.config.guestPassword) throw new Error('Missing guestPassword');
+    if (!this.config.waitTimeURL) throw new Error('Missing waitTimeURL');
 
     this.destinationId = 'portaventuraworld';
 
@@ -65,8 +74,57 @@ export class PortAventuraWorld extends Destination {
     this.http.injectForDomain({
       hostname: baseURLHostname,
     }, async (method, url, data, options) => {
+      // API always wants JSON
       options.json = true;
+
+      if (!options.headers) options.headers = {};
+      options.headers['User-Agent'] = 'okhttp/4.9.2';
+
+      // skip adding auth for auth requests
+      //  otherwise we'll end up in a loop
+      if (options._auth) {
+        return;
+      }
+
+      // add auth
+      const token = await this.getJWTToken();
+      options.headers = {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+      };
     });
+
+    const waitTimeHostname = new URL(this.config.waitTimeURL).hostname;
+    this.http.injectForDomain({
+      hostname: waitTimeHostname,
+    }, async (method, url, data, options) => {
+      // parse response as JSON
+      options.json = true;
+
+      // always use okhttp user agent
+      if (!options.headers) options.headers = {};
+      options.headers['User-Agent'] = 'okhttp/4.9.2';
+    });
+  }
+
+  /**
+   * Get a JWT token for the API. Either reuses a cached token or fetches a new one
+   * @returns {string}
+   */
+  async getJWTToken() {
+    let cacheTokenTime = 60 * 60 * 24; // 24 hours
+    return this.cache.wrap('jwt_token', async () => {
+      const resp = await this.http('POST', `${this.config.apiBase}/api/auth/local`, {
+        identifier: this.config.guestUsername,
+        password: this.config.guestPassword,
+      }, {
+        _auth: true,
+        json: true,
+        retries: 0,
+      });
+
+      return resp?.body?.jwt;
+    }, cacheTokenTime);
   }
 
   /**
@@ -89,58 +147,24 @@ export class PortAventuraWorld extends Destination {
     return appConfig.find((x) => x.title === 'mapa')?.url;
   }
 
-  async getDestinationData() {
+  async getParkData() {
     '@cache|1440'; // cache for 24 hours
 
-    const resp = await this.http('GET', `${this.config.apiBase}ws/v3/getAllfilter/all/all/en`);
+    // get list of the parks in this destination
+    const resp = await this.http('GET', `${this.config.apiBase}/api/parks?locale=en&amp;populate[fields][0]=*&amp;populate[sort][0]=name:asc&amp;populate[park][fields][0]=name&amp;populate[area][fields][0]=name&amp;populate[images][fields][0]=formats&amp;populate[logo][fields][0]=formats&amp;populate[logo][fields][1]=url&amp;populate[similar][fields][0]=id&amp;populate[urls][fields][0]=*&amp;populate[tags][fields][0]=name&amp;populate[tags][fields][1]=customSlug&amp;populate[tags][populate][filters][fields][0]=customSlug&amp;pagination[start]=0&amp;pagination[limit]=10000`);
 
     return resp?.body;
   }
 
   /**
-   * Get array of all the park configs in this resort
-   * @returns {array&lt;Object>}
+   * Return the attraction POI data
    */
-  async getParkData() {
-    const locations = await this.getDestinationData();
-    return locations.map((x, idx) => {
-      x.park_number = idx + 1;
-      return x;
-    }).filter((x) => {
-      return !!x.filters.find((y) => y.id === 'atraccion');
-    });
-  }
+  async getAttractionData() {
+    '@cache|1440'; // cache for 24 hours
+    
+    const resp = await this.http('GET', `${this.config.apiBase}/api/attractions?locale=en&amp;populate[fields][0]=*&amp;populate[sort][0]=name:asc&amp;populate[park][fields][0]=name&amp;populate[area][fields][0]=name&amp;populate[images][fields][0]=formats&amp;populate[logo][fields][0]=formats&amp;populate[logo][fields][1]=url&amp;populate[similar][fields][0]=id&amp;populate[urls][fields][0]=*&amp;populate[tags][fields][0]=name&amp;populate[tags][fields][1]=customSlug&amp;populate[tags][populate][filters][fields][0]=customSlug&amp;pagination[start]=0&amp;pagination[limit]=10000`);
 
-  /**
-   * Return mapping of "parque_nombre" to park data objects
-   * @returns {Object}
-   */
-  async getParkMappings() {
-    // @cache|60
-    const parks = await this.getParkData();
-    return parks.reduce((acc, x) => {
-      acc[x.park_number] = {...x};
-      return acc;
-    }, []);
-  }
-
-  /**
-   * Return the attraction data (both static and live) for the destination.
-   * Used for building attaction entities and the live data
-   */
-  async _fetchAttractionData() {
-    '@cache|1'; // cache for 1 minute
-
-    const parks = await this.getParkData();
-
-    const data = [];
-
-    for (const park of parks) {
-      const liveDataResp = await this.http('GET', `${this.config.apiBase}/ws/nv/filters/${park.id}/atraccion/en`);
-      data.push(...liveDataResp.body);
-    }
-
-    return data;
+    return resp?.body;
   }
 
   /**
@@ -152,19 +176,21 @@ export class PortAventuraWorld extends Destination {
   buildBaseEntityObject(data) {
     const entity = Destination.prototype.buildBaseEntityObject.call(this, data);
 
-    if (data?.titulo) {
-      entity.name = data.titulo;
-    }
-
-    if (data?.latitud &amp;&amp; data?.longitud) {
-      entity.location = {
-        longitude: Number(data.longitud),
-        latitude: Number(data.latitud),
-      };
-    }
-
     if (data?.id) {
       entity._id = `${data.id}`;
+    }
+
+    if (data?.attributes) {
+      if (data.attributes.name) {
+        entity.name = data.attributes.name;
+      }
+
+      if (data.attributes.latitude &amp;&amp; data.attributes.longitude) {
+        entity.location = {
+          longitude: Number(data.attributes.longitude),
+          latitude: Number(data.attributes.latitude),
+        };
+      }
     }
 
     return entity;
@@ -189,14 +215,13 @@ export class PortAventuraWorld extends Destination {
    */
   async buildParkEntities() {
     const parks = await this.getParkData();
-    return parks.map((x) => {
+    return parks.data.map((x) => {
       return {
         ...this.buildBaseEntityObject(null),
-        _id: x.id,
+        _id: `${x.id}`,
         _destinationId: this.destinationId,
         _parentId: this.destinationId,
-        slug: x.id,
-        name: x.texto,
+        name: x.attributes.name,
         entityType: entityType.park,
       };
     });
@@ -206,22 +231,35 @@ export class PortAventuraWorld extends Destination {
    * Build the attraction entities for this destination
    */
   async buildAttractionEntities() {
-    const parkMappings = await this.getParkMappings();
-    const data = await this._fetchAttractionData();
+    const parkData = await this.getParkData();
+    const data = await this.getAttractionData();
 
-    return data.filter((x) => {
-      // only return attractions
-      return x.tipo === 'atraccion';// &amp;&amp; !!parkMappings[x.parque_nombre];
+    const parks = parkData.data.map((x) => {
+      return {
+        id: x.id,
+        _id: `${x.id}`,
+      };
+    });
+
+    return data.data.filter((ent) => {
+      // TODO - filter out non-attractions
+      return true;
     }).map((ent) => {
+      if (!ent?.attributes?.park?.data?.id) return null;
+
+      const entParkId = ent?.attributes?.park?.data?.id;
+      const parkObj = parks.find((x) => x.id === entParkId);
+      if (!parkObj) return null;
+
       return {
         ...this.buildBaseEntityObject(ent),
-        _parentId: parkMappings[ent.parque_id].id,
+        _parentId: parkObj._id,
         _destinationId: this.destinationId,
-        _parkId: parkMappings[ent.parque_id].id,
+        _parkId: parkObj._id,
         entityType: entityType.attraction,
         attractionType: attractionType.ride,
       };
-    });
+    }).filter((x) => !!x);
   }
 
   /**
@@ -238,67 +276,75 @@ export class PortAventuraWorld extends Destination {
     return [];
   }
 
+  async _fetchWaitTimes() {
+    '@cache|5'; // cache for 5 minutes
+    const resp = await this.http('GET', this.config.waitTimeURL);
+    return resp?.body;
+  }
+
   /**
    * @inheritdoc
    */
   async buildEntityLiveData() {
-    const liveData = await this._fetchAttractionData();
+    const liveData = await this._fetchWaitTimes();
+    const attractions = await this.getAttractionData();
 
-    return liveData.map((ride) => {
-      // parse wait time
-      let waitTime = -1;
-      if (ride.time_range) {
-        const parsedTime = /(\d+) min/.exec(ride.time_range);
-        if (parsedTime) {
-          waitTime = Number(parsedTime[1]);
-        } else {
-          // support hour:minute times
-          const parsedTimeHour = /(\d+)(?::(\d+))?\s?h/.exec(ride.time_range);
-          if (parsedTimeHour) {
-            waitTime = Number(parsedTimeHour[1]) * 60 + Number(parsedTimeHour[2] || 0);
-          } else {
-            this.log(`Unable to parse wait time for ${ride.id}: ${ride.time_range}`);
-          }
-        }
+    const returnData = [];
+
+    const liveDataGrouped = liveData.reduce((acc, curr) => {
+      if (!acc[curr.id]) acc[curr.id] = [];
+      acc[curr.id].push(curr);
+      return acc;
+    }, {});
+
+    Object.keys(liveDataGrouped).map((entry) => {
+      // pick best (any non-null time) or just the first entry
+      const nonNullEntries = liveDataGrouped[entry].filter((x) => x.time !== null);
+      if (nonNullEntries.length > 0) {
+        return nonNullEntries[0];
       }
+      return liveDataGrouped[entry][0];
+    }).forEach((attraction) => {
+      if (!attraction?.id) return;
+
+      // find attraction
+      const attractionData = attractions.data.find((x) => x?.attributes?.FTPName === attraction.id);
+      if (!attractionData) return;
 
       const rideData = {
-        _id: `${ride.id}`,
+        _id: `${attractionData.id}`,
         // default to status: operating
         status: statusType.operating,
+      };
+      
+      if (attraction.time === null) {
+        rideData.status = statusType.closed;
       }
 
-      if (ride.location_status === 1) {
-        if (waitTime >= 0) {
-          rideData.queue = {
-            [queueType.standBy]: {
-              waitTime: waitTime,
-            },
-          };
-        }
-      } else {
-        if (ride.location_status === 0) {
-          rideData.status = statusType.closed;
-        } else {
-          // TODO - other statuses
-          rideData.status = statusType.down;
-        }
-      }
+      rideData.queue = {
+        [queueType.standBy]: {
+          waitTime: attraction.time,
+        },
+      };
 
-      return rideData;
+      returnData.push(rideData);
     });
+
+    return returnData;
   }
 
   /**
-   * Fetch calendar data for a specific date
-   * @param {string} date YYYY-MM-DD
+   * Fetch calendar data
    * @returns {object}
    */
-  async _fetchScheduleForDate(date) {
-    '@cache|10080'; // cache for 1 week
-    const url = `${this.config.apiBase}ws/getCalendar/${date}/en`;
-    const resp = await this.http('GET', url);
-    return resp.body;
+  async _fetchSchedule() {
+    '@cache|1440'; // cache for 24 hours
+    
+    // get current date in local timezone
+    const date = this.getTimeNowMoment().tz(this.config.timezone).format('YYYY-MM-DD');
+
+    const resp = await this.http('GET', `${this.config.apiBase}/api/schedule-parks?filters[date][$gte]=${date}&amp;populate[fields][0]=*&amp;populate[sort][0]=date:desc&amp;populate[park][fields][0]=name&amp;pagination[start]=0&amp;pagination[limit]=10000`);
+    return resp?.body;
   }
 
   /**
@@ -307,59 +353,27 @@ export class PortAventuraWorld extends Destination {
    * @returns {array&lt;object>}
    */
   async buildEntityScheduleData() {
-    // TODO - once app is returning some opening data, parse it
-    const dateData = await this.forEachUpcomingDate(async (date) => {
-      const dateString = date.format('YYYY-MM-DD');
-      return {
-        date: date.clone(),
-        ...(await this._fetchScheduleForDate(dateString)),
-      };
-    }, 30);
-
+    const dateData = await this._fetchSchedule();
     const parkData = await this.getParkData();
-    return parkData.map((park) => {
+    
+    return parkData.data.map((park) => {
       return {
         _id: `${park.id}`,
-        schedule: dateData.map((x) => {
-          const dataForThisPark = x[`${park.park_number}`];
-          if (!dataForThisPark) {
-            return null;
-          }
+        schedule: dateData.data.filter((entry) => {
+          // filter out entries that don't match this park
+          return entry?.attributes?.park?.data?.id === park.id;
+        }).map((x) => {
+          if (!x?.attributes?.openingTime || !x?.attributes?.closingTime) return null;
+          if (x?.attributes?.openingTime == "00:00:00" || x?.attributes?.closingTime == "00:00:00") return null;
 
-          // ignore closed dates
-          if (dataForThisPark.estado == "Closed") {
-            return null;
-          }
-
-          const splitHours = dataForThisPark.horario.split('-').map(x => x.trim());
-          if (splitHours.length !== 2) {
-            return null;
-          }
-          const matchHours = (hours) => {
-            const match = /^([0-9]{1,2})((?::[0-9]{2}))?/.exec(hours);
-            if (!match) {
-              return null;
-            }
-            return {
-              hours: Number(match[1]),
-              minutes: match[2] ? Number(match[2].replace(':', '')) : 0,
-            };
-          };
-
-          const matchStart = matchHours(splitHours[0]);
-          if (!matchStart) {
-            return null;
-          }
-          const matchEnd = matchHours(splitHours[1]);
-          if (!matchEnd) {
-            return null;
-          }
+          const openTime = moment(`${x.attributes.date}T${x.attributes.openingTime}`, 'YYYY-MM-DDTHH:mm:ss').tz(this.config.timezone, true);
+          const closeTime = moment(`${x.attributes.date}T${x.attributes.closingTime}`, 'YYYY-MM-DDTHH:mm:ss').tz(this.config.timezone, true);
 
           return {
-            date: x.date.format('YYYY-MM-DD'),
+            date: x.attributes.date,
             type: "OPERATING",
-            openingTime: x.date.clone().hours(parseInt(matchStart.hours, 10)).minutes(parseInt(matchStart.minutes, 10)).seconds(0).format(),
-            closingTime: x.date.clone().hours(parseInt(matchEnd.hours, 10)).minutes(parseInt(matchEnd.minutes, 10)).seconds(0).format(),
+            openingTime: openTime.format(),
+            closingTime: closeTime.format(),
           };
         }).filter((x) => !!x),
       };
@@ -380,7 +394,7 @@ export class PortAventuraWorld extends Destination {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.1</a> on Wed Feb 21 2024 22:14:27 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.1</a> on Sun Mar 10 2024 16:01:33 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
