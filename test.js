@@ -6,7 +6,7 @@ import {promises as fs} from 'fs';
 
 const __dirname = path.dirname(process.argv[1]);
 
-const destination = new parksapi.destinations.EuropaPark();
+const destination = new parksapi.destinations.HansaPark();
 
 const logSuccess = (...msg) => {
   // print green tick
@@ -96,6 +96,19 @@ function TestEntity(ent) {
   for (const field of fields) {
     if (ent[field] === undefined) {
       throw new EntityError(`${field} is required`, ent);
+    }
+  }
+
+  if (entityType == "DESTINATION") {
+    // destination must not have a parentId or destinationId
+    if (ent._parentId) {
+      throw new EntityError('destination must not have a parentId', ent);
+    }
+    if (ent._destinationId) {
+      throw new EntityError('destination must not have a destinationId', ent);
+    }
+    if (ent._parkId) {
+      throw new EntityError('destination must not have a parkId', ent);
     }
   }
 }
