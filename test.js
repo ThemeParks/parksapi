@@ -6,7 +6,7 @@ import {promises as fs} from 'fs';
 
 const __dirname = path.dirname(process.argv[1]);
 
-const destination = new parksapi.destinations.HansaPark();
+const destination = new parksapi.destinations.WalibiHolland();
 
 const logSuccess = (...msg) => {
   // print green tick
@@ -133,6 +133,8 @@ function TestLiveData(data, ents) {
   const ent = ents.find((x) => x._id === data._id);
   if (!ent) {
     logError(`Missing entity ${data._id} for livedata: ${JSON.stringify(data)}`);
+  } else {
+    data._name = ent.name;
   }
 
   // logSuccess(`${data._id}: ${JSON.stringify(data)}`);
