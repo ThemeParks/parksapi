@@ -48,8 +48,67 @@
             <pre class="prettyprint source linenums"><code>// Support for Attractions.io v3 API
 import {Destination} from '../destination.js';
 import {attractionType, statusType, queueType, tagType, scheduleType, entityType} from '../parkTypes.js';
+import {fileURLToPath} from 'url';
 
 import moment from 'moment';
+
+async function enumerateResorts() {
+  const startId = 1;
+  const endId = 250;
+
+  const baseResort = new KnottsBerryFarm();
+
+  const parks = [];
+
+  const checkResort = async (id) => {
+    const response = await baseResort.http(
+      'GET',
+      `https://2qi9ynkg9d.execute-api.us-east-2.amazonaws.com/config/park/${id}`,
+      null,
+      {
+        retries: 0,
+      },
+    );
+    if (response.statusCode !== 200) {
+      return null;
+    }
+
+    const parkConfig = response.body;
+    if (!parkConfig || !parkConfig.parkName) {
+      return null;
+    }
+
+    console.log(`  Found park ${id}: ${parkConfig.parkName}`);
+    return {
+      id: id,
+      name: parkConfig.parkName,
+    };
+  };
+
+  for (let i = startId; i &lt;= endId; i++) {
+    try {
+      // cache for 24 hours
+      const cacheTime = 1000 * 60 * 60 * 24;
+      const parkMapping = await baseResort.cache.wrap(`parkdata_${i}`, async () => {
+        try {
+          return await checkResort(i);
+        } catch (e) {
+          return null;
+        }
+      }, cacheTime);
+      if (parkMapping) {
+        parks.push(parkMapping);
+      }
+    } catch (e) {
+      //console.error(`Error checking park ${i}: ${e}`);
+    }
+  }
+
+  console.log(`Found ${parks.length} parks`);
+  for (const park of parks) {
+    console.log(`${park.id}: ${park.name}`);
+  }
+}
 
 export class AttractionsIOV3 extends Destination {
   constructor(options = {}) {
@@ -156,14 +215,14 @@ export class AttractionsIOV3 extends Destination {
       "Accessible Gate",
       "Front Gate",
     ];
-    
+
     for (const name of entanceNames) {
       const location = searchForPOI(name);
       if (location) {
         return location;
       }
     }
-    
+
     // otherwise, fallback on any configured latitude/longitude
     if (this.config.latitude &amp;&amp; this.config.longitude) {
       return {
@@ -347,44 +406,49 @@ export class AttractionsIOV3 extends Destination {
     });
   }
 
+  async _fetchScheduleForDate(momentDate) {
+    const cacheTime = momentDate.isBefore(moment().add(3, 'days')) ? 1000 * 60 * 60 * 4 : 1000 * 60 * 60 * 24;
+    const date = momentDate.format('YYYYMMDD');
+    return this.cache.wrap(`park_schedule_${momentDate.format('YYYY-MM-DD')}`, async () => {
+      const response = await this.http('GET', `${this.config.realTimeBaseURL}/operating-hours/park/${this.config.parkId}?date=${date}`);
+      return response.body;
+    }, cacheTime);
+  }
+
   async fetchScheduleDataForDate(momentDate) {
     // cache this data for 1 day, unless it's in the next 3 days, then cache for 4 hours
-    const cacheTime = momentDate.isBefore(moment().add(3, 'days')) ? 1000 * 60 * 60 * 4 : 1000 * 60 * 60 * 24;
-    return this.cache.wrap(`schedule_${momentDate.format('YYYY-MM-DD')}`, async () => {
-      // https://2qi9ynkg9d.execute-api.us-east-2.amazonaws.com/operating-hours/park/4?date=20240306
-      const date = momentDate.format('YYYYMMDD');
-      const response = await this.http('GET', `${this.config.realTimeBaseURL}/operating-hours/park/${this.config.parkId}?date=${date}`);
 
-      if (!response.body || !response.body.operatings || !response.body.operatings.length) {
-        return null;
-      }
+    // https://2qi9ynkg9d.execute-api.us-east-2.amazonaws.com/operating-hours/park/4?date=20240306
+    const date = momentDate.format('YYYYMMDD');
+    const response = await this._fetchScheduleForDate(momentDate);
 
-      if (response.body.isParkClosed) {
-        return [];
-      }
+    if (!response || !response.operatings || !response.operatings.length) {
+      return null;
+    }
 
-      return response.body.operatings.reduce((arr, operating) => {
-        if (!operating.items) return arr;
+    if (response.isParkClosed) {
+      return [];
+    }
 
-        if (operating.operatingTypeName != 'Park Hours') return;
+    return response.operatings.reduce((arr, operating) => {
+      if (!operating.items) return arr;
 
-        operating.items.forEach((item) => {
-          if (!item.timeFrom || !item.timeTo) return;
+      operating.items.forEach((item) => {
+        if (!item.timeFrom || !item.timeTo) return;
 
-          const openTime = moment(`${date}T${item.timeFrom}`, "YYYYMMDDTHH:mm").tz(this.config.timezone, true);
-          const closeTime = moment(`${date}T${item.timeTo}`, "YYYYMMDDTHH:mm").tz(this.config.timezone, true);
+        const openTime = moment(`${date}T${item.timeFrom}`, "YYYYMMDDTHH:mm").tz(this.config.timezone, true);
+        const closeTime = moment(`${date}T${item.timeTo}`, "YYYYMMDDTHH:mm").tz(this.config.timezone, true);
 
-          arr.push({
-            date: moment(date).format('YYYY-MM-DD'),
-            type: statusType.operating,
-            // opening time comes in format "HH:mm" in timeFrom field
-            openingTime: openTime.format(),
-            closingTime: closeTime.format(),
-          });
+        arr.push({
+          date: moment(date).format('YYYY-MM-DD'),
+          type: statusType.operating,
+          // opening time comes in format "HH:mm" in timeFrom field
+          openingTime: openTime.format(),
+          closingTime: closeTime.format(),
         });
-        return arr;
-      }, []);
-    }, cacheTime);
+      });
+      return arr;
+    }, []);
   }
 
   /**
@@ -468,6 +532,22 @@ export class CedarPoint extends AttractionsIOV3 {
     super(options);
   }
 }
+
+export class CaliforniasGreatAmerica extends AttractionsIOV3 {
+  constructor(options = {}) {
+    options.timezone = 'America/Los_Angeles';
+    options.parkId = options.parkId || "35";
+    options.destinationId = 'californiasgreatamerica';
+
+    super(options);
+  }
+}
+
+// check if we're being called directly (import style)
+const __filename = fileURLToPath(import.meta.url);
+if (process.argv[1] === __filename) {
+  enumerateResorts();
+}
 </code></pre>
         </article>
     </section>
@@ -482,7 +562,7 @@ export class CedarPoint extends AttractionsIOV3 {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.1</a> on Sun Mar 31 2024 13:20:12 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.1</a> on Mon Apr 01 2024 21:34:39 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
