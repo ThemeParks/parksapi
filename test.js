@@ -6,7 +6,7 @@ import {promises as fs} from 'fs';
 
 const __dirname = path.dirname(process.argv[1]);
 
-const destination = new parksapi.destinations.WalibiHolland();
+const destination = new parksapi.destinations.WorldsOfFun();
 
 const logSuccess = (...msg) => {
   // print green tick
@@ -176,9 +176,9 @@ function TestSchedule(scheduleData, entityId) {
 
   }
 
-  // check we have some schedule data for the next month
+  // check we have some schedule data for the next 2 months
   const now = moment();
-  const nextMonth = moment().add(1, 'month');
+  const nextMonth = moment().add(2, 'month');
   let schedulesForNextMonth = 0;
   let scheduleDays = 0;
   for (const date = now.clone(); date.isBefore(nextMonth); date.add(1, 'day')) {
@@ -190,7 +190,7 @@ function TestSchedule(scheduleData, entityId) {
   }
 
   if (schedulesForNextMonth === 0) {
-    throw new EntityError(`No schedule data found for next month for ${entityId}`);
+    throw new EntityError(`No schedule data found for next 2 months for ${entityId}`);
   }
 
   logSuccess(`${entityId}: ${schedulesForNextMonth} schedules found for next month [${scheduleDays} days]`);
