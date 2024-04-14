@@ -51,6 +51,8 @@ import crypto from 'crypto';
 import Destination from '../destination.js';
 import {attractionType, entityType, queueType, scheduleType, statusType, tagType, returnTimeState} from '../parkTypes.js';
 
+// TODO - move POI to new API
+
 // only return restaurants using these dining types
 const wantedDiningTypes = [
   'CasualDining',
@@ -81,6 +83,9 @@ export class UniversalResortBase extends Destination {
     options.baseURL = options.baseURL || '';
     options.resortSlug = options.resortSlug || '';
 
+    options.assetsBase = options.assetsBase || '';
+    options.resortKey = options.resortKey || '';
+
     // any custom environment variable prefixes we want to use for this park (optional)
     options.configPrefixes = ['UNIVERSALSTUDIOS'].concat(options.configPrefixes || []);
 
@@ -94,6 +99,9 @@ export class UniversalResortBase extends Destination {
     if (!this.config.vQueueURL) throw new Error('Missing Universal vQueueURL');
     if (!this.config.baseURL) throw new Error('Missing Universal baseURL');
     if (!this.config.resortSlug) throw new Error('Missing Universal resortSlug');
+
+    if (!this.config.assetsBase) throw new Error('Missing Universal assetsBase');
+    if (!this.config.resortKey) throw new Error('Missing Universal resortKey');
 
     const baseURLHostname = new URL(this.config.baseURL).hostname;
 
@@ -358,10 +366,12 @@ export class UniversalResortBase extends Destination {
   async _fetchWaitTimes() {
     // cache for 1 minute
     '@cache|1';
-    const resp = await this.http('GET', `${this.config.baseURL}/pointsofinterest/rides/waittimes`, {
-      city: this.config.city,
-      pageSize: 'All',
-    });
+
+    const resp = await this.http(
+      'GET',
+      `${this.config.assetsBase}/${this.config.resortKey}/wait-time/wait-time-attraction-list.json`,
+    );
+
     return resp.body;
   }
 
@@ -406,145 +416,156 @@ export class UniversalResortBase extends Destination {
   async buildEntityLiveData() {
     // fetch standard wait times
     const waittime = await this._fetchWaitTimes();
-
     // fetch virtual lines state
     //  this returns all the virtual queues and if they are running
     const vQueueData = await this._fetchVirtualQueueStates();
 
-    // build a map of POI data to their poi type
-    //  so we can filter out entities we don't want to return live data for
-    // API returns live data for "lands" or other non-Ride things we don't want
-    const poiData = await this.getPOI();
-    const poiTypes = {};
-    Object.keys(poiData).forEach((type) => {
-      poiData[type].forEach((x) => {
-        poiTypes[`${x.Id}`] = type;
-      });
-    });
+    const returnLiveData = [];
 
-    const liveData = await Promise.all(waittime.Results.filter((x) => {
-      // filter all live data so we only return live data for things like Rides
-      //  (see wantedLiveDataPOITypes)
-      return wantedLiveDataPOITypes.indexOf(poiTypes[`${x.Key}`]) >= 0;
-    }).map(async (ride) => {
-      let queue = queueType.standBy;
-      let status = statusType.operating;
-      let postWaitTime = Math.max(0, ride.Value);
-      // figure out ride status and wait time based on ride.Value
-      //  generally anything &lt; 0 is a special case
-      switch (ride.Value) {
-        case -50:
-          // wait time unknown
-          //  app just displays nothing for the ride status when -50
-          postWaitTime = null;
-          break;
-        case -9:
-          // this is a virtual line update, so bail out
-          queue = queueType.returnTime;
-          break;
-        case -8:
-          // "coming soon"
-          status = statusType.closed;
-          postWaitTime = null;
-          break;
-        case -7:
-          // "ride now"
-          //  fallthrough to default "operating" state
-          break;
-        case -6:
-        // not open yet
-        case -5:
-          // "at capactity"
-          status = statusType.closed;
-          postWaitTime = null;
-          break;
-        case -4:
-        // bad weather
-        case -2:
-          // "Delayed"
-          status = statusType.down;
-          postWaitTime = null;
-          break;
-        case -1:
-        // not open yet (too early)
-        case -3:
-          // closed, but expected to open during operating hours as normal
-          status = statusType.closed;
-          postWaitTime = null;
-          break;
+    const findOrCreateLiveData = (id) => {
+      let liveData = returnLiveData.find((x) => x._id === id);
+      if (!liveData) {
+        liveData = {
+          _id: `${id}`,
+          status: statusType.closed,
+          queue: {},
+        };
+        returnLiveData.push(liveData);
       }
+      return liveData;
+    };
 
-      const data = {
-        _id: ride.Key.toString(),
-        status,
-      };
+    // start with virtual queues
+    for (const vQueue of vQueueData) {
+      if (vQueue.IsEnabled) {
+        // hurray! we found some vqueue data in the state object
+        //  and it's enabled!
 
-      data.queue = {};
-      if (queue == queueType.standBy) {
-        data.queue[queueType.standBy] = {
-          waitTime: postWaitTime,
+        // get details about this queue
+        const vQueueFetchedData = await this._fetchVirtualQueueStateForRide(vQueue.Id);
+
+        // find and return the earliest appointment time available
+        const nextSlot = vQueueFetchedData.AppointmentTimes.reduce((p, x) => {
+          const startTime = moment.tz(x.StartTime, this.config.timezone);
+          if (p === undefined || startTime.isBefore(p.startTime)) {
+            const endTime = moment.tz(x.EndTime, this.config.timezone);
+            return {
+              startTime,
+              endTime,
+            };
+          }
+          return p;
+        }, undefined);
+
+        const liveDataObject = findOrCreateLiveData(vQueue.QueueEntityId);
+
+        liveDataObject.queue[queueType.returnTime] = {
+          returnStart: nextSlot === undefined ? null : nextSlot.startTime.format(),
+          returnEnd: nextSlot === undefined ? null : nextSlot.endTime.format(),
+          // TODO - can we tell the difference between temporarily full and finished for the day?
+          state: nextSlot === undefined ? returnTimeState.temporarilyFull : returnTimeState.available,
         };
       }
+    }
 
-      if (queue == queueType.returnTime &amp;&amp; !!vQueueData) {
-        // look for vqueue data for this attraction
-        const vQueue = vQueueData.find((x) => x.QueueEntityId === ride.Key);
+    // loop over standby/single-rider queues
+    waittime.forEach((attraction) => {
+      if (!attraction || !attraction.queues) return;
 
-        if (vQueue &amp;&amp; vQueue.IsEnabled) {
-          // hurray! we found some vqueue data in the state object
-          //  and it's enabled!
+      let attractionLiveDataObject = null;
+      let attractionHasOperatingQueue = false;
 
-          // get details about this queue
-          const vQueueFetchedData = await this._fetchVirtualQueueStateForRide(vQueue.Id);
+      attraction.queues.forEach((queue) => {
+        const rideIdObj = queue.alternate_ids.find((x) => {
+          return x.system_name == 'POI';
+        });
 
-          // find and return the earliest appointment time available
-          const nextSlot = vQueueFetchedData.AppointmentTimes.reduce((p, x) => {
-            const startTime = moment.tz(x.StartTime, this.config.timezone);
-            if (p === undefined || startTime.isBefore(p.startTime)) {
-              const endTime = moment.tz(x.EndTime, this.config.timezone);
-              return {
-                startTime,
-                endTime,
-              };
-            }
-            return p;
-          }, undefined);
+        if (!rideIdObj) return;
+        const rideId = rideIdObj.system_id;
 
-          data.queue[queueType.returnTime] = {
-            returnStart: nextSlot === undefined ? null : nextSlot.startTime.format(),
-            returnEnd: nextSlot === undefined ? null : nextSlot.endTime.format(),
-            // TODO - can we tell the difference between temporarily full and finished for the day?
-            state: nextSlot === undefined ? returnTimeState.temporarilyFull : returnTimeState.available,
-          };
+        if (!attractionLiveDataObject) {
+          attractionLiveDataObject = findOrCreateLiveData(rideId);
         }
-      }
 
-      return data;
-    }).filter((x) => !!x));
+        switch (queue.queue_type) {
+          case 'STANDBY':
+            if (queue.status == 'OPEN') {
+              // valid statuses: OPENS_AT, OPEN, CLOSED, ...
+              attractionLiveDataObject.queue[queueType.standBy] = {
+                waitTime: queue.display_wait_time,
+              };
 
-    // TODO - add show times
-    const showtimes = await this._getFilteredShows();
-    showtimes.forEach((show) => {
-      liveData.push({
-        _id: show.Id.toString(),
-        // TODO - how do we tell the difference between a show that's not running, an "all day" show, and a show that's closed?
-        status: statusType.operating,
-        showtimes: show.StartDateTimes.map((x) => {
-          const timeObj = moment.tz(x, this.config.timezone);
-          if (timeObj.isBefore(this.getTimeNowMoment())) {
-            return null;
-          }
-          return {
-            // TODO - filter out shows that were over an hour in the past?
-            type: "Performance Time",
-            startTime: timeObj.format(),
-            endTime: timeObj.format(),
-          };
-        }).filter((x) => !!x),
+              // mark that we have a valid operating queue, so the attraction is open
+              if (queue.status == 'OPEN') {
+                attractionHasOperatingQueue = true;
+              }
+            }
+
+            if (queue.status == 'OPENS_AT' &amp;&amp; queue.opens_at) {
+              // add operatingHours entry for this queue if we have it
+              if (!attractionLiveDataObject.operatingHours) {
+                attractionLiveDataObject.operatingHours = [];
+              }
+              // TODO - look for existing operating hours and merge them
+              attractionLiveDataObject.operatingHours.push({
+                type: "OPERATING",
+                startTime: queue.opens_at,
+                endTime: null,
+              });
+            }
+
+            // DEBUG - gather various potential queue status types
+            if (queue.status != 'OPEN' &amp;&amp; queue.status != 'OPENS_AT' &amp;&amp; queue.status != 'CLOSED') {
+              console.error("Unknown queue status", queue.status, "for", attraction.name, "queue", queue.queue_type, "status", queue.status, "wait", queue.display_wait_time, "rideId", rideId, "attractionLiveDataObject", attractionLiveDataObject, "attractionHasOperatingQueue", attractionHasOperatingQueue, "queue", queue);
+              debugger;
+            }
+
+            break;
+          case 'SINGLE':
+            // valid statuses: CLOSED, AT_CAPACITY, ...
+            if (queue.status == 'OPEN' &amp;&amp; attraction.has_single_rider) {
+              // TODO - single rider queues
+              /*
+              attractionLiveDataObject.queue[queueType.singleRider] = {
+                waitTime: queue.wait_time,
+              };
+              attractionHasOperatingQueue = true;
+              */
+            } // ignore AT_CAPACITY, CLOSED
+
+            break;
+          default:
+            this.log(`Unknown queue type ${queue.queue_type}`);
+            break;
+        }
       });
+
+      // TODO - maintenance/refurb status?
+      if (attractionLiveDataObject) {
+        attractionLiveDataObject.status = attractionHasOperatingQueue ? statusType.operating : statusType.closed;
+      }
     });
 
-    return liveData;
+    // add show times
+    const showtimes = await this._getFilteredShows();
+    showtimes.forEach((show) => {
+      const showEntry = findOrCreateLiveData(show.Id.toString());
+      showEntry.status = statusType.operating;
+      showEntry.showtimes = show.StartDateTimes.map((x) => {
+        const timeObj = moment.tz(x, this.config.timezone);
+        if (timeObj.isBefore(this.getTimeNowMoment())) {
+          return null;
+        }
+        return {
+          // TODO - filter out shows that were over an hour in the past?
+          type: "Performance Time",
+          startTime: timeObj.format(),
+          endTime: timeObj.format(),
+        };
+      }).filter((x) => !!x);
+    });
+
+    return returnLiveData;
   }
 
   /**
@@ -630,6 +651,7 @@ export class UniversalOrlando extends UniversalResortBase {
     options.city = options.city || 'orlando';
     options.timezone = options.timezone || 'America/New_York';
     options.resortSlug = options.resortSlug || 'universalorlando';
+    options.resortKey = options.resortKey || 'uor';
 
     super(options);
   }
@@ -644,6 +666,7 @@ export class UniversalStudios extends UniversalResortBase {
     options.city = options.city || 'hollywood';
     options.timezone = options.timezone || 'America/Los_Angeles';
     options.resortSlug = options.resortSlug || 'universalstudios';
+    options.resortKey = options.resortKey || 'ush';
 
     super(options);
   }
@@ -662,7 +685,7 @@ export class UniversalStudios extends UniversalResortBase {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.1</a> on Sun Apr 14 2024 07:38:03 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.1</a> on Sun Apr 14 2024 12:15:29 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
