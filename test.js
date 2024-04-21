@@ -6,7 +6,7 @@ import {promises as fs} from 'fs';
 
 const __dirname = path.dirname(process.argv[1]);
 
-const destination = new parksapi.destinations.WorldsOfFun();
+const destination = new parksapi.destinations.WalibiHolland();
 
 const logSuccess = (...msg) => {
   // print green tick
@@ -272,6 +272,16 @@ async function TestDestination() {
   // write all live data to file
   const liveDataFile = path.join(__dirname, 'testout_LiveData.json');
   await fs.writeFile(liveDataFile, JSON.stringify(liveData, null, 4));
+
+  // check for custom test functions
+  //  reflect all functions in the destination object
+  //  check for any functions starting with "unittest_"
+  //  call each function
+  const customTests = Object.getOwnPropertyNames(Object.getPrototypeOf(destination)).filter((x) => x.startsWith('unittest_'));
+  for (const test of customTests) {
+    console.log(`Running custom test: ${test}`);
+    await destination[test](logSuccess, logError);
+  }
 }
 
 const run = async () => {
