@@ -46,7 +46,7 @@
     "levelup": "^5.1.1",
     "lmdb": "^2.5.2",
     "memdown": "^5.1.0",
-    "mingo": "^3.0.6",
+    "mingo": "^6.4.15",
     "moment-timezone": "^0.5.31",
     "needle": "^2.5.0",
     "node-fetch": "^3.1.1",
