@@ -1,6 +1,6 @@
 # ThemeParks.wiki Parks API
 
-![Unit Test](https://github.com/ThemeParks/parksapi/workflows/Unit%20Test/badge.svg) ![Documentation Build](https://github.com/ThemeParks/parksapi/workflows/ESDoc/badge.svg)
+[![Unit Test](https://github.com/ThemeParks/parksapi/actions/workflows/unit_test.js.yml/badge.svg)](https://github.com/ThemeParks/parksapi/actions/workflows/unit_test.js.yml) [![pages-build-deployment](https://github.com/ThemeParks/parksapi/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/ThemeParks/parksapi/actions/workflows/pages/pages-build-deployment)
 
 [API Documentation](https://themeparks.github.io/parksapi/)
 
