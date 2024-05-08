@@ -17,3 +17,4 @@ scan.js
 scans/
 debug_cache/
 testout_*
+datacache/
