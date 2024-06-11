@@ -37,7 +37,7 @@
   "dependencies": {
     "ajv": "^6.12.6",
     "cheerio": "^1.0.0-rc.10",
-    "dotenv": "^8.2.0",
+    "dotenv": "^16.4.5",
     "egoroof-blowfish": "^4.0.1",
     "fetch-cookie": "^3.0.1",
     "hpagent": "^1.2.0",
