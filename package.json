@@ -42,7 +42,7 @@
     "fetch-cookie": "^3.0.1",
     "hpagent": "^1.2.0",
     "json-diff": "^0.5.4",
-    "leveldown": "^5.4.1",
+    "leveldown": "^6.1.1",
     "levelup": "^5.1.1",
     "lmdb": "^2.5.2",
     "memdown": "^6.1.1",
