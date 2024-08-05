@@ -44,7 +44,7 @@
     "json-diff": "^0.5.4",
     "leveldown": "^5.4.1",
     "levelup": "^5.1.1",
-    "lmdb": "^2.5.2",
+    "lmdb": "^3.0.13",
     "memdown": "^6.1.1",
     "mingo": "^6.4.15",
     "moment-timezone": "^0.5.31",
