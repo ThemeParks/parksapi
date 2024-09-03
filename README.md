@@ -2,6 +2,21 @@
 
 [![Unit Test](https://github.com/ThemeParks/parksapi/actions/workflows/unit_test.js.yml/badge.svg)](https://github.com/ThemeParks/parksapi/actions/workflows/unit_test.js.yml) [![pages-build-deployment](https://github.com/ThemeParks/parksapi/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/ThemeParks/parksapi/actions/workflows/pages/pages-build-deployment)
 
+## Sponsored By
+
+<div style="display: flex; align-items: center;">
+  <a href="https://www.queue-times.com/">
+    <img src="https://themeparks.wiki/sponsors/queuetimes.png" alt="QueueTimes" width="40" style="margin-right: 10px;"/>
+  </a>
+  <span>
+    <a href="https://www.queue-times.com/">
+      Queue Times
+    </a>
+  </span>
+</div>
+
+## ThemeParks.wiki API
+
 [API Documentation](https://themeparks.github.io/parksapi/)
 
 This is a backend module to fetch and query live data for themeparks. This source code powers the free-to-use API at [ThemeParks.wiki](https://themeparks.wiki)
