@@ -6,7 +6,7 @@ import {promises as fs} from 'fs';
 
 const __dirname = path.dirname(process.argv[1]);
 
-const destination = new parksapi.destinations.WalibiHolland();
+const destination = new parksapi.destinations.UniversalStudiosBeijing();
 
 const logSuccess = (...msg) => {
   // print green tick
@@ -28,6 +28,7 @@ const _requiredFields = [
   '_id',
   'name',
   'entityType',
+  'location',
 ];
 
 const requiredFields = {
@@ -237,6 +238,9 @@ async function TestDestination() {
   } else {
     logSuccess(`No entity slugs are duplicated`);
   }
+
+  // sort entities by _id
+  allEntities.sort((a, b) => a._id.localeCompare(b._id));
 
   // write all entities to a file
   const entityDataFile = path.join(__dirname, 'testout_Entities.json');
