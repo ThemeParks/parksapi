@@ -277,6 +277,11 @@ async function TestDestination() {
   const liveDataFile = path.join(__dirname, 'testout_LiveData.json');
   await fs.writeFile(liveDataFile, JSON.stringify(liveData, null, 4));
 
+  // TODO - test all entities, if their _parentId is a PARK, they should have a _parkId
+  // TODO - find all park entity IDs
+  // TODO - find all entities that have a park as a _parentId
+  // TODO - error if they don't have a _parkId matching their _parentId
+
   // check for custom test functions
   //  reflect all functions in the destination object
   //  check for any functions starting with "unittest_"
