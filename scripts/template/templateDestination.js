@@ -86,7 +86,6 @@ export class TemplateDestination extends Destination {
         _id: 'parkId',
         _destinationId: 'resortId',
         _parentId: 'resortId',
-        slug: 'parkSlug',
         name: this.config.name,
         entityType: entityType.park,
       }

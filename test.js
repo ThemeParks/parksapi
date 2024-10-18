@@ -6,7 +6,7 @@ import {promises as fs} from 'fs';
 
 const __dirname = path.dirname(process.argv[1]);
 
-const destination = new parksapi.destinations.EuropaPark();
+const destination = new parksapi.destinations.UniversalStudiosBeijing();
 
 const logSuccess = (...msg) => {
   // print green tick
@@ -28,6 +28,7 @@ const _requiredFields = [
   '_id',
   'name',
   'entityType',
+  'location',
 ];
 
 const requiredFields = {
@@ -98,6 +99,19 @@ function TestEntity(ent) {
       throw new EntityError(`${field} is required`, ent);
     }
   }
+
+  if (entityType == "DESTINATION") {
+    // destination must not have a parentId or destinationId
+    if (ent._parentId) {
+      throw new EntityError('destination must not have a parentId', ent);
+    }
+    if (ent._destinationId) {
+      throw new EntityError('destination must not have a destinationId', ent);
+    }
+    if (ent._parkId) {
+      throw new EntityError('destination must not have a parkId', ent);
+    }
+  }
 }
 
 function TestLiveData(data, ents) {
@@ -120,6 +134,8 @@ function TestLiveData(data, ents) {
   const ent = ents.find((x) => x._id === data._id);
   if (!ent) {
     logError(`Missing entity ${data._id} for livedata: ${JSON.stringify(data)}`);
+  } else {
+    data._name = ent.name;
   }
 
   // logSuccess(`${data._id}: ${JSON.stringify(data)}`);
@@ -161,9 +177,9 @@ function TestSchedule(scheduleData, entityId) {
 
   }
 
-  // check we have some schedule data for the next month
+  // check we have some schedule data for the next 2 months
   const now = moment();
-  const nextMonth = moment().add(1, 'month');
+  const nextMonth = moment().add(2, 'month');
   let schedulesForNextMonth = 0;
   let scheduleDays = 0;
   for (const date = now.clone(); date.isBefore(nextMonth); date.add(1, 'day')) {
@@ -175,7 +191,7 @@ function TestSchedule(scheduleData, entityId) {
   }
 
   if (schedulesForNextMonth === 0) {
-    throw new EntityError(`No schedule data found for next month for ${entityId}`);
+    throw new EntityError(`No schedule data found for next 2 months for ${entityId}`);
   }
 
   logSuccess(`${entityId}: ${schedulesForNextMonth} schedules found for next month [${scheduleDays} days]`);
@@ -223,6 +239,9 @@ async function TestDestination() {
     logSuccess(`No entity slugs are duplicated`);
   }
 
+  // sort entities by _id
+  allEntities.sort((a, b) => a._id.localeCompare(b._id));
+
   // write all entities to a file
   const entityDataFile = path.join(__dirname, 'testout_Entities.json');
   await fs.writeFile(entityDataFile, JSON.stringify(allEntities, null, 4));
@@ -257,6 +276,21 @@ async function TestDestination() {
   // write all live data to file
   const liveDataFile = path.join(__dirname, 'testout_LiveData.json');
   await fs.writeFile(liveDataFile, JSON.stringify(liveData, null, 4));
+
+  // TODO - test all entities, if their _parentId is a PARK, they should have a _parkId
+  // TODO - find all park entity IDs
+  // TODO - find all entities that have a park as a _parentId
+  // TODO - error if they don't have a _parkId matching their _parentId
+
+  // check for custom test functions
+  //  reflect all functions in the destination object
+  //  check for any functions starting with "unittest_"
+  //  call each function
+  const customTests = Object.getOwnPropertyNames(Object.getPrototypeOf(destination)).filter((x) => x.startsWith('unittest_'));
+  for (const test of customTests) {
+    console.log(`Running custom test: ${test}`);
+    await destination[test](logSuccess, logError);
+  }
 }
 
 const run = async () => {
