@@ -6,7 +6,7 @@ import {promises as fs} from 'fs';
 
 const __dirname = path.dirname(process.argv[1]);
 
-const destination = new parksapi.destinations.UniversalStudiosBeijing();
+const destination = new parksapi.destinations.PaultonsPark();
 
 const logSuccess = (...msg) => {
   // print green tick
@@ -112,6 +112,20 @@ function TestEntity(ent) {
       throw new EntityError('destination must not have a parkId', ent);
     }
   }
+
+  // if our entity has a parentId, and that entity is a park, we should have a parkId too
+  if (entityType != "DESTINATION" && entityType != "PARK") {
+    if (ent._parentId) {
+      const parent = parkEntities.find((x) => x._id === ent._parentId);
+      if (parent.entityType === 'PARK') {
+        if (!ent._parkId) {
+          throw new EntityError('Entity has a park as their parent, but not assigned a _parkId', ent);
+        }
+      }
+    } else {
+      throw new EntityError('Missing parentId', ent);
+    }
+  }
 }
 
 function TestLiveData(data, ents) {
@@ -199,10 +213,19 @@ function TestSchedule(scheduleData, entityId) {
   // console.log(entSchedule.schedule);
 }
 
+// track park entities for later testing
+const parkEntities = [];
+
 async function TestDestination() {
   const destinations = [].concat(await destination.buildDestinationEntity());
   for (const dest of destinations) {
     TestEntity(dest);
+  }
+
+  const _parkEntities = await destination.getParkEntities();
+  for (const park of _parkEntities) {
+    parkEntities.push(park);
+    TestEntity(park);
   }
 
   const allEntities = await destination.getAllEntities();
