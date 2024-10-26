@@ -6,7 +6,7 @@ import {promises as fs} from 'fs';
 
 const __dirname = path.dirname(process.argv[1]);
 
-const destination = new parksapi.destinations.PaultonsPark();
+const destination = new parksapi.destinations.LotteWorld();
 
 const logSuccess = (...msg) => {
   // print green tick
