@@ -5,7 +5,7 @@
   "description": "",
   "engines": {
     "npm": ">=6",
-    "node": ">=14"
+    "node": ">=22"
   },
   "main": "lib/index.js",
   "exports": {
@@ -18,11 +18,12 @@
     "./tags": "./lib/parks/tags.js"
   },
   "scripts": {
-    "test": "npm run lint && npm run mocha",
+    "test": "npm run lint && npm run --experimental-sqlite mocha",
     "docs": "./node_modules/.bin/jsdoc -c .jsdoc.json -R README.md",
     "mocha": "mocha",
     "lint": "eslint ./lib/**/*.js",
-    "lintfix": "eslint ./lib/**/*.js --fix"
+    "lintfix": "eslint ./lib/**/*.js --fix",
+    "dev": "node --experimental-sqlite ./test.js"
   },
   "repository": {
     "type": "git",
@@ -35,6 +36,7 @@
   },
   "homepage": "https://github.com/ThemeParks/parksapi#readme",
   "dependencies": {
+    "adm-zip": "^0.5.16",
     "ajv": "^6.12.6",
     "cheerio": "^1.0.0",
     "dotenv": "^16.4.5",
