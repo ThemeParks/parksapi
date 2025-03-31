@@ -96,6 +96,7 @@ Setup `index.js` with your new class, and edit `test.js` to test your destinatio
 * HolidayPark
 * Bellewaerde
 * WalibiHolland
+* WalibiBelgium
 * HeidePark
 * Liseberg
 * CedarPoint
@@ -532,5 +533,11 @@ KNOEBELS_BASEURL
 KNOEBELS_DEVICEIDENTIFIER
 KNOEBELS_APIKEY
 KNOEBELS_CALENDARURL
+WALIBIBELGIUM_APIKEY
+WALIBIBELGIUM_BASEURL
+WALIBIBELGIUM_DESTINATIONSLUG
+WALIBIBELGIUM_PARKSLUG
+WALIBIBELGIUM_APISHORTCODE
+WALIBIBELGIUM_CULTURE
 ```
 <!-- END_ENV -->
