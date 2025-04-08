@@ -10,6 +10,7 @@
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
+    "./destination": "./lib/parks/destination.js",
     "./park": "./lib/parks/park.js",
     "./parkTypes": "./lib/parks/parkTypes.js",
     "./cache/": "./lib/cache/",
