@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>parks/herschend/herschendparks.js - Documentation</title>
+    <title>parks/parquesreuindos/parquesreunidos.js - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -35,7 +35,7 @@
 
 <div id="main">
     
-    <h1 class="page-title">parks/herschend/herschendparks.js</h1>
+    <h1 class="page-title">parks/parquesreuindos/parquesreunidos.js</h1>
     
 
     
@@ -47,104 +47,86 @@
         <article>
             <pre class="prettyprint source linenums"><code>import {Destination} from '../destination.js';
 import {attractionType, statusType, queueType, tagType, scheduleType, entityType} from '../parkTypes.js';
+import * as cheerio from 'cheerio';
 import moment from 'moment-timezone';
 
-export class HerschendDestination extends Destination {
+// cultures in a rough priority order
+//  destinations can override the default culture
+//  by setting the preferredCulture property
+const cultures = [
+  'en',
+  'nl',
+  'de',
+  'fr',
+  'es',
+  'it',
+];
+
+export class ParcsReunidosDestination extends Destination {
   constructor(options = {}) {
-    options.timezone = options.timezone || 'America/New_York';
+    options.timezone = options.timezone || 'Europe/Brussels';
 
-    // we have multiple Herschend parks, so we need to set the resortId
-    options.destinationId = options.destinationId || '';
-    // slug to use for this destination
-    options.destinationSlug = options.destinationSlug || '';
+    // options.apiKey = options.apiKey || '';
+    options.appId = options.appId || '';
+    options.baseURL = options.baseURL || 'https://api-manager.stay-app.com';
+    options.authToken = options.authToken || '';
+    options.stayEstablishment = options.stayEstablishment || '';
+    options.calendarURL = options.calendarURL || '';
 
-    // base URL for live data API
-    options.apiBase = options.apiBase || '';
+    options.preferredCulture = options.preferredCulture || cultures[0];
 
-    // base URL for the CRM API
-    options.crmBaseURL = options.crmBaseURL || '';
-    // auth credentials for accessing the CRM API
-    options.crmAuth = options.crmAuth || '';
-    // guid for this destination's calendar and POI data
-    options.crmGUID = options.crmGUID || '';
-    // categories for POI data
-    options.crmAttractionsId = options.crmAttractionsId || '';
-    options.crmDiningId = options.crmDiningId || '';
-    options.crmShowId = options.crmShowId || '';
-
-    // allow configuring all herschend parks with the HERSCHEND prefix env var
-    options.configPrefixes = options.configPrefixes || ['HERSCHEND'];
-
-    options.cacheVersion = options.cacheVersion || '1';
-
-    //Geolocation datas
-    options.latitude = options.latitude || '';
-    options.longitude = options.longitude || '';
+    // allow all stayapp destinations to share the same config
+    options.configPrefixes = ['STAYAPP'];
 
     super(options);
 
-    if (!this.config.destinationId) throw new Error('Missing destinationId');
-    if (!this.config.destinationSlug) throw new Error('Missing destinationSlug');
-    if (!this.config.apiBase) throw new Error('HerschendDestination requires an apiBase');
-    if (!this.config.crmBaseURL) throw new Error('Missing crmBaseURL');
-    if (!this.config.crmAuth) throw new Error('Missing crmAuth');
-    if (!this.config.crmGUID) throw new Error('Missing crmGUID');
-    if (!this.config.crmAttractionsId) throw new Error('Missing crmAttractionsId');
-    if (!this.config.crmDiningId) throw new Error('Missing crmDiningId');
-    if (!this.config.crmShowId) throw new Error('Missing crmShowId');
+    // if (!this.config.apiKey) throw new Error('Missing apiKey');
+    if (!this.config.appId) throw new Error('Missing appId');
+    if (!this.config.authToken) throw new Error('Missing authToken');
+    if (!this.config.stayEstablishment) throw new Error('Missing stayEstablishment');
+    if (!this.config.calendarURL) throw new Error('Missing calendarURL');
 
-    this.config.parkId = this.config.parkId || `${this.config.destinationSlug}park`;
-
-    // inject into CRM API requests
-    const crmURLHostname = new URL(this.config.crmBaseURL).hostname;
+    const baseURLHostname = new URL(this.config.baseURL).hostname;
     this.http.injectForDomain({
-      hostname: crmURLHostname,
+      hostname: baseURLHostname,
     }, async (method, url, data, options) => {
-      // add our auth credentials to the request
-      options.headers = {
-        ...options.headers,
-        authorization: `Basic ${this.config.crmAuth}`,
-      };
+      // inject our auth token into all requests to this domain
+      options.headers = options.headers || {};
 
-      options.json = true;
+      const token = await this.getAuthToken();
+      if (!token) {
+        throw new Error('Error getting API key');
+      }
+
+      options.headers['Authorization'] = 'Bearer ' + token;
+      options.headers['Stay-Establishment'] = this.config.stayEstablishment;
     });
   }
 
-  /**
-   * Get raw wait times data
-   */
-  async getWaitTimes() {
-    '@cache|1'; // cache for 1 minute
-    const resp = await this.http(`${this.config.apiBase}waitTimes/${this.config.destinationId}`);
-    return resp.body;
+
+  /** Get the auth token needed for the API */
+  async getAuthToken() {
+    return this.config.authToken;
   }
 
-  /**
-   * Get raw food wait times data
-   */
-  async getFoodWaitTimes() {
-    '@cache|1'; // cache for 1 minute
-    const resp = await this.http(`${this.config.apiBase}foodServiceWaitTimes/${this.config.destinationId}`);
-    return resp.body;
-  }
+  /** Helper function to get the preferred culture from an object of translated strings */
+  _getPreferredCulture(obj, fallback = '') {
+    // if obj is string, return it
+    if (typeof obj === 'string') {
+      return obj;
+    }
 
-  /**
-   * Get raw train times data
-   */
-  async getTrainTimes() {
-    '@cache|1'; // cache for 1 minute
-    const resp = await this.http(`${this.config.apiBase}trainServiceSchedules/${this.config.destinationId}`);
-    return resp.body;
-  }
+    if (obj[this.config.preferredCulture]) {
+      return obj[this.config.preferredCulture];
+    }
 
-  /**
-   * Get raw attraction POI data
-   */
-  async getPOIData() {
-    // cache for 12 hours
-    '@cache|720';
-    const resp = await this.http(`${this.config.crmBaseURL}api/park/activitiesbypark/${this.config.crmGUID}`);
-    return resp.body;
+    for (const culture of cultures) {
+      if (obj[culture]) {
+        return obj[culture];
+      }
+    }
+
+    return fallback;
   }
 
   /**
@@ -157,125 +139,121 @@ export class HerschendDestination extends Destination {
     const entity = Destination.prototype.buildBaseEntityObject.call(this, data);
 
     if (data) {
-      entity._tags = [];
+      entity._id = `${data.id}`;
 
-      if (data.id) {
-        entity._id = data.id;
-      }
+      entity.name = this._getPreferredCulture(data.translatableName, 'unknown_' + entity.id);
 
-      // geo location
-      if (data.mapLocation &amp;&amp; data.mapLocation.latitude &amp;&amp; data.mapLocation.longitude) {
-        if (!entity.location) entity.location = {};
-        entity.location.longitude = Number(data.mapLocation.longitude);
-        entity.location.latitude = Number(data.mapLocation.latitude);
-      }
-
-      if (data.longitudeForDirections) {
-        if (!entity.location) entity.location = {};
-        entity.location.longitude = Number(data.longitudeForDirections);
-      }
-      if (data.latitudeForDirections) {
-        if (!entity.location) entity.location = {};
-        entity.location.latitude = Number(data.latitudeForDirections);
-      }
-
-      // entity name
-      if (data.title) {
-        entity.name = data.title;
-      }
-
-      if (data.heightRequirement &amp;&amp; data.heightRequirement.minHeight > 0) {
-        // convert from inches to cm
-        const minHeightInCm = Math.floor(Number(data.heightRequirement.minHeight) * 2.54);
-
-        entity._tags.push({
-          id: 'minimumHeight',
-          value: minHeightInCm,
-        });
+      if (data.place &amp;&amp; data.place.point) {
+        entity.location = {
+          latitude: data.place.point.latitude,
+          longitude: data.place.point.longitude,
+        }
       }
     }
 
+    // fill in entity heirarchy
+    entity._destinationId = this._getDestinationID();
+    entity._parkId = this._getParkID();
+    entity._parentId = this._getParkID();
+
+    entity.timezone = this.config.timezone;
+
     return entity;
+  }
+
+  _getDestinationID() {
+    return 'parquesreunidos_' + this.config.appId;
+  }
+
+  _getParkID() {
+    return 'parquesreunidos_' + this.config.appId + '_park';
+  }
+
+  async _getParkLocation() {
+    const parkData = await this._fetchParkInfo();
+
+    if (parkData.coordinates &amp;&amp; parkData.coordinates.latitude &amp;&amp; parkData.coordinates.longitude) {
+      return {
+        latitude: parkData.coordinates.latitude,
+        longitude: parkData.coordinates.longitude,
+      };
+    }
+    return undefined;
   }
 
   /**
    * Build the destination entity representing this destination
    */
   async buildDestinationEntity() {
-    const doc = {};
-    return {
-      ...this.buildBaseEntityObject(doc),
-      _id: this.config.destinationSlug,
-      slug: this.config.destinationSlug,
-      name: this.config.name,
+    const parkData = await this._fetchParkInfo();
+
+    const destinationObj = {
+      _id: this._getDestinationID(),
+      // remove any non-alphanumeric characters
+      slug: parkData.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase(),
+      name: parkData.name,
       entityType: entityType.destination,
+      timezone: this.config.timezone,
+      location: await this._getParkLocation(),
     };
+
+    return destinationObj;
   }
 
   /**
    * Build the park entities for this destination
    */
   async buildParkEntities() {
+    const parkData = await this._fetchParkInfo();
+
     return [
       {
-        ...this.buildBaseEntityObject(null),
-        _id: this.config.parkId,
-        _destinationId: this.config.destinationSlug,
-        _parentId: this.config.destinationSlug,
-        name: this.config.name,
-        slug: this.config.parkId,
+        _id: this._getParkID(),
+        _destinationId: this._getDestinationID(),
+        _parentId: this._getDestinationID(),
+        name: parkData.name,
         entityType: entityType.park,
-        location: {
-          longitude: this.config.longitude,
-          latitude: this.config.latitude
-        }
+        timezone: this.config.timezone,
+        location: await this._getParkLocation(),
       }
     ];
   }
 
-  /**
-   * Helper function to filter POI data for a chosen category GUID
-   * @param {string} category 
-   * @returns {array}
-   */
-  async getPOIForCategory(category, filterSeasonal = true) {
-    const poiData = await this.getPOIData();
+  async _fetchParkInfo() {
+    '@cache|12h'; // cache for 12 hours
+    const resp = await this.http('GET', `${this.config.baseURL}/api/v1/establishment/${this.config.appId}`);
 
-    const now = this.getTimeNowMoment();
+    return resp.body.data;
+  }
 
-    return poiData.activities.filter((x) => {
-      if (x.activityListId !== category) return false;
+  async _fetchAttractions() {
+    '@cache|1m'; // cache for 1 minute
+    const resp = await this.http('GET', `${this.config.baseURL}/api/v1/service/attraction`);
 
-      // check seasonality
-      if (filterSeasonal) {
-        if (x.seasonalStartDate) {
-          const startDate = moment(x.seasonalStartDate);
-          if (startDate.isAfter(now)) return false;
-        }
-        if (x.seasonalEndDate) {
-          const endDate = moment(x.seasonalEndDate);
-          if (endDate.isBefore(now)) return false;
-        }
-      }
+    return resp.body.data;
+  }
 
-      return true;
-    });
+  async _fetchRestaurants() {
+    '@cache|12h'; // cache for 12 hours
+    const resp = await this.http('GET', `${this.config.baseURL}/api/v1/service/restaurant`);
+
+    return resp.body.data;
   }
 
   /**
    * Build the attraction entities for this destination
    */
   async buildAttractionEntities() {
-    const attrs = await this.getPOIForCategory(this.config.crmAttractionsId, false);
+    const poiData = await this._fetchAttractions();
 
-    return attrs.map((x) => {
+    return poiData.filter((x) => {
+      // filter out any attractions we don't want
+      return true;
+    }).map((x) => {
       return {
         ...this.buildBaseEntityObject(x),
         entityType: entityType.attraction,
         attractionType: attractionType.ride,
-        _destinationId: this.config.destinationSlug,
-        _parkId: this.config.parkId,
-        _parentId: this.config.parkId,
       };
     });
   }
@@ -285,116 +263,66 @@ export class HerschendDestination extends Destination {
    */
   async buildShowEntities() {
     return [];
-
-    const attrs = await this.getPOIForCategory(this.config.crmShowId, true);
-
-    return attrs.map((x) => {
-      return {
-        ...this.buildBaseEntityObject(x),
-        entityType: entityType.show,
-        _destinationId: this.config.destinationSlug,
-        _parkId: this.config.parkId,
-        _parentId: this.config.parkId,
-      };
-    });
   }
 
   /**
    * Build the restaurant entities for this destination
    */
   async buildRestaurantEntities() {
-    const attrs = await this.getPOIForCategory(this.config.crmDiningId, false);
-
-    return attrs.map((x) => {
-      return {
-        ...this.buildBaseEntityObject(x),
-        entityType: entityType.restaurant,
-        _destinationId: this.config.destinationSlug,
-        _parkId: this.config.parkId,
-        _parentId: this.config.parkId,
-      };
-    });
+    return [];
   }
 
   /**
    * @inheritdoc
    */
   async buildEntityLiveData() {
-    // get all the data we need
-    const liveData = await this.getWaitTimes();
-    const poiData = await this.getPOIData();
+    const attractionData = await this._fetchAttractions();
 
-    return liveData.map((x) => {
-      // find matching poiData for this live data
-      const rideId = `${x.rideId}`;
-      const poi = poiData.activities.find((y) => `${y.rideWaitTimeRideId}` === rideId);
-      if (!poi) return null;
+    return attractionData.filter((x) => {
+      // filter out any attractions we don't want
+      return true;
+    }).map((x) => {
+      if (x.waitingTime === undefined) {
+        return null;
+      }
 
-      const data = {
-        _id: poi.id,
-        status: statusType.closed,
-        queue: {},
+      const liveData = {
+        _id: `${x.id}`,
+        status: statusType.operating,
       };
 
-      if (x.operationStatus === 'CLOSED' || x.operationStatus === 'UNKNOWN') {
-        data.status = statusType.closed;
-      } else if (x.operationStatus === 'TEMPORARILY CLOSED') {
-        data.status = statusType.down;
-      } else if (x.waitTimeDisplay.includes('UNDER')) {
-        data.status = statusType.operating;
-        // Wait time is not defined if text says "Under x minutes" - we'll set the ride time to x
-        try {
-          data.queue[queueType.standBy] = {
-            waitTime: parseInt(x.waitTimeDisplay.split(' ')[1], 10),
-          };
-        } catch (e) {
-          // fallback if formatting fails
-          data.queue[queueType.standBy] = {
-            waitTime: parseInt(x.waitTime, 10) || 0,
-          };
+      if (x.waitingTime &lt; 0) {
+        if (x.waitingTime === -2) {
+          liveData.status = statusType.down;
+        } else if (x.waitingTime === -3) {
+          liveData.status = statusType.closed;
+        } else {
+          // unknown status, assume closed if &lt; 0
+          liveData.status = statusType.closed;
         }
-      } else if (x.waitTime) {
-        data.status = statusType.operating;
-        data.queue[queueType.standBy] = {
-          waitTime: parseInt(x.waitTime, 10) || 0,
+      } else {
+        liveData.queue = {
+          [queueType.standBy]: {
+            waitTime: x.waitingTime,
+          }
         };
       }
 
-      return data;
-    }).filter((x) => !!x);
+      return liveData;
+    }).filter((x) => {
+      return !!x;
+    });
   }
 
   /**
-   * Fetch startdate and the following 4 days (total 5 days) of schedule data
-   * @param {string} startDate 
-   * @returns {object}
+   * Return schedule data for all scheduled entities in this destination
+   * Eg. parks
+   * @returns {array&lt;object>}
    */
-  async fetchFiveDates(startDate) {
-    // cache for 12 hours
-    '@cache|720';
-    const resp = await this.http(`${this.config.crmBaseURL}api/park/dailyschedulebytime?parkids=${this.config.crmGUID}&amp;date=${startDate}&amp;days=5`);
+  async fetchCalendarHTML() {
+    '@cache|1d'; // cache for 1 day
+    const resp = await this.http('GET', this.config.calendarURL);
     return resp.body;
-  }
-
-  async fetchScheduleData(days = 90) {
-    // cache for 12 hours
-    '@cache|720';
-    const now = this.getTimeNowMoment();
-    const endDate = now.clone().add(days, 'days');
-    const datesToFetch = [];
-    while (now.isSameOrBefore(endDate, 'day')) {
-      datesToFetch.push(now.format('YYYY-MM-DD'));
-      now.add(5, 'day');
-    }
-
-    // fetch each date block
-    const data = [];
-    for (let i = 0; i &lt; datesToFetch.length; i++) {
-      const resp = await this.fetchFiveDates(datesToFetch[i]);
-      data.push(...resp);
-    }
-
-    return data;
   }
 
   /**
@@ -403,74 +331,139 @@ export class HerschendDestination extends Destination {
    * @returns {array&lt;object>}
    */
   async buildEntityScheduleData() {
-    const parkHours = await this.fetchScheduleData();
+    const html = await this.fetchCalendarHTML();
+    const $ = cheerio.load(html);
 
-    return [
-      {
-        _id: this.config.parkId,
-        schedule: parkHours.map((x) => {
-          // step 1: extract park hours from schedule data
-          if (x?.parkHours) {
-            return x.parkHours.find((y) => {
-              // step 2: filter out park hours that don't match our park ID
-              return y.cmsKey === this.config.crmGUID;
+    const currentYear = moment().tz(this.config.timezone).year();
+    const nextYear = currentYear + 1;
+    
+    // first get the labels data from the calendar
+    // eg. &lt;input type="hidden" id="data-hour-labels" value="[{&amp;#34;h&amp;#34;:&amp;#34;10am - 5pm&amp;#34;},{&amp;#34;b&amp;#34;:&amp;#34;10am - 6pm&amp;#34;},{&amp;#34;e&amp;#34;:&amp;#34;12pm - 8pm&amp;#34;},{&amp;#34;k&amp;#34;:&amp;#34;Movie Park\u0027s Hollywood Christmas&amp;#34;},{&amp;#34;g&amp;#34;:&amp;#34;10am - 9pm&amp;#34;},{&amp;#34;d&amp;#34;:&amp;#34;10am - 10pm&amp;#34;},{&amp;#34;r&amp;#34;:&amp;#34;Park closed&amp;#34;},{&amp;#34;n&amp;#34;:&amp;#34;Halloween Horror Festival&amp;#34;}]"/>
+    //  this is a list of labels for the opening hours
+    const hourLabels = [];
+    const labelsData = $('#data-hour-labels').val();
+    if (labelsData) {
+      try {
+        const parsedLabels = JSON.parse(labelsData);
+        for (const label of parsedLabels) {
+          // label is an object with a key and a value
+          //  we want to keep the key and the value
+          for (const key in label) {
+            // try to parse hours from label. Will be of format similar to "10am - 5pm"
+            //  if we can't parse, skip this label (special event, or closure)
+            const regex = /(\d{1,2})(am|pm)\s*-\s*(\d{1,2})(am|pm)/;
+            const match = label[key].match(regex);
+            if (match) {
+              const startHour = moment(match[1], 'h').add(match[2] === 'pm' ? 12 : 0, 'hours');
+              const endHour = moment(match[3], 'h').add(match[4] === 'pm' ? 12 : 0, 'hours');
+
+              // hack - 12pm == 12:00, not midnight
+              if (match[1] === '12' &amp;&amp; match[2] === 'pm') {
+                startHour.add(12, 'hours');
+              }
+
+              hourLabels[key] = {
+                start: startHour.format('HH:mm'),
+                end: endHour.format('HH:mm'),
+              };
+            }
+          }
+        }
+      } catch (e) {
+        this.log.error('Error parsing schedule labels data', e);
+      }
+    }
+
+    const rawData = [];
+    // parse current and next year data
+    //  data sits inside a hidden input called "data-hour-{YEAR}"
+    // eg. &lt;input type="hidden" id="data-hour-2025" value="[{&amp;#34;1&amp;#34;:&amp;#34;r&amp;#34;,&amp;#34;2&amp;#34;:&amp;#34;r&amp;#34;,&amp;#34;3&amp;#34;:&amp;#34;r&amp;#34;,&amp;#34;4&amp;#34;:&amp;
+
+    for (const year of [currentYear, nextYear]) {
+      const data = $('#data-hour-' + year).val();
+      if (data) {
+        try {
+          const parsedData = JSON.parse(data);
+          rawData.push({
+            year: year,
+            data: parsedData,
+          });
+        } catch (e) {
+          this.log.error('Error parsing schedule data for year ' + year, e);
+        }
+      }
+    }
+
+    const parkSchedules = [];
+
+    // loop through the data and build a schedule object
+    //  for each day of the year
+    for (const yearData of rawData) {
+      const year = yearData.year;
+      const monthsData = yearData.data;
+
+      // arrayindex is the month (0-11)
+      // each month is an object of keys -> label
+      monthsData.forEach((monthData, monthIndex) => {
+        // monthIndex is 0-11, so we need to add 1 to get the month number
+        const month = monthIndex + 1;
+
+        // loop through the days of the month
+        for (const day in monthData) {
+          const dayData = monthData[day];
+
+          // dayData can contain multiple keys, separated by commas
+          // split them and keep any that match the hourLabels keys
+          const keys = dayData.split(',');
+          // remove any keys that are not in hourLabels
+          const validKeys = keys.filter((key) => {
+            return hourLabels[key];
+          });
+          // if there are no valid keys, skip this day
+          if (validKeys.length === 0) {
+            continue;
+          }
+
+          // for each valid key...
+          for(const key of validKeys) {
+            // get the opening hours for this day
+            const hours = hourLabels[key];
+            if (!hours) {
+              continue;
+            }
+
+            // build date string by padding the month and day with 0s
+            const paddedMonth = String(month).padStart(2, '0');
+            const paddedDay = String(day).padStart(2, '0');
+            // build the date string
+            const dateStr = `${year}-${paddedMonth}-${paddedDay}`;
+
+            const openingTime = moment.tz(dateStr + 'T' + hours.start, 'YYYY-MM-DDTHH:mm', this.config.timezone);
+            const closingTime = moment.tz(dateStr + 'T' + hours.end, 'YYYY-MM-DDTHH:mm', this.config.timezone);
+
+            parkSchedules.push({
+              date: dateStr,
+              openingTime: openingTime.format(),
+              closingTime: closingTime.format(),
+              type: scheduleType.operating,
             });
           }
-          return null;
-        }).filter((x) => {
-          // step 3: filter out nulls
-          return !!x &amp;&amp; !!x?.from &amp;&amp; !!x?.to;
-        }).map((x) => {
-          // step 4: convert to our format
-          const from = moment.tz(x.from, this.config.timezone);
-          const to = moment.tz(x.to, this.config.timezone);
-          return {
-            date: from.format('YYYY-MM-DD'),
-            type: "OPERATING",
-            openingTime: from.format(),
-            closingTime: to.format(),
-          };
-        }),
-      }
-    ];
-  }
-}
-
-export class Dollywood extends HerschendDestination {
-  constructor(options = {}) {
-    options.timezone = "America/New_York";
-    options.name = "Dollywood";
-    options.destinationId = "1";
-    options.destinationSlug = "dollywood";
-    options.crmBaseURL = "https://www.dollywood.com/";
-
-    options.crmGUID = "e98c4ecb-550e-4f14-af2c-13f3cab1abf5";
-    options.crmAttractionsId = "96822fdb-77e5-4054-9f37-70f379f997d8";
-    options.crmDiningId = "9d3de6ae-ebb1-4cb8-9423-bee864daef3c";
-    options.crmShowId = "b9acfd27-0545-4bb2-a6e8-072fda3b06dd";
-
-    options.longitude = -83.530368
-    options.latitude = 35.794496
-
-    super(options);
-  }
-}
-
-export class SilverDollarCity extends HerschendDestination {
-  constructor(options = {}) {
-    options.timezone = "America/Chicago";
-    options.name = "Silver Dollar City";
-    options.destinationId = "2";
-    options.destinationSlug = "silverdollarcity";
-    options.crmBaseURL = "https://prodcms.silverdollarcity.com/";
+        }
+      });
+    }
     
-    options.crmGUID = "fa775492-947e-4798-b9f4-3e99c419dbb5";
-    options.crmAttractionsId = "6cbebd47-facc-4c26-b1b2-4e0da4de0e6e";
-    options.crmDiningId = "31b3a1c6-93cc-4b93-b84e-bf512afe770c";
-    options.crmShowId = "58a4e3a3-c889-4130-93d1-5ba802442444";
+    return [{
+      _id: this._getParkID(),
+      schedule: parkSchedules,
+    }];
+  }
+}
 
-    options.latitude = 36.604152;
-    options.longitude = -93.29991;
+export class MovieParkGermany extends ParcsReunidosDestination {
+  constructor(options = {}) {
+    options.name = options.name || 'Movie Park Germany';
+    options.timezone = options.timezone || 'Europe/Berlin';
+    options.calendarURL = options.calendarURL || 'https://www.movieparkgermany.de/en/oeffnungszeiten-und-preise/oeffnungszeiten';
 
     super(options);
   }
