@@ -62,6 +62,23 @@ const cultures = [
   'it',
 ];
 
+// data to be injected into the entity when it is missing from the app database
+//  if the app supplies data.[key], then this will be ignored
+const fallbackMissingData = [
+  {
+    match: {
+      _id: '177837',
+      _parkId: 'parquesreunidos_1109_park',
+    },
+    data: {
+      location: {
+        latitude: 51.20030731099587,
+        longitude: 4.906631289468816,
+      },
+    },
+  }
+];
+
 export class ParcsReunidosDestination extends Destination {
   constructor(options = {}) {
     options.timezone = options.timezone || 'Europe/Brussels';
@@ -157,6 +174,29 @@ export class ParcsReunidosDestination extends Destination {
     entity._parentId = this._getParkID();
 
     entity.timezone = this.config.timezone;
+
+    // check for missing data
+    //  if the entity is missing data, fill it in from the fallbackMissingData array
+    for (const fallback of fallbackMissingData) {
+      const matchReq = fallback.match;
+      // check each field of the matchReq object
+      let match = true;
+      for (const key in matchReq) {
+        if (entity[key] !== matchReq[key]) {
+          match = false;
+          break;
+        }
+      }
+
+      if (match) {
+        // fill in the data
+        for (const key in fallback.data) {
+          if (!entity[key]) {
+            entity[key] = fallback.data[key];
+          }
+        }
+      }
+    }
 
     return entity;
   }
@@ -336,41 +376,119 @@ export class ParcsReunidosDestination extends Destination {
 
     const currentYear = moment().tz(this.config.timezone).year();
     const nextYear = currentYear + 1;
-    
+
     // first get the labels data from the calendar
     // eg. &lt;input type="hidden" id="data-hour-labels" value="[{&amp;#34;h&amp;#34;:&amp;#34;10am - 5pm&amp;#34;},{&amp;#34;b&amp;#34;:&amp;#34;10am - 6pm&amp;#34;},{&amp;#34;e&amp;#34;:&amp;#34;12pm - 8pm&amp;#34;},{&amp;#34;k&amp;#34;:&amp;#34;Movie Park\u0027s Hollywood Christmas&amp;#34;},{&amp;#34;g&amp;#34;:&amp;#34;10am - 9pm&amp;#34;},{&amp;#34;d&amp;#34;:&amp;#34;10am - 10pm&amp;#34;},{&amp;#34;r&amp;#34;:&amp;#34;Park closed&amp;#34;},{&amp;#34;n&amp;#34;:&amp;#34;Halloween Horror Festival&amp;#34;}]"/>
     //  this is a list of labels for the opening hours
     const hourLabels = [];
     const labelsData = $('#data-hour-labels').val();
     if (labelsData) {
+      // Define an array of time range parsers
+      const timeRangeParsers = [
+        {
+          // format eg. 10am - 5pm
+          regex: /^(\d{1,2})(am|pm)\s*-\s*(\d{1,2})(am|pm)$/,
+          parse: (match) => {
+            const startHour = moment(match[1], 'h').add(match[2] === 'pm' ? 12 : 0, 'hours');
+            const endHour = moment(match[3], 'h').add(match[4] === 'pm' ? 12 : 0, 'hours');
+
+            // Handle 12pm special case
+            if (match[1] === '12' &amp;&amp; match[2] === 'pm') {
+              startHour.add(12, 'hours');
+            }
+
+            return {
+              start: startHour.format('HH:mm'),
+              end: endHour.format('HH:mm'),
+            };
+          },
+        },
+        {
+          // format eg. 10 tot 5u
+          regex: /^(\d{1,2})\s*tot\s*(\d{1,2})\s*u$/,
+          parse: (match) => {
+            const startHour = moment(match[1], 'h');
+            const endHour = moment(match[2], 'h');
+
+            // Handle 12pm special case
+            if (match[1] === '12') {
+              startHour.add(12, 'hours');
+            }
+
+            return {
+              start: startHour.format('HH:mm'),
+              end: endHour.format('HH:mm'),
+            };
+          },
+        },
+        {
+          // format eg. 10:30 - 17:00
+          regex: /^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/,
+          parse: (match) => {
+            const startHour = moment(match[1], 'HH:mm');
+            const endHour = moment(match[2], 'HH:mm');
+
+            return {
+              start: startHour.format('HH:mm'),
+              end: endHour.format('HH:mm'),
+            };
+          },
+        },
+        {
+          // format eg: Summer: 11 a.m. – 7 p.m.
+          regex: /(\d{1,2})\s*(a\.m\.|p\.m\.)\s*(?:–|-)\s*(\d{1,2})\s*(a\.m\.|p\.m\.)/,
+          parse: (match) => {
+            const startHour = moment(match[1], 'h').add(match[2] === 'p.m.' ? 12 : 0, 'hours');
+            const endHour = moment(match[3], 'h').add(match[4] === 'p.m.' ? 12 : 0, 'hours');
+
+            // Handle 12pm special case
+            if (match[1] === '12' &amp;&amp; match[2] === 'p.m.') {
+              startHour.add(12, 'hours');
+            }
+
+            return {
+              start: startHour.format('HH:mm'),
+              end: endHour.format('HH:mm'),
+            };
+          },
+        }
+      ];
+
       try {
         const parsedLabels = JSON.parse(labelsData);
         for (const label of parsedLabels) {
           // label is an object with a key and a value
           //  we want to keep the key and the value
           for (const key in label) {
-            // try to parse hours from label. Will be of format similar to "10am - 5pm"
-            //  if we can't parse, skip this label (special event, or closure)
-            const regex = /(\d{1,2})(am|pm)\s*-\s*(\d{1,2})(am|pm)/;
-            const match = label[key].match(regex);
-            if (match) {
-              const startHour = moment(match[1], 'h').add(match[2] === 'pm' ? 12 : 0, 'hours');
-              const endHour = moment(match[3], 'h').add(match[4] === 'pm' ? 12 : 0, 'hours');
+            let foundHours = false;
 
-              // hack - 12pm == 12:00, not midnight
-              if (match[1] === '12' &amp;&amp; match[2] === 'pm') {
-                startHour.add(12, 'hours');
+            for (const parser of timeRangeParsers) {
+              const match = label[key].match(parser.regex);
+              if (match) {
+                hourLabels[key] = {
+                  ...parser.parse(match),
+                  originalLabel: label[key],
+                };
+                foundHours = true;
+                break; // Stop checking other parsers once a match is found
               }
+            }
 
-              hourLabels[key] = {
-                start: startHour.format('HH:mm'),
-                end: endHour.format('HH:mm'),
-              };
+            if (!foundHours) {
+              // if there are any numbers, debugger
+              const numbers = label[key].match(/\d+/g);
+              if (numbers) {
+                // if there are any numbers, log the label
+                console.warn('Unknown time range format:', label[key]);
+              } else {
+                // if there are no numbers, log the label
+                //console.warn('Unknown label format:', label[key]);
+              }
             }
           }
         }
       } catch (e) {
-        this.log.error('Error parsing schedule labels data', e);
+        console.error('Error parsing schedule labels data', e);
       }
     }
 
@@ -425,7 +543,7 @@ export class ParcsReunidosDestination extends Destination {
           }
 
           // for each valid key...
-          for(const key of validKeys) {
+          for (const key of validKeys) {
             // get the opening hours for this day
             const hours = hourLabels[key];
             if (!hours) {
@@ -441,6 +559,11 @@ export class ParcsReunidosDestination extends Destination {
             const openingTime = moment.tz(dateStr + 'T' + hours.start, 'YYYY-MM-DDTHH:mm', this.config.timezone);
             const closingTime = moment.tz(dateStr + 'T' + hours.end, 'YYYY-MM-DDTHH:mm', this.config.timezone);
 
+            // ignore nonsense dates (some parks list 31st June for example)
+            if (!openingTime.isValid() || !closingTime.isValid()) {
+              continue;
+            }
+
             parkSchedules.push({
               date: dateStr,
               openingTime: openingTime.format(),
@@ -451,7 +574,9 @@ export class ParcsReunidosDestination extends Destination {
         }
       });
     }
-    
+
+    // for each date in parkSchedules, check for duplicates
+
     return [{
       _id: this._getParkID(),
       schedule: parkSchedules,
@@ -464,6 +589,64 @@ export class MovieParkGermany extends ParcsReunidosDestination {
     options.name = options.name || 'Movie Park Germany';
     options.timezone = options.timezone || 'Europe/Berlin';
     options.calendarURL = options.calendarURL || 'https://www.movieparkgermany.de/en/oeffnungszeiten-und-preise/oeffnungszeiten';
+
+    super(options);
+  }
+}
+
+// bobbejaanland
+
+export class Bobbejaanland extends ParcsReunidosDestination {
+  constructor(options = {}) {
+    options.name = options.name || 'Bobbejaanland';
+    options.timezone = options.timezone || 'Europe/Brussels';
+    options.calendarURL = options.calendarURL || 'https://www.bobbejaanland.be/openingsuren-en-prijzen/openingsuren';
+
+    super(options);
+  }
+}
+
+// Mirabilandia
+
+export class Mirabilandia extends ParcsReunidosDestination {
+  constructor(options = {}) {
+    options.name = options.name || 'Mirabilandia';
+    options.timezone = options.timezone || 'Europe/Rome';
+    options.calendarURL = options.calendarURL || 'https://www.mirabilandia.it/en/calendario-e-tariffe/calendario-di-apertura';
+
+    super(options);
+  }
+}
+
+// Parque de Atracciones Madrid
+
+export class ParqueDeAtraccionesMadrid extends ParcsReunidosDestination {
+  constructor(options = {}) {
+    options.name = options.name || 'Parque de Atracciones Madrid';
+    options.timezone = options.timezone || 'Europe/Madrid';
+    options.calendarURL = options.calendarURL || 'https://www.parquedeatracciones.es/en/horarios';
+
+    super(options);
+  }
+}
+
+// Parque Warner Madrid
+export class ParqueWarnerMadrid extends ParcsReunidosDestination {
+  constructor(options = {}) {
+    options.name = options.name || 'Parque Warner Madrid';
+    options.timezone = options.timezone || 'Europe/Madrid';
+    options.calendarURL = options.calendarURL || 'https://www.parquewarner.com/en/horarios-y-precios/horarios';
+
+    super(options);
+  }
+}
+
+// Kennywood Amusement Park
+export class Kennywood extends ParcsReunidosDestination {
+  constructor(options = {}) {
+    options.name = options.name || 'Kennywood Amusement Park';
+    options.timezone = options.timezone || 'America/New_York';
+    options.calendarURL = options.calendarURL || 'https://www.kennywood.com/operating-hours---prices/operating-hours-';
 
     super(options);
   }
@@ -482,7 +665,7 @@ export class MovieParkGermany extends ParcsReunidosDestination {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.3</a> on Fri Apr 11 2025 23:02:37 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.3</a> on Tue Apr 15 2025 15:09:22 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
