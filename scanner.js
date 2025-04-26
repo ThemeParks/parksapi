@@ -2,6 +2,7 @@ import parksapi from './lib/index.js';
 import moment from 'moment-timezone';
 import path from 'path';
 import {promises as fs} from 'fs';
+import {time} from 'console';
 
 const __dirname = path.dirname(process.argv[1]);
 
@@ -26,6 +27,7 @@ destination.http.injectForDomainResponse({
   console.log(`[\x1b[33m!\x1b[0m]`, `Writing to ${filename}...`);
   try {
     const fileOutput = JSON.stringify({
+      timestamp: timestamp,
       method: method,
       url: url,
       data: data,
