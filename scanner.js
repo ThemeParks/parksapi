@@ -48,7 +48,11 @@ async function run() {
     console.log(`[\x1b[33m!\x1b[0m]`, `Syncing at ${new Date().toISOString()}`);
 
     // get live data
-    await destination.getEntityLiveData();
+    try {
+      await destination.getEntityLiveData();
+    } catch (err) {
+      console.error(`[\x1b[31m✗\x1b[0m]`, `Error getting live data: ${err}`);
+    }
   };
 
   // get live data every minute
