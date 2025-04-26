@@ -18,3 +18,4 @@ scans/
 debug_cache/
 testout_*
 datacache/
+/data/

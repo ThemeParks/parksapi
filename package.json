@@ -24,7 +24,8 @@
     "mocha": "mocha",
     "lint": "eslint ./lib/**/*.js",
     "lintfix": "eslint ./lib/**/*.js --fix",
-    "dev": "node --experimental-sqlite ./test.js"
+    "dev": "node --experimental-sqlite ./test.js",
+    "scanner": "node --experimental-sqlite ./scanner.js"
   },
   "repository": {
     "type": "git",
