@@ -5,6 +5,17 @@
 ## Sponsored By
 
 <div style="display: flex; align-items: center;">
+  <a href="https://touringplans.com/">
+    <img src="https://themeparks.wiki/sponsors/touringplans.png" alt="TouringPlans.com" width="40" style="margin-right: 10px;"/>
+  </a>
+  <span>
+    <a href="https://touringplans.com/">
+      TouringPlans.com
+    </a>
+  </span>
+</div>
+
+<div style="display: flex; align-items: center;">
   <a href="https://www.queue-times.com/">
     <img src="https://themeparks.wiki/sponsors/queuetimes.png" alt="QueueTimes" width="40" style="margin-right: 10px;"/>
   </a>
