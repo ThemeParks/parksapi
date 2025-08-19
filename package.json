@@ -45,7 +45,7 @@
     "egoroof-blowfish": "^4.0.1",
     "fetch-cookie": "^3.0.1",
     "hpagent": "^1.2.0",
-    "json-diff": "^0.5.4",
+    "json-diff": "^1.0.6",
     "leveldown": "^6.1.1",
     "levelup": "^5.1.1",
     "lmdb": "^3.0.13",
