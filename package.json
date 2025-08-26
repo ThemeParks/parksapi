@@ -42,7 +42,7 @@
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "cheerio": "^1.0.0",
-    "dotenv": "^16.4.5",
+    "dotenv": "^17.2.1",
     "egoroof-blowfish": "^4.0.1",
     "fetch-cookie": "^3.0.1",
     "hpagent": "^1.2.0",
