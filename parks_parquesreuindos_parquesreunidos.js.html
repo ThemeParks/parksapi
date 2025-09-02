@@ -446,9 +446,73 @@ export class ParcsReunidosDestination extends Destination {
               startHour.add(12, 'hours');
             }
 
+            let type = match[1].trim();
+            // strip out known seasonal types, leave undefined so this becomes regular park hours
+            if (type === 'Summer' || type === 'Winter' || type === 'Spring' || type === 'Autumn') {
+              type = undefined;
+            }
+
             return {
               start: startHour.format('HH:mm'),
               end: endHour.format('HH:mm'),
+              type,
+            };
+          },
+        },
+        {
+          // format eg: Parque Warner Beach - 12:00 a 20:00
+          // also capture the park name
+          regex: /^(.*)\s*-\s*(\d{1,2}:\d{2})\s*a\s*(\d{1,2}:\d{2})$/,
+          parse: (match) => {
+            const startHour = moment(match[2], 'HH:mm');
+            const endHour = moment(match[3], 'HH:mm');
+
+            return {
+              start: startHour.format('HH:mm'),
+              end: endHour.format('HH:mm'),
+              type: match[1].trim(),
+            };
+          },
+        },
+        {
+          // format eg. Halloween Scary Nights - 22:00 - 03:00
+          regex: /^(.*)\s*-\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/,
+          parse: (match) => {
+            const startHour = moment(match[2], 'HH:mm');
+            const endHour = moment(match[3], 'HH:mm');
+
+            return {
+              start: startHour.format('HH:mm'),
+              end: endHour.format('HH:mm'),
+              type: match[1].trim(),
+            };
+          },
+        },
+        {
+          // format eg. 12:00 - 00:00 (Aforo Completo)
+          regex: /^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})\s*\((.*?)\)$/,
+          parse: (match) => {
+            const startHour = moment(match[1], 'HH:mm');
+            const endHour = moment(match[2], 'HH:mm');
+
+            return {
+              start: startHour.format('HH:mm'),
+              end: endHour.format('HH:mm'),
+              type: match[3].trim(),
+            };
+          },
+        },
+        {
+          // format eg. 10:30 - 24:00 Halloween
+          regex: /^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})\s*(.*?)$/,
+          parse: (match) => {
+            const startHour = moment(match[1], 'HH:mm');
+            const endHour = moment(match[2], 'HH:mm');
+
+            return {
+              start: startHour.format('HH:mm'),
+              end: endHour.format('HH:mm'),
+              type: match[3].trim(),
             };
           },
         }
@@ -530,6 +594,18 @@ export class ParcsReunidosDestination extends Destination {
         for (const day in monthData) {
           const dayData = monthData[day];
 
+          // build date string by padding the month and day with 0s
+          const paddedMonth = String(month).padStart(2, '0');
+          const paddedDay = String(day).padStart(2, '0');
+          // build the date string
+          const dateStr = `${year}-${paddedMonth}-${paddedDay}`;
+
+          // ignore if date is in the past
+          const today = moment().startOf('day');
+          if (moment(dateStr).isBefore(today)) {
+            continue;
+          }
+
           // dayData can contain multiple keys, separated by commas
           // split them and keep any that match the hourLabels keys
           const keys = dayData.split(',');
@@ -542,6 +618,8 @@ export class ParcsReunidosDestination extends Destination {
             continue;
           }
 
+          const schedulesForDate = [];
+
           // for each valid key...
           for (const key of validKeys) {
             // get the opening hours for this day
@@ -549,12 +627,6 @@ export class ParcsReunidosDestination extends Destination {
             if (!hours) {
               continue;
             }
-
-            // build date string by padding the month and day with 0s
-            const paddedMonth = String(month).padStart(2, '0');
-            const paddedDay = String(day).padStart(2, '0');
-            // build the date string
-            const dateStr = `${year}-${paddedMonth}-${paddedDay}`;
 
             const openingTime = moment.tz(dateStr + 'T' + hours.start, 'YYYY-MM-DDTHH:mm', this.config.timezone);
             const closingTime = moment.tz(dateStr + 'T' + hours.end, 'YYYY-MM-DDTHH:mm', this.config.timezone);
@@ -564,13 +636,21 @@ export class ParcsReunidosDestination extends Destination {
               continue;
             }
 
-            parkSchedules.push({
+            schedulesForDate.push({
               date: dateStr,
               openingTime: openingTime.format(),
               closingTime: closingTime.format(),
-              type: scheduleType.operating,
+              type: hours.type ? scheduleType.informational : scheduleType.operating,
+              description: hours.type || undefined,
             });
           }
+
+          // if there is only one entry for this date, make sure it has an "operating" type
+          if (schedulesForDate.length == 1) {
+            schedulesForDate[0].type = scheduleType.operating;
+          }
+
+          parkSchedules.push(...schedulesForDate);
         }
       });
     }
@@ -665,7 +745,7 @@ export class Kennywood extends ParcsReunidosDestination {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Tue Sep 02 2025 17:01:10 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Tue Sep 02 2025 17:22:54 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
