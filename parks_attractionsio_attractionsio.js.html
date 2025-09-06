@@ -52,6 +52,7 @@ import {v4 as uuidv4} from 'uuid';
 import moment from 'moment';
 import unzip from 'yauzl';
 import {promisify} from 'util';
+import * as cheerio from 'cheerio';
 
 const unzipFromBuffer = promisify(unzip.fromBuffer);
 
@@ -453,7 +454,19 @@ export class AttractionsIO extends Destination {
    * Build the attraction entities for this destination
    */
   async buildAttractionEntities() {
-    return this._buildEntitiesFromCategories(['Attractions', 'Rides', 'Water Rides', 'Thrill Rides', 'Coasters', 'Intense Thrills', 'Rides &amp; Shows', 'Thrills &amp; Mini-Thrills', 'RIDES', ''], this.config.parkId, {
+    return this._buildEntitiesFromCategories([
+      'Attractions',
+      'Rides',
+      'Water Rides',
+      'Thrill Rides',
+      'Coasters',
+      'Intense Thrills',
+      'Rides &amp; Shows',
+      'Thrills &amp; Mini-Thrills',
+      'RIDES',
+      'Rides &amp; Attractions',
+      ''
+    ], this.config.parkId, {
       entityType: entityType.attraction,
       attractionType: attractionType.ride,
     });
@@ -547,8 +560,20 @@ export class AttractionsIO extends Destination {
       ];
     }
 
+    const locations = scheduleData.Locations ? scheduleData.Locations : scheduleData.locations;
+
     // assume 1 park per destination
-    const days = scheduleData.Locations ? scheduleData.Locations[0].days : scheduleData.locations[0].days;
+    let days = locations[0].days;
+    if (days.length === 0) {
+      // find location with most days
+      let maxDays = 0;
+      locations.forEach((loc) => {
+        if (loc.days.length > maxDays) {
+          maxDays = loc.days.length;
+          days = loc.days;
+        }
+      });
+    }
 
     // various random formats the calendar API can return in
     const hourFormats = [
@@ -764,7 +789,217 @@ export class Knoebels extends AttractionsIO {
 
     super(config);
   }
-}</code></pre>
+
+  // TODO - schedule is missing API
+  //  https://knoebels.com/wp-admin/admin-ajax.php
+  //  They are using a WordPress plugin for some reason
+  async buildEntityScheduleData() {
+    return [];
+  }
+}
+
+export class LegolandJapan extends AttractionsIO {
+  constructor(config = {}) {
+    config.timezone = config.timezone || 'Asia/Tokyo';
+    config.destinationId = config.destinationId || 'legolandjapanresort';
+    config.parkId = config.parkId || 'legolandjapan';
+    config.initialDataVersion = config.initialDataVersion || '2025-08-21T05:37:16Z';
+
+    config.appBuild = config.appBuild || 186;
+    config.appVersion = config.appVersion || '1.4.24';
+
+    super(config);
+  }
+}
+
+export class DjursSommerland extends AttractionsIO {
+  constructor(config = {}) {
+    config.timezone = config.timezone || 'Europe/Copenhagen';
+    config.destinationId = config.destinationId || 'djurs-sommerland-destination';
+    config.parkId = config.parkId || 'djurs-sommerland';
+    config.initialDataVersion = config.initialDataVersion || '2025-08-22T09:45:54Z';
+
+    config.appBuild = config.appBuild || 169;
+    config.appVersion = config.appVersion || '2.5.1';
+
+    super(config);
+  }
+
+  async _fetchCalendarHTML() {
+    '@cache|120'; // cache for 2 hours
+    
+    const scheduleData = await this.http('GET', 'https://djurssommerland.dk/en/plan-your-trip/opening-hours/');
+    return scheduleData.body;
+  }
+
+  // Custom HTML parsing for Djurs Sommerland calendar
+  async buildEntityScheduleData() {
+    const html = await this._fetchCalendarHTML();
+    const $ = cheerio.load(html);
+    
+    // Extract calendar data from the body data-model attribute
+    const $body = $('body');
+    const dataModelAttr = $body.attr('data-model');
+    
+    if (!dataModelAttr) {
+      return [
+        {
+          _id: this.config.parkId,
+          schedule: [],
+        }
+      ];
+    }
+    
+    let calendarData;
+    try {
+      calendarData = JSON.parse(dataModelAttr);
+    } catch (err) {
+      console.error('Failed to parse calendar data:', err);
+      return [
+        {
+          _id: this.config.parkId,
+          schedule: [],
+        }
+      ];
+    }
+    
+    if (!calendarData.parkEvents || !Array.isArray(calendarData.parkEvents)) {
+      return [
+        {
+          _id: this.config.parkId,
+          schedule: [],
+        }
+      ];
+    }
+    
+    const schedule = [];
+    const currentYear = new Date().getFullYear();
+    
+    // Process each park event
+    calendarData.parkEvents.forEach(event => {
+      const { type, start, end, days } = event;
+      
+      // Skip events without proper time format
+      if (!start || !end || !days || !days.ranges) return;
+      
+      // Parse opening hours (format: "10:00")
+      const startMatch = start.match(/(\d{1,2}):(\d{2})/);
+      const endMatch = end.match(/(\d{1,2}):(\d{2})/);
+      
+      if (!startMatch || !endMatch) return;
+      
+      const openHour = parseInt(startMatch[1]);
+      const openMinute = parseInt(startMatch[2]);
+      const closeHour = parseInt(endMatch[1]);
+      const closeMinute = parseInt(endMatch[2]);
+      
+      // Determine schedule entry type based on event type
+      // type 1 = Regular (theme park), type 2 = Water park, type 4 = Magical Halloween
+      const isWaterPark = type === 2;
+      const isSpecialEvent = type === 4; // Magical Halloween
+      
+      let scheduleEntryType, scheduleDescription;
+      
+      if (isWaterPark) {
+        scheduleEntryType = 'INFO';
+        scheduleDescription = 'Water Park';
+      } else if (isSpecialEvent) {
+        scheduleEntryType = 'INFO'; 
+        scheduleDescription = event.description || 'Magical Halloween';
+      } else {
+        scheduleEntryType = 'OPERATING';
+      }
+      
+      const scheduleEntry = {
+        type: scheduleEntryType,
+      };
+      
+      if (scheduleDescription) {
+        scheduleEntry.description = scheduleDescription;
+      }
+      
+      // Process each day range
+      days.ranges.forEach(dayIndex => {
+        // The dayIndex appears to be calculated as: monthIndex * 31 + dayOfMonth - 1
+        // where monthIndex is 0-based (0=Jan, 1=Feb, etc.)
+        const month = Math.floor(dayIndex / 31);
+        const day = (dayIndex % 31) + 1;
+        
+        // Create date object
+        const date = moment.tz([currentYear, month, day], this.config.timezone);
+        
+        // Skip invalid dates
+        if (!date.isValid() || date.date() !== day) return;
+        
+        // Create opening and closing times
+        const openingTime = date.clone().hour(openHour).minute(openMinute).second(0).millisecond(0);
+        const closingTime = date.clone().hour(closeHour).minute(closeMinute).second(0).millisecond(0);
+        
+        schedule.push({
+          date: date.format('YYYY-MM-DD'),
+          openingTime: openingTime.format(),
+          closingTime: closingTime.format(),
+          ...scheduleEntry,
+        });
+      });
+    });
+    
+    // Sort schedule by date and opening time (to handle multiple venues per date)
+    const finalSchedule = schedule.sort((a, b) => {
+      const dateCompare = a.date.localeCompare(b.date);
+      if (dateCompare !== 0) return dateCompare;
+      // If dates are the same, sort by opening time
+      return a.openingTime.localeCompare(b.openingTime);
+    });
+    
+    return [
+      {
+        _id: this.config.parkId,
+        schedule: finalSchedule,
+      }
+    ];
+  }
+}
+
+export class LegolandNewYork extends AttractionsIO {
+  constructor(config = {}) {
+    config.timezone = config.timezone || 'America/New_York';
+    config.destinationId = config.destinationId || 'legolandnewyorkdestination';
+    config.parkId = config.parkId || 'legolandnewyork';
+    config.initialDataVersion = config.initialDataVersion || '2025-08-29T04:23:53Z';
+
+    config.appBuild = config.appBuild || 217;
+    config.appVersion = config.appVersion || '1.4.4';
+    super(config);
+  }
+}
+
+export class LegolandKorea extends AttractionsIO {
+  constructor(config = {}) {
+    config.timezone = config.timezone || 'Asia/Seoul';
+    config.destinationId = config.destinationId || 'legolandkoreadestination';
+    config.parkId = config.parkId || 'legolandkorea';
+    config.initialDataVersion = config.initialDataVersion || '2025-08-20T05:38:01Z';
+
+    config.appBuild = config.appBuild || 183;
+    config.appVersion = config.appVersion || '1.2.3';
+    super(config);
+  }
+}
+
+export class PeppaPigThemeParkFlorida extends AttractionsIO {
+  constructor(config = {}) {
+    config.timezone = config.timezone || 'America/New_York';
+    config.destinationId = config.destinationId || 'peppapigthemeparkfloridadestination';
+    config.parkId = config.parkId || 'peppapigthemeparkflorida';
+    config.initialDataVersion = config.initialDataVersion || '2024-02-04T14:06:09Z';
+
+    config.appBuild = config.appBuild || 62;
+    config.appVersion = config.appVersion || '1.0.15';
+    super(config);
+  }
+}
+</code></pre>
         </article>
     </section>
 
@@ -778,7 +1013,7 @@ export class Knoebels extends AttractionsIO {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Thu Sep 04 2025 10:42:08 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Sat Sep 06 2025 08:19:15 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
