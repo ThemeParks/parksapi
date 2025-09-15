@@ -20,3 +20,4 @@ testout_*
 datacache/
 /data/
 entity-map-viewer.html
+dist/

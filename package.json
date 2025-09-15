@@ -1,31 +1,18 @@
 {
   "name": "@themeparks/parksapi",
   "type": "module",
-  "version": "1.2.40",
+  "version": "2.0.0",
   "description": "",
   "engines": {
-    "npm": ">=6",
-    "node": ">=22"
+    "npm": ">=11",
+    "node": ">=24"
   },
-  "main": "lib/index.js",
-  "exports": {
-    ".": "./lib/index.js",
-    "./destination": "./lib/parks/destination.js",
-    "./park": "./lib/parks/park.js",
-    "./parkTypes": "./lib/parks/parkTypes.js",
-    "./cache/": "./lib/cache/",
-    "./cache": "./lib/cache.js",
-    "./cache/scopedCache": "./lib/cache/scopedCache.js",
-    "./tags": "./lib/parks/tags.js"
-  },
+  "main": "dist/index.js",
   "scripts": {
-    "test": "npm run lint && npm run mocha",
-    "docs": "./node_modules/.bin/jsdoc -c .jsdoc.json -R README.md",
-    "mocha": "mocha",
-    "lint": "eslint ./lib/**/*.js",
-    "lintfix": "eslint ./lib/**/*.js --fix",
-    "dev": "node --experimental-sqlite ./test.js",
-    "scanner": "node --experimental-sqlite ./scanner.js"
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "dev": "npm run ts-dev -- src/test.ts",
+    "ts-dev": "tsx"
   },
   "repository": {
     "type": "git",
@@ -38,41 +25,11 @@
   },
   "homepage": "https://github.com/ThemeParks/parksapi#readme",
   "dependencies": {
-    "adm-zip": "^0.5.16",
-    "ajv": "^8.17.1",
-    "ajv-formats": "^3.0.1",
-    "cheerio": "^1.0.0",
-    "dotenv": "^17.2.1",
-    "egoroof-blowfish": "^4.0.1",
-    "fetch-cookie": "^3.0.1",
-    "hpagent": "^1.2.0",
-    "json-diff": "^1.0.6",
-    "leveldown": "^6.1.1",
-    "levelup": "^5.1.1",
-    "lmdb": "^3.0.13",
-    "memdown": "^6.1.1",
-    "mingo": "6.5.6",
-    "moment-timezone": "^0.6.0",
-    "needle": "^3.3.1",
-    "node-fetch": "^3.1.1",
-    "object-hash": "^3.0.0",
-    "pouchdb": "^9.0.0",
-    "promise-retry": "^2.0.1",
-    "random-useragent": "^0.5.0",
-    "sift": "^17.1.3",
-    "tough-cookie": "^4.0.0",
-    "tz-lookup": "^6.1.25",
-    "uuid": "^10.0.0",
-    "yauzl": "^3.1.3"
   },
   "devDependencies": {
-    "@babel/traverse": "^7.11.0",
-    "@eslint/eslintrc": "^3.3.1",
-    "@eslint/js": "^9.33.0",
-    "docdash": "^2.0.1",
-    "eslint": "^9.33.0",
-    "eslint-config-google": "^0.14.0",
-    "jsdoc": "^4.0.1",
-    "mocha": "^11.7.1"
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.0.0"
   }
 }
