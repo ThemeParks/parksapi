@@ -14,7 +14,7 @@ database.exec(`
 `);
 
 class CacheLib {
-  static get(key: string): string | null {
+  static get(key: string): any | null {
     const stmt = database.prepare('SELECT value, timestamp FROM cache WHERE key = ?');
     const row = stmt.get(key) as {value: string, timestamp: number} | undefined;
     try {

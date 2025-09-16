@@ -3,6 +3,7 @@
 //  The HTTP library will then execute the request and return an HTTPResponse object
 
 import {createHash} from "crypto";
+import {CacheLib} from "./cache";
 
 export type HTTPOptions = {
   headers?: Record<string, string>;
@@ -36,6 +37,8 @@ type HTTPRequestEntry = {
   // optional timestamp to indicate when this request can be executed
   //  will remain in the queue until that time
   earliestExecute?: number;
+  // cache time in seconds (optional)
+  cacheTtlSeconds?: number;
 };
 const httpRequestQueue: HTTPRequestEntry[] = [];
 
@@ -48,6 +51,7 @@ class HTTPRequestImpl implements HTTPObj {
   public response?: Response;
   public retries?: number;
   public cacheKey?: string;
+  public cacheTtlSeconds?: number;
 
   // Private promise handlers
   private _resolve?: (value: HTTPObj) => void;
@@ -130,6 +134,20 @@ class HTTPRequestImpl implements HTTPObj {
   // Internal method to actually make this HTTP request
   //  Popuplates the response property on success
   async makeRequest(): Promise<void> {
+    // first, check the cache
+    if (this.cacheKey && CacheLib.has(this.cacheKey)) {
+      const cachedValue = CacheLib.get(this.cacheKey);
+      if (cachedValue) {
+        try {
+          console.log("Using cached response for", this.method, this.url);
+          this.response = new Response(cachedValue);
+          return; // return early with cached response
+        } catch (error) {
+          console.warn("Failed to parse cached response, proceeding with HTTP request.", error);
+        }
+      }
+    }
+
     // use fetch to make the HTTP request
     const fetchOptions: RequestInit = {
       method: this.method,
@@ -145,6 +163,14 @@ class HTTPRequestImpl implements HTTPObj {
     const response = await fetch(this.buildUrl(), fetchOptions);
     this.response = response;
 
+    // cache the response if response is OK and cacheKey is set
+    if (this.cacheKey && response.ok && this.cacheTtlSeconds && this.cacheTtlSeconds > 0) {
+      const responseClone = response.clone();
+      const responseText = await responseClone.text();
+      CacheLib.set(this.cacheKey, responseText, this.cacheTtlSeconds);
+    }
+
+    // throw error if response not ok
     if (!response.ok) {
       throw new Error(`HTTP request not OK: ${response.status} ${response.statusText}`);
     }
@@ -203,6 +229,8 @@ function httpDecoratorFactory(options?: {
   cacheKey?: string,
   // Optional delay in milliseconds before this request can be executed
   delayMs?: number,
+  // Cache TTL in seconds (default 60s)
+  cacheSeconds?: number,
 }) {
   return function httpDecorator(
     target: any,
@@ -229,6 +257,11 @@ function httpDecoratorFactory(options?: {
         // Optionally override cache key
         if (options?.cacheKey !== undefined) {
           internalRequest.cacheKey = createHash('sha256').update(options.cacheKey).digest('hex');
+        }
+
+        // set cache TTL if provided
+        if (options?.cacheSeconds !== undefined) {
+          internalRequest.cacheTtlSeconds = options.cacheSeconds;
         }
 
         // Optionally set earliest execute time based on delayMs
@@ -270,13 +303,6 @@ function httpDecoratorFactory(options?: {
       }
     };
   };
-}
-
-// HTTP decorator that supports both @http and @http({retries: 2})
-function http(options?: {retries?: number}) {
-  // If no options provided, use defaults (empty object)
-  const config = options || {};
-  return httpDecoratorFactory(config);
 }
 
 // how long to wait before checking the queue again if it's empty
@@ -343,4 +369,4 @@ export function getQueueLength(): number {
 setInterval(processHttpQueue, 100);
 
 // HTTP decorator for class methods
-export {http};
+export {httpDecoratorFactory as http};
