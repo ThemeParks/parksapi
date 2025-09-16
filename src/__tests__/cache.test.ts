@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { Cache, database } from '../cache';
+import { CacheLib as Cache, database } from '../cache';
 
 // Mock console.error to avoid noise in test output
 const originalConsoleError = console.error;

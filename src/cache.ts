@@ -13,7 +13,7 @@ database.exec(`
   ) STRICT
 `);
 
-class Cache {
+class CacheLib {
   static get(key: string): string | null {
     const stmt = database.prepare('SELECT value, timestamp FROM cache WHERE key = ?');
     const row = stmt.get(key) as {value: string, timestamp: number} | undefined;
@@ -80,4 +80,15 @@ class Cache {
   }
 }
 
-export {Cache};
+export default function cacheDecorator({ttlSeconds = 60} = {}) {
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    const originalMethod = descriptor.value;
+    descriptor.value = function (...args: any[]) {
+      const cacheKey = `${propertyKey}:${JSON.stringify(args)}`;
+      return CacheLib.wrap(cacheKey, () => originalMethod.apply(this, args), ttlSeconds);
+    };
+  };
+}
+
+
+export {CacheLib, cacheDecorator as cache};
