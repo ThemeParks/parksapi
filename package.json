@@ -37,5 +37,8 @@
     "ts-node": "^10.9.0",
     "tsx": "^4.20.5",
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@themeparks/typelib": "^1.0.1"
   }
 }
