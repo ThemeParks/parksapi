@@ -39,6 +39,6 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@themeparks/typelib": "^1.0.1"
+    "@themeparks/typelib": "^1.0.2"
   }
 }
