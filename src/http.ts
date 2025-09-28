@@ -5,6 +5,32 @@
 import {createHash} from "crypto";
 import {CacheLib} from "./cache";
 
+// OpenAPI-like parameter definition
+export type HTTPParameter = {
+  name: string;
+  type: string;
+  description: string;
+  required?: boolean; // Optional: mark as required/optional
+  example?: any;      // Optional: example value
+};
+
+// Parameter definition for decorator options (same structure but more explicit)
+export type HTTPParameterDefinition = HTTPParameter;
+
+// represents an HTTP method that has been decorated with @http
+export type HTTPRequester = {
+  // class
+  instance: any;
+  // method name
+  methodName: string;
+  // method arguments with OpenAPI-like schema
+  args: HTTPParameter[];
+};
+const httpRequesters: HTTPRequester[] = [];
+
+
+
+// Options for HTTP requests
 export type HTTPOptions = {
   headers?: Record<string, string>;
   queryParams?: Record<string, string>;
@@ -12,11 +38,16 @@ export type HTTPOptions = {
   json?: boolean; // shortcut to set Content-Type: application/json and stringify body
 };
 
-export interface HTTPObj {
+// Basic HTTP request definition for decorator methods
+export interface HTTPRequest {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
   url: string;
   options?: HTTPOptions;
   body?: any;
+}
+
+// Full HTTP object with response methods (for runtime use)
+export interface HTTPObj extends HTTPRequest {
   response?: Response;
 
   // functions to get response data
@@ -26,10 +57,10 @@ export interface HTTPObj {
   arrayBuffer(): Promise<ArrayBuffer>;
   status: number;
   ok: boolean;
-};
+}
 
 // entry of HTTP requests, store class instance, method name, and request object
-type HTTPRequestEntry = {
+export type HTTPRequestEntry = {
   instance: any;
   methodName: string;
   args: any[];
@@ -231,12 +262,38 @@ function httpDecoratorFactory(options?: {
   delayMs?: number,
   // Cache TTL in seconds (default 60s)
   cacheSeconds?: number,
+  // Manual parameter definitions (optional)
+  parameters?: HTTPParameterDefinition[],
 }) {
   return function httpDecorator(
     target: any,
     propertyKey: string,
     descriptor: PropertyDescriptor
   ) {
+    // Add to httpRequesters list at decoration time
+    // Check if this class/method combination already exists to avoid duplicates
+    const existingEntry = httpRequesters.find(
+      entry => entry.instance === target.constructor && entry.methodName === propertyKey
+    );
+    
+    if (!existingEntry) {
+      // Only store parameter information if explicitly defined in decorator
+      if (options?.parameters) {
+        httpRequesters.push({
+          instance: target.constructor,
+          methodName: propertyKey,
+          args: [...options.parameters] // Copy to avoid mutations
+        });
+      } else {
+        // No parameters defined - store with empty args array
+        httpRequesters.push({
+          instance: target.constructor,
+          methodName: propertyKey,
+          args: []
+        });
+      }
+    }
+
     const originalMethod = descriptor.value;
     descriptor.value = async function (...args: any[]): Promise<HTTPObj> {
       const result = await originalMethod.apply(this, args);
@@ -363,6 +420,15 @@ export async function processHttpQueue() {
  */
 export function getQueueLength(): number {
   return httpRequestQueue.length;
+}
+
+/**
+ * Get a list of all HTTP methods that have been decorated with @http.
+ * This array is populated at decoration time, before any methods are executed.
+ * @returns Array of HTTPRequester objects containing class constructor, method name, and placeholder args
+ */
+export function getHttpRequesters(): HTTPRequester[] {
+  return httpRequesters;
 }
 
 // Start processing the HTTP queue in the background
