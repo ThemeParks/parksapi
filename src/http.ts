@@ -4,6 +4,7 @@
 
 import {createHash} from "crypto";
 import {CacheLib} from "./cache";
+import sift from "sift";
 
 // OpenAPI-like parameter definition
 export type HTTPParameter = {
@@ -25,8 +26,16 @@ export type HTTPRequester = {
   methodName: string;
   // method arguments with OpenAPI-like schema
   args: HTTPParameter[];
+  // injection filter (sift query) - when other requests match this filter, this method runs first
+  injectForRequests?: any;
 };
 const httpRequesters: HTTPRequester[] = [];
+
+// Track injection methods separately for efficient lookup
+const injectionMethods: HTTPRequester[] = [];
+
+// Track currently executing methods to prevent infinite loops
+const executingMethods = new Set<string>();
 
 
 
@@ -57,6 +66,12 @@ export interface HTTPObj extends HTTPRequest {
   arrayBuffer(): Promise<ArrayBuffer>;
   status: number;
   ok: boolean;
+
+  // callback functions
+  onJson: ((data: any) => void) | null;
+  onText: ((data: string) => void) | null;
+  onBlob: ((data: Blob) => void) | null;
+  onArrayBuffer: ((data: ArrayBuffer) => void) | null;
 }
 
 // entry of HTTP requests, store class instance, method name, and request object
@@ -88,6 +103,11 @@ class HTTPRequestImpl implements HTTPObj {
   private _resolve?: (value: HTTPObj) => void;
   private _reject?: (reason?: any) => void;
 
+  private _onJson: ((data: any) => void) | null = null;
+  private _onText: ((data: string) => void) | null = null;
+  private _onBlob: ((data: Blob) => void) | null = null;
+  private _onArrayBuffer: ((data: ArrayBuffer) => void) | null = null;
+
   constructor(request: HTTPObj) {
     this.method = request.method;
     this.url = request.url;
@@ -95,10 +115,44 @@ class HTTPRequestImpl implements HTTPObj {
     this.body = request.body;
     this.response = request.response;
 
+    this._onJson = request.onJson || null;
+    this._onText = request.onText || null;
+    this._onBlob = request.onBlob || null;
+    this._onArrayBuffer = request.onArrayBuffer || null;
+
     // Generate initial cache key by hashing method, URL, headers, and body
     this.cacheKey = this.generateCacheKey();
 
     this.retries = 0; // default retries to 0
+  }
+
+  /** Callbacks */
+  get onJson(): ((data: any) => void) | null {
+    return this._onJson;
+  }
+  set onJson(handler: ((data: any) => void) | null) {
+    this._onJson = handler;
+  }
+
+  get onText(): ((data: string) => void) | null {
+    return this._onText;
+  }
+  set onText(handler: ((data: string) => void) | null) {
+    this._onText = handler;
+  }
+
+  get onBlob(): ((data: Blob) => void) | null {
+    return this._onBlob;
+  }
+  set onBlob(handler: ((data: Blob) => void) | null) {
+    this._onBlob = handler;
+  }
+
+  get onArrayBuffer(): ((data: ArrayBuffer) => void) | null {
+    return this._onArrayBuffer;
+  }
+  set onArrayBuffer(handler: ((data: ArrayBuffer) => void) | null) {
+    this._onArrayBuffer = handler;
   }
 
   /**
@@ -201,6 +255,30 @@ class HTTPRequestImpl implements HTTPObj {
       CacheLib.set(this.cacheKey, responseText, this.cacheTtlSeconds);
     }
 
+    // if response is OK, check if we have any callbacks to call
+    try {
+      if (response.ok) {
+        if (this._onJson) {
+          const jsonData = await response.clone().json();
+          this._onJson(jsonData);
+        }
+        if (this._onText) {
+          const textData = await response.clone().text();
+          this._onText(textData);
+        }
+        if (this._onBlob) {
+          const blobData = await response.clone().blob();
+          this._onBlob(blobData);
+        }
+        if (this._onArrayBuffer) {
+          const arrayBufferData = await response.clone().arrayBuffer();
+          this._onArrayBuffer(arrayBufferData);
+        }
+      }
+    } catch (error) {
+      console.warn("Error processing response callbacks:", error);
+    }
+
     // throw error if response not ok
     if (!response.ok) {
       throw new Error(`HTTP request not OK: ${response.status} ${response.statusText}`);
@@ -264,6 +342,8 @@ function httpDecoratorFactory(options?: {
   cacheSeconds?: number,
   // Manual parameter definitions (optional)
   parameters?: HTTPParameterDefinition[],
+  // injection options
+  injectForRequests?: any, // sift query. When met, this request will be run before the matching method
 }) {
   return function httpDecorator(
     target: any,
@@ -275,22 +355,21 @@ function httpDecoratorFactory(options?: {
     const existingEntry = httpRequesters.find(
       entry => entry.instance === target.constructor && entry.methodName === propertyKey
     );
-    
+
     if (!existingEntry) {
-      // Only store parameter information if explicitly defined in decorator
-      if (options?.parameters) {
-        httpRequesters.push({
-          instance: target.constructor,
-          methodName: propertyKey,
-          args: [...options.parameters] // Copy to avoid mutations
-        });
-      } else {
-        // No parameters defined - store with empty args array
-        httpRequesters.push({
-          instance: target.constructor,
-          methodName: propertyKey,
-          args: []
-        });
+      // Create the requester entry
+      const requester: HTTPRequester = {
+        instance: target.constructor,
+        methodName: propertyKey,
+        args: options?.parameters ? [...options.parameters] : [],
+        injectForRequests: options?.injectForRequests
+      };
+
+      httpRequesters.push(requester);
+
+      // If this is an injection method, add it to the injection methods array
+      if (options?.injectForRequests) {
+        injectionMethods.push(requester);
       }
     }
 
@@ -362,6 +441,92 @@ function httpDecoratorFactory(options?: {
   };
 }
 
+/**
+ * Find injection methods that match the given HTTP request
+ * @param request The HTTP request to check against injection filters
+ * @param currentMethodKey The current method being executed (to prevent self-injection)
+ * @returns Array of matching injection methods
+ */
+function findMatchingInjections(request: HTTPRequestImpl, currentMethodKey: string): HTTPRequester[] {
+  const matchingInjections: HTTPRequester[] = [];
+
+  // Create a searchable object from the HTTP request
+  const requestData = {
+    method: request.method,
+    url: request.buildUrl(),
+    headers: request.buildHeaders(),
+    body: request.body
+  };
+
+  // Add hostname parsing for easier filtering
+  try {
+    const urlObj = new URL(request.url);
+    (requestData as any).hostname = urlObj.hostname;
+    (requestData as any).pathname = urlObj.pathname;
+    (requestData as any).protocol = urlObj.protocol;
+  } catch (error) {
+    // URL parsing failed, continue without hostname data
+  }
+
+  for (const injectionMethod of injectionMethods) {
+    const methodKey = `${injectionMethod.instance.name}.${injectionMethod.methodName}`;
+
+    // Skip if this is the same method (prevent self-injection)
+    if (methodKey === currentMethodKey) {
+      continue;
+    }
+
+    // Skip if this injection method is already executing (prevent loops)
+    if (executingMethods.has(methodKey)) {
+      continue;
+    }
+
+    try {
+      // Use sift to check if the request matches the injection filter
+      const filter = sift(injectionMethod.injectForRequests);
+      if (filter(requestData)) {
+        matchingInjections.push(injectionMethod);
+      }
+    } catch (error) {
+      console.warn(`Error checking injection filter for ${methodKey}:`, error);
+    }
+  }
+
+  return matchingInjections;
+}
+
+/**
+ * Execute injection methods for a given HTTP request
+ * @param injections Array of injection methods to execute
+ * @param targetInstance Instance to execute the injections on
+ * @returns Promise that resolves when all injections complete
+ */
+async function executeInjections(injections: HTTPRequester[], targetInstance: any): Promise<void> {
+  for (const injection of injections) {
+    const methodKey = `${injection.instance.name}.${injection.methodName}`;
+
+    try {
+      console.log(`Executing injection: ${methodKey}`);
+      executingMethods.add(methodKey);
+
+      // Find the instance method and execute it
+      const method = targetInstance[injection.methodName];
+      if (typeof method === 'function') {
+        // Execute the injection method (it will return a promise from the HTTP decorator)
+        const result = await method.call(targetInstance);
+        console.log(`Injection completed: ${methodKey}`);
+      } else {
+        console.warn(`Injection method not found: ${methodKey}`);
+      }
+    } catch (error) {
+      console.error(`Injection failed: ${methodKey}`, error);
+      // Continue with other injections even if one fails
+    } finally {
+      executingMethods.delete(methodKey);
+    }
+  }
+}
+
 // how long to wait before checking the queue again if it's empty
 const emptyQueueDelayMs = 100; // ms
 // how long to wait between processing requests
@@ -386,6 +551,16 @@ export async function processHttpQueue() {
       console.log(`Processing HTTP request: ${entry.request.method} ${entry.request.url}`);
 
       try {
+        // Check for injection methods that match this request
+        const currentMethodKey = `${entry.instance.constructor.name}.${entry.methodName}`;
+        const matchingInjections = findMatchingInjections(entry.request, currentMethodKey);
+
+        // Execute any matching injection methods first
+        if (matchingInjections.length > 0) {
+          console.log(`Found ${matchingInjections.length} injection(s) for ${entry.request.method} ${entry.request.url}`);
+          await executeInjections(matchingInjections, entry.instance);
+        }
+
         await entry.request.makeRequest();
         entry.request.resolvePromise(entry.request);
         console.log(`HTTP request completed: ${entry.request.method} ${entry.request.url}`);
