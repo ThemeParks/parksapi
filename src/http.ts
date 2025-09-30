@@ -5,6 +5,8 @@
 import {createHash} from "crypto";
 import {CacheLib} from "./cache";
 import {broadcast} from "./injector";
+import Ajv, {DefinedError} from "ajv";
+const ajv = new Ajv();
 
 // OpenAPI-like parameter definition
 export type HTTPParameter = {
@@ -57,6 +59,7 @@ export interface HTTPObj extends HTTPRequest {
   arrayBuffer(): Promise<ArrayBuffer>;
   status: number;
   ok: boolean;
+  clone(): HTTPObj;
 
   // callback functions
   onJson: ((data: any) => void) | null;
@@ -76,6 +79,8 @@ export type HTTPRequestEntry = {
   earliestExecute?: number;
   // cache time in seconds (optional)
   cacheTtlSeconds?: number;
+  // validator function for response (optional)
+  validateResponse?: any;
 };
 const httpRequestQueue: HTTPRequestEntry[] = [];
 
@@ -324,6 +329,12 @@ class HTTPRequestImpl implements HTTPObj {
     }
     return this.response.ok;
   }
+
+  clone(): HTTPObj {
+    const cloned = new HTTPRequestImpl(this);
+    cloned.response = this.response ? this.response.clone() : undefined;
+    return cloned;
+  }
 }
 
 // Decorator factory for HTTP methods, these methods MUST return an HTTPRequest object
@@ -341,7 +352,12 @@ function httpDecoratorFactory(options?: {
   parameters?: HTTPParameterDefinition[],
   // injection options
   injectForRequests?: any, // sift query. When met, this request will be run before the matching method
+  // JSON schema to validate response against (optional)
+  validateResponse?: any, // JSON schema to validate response against
 }) {
+  // create our validate function if needed
+  const formatValidate = options?.validateResponse ? ajv.compile(options.validateResponse) : null;
+
   return function httpDecorator(
     target: any,
     propertyKey: string,
@@ -405,6 +421,7 @@ function httpDecoratorFactory(options?: {
           args: args,
           request: internalRequest,
           earliestExecute: executeTime > 0 ? executeTime : undefined,
+          validateResponse: formatValidate || undefined,
         });
 
         // sort queue by earliestExecute time
@@ -489,6 +506,22 @@ export async function processHttpQueue() {
 
         // make the actual HTTP request
         await entry.request.makeRequest();
+
+        // if we have a response validator, run it now
+        if (entry.validateResponse && entry.request.response) {
+          try {
+            const data = await entry.request.clone().json();
+            if (!entry.validateResponse(data)) {
+              const errors = entry.validateResponse.errors as DefinedError[] | null;
+              const errorStr = errors ? errors.map(err => `  ${err.instancePath} ${err.message}`).join('\n') : 'Unknown validation error';
+              throw new Error(`Response from ${entry.methodName} does not match the expected format. Errors: \n${errorStr}`);
+            }
+          } catch (e) {
+            throw new Error(`Response from ${entry.methodName} is not valid JSON or does not match the expected format: ${e}`);
+          }
+        }
+
+        // resolve the original promise
         entry.request.resolvePromise(entry.request);
         console.log(`HTTP request completed: ${entry.request.method} ${entry.request.url}`);
         
