@@ -1,7 +1,21 @@
 import {LiveData, Entity, EntitySchedule} from "@themeparks/typelib";
 
+type DestinationConstructor = {
+  config?: {[key: string]: string};
+};
+
 // Base class for all destinations
 export abstract class Destination {
+  constructor(options?: DestinationConstructor) {
+    // Apply any configuration options passed in
+    if (options?.config) {
+      this.config = options.config;
+    }
+  }
+
+  // Configuration options for the destination
+  config: {[key: string]: string} = {};
+
   /**
    * Get all destinations this class supports
    * @returns {Entity[]} List of destinations
