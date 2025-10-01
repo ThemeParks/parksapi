@@ -1,6 +1,6 @@
 import {LiveData, Entity, EntitySchedule} from "@themeparks/typelib";
 
-type DestinationConstructor = {
+export type DestinationConstructor = {
   config?: {[key: string]: string | string[]};
 };
 
@@ -15,6 +15,19 @@ export abstract class Destination {
 
   // Configuration options for the destination
   config: {[key: string]: string | string[]} = {};
+
+  /**
+   * Add a prefix to use when looking up config values from environment variables
+   * or config object. This allows multiple destinations to co-exist in the same
+   * environment without clashing on config keys.
+   * @param prefix Prefix to add to config lookups (e.g. 'UNIVERSAL' to check UNIVERSAL_<KEY> env vars)
+   */
+  addConfigPrefix(prefix: string) {
+    if (!Array.isArray(this.config.configPrefixes)) {
+      this.config.configPrefixes = [];
+    }
+    (this.config.configPrefixes as string[]).push(prefix);
+  }
 
   /**
    * Get all destinations this class supports
