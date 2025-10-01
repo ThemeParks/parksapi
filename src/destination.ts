@@ -1,7 +1,7 @@
 import {LiveData, Entity, EntitySchedule} from "@themeparks/typelib";
 
 type DestinationConstructor = {
-  config?: {[key: string]: string};
+  config?: {[key: string]: string | string[]};
 };
 
 // Base class for all destinations
@@ -14,7 +14,7 @@ export abstract class Destination {
   }
 
   // Configuration options for the destination
-  config: {[key: string]: string} = {};
+  config: {[key: string]: string | string[]} = {};
 
   /**
    * Get all destinations this class supports
