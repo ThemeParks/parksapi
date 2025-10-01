@@ -37,8 +37,8 @@ export type HTTPOptions = {
   json?: boolean; // shortcut to set Content-Type: application/json and stringify body
 };
 
-// Basic HTTP request definition for decorator methods
-export interface HTTPRequest {
+// Full HTTP object with response methods (for runtime use)
+export interface HTTPObj {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
   url: string;
   headers?: Record<string, string>;
@@ -46,10 +46,7 @@ export interface HTTPRequest {
   queryParams?: Record<string, string>;
   body?: any;
   tags: string[];
-}
 
-// Full HTTP object with response methods (for runtime use)
-export interface HTTPObj extends HTTPRequest {
   response?: Response;
 
   // functions to get response data
@@ -247,7 +244,8 @@ class HTTPRequestImpl implements HTTPObj {
     }
 
     // actually perform the fetch
-    const response = await fetch(this.buildUrl(), fetchOptions);
+    const urlToFetch = this.buildUrl();
+    const response = await fetch(urlToFetch, fetchOptions);
     this.response = response;
 
     // cache the response if response is OK and cacheKey is set
@@ -524,7 +522,7 @@ export async function processHttpQueue() {
         // resolve the original promise
         entry.request.resolvePromise(entry.request);
         console.log(`HTTP request completed: ${entry.request.method} ${entry.request.url}`);
-        
+
         // broadcast response event
         //  Note: opportunity here for the injection to throw an error to force a retry if needed
         await broadcastInjectionEvent(entry, 'httpResponse');
