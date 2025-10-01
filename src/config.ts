@@ -14,7 +14,7 @@
 // Map of classes to their property keys and associated symbols
 const classPropertyMap: Record<any, Record<string, Symbol>> = {};
 
-function getConfigValue(target: any, propertyKey: string, configPrefixes: string[]): any {
+function getConfigValue(target: any, propertyKey: string): any {
     const privateSym = classPropertyMap[target.constructor]?.[String(propertyKey)];
     if (privateSym) {
         // 1. check if there is a config value set on the instance
@@ -31,11 +31,15 @@ function getConfigValue(target: any, propertyKey: string, configPrefixes: string
         }
 
         // 3. check configPrefixes as well as class name
-        for (const prefix of configPrefixes) {
-            if (prefix) {
-                const prefixedEnvKey = `${prefix.toUpperCase()}_${propertyKey.toUpperCase()}`;
-                if (process.env.hasOwnProperty(prefixedEnvKey)) {
-                    return process.env[prefixedEnvKey];
+        const configObj = target.config || {};
+        if (configObj.configPrefixes) {
+            const configPrefixes: string[] = Array.isArray(configObj.configPrefixes) ? configObj.configPrefixes : [configObj.configPrefixes];
+            for (const prefix of configPrefixes) {
+                if (prefix) {
+                    const prefixedEnvKey = `${prefix.toUpperCase()}_${propertyKey.toUpperCase()}`;
+                    if (process.env.hasOwnProperty(prefixedEnvKey)) {
+                        return process.env[prefixedEnvKey];
+                    }
                 }
             }
         }
@@ -68,15 +72,11 @@ export default function config(target: any, propertyKey?: string | symbol) {
         return new Proxy(target, {
             // override the construct method when creating new instances of the class
             construct: function (target, args) {
-                const configObj = args[0]?.config || {};
-                // check for any configPrefixes (could be an array)
-                const configPrefixes: string[] = Array.isArray(configObj.configPrefixes) ? configObj.configPrefixes : [configObj.configPrefixes];
-
                 // return *another* proxy, this time of the instance itself
                 return new Proxy(new target(...args), {
                     // override getter to log property access
                     get(target, prop, receiver) {
-                        const val = getConfigValue(target, String(prop), configPrefixes);
+                        const val = getConfigValue(target, String(prop));
                         if (typeof val !== 'undefined') {
                             return val;
                         }
