@@ -67,7 +67,7 @@ class CacheLib {
     return row.count;
   }
 
-  static async wrap<T>(key: string, fn: () => T, ttlSeconds: number): T {
+  static async wrap<T>(key: string, fn: () => T, ttlSeconds: number): Promise<T> {
     if (this.has(key)) {
       const cachedValue = this.get(key);
       if (cachedValue !== null) {
