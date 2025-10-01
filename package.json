@@ -12,7 +12,7 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "dev": "npm run ts-dev -- src/test.ts",
-    "ts-dev": "tsx",
+    "ts-dev": "tsx --env-file=.env",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
