@@ -253,7 +253,7 @@ class Universal extends Destination {
         json: true,
       },
       tags: ['apiKeyFetch']
-    } as unknown as HTTPObj;
+    } as any as HTTPObj;
   }
 
   /**
@@ -292,7 +292,7 @@ class Universal extends Destination {
       method: 'GET',
       url: `${this.baseURL}/venues?city=${this.city}`,
       options: { json: true },
-    } as unknown as HTTPObj;
+    } as any as HTTPObj;
   }
 
   /**
@@ -314,7 +314,7 @@ class Universal extends Destination {
       method: 'GET',
       url: `${this.baseURL}/pointsofinterest?city=${this.city}`,
       options: { json: true },
-    } as unknown as HTTPObj;
+    } as any as HTTPObj;
   }
 
   /**
@@ -335,7 +335,7 @@ class Universal extends Destination {
       method: 'GET',
       url: `${this.assetsBase}/${this.resortKey}/wait-time/wait-time-attraction-list.json`,
       options: { json: true },
-    } as unknown as HTTPObj;
+    } as any as HTTPObj;
   }
 
   /**
@@ -361,7 +361,7 @@ class Universal extends Destination {
         pageSize: 'all',
       },
       options: { json: true },
-    } as unknown as HTTPObj;
+    } as any as HTTPObj;
   }
 
   /**
@@ -391,7 +391,7 @@ class Universal extends Destination {
         appTimeForToday: todaysDate,
       },
       options: { json: true },
-    } as unknown as HTTPObj;
+    } as any as HTTPObj;
   }
 
   /**
@@ -417,7 +417,7 @@ class Universal extends Destination {
         endDate: endDate,
       },
       options: { json: true },
-    } as unknown as HTTPObj;
+    } as any as HTTPObj;
   }
 
   /**
