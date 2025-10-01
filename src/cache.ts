@@ -80,11 +80,27 @@ class CacheLib {
   }
 }
 
-export default function cacheDecorator({ttlSeconds = 60} = {}) {
+export default function cacheDecorator({ttlSeconds = 60, callback}: {ttlSeconds?: number, callback?: (response: any) => number} = {}) {
   return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
-    descriptor.value = function (...args: any[]) {
+    descriptor.value = async function (...args: any[]) {
       const cacheKey = `${propertyKey}:${JSON.stringify(args)}`;
+
+      // If callback is provided, we need to call the function and let the callback determine TTL
+      if (callback) {
+        if (CacheLib.has(cacheKey)) {
+          const cachedValue = CacheLib.get(cacheKey);
+          if (cachedValue !== null) {
+            return cachedValue;
+          }
+        }
+        const result = await originalMethod.apply(this, args);
+        const dynamicTtl = await callback(result);
+        CacheLib.set(cacheKey, result, dynamicTtl);
+        return result;
+      }
+
+      // Otherwise use the standard wrap with fixed TTL
       return CacheLib.wrap(cacheKey, () => originalMethod.apply(this, args), ttlSeconds);
     };
   };
