@@ -67,14 +67,14 @@ class CacheLib {
     return row.count;
   }
 
-  static wrap<T>(key: string, fn: () => T, ttlSeconds: number): T {
+  static async wrap<T>(key: string, fn: () => T, ttlSeconds: number): T {
     if (this.has(key)) {
       const cachedValue = this.get(key);
       if (cachedValue !== null) {
         return cachedValue as T;
       }
     }
-    const result = fn();
+    const result = await fn();
     this.set(key, result, ttlSeconds);
     return result;
   }
@@ -101,7 +101,7 @@ export default function cacheDecorator({ttlSeconds = 60, callback}: {ttlSeconds?
       }
 
       // Otherwise use the standard wrap with fixed TTL
-      return CacheLib.wrap(cacheKey, () => originalMethod.apply(this, args), ttlSeconds);
+      return await CacheLib.wrap(cacheKey, () => originalMethod.apply(this, args), ttlSeconds);
     };
   };
 }
