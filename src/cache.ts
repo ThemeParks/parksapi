@@ -1,6 +1,10 @@
 import {DatabaseSync} from 'node:sqlite';
 
 const CACHE_DB_PATH = process.env.CACHE_DB_PATH || './cache.sqlite';
+const MAX_CACHE_ENTRIES = parseInt(process.env.CACHE_MAX_ENTRIES || '50000', 10);
+const CLEANUP_INTERVAL_MS = parseInt(process.env.CACHE_CLEANUP_INTERVAL_MS || '300000', 10); // 5 minutes
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 100;
 
 export const database = new DatabaseSync(CACHE_DB_PATH);
 
@@ -9,62 +13,239 @@ database.exec(`
   CREATE TABLE IF NOT EXISTS cache(
     key TEXT PRIMARY KEY,
     value TEXT,
-    timestamp INTEGER
+    timestamp INTEGER,
+    lastAccess INTEGER
   ) STRICT
 `);
 
+// Add index on lastAccess for efficient LRU queries
+database.exec(`
+  CREATE INDEX IF NOT EXISTS idx_cache_lastAccess ON cache(lastAccess)
+`);
+
+// Add index on timestamp for efficient cleanup
+database.exec(`
+  CREATE INDEX IF NOT EXISTS idx_cache_timestamp ON cache(timestamp)
+`);
+
+// Cleanup interval reference
+let cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Retry a database operation with exponential backoff (synchronous)
+ */
+function retryOperation<T>(operation: () => T, retries = MAX_RETRIES): T {
+  let lastError: any;
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt < retries - 1) {
+        // Simple delay for sync operations (not ideal but works)
+        const delay = RETRY_DELAY_MS * Math.pow(2, attempt);
+        const start = Date.now();
+        while (Date.now() - start < delay) {
+          // Busy wait (blocking)
+        }
+      }
+    }
+  }
+  throw lastError;
+}
+
 class CacheLib {
   static get(key: string): any | null {
-    const stmt = database.prepare('SELECT value, timestamp FROM cache WHERE key = ?');
-    const row = stmt.get(key) as {value: string, timestamp: number} | undefined;
     try {
-      if (row) {
-        const isExpired = Date.now() > row.timestamp;
-        if (isExpired) {
-          this.delete(key);
-          return null;
+      return retryOperation(() => {
+        const stmt = database.prepare('SELECT value, timestamp FROM cache WHERE key = ?');
+        const row = stmt.get(key) as {value: string, timestamp: number} | undefined;
+
+        if (row) {
+          const isExpired = Date.now() > row.timestamp;
+          if (isExpired) {
+            this.delete(key);
+            return null;
+          }
+
+          // Update last access time for LRU
+          const updateStmt = database.prepare('UPDATE cache SET lastAccess = ? WHERE key = ?');
+          updateStmt.run(Date.now(), key);
+
+          return JSON.parse(row.value);
         }
-        return JSON.parse(row.value);
-      }
-      return null;
+        return null;
+      });
     } catch (error) {
-      console.error("Error parsing cache value:", error);
+      console.error("Cache get error:", error);
       return null;
     }
   }
 
   static set<T>(key: string, value: T, ttlSeconds: number = 60): void {
-    const timestamp = Date.now() + (ttlSeconds * 1000);
-    const stmt = database.prepare('INSERT OR REPLACE INTO cache (key, value, timestamp) VALUES (?, ?, ?)');
-    stmt.run(key, JSON.stringify(value), timestamp);
+    try {
+      retryOperation(() => {
+        const timestamp = Date.now() + (ttlSeconds * 1000);
+        const now = Date.now();
+
+        const stmt = database.prepare('INSERT OR REPLACE INTO cache (key, value, timestamp, lastAccess) VALUES (?, ?, ?, ?)');
+        stmt.run(key, JSON.stringify(value), timestamp, now);
+
+        // Check if we need to evict entries after insert
+        this.enforceSizeLimit();
+      });
+    } catch (error) {
+      console.error("Cache set error:", error);
+    }
   }
 
   static delete(key: string): void {
-    const stmt = database.prepare('DELETE FROM cache WHERE key = ?');
-    stmt.run(key);
+    try {
+      retryOperation(() => {
+        const stmt = database.prepare('DELETE FROM cache WHERE key = ?');
+        stmt.run(key);
+      });
+    } catch (error) {
+      console.error("Cache delete error:", error);
+    }
   }
 
   static clear(): void {
-    const stmt = database.prepare('DELETE FROM cache');
-    stmt.run();
+    try {
+      retryOperation(() => {
+        const stmt = database.prepare('DELETE FROM cache');
+        stmt.run();
+      });
+    } catch (error) {
+      console.error("Cache clear error:", error);
+    }
   }
 
   static has(key: string): boolean {
-    const stmt = database.prepare('SELECT 1 FROM cache WHERE key = ?');
-    const row = stmt.get(key);
-    return !!row;
+    try {
+      return retryOperation(() => {
+        const stmt = database.prepare('SELECT 1 FROM cache WHERE key = ? AND timestamp > ?');
+        const row = stmt.get(key, Date.now());
+        return !!row;
+      });
+    } catch (error) {
+      console.error("Cache has error:", error);
+      return false;
+    }
   }
 
   static keys(): string[] {
-    const stmt = database.prepare('SELECT key FROM cache');
-    const rows = stmt.all() as {key: string}[];
-    return rows.map(row => row.key);
+    try {
+      return retryOperation(() => {
+        const stmt = database.prepare('SELECT key FROM cache WHERE timestamp > ?');
+        const rows = stmt.all(Date.now()) as {key: string}[];
+        return rows.map(row => row.key);
+      });
+    } catch (error) {
+      console.error("Cache keys error:", error);
+      return [];
+    }
   }
 
   static size(): number {
-    const stmt = database.prepare('SELECT COUNT(*) as count FROM cache');
-    const row = stmt.get() as {count: number};
-    return row.count;
+    try {
+      return retryOperation(() => {
+        const stmt = database.prepare('SELECT COUNT(*) as count FROM cache');
+        const row = stmt.get() as {count: number};
+        return row.count;
+      });
+    } catch (error) {
+      console.error("Cache size error:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Enforce cache size limit by removing least recently accessed entries
+   */
+  static enforceSizeLimit(): void {
+    try {
+      const currentSize = this.size();
+      if (currentSize > MAX_CACHE_ENTRIES) {
+        const entriesToRemove = currentSize - MAX_CACHE_ENTRIES;
+        const stmt = database.prepare(`
+          DELETE FROM cache WHERE key IN (
+            SELECT key FROM cache ORDER BY lastAccess ASC LIMIT ?
+          )
+        `);
+        stmt.run(entriesToRemove);
+      }
+    } catch (error) {
+      console.error("Cache size enforcement error:", error);
+    }
+  }
+
+  /**
+   * Remove all expired entries from cache
+   */
+  static cleanupExpired(): number {
+    try {
+      return retryOperation(() => {
+        const stmt = database.prepare('DELETE FROM cache WHERE timestamp <= ?');
+        const result = stmt.run(Date.now());
+        return Number(result.changes || 0);
+      });
+    } catch (error) {
+      console.error("Cache cleanup error:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Start automatic cleanup of expired entries
+   */
+  static startCleanup(): void {
+    if (cleanupIntervalId) {
+      return; // Already running
+    }
+    cleanupIntervalId = setInterval(() => {
+      const removed = this.cleanupExpired();
+      if (removed > 0) {
+        console.log(`Cache cleanup: removed ${removed} expired entries`);
+      }
+    }, CLEANUP_INTERVAL_MS);
+
+    // Don't block Node.js from exiting
+    cleanupIntervalId.unref();
+  }
+
+  /**
+   * Stop automatic cleanup
+   */
+  static stopCleanup(): void {
+    if (cleanupIntervalId) {
+      clearInterval(cleanupIntervalId);
+      cleanupIntervalId = null;
+    }
+  }
+
+  /**
+   * Get cache statistics
+   */
+  static stats(): {total: number, expired: number, active: number} {
+    try {
+      return retryOperation(() => {
+        const totalStmt = database.prepare('SELECT COUNT(*) as count FROM cache');
+        const expiredStmt = database.prepare('SELECT COUNT(*) as count FROM cache WHERE timestamp <= ?');
+
+        const total = (totalStmt.get() as {count: number}).count;
+        const expired = (expiredStmt.get(Date.now()) as {count: number}).count;
+
+        return {
+          total,
+          expired,
+          active: total - expired
+        };
+      });
+    } catch (error) {
+      console.error("Cache stats error:", error);
+      return {total: 0, expired: 0, active: 0};
+    }
   }
 
   static async wrap<T>(key: string, fn: () => T, ttlSeconds: number): Promise<T> {
