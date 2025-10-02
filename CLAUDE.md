@@ -304,19 +304,47 @@ protected async buildEntityList(): Promise<Entity[]> {
 **Config:** `jest.config.js` (uses `ts-jest` with ESM preset)
 **Test Config:** `tsconfig.test.json` (extends main config)
 
-**Current Tests:**
-- `src/__tests__/cache.test.ts` - CacheLib operations (15 tests)
-- `src/__tests__/injector.test.ts` - Event injection (6 tests)
+**Test Coverage:** 88.84% overall (222 tests total)
+
+**Core Library Coverage:**
+- ✅ `cache.ts` - 100% coverage
+- ✅ `config.ts` - 96.96% coverage
+- ✅ `datetime.ts` - 100% coverage
+- ✅ `destination.ts` - 85.07% coverage
+- ✅ `http.ts` - 86.6% coverage
+- ✅ `injector.ts` - 100% coverage
+- ⚪ `parkTypes.ts` - 0% (type definitions only)
+
+**Unit Tests:**
+- `src/__tests__/cache.test.ts` - CacheLib and @cache decorator (35 tests, 100% coverage)
+- `src/__tests__/config.test.ts` - @config decorator system (31 tests, 96.96% coverage)
+- `src/__tests__/datetime.test.ts` - Date/time utilities with ISO 8601 timezone offset (53 tests, 100% coverage)
+- `src/__tests__/mapEntities.test.ts` - Entity mapper helper (37 tests, 85.07% coverage)
 - `src/__tests__/entityHierarchy.test.ts` - Entity hierarchy resolution (11 tests)
+- `src/__tests__/injector.test.ts` - Event injection system (11 tests, 100% coverage)
+- `src/__tests__/http.test.ts` - HTTP utility functions (30 tests)
+
+**Integration Tests:**
+- `src/__tests__/httpIntegration.test.ts` - HTTP library with local test server (14 tests, 86.6% coverage)
+  - **Test Server:** Node.js HTTP server on port 9991
+  - **Lifecycle:** Started in `beforeAll()`, stopped in `afterAll()` with `stopHttpQueue()`
+  - **Tests:** GET/POST requests, headers, caching, validation, retries, callbacks
+
+**Note on Coverage:**
+- Parks implementations (`src/parks/**`) are excluded from coverage reports (integration-tested via manual harness)
+- Run `npm run test:coverage` to see detailed coverage report
 
 ## Migration Status
 
 **✅ Completed (TypeScript):**
-- Core libraries: cache, config, http, injector, datetime
+- Core libraries: cache, config, http, injector, datetime (all comprehensively tested)
 - Base classes: Destination (with Template Method Pattern)
 - Helper utilities: Entity mapper, hierarchy resolver
-- Parks: Universal Studios (complete)
-- Tests: cache, injector, entity hierarchy (32 tests total)
+- Parks: Universal Studios (complete, 834 lines)
+- Tests: 222 tests total, 88.84% overall coverage
+  - Core libraries at 85-100% coverage (cache, config, datetime, http, injector, destination)
+  - Integration tests with local HTTP server
+  - DateTime utilities with ISO 8601 timezone offset support
 
 **🔄 Legacy (JavaScript in `lib/`):**
 - 50+ park implementations (Disney, Six Flags, Cedar Point, etc.)

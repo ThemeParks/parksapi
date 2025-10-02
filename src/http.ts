@@ -612,7 +612,20 @@ export function getHttpRequesters(): HTTPRequester[] {
 }
 
 // Start processing the HTTP queue in the background
-setInterval(processHttpQueue, 100);
+let queueInterval: NodeJS.Timeout | null = setInterval(processHttpQueue, 100);
+
+/**
+ * Stop the HTTP queue processor.
+ * This is useful for testing or graceful shutdown.
+ * WARNING: After calling this, no HTTP requests will be processed until the process restarts.
+ */
+export function stopHttpQueue(): void {
+  if (queueInterval) {
+    clearInterval(queueInterval);
+    queueInterval = null;
+    console.log('HTTP queue processor stopped');
+  }
+}
 
 // HTTP decorator for class methods
 export {httpDecoratorFactory as http};
