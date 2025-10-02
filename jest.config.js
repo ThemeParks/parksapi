@@ -19,7 +19,8 @@ export default {
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
-    '!src/test.ts'
+    '!src/test.ts',
+    '!src/parks/**'
   ],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   verbose: true
