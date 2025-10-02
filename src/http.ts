@@ -497,15 +497,13 @@ function calculateBackoffDelay(retryAttempt: number): number {
   // Exponential: delay = initial * (multiplier ^ attempt)
   const exponentialDelay = INITIAL_RETRY_DELAY_MS * Math.pow(BACKOFF_MULTIPLIER, retryAttempt);
 
-  // Cap at max delay
-  const cappedDelay = Math.min(exponentialDelay, MAX_RETRY_DELAY_MS);
-
   // Add jitter: random value between -10% and +10% of delay
-  const jitter = cappedDelay * JITTER_FACTOR * (Math.random() * 2 - 1);
+  const jitter = exponentialDelay * JITTER_FACTOR * (Math.random() * 2 - 1);
+  const jitteredDelay = exponentialDelay + jitter;
 
-  return Math.floor(cappedDelay + jitter);
+  // Cap at max delay after jitter
+  return Math.floor(Math.min(jitteredDelay, MAX_RETRY_DELAY_MS));
 }
-
 // Process queued HTTP requests (stub implementation)
 export async function processHttpQueue() {
   while (httpRequestQueue.length > 0) {
