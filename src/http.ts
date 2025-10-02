@@ -611,6 +611,42 @@ export function getHttpRequesters(): HTTPRequester[] {
   return httpRequesters;
 }
 
+/**
+ * Helper to check if a class is in the prototype chain
+ */
+function isInPrototypeChain(childClass: any, parentClass: any): boolean {
+  let current = childClass;
+  while (current) {
+    if (current === parentClass) return true;
+    current = Object.getPrototypeOf(current);
+  }
+  return false;
+}
+
+/**
+ * Get all HTTP methods for a specific class, including methods from parent classes.
+ * @param targetClass The class constructor to search for
+ * @returns Array of HTTPRequester objects for the class and its parents
+ */
+export function getHttpRequestersForClass(targetClass: new (...args: any[]) => any): HTTPRequester[] {
+  return httpRequesters.filter(r => isInPrototypeChain(targetClass, r.instance));
+}
+
+/**
+ * Get a specific HTTP method for a class by name, including parent class methods.
+ * @param targetClass The class constructor to search for
+ * @param methodName The method name to find
+ * @returns HTTPRequester object if found, undefined otherwise
+ */
+export function getHttpRequesterForClassMethod(
+  targetClass: new (...args: any[]) => any,
+  methodName: string
+): HTTPRequester | undefined {
+  return httpRequesters.find(
+    r => isInPrototypeChain(targetClass, r.instance) && r.methodName === methodName
+  );
+}
+
 // Start processing the HTTP queue in the background
 let queueInterval: NodeJS.Timeout | null = setInterval(processHttpQueue, 100);
 
