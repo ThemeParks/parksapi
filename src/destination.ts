@@ -60,7 +60,4 @@ export abstract class Destination {
   async getSchedules(): Promise<EntitySchedule[]> {
     throw new Error("getSchedules not implemented.");
   }
-
-  // TODO - http injector
-
 };
