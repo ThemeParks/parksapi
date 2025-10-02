@@ -5,6 +5,7 @@ import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
 import config from '../../config.js';
+import {destinationController} from '../../destinationRegistry.js';
 import {
   Entity,
   LiveData,
@@ -797,6 +798,7 @@ class Universal extends Destination {
 /**
  * Universal Studios Orlando
  */
+@destinationController({ category: 'Universal' })
 export class UniversalOrlando extends Universal {
   constructor(options?: DestinationConstructor) {
     super({
@@ -816,6 +818,7 @@ export class UniversalOrlando extends Universal {
 /**
  * Universal Studios Hollywood
  */
+@destinationController({ category: 'Universal' })
 export class UniversalStudios extends Universal {
   constructor(options?: DestinationConstructor) {
     super({
