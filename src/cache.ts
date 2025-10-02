@@ -18,6 +18,29 @@ database.exec(`
   ) STRICT
 `);
 
+// Migration: Add lastAccess column if it doesn't exist (for existing databases)
+try {
+  const tableInfo = database.prepare("PRAGMA table_info(cache)").all() as {name: string}[];
+  const hasLastAccess = tableInfo.some(col => col.name === 'lastAccess');
+
+  if (!hasLastAccess) {
+    console.log('Migrating cache database: adding lastAccess column');
+    database.exec('ALTER TABLE cache ADD COLUMN lastAccess INTEGER DEFAULT 0');
+  }
+} catch (error) {
+  // If migration fails, might be an old database - recreate it
+  console.warn('Cache migration failed, recreating database:', error);
+  database.exec('DROP TABLE IF EXISTS cache');
+  database.exec(`
+    CREATE TABLE cache(
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      timestamp INTEGER,
+      lastAccess INTEGER
+    ) STRICT
+  `);
+}
+
 // Add index on lastAccess for efficient LRU queries
 database.exec(`
   CREATE INDEX IF NOT EXISTS idx_cache_lastAccess ON cache(lastAccess)
