@@ -78,10 +78,14 @@ export type HTTPRequestEntry = {
   cacheTtlSeconds?: number;
   // validator function for response (optional)
   validateResponse?: any;
+};
+
+// Internal type for queue entries, includes retryAttempt for internal use only
+type InternalHTTPRequestEntry = HTTPRequestEntry & {
   // track which retry attempt this is (0 = first retry, 1 = second, etc.)
   retryAttempt?: number;
 };
-const httpRequestQueue: HTTPRequestEntry[] = [];
+const httpRequestQueue: InternalHTTPRequestEntry[] = [];
 
 // Internal class to handle HTTPRequest with private promise handlers
 class HTTPRequestImpl implements HTTPObj {
