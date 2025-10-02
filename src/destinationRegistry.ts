@@ -119,7 +119,10 @@ async function loadAllDestinations(): Promise<void> {
 
       await import(importPath);
     } catch (error) {
-      // Silently ignore import errors
+      // Log import errors in development mode for debugging
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(`[destinationRegistry] Failed to import destination file: ${file}\n`, error);
+      }
     }
   });
 
