@@ -7,9 +7,9 @@ permissions:
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, ts]
   pull_request:
-    branches: [ main ]
+    branches: [ main, ts]
 
 jobs:
   build:
