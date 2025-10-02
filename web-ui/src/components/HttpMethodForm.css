@@ -1,0 +1,109 @@
+.http-method-form {
+  margin-top: 20px;
+  padding: 24px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.form-header {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.form-header h4 {
+  color: #333;
+  font-family: monospace;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.param-count {
+  color: #666;
+  font-size: 13px;
+}
+
+.no-params {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+  font-style: italic;
+}
+
+.form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-field label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.param-name {
+  font-weight: 500;
+  color: #333;
+  font-family: monospace;
+  font-size: 14px;
+}
+
+.required {
+  color: #d32f2f;
+  margin-left: 4px;
+}
+
+.param-type {
+  color: #666;
+  font-size: 12px;
+  font-family: monospace;
+  background: #e0e0e0;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.param-description {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 8px;
+  font-style: italic;
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: monospace;
+  background: white;
+}
+
+.form-field textarea {
+  resize: vertical;
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.http-method-form .execute-button {
+  width: 100%;
+  padding: 14px;
+  font-size: 15px;
+}
