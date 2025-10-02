@@ -4,7 +4,7 @@
  */
 
 import {Destination} from './destination.js';
-import {Entity, LiveData, EntitySchedule} from './parkTypes.js';
+import {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {getQueueLength} from './http.js';
 
 export type TestResult = {
