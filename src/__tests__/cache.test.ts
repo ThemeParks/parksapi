@@ -179,26 +179,26 @@ describe('Cache', () => {
   });
 
   describe('Wrap Functionality', () => {
-    test('should execute function and cache result on first call', () => {
+    test('should execute function and cache result on first call', async () => {
       const mockFn = jest.fn(() => 'computed-value');
-      
-      const result = Cache.wrap('wrap-key', mockFn, 60);
-      
+
+      const result = await Cache.wrap('wrap-key', mockFn, 60);
+
       expect(result).toBe('computed-value');
       expect(mockFn).toHaveBeenCalledTimes(1);
       expect(Cache.get('wrap-key')).toBe('computed-value');
     });
 
-    test('should return cached value on subsequent calls', () => {
+    test('should return cached value on subsequent calls', async () => {
       const mockFn = jest.fn(() => 'computed-value');
-      
+
       // First call
-      const result1 = Cache.wrap('wrap-key', mockFn, 60);
+      const result1 = await Cache.wrap('wrap-key', mockFn, 60);
       expect(result1).toBe('computed-value');
       expect(mockFn).toHaveBeenCalledTimes(1);
-      
+
       // Second call
-      const result2 = Cache.wrap('wrap-key', mockFn, 60);
+      const result2 = await Cache.wrap('wrap-key', mockFn, 60);
       expect(result2).toBe('computed-value');
       expect(mockFn).toHaveBeenCalledTimes(1); // Should not be called again
     });
@@ -207,35 +207,35 @@ describe('Cache', () => {
       const mockFn = jest.fn()
         .mockReturnValueOnce('first-value')
         .mockReturnValueOnce('second-value');
-      
+
       // First call with short TTL
-      const result1 = Cache.wrap('wrap-key', mockFn, 1);
+      const result1 = await Cache.wrap('wrap-key', mockFn, 1);
       expect(result1).toBe('first-value');
       expect(mockFn).toHaveBeenCalledTimes(1);
-      
+
       // Wait for expiration
       await new Promise(resolve => setTimeout(resolve, 1100));
-      
+
       // Second call after expiration
-      const result2 = Cache.wrap('wrap-key', mockFn, 1);
+      const result2 = await Cache.wrap('wrap-key', mockFn, 1);
       expect(result2).toBe('second-value');
       expect(mockFn).toHaveBeenCalledTimes(2);
     });
 
-    test('should handle complex return types in wrap', () => {
+    test('should handle complex return types in wrap', async () => {
       const complexObject = {
         data: [1, 2, 3],
         nested: { value: 'test' },
         timestamp: Date.now()
       };
-      
+
       const mockFn = jest.fn(() => complexObject);
-      
-      const result = Cache.wrap('complex-wrap', mockFn, 60);
+
+      const result = await Cache.wrap('complex-wrap', mockFn, 60);
       expect(result).toEqual(complexObject);
-      
+
       // Subsequent call should return cached value
-      const result2 = Cache.wrap('complex-wrap', mockFn, 60);
+      const result2 = await Cache.wrap('complex-wrap', mockFn, 60);
       expect(result2).toEqual(complexObject);
       expect(mockFn).toHaveBeenCalledTimes(1);
     });
@@ -258,22 +258,22 @@ describe('Cache', () => {
       expect(() => Cache.get('non-existent')).not.toThrow();
     });
 
-    test('should handle edge cases in wrap function', () => {
+    test('should handle edge cases in wrap function', async () => {
       // Test with function that returns null
       const nullFn = jest.fn(() => null);
-      const result1 = Cache.wrap('null-key', nullFn, 60);
+      const result1 = await Cache.wrap('null-key', nullFn, 60);
       expect(result1).toBeNull();
-      
+
       // Test with function that returns empty string
       const emptyStringFn = jest.fn(() => '');
-      const result2 = Cache.wrap('empty-string-key', emptyStringFn, 60);
+      const result2 = await Cache.wrap('empty-string-key', emptyStringFn, 60);
       expect(result2).toBe('');
-      
+
       // Test with function that throws
       const throwingFn = jest.fn(() => {
         throw new Error('Test error');
       });
-      expect(() => Cache.wrap('error-key', throwingFn, 60)).toThrow('Test error');
+      await expect(Cache.wrap('error-key', throwingFn, 60)).rejects.toThrow('Test error');
     });
   });
 

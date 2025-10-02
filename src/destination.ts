@@ -297,17 +297,61 @@ export abstract class Destination {
 
   /**
    * Get live data for all entities in this destination
+   *
+   * ⚠️ **DO NOT OVERRIDE THIS METHOD** ⚠️
+   *
+   * This method is final and should not be overridden. If you need to provide
+   * post-processing or validation of live data, consider using the transform
+   * pattern in buildLiveData() instead.
+   *
+   * **To provide live data, implement buildLiveData() instead.**
+   *
+   * @final This method is final and should not be overridden.
    * @returns {LiveData[]} List of live data for entities
    */
   async getLiveData(): Promise<LiveData[]> {
-    throw new Error("getLiveData not implemented.");
+    return await this.buildLiveData();
+  }
+
+  /**
+   * Build live data for all entities in this destination
+   *
+   * Subclasses should override this method to return live data (wait times,
+   * operating status, showtimes, etc.) for their entities.
+   *
+   * @returns {LiveData[]} List of live data for entities
+   */
+  protected async buildLiveData(): Promise<LiveData[]> {
+    throw new Error("buildLiveData not implemented.");
   }
 
   /**
    * Get schedules for all entities in this destination
+   *
+   * ⚠️ **DO NOT OVERRIDE THIS METHOD** ⚠️
+   *
+   * This method is final and should not be overridden. If you need to provide
+   * post-processing or validation of schedules, consider using the transform
+   * pattern in buildSchedules() instead.
+   *
+   * **To provide schedules, implement buildSchedules() instead.**
+   *
+   * @final This method is final and should not be overridden.
    * @returns {EntitySchedule[]} List of schedules for entities
    */
   async getSchedules(): Promise<EntitySchedule[]> {
-    throw new Error("getSchedules not implemented.");
+    return await this.buildSchedules();
+  }
+
+  /**
+   * Build schedules for all entities in this destination
+   *
+   * Subclasses should override this method to return operating hours,
+   * show times, and other schedule information for their entities.
+   *
+   * @returns {EntitySchedule[]} List of schedules for entities
+   */
+  protected async buildSchedules(): Promise<EntitySchedule[]> {
+    throw new Error("buildSchedules not implemented.");
   }
 };

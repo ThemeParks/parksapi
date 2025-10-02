@@ -15,11 +15,11 @@ class MockDestination extends Destination {
     return [];
   }
 
-  async getLiveData(): Promise<any[]> {
+  protected async buildLiveData(): Promise<any[]> {
     return [];
   }
 
-  async getSchedules(): Promise<any[]> {
+  protected async buildSchedules(): Promise<any[]> {
     return [];
   }
 
@@ -68,11 +68,11 @@ describe('Entity Hierarchy Resolution', () => {
         ];
       }
 
-      async getLiveData(): Promise<any[]> {
+      protected async buildLiveData(): Promise<any[]> {
         return [];
       }
 
-      async getSchedules(): Promise<any[]> {
+      protected async buildSchedules(): Promise<any[]> {
         return [];
       }
     }
