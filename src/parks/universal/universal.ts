@@ -538,9 +538,9 @@ class Universal extends Destination {
   }
 
   /**
-   * Get live data for all entities
+   * Build live data for all entities
    */
-  async getLiveData(): Promise<LiveData[]> {
+  protected async buildLiveData(): Promise<LiveData[]> {
     const liveData: LiveData[] = [];
     const liveDataMap = new Map<string, LiveData>();
 
@@ -735,9 +735,9 @@ class Universal extends Destination {
   }
 
   /**
-   * Get schedules for all parks
+   * Build schedules for all parks
    */
-  async getSchedules(): Promise<EntitySchedule[]> {
+  protected async buildSchedules(): Promise<EntitySchedule[]> {
     const parks = await this.getParks();
     const schedules: EntitySchedule[] = [];
 
