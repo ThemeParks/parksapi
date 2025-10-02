@@ -22,8 +22,8 @@ export type HTTPParameterDefinition = HTTPParameter;
 
 // represents an HTTP method that has been decorated with @http
 export type HTTPRequester = {
-  // class
-  instance: any;
+  // class name
+  instance: string;
   // method name
   methodName: string;
   // method arguments with OpenAPI-like schema
@@ -370,13 +370,13 @@ function httpDecoratorFactory(options?: {
     // Add to httpRequesters list at decoration time
     // Check if this class/method combination already exists to avoid duplicates
     const existingEntry = httpRequesters.find(
-      entry => entry.instance === target.constructor && entry.methodName === propertyKey
+      entry => entry.instance === target.constructor.name && entry.methodName === propertyKey
     );
 
     if (!existingEntry) {
       // Create the requester entry
       const requester: HTTPRequester = {
-        instance: target.constructor,
+        instance: target.constructor.name,
         methodName: propertyKey,
         args: options?.parameters ? [...options.parameters] : []
       };
@@ -612,12 +612,12 @@ export function getHttpRequesters(): HTTPRequester[] {
 }
 
 /**
- * Helper to check if a class is in the prototype chain
+ * Helper to check if a class name is in the prototype chain
  */
-function isInPrototypeChain(childClass: any, parentClass: any): boolean {
+function isInPrototypeChain(childClass: any, parentName: string): boolean {
   let current = childClass;
   while (current) {
-    if (current === parentClass) return true;
+    if (current.name === parentName) return true;
     current = Object.getPrototypeOf(current);
   }
   return false;

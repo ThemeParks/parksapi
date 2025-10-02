@@ -177,7 +177,7 @@ class Universal extends Destination {
   @inject({
     eventName: 'httpRequest',
     hostname: {$regex: /universalorlando\.com|universalstudios\.com/},
-    tags: { $nin: ['apiKeyFetch'] }
+    tags: {$nin: ['apiKeyFetch']}
   })
   async injectAPIKey(requestObj: HTTPObj): Promise<void> {
     const apiKeyData = await this.getAPIKey();
@@ -210,7 +210,7 @@ class Universal extends Destination {
   @cache({
     callback: (response) => response?.expiresIn || 3600
   })
-  async getAPIKey(): Promise<{ apiKey: string; expiresIn: number }> {
+  async getAPIKey(): Promise<{apiKey: string; expiresIn: number}> {
     const resp = await this.fetchAPIKey();
     if (!resp.response || !resp.response.ok) {
       throw new Error(`Failed to fetch API key: ${resp.response?.status} ${resp.response?.statusText}`);
@@ -231,7 +231,7 @@ class Universal extends Destination {
   /**
    * Fetch API key from authentication endpoint
    */
-  @http({ cacheSeconds: 0 })
+  @http({cacheSeconds: 0})
   async fetchAPIKey(): Promise<HTTPObj> {
     const now = new Date();
     const today = formatUTC(now, 'ddd, DD MMM YYYY HH:mm:ss') + ' GMT';
@@ -269,16 +269,16 @@ class Universal extends Destination {
           items: {
             type: 'object',
             properties: {
-              Id: { type: 'number' },
+              Id: {type: 'number'},
               ExternalIds: {
                 type: 'object',
                 properties: {
-                  ContentId: { type: 'string' },
+                  ContentId: {type: 'string'},
                 },
                 required: ['ContentId'],
               },
-              MblDisplayName: { type: 'string' },
-              AdmissionRequired: { type: 'boolean' },
+              MblDisplayName: {type: 'string'},
+              AdmissionRequired: {type: 'boolean'},
             },
             required: ['Id', 'ExternalIds', 'MblDisplayName', 'AdmissionRequired'],
           },
@@ -292,14 +292,14 @@ class Universal extends Destination {
     return {
       method: 'GET',
       url: `${this.baseURL}/venues?city=${this.city}`,
-      options: { json: true },
+      options: {json: true},
     } as any as HTTPObj;
   }
 
   /**
    * Get parks (filtered for admission required)
    */
-  @cache({ ttlSeconds: 60 * 60 * 3 })
+  @cache({ttlSeconds: 60 * 60 * 3})
   async getParks() {
     const resp = await this.fetchParks();
     const data: UniversalVenuesResponse = await resp.json();
@@ -309,19 +309,19 @@ class Universal extends Destination {
   /**
    * Fetch POI (Points of Interest) data
    */
-  @http({ cacheSeconds: 60 })
+  @http({cacheSeconds: 60})
   async fetchPOI(): Promise<HTTPObj> {
     return {
       method: 'GET',
       url: `${this.baseURL}/pointsofinterest?city=${this.city}`,
-      options: { json: true },
+      options: {json: true},
     } as any as HTTPObj;
   }
 
   /**
    * Get POI data (cached)
    */
-  @cache({ ttlSeconds: 60 })
+  @cache({ttlSeconds: 60})
   async getPOI(): Promise<UniversalPOIResponse> {
     const resp = await this.fetchPOI();
     return await resp.json();
@@ -330,19 +330,19 @@ class Universal extends Destination {
   /**
    * Fetch wait time data
    */
-  @http({ cacheSeconds: 60 })
+  @http({cacheSeconds: 60})
   async fetchWaitTimes(): Promise<HTTPObj> {
     return {
       method: 'GET',
       url: `${this.assetsBase}/${this.resortKey}/wait-time/wait-time-attraction-list.json`,
-      options: { json: true },
+      options: {json: true},
     } as any as HTTPObj;
   }
 
   /**
    * Get wait time data (cached)
    */
-  @cache({ ttlSeconds: 60 })
+  @cache({ttlSeconds: 60})
   async getWaitTimes(): Promise<UniversalWaitTimeResponse> {
     const resp = await this.fetchWaitTimes();
     return await resp.json();
@@ -351,7 +351,7 @@ class Universal extends Destination {
   /**
    * Fetch virtual queue states
    */
-  @http({ cacheSeconds: 60 })
+  @http({cacheSeconds: 60})
   async fetchVirtualQueueStates(): Promise<HTTPObj> {
     return {
       method: 'GET',
@@ -361,14 +361,14 @@ class Universal extends Destination {
         page: '1',
         pageSize: 'all',
       },
-      options: { json: true },
+      options: {json: true},
     } as any as HTTPObj;
   }
 
   /**
    * Get virtual queue states (cached)
    */
-  @cache({ ttlSeconds: 60 })
+  @cache({ttlSeconds: 60})
   async getVirtualQueueStates(): Promise<UniversalVirtualQueueState[]> {
     const resp = await this.fetchVirtualQueueStates();
     const data: any = await resp.json();
@@ -378,7 +378,9 @@ class Universal extends Destination {
   /**
    * Fetch virtual queue details for a specific queue
    */
-  @http({ cacheSeconds: 60 })
+  @http({cacheSeconds: 60, parameters: [
+    {name: 'queueId', type: 'string', description: 'Virtual queue ID to fetch details for'}
+  ]})
   async fetchVirtualQueueDetails(queueId: string): Promise<HTTPObj> {
     const todaysDate = formatInTimezone(new Date(), this.timezone, 'date');
 
@@ -391,14 +393,14 @@ class Universal extends Destination {
         city: this.city,
         appTimeForToday: todaysDate,
       },
-      options: { json: true },
+      options: {json: true},
     } as any as HTTPObj;
   }
 
   /**
    * Get virtual queue details (cached)
    */
-  @cache({ ttlSeconds: 60 })
+  @cache({ttlSeconds: 60})
   async getVirtualQueueDetails(queueId: string): Promise<UniversalVirtualQueueDetails> {
     const resp = await this.fetchVirtualQueueDetails(queueId);
     return await resp.json();
@@ -407,7 +409,11 @@ class Universal extends Destination {
   /**
    * Fetch venue schedule
    */
-  @http({ cacheSeconds: 180 * 60 })
+  @http({
+    cacheSeconds: 180 * 60, parameters: [
+      {name: 'venueId', type: 'string', description: 'Venue ID to fetch schedule for'}
+    ]
+  })
   async fetchVenueSchedule(venueId: string): Promise<HTTPObj> {
     const endDate = formatInTimezone(addDays(new Date(), 190), this.timezone, 'date');
 
@@ -417,14 +423,14 @@ class Universal extends Destination {
       queryParams: {
         endDate: endDate,
       },
-      options: { json: true },
+      options: {json: true},
     } as any as HTTPObj;
   }
 
   /**
    * Get venue schedule (cached)
    */
-  @cache({ ttlSeconds: 60 * 60 * 3 })
+  @cache({ttlSeconds: 60 * 60 * 3})
   async getVenueSchedule(venueId: string): Promise<UniversalScheduleResponse> {
     const resp = await this.fetchVenueSchedule(venueId);
     return await resp.json();
@@ -506,7 +512,7 @@ class Universal extends Destination {
         nameField: 'MblDisplayName',
         entityType: 'ATTRACTION',
         parentIdField: 'VenueId',
-        locationFields: { lat: 'Latitude', lng: 'Longitude' },
+        locationFields: {lat: 'Latitude', lng: 'Longitude'},
         destinationId,
         timezone: this.timezone,
         filter: (ride) => shouldIncludeUniversalAttraction(ride.MblDisplayName || ''),
@@ -518,7 +524,7 @@ class Universal extends Destination {
         nameField: 'MblDisplayName',
         entityType: 'SHOW',
         parentIdField: 'VenueId',
-        locationFields: { lat: 'Latitude', lng: 'Longitude' },
+        locationFields: {lat: 'Latitude', lng: 'Longitude'},
         destinationId,
         timezone: this.timezone,
       }),
@@ -529,7 +535,7 @@ class Universal extends Destination {
         nameField: 'MblDisplayName',
         entityType: 'RESTAURANT',
         parentIdField: 'VenueId',
-        locationFields: { lat: 'Latitude', lng: 'Longitude' },
+        locationFields: {lat: 'Latitude', lng: 'Longitude'},
         destinationId,
         timezone: this.timezone,
         filter: (dining) =>
@@ -630,7 +636,7 @@ class Universal extends Destination {
               if (!attractionLiveData.queue) {
                 attractionLiveData.queue = {};
               }
-              attractionLiveData.queue.STANDBY = { waitTime };
+              attractionLiveData.queue.STANDBY = {waitTime};
               hasOperatingQueue = true;
             }
 
@@ -663,7 +669,7 @@ class Universal extends Destination {
               if (!attractionLiveData.queue) {
                 attractionLiveData.queue = {};
               }
-              attractionLiveData.queue.SINGLE_RIDER = { waitTime: null };
+              attractionLiveData.queue.SINGLE_RIDER = {waitTime: null};
               hasOperatingQueue = true;
             }
             break;
@@ -721,7 +727,7 @@ class Universal extends Destination {
         if (!rideEntry.queue) {
           rideEntry.queue = {};
         }
-        rideEntry.queue.STANDBY = { waitTime: ride.WaitTime };
+        rideEntry.queue.STANDBY = {waitTime: ride.WaitTime};
       } else {
         // Negative wait times indicate special states
         if (ride.WaitTime === -4 || ride.WaitTime === -2) {
@@ -781,7 +787,7 @@ class Universal extends Destination {
 /**
  * Universal Studios Orlando
  */
-@destinationController({ category: 'Universal' })
+@destinationController({category: 'Universal'})
 export class UniversalOrlando extends Universal {
   constructor(options?: DestinationConstructor) {
     super({
@@ -801,7 +807,7 @@ export class UniversalOrlando extends Universal {
 /**
  * Universal Studios Hollywood
  */
-@destinationController({ category: 'Universal' })
+@destinationController({category: 'Universal'})
 export class UniversalStudios extends Universal {
   constructor(options?: DestinationConstructor) {
     super({
