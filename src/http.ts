@@ -78,6 +78,8 @@ export type HTTPRequestEntry = {
   cacheTtlSeconds?: number;
   // validator function for response (optional)
   validateResponse?: any;
+  // track which retry attempt this is (0 = first retry, 1 = second, etc.)
+  retryAttempt?: number;
 };
 const httpRequestQueue: HTTPRequestEntry[] = [];
 
@@ -480,6 +482,30 @@ const emptyQueueDelayMs = 100; // ms
 // how long to wait between processing requests
 const nextRequestDelayMs = 250; // ms
 
+// Retry configuration with exponential backoff
+const INITIAL_RETRY_DELAY_MS = 1000;      // 1 second for first retry
+const MAX_RETRY_DELAY_MS = 60000;         // Cap at 60 seconds
+const BACKOFF_MULTIPLIER = 2;             // Double delay each retry
+const JITTER_FACTOR = 0.1;                // Add ±10% random jitter
+
+/**
+ * Calculate exponential backoff delay with jitter
+ * @param retryAttempt Current retry attempt number (0 = first retry, 1 = second, etc.)
+ * @returns Delay in milliseconds
+ */
+function calculateBackoffDelay(retryAttempt: number): number {
+  // Exponential: delay = initial * (multiplier ^ attempt)
+  const exponentialDelay = INITIAL_RETRY_DELAY_MS * Math.pow(BACKOFF_MULTIPLIER, retryAttempt);
+
+  // Cap at max delay
+  const cappedDelay = Math.min(exponentialDelay, MAX_RETRY_DELAY_MS);
+
+  // Add jitter: random value between -10% and +10% of delay
+  const jitter = cappedDelay * JITTER_FACTOR * (Math.random() * 2 - 1);
+
+  return Math.floor(cappedDelay + jitter);
+}
+
 // Process queued HTTP requests (stub implementation)
 export async function processHttpQueue() {
   while (httpRequestQueue.length > 0) {
@@ -533,12 +559,24 @@ export async function processHttpQueue() {
         // allow retries if configured, but push to the back of the queue
         if (entry.request.retries && entry.request.retries > 0) {
           entry.request.retries -= 1;
-          console.warn(`HTTP request failed, retrying (${entry.request.retries} retries left): ${entry.request.method} ${entry.request.url}`, error);
 
-          // wait 10 seconds before retrying
-          // TODO - implement exponential backoff
-          entry.earliestExecute = Date.now() + 10000;
+          // Track retry attempt (initialize if first retry)
+          if (entry.retryAttempt === undefined) {
+            entry.retryAttempt = 0;
+          } else {
+            entry.retryAttempt += 1;
+          }
 
+          const backoffDelay = calculateBackoffDelay(entry.retryAttempt);
+
+          console.warn(
+            `HTTP request failed, retrying in ${Math.round(backoffDelay / 1000)}s ` +
+            `(attempt ${entry.retryAttempt + 1}, ${entry.request.retries} retries left): ` +
+            `${entry.request.method} ${entry.request.url}`,
+            error
+          );
+
+          entry.earliestExecute = Date.now() + backoffDelay;
           httpRequestQueue.push(entry); // re-queue the request
         } else {
           console.error(`HTTP request failed, no retries left: ${entry.request.method} ${entry.request.url}`, error);
