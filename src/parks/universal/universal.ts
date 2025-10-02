@@ -476,82 +476,65 @@ class Universal extends Destination {
   }
 
   /**
-   * Get all entities (destination, parks, attractions, shows, restaurants)
+   * Build all entities (destination, parks, attractions, shows, restaurants)
+   * Note: parkId and destinationId are automatically resolved by the base class
    */
-  async getEntities(): Promise<Entity[]> {
-    const entities: Entity[] = [];
+  protected async buildEntityList(): Promise<Entity[]> {
     const destinationId = `universalresort_${this.city}`;
-
-    // Destination
-    entities.push(...await this.getDestinations());
-
-    // Parks
-    const parks = await this.getParks();
-    entities.push(...parks.map((park): Entity => ({
-      id: park.Id.toString(),
-      name: park.MblDisplayName,
-      entityType: 'PARK',
-      parentId: destinationId,
-      destinationId: destinationId,
-      timezone: this.timezone,
-    } as Entity)));
-
-    // Attractions
     const poi = await this.getPOI();
-    entities.push(...poi.Rides
-      .filter((ride) => shouldIncludeUniversalAttraction(ride.MblDisplayName || ''))
-      .map((ride): Entity => ({
-        id: ride.Id.toString(),
-        name: ride.MblDisplayName || '',
-        entityType: 'ATTRACTION',
-        parentId: ride.VenueId?.toString(),
-        destinationId: destinationId,
-        parkId: ride.VenueId?.toString(),
-        timezone: this.timezone,
-        location: ride.Longitude && ride.Latitude ? {
-          latitude: ride.Latitude,
-          longitude: ride.Longitude,
-        } : undefined,
-      } as Entity))
-    );
-
-    // Shows
+    const parks = await this.getParks();
     const shows = await this.getFilteredShows();
-    entities.push(...shows.map((show): Entity => ({
-      id: show.Id.toString(),
-      name: show.MblDisplayName || '',
-      entityType: 'SHOW',
-      parentId: show.VenueId?.toString(),
-      destinationId: destinationId,
-      parkId: show.VenueId?.toString(),
-      timezone: this.timezone,
-      location: show.Longitude && show.Latitude ? {
-        latitude: show.Latitude,
-        longitude: show.Longitude,
-      } : undefined,
-    } as Entity)));
 
-    // Restaurants
-    entities.push(...poi.DiningLocations
-      .filter((dining) =>
-        dining.DiningTypes?.some((type) => WANTED_DINING_TYPES.includes(type))
-      )
-      .map((dining): Entity => ({
-        id: dining.Id.toString(),
-        name: dining.MblDisplayName || '',
-        entityType: 'RESTAURANT',
-        parentId: dining.VenueId?.toString(),
-        destinationId: destinationId,
-        parkId: dining.VenueId?.toString(),
+    return [
+      // Destination
+      ...await this.getDestinations(),
+
+      // Parks
+      ...this.mapEntities(parks, {
+        idField: 'Id',
+        nameField: 'MblDisplayName',
+        entityType: 'PARK',
+        parentIdField: () => destinationId,
+        destinationId,
         timezone: this.timezone,
-        location: dining.Longitude && dining.Latitude ? {
-          latitude: dining.Latitude,
-          longitude: dining.Longitude,
-        } : undefined,
-      } as Entity))
-    );
+      }),
 
-    return entities;
+      // Attractions
+      ...this.mapEntities(poi.Rides, {
+        idField: 'Id',
+        nameField: 'MblDisplayName',
+        entityType: 'ATTRACTION',
+        parentIdField: 'VenueId',
+        locationFields: { lat: 'Latitude', lng: 'Longitude' },
+        destinationId,
+        timezone: this.timezone,
+        filter: (ride) => shouldIncludeUniversalAttraction(ride.MblDisplayName || ''),
+      }),
+
+      // Shows
+      ...this.mapEntities(shows, {
+        idField: 'Id',
+        nameField: 'MblDisplayName',
+        entityType: 'SHOW',
+        parentIdField: 'VenueId',
+        locationFields: { lat: 'Latitude', lng: 'Longitude' },
+        destinationId,
+        timezone: this.timezone,
+      }),
+
+      // Restaurants
+      ...this.mapEntities(poi.DiningLocations, {
+        idField: 'Id',
+        nameField: 'MblDisplayName',
+        entityType: 'RESTAURANT',
+        parentIdField: 'VenueId',
+        locationFields: { lat: 'Latitude', lng: 'Longitude' },
+        destinationId,
+        timezone: this.timezone,
+        filter: (dining) =>
+          dining.DiningTypes?.some((type) => WANTED_DINING_TYPES.includes(type)) ?? false,
+      }),
+    ];
   }
 
   /**
