@@ -3,7 +3,7 @@
  */
 
 import {Destination, EntityMapperConfig} from '../destination.js';
-import {Entity} from '../parkTypes.js';
+import {Entity} from '@themeparks/typelib';
 
 // Mock destination class for testing mapEntities
 class MockDestination extends Destination {

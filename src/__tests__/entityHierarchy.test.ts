@@ -3,7 +3,7 @@
  */
 
 import {Destination} from '../destination.js';
-import {Entity} from '../parkTypes.js';
+import {Entity} from '@themeparks/typelib';
 
 // Mock destination class for testing
 class MockDestination extends Destination {

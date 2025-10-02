@@ -176,27 +176,37 @@ async injectAPIKey(requestObj: HTTPObj): Promise<string> {
 
 ### 3. Type System
 
-#### **Entity Types** (`src/types/entities.d.ts`)
-Current minimal types:
-```typescript
-export enum EntityTypeEnum {
-  DESTINATION, PARK, ATTRACTION, DINING, SHOW, HOTEL
-}
+#### **External Type Package** (`@themeparks/typelib`)
+**Status:** As of 2025-10-02, `src/parkTypes.ts` has been **REMOVED** - all types come directly from `@themeparks/typelib`
 
-export type EntityType = {
-  id: string;
-  name: string;
-  entityType: 'DESTINATION' | 'PARK' | 'ATTRACTION' | ...;
-  destinationId?: string;
-  parentId?: string;
-  parkId?: string;
-  location: { latitude: number; longitude: number };
-  timezone: string;
-  tags?: TagType[];
+**All park implementations import directly from:** `@themeparks/typelib`
+
+**Available Types:**
+- `Entity`, `LiveData`, `EntitySchedule` - Core data types
+- `AttractionTypeEnum` - RIDE, SHOW, TRANSPORT, PARADE, MEET_AND_GREET, OTHER (enum value)
+- `AttractionType` - Type alias (keyof typeof AttractionTypeEnum)
+- `QueueTypeEnum` - STANDBY, SINGLE_RIDER, RETURN_TIME, PAID_RETURN_TIME, BOARDING_GROUP, PAID_STANDBY (enum value)
+- `QueueType` - Type alias (keyof typeof QueueTypeEnum)
+
+**Important:** Use `AttractionTypeEnum` and `QueueTypeEnum` for runtime values, not `AttractionType`/`QueueType`
+
+**Example Usage:**
+```typescript
+import { Entity, LiveData, AttractionTypeEnum, QueueTypeEnum } from '@themeparks/typelib';
+
+function getType(data): AttractionTypeEnum {
+  if (data.isTransport) {
+    return AttractionTypeEnum.TRANSPORT;  // Runtime enum value
+  }
+  return AttractionTypeEnum.RIDE;
 }
 ```
 
-**External Dependency:** `@themeparks/typelib` package (defines LiveData, Entity, EntitySchedule)
+**Benefits:**
+- Zero indirection - import directly from source
+- No maintenance burden for re-export file
+- Single source of truth
+- Automatic updates when typelib is updated
 
 ## Migration Progress
 
@@ -208,8 +218,8 @@ export type EntityType = {
 - `src/destination.ts` - Base Destination class with Template Method Pattern
 - `src/destination.ts` - Entity mapper helper (`mapEntities()`)
 - `src/destination.ts` - Hierarchy resolver (`resolveEntityHierarchy()`)
-- `src/types/entities.d.ts` - Basic type definitions
 - `src/parks/universal/universal.ts` - First park implementation (Universal Studios)
+- **Type System** - All types imported directly from `@themeparks/typelib` (no local type files)
 - `src/__tests__/cache.test.ts` - Cache tests (15 tests)
 - `src/__tests__/injector.test.ts` - Injector tests (6 tests)
 - `src/__tests__/entityHierarchy.test.ts` - Hierarchy resolution tests (11 tests)
@@ -588,6 +598,15 @@ afterAll(async () => {
 - ✅ Excluded `src/parks/**` from coverage reports (integration-tested separately)
 - ✅ **Final Coverage: 88.84%** (222 tests total, up from 17.52% with 44 tests)
 
+#### Evening Session - Type System Migration
+- ✅ Migrated `AttractionType` and `QueueType` enums to external `@themeparks/typelib` package
+- ✅ Updated all imports to use `AttractionTypeEnum` and `QueueTypeEnum` from `@themeparks/typelib`
+- ✅ Fixed TypeScript compilation errors (type vs value exports)
+- ✅ Updated test files to import `Entity` directly from `@themeparks/typelib`
+- ✅ **Removed `src/parkTypes.ts` entirely** - no re-export layer needed
+- ✅ All 222 tests still passing after migration
+- ✅ Build successful with zero type duplication and zero maintenance overhead
+
 ## Development Commands
 
 ```bash
@@ -646,22 +665,20 @@ npm run test:coverage
 - Smaller bundle size
 - Modern browser API support
 
-### 2. **Type System** (`src/parkTypes.ts`)
-**Purpose:** Re-export types from `@themeparks/typelib` and add project-specific types
+### 2. **Type System** (Direct import from `@themeparks/typelib`)
+**Purpose:** All types come directly from external `@themeparks/typelib` package
 
 **Key Features:**
-- **Re-exports** all types from `@themeparks/typelib` (Entity, LiveData, EntitySchedule, etc.)
-- **Only defines** types NOT in typelib:
-  - `AttractionType` enum (RIDE, SHOW, TRANSPORT, PARADE, etc.)
-  - `QueueType` enum (for internal queue mapping)
-
-**File Size:** Only 33 lines (minimal, focused on unique types)
+- **No local type files** - `src/parkTypes.ts` was removed (2025-10-02)
+- **Direct imports** - All park implementations import from `@themeparks/typelib` directly
+- **Zero overhead** - No re-export layer needed
 
 **Benefits:**
 - Single source of truth (`@themeparks/typelib`)
-- Minimal duplication
-- Easy to maintain
+- Zero duplication
+- Zero maintenance burden
 - Type-safe integration with external package
+- Automatic updates when typelib package is updated
 
 ## Decorator Opportunities Identified
 
@@ -745,6 +762,7 @@ Would reduce schedule parsing boilerplate.
 - [x] ISO 8601 dates missing timezone offset (2025-10-02)
 - [x] HTTP queue processor preventing test exit (added stopHttpQueue() function, 2025-10-02)
 - [x] HTTP library test coverage at 0% (added local test server integration tests, 2025-10-02)
+- [x] Type duplication between local and external package (2025-10-02 - migrated to @themeparks/typelib)
 
 ## Useful File References
 
@@ -760,8 +778,8 @@ Would reduce schedule parsing boilerplate.
 - `src/destination.ts:209-257` - mapEntities helper implementation
 - `src/destination.ts:280-356` - Template Method Pattern (get*/build* methods)
 - `src/datetime.ts` - DateTime utilities (no moment-timezone)
-- `src/parkTypes.ts` - Type re-exports and project-specific enums
 - `src/parks/universal/universal.ts` - Complete Universal implementation (834 lines)
+- **Note:** `src/parkTypes.ts` was removed (2025-10-02) - import types directly from `@themeparks/typelib`
 
 ### Test Files (222 tests total, 88.84% coverage)
 - `src/__tests__/cache.test.ts` - Cache library and @cache decorator (35 tests, 100% coverage)

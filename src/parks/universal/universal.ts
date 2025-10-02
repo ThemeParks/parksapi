@@ -9,9 +9,9 @@ import {
   Entity,
   LiveData,
   EntitySchedule,
-  AttractionType,
-  QueueType,
-} from '../../parkTypes.js';
+  AttractionTypeEnum,
+  QueueTypeEnum,
+} from '@themeparks/typelib';
 import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore} from '../../datetime.js';
 
 // Only return restaurants using these dining types
@@ -54,12 +54,12 @@ type UniversalPOIResponse = {
 /**
  * Determine attraction type from Universal API data
  */
-function getUniversalAttractionType(data: UniversalPOIData): AttractionType {
+function getUniversalAttractionType(data: UniversalPOIData): AttractionTypeEnum {
   // Check for trains (Hogwarts Express)
   if (data.Tags?.includes('train')) {
-    return AttractionType.TRANSPORT;
+    return AttractionTypeEnum.TRANSPORT;
   }
-  return AttractionType.RIDE;
+  return AttractionTypeEnum.RIDE;
 }
 
 /**
@@ -583,7 +583,7 @@ class Universal extends Destination {
 
         const liveDataEntry = getOrCreateLiveData(vQueue.QueueEntityId);
         if (!liveDataEntry.queue) {
-          liveDataEntry.queue = {} as Record<QueueType, any>;
+          liveDataEntry.queue = {} as Record<QueueTypeEnum, any>;
         }
 
         liveDataEntry.queue!.RETURN_TIME = {
