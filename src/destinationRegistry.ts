@@ -17,9 +17,7 @@ const __dirname = path.dirname(__filename);
  * UniversalOrlando -> universalorlando
  */
 function classNameToId(className: string): string {
-  return className
-    .replace(/([A-Z])/g, (match) => match.toLowerCase())
-    .replace(/\s+/g, '');
+  return className.toLowerCase().replace(/\s+/g, '');
 }
 
 /**
