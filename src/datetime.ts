@@ -16,8 +16,8 @@ export function formatInTimezone(
   format: 'iso' | 'date' | 'datetime' = 'iso'
 ): string {
   if (format === 'iso') {
-    // ISO 8601 format
-    return new Intl.DateTimeFormat('en-US', {
+    // ISO 8601 format with timezone offset: YYYY-MM-DDTHH:mm:ss±HH:mm
+    const parts = new Intl.DateTimeFormat('en-US', {
       timeZone: timezone,
       year: 'numeric',
       month: '2-digit',
@@ -26,15 +26,18 @@ export function formatInTimezone(
       minute: '2-digit',
       second: '2-digit',
       hour12: false,
-    }).formatToParts(date).reduce((acc, part) => {
-      if (part.type === 'year') return `${part.value}-`;
-      if (part.type === 'month') return `${acc}${part.value}-`;
-      if (part.type === 'day') return `${acc}${part.value}T`;
-      if (part.type === 'hour') return `${acc}${part.value}:`;
-      if (part.type === 'minute') return `${acc}${part.value}:`;
-      if (part.type === 'second') return `${acc}${part.value}`;
-      return acc;
-    }, '');
+      timeZoneName: 'shortOffset',
+    }).formatToParts(date);
+
+    const year = parts.find(p => p.type === 'year')?.value;
+    const month = parts.find(p => p.type === 'month')?.value;
+    const day = parts.find(p => p.type === 'day')?.value;
+    const hour = parts.find(p => p.type === 'hour')?.value;
+    const minute = parts.find(p => p.type === 'minute')?.value;
+    const second = parts.find(p => p.type === 'second')?.value;
+    const offset = parts.find(p => p.type === 'timeZoneName')?.value || 'Z';
+
+    return `${year}-${month}-${day}T${hour}:${minute}:${second}${offset}`;
   }
 
   if (format === 'date') {
