@@ -40,7 +40,7 @@ This document tracks the migration of legacy JavaScript park implementations to 
 **Action Items:**
 - [ ] Evaluate if Database class is needed or if Destination suffices
 - [x] ~~Implement promise reuse utilities if beneficial~~ - **DONE!** Use `@reusable()` decorator
-- [ ] Add lifecycle hooks (`_init()`, `_cleanup()`) to Destination
+- [x] ~~Add lifecycle hooks (`_init()`, `_cleanup()`) to Destination~~ - **DONE!** `init()` method with `@reusable({forever: true})` added, calls `_init()` hook
 
 ### 2. Tag Validation System (`lib/parks/tags.js`)
 **Status:** Not implemented in TS

@@ -173,9 +173,15 @@ Abstract base class all parks extend using the **Template Method Pattern**.
 - `getSchedules()` → `EntitySchedule[]` - Returns schedules (operating hours, show times)
 
 **Protected API (IMPLEMENT IN SUBCLASSES):**
+- `_init()` → `void` - Initialization hook (optional override)
 - `buildEntityList()` → `Entity[]` - Build entities (framework auto-resolves hierarchy)
 - `buildLiveData()` → `LiveData[]` - Build live data
 - `buildSchedules()` → `EntitySchedule[]` - Build schedules
+
+**Lifecycle:**
+- `init()` is automatically called before any data retrieval method (`getEntities`, `getLiveData`, `getSchedules`)
+- Override `_init()` to perform setup tasks (database connections, config loading, etc.)
+- `init()` runs only once per instance, even with multiple calls (uses `@reusable({forever: true})`)
 
 **Helper Methods:**
 - `mapEntities<T>(items: T[], config: EntityMapperConfig<T>)` - Declarative entity mapping
@@ -187,6 +193,15 @@ Abstract base class all parks extend using the **Template Method Pattern**.
 ```typescript
 @config
 class MyPark extends Destination {
+  private db: Database;
+
+  // Optional: override _init() for setup tasks
+  protected async _init() {
+    // Runs once per instance, before any data methods
+    this.db = await connectToDatabase();
+    await this.loadConfiguration();
+  }
+
   // Implement protected methods, NOT public ones
   protected async buildEntityList(): Promise<Entity[]> {
     const parks = await this.fetchParks();
@@ -241,6 +256,7 @@ Zero-dependency date/time utilities using native Intl API (replaces moment-timez
 6. Implement HTTP methods with `@http` decorator
 7. Add auth injection with `@inject` decorator if needed
 8. **Implement protected methods (NOT public ones):**
+   - `_init()` (optional override) - One-time initialization (database, config loading, etc.)
    - `getDestinations()` (optional override)
    - `buildEntityList()` - Build entities using `mapEntities()` helper
    - `buildLiveData()` - Build live data

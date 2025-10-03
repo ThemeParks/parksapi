@@ -1,5 +1,6 @@
 import {LiveData, Entity, EntitySchedule} from "@themeparks/typelib";
 import {trace} from "./tracing";
+import {reusable} from "./promiseReuse";
 
 export type DestinationConstructor = {
   config?: {[key: string]: string | string[]};
@@ -258,6 +259,42 @@ export abstract class Destination {
   }
 
   /**
+   * Initialize the destination
+   *
+   * This method is called automatically before any data retrieval methods
+   * (getEntities, getLiveData, getSchedules). It runs only once per instance,
+   * even if called multiple times, thanks to @reusable({forever: true}).
+   *
+   * Subclasses should override `_init()` instead of this method.
+   *
+   * @example
+   * ```typescript
+   * class MyPark extends Destination {
+   *   protected async _init() {
+   *     await this.connectToDatabase();
+   *     await this.loadConfig();
+   *   }
+   * }
+   * ```
+   */
+  @reusable({forever: true})
+  protected async init(): Promise<void> {
+    await this._init();
+  }
+
+  /**
+   * Internal initialization hook for subclasses
+   *
+   * Override this method to provide custom initialization logic.
+   * Called once per instance by `init()`.
+   *
+   * @protected
+   */
+  protected async _init(): Promise<void> {
+    // Default: no initialization needed
+  }
+
+  /**
    * Get all destinations this class supports
    * @returns {Entity[]} List of destinations
    */
@@ -270,8 +307,9 @@ export abstract class Destination {
    *
    * ⚠️ **DO NOT OVERRIDE THIS METHOD** ⚠️
    *
-   * This method automatically calls resolveEntityHierarchy() on the returned entities
-   * to set parkId and destinationId based on parent relationships.
+   * This method automatically calls init() before fetching entities, and
+   * calls resolveEntityHierarchy() on the returned entities to set parkId
+   * and destinationId based on parent relationships.
    *
    * **To provide entities, implement buildEntityList() instead.**
    *
@@ -280,6 +318,7 @@ export abstract class Destination {
    */
   @trace()
   async getEntities(): Promise<Entity[]> {
+    await this.init();
     const entities = await this.buildEntityList();
     return this.resolveEntityHierarchy(entities);
   }
@@ -302,9 +341,9 @@ export abstract class Destination {
    *
    * ⚠️ **DO NOT OVERRIDE THIS METHOD** ⚠️
    *
-   * This method is final and should not be overridden. If you need to provide
-   * post-processing or validation of live data, consider using the transform
-   * pattern in buildLiveData() instead.
+   * This method automatically calls init() before fetching live data.
+   * If you need to provide post-processing or validation of live data,
+   * consider using the transform pattern in buildLiveData() instead.
    *
    * **To provide live data, implement buildLiveData() instead.**
    *
@@ -313,6 +352,7 @@ export abstract class Destination {
    */
   @trace()
   async getLiveData(): Promise<LiveData[]> {
+    await this.init();
     return await this.buildLiveData();
   }
 
@@ -333,9 +373,9 @@ export abstract class Destination {
    *
    * ⚠️ **DO NOT OVERRIDE THIS METHOD** ⚠️
    *
-   * This method is final and should not be overridden. If you need to provide
-   * post-processing or validation of schedules, consider using the transform
-   * pattern in buildSchedules() instead.
+   * This method automatically calls init() before fetching schedules.
+   * If you need to provide post-processing or validation of schedules,
+   * consider using the transform pattern in buildSchedules() instead.
    *
    * **To provide schedules, implement buildSchedules() instead.**
    *
@@ -344,6 +384,7 @@ export abstract class Destination {
    */
   @trace()
   async getSchedules(): Promise<EntitySchedule[]> {
+    await this.init();
     return await this.buildSchedules();
   }
 
