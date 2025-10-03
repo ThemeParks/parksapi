@@ -18,7 +18,7 @@
     "test:coverage": "jest --coverage",
     "test:cache": "jest cache",
     "web": "npm run build && NODE_ENV=production npm run ts-dev -- src/webServer.ts",
-    "web:dev": "npm run ts-dev -- src/webServer.ts",
+    "web:dev": "concurrently -n \"API,UI\" -c \"blue,magenta\" \"npm run ts-dev -- src/webServer.ts\" \"cd web-ui && npm run dev\"",
     "web:build": "cd web-ui && npm run build"
   },
   "repository": {
@@ -51,6 +51,7 @@
     "@types/express": "^5.0.3",
     "ajv": "^8.17.1",
     "cors": "^2.8.5",
+    "concurrently": "^9.2.1",
     "express": "^5.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
