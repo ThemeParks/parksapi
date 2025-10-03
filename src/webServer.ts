@@ -12,6 +12,7 @@ import {getHttpRequestersForClass, getHttpRequesterForClassMethod} from './http.
 import {Destination} from './destination.js';
 import {tracing} from './tracing.js';
 import type {HttpTraceEvent} from './tracing.js';
+import {CacheLib} from './cache.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,6 +38,10 @@ app.get('/api', (req, res) => {
       'POST /api/destinations/:id/http/:method': 'Execute HTTP method with parameters',
       'GET /api/trace/:traceId/events': 'Stream trace events via SSE',
       'GET /api/trace/:traceId': 'Get completed trace information',
+      'GET /api/cache': 'List all cache entries with metadata',
+      'DELETE /api/cache': 'Clear all cache entries',
+      'DELETE /api/cache/:key': 'Delete specific cache entry',
+      'POST /api/cache/cleanup': 'Remove expired cache entries',
     },
     documentation: 'See WEB_ADMIN.md for full documentation',
   });
@@ -308,6 +313,138 @@ app.post('/api/destinations/:id/http/:method', async (req, res) => {
     });
   } catch (error) {
     console.error('Error executing HTTP method:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * API: Get all cache entries
+ */
+app.get('/api/cache', (req, res) => {
+  try {
+    const entries = CacheLib.getAllEntries();
+    const stats = {
+      totalEntries: entries.length,
+      totalSize: entries.reduce((acc, entry) => acc + entry.size, 0),
+      expiredCount: entries.filter(e => e.isExpired).length,
+    };
+
+    res.json({
+      success: true,
+      stats,
+      entries: entries.map(entry => ({
+        key: entry.key,
+        valuePreview: typeof entry.value === 'string'
+          ? entry.value.substring(0, 100) + (entry.value.length > 100 ? '...' : '')
+          : JSON.stringify(entry.value).substring(0, 100) + '...',
+        expiresAt: entry.expiresAt,
+        lastAccess: entry.lastAccess,
+        size: entry.size,
+        isExpired: entry.isExpired,
+        ttl: Math.max(0, Math.floor((entry.expiresAt - Date.now()) / 1000)), // seconds remaining
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching cache entries:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * API: Get specific cache entry with full value
+ */
+app.get('/api/cache/:key', (req, res) => {
+  try {
+    const { key } = req.params;
+    const entries = CacheLib.getAllEntries();
+    const entry = entries.find(e => e.key === key);
+
+    if (!entry) {
+      return res.status(404).json({
+        success: false,
+        error: 'Cache entry not found',
+      });
+    }
+
+    res.json({
+      success: true,
+      entry: {
+        key: entry.key,
+        value: entry.value,
+        expiresAt: entry.expiresAt,
+        lastAccess: entry.lastAccess,
+        size: entry.size,
+        isExpired: entry.isExpired,
+        ttl: Math.max(0, Math.floor((entry.expiresAt - Date.now()) / 1000)),
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching cache entry:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * API: Clear all cache entries
+ */
+app.delete('/api/cache', (req, res) => {
+  try {
+    CacheLib.clear();
+    res.json({
+      success: true,
+      message: 'Cache cleared successfully',
+    });
+  } catch (error) {
+    console.error('Error clearing cache:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * API: Delete specific cache entry
+ */
+app.delete('/api/cache/:key', (req, res) => {
+  try {
+    const { key } = req.params;
+    CacheLib.delete(key);
+    res.json({
+      success: true,
+      message: `Cache entry '${key}' deleted successfully`,
+    });
+  } catch (error) {
+    console.error('Error deleting cache entry:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * API: Remove expired cache entries
+ */
+app.post('/api/cache/cleanup', (req, res) => {
+  try {
+    const removed = CacheLib.cleanupExpired();
+    res.json({
+      success: true,
+      message: `Removed ${removed} expired cache entries`,
+      removed,
+    });
+  } catch (error) {
+    console.error('Error cleaning up cache:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

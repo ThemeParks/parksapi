@@ -1,7 +1,8 @@
 import React from 'react';
-import {Routes, Route, useNavigate, useParams} from 'react-router-dom';
+import {Routes, Route, useNavigate, useParams, Link} from 'react-router-dom';
 import DestinationList from './components/DestinationList';
 import DestinationViewer from './components/DestinationViewer';
+import CacheBrowser from './components/CacheBrowser';
 import TraceDrawer from './components/TraceDrawer';
 import {TraceProvider, useTrace} from './contexts/TraceContext';
 import './App.css';
@@ -36,13 +37,22 @@ function AppContent() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>🎢 ParksAPI Web Admin</h1>
-        <p>Test and explore theme park data APIs</p>
+        <div className="header-content">
+          <div>
+            <h1>🎢 ParksAPI Web Admin</h1>
+            <p>Test and explore theme park data APIs</p>
+          </div>
+          <nav className="app-nav">
+            <Link to="/" className="nav-link">🏠 Destinations</Link>
+            <Link to="/cache" className="nav-link">🗄️ Cache</Link>
+          </nav>
+        </div>
       </header>
 
       <main className="app-main">
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/cache" element={<CacheBrowser />} />
           <Route path="/destination/:destinationId/*" element={<DestinationPage />} />
         </Routes>
       </main>

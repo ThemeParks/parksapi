@@ -70,3 +70,25 @@ export type TraceInfo = {
   events: HttpTraceEvent[];
   metadata?: Record<string, any>;
 };
+
+export type CacheEntry = {
+  key: string;
+  valuePreview: string;
+  expiresAt: number;
+  lastAccess: number;
+  size: number;
+  isExpired: boolean;
+  ttl: number; // seconds remaining
+};
+
+export type CacheStats = {
+  totalEntries: number;
+  totalSize: number;
+  expiredCount: number;
+};
+
+export type CacheResponse = {
+  success: boolean;
+  stats: CacheStats;
+  entries: CacheEntry[];
+};

@@ -184,6 +184,38 @@ class CacheLib {
   }
 
   /**
+   * Get all cache entries with metadata
+   */
+  static getAllEntries(): Array<{
+    key: string;
+    value: any;
+    expiresAt: number;
+    lastAccess: number;
+    size: number;
+    isExpired: boolean;
+  }> {
+    try {
+      return retryOperation(() => {
+        const stmt = database.prepare('SELECT key, value, timestamp, lastAccess FROM cache');
+        const rows = stmt.all() as Array<{key: string, value: string, timestamp: number, lastAccess: number}>;
+        const now = Date.now();
+
+        return rows.map(row => ({
+          key: row.key,
+          value: JSON.parse(row.value),
+          expiresAt: row.timestamp,
+          lastAccess: row.lastAccess,
+          size: row.value.length,
+          isExpired: now > row.timestamp,
+        }));
+      });
+    } catch (error) {
+      console.error("Cache getAllEntries error:", error);
+      return [];
+    }
+  }
+
+  /**
    * Enforce cache size limit by removing least recently accessed entries
    */
   static enforceSizeLimit(): void {
