@@ -298,9 +298,7 @@ class Universal extends Destination {
       {name: 'city', type: 'string', description: 'City to fetch parks for (orlando/hollywood)'}
     ]
   })
-  async fetchParks({
-    city,
-  }: {city: string}): Promise<HTTPObj> {
+  async fetchParks(city: string): Promise<HTTPObj> {
     return {
       method: 'GET',
       url: `${this.baseURL}/venues?city=${city}`,
@@ -312,10 +310,8 @@ class Universal extends Destination {
    * Get parks (filtered for admission required)
    */
   @cache({ttlSeconds: 60 * 60 * 3})
-  async getParks({
-    city,
-  }: {city: string}) {
-    const resp = await this.fetchParks({city});
+  async getParks(city: string) {
+    const resp = await this.fetchParks(city);
     const data: UniversalVenuesResponse = await resp.json();
     return data.Results.filter((x) => x.AdmissionRequired);
   }
@@ -328,9 +324,7 @@ class Universal extends Destination {
       {name: 'city', type: 'string', description: 'City to fetch POI data for (orlando/hollywood)'}
     ]
   })
-  async fetchPOI({
-    city,
-  }: {city: string}): Promise<HTTPObj> {
+  async fetchPOI(city: string): Promise<HTTPObj> {
     return {
       method: 'GET',
       url: `${this.baseURL}/pointsofinterest?city=${city}`,
@@ -342,10 +336,8 @@ class Universal extends Destination {
    * Get POI data (cached)
    */
   @cache({ttlSeconds: 60})
-  async getPOI({
-    city,
-  }: {city: string}): Promise<UniversalPOIResponse> {
-    const resp = await this.fetchPOI({city});
+  async getPOI(city: string): Promise<UniversalPOIResponse> {
+    const resp = await this.fetchPOI(city);
     return await resp.json();
   }
 
@@ -485,9 +477,7 @@ class Universal extends Destination {
    * Get filtered shows (exclude music/street entertainment)
    */
   private async getFilteredShows(): Promise<UniversalPOIData[]> {
-    const poi = await this.getPOI({
-      city: this.city,
-    });
+    const poi = await this.getPOI(this.city);
     return poi.Shows.filter((show) => {
       const hasIgnoredType = show.ShowTypes?.some((type) => IGNORE_SHOW_TYPES.includes(type));
       return !hasIgnoredType;
@@ -514,12 +504,8 @@ class Universal extends Destination {
    */
   protected async buildEntityList(): Promise<Entity[]> {
     const destinationId = `universalresort_${this.city}`;
-    const poi = await this.getPOI({
-      city: this.city,
-    });
-    const parks = await this.getParks({
-      city: this.city,
-    });
+    const poi = await this.getPOI(this.city);
+    const parks = await this.getParks(this.city);
     const shows = await this.getFilteredShows();
 
     return [
@@ -594,9 +580,7 @@ class Universal extends Destination {
       return data;
     };
 
-    const poi = await this.getPOI({
-      city: this.city,
-    });
+    const poi = await this.getPOI(this.city);
     const waitTimes = await this.getWaitTimes();
     const vQueueStates = await this.getVirtualQueueStates();
 
@@ -777,9 +761,7 @@ class Universal extends Destination {
    * Build schedules for all parks
    */
   protected async buildSchedules(): Promise<EntitySchedule[]> {
-    const parks = await this.getParks({
-      city: this.city,
-    });
+    const parks = await this.getParks(this.city);
     const schedules: EntitySchedule[] = [];
 
     for (const park of parks) {
