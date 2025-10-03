@@ -109,6 +109,18 @@ class TracingManager extends EventEmitter {
   }
 
   /**
+   * Run a function with a specific trace context
+   * Useful for restoring context in async boundaries (like queue processors)
+   */
+  async runWithContext<T>(context: TraceContext | undefined, fn: () => Promise<T>): Promise<T> {
+    if (!context) {
+      // No context to restore, just run the function
+      return fn();
+    }
+    return this.asyncLocalStorage.run(context, fn);
+  }
+
+  /**
    * Emit an HTTP trace event
    */
   emitHttpEvent(event: Omit<HttpTraceEvent, 'traceId' | 'timestamp'>, explicitContext?: TraceContext): void {

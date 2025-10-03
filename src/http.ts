@@ -604,8 +604,10 @@ export async function processHttpQueue() {
       }, entry.traceContext);
 
       try {
-        // Broadcast to injection system
-        await broadcastInjectionEvent(entry, 'httpRequest');
+        // Broadcast to injection system (restore trace context so nested requests inherit it)
+        await tracing.runWithContext(entry.traceContext, async () => {
+          await broadcastInjectionEvent(entry, 'httpRequest');
+        });
 
         // make the actual HTTP request (pass trace context)
         await entry.request.makeRequest(entry.traceContext);
@@ -628,9 +630,11 @@ export async function processHttpQueue() {
         entry.request.resolvePromise(entry.request);
         console.log(`HTTP request completed: ${entry.request.method} ${entry.request.url}`);
 
-        // broadcast response event
+        // broadcast response event (restore trace context)
         //  Note: opportunity here for the injection to throw an error to force a retry if needed
-        await broadcastInjectionEvent(entry, 'httpResponse');
+        await tracing.runWithContext(entry.traceContext, async () => {
+          await broadcastInjectionEvent(entry, 'httpResponse');
+        });
       } catch (error) {
         // Try to capture error response body if available
         let errorBody: any = undefined;
@@ -663,8 +667,10 @@ export async function processHttpQueue() {
           retryCount: entry.retryAttempt || 0,
         }, entry.traceContext);
 
-        // broadcast error event
-        await broadcastInjectionEvent(entry, 'httpError');
+        // broadcast error event (restore trace context)
+        await tracing.runWithContext(entry.traceContext, async () => {
+          await broadcastInjectionEvent(entry, 'httpError');
+        });
 
         // allow retries if configured, but push to the back of the queue
         if (entry.request.retries && entry.request.retries > 0) {
