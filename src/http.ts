@@ -103,6 +103,7 @@ class HTTPRequestImpl implements HTTPObj {
   public cacheKey?: string;
   public cacheTtlSeconds?: number;
   public tags: string[];
+  public className?: string; // Class name for cache key uniqueness
 
   // Private promise handlers
   private _resolve?: (value: HTTPObj) => void;
@@ -196,15 +197,16 @@ class HTTPRequestImpl implements HTTPObj {
   }
 
   /**
-   * Generate a cache key for the request, based on method, URL, headers, and body
-   * @returns {string} Cache key for the request, based on method, URL, headers, and body
+   * Generate a cache key for the request, based on class name, method, URL, headers, and body
+   * @returns {string} Cache key for the request, based on class name, method, URL, headers, and body
    */
-  private generateCacheKey(): string {
+  public generateCacheKey(): string {
     const url = this.buildUrl();
     const headers = this.buildHeaders();
     const bodyString = this.body ? JSON.stringify(this.body) : '';
-    // hash result
-    const inStr = `${this.method}:${url}:${JSON.stringify(headers)}:${bodyString}`;
+    const classPrefix = this.className ? `${this.className}:` : '';
+    // hash result - include class name to prevent conflicts between different destination classes
+    const inStr = `${classPrefix}${this.method}:${url}:${JSON.stringify(headers)}:${bodyString}`;
     return createHash('sha256').update(inStr).digest('hex');
   }
 
@@ -452,6 +454,11 @@ function httpDecoratorFactory(options?: {
         // Create internal implementation with private handlers
         const internalRequest = new HTTPRequestImpl(result);
 
+        // Set class name for cache key uniqueness (prevents conflicts between different classes)
+        internalRequest.className = this.constructor.name;
+        // Regenerate cache key now that className is set
+        internalRequest.cacheKey = internalRequest.generateCacheKey();
+
         // Apply decorator options
         if (options?.retries !== undefined) {
           internalRequest.retries = options.retries;
@@ -459,7 +466,8 @@ function httpDecoratorFactory(options?: {
 
         // Optionally override cache key
         if (options?.cacheKey !== undefined) {
-          internalRequest.cacheKey = createHash('sha256').update(options.cacheKey).digest('hex');
+          // Include class name in manual cache key override too
+          internalRequest.cacheKey = createHash('sha256').update(`${this.constructor.name}:${options.cacheKey}`).digest('hex');
         }
 
         // set cache TTL if provided
