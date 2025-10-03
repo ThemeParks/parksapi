@@ -110,6 +110,22 @@ async injectAuth(requestObj: HTTPObj) {
 }
 ```
 
+**Dynamic Filter Resolution:** Filter values can be functions that are resolved with instance context:
+
+```typescript
+@inject({
+  eventName: 'httpRequest',
+  hostname: function() {
+    return { $regex: new RegExp(this.baseURL) };  // Access instance properties
+  },
+  tags: { $nin: ['skipAuth'] }
+})
+async injectAuth(requestObj: HTTPObj) {
+  // Functions are resolved when event is broadcast
+  // Supports both sync and async functions
+}
+```
+
 **Scopes:** `broadcast('global', event, args)` or `broadcast(instance, event, args)`
 
 ### Base Classes
