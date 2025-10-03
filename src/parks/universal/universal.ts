@@ -200,7 +200,7 @@ class Universal extends Destination {
     if (requestObj.response?.status === 401) {
       // Clear cached API key to force refresh
       const {CacheLib} = await import('../../cache.js');
-      CacheLib.delete('getAPIKey:[]');
+      CacheLib.delete(`${this.constructor.name}:APIKey:${this.city}`);
     }
   }
 
@@ -210,7 +210,7 @@ class Universal extends Destination {
   @cache({
     callback: (response) => response?.expiresIn || 3600,
     key: function() {
-      return `UniversalAPIKey:${this.city}`;
+      return `${this.constructor.name}:APIKey:${this.city}`;
     }
   })
   async getAPIKey(): Promise<{apiKey: string; expiresIn: number}> {
