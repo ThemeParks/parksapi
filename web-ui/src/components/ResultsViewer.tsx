@@ -21,7 +21,8 @@ export default function ResultsViewer({result, destinationId}: Props) {
     if (!isArrayData || dataArray.length === 0) return 'unknown';
 
     const firstItem = dataArray[0];
-    if (firstItem.entityId && firstItem.status !== undefined) return 'liveData';
+    // Live data has 'id' field and a 'status' field
+    if (firstItem.id && firstItem.status !== undefined) return 'liveData';
     if (firstItem.entityType !== undefined) return 'entity';
     if (firstItem.schedule !== undefined || firstItem.openingTime !== undefined) return 'schedule';
     return 'unknown';
@@ -53,7 +54,7 @@ export default function ResultsViewer({result, destinationId}: Props) {
         // Enrich live data with entity names
         const enriched = dataArray.map((item: any) => ({
           ...item,
-          entityName: entityMap.get(item.entityId) || item.entityId,
+          entityName: entityMap.get(item.id) || item.id,
         }));
 
         setEnrichedData(enriched);
@@ -217,16 +218,16 @@ function LiveDataCards({data}: {data: any[]}) {
   return (
     <div className="data-cards">
       {data.map((liveData, idx) => (
-        <div key={liveData.entityId || idx} className="data-card live-data-card">
+        <div key={liveData.id || idx} className="data-card live-data-card">
           <div className="card-header">
             <div>
-              {liveData.entityName && liveData.entityName !== liveData.entityId ? (
+              {liveData.entityName && liveData.entityName !== liveData.id ? (
                 <>
                   <h4>{liveData.entityName}</h4>
-                  <p className="entity-id">ID: {liveData.entityId}</p>
+                  <p className="entity-id">ID: {liveData.id}</p>
                 </>
               ) : (
-                <h4>{liveData.entityId}</h4>
+                <h4>{liveData.id}</h4>
               )}
             </div>
             <span className={`status-badge ${liveData.status?.toLowerCase()}`}>
