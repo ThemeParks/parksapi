@@ -217,46 +217,80 @@ function EntityCards({data}: {data: any[]}) {
 function LiveDataCards({data}: {data: any[]}) {
   return (
     <div className="data-cards">
-      {data.map((liveData, idx) => (
-        <div key={liveData.id || idx} className="data-card live-data-card">
-          <div className="card-header">
-            <div>
-              {liveData.entityName && liveData.entityName !== liveData.id ? (
-                <>
-                  <h4>{liveData.entityName}</h4>
-                  <p className="entity-id">ID: {liveData.id}</p>
-                </>
+      {data.map((liveData, idx) => {
+        // Calculate primary wait time for header
+        const primaryWaitTime = liveData.queue?.STANDBY?.waitTime ??
+                               liveData.queue?.RETURN_TIME?.waitTime ??
+                               null;
+
+        return (
+          <div key={liveData.id || idx} className="data-card live-data-card">
+            <div className="card-header">
+              <div className="card-title-section">
+                {liveData.entityName && liveData.entityName !== liveData.id ? (
+                  <>
+                    <h4>{liveData.entityName}</h4>
+                    <p className="entity-id">{liveData.id}</p>
+                  </>
+                ) : (
+                  <h4>{liveData.id}</h4>
+                )}
+              </div>
+              <div className="card-status-section">
+                {primaryWaitTime !== null && primaryWaitTime !== undefined && (
+                  <div className="primary-wait-time">{primaryWaitTime} min</div>
+                )}
+                <span className={`status-badge ${liveData.status?.toLowerCase()}`}>
+                  {liveData.status}
+                </span>
+              </div>
+            </div>
+            <div className="card-body">
+              {/* Queue information */}
+              {liveData.queue && Object.keys(liveData.queue).length > 0 ? (
+                <div className="queue-info">
+                  <h5 className="section-title">Queue Times</h5>
+                  {Object.entries(liveData.queue).map(([queueType, queueData]: [string, any]) => (
+                    <div key={queueType} className="queue-entry">
+                      <span className="queue-type">{queueType}</span>
+                      <span className="wait-time">
+                        {queueData.waitTime !== null && queueData.waitTime !== undefined
+                          ? `${queueData.waitTime} min`
+                          : 'N/A'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               ) : (
-                <h4>{liveData.id}</h4>
+                <div className="no-queue-data">No queue data available</div>
+              )}
+
+              {/* Operating hours */}
+              {liveData.operatingHours && liveData.operatingHours.length > 0 && (
+                <div className="operating-hours">
+                  <h5 className="section-title">Operating Hours</h5>
+                  {liveData.operatingHours.map((hours: any, i: number) => (
+                    <div key={i} className="hours-entry">
+                      <span className="hours-type">{hours.type}</span>
+                      <span className="hours-time">
+                        {hours.startTime ? new Date(hours.startTime).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : '?'} -
+                        {hours.endTime ? new Date(hours.endTime).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : 'TBD'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Last updated */}
+              {liveData.lastUpdated && (
+                <p className="last-updated">
+                  Updated: {new Date(liveData.lastUpdated).toLocaleString()}
+                </p>
               )}
             </div>
-            <span className={`status-badge ${liveData.status?.toLowerCase()}`}>
-              {liveData.status}
-            </span>
           </div>
-          <div className="card-body">
-            {liveData.queue && Object.keys(liveData.queue).length > 0 && (
-              <div className="queue-info">
-                {Object.entries(liveData.queue).map(([queueType, queueData]: [string, any]) => (
-                  <div key={queueType} className="queue-entry">
-                    <span className="queue-type">{queueType}:</span>
-                    <span className="wait-time">
-                      {queueData.waitTime !== null && queueData.waitTime !== undefined
-                        ? `${queueData.waitTime} min`
-                        : 'N/A'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {liveData.lastUpdated && (
-              <p className="last-updated">
-                Updated: {new Date(liveData.lastUpdated).toLocaleString()}
-              </p>
-            )}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

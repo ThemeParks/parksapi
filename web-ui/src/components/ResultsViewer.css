@@ -194,8 +194,20 @@
   border-bottom: 1px solid #30363d;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
+}
+
+.card-title-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-status-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .card-header h4 {
@@ -203,6 +215,16 @@
   font-size: 15px;
   margin: 0;
   word-break: break-word;
+}
+
+.primary-wait-time {
+  font-size: 20px;
+  font-weight: 700;
+  color: #3fb950;
+  padding: 4px 12px;
+  background: #0d1117;
+  border-radius: 6px;
+  border: 1px solid #30363d;
 }
 
 .entity-type,
@@ -249,17 +271,27 @@
   font-weight: 500;
 }
 
+.section-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #8b949e;
+  margin: 0 0 10px 0;
+  letter-spacing: 0.5px;
+}
+
 .queue-info {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 6px;
+  margin-bottom: 16px;
 }
 
 .queue-entry {
   display: flex;
   justify-content: space-between;
-  padding: 8px 12px;
+  align-items: center;
+  padding: 10px 12px;
   background: #161b22;
   border-radius: 6px;
   border: 1px solid #30363d;
@@ -267,14 +299,50 @@
 
 .queue-type {
   font-weight: 500;
-  color: #8b949e;
-  font-size: 12px;
+  color: #c9d1d9;
+  font-size: 13px;
 }
 
 .wait-time {
-  font-weight: 600;
+  font-weight: 700;
   color: #3fb950;
-  font-size: 14px;
+  font-size: 15px;
+}
+
+.no-queue-data {
+  padding: 20px;
+  text-align: center;
+  color: #6e7681;
+  font-style: italic;
+  font-size: 13px;
+}
+
+.operating-hours {
+  margin-bottom: 16px;
+}
+
+.hours-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #161b22;
+  border-radius: 6px;
+  border: 1px solid #30363d;
+  margin-bottom: 6px;
+}
+
+.hours-type {
+  font-weight: 500;
+  color: #8b949e;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.hours-time {
+  color: #c9d1d9;
+  font-size: 13px;
+  font-family: monospace;
 }
 
 .last-updated {
