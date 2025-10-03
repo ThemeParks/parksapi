@@ -34,13 +34,19 @@ export default function ResultsViewer({result, destinationId}: Props) {
 
     setEnriching(true);
     try {
-      // Fetch entities
+      // Fetch entities with tracing enabled
       const response = await fetch(`/api/destinations/${destinationId}/execute/getEntities`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ async: false }), // Explicitly request synchronous execution with tracing
       });
 
       const entitiesResult = await response.json();
+
+      // Log trace information if available
+      if (entitiesResult.traceId) {
+        console.log(`[Add Names] Trace ID: ${entitiesResult.traceId}, Duration: ${entitiesResult.duration}ms, HTTP Requests: ${entitiesResult.httpRequests}`);
+      }
 
       if (entitiesResult.success && Array.isArray(entitiesResult.data)) {
         // Create mapping of entityId to entity name
