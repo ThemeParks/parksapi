@@ -231,7 +231,7 @@ class Universal extends Destination {
   /**
    * Fetch API key from authentication endpoint
    */
-  @http({cacheSeconds: 0})
+  @http()
   async fetchAPIKey(): Promise<HTTPObj> {
     const now = new Date();
     const today = formatUTC(now, 'ddd, DD MMM YYYY HH:mm:ss') + ' GMT';
