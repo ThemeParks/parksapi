@@ -126,6 +126,39 @@
   color: white;
 }
 
+.enrich-button {
+  padding: 8px 16px;
+  background: #1f6feb;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.enrich-button:hover:not(:disabled) {
+  background: #58a6ff;
+}
+
+.enrich-button:disabled {
+  background: #21262d;
+  color: #6e7681;
+  cursor: not-allowed;
+}
+
+.enriched-badge {
+  padding: 8px 16px;
+  background: #238636;
+  color: white;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .results-content {
   padding: 24px;
 }

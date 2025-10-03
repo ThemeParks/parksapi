@@ -1,12 +1,34 @@
-import React, {useState} from 'react';
+import React from 'react';
+import {Routes, Route, useNavigate, useParams} from 'react-router-dom';
 import DestinationList from './components/DestinationList';
 import DestinationViewer from './components/DestinationViewer';
-import type {Destination} from './types';
 import './App.css';
 
-export default function App() {
-  const [selectedDestination, setSelectedDestination] = useState<Destination | null>(null);
+function HomePage() {
+  const navigate = useNavigate();
 
+  return (
+    <DestinationList onSelect={(dest) => navigate(`/destination/${dest.id}`)} />
+  );
+}
+
+function DestinationPage() {
+  const {destinationId} = useParams<{destinationId: string}>();
+  const navigate = useNavigate();
+
+  if (!destinationId) {
+    return <div className="error">No destination ID provided</div>;
+  }
+
+  return (
+    <DestinationViewer
+      destinationId={destinationId}
+      onBack={() => navigate('/')}
+    />
+  );
+}
+
+export default function App() {
   return (
     <div className="app">
       <header className="app-header">
@@ -15,14 +37,10 @@ export default function App() {
       </header>
 
       <main className="app-main">
-        {selectedDestination ? (
-          <DestinationViewer
-            destination={selectedDestination}
-            onBack={() => setSelectedDestination(null)}
-          />
-        ) : (
-          <DestinationList onSelect={setSelectedDestination} />
-        )}
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/destination/:destinationId/*" element={<DestinationPage />} />
+        </Routes>
       </main>
 
       <footer className="app-footer">

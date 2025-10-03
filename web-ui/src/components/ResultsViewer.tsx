@@ -4,14 +4,17 @@ import './ResultsViewer.css';
 
 type Props = {
   result: ExecutionResult;
+  destinationId?: string;
 };
 
-export default function ResultsViewer({result}: Props) {
+export default function ResultsViewer({result, destinationId}: Props) {
   const [filter, setFilter] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'json'>('cards');
+  const [enriching, setEnriching] = useState(false);
+  const [enrichedData, setEnrichedData] = useState<any[] | null>(null);
 
   const isArrayData = Array.isArray(result.data);
-  const dataArray = isArrayData ? result.data : [];
+  const dataArray = enrichedData || (isArrayData ? result.data : []);
 
   // Detect if this is entity/live data/schedule based on structure
   const dataType = useMemo(() => {
@@ -23,6 +26,44 @@ export default function ResultsViewer({result}: Props) {
     if (firstItem.schedule !== undefined || firstItem.openingTime !== undefined) return 'schedule';
     return 'unknown';
   }, [isArrayData, dataArray]);
+
+  // Function to enrich live data with entity names
+  const handleEnrichLiveData = async () => {
+    if (!destinationId || dataType !== 'liveData') return;
+
+    setEnriching(true);
+    try {
+      // Fetch entities
+      const response = await fetch(`/api/destinations/${destinationId}/execute/getEntities`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+      });
+
+      const entitiesResult = await response.json();
+
+      if (entitiesResult.success && Array.isArray(entitiesResult.data)) {
+        // Create mapping of entityId to entity name
+        const entityMap = new Map<string, string>();
+        entitiesResult.data.forEach((entity: any) => {
+          if (entity.id && entity.name) {
+            entityMap.set(entity.id, entity.name);
+          }
+        });
+
+        // Enrich live data with entity names
+        const enriched = dataArray.map((item: any) => ({
+          ...item,
+          entityName: entityMap.get(item.entityId) || item.entityId,
+        }));
+
+        setEnrichedData(enriched);
+      }
+    } catch (error) {
+      console.error('Failed to enrich live data:', error);
+    } finally {
+      setEnriching(false);
+    }
+  };
 
   // Filter the data array
   const filteredData = useMemo(() => {
@@ -77,6 +118,20 @@ export default function ResultsViewer({result}: Props) {
             onChange={e => setFilter(e.target.value)}
             className="filter-input"
           />
+
+          {dataType === 'liveData' && destinationId && !enrichedData && (
+            <button
+              className="enrich-button"
+              onClick={handleEnrichLiveData}
+              disabled={enriching}
+            >
+              {enriching ? 'Enriching...' : '+ Add Names'}
+            </button>
+          )}
+
+          {enrichedData && (
+            <span className="enriched-badge">✓ Enriched</span>
+          )}
 
           <div className="view-toggle">
             <button
@@ -164,7 +219,16 @@ function LiveDataCards({data}: {data: any[]}) {
       {data.map((liveData, idx) => (
         <div key={liveData.entityId || idx} className="data-card live-data-card">
           <div className="card-header">
-            <h4>{liveData.entityId}</h4>
+            <div>
+              {liveData.entityName && liveData.entityName !== liveData.entityId ? (
+                <>
+                  <h4>{liveData.entityName}</h4>
+                  <p className="entity-id">ID: {liveData.entityId}</p>
+                </>
+              ) : (
+                <h4>{liveData.entityId}</h4>
+              )}
+            </div>
             <span className={`status-badge ${liveData.status?.toLowerCase()}`}>
               {liveData.status}
             </span>

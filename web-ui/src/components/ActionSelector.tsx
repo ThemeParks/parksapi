@@ -1,4 +1,5 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
+import {useNavigate, useLocation} from 'react-router-dom';
 import type {DestinationDetails, ExecutionResult} from '../types';
 import HttpMethodForm from './HttpMethodForm';
 import ResultsViewer from './ResultsViewer';
@@ -12,10 +13,24 @@ type Props = {
 type ActionType = 'main' | 'http';
 
 export default function ActionSelector({destinationId, details}: Props) {
-  const [actionType, setActionType] = useState<ActionType>('main');
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Determine action type from URL
+  const getActionTypeFromPath = (): ActionType => {
+    if (location.pathname.includes('/http')) return 'http';
+    return 'main';
+  };
+
+  const [actionType, setActionType] = useState<ActionType>(getActionTypeFromPath());
   const [selectedMethod, setSelectedMethod] = useState<string>('');
   const [executing, setExecuting] = useState(false);
   const [result, setResult] = useState<ExecutionResult | null>(null);
+
+  // Sync actionType with URL
+  useEffect(() => {
+    setActionType(getActionTypeFromPath());
+  }, [location.pathname]);
 
   const handleMainMethodExecute = async (methodName: string) => {
     setExecuting(true);
@@ -72,7 +87,7 @@ export default function ActionSelector({destinationId, details}: Props) {
         <button
           className={actionType === 'main' ? 'active' : ''}
           onClick={() => {
-            setActionType('main');
+            navigate(`/destination/${destinationId}/methods`);
             setSelectedMethod('');
             setResult(null);
           }}
@@ -82,7 +97,7 @@ export default function ActionSelector({destinationId, details}: Props) {
         <button
           className={actionType === 'http' ? 'active' : ''}
           onClick={() => {
-            setActionType('http');
+            navigate(`/destination/${destinationId}/http`);
             setSelectedMethod('');
             setResult(null);
           }}
@@ -153,7 +168,7 @@ export default function ActionSelector({destinationId, details}: Props) {
         )}
       </div>
 
-      {result && <ResultsViewer result={result} />}
+      {result && <ResultsViewer result={result} destinationId={destinationId} />}
     </div>
   );
 }

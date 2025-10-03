@@ -1,21 +1,24 @@
 import React, {useEffect, useState} from 'react';
-import type {Destination, DestinationDetails} from '../types';
+import {useNavigate, useLocation} from 'react-router-dom';
+import type {DestinationDetails} from '../types';
 import ActionSelector from './ActionSelector';
 import './DestinationViewer.css';
 
 type Props = {
-  destination: Destination;
+  destinationId: string;
   onBack: () => void;
 };
 
-export default function DestinationViewer({destination, onBack}: Props) {
+export default function DestinationViewer({destinationId, onBack}: Props) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [details, setDetails] = useState<DestinationDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/destinations/${destination.id}`)
+    fetch(`/api/destinations/${destinationId}`)
       .then(res => res.json())
       .then(data => {
         setDetails(data);
@@ -25,7 +28,15 @@ export default function DestinationViewer({destination, onBack}: Props) {
         setError(err.message);
         setLoading(false);
       });
-  }, [destination.id]);
+  }, [destinationId]);
+
+  // Redirect to /methods if no tab is specified
+  useEffect(() => {
+    const path = location.pathname;
+    if (path === `/destination/${destinationId}` || path === `/destination/${destinationId}/`) {
+      navigate(`/destination/${destinationId}/methods`, {replace: true});
+    }
+  }, [location.pathname, destinationId, navigate]);
 
   if (loading) {
     return (
