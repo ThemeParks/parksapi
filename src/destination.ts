@@ -1,4 +1,5 @@
 import {LiveData, Entity, EntitySchedule} from "@themeparks/typelib";
+import {trace} from "./tracing";
 
 export type DestinationConstructor = {
   config?: {[key: string]: string | string[]};
@@ -277,6 +278,7 @@ export abstract class Destination {
    * @final This method is final and should not be overridden.
    * @returns {Entity[]} List of entities with resolved hierarchy
    */
+  @trace()
   async getEntities(): Promise<Entity[]> {
     const entities = await this.buildEntityList();
     return this.resolveEntityHierarchy(entities);
@@ -309,6 +311,7 @@ export abstract class Destination {
    * @final This method is final and should not be overridden.
    * @returns {LiveData[]} List of live data for entities
    */
+  @trace()
   async getLiveData(): Promise<LiveData[]> {
     return await this.buildLiveData();
   }
@@ -339,6 +342,7 @@ export abstract class Destination {
    * @final This method is final and should not be overridden.
    * @returns {EntitySchedule[]} List of schedules for entities
    */
+  @trace()
   async getSchedules(): Promise<EntitySchedule[]> {
     return await this.buildSchedules();
   }

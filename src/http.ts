@@ -5,6 +5,7 @@
 import {createHash} from "crypto";
 import {CacheLib} from "./cache";
 import {broadcast} from "./injector";
+import {tracing} from "./tracing";
 import Ajv, {DefinedError} from "ajv";
 const ajv = new Ajv();
 
@@ -84,6 +85,8 @@ export type HTTPRequestEntry = {
 type InternalHTTPRequestEntry = HTTPRequestEntry & {
   // track which retry attempt this is (0 = first retry, 1 = second, etc.)
   retryAttempt?: number;
+  // capture trace context when request is queued
+  traceContext?: any;
 };
 const httpRequestQueue: InternalHTTPRequestEntry[] = [];
 
@@ -223,7 +226,9 @@ class HTTPRequestImpl implements HTTPObj {
 
   // Internal method to actually make this HTTP request
   //  Popuplates the response property on success
-  async makeRequest(): Promise<void> {
+  async makeRequest(traceContext?: any): Promise<void> {
+    const startTime = Date.now();
+
     // first, check the cache
     if (this.cacheKey && CacheLib.has(this.cacheKey)) {
       const cachedValue = CacheLib.get(this.cacheKey);
@@ -231,6 +236,18 @@ class HTTPRequestImpl implements HTTPObj {
         try {
           console.log("Using cached response for", this.method, this.url);
           this.response = new Response(cachedValue);
+
+          // Emit trace event for cache hit (use provided context if available)
+          tracing.emitHttpEvent({
+            eventType: 'http.request.complete',
+            url: this.url,
+            method: this.method,
+            status: 200,
+            duration: Date.now() - startTime,
+            cacheHit: true,
+            headers: this.buildHeaders(),
+          }, traceContext);
+
           return; // return early with cached response
         } catch (error) {
           console.warn("Failed to parse cached response, proceeding with HTTP request.", error);
@@ -289,6 +306,17 @@ class HTTPRequestImpl implements HTTPObj {
     if (!response.ok) {
       throw new Error(`HTTP request not OK: ${response.status} ${response.statusText}`);
     }
+
+    // Emit trace event for successful request (use provided context if available)
+    tracing.emitHttpEvent({
+      eventType: 'http.request.complete',
+      url: this.url,
+      method: this.method,
+      status: response.status,
+      duration: Date.now() - startTime,
+      cacheHit: false,
+      headers: this.buildHeaders(),
+    }, traceContext);
   }
 
   // Passthrough common response methods
@@ -426,6 +454,7 @@ function httpDecoratorFactory(options?: {
           request: internalRequest,
           earliestExecute: executeTime > 0 ? executeTime : undefined,
           validateResponse: formatValidate || undefined,
+          traceContext: tracing.getContext(), // Capture current trace context
         });
 
         // sort queue by earliestExecute time
@@ -526,12 +555,23 @@ export async function processHttpQueue() {
     if (entry) {
       console.log(`Processing HTTP request: ${entry.request.method} ${entry.request.url}`);
 
+      const requestStartTime = Date.now();
+
+      // Emit trace start event (use captured context if available)
+      tracing.emitHttpEvent({
+        eventType: 'http.request.start',
+        url: entry.request.url,
+        method: entry.request.method,
+        headers: entry.request.buildHeaders(),
+        retryCount: entry.retryAttempt || 0,
+      }, entry.traceContext);
+
       try {
         // Broadcast to injection system
         await broadcastInjectionEvent(entry, 'httpRequest');
 
-        // make the actual HTTP request
-        await entry.request.makeRequest();
+        // make the actual HTTP request (pass trace context)
+        await entry.request.makeRequest(entry.traceContext);
 
         // if we have a response validator, run it now
         if (entry.validateResponse && entry.request.response) {
@@ -555,6 +595,18 @@ export async function processHttpQueue() {
         //  Note: opportunity here for the injection to throw an error to force a retry if needed
         await broadcastInjectionEvent(entry, 'httpResponse');
       } catch (error) {
+        // Emit trace error event (use captured context if available)
+        tracing.emitHttpEvent({
+          eventType: 'http.request.error',
+          url: entry.request.url,
+          method: entry.request.method,
+          status: entry.request.response?.status,
+          duration: Date.now() - requestStartTime,
+          error: error instanceof Error ? error : new Error(String(error)),
+          headers: entry.request.buildHeaders(),
+          retryCount: entry.retryAttempt || 0,
+        }, entry.traceContext);
+
         // broadcast error event
         await broadcastInjectionEvent(entry, 'httpError');
 
