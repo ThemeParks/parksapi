@@ -208,7 +208,10 @@ class Universal extends Destination {
    * Get API authentication token
    */
   @cache({
-    callback: (response) => response?.expiresIn || 3600
+    callback: (response) => response?.expiresIn || 3600,
+    key: function() {
+      return `UniversalAPIKey:${this.city}`;
+    }
   })
   async getAPIKey(): Promise<{apiKey: string; expiresIn: number}> {
     const resp = await this.fetchAPIKey();
@@ -287,11 +290,16 @@ class Universal extends Destination {
       required: ['Results'],
     },
     cacheSeconds: 180 * 60, // 3 hours
+    parameters: [
+      {name: 'city', type: 'string', description: 'City to fetch parks for (orlando/hollywood)'}
+    ]
   })
-  async fetchParks(): Promise<HTTPObj> {
+  async fetchParks({
+    city,
+  }: {city: string}): Promise<HTTPObj> {
     return {
       method: 'GET',
-      url: `${this.baseURL}/venues?city=${this.city}`,
+      url: `${this.baseURL}/venues?city=${city}`,
       options: {json: true},
     } as any as HTTPObj;
   }
@@ -300,8 +308,10 @@ class Universal extends Destination {
    * Get parks (filtered for admission required)
    */
   @cache({ttlSeconds: 60 * 60 * 3})
-  async getParks() {
-    const resp = await this.fetchParks();
+  async getParks({
+    city,
+  }: {city: string}) {
+    const resp = await this.fetchParks({city});
     const data: UniversalVenuesResponse = await resp.json();
     return data.Results.filter((x) => x.AdmissionRequired);
   }
@@ -309,11 +319,17 @@ class Universal extends Destination {
   /**
    * Fetch POI (Points of Interest) data
    */
-  @http({cacheSeconds: 60})
-  async fetchPOI(): Promise<HTTPObj> {
+  @http({
+    cacheSeconds: 60, parameters: [
+      {name: 'city', type: 'string', description: 'City to fetch POI data for (orlando/hollywood)'}
+    ]
+  })
+  async fetchPOI({
+    city,
+  }: {city: string}): Promise<HTTPObj> {
     return {
       method: 'GET',
-      url: `${this.baseURL}/pointsofinterest?city=${this.city}`,
+      url: `${this.baseURL}/pointsofinterest?city=${city}`,
       options: {json: true},
     } as any as HTTPObj;
   }
@@ -322,8 +338,10 @@ class Universal extends Destination {
    * Get POI data (cached)
    */
   @cache({ttlSeconds: 60})
-  async getPOI(): Promise<UniversalPOIResponse> {
-    const resp = await this.fetchPOI();
+  async getPOI({
+    city,
+  }: {city: string}): Promise<UniversalPOIResponse> {
+    const resp = await this.fetchPOI({city});
     return await resp.json();
   }
 
@@ -378,9 +396,11 @@ class Universal extends Destination {
   /**
    * Fetch virtual queue details for a specific queue
    */
-  @http({cacheSeconds: 60, parameters: [
-    {name: 'queueId', type: 'string', description: 'Virtual queue ID to fetch details for'}
-  ]})
+  @http({
+    cacheSeconds: 60, parameters: [
+      {name: 'queueId', type: 'string', description: 'Virtual queue ID to fetch details for'}
+    ]
+  })
   async fetchVirtualQueueDetails(queueId: string): Promise<HTTPObj> {
     const todaysDate = formatInTimezone(new Date(), this.timezone, 'date');
 
@@ -461,7 +481,9 @@ class Universal extends Destination {
    * Get filtered shows (exclude music/street entertainment)
    */
   private async getFilteredShows(): Promise<UniversalPOIData[]> {
-    const poi = await this.getPOI();
+    const poi = await this.getPOI({
+      city: this.city,
+    });
     return poi.Shows.filter((show) => {
       const hasIgnoredType = show.ShowTypes?.some((type) => IGNORE_SHOW_TYPES.includes(type));
       return !hasIgnoredType;
@@ -488,8 +510,12 @@ class Universal extends Destination {
    */
   protected async buildEntityList(): Promise<Entity[]> {
     const destinationId = `universalresort_${this.city}`;
-    const poi = await this.getPOI();
-    const parks = await this.getParks();
+    const poi = await this.getPOI({
+      city: this.city,
+    });
+    const parks = await this.getParks({
+      city: this.city,
+    });
     const shows = await this.getFilteredShows();
 
     return [
@@ -564,7 +590,9 @@ class Universal extends Destination {
       return data;
     };
 
-    const poi = await this.getPOI();
+    const poi = await this.getPOI({
+      city: this.city,
+    });
     const waitTimes = await this.getWaitTimes();
     const vQueueStates = await this.getVirtualQueueStates();
 
@@ -745,7 +773,9 @@ class Universal extends Destination {
    * Build schedules for all parks
    */
   protected async buildSchedules(): Promise<EntitySchedule[]> {
-    const parks = await this.getParks();
+    const parks = await this.getParks({
+      city: this.city,
+    });
     const schedules: EntitySchedule[] = [];
 
     for (const park of parks) {

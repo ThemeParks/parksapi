@@ -316,13 +316,23 @@ class CacheLib {
   }
 }
 
-export default function cacheDecorator({ttlSeconds = 60, callback}: {ttlSeconds?: number, callback?: (response: any) => number} = {}) {
+export default function cacheDecorator({ttlSeconds = 60, callback, key}: {ttlSeconds?: number, callback?: (response: any) => number, key?: string | ((this: any, args: any[]) => string | Promise<string>)} = {}) {
   return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
     descriptor.value = async function (...args: any[]) {
       // Include class name in cache key to prevent collisions between different classes
       const className = this.constructor.name;
-      const cacheKey = `${className}:${propertyKey}:${JSON.stringify(args)}`;
+      let cacheKey: string;
+
+      if (key) {
+        if (typeof key === 'string') {
+          cacheKey = key;
+        } else {
+          cacheKey = await key.call(this, args);
+        }
+      } else {
+        cacheKey = `${className}:${propertyKey}:${JSON.stringify(args)}`;
+      }
 
       // If callback is provided, we need to call the function and let the callback determine TTL
       if (callback) {
