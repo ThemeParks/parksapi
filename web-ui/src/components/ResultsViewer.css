@@ -1,15 +1,15 @@
 .results-viewer {
   margin-top: 30px;
-  background: white;
+  background: #161b22;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #30363d;
   overflow: hidden;
 }
 
 .results-header {
   padding: 20px 24px;
-  background: #f9f9f9;
-  border-bottom: 1px solid #e0e0e0;
+  background: #0d1117;
+  border-bottom: 1px solid #30363d;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -22,14 +22,14 @@
 }
 
 .results-title h3 {
-  color: #222;
+  color: #c9d1d9;
   font-size: 18px;
   margin: 0;
 }
 
 .result-count {
-  background: #e3f2fd;
-  color: #1976d2;
+  background: #1f6feb;
+  color: #c9d1d9;
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 13px;
@@ -51,35 +51,35 @@
 }
 
 .status-badge.success {
-  background: #c8e6c9;
-  color: #2e7d32;
+  background: #238636;
+  color: #c9d1d9;
 }
 
 .status-badge.error {
-  background: #ffcdd2;
-  color: #c62828;
+  background: #da3633;
+  color: #c9d1d9;
 }
 
 .status-badge.operating {
-  background: #c8e6c9;
-  color: #2e7d32;
+  background: #238636;
+  color: #c9d1d9;
 }
 
 .status-badge.closed {
-  background: #ffcdd2;
-  color: #c62828;
+  background: #da3633;
+  color: #c9d1d9;
 }
 
 .status-badge.down,
 .status-badge.refurbishment {
-  background: #ffe0b2;
-  color: #e65100;
+  background: #9e6a03;
+  color: #c9d1d9;
 }
 
 .results-controls {
   padding: 16px 24px;
-  background: #f9f9f9;
-  border-bottom: 1px solid #e0e0e0;
+  background: #0d1117;
+  border-bottom: 1px solid #30363d;
   display: flex;
   gap: 16px;
   align-items: center;
@@ -88,21 +88,24 @@
 .results-controls .filter-input {
   flex: 1;
   padding: 10px 14px;
-  border: 1px solid #ddd;
+  border: 1px solid #30363d;
   border-radius: 8px;
   font-size: 14px;
+  background: #0d1117;
+  color: #c9d1d9;
 }
 
 .results-controls .filter-input:focus {
   outline: none;
-  border-color: #4CAF50;
+  border-color: #58a6ff;
+  background: #161b22;
 }
 
 .view-toggle {
   display: flex;
   gap: 4px;
-  background: white;
-  border: 1px solid #ddd;
+  background: #0d1117;
+  border: 1px solid #30363d;
   border-radius: 8px;
   padding: 2px;
 }
@@ -114,12 +117,12 @@
   border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
-  color: #666;
+  color: #8b949e;
   transition: all 0.2s;
 }
 
 .view-toggle button.active {
-  background: #4CAF50;
+  background: #238636;
   color: white;
 }
 
@@ -130,7 +133,7 @@
 .no-results {
   padding: 60px 20px;
   text-align: center;
-  color: #999;
+  color: #6e7681;
   font-size: 15px;
 }
 
@@ -141,21 +144,21 @@
 }
 
 .data-card {
-  background: #f9f9f9;
-  border: 1px solid #e0e0e0;
+  background: #0d1117;
+  border: 1px solid #30363d;
   border-radius: 8px;
   overflow: hidden;
   transition: all 0.2s;
 }
 
 .data-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #58a6ff;
 }
 
 .card-header {
   padding: 16px;
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -163,7 +166,7 @@
 }
 
 .card-header h4 {
-  color: #333;
+  color: #c9d1d9;
   font-size: 15px;
   margin: 0;
   word-break: break-word;
@@ -171,8 +174,8 @@
 
 .entity-type,
 .schedule-type {
-  background: #e3f2fd;
-  color: #1976d2;
+  background: #1f6feb;
+  color: #c9d1d9;
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 11px;
@@ -187,14 +190,14 @@
 
 .card-body p {
   margin: 6px 0;
-  color: #666;
+  color: #8b949e;
   font-size: 13px;
 }
 
 .entity-id {
   font-family: monospace;
   font-size: 12px !important;
-  color: #999 !important;
+  color: #6e7681 !important;
 }
 
 .tags {
@@ -205,8 +208,8 @@
 }
 
 .tag {
-  background: #fff3e0;
-  color: #e65100;
+  background: #9e6a03;
+  color: #c9d1d9;
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 11px;
@@ -224,32 +227,32 @@
   display: flex;
   justify-content: space-between;
   padding: 8px 12px;
-  background: white;
+  background: #161b22;
   border-radius: 6px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #30363d;
 }
 
 .queue-type {
   font-weight: 500;
-  color: #555;
+  color: #8b949e;
   font-size: 12px;
 }
 
 .wait-time {
   font-weight: 600;
-  color: #4CAF50;
+  color: #3fb950;
   font-size: 14px;
 }
 
 .last-updated {
-  color: #999 !important;
+  color: #6e7681 !important;
   font-size: 11px !important;
   margin-top: 8px !important;
 }
 
 .schedule-date {
   font-weight: 500;
-  color: #333 !important;
+  color: #c9d1d9 !important;
   margin-bottom: 10px !important;
 }
 
@@ -262,9 +265,9 @@
 
 .schedule-entry {
   padding: 8px 12px;
-  background: white;
+  background: #161b22;
   border-radius: 6px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #30363d;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -272,8 +275,8 @@
 }
 
 .entry-type {
-  background: #f3e5f5;
-  color: #7b1fa2;
+  background: #8250df;
+  color: #c9d1d9;
   padding: 2px 8px;
   border-radius: 8px;
   font-size: 11px;
@@ -286,7 +289,7 @@
 
 .generic-card pre {
   font-size: 12px;
-  color: #333;
+  color: #c9d1d9;
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
@@ -294,12 +297,12 @@
 
 .json-viewer {
   padding: 24px;
-  background: #1e1e1e;
+  background: #0d1117;
   overflow-x: auto;
 }
 
 .json-viewer pre {
-  color: #d4d4d4;
+  color: #c9d1d9;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 13px;
   line-height: 1.6;
@@ -308,20 +311,20 @@
 
 .error-result {
   padding: 24px;
-  background: #ffebee;
-  border: 1px solid #ef5350;
+  background: #0d1117;
+  border: 1px solid #da3633;
 }
 
 .error-result h3 {
-  color: #c62828;
+  color: #f85149;
   margin-bottom: 12px;
 }
 
 .error-message {
-  color: #d32f2f;
+  color: #f85149;
   font-family: monospace;
   font-size: 14px;
-  background: white;
+  background: #161b22;
   padding: 12px;
   border-radius: 6px;
   margin-bottom: 12px;
@@ -331,23 +334,25 @@
   display: flex;
   gap: 16px;
   font-size: 13px;
-  color: #666;
+  color: #8b949e;
 }
 
 .metadata code {
-  background: white;
+  background: #161b22;
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 12px;
+  color: #c9d1d9;
 }
 
 .filter-info {
   margin-top: 16px;
   padding: 12px;
-  background: #f0f0f0;
+  background: #161b22;
+  border: 1px solid #30363d;
   border-radius: 6px;
   text-align: center;
-  color: #666;
+  color: #8b949e;
   font-size: 13px;
   font-weight: 500;
 }

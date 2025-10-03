@@ -4,21 +4,24 @@
 
 .destination-list h2 {
   margin-bottom: 20px;
-  color: #222;
+  color: #c9d1d9;
 }
 
 .filter-input {
   width: 100%;
   padding: 12px;
   margin-bottom: 20px;
-  border: 1px solid #ddd;
+  border: 1px solid #30363d;
   border-radius: 8px;
   font-size: 14px;
+  background: #0d1117;
+  color: #c9d1d9;
 }
 
 .filter-input:focus {
   outline: none;
-  border-color: #4CAF50;
+  border-color: #58a6ff;
+  background: #161b22;
 }
 
 .destination-cards {
@@ -28,27 +31,28 @@
 }
 
 .destination-card {
-  background: white;
+  background: #161b22;
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #30363d;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .destination-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 1px #58a6ff;
   transform: translateY(-2px);
 }
 
 .destination-card h3 {
   margin-bottom: 8px;
-  color: #333;
+  color: #c9d1d9;
   font-size: 18px;
 }
 
 .destination-id {
-  color: #666;
+  color: #8b949e;
   font-size: 13px;
   font-family: monospace;
   margin-bottom: 12px;
@@ -61,8 +65,8 @@
 }
 
 .category-tag {
-  background: #e3f2fd;
-  color: #1976d2;
+  background: #1f6feb;
+  color: #c9d1d9;
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 12px;
@@ -74,9 +78,9 @@
   padding: 40px;
   text-align: center;
   font-size: 16px;
-  color: #666;
+  color: #8b949e;
 }
 
 .destination-list.error {
-  color: #d32f2f;
+  color: #f85149;
 }
