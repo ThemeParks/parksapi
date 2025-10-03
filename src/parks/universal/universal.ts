@@ -176,7 +176,9 @@ class Universal extends Destination {
    */
   @inject({
     eventName: 'httpRequest',
-    hostname: {$regex: /universalorlando\.com|universalstudios\.com/},
+    hostname: function() {
+      return new URL(this.baseURL).hostname;
+    },
     tags: {$nin: ['apiKeyFetch']}
   })
   async injectAPIKey(requestObj: HTTPObj): Promise<void> {
@@ -194,7 +196,9 @@ class Universal extends Destination {
    */
   @inject({
     eventName: 'httpError',
-    hostname: {$regex: /universalorlando\.com|universalstudios\.com/},
+    hostname: function() {
+      return new URL(this.baseURL).hostname;
+    },
   })
   async handleUnauthorized(requestObj: HTTPObj): Promise<void> {
     if (requestObj.response?.status === 401) {

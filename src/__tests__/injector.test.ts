@@ -158,4 +158,169 @@ describe('Injector System', () => {
       expect(mockFn2).not.toHaveBeenCalled();
     });
   });
+
+  describe('Dynamic Filter Resolution', () => {
+    it('should resolve function-based filters with instance context', async () => {
+      class TestClass {
+        baseURL = 'api.example.com';
+
+        @inject({
+          eventName: 'httpRequest',
+          hostname: function() {
+            return this.baseURL;
+          }
+        })
+        async injectMethod(req: any) {
+          req.injected = true;
+        }
+      }
+
+      const instance = new TestClass();
+      const spy = jest.spyOn(instance, 'injectMethod');
+
+      await broadcast(instance, { eventName: 'httpRequest', hostname: 'api.example.com' }, { injected: false });
+
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('should not match when dynamic filter resolves to different value', async () => {
+      class TestClass {
+        baseURL = 'api.example.com';
+
+        @inject({
+          eventName: 'httpRequest',
+          hostname: function() {
+            return this.baseURL;
+          }
+        })
+        async injectMethod(req: any) {
+          req.injected = true;
+        }
+      }
+
+      const instance = new TestClass();
+      const spy = jest.spyOn(instance, 'injectMethod');
+
+      await broadcast(instance, { eventName: 'httpRequest', hostname: 'other.example.com' }, { injected: false });
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('should resolve nested function-based filters', async () => {
+      class TestClass {
+        allowedDomains = ['example.com', 'test.com'];
+
+        @inject({
+          eventName: 'httpRequest',
+          hostname: function() {
+            return { $in: this.allowedDomains };
+          }
+        })
+        async injectMethod(req: any) {
+          req.injected = true;
+        }
+      }
+
+      const instance = new TestClass();
+      const spy = jest.spyOn(instance, 'injectMethod');
+
+      await broadcast(instance, { eventName: 'httpRequest', hostname: 'example.com' }, { injected: false });
+
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('should resolve async function-based filters', async () => {
+      class TestClass {
+        async getBaseURL() {
+          return 'api.example.com';
+        }
+
+        @inject({
+          eventName: 'httpRequest',
+          hostname: async function() {
+            return await this.getBaseURL();
+          }
+        })
+        async injectMethod(req: any) {
+          req.injected = true;
+        }
+      }
+
+      const instance = new TestClass();
+      const spy = jest.spyOn(instance, 'injectMethod');
+
+      await broadcast(instance, { eventName: 'httpRequest', hostname: 'api.example.com' }, { injected: false });
+
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('should resolve regex patterns from instance properties', async () => {
+      class TestClass {
+        domainPattern = 'universalorlando\\.com|universalstudios\\.com';
+
+        @inject({
+          eventName: 'httpRequest',
+          hostname: function() {
+            return { $regex: new RegExp(this.domainPattern) };
+          }
+        })
+        async injectMethod(req: any) {
+          req.injected = true;
+        }
+      }
+
+      const instance = new TestClass();
+      const spy = jest.spyOn(instance, 'injectMethod');
+
+      await broadcast(instance, { eventName: 'httpRequest', hostname: 'universalorlando.com' }, { injected: false });
+
+      expect(spy).toHaveBeenCalled();
+
+      spy.mockClear();
+
+      await broadcast(instance, { eventName: 'httpRequest', hostname: 'universalstudios.com' }, { injected: false });
+
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('should preserve static filter values alongside dynamic ones', async () => {
+      class TestClass {
+        baseURL = 'api.example.com';
+
+        @inject({
+          eventName: 'httpRequest',
+          hostname: function() {
+            return this.baseURL;
+          },
+          tags: { $nin: ['skipAuth'] }
+        })
+        async injectMethod(req: any) {
+          req.injected = true;
+        }
+      }
+
+      const instance = new TestClass();
+      const spy = jest.spyOn(instance, 'injectMethod');
+
+      // Should match when tags don't include 'skipAuth'
+      await broadcast(instance, {
+        eventName: 'httpRequest',
+        hostname: 'api.example.com',
+        tags: ['other']
+      }, { injected: false });
+
+      expect(spy).toHaveBeenCalled();
+
+      spy.mockClear();
+
+      // Should not match when tags include 'skipAuth'
+      await broadcast(instance, {
+        eventName: 'httpRequest',
+        hostname: 'api.example.com',
+        tags: ['skipAuth']
+      }, { injected: false });
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
 });

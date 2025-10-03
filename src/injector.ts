@@ -38,6 +38,37 @@ export function inject(filter: any) {
 }
 
 /**
+ * Resolve any functions in the filter object to their values.
+ * Walks the filter object and replaces functions with their resolved values.
+ * Functions are called with the instance context.
+ */
+async function resolveFilterFunctions(filter: any, instance: any): Promise<any> {
+  if (typeof filter === 'function') {
+    // Call the function with the instance context
+    const result = filter.call(instance);
+    // Handle async functions
+    return result instanceof Promise ? await result : result;
+  }
+
+  if (Array.isArray(filter)) {
+    // Resolve each element in the array
+    return Promise.all(filter.map(item => resolveFilterFunctions(item, instance)));
+  }
+
+  if (filter !== null && typeof filter === 'object' && !(filter instanceof RegExp)) {
+    // Resolve each property in the object (but skip RegExp objects)
+    const resolved: any = {};
+    for (const [key, value] of Object.entries(filter)) {
+      resolved[key] = await resolveFilterFunctions(value, instance);
+    }
+    return resolved;
+  }
+
+  // Primitive value or RegExp, return as-is
+  return filter;
+}
+
+/**
  * Broadcast an event to matching injected functions.
  * @param scope 'global' to broadcast to all registered instances and global functions, or an array/single instance to broadcast to specific instances' methods.
  * @param event The event object to match against filters.
@@ -59,7 +90,8 @@ export async function broadcast(scope: 'global' | any[] | any, event: any, ...ar
       const filters = proto.__injectFilters;
       if (filters) {
         for (const [methodName, filter] of filters) {
-          if (sift(filter)(event)) {
+          const resolvedFilter = await resolveFilterFunctions(filter, instance);
+          if (sift(resolvedFilter)(event)) {
             calls.push(instance[methodName](...args));
           }
         }
@@ -79,7 +111,8 @@ export async function broadcast(scope: 'global' | any[] | any, event: any, ...ar
       const filters = proto.__injectFilters;
       if (filters) {
         for (const [methodName, filter] of filters) {
-          if (sift(filter)(event)) {
+          const resolvedFilter = await resolveFilterFunctions(filter, instance);
+          if (sift(resolvedFilter)(event)) {
             calls.push(instance[methodName](...args));
           }
         }
