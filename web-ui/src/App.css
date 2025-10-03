@@ -30,6 +30,9 @@
   max-width: 1600px;
   margin: 0 auto;
   width: 100%;
+  /* Add padding for trace drawer when open */
+  padding-bottom: var(--trace-drawer-height, 20px);
+  transition: padding-bottom 0.3s ease;
 }
 
 .app-footer {

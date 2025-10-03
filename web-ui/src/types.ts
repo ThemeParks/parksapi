@@ -57,6 +57,7 @@ export type HttpTraceEvent = {
   duration?: number;
   error?: Error;
   headers?: Record<string, string>;
+  body?: any;
   cacheHit?: boolean;
   retryCount?: number;
 };

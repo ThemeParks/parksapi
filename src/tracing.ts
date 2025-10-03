@@ -24,9 +24,9 @@ export interface HttpTraceEvent {
   duration?: number;
   error?: Error;
   headers?: Record<string, string>;
+  body?: any; // Response body (for complete/error events)
   cacheHit?: boolean;
   retryCount?: number;
-  responsePreview?: any;
 }
 
 /**

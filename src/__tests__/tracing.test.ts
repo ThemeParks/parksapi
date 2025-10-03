@@ -149,7 +149,7 @@ describe('Tracing System', () => {
           cacheHit: true,
           retryCount: 2,
           headers: { 'Content-Type': 'application/json' },
-          responsePreview: { data: 'test' },
+          body: { data: 'test' },
         });
       });
 
@@ -157,7 +157,7 @@ describe('Tracing System', () => {
       expect(event.cacheHit).toBe(true);
       expect(event.retryCount).toBe(2);
       expect(event.headers).toEqual({ 'Content-Type': 'application/json' });
-      expect(event.responsePreview).toEqual({ data: 'test' });
+      expect(event.body).toEqual({ data: 'test' });
     });
   });
 

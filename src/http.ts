@@ -237,6 +237,14 @@ class HTTPRequestImpl implements HTTPObj {
           console.log("Using cached response for", this.method, this.url);
           this.response = new Response(cachedValue);
 
+          // Try to parse body for trace (but don't fail if we can't)
+          let responseBody: any = undefined;
+          try {
+            responseBody = JSON.parse(cachedValue);
+          } catch {
+            responseBody = cachedValue.substring(0, 1000); // First 1000 chars if not JSON
+          }
+
           // Emit trace event for cache hit (use provided context if available)
           tracing.emitHttpEvent({
             eventType: 'http.request.complete',
@@ -246,6 +254,7 @@ class HTTPRequestImpl implements HTTPObj {
             duration: Date.now() - startTime,
             cacheHit: true,
             headers: this.buildHeaders(),
+            body: responseBody,
           }, traceContext);
 
           return; // return early with cached response
@@ -307,6 +316,24 @@ class HTTPRequestImpl implements HTTPObj {
       throw new Error(`HTTP request not OK: ${response.status} ${response.statusText}`);
     }
 
+    // Capture response body for trace event
+    let responseBody: any = undefined;
+    try {
+      const clonedResponse = response.clone();
+      const contentType = response.headers.get('content-type');
+
+      if (contentType?.includes('application/json')) {
+        responseBody = await clonedResponse.json();
+      } else {
+        const text = await clonedResponse.text();
+        // Truncate large text responses to 1000 chars
+        responseBody = text.length > 1000 ? text.substring(0, 1000) + '...' : text;
+      }
+    } catch (error) {
+      // If we can't parse the body, just skip it (don't fail the request)
+      console.warn("Failed to capture response body for trace:", error);
+    }
+
     // Emit trace event for successful request (use provided context if available)
     tracing.emitHttpEvent({
       eventType: 'http.request.complete',
@@ -316,6 +343,7 @@ class HTTPRequestImpl implements HTTPObj {
       duration: Date.now() - startTime,
       cacheHit: false,
       headers: this.buildHeaders(),
+      body: responseBody,
     }, traceContext);
   }
 
@@ -595,6 +623,24 @@ export async function processHttpQueue() {
         //  Note: opportunity here for the injection to throw an error to force a retry if needed
         await broadcastInjectionEvent(entry, 'httpResponse');
       } catch (error) {
+        // Try to capture error response body if available
+        let errorBody: any = undefined;
+        if (entry.request.response) {
+          try {
+            const clonedResponse = entry.request.response.clone();
+            const contentType = entry.request.response.headers.get('content-type');
+
+            if (contentType?.includes('application/json')) {
+              errorBody = await clonedResponse.json();
+            } else {
+              const text = await clonedResponse.text();
+              errorBody = text.length > 1000 ? text.substring(0, 1000) + '...' : text;
+            }
+          } catch (bodyError) {
+            // Failed to get body, just skip it
+          }
+        }
+
         // Emit trace error event (use captured context if available)
         tracing.emitHttpEvent({
           eventType: 'http.request.error',
@@ -604,6 +650,7 @@ export async function processHttpQueue() {
           duration: Date.now() - requestStartTime,
           error: error instanceof Error ? error : new Error(String(error)),
           headers: entry.request.buildHeaders(),
+          body: errorBody,
           retryCount: entry.retryAttempt || 0,
         }, entry.traceContext);
 

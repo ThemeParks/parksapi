@@ -2,6 +2,8 @@ import React from 'react';
 import {Routes, Route, useNavigate, useParams} from 'react-router-dom';
 import DestinationList from './components/DestinationList';
 import DestinationViewer from './components/DestinationViewer';
+import TraceDrawer from './components/TraceDrawer';
+import {TraceProvider, useTrace} from './contexts/TraceContext';
 import './App.css';
 
 function HomePage() {
@@ -28,7 +30,9 @@ function DestinationPage() {
   );
 }
 
-export default function App() {
+function AppContent() {
+  const { currentTraceId } = useTrace();
+
   return (
     <div className="app">
       <header className="app-header">
@@ -46,6 +50,16 @@ export default function App() {
       <footer className="app-footer">
         <p>ParksAPI v2.0.0 - TypeScript Edition</p>
       </footer>
+
+      <TraceDrawer currentTraceId={currentTraceId || undefined} />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <TraceProvider>
+      <AppContent />
+    </TraceProvider>
   );
 }

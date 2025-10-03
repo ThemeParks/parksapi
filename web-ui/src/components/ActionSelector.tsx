@@ -3,7 +3,7 @@ import {useNavigate, useLocation} from 'react-router-dom';
 import type {DestinationDetails, ExecutionResult} from '../types';
 import HttpMethodForm from './HttpMethodForm';
 import ResultsViewer from './ResultsViewer';
-import TraceViewer from './TraceViewer';
+import {useTrace} from '../contexts/TraceContext';
 import './ActionSelector.css';
 
 type Props = {
@@ -16,6 +16,7 @@ type ActionType = 'main' | 'http';
 export default function ActionSelector({destinationId, details}: Props) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { setCurrentTraceId, openTraceDrawer } = useTrace();
 
   // Determine action type from URL
   const getActionTypeFromPath = (): ActionType => {
@@ -33,7 +34,7 @@ export default function ActionSelector({destinationId, details}: Props) {
     setActionType(getActionTypeFromPath());
   }, [location.pathname]);
 
-  const handleMainMethodExecute = async (methodName: string, enableTracing = true) => {
+  const handleMainMethodExecute = async (methodName: string) => {
     setExecuting(true);
     setResult(null);
 
@@ -41,15 +42,21 @@ export default function ActionSelector({destinationId, details}: Props) {
       const response = await fetch(`/api/destinations/${destinationId}/execute/${methodName}`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ async: enableTracing }),
+        body: JSON.stringify({ async: true }), // Always use async mode for tracing
       });
 
       const data = await response.json();
+
+      // Set the trace ID in context and open drawer
+      if (data.traceId) {
+        setCurrentTraceId(data.traceId);
+        openTraceDrawer();
+      }
+
       setResult(data);
 
-      // If async mode (with tracing), fetch the actual result after trace completes
-      if (enableTracing && data.traceId) {
-        // Wait a bit for the trace to complete
+      // Poll for completion to get final results
+      if (data.traceId) {
         const checkComplete = setInterval(async () => {
           try {
             const traceResponse = await fetch(`/api/trace/${data.traceId}`);
@@ -205,7 +212,6 @@ export default function ActionSelector({destinationId, details}: Props) {
         )}
       </div>
 
-      {result && result.traceId && <TraceViewer traceId={result.traceId} />}
       {result && <ResultsViewer result={result} destinationId={destinationId} />}
     </div>
   );
