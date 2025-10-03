@@ -9,6 +9,8 @@ export default function CacheBrowser() {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [selectedValue, setSelectedValue] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
 
   const fetchCacheEntries = async () => {
     try {
@@ -137,6 +139,23 @@ export default function CacheBrowser() {
     return `${Math.floor(ttl / 86400)}d`;
   };
 
+  // Filter entries based on search query and status
+  const filteredEntries = entries.filter(entry => {
+    // Status filter
+    if (statusFilter === 'active' && entry.isExpired) return false;
+    if (statusFilter === 'expired' && !entry.isExpired) return false;
+
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesKey = entry.key.toLowerCase().includes(query);
+      const matchesValue = entry.valuePreview.toLowerCase().includes(query);
+      return matchesKey || matchesValue;
+    }
+
+    return true;
+  });
+
   useEffect(() => {
     fetchCacheEntries();
   }, []);
@@ -176,6 +195,36 @@ export default function CacheBrowser() {
         </div>
       </div>
 
+      <div className="cache-filters">
+        <div className="filter-group">
+          <input
+            type="text"
+            placeholder="🔍 Search keys or values..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+          />
+        </div>
+        <div className="filter-group">
+          <label htmlFor="status-filter">Status:</label>
+          <select
+            id="status-filter"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'expired')}
+            className="status-filter"
+          >
+            <option value="all">All ({entries.length})</option>
+            <option value="active">Active ({entries.filter(e => !e.isExpired).length})</option>
+            <option value="expired">Expired ({entries.filter(e => e.isExpired).length})</option>
+          </select>
+        </div>
+        {(searchQuery || statusFilter !== 'all') && (
+          <div className="filter-results">
+            Showing {filteredEntries.length} of {entries.length} entries
+          </div>
+        )}
+      </div>
+
       {error && (
         <div className="cache-error">
           <strong>Error:</strong> {error}
@@ -199,14 +248,14 @@ export default function CacheBrowser() {
                 </tr>
               </thead>
               <tbody>
-                {entries.length === 0 ? (
+                {filteredEntries.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="no-entries">
-                      No cache entries found
+                      {entries.length === 0 ? 'No cache entries found' : 'No matching entries found'}
                     </td>
                   </tr>
                 ) : (
-                  entries.map((entry) => (
+                  filteredEntries.map((entry) => (
                     <tr
                       key={entry.key}
                       className={`${entry.isExpired ? 'expired' : ''} ${selectedKey === entry.key ? 'selected' : ''}`}
