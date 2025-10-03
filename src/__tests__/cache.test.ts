@@ -557,6 +557,47 @@ describe('Cache', () => {
       expect(await instance2.getData()).toBe('data-instance1');
       expect(callCount).toBe(1); // Still cached from instance1
     });
+
+    test('should NOT share cache between different classes (cache key includes class name)', async () => {
+      let callCountA = 0;
+      let callCountB = 0;
+
+      class ClassA {
+        @cache({ ttlSeconds: 60 })
+        async getData() {
+          callCountA++;
+          return 'data-from-A';
+        }
+      }
+
+      class ClassB {
+        @cache({ ttlSeconds: 60 })
+        async getData() {
+          callCountB++;
+          return 'data-from-B';
+        }
+      }
+
+      const instanceA = new ClassA();
+      const instanceB = new ClassB();
+
+      // Both call getData() with same args
+      const resultA = await instanceA.getData();
+      expect(resultA).toBe('data-from-A');
+      expect(callCountA).toBe(1);
+
+      // ClassB should NOT get cached result from ClassA (different class name in cache key)
+      const resultB = await instanceB.getData();
+      expect(resultB).toBe('data-from-B');
+      expect(callCountB).toBe(1); // Called, not cached from ClassA
+
+      // Call again - both should use their own cache
+      expect(await instanceA.getData()).toBe('data-from-A');
+      expect(callCountA).toBe(1); // Still 1, used cache
+
+      expect(await instanceB.getData()).toBe('data-from-B');
+      expect(callCountB).toBe(1); // Still 1, used cache
+    });
   });
 
   describe('LRU Eviction and Size Limits', () => {

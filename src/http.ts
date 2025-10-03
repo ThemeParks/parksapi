@@ -207,7 +207,7 @@ class HTTPRequestImpl implements HTTPObj {
     const classPrefix = this.className ? `${this.className}:` : '';
     // hash result - include class name to prevent conflicts between different destination classes
     const inStr = `${classPrefix}${this.method}:${url}:${JSON.stringify(headers)}:${bodyString}`;
-    return createHash('sha256').update(inStr).digest('hex');
+    return inStr; //createHash('sha256').update(inStr).digest('hex');
   }
 
   // Internal method to set promise handlers
@@ -467,7 +467,8 @@ function httpDecoratorFactory(options?: {
         // Optionally override cache key
         if (options?.cacheKey !== undefined) {
           // Include class name in manual cache key override too
-          internalRequest.cacheKey = createHash('sha256').update(`${this.constructor.name}:${options.cacheKey}`).digest('hex');
+          //internalRequest.cacheKey = createHash('sha256').update(`${this.constructor.name}:${options.cacheKey}`).digest('hex');
+          internalRequest.cacheKey = `${this.constructor.name}:${options.cacheKey}`;
         }
 
         // set cache TTL if provided

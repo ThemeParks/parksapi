@@ -320,7 +320,9 @@ export default function cacheDecorator({ttlSeconds = 60, callback}: {ttlSeconds?
   return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
     descriptor.value = async function (...args: any[]) {
-      const cacheKey = `${propertyKey}:${JSON.stringify(args)}`;
+      // Include class name in cache key to prevent collisions between different classes
+      const className = this.constructor.name;
+      const cacheKey = `${className}:${propertyKey}:${JSON.stringify(args)}`;
 
       // If callback is provided, we need to call the function and let the callback determine TTL
       if (callback) {
