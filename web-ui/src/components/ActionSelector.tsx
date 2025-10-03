@@ -3,6 +3,7 @@ import {useNavigate, useLocation} from 'react-router-dom';
 import type {DestinationDetails, ExecutionResult} from '../types';
 import HttpMethodForm from './HttpMethodForm';
 import ResultsViewer from './ResultsViewer';
+import TraceViewer from './TraceViewer';
 import './ActionSelector.css';
 
 type Props = {
@@ -32,7 +33,7 @@ export default function ActionSelector({destinationId, details}: Props) {
     setActionType(getActionTypeFromPath());
   }, [location.pathname]);
 
-  const handleMainMethodExecute = async (methodName: string) => {
+  const handleMainMethodExecute = async (methodName: string, enableTracing = true) => {
     setExecuting(true);
     setResult(null);
 
@@ -40,10 +41,47 @@ export default function ActionSelector({destinationId, details}: Props) {
       const response = await fetch(`/api/destinations/${destinationId}/execute/${methodName}`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ async: enableTracing }),
       });
 
       const data = await response.json();
       setResult(data);
+
+      // If async mode (with tracing), fetch the actual result after trace completes
+      if (enableTracing && data.traceId) {
+        // Wait a bit for the trace to complete
+        const checkComplete = setInterval(async () => {
+          try {
+            const traceResponse = await fetch(`/api/trace/${data.traceId}`);
+            if (traceResponse.ok) {
+              const trace = await traceResponse.json();
+              if (trace.metadata?.result !== undefined) {
+                // Update result with the actual data
+                setResult(prev => prev ? {
+                  ...prev,
+                  data: trace.metadata.result,
+                  count: Array.isArray(trace.metadata.result) ? trace.metadata.result.length : undefined,
+                  duration: trace.duration,
+                  httpRequests: trace.events.length,
+                  status: 'completed'
+                } : null);
+                clearInterval(checkComplete);
+                setExecuting(false);
+              }
+            }
+          } catch (err) {
+            console.error('Error fetching trace:', err);
+          }
+        }, 500);
+
+        // Timeout after 30 seconds
+        setTimeout(() => {
+          clearInterval(checkComplete);
+          setExecuting(false);
+        }, 30000);
+      } else {
+        setExecuting(false);
+      }
     } catch (error) {
       setResult({
         success: false,
@@ -51,7 +89,6 @@ export default function ActionSelector({destinationId, details}: Props) {
         error: error instanceof Error ? error.message : 'Unknown error',
         data: null,
       });
-    } finally {
       setExecuting(false);
     }
   };
@@ -168,6 +205,7 @@ export default function ActionSelector({destinationId, details}: Props) {
         )}
       </div>
 
+      {result && result.traceId && <TraceViewer traceId={result.traceId} />}
       {result && <ResultsViewer result={result} destinationId={destinationId} />}
     </div>
   );

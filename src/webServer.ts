@@ -10,6 +10,8 @@ import {fileURLToPath} from 'url';
 import {getAllDestinations, getDestinationById} from './destinationRegistry.js';
 import {getHttpRequestersForClass, getHttpRequesterForClassMethod} from './http.js';
 import {Destination} from './destination.js';
+import {tracing} from './tracing.js';
+import type {HttpTraceEvent} from './tracing.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,9 +35,69 @@ app.get('/api', (req, res) => {
       'GET /api/destinations/:id': 'Get destination details',
       'POST /api/destinations/:id/execute/:method': 'Execute main method (getEntities, getLiveData, getSchedules)',
       'POST /api/destinations/:id/http/:method': 'Execute HTTP method with parameters',
+      'GET /api/trace/:traceId/events': 'Stream trace events via SSE',
+      'GET /api/trace/:traceId': 'Get completed trace information',
     },
     documentation: 'See WEB_ADMIN.md for full documentation',
   });
+});
+
+/**
+ * API: Stream trace events via Server-Sent Events (SSE)
+ */
+app.get('/api/trace/:traceId/events', (req, res) => {
+  const { traceId } = req.params;
+
+  // Set SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  // Send initial connection message
+  res.write(`data: ${JSON.stringify({ type: 'connected', traceId })}\n\n`);
+
+  // Create event listener for this trace
+  const eventListener = (event: HttpTraceEvent) => {
+    // Only send events for this trace ID
+    if (event.traceId === traceId) {
+      res.write(`data: ${JSON.stringify({ type: 'event', event })}\n\n`);
+    }
+  };
+
+  // Listen to all HTTP events
+  tracing.onHttp(eventListener);
+
+  // Also send the trace when it completes
+  const checkCompletion = setInterval(() => {
+    const trace = tracing.getTrace(traceId);
+    if (trace) {
+      res.write(`data: ${JSON.stringify({ type: 'complete', trace })}\n\n`);
+      cleanup();
+    }
+  }, 100);
+
+  // Cleanup on client disconnect
+  const cleanup = () => {
+    clearInterval(checkCompletion);
+    tracing.removeListener('http', eventListener);
+    res.end();
+  };
+
+  req.on('close', cleanup);
+});
+
+/**
+ * API: Get completed trace information
+ */
+app.get('/api/trace/:traceId', (req, res) => {
+  const { traceId } = req.params;
+  const trace = tracing.getTrace(traceId);
+
+  if (!trace) {
+    return res.status(404).json({ error: 'Trace not found' });
+  }
+
+  res.json(trace);
 });
 
 /**
@@ -96,11 +158,12 @@ app.get('/api/destinations/:id', async (req, res) => {
 });
 
 /**
- * API: Execute a main destination method
+ * API: Execute a main destination method with tracing
  */
 app.post('/api/destinations/:id/execute/:method', async (req, res) => {
   try {
     const {id, method} = req.params;
+    const {async = false} = req.body; // Allow async execution
     const destination = await getDestinationById(id);
 
     if (!destination) {
@@ -113,16 +176,76 @@ app.post('/api/destinations/:id/execute/:method', async (req, res) => {
       return res.status(400).json({error: 'Invalid method name'});
     }
 
-    // Create instance and execute method
+    // Create instance
     const instance = new destination.DestinationClass();
-    const result = await (instance as any)[method]();
 
-    res.json({
-      success: true,
-      method,
-      data: result,
-      count: Array.isArray(result) ? result.length : undefined,
-    });
+    if (async) {
+      // Generate trace ID and return immediately
+      const { randomUUID } = await import('crypto');
+      const traceId = randomUUID();
+
+      // Return trace ID immediately
+      res.json({
+        success: true,
+        method,
+        traceId,
+        status: 'started',
+        message: 'Execution started. Connect to /api/trace/:traceId/events for live updates',
+      });
+
+      // Execute in background with the pre-generated trace ID
+      // Note: We manually create the trace context
+      const startTime = Date.now();
+      const context = { traceId, startTime, metadata: { destination: id, method } };
+
+      // Store empty buffer for this trace
+      (tracing as any).eventBuffers.set(traceId, []);
+
+      try {
+        const result = await (tracing as any).asyncLocalStorage.run(context, async () => {
+          return await (instance as any)[method]();
+        });
+
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        const events = (tracing as any).eventBuffers.get(traceId) || [];
+
+        // Store in history
+        (tracing as any).storeTraceInfo({
+          traceId,
+          startTime,
+          endTime,
+          duration,
+          events: [...events],
+          metadata: { destination: id, method, result },
+        });
+
+        // Cleanup buffer
+        setTimeout(() => (tracing as any).eventBuffers.delete(traceId), 1000);
+      } catch (error) {
+        console.error('Background execution error:', error);
+      }
+    } else {
+      // Synchronous execution with tracing
+      const traceResult = await tracing.trace(
+        () => (instance as any)[method](),
+        {
+          destination: id,
+          method: method,
+          timestamp: new Date().toISOString(),
+        }
+      );
+
+      res.json({
+        success: true,
+        method,
+        traceId: traceResult.traceId,
+        duration: traceResult.duration,
+        httpRequests: traceResult.events.length,
+        data: traceResult.result,
+        count: Array.isArray(traceResult.result) ? traceResult.result.length : undefined,
+      });
+    }
   } catch (error) {
     console.error('Error executing method:', error);
     res.status(500).json({

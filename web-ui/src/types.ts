@@ -41,4 +41,31 @@ export type ExecutionResult = {
     ok: boolean;
     url: string;
   };
+  traceId?: string;
+  duration?: number;
+  httpRequests?: number;
+  status?: 'started' | 'completed';
+};
+
+export type HttpTraceEvent = {
+  traceId: string;
+  eventType: 'http.request.start' | 'http.request.complete' | 'http.request.error';
+  timestamp: number;
+  url: string;
+  method: string;
+  status?: number;
+  duration?: number;
+  error?: Error;
+  headers?: Record<string, string>;
+  cacheHit?: boolean;
+  retryCount?: number;
+};
+
+export type TraceInfo = {
+  traceId: string;
+  startTime: number;
+  endTime: number;
+  duration: number;
+  events: HttpTraceEvent[];
+  metadata?: Record<string, any>;
 };
