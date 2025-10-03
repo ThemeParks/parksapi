@@ -58,7 +58,28 @@ export default function TraceDrawer({ currentTraceId, onClose }: Props) {
   // Save sessions to localStorage whenever they change
   useEffect(() => {
     if (sessions.length > 0) {
-      localStorage.setItem('traceSessions', JSON.stringify(sessions));
+      try {
+        // Keep only the last 10 sessions to avoid quota issues
+        const sessionsToStore = sessions.slice(0, 10).map(session => ({
+          ...session,
+          // Truncate event bodies to reduce storage size
+          events: session.events.map(event => ({
+            ...event,
+            body: event.body ?
+              (typeof event.body === 'string' ? event.body.substring(0, 1000) : JSON.stringify(event.body).substring(0, 1000))
+              : undefined
+          }))
+        }));
+        localStorage.setItem('traceSessions', JSON.stringify(sessionsToStore));
+      } catch (error) {
+        console.error('Failed to save trace sessions (quota exceeded):', error);
+        // Clear old sessions and try again with just the latest
+        try {
+          localStorage.setItem('traceSessions', JSON.stringify(sessions.slice(0, 1)));
+        } catch {
+          localStorage.removeItem('traceSessions');
+        }
+      }
     }
   }, [sessions]);
 
