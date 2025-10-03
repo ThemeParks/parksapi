@@ -128,6 +128,39 @@ async injectAuth(requestObj: HTTPObj) {
 
 **Scopes:** `broadcast('global', event, args)` or `broadcast(instance, event, args)`
 
+#### 5. **@reusable** (`src/promiseReuse.ts`)
+Promise reuse decorator to prevent duplicate execution of async methods.
+
+```typescript
+class MyPark extends Destination {
+  // Reuse promise while pending (default)
+  @reusable()
+  async fetchData() {
+    return await this.http('GET', `${this.baseURL}/data`);
+  }
+
+  // Cache result forever (singleton pattern)
+  @reusable({forever: true})
+  async init() {
+    // This will only run once, even with multiple callers
+    await this.setupConnection();
+    return true;
+  }
+}
+```
+
+**How it works:**
+- While a promise is pending, subsequent calls return the same promise
+- After resolution (non-forever mode), new calls create new promises
+- In `forever` mode, the result is cached permanently
+- Errors always trigger cleanup (even in forever mode)
+- Arguments are serialized for comparison (same args = same promise)
+
+**Use cases:**
+- Init methods that should only run once
+- Avoiding duplicate API calls when multiple parts of code request the same data simultaneously
+- Singleton pattern for data fetching
+
 ### Base Classes
 
 #### **Destination** (`src/destination.ts`)
