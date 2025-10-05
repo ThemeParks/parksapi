@@ -27,6 +27,8 @@ export interface HttpTraceEvent {
   body?: any; // Response body (for complete/error events)
   cacheHit?: boolean;
   retryCount?: number;
+  className?: string; // Class name of the decorated method
+  methodName?: string; // Decorated method name
 }
 
 /**

@@ -79,6 +79,8 @@ export type HTTPRequestEntry = {
   cacheTtlSeconds?: number;
   // validator function for response (optional)
   validateResponse?: any;
+  // class name for trace events
+  className?: string;
 };
 
 // Internal type for queue entries, includes retryAttempt for internal use only
@@ -228,7 +230,7 @@ class HTTPRequestImpl implements HTTPObj {
 
   // Internal method to actually make this HTTP request
   //  Popuplates the response property on success
-  async makeRequest(traceContext?: any): Promise<void> {
+  async makeRequest(traceContext?: any, className?: string, methodName?: string): Promise<void> {
     const startTime = Date.now();
 
     // first, check the cache
@@ -257,6 +259,8 @@ class HTTPRequestImpl implements HTTPObj {
             cacheHit: true,
             headers: this.buildHeaders(),
             body: responseBody,
+            className,
+            methodName,
           }, traceContext);
 
           return; // return early with cached response
@@ -346,6 +350,8 @@ class HTTPRequestImpl implements HTTPObj {
       cacheHit: false,
       headers: this.buildHeaders(),
       body: responseBody,
+      className,
+      methodName,
     }, traceContext);
   }
 
@@ -492,6 +498,7 @@ function httpDecoratorFactory(options?: {
           earliestExecute: executeTime > 0 ? executeTime : undefined,
           validateResponse: formatValidate || undefined,
           traceContext: tracing.getContext(), // Capture current trace context
+          className: this.constructor.name,
         });
 
         // sort queue by earliestExecute time
@@ -601,6 +608,8 @@ export async function processHttpQueue() {
         method: entry.request.method,
         headers: entry.request.buildHeaders(),
         retryCount: entry.retryAttempt || 0,
+        className: entry.className,
+        methodName: entry.methodName,
       }, entry.traceContext);
 
       try {
@@ -609,8 +618,8 @@ export async function processHttpQueue() {
           await broadcastInjectionEvent(entry, 'httpRequest');
         });
 
-        // make the actual HTTP request (pass trace context)
-        await entry.request.makeRequest(entry.traceContext);
+        // make the actual HTTP request (pass trace context, className, methodName)
+        await entry.request.makeRequest(entry.traceContext, entry.className, entry.methodName);
 
         // if we have a response validator, run it now
         if (entry.validateResponse && entry.request.response) {
@@ -665,6 +674,8 @@ export async function processHttpQueue() {
           headers: entry.request.buildHeaders(),
           body: errorBody,
           retryCount: entry.retryAttempt || 0,
+          className: entry.className,
+          methodName: entry.methodName,
         }, entry.traceContext);
 
         // broadcast error event (restore trace context)
