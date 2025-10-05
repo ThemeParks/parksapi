@@ -209,12 +209,19 @@ async function main() {
       }
 
       const park = new parkEntry.DestinationClass();
+
+      // Store real class name on instance for type detection
+      if (config.detectTypes) {
+        (park as any).__className__ = parkEntry.DestinationClass.name;
+      }
+
       const summary = await testPark(config.parkId!, parkEntry.name, park, {
         verbose: true,
         skipLiveData: config.skipLiveData,
         skipSchedules: config.skipSchedules,
         detectTypes: config.detectTypes,
         sourceFilePath: parkEntry.sourceFilePath,
+        realClassName: parkEntry.DestinationClass.name,
       });
       summaries.push(summary);
     }
@@ -230,12 +237,19 @@ async function main() {
 
       for (const parkEntry of parks) {
         const park = new parkEntry.DestinationClass();
+
+        // Store real class name on instance for type detection
+        if (config.detectTypes) {
+          (park as any).__className__ = parkEntry.DestinationClass.name;
+        }
+
         const summary = await testPark(parkEntry.id, parkEntry.name, park, {
           verbose: config.verbose || parks.length === 1,
           skipLiveData: config.skipLiveData,
           skipSchedules: config.skipSchedules,
           detectTypes: config.detectTypes,
           sourceFilePath: parkEntry.sourceFilePath,
+          realClassName: parkEntry.DestinationClass.name,
         });
         summaries.push(summary);
       }
@@ -247,12 +261,19 @@ async function main() {
 
       for (const parkEntry of parks) {
         const park = new parkEntry.DestinationClass();
+
+        // Store real class name on instance for type detection
+        if (config.detectTypes) {
+          (park as any).__className__ = parkEntry.DestinationClass.name;
+        }
+
         const summary = await testPark(parkEntry.id, parkEntry.name, park, {
           verbose: config.verbose,
           skipLiveData: config.skipLiveData,
           skipSchedules: config.skipSchedules,
           detectTypes: config.detectTypes,
           sourceFilePath: parkEntry.sourceFilePath,
+          realClassName: parkEntry.DestinationClass.name,
         });
         summaries.push(summary);
 

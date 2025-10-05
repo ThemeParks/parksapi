@@ -82,16 +82,16 @@ export async function testPark(
     skipSchedules?: boolean;
     detectTypes?: boolean;
     sourceFilePath?: string;
+    realClassName?: string;
   } = {}
 ): Promise<ParkTestSummary> {
-  const { verbose = false, skipLiveData = false, skipSchedules = false, detectTypes = false, sourceFilePath } = options;
+  const { verbose = false, skipLiveData = false, skipSchedules = false, detectTypes = false, sourceFilePath, realClassName } = options;
   const results: TestResult[] = [];
   const startTime = Date.now();
 
   // Register source file path for type detection
-  if (detectTypes && sourceFilePath) {
-    const className = park.constructor.name;
-    typeDetector.registerSourceFile(className, sourceFilePath);
+  if (detectTypes && sourceFilePath && realClassName) {
+    typeDetector.registerSourceFile(realClassName, sourceFilePath);
   }
 
   if (verbose) {

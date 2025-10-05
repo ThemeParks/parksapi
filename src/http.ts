@@ -490,6 +490,12 @@ function httpDecoratorFactory(options?: {
         }
 
         // Queue HTTP request
+        // Get real class name (bypass Proxy wrappers)
+        // Try multiple methods to get the actual class name
+        let realClassName = (this as any).__className__ || // Check if we stored it
+                           Reflect.get(Reflect.get(this, 'constructor'), 'name') || // Direct reflection
+                           Object.getPrototypeOf(Object.getPrototypeOf(this)).constructor.name; // Skip one level
+
         httpRequestQueue.push({
           instance: this,
           methodName: propertyKey,
@@ -498,7 +504,7 @@ function httpDecoratorFactory(options?: {
           earliestExecute: executeTime > 0 ? executeTime : undefined,
           validateResponse: formatValidate || undefined,
           traceContext: tracing.getContext(), // Capture current trace context
-          className: this.constructor.name,
+          className: realClassName,
         });
 
         // sort queue by earliestExecute time

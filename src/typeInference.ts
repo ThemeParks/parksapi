@@ -189,6 +189,9 @@ export function generateTypeScript(type: InferredType, interfaceName: string = '
       return '{}';
     }
 
+    // Sort properties alphabetically for consistent output
+    properties.sort(([a], [b]) => a.localeCompare(b));
+
     const lines: string[] = [];
     lines.push(`{`);
 
