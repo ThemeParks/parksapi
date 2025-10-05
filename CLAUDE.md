@@ -87,10 +87,12 @@ async fetchParks(): Promise<HTTPObj> {
 ```
 
 **Key features:**
+- Uses `node:http`/`node:https` for all requests (consistent behavior with/without proxy)
 - Global queue processor (100ms interval)
 - Rate limiting (250ms between requests)
 - Request deduplication via cache keys
 - Response callbacks: `onJson`, `onText`, `onBlob`, `onArrayBuffer`
+- Built-in proxy support via Node.js 24+ Agent
 
 #### 4. **@inject** (`src/injector.ts`)
 Event-based dependency injection using Sift.js (MongoDB-like queries).
@@ -243,6 +245,73 @@ Zero-dependency date/time utilities using native Intl API (replaces moment-timez
 - `parseTimeInTimezone(timeStr, date, timezone)` - Parse time strings with timezone
 - `formatUTC(date, format)` - Format dates in UTC
 - `addDays(date, days)`, `isBefore(date1, date2)` - Date manipulation
+
+#### **Proxy Support** (`src/proxy.ts`)
+HTTP proxy injection for routing requests through third-party services or HTTP proxies.
+
+**Supported proxy types:**
+- **CrawlBase**: Route requests through CrawlBase API (for IP rotation, captcha solving)
+- **Scrapfly**: Route requests through Scrapfly API (for browser rendering, captcha solving)
+- **Basic HTTP(S) proxy**: Route through standard HTTP/HTTPS proxy using Node.js 24+ built-in proxy support
+
+**Configuration Methods:**
+
+1. **Global Configuration (Automatic)** - Applies to ALL destinations:
+```bash
+# Set GLOBAL_* environment variables
+GLOBAL_CRAWLBASE='{"apikey":"YOUR_CRAWLBASE_TOKEN"}'
+GLOBAL_SCRAPFLY='{"apikey":"YOUR_SCRAPFLY_KEY"}'
+GLOBAL_BASICPROXY='{"proxy":"http://proxy.example.com:8080"}'
+```
+When any `GLOBAL_*` proxy environment variable is detected, proxy support is automatically enabled for all destinations on first instantiation. No code changes needed!
+
+2. **Per-Destination Configuration** - Applies to specific destination:
+```bash
+# Set {PREFIX}_* environment variables
+UNIVERSAL_CRAWLBASE='{"apikey":"YOUR_UNIVERSAL_TOKEN"}'
+SIXFLAGS_SCRAPFLY='{"apikey":"YOUR_SIXFLAGS_KEY"}'
+```
+
+**Enable in destination:**
+```typescript
+@config
+class MyPark extends Destination {
+  constructor(options?) {
+    super(options);
+    this.addConfigPrefix('MYPARK');
+    this.enableProxySupport(); // Checks MYPARK_CRAWLBASE, MYPARK_SCRAPFLY, etc.
+  }
+}
+```
+
+3. **Manual Global Enable** - Before creating any destinations:
+```typescript
+import {enableGlobalProxySupport} from './proxy';
+
+enableGlobalProxySupport(); // Checks GLOBAL_* env vars
+// Now create destinations...
+```
+
+**Priority Rules:**
+- Proxy type priority: CrawlBase > Scrapfly > Basic proxy (only one proxy per request)
+- Configuration priority: Per-destination config overrides global config (last loaded wins)
+
+**Features:**
+- ✅ Automatic global proxy detection
+- ✅ Per-destination override capability
+- ✅ Automatic URL rewriting for proxy services (CrawlBase, Scrapfly)
+- ✅ Response unwrapping for services that wrap responses (e.g., Scrapfly)
+- ✅ Basic HTTP(S) proxy using Node.js 24+ built-in `http.Agent` proxy support
+- ✅ Uses existing @inject decorator for seamless integration
+- ✅ Singleton pattern - configuration shared across all destinations
+
+**Implementation Details:**
+- All HTTP requests use `node:http`/`node:https` (`src/httpProxy.ts`) for consistency
+- **CrawlBase/Scrapfly**: URL rewriting at proxy injection layer
+- **Basic Proxy**: Uses Node.js 24+ `Agent` with `proxy` option
+- Automatically detects proxy type and uses appropriate method
+- Single HTTP implementation ensures consistent behavior with/without proxy
+- All proxy types work seamlessly with caching, retries, and tracing
 
 #### **Tag Validation System** (`src/tags/`)
 Type-safe tag creation and validation for entity metadata (height restrictions, accessibility, etc.)
@@ -560,6 +629,7 @@ export class SixFlagsMagicMountain extends Destination {
 - **Template Method Pattern:** Implement `build*()` methods, NOT `get*()` methods (framework handles processing)
 - **Hierarchy Resolution:** Automatic - parkId/destinationId resolved from parent chains
 - **Entity Mapper:** Use `mapEntities()` for declarative entity mapping (reduces boilerplate)
+- **HTTP Implementation:** Uses `node:http`/`node:https` for all requests (not `fetch`) to ensure consistency with proxy support
 - **HTTP Queue:** Runs on global 100ms interval - may need optimization for high-volume use
 - **Cache:** No size limits or automatic cleanup of expired entries
 - **Config Lookup Order:** Instance config → `{CLASSNAME}_{PROPERTY}` → `{PREFIX}_{PROPERTY}` → default
