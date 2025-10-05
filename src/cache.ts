@@ -6,50 +6,67 @@ const CLEANUP_INTERVAL_MS = parseInt(process.env.CACHE_CLEANUP_INTERVAL_MS || '3
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 100;
 
-export const database = new DatabaseSync(CACHE_DB_PATH);
+// Track if we're in temporary mode
+let isTemporaryMode = false;
 
-// Build cache table if it doesn't exist
-database.exec(`
-  CREATE TABLE IF NOT EXISTS cache(
-    key TEXT PRIMARY KEY,
-    value TEXT,
-    timestamp INTEGER,
-    lastAccess INTEGER
-  ) STRICT
-`);
+// Initialize database (can be re-initialized)
+let database = new DatabaseSync(CACHE_DB_PATH);
 
-// Migration: Add lastAccess column if it doesn't exist (for existing databases)
-try {
-  const tableInfo = database.prepare("PRAGMA table_info(cache)").all() as {name: string}[];
-  const hasLastAccess = tableInfo.some(col => col.name === 'lastAccess');
+export {database};
 
-  if (!hasLastAccess) {
-    console.log('Migrating cache database: adding lastAccess column');
-    database.exec('ALTER TABLE cache ADD COLUMN lastAccess INTEGER DEFAULT 0');
-  }
-} catch (error) {
-  // If migration fails, might be an old database - recreate it
-  console.warn('Cache migration failed, recreating database:', error);
-  database.exec('DROP TABLE IF EXISTS cache');
-  database.exec(`
-    CREATE TABLE cache(
+/**
+ * Initialize database schema
+ */
+function initializeDatabase(db: DatabaseSync, skipMigration: boolean = false): void {
+  // Build cache table if it doesn't exist
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS cache(
       key TEXT PRIMARY KEY,
       value TEXT,
       timestamp INTEGER,
       lastAccess INTEGER
     ) STRICT
   `);
+
+  // Migration: Add lastAccess column if it doesn't exist (for existing databases)
+  // Skip migration for in-memory databases
+  if (!skipMigration) {
+    try {
+      const tableInfo = db.prepare("PRAGMA table_info(cache)").all() as {name: string}[];
+      const hasLastAccess = tableInfo.some(col => col.name === 'lastAccess');
+
+      if (!hasLastAccess) {
+        console.log('Migrating cache database: adding lastAccess column');
+        db.exec('ALTER TABLE cache ADD COLUMN lastAccess INTEGER DEFAULT 0');
+      }
+    } catch (error) {
+      // If migration fails, might be an old database - recreate it
+      console.warn('Cache migration failed, recreating database:', error);
+      db.exec('DROP TABLE IF EXISTS cache');
+      db.exec(`
+        CREATE TABLE cache(
+          key TEXT PRIMARY KEY,
+          value TEXT,
+          timestamp INTEGER,
+          lastAccess INTEGER
+        ) STRICT
+      `);
+    }
+  }
+
+  // Add index on lastAccess for efficient LRU queries
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_cache_lastAccess ON cache(lastAccess)
+  `);
+
+  // Add index on timestamp for efficient cleanup
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_cache_timestamp ON cache(timestamp)
+  `);
 }
 
-// Add index on lastAccess for efficient LRU queries
-database.exec(`
-  CREATE INDEX IF NOT EXISTS idx_cache_lastAccess ON cache(lastAccess)
-`);
-
-// Add index on timestamp for efficient cleanup
-database.exec(`
-  CREATE INDEX IF NOT EXISTS idx_cache_timestamp ON cache(timestamp)
-`);
+// Initialize the default database
+initializeDatabase(database);
 
 // Cleanup interval reference
 let cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -78,6 +95,33 @@ function retryOperation<T>(operation: () => T, retries = MAX_RETRIES): T {
 }
 
 class CacheLib {
+  /**
+   * Enable temporary mode - use in-memory cache that doesn't persist
+   * Must be called before any cache operations
+   */
+  static enableTemporaryMode(): void {
+    if (isTemporaryMode) {
+      return; // Already in temporary mode
+    }
+
+    console.log('🔄 Cache: Switching to temporary in-memory mode');
+    isTemporaryMode = true;
+
+    // Stop cleanup if running
+    this.stopCleanup();
+
+    // Create new in-memory database
+    database = new DatabaseSync(':memory:');
+    initializeDatabase(database, true); // Skip migration for in-memory DB
+  }
+
+  /**
+   * Check if cache is in temporary mode
+   */
+  static isTemporary(): boolean {
+    return isTemporaryMode;
+  }
+
   static get(key: string): any | null {
     try {
       return retryOperation(() => {

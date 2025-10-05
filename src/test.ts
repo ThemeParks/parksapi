@@ -11,6 +11,7 @@
 import {getAllDestinations, getDestinationById, getDestinationsByCategory, listDestinationIds} from './destinationRegistry.js';
 import {testPark, ParkTestSummary} from './testRunner.js';
 import {typeDetector} from './typeDetector.js';
+import {CacheLib} from './cache.js';
 
 /**
  * Parse CLI arguments
@@ -23,6 +24,7 @@ function parseArgs(): {
   skipLiveData?: boolean;
   skipSchedules?: boolean;
   detectTypes?: boolean;
+  ignoreCache?: boolean;
 } {
   const args = process.argv.slice(2);
 
@@ -32,35 +34,41 @@ function parseArgs(): {
 
   const categoryIdx = args.indexOf('--category');
   if (categoryIdx !== -1 && args[categoryIdx + 1]) {
+    const detectTypes = args.includes('--detect-types');
     return {
       mode: 'category',
       category: args[categoryIdx + 1],
       verbose: args.includes('--verbose') || args.includes('-v'),
       skipLiveData: args.includes('--skip-live-data'),
       skipSchedules: args.includes('--skip-schedules'),
-      detectTypes: args.includes('--detect-types'),
+      detectTypes,
+      ignoreCache: args.includes('--ignore-cache') || detectTypes, // --detect-types implies --ignore-cache
     };
   }
 
   // Check for specific park ID
   const parkId = args.find(arg => !arg.startsWith('--') && !arg.startsWith('-'));
   if (parkId) {
+    const detectTypes = args.includes('--detect-types');
     return {
       mode: 'single',
       parkId,
       verbose: args.includes('--verbose') || args.includes('-v'),
       skipLiveData: args.includes('--skip-live-data'),
       skipSchedules: args.includes('--skip-schedules'),
-      detectTypes: args.includes('--detect-types'),
+      detectTypes,
+      ignoreCache: args.includes('--ignore-cache') || detectTypes, // --detect-types implies --ignore-cache
     };
   }
 
+  const detectTypes = args.includes('--detect-types');
   return {
     mode: 'all',
     verbose: args.includes('--verbose') || args.includes('-v'),
     skipLiveData: args.includes('--skip-live-data'),
     skipSchedules: args.includes('--skip-schedules'),
-    detectTypes: args.includes('--detect-types'),
+    detectTypes,
+    ignoreCache: args.includes('--ignore-cache') || detectTypes, // --detect-types implies --ignore-cache
   };
 }
 
@@ -103,7 +111,8 @@ async function listParks(): Promise<void> {
   console.log('  npm run dev -- --verbose                 # Verbose output');
   console.log('  npm run dev -- --skip-live-data          # Skip live data tests');
   console.log('  npm run dev -- --skip-schedules          # Skip schedule tests');
-  console.log('  npm run dev -- --detect-types            # Generate type files from HTTP responses\n');
+  console.log('  npm run dev -- --detect-types            # Generate type files from HTTP responses');
+  console.log('  npm run dev -- --ignore-cache            # Use fresh in-memory cache (implied by --detect-types)\n');
 }
 
 /**
@@ -176,6 +185,11 @@ async function main() {
   }
 
   const summaries: ParkTestSummary[] = [];
+
+  // Enable temporary cache mode if requested
+  if (config.ignoreCache) {
+    CacheLib.enableTemporaryMode();
+  }
 
   // Start type detector if enabled
   if (config.detectTypes) {
