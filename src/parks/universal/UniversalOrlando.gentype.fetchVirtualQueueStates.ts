@@ -7,22 +7,22 @@
  */
 
 export interface FetchVirtualQueueStatesResponse {
-  TotalCount: number;
+  NextPage: string;
   Pages: number;
   PreviousPage: string;
-  NextPage: string;
   Results: {
-    Id: number;
-    PlaceId?: string;
-    Name: string;
-    MaxAppointmentSize: number;
     AppointmentDuration: string;
-    SessionTimeoutInSec: number;
+    GracePeriodInMin?: number;
+    Id: number;
+    IsEnabled: boolean;
+    IsProfileAware: boolean;
+    IsUnavailable: boolean;
+    MaxAppointmentSize: number;
+    Name: string;
+    PlaceId?: string;
     QueueEntityId: number;
     QueueEntityType: string;
-    GracePeriodInMin?: number;
-    IsEnabled: boolean;
-    IsUnavailable: boolean;
-    IsProfileAware: boolean;
+    SessionTimeoutInSec: number;
   }[];
+  TotalCount: number;
 }

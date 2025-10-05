@@ -7,68 +7,68 @@
  */
 
 export interface FetchParksResponse {
-  TotalCount: number;
+  NextPage: string;
   Pages: number;
   PreviousPage: string;
-  NextPage: string;
   Results: {
-    MblDisplayName: string;
+    AdmissionRequired: boolean;
+    Color?: string;
     ContainedLands: {
-      MblDisplayName: string;
       ContainingVenueId: number;
-      Longitude: number;
-      Latitude: number;
       ExternalIds: {
-        Tridion13: string;
         ContentId: string;
         PlaceId?: string;
+        Tridion13: string;
       };
       Id: number;
+      Latitude: number;
+      Longitude: number;
+      MblDisplayName: string;
     }[];
-    StreetAddress: {
-      AddressLine1: string;
-      City: string;
-      State: string;
-      ZipCode: string;
+    DetailImages: any[];
+    ExternalIds: {
+      ContentId: string;
+      ParkHoursDb?: string;
+      ParkHoursDbEarly?: string;
+      PlaceId: string;
+      Tridion13: string;
     };
     GpsBoundary?: {
       Latitude: number;
       Longitude: number;
     }[];
     GpsBoundaryCircle?: {
-      RadiusInMeters: number;
       Latitude: number;
       Longitude: number;
+      RadiusInMeters: number;
     };
     Hours: (any | {
-      Date: string;
-      OpenTimeString?: string;
       CloseTimeString?: string;
-      OpenTimeUnix: number;
       CloseTimeUnix: number;
+      Date: string;
+      EarlyEntryString?: string;
       EarlyEntryUnix: number;
-      VenueStatus?: string;
-      SpecialEntryUnix: number;
       Holiday: boolean;
       IsShowScheduled: boolean;
-      EarlyEntryString?: string;
+      OpenTimeString?: string;
+      OpenTimeUnix: number;
+      SpecialEntryUnix: number;
+      VenueStatus?: string;
     })[];
-    AdmissionRequired: boolean;
-    DetailImages: any[];
-    Longitude: number;
-    Latitude: number;
-    Color?: string;
-    VenueType: string;
-    ExternalIds: {
-      ParkHoursDb?: string;
-      Tridion13: string;
-      ParkHoursDbEarly?: string;
-      ContentId: string;
-      PlaceId: string;
-    };
-    Url: string;
     Id: number;
+    Latitude: number;
+    Longitude: number;
+    MblDisplayName: string;
     PhoneNumber?: string;
     PhoneNumberCopy?: string;
+    StreetAddress: {
+      AddressLine1: string;
+      City: string;
+      State: string;
+      ZipCode: string;
+    };
+    Url: string;
+    VenueType: string;
   }[];
+  TotalCount: number;
 }

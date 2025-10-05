@@ -7,26 +7,26 @@
  */
 
 export type FetchWaitTimesResponse = {
-  wait_time_attraction_id: string;
-  resort_area_code: string;
-  venue_id: string;
-  land_id: string;
-  name: string;
   category: string;
   has_single_rider: boolean;
-  show_externally: boolean;
-  modified_at: string;
   is_aap: boolean;
+  land_id: string;
+  modified_at: string;
+  name: string;
   queues: {
+    alternate_ids: ({
+      system_id: string;
+      system_name: string;
+    } | any)[];
+    closes_at?: string;
+    display_wait_time: number;
+    opens_at?: string;
     queue_id: string;
     queue_type: string;
     status: string;
-    opens_at?: string;
-    display_wait_time: number;
-    alternate_ids: ({
-      system_name: string;
-      system_id: string;
-    } | any)[];
-    closes_at?: string;
   }[];
+  resort_area_code: string;
+  show_externally: boolean;
+  venue_id: string;
+  wait_time_attraction_id: string;
 }[];

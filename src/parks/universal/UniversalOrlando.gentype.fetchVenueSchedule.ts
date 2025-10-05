@@ -10,15 +10,15 @@
  */
 
 export type FetchVenueScheduleResponse = {
-  Date: string;
-  OpenTimeString?: string;
   CloseTimeString?: string;
-  OpenTimeUnix: number;
   CloseTimeUnix: number;
+  Date: string;
+  EarlyEntryString?: string;
   EarlyEntryUnix: number;
-  VenueStatus: string;
-  SpecialEntryUnix: number;
   Holiday: boolean;
   IsShowScheduled: boolean;
-  EarlyEntryString?: string;
+  OpenTimeString?: string;
+  OpenTimeUnix: number;
+  SpecialEntryUnix: number;
+  VenueStatus: string;
 }[];
