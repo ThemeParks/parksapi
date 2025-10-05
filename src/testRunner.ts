@@ -6,6 +6,8 @@
 import {Destination} from './destination.js';
 import {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {getQueueLength} from './http.js';
+import {tracing} from './tracing.js';
+import {typeDetector} from './typeDetector.js';
 
 export type TestResult = {
   testName: string;
@@ -78,11 +80,19 @@ export async function testPark(
     verbose?: boolean;
     skipLiveData?: boolean;
     skipSchedules?: boolean;
+    detectTypes?: boolean;
+    sourceFilePath?: string;
   } = {}
 ): Promise<ParkTestSummary> {
-  const { verbose = false, skipLiveData = false, skipSchedules = false } = options;
+  const { verbose = false, skipLiveData = false, skipSchedules = false, detectTypes = false, sourceFilePath } = options;
   const results: TestResult[] = [];
   const startTime = Date.now();
+
+  // Register source file path for type detection
+  if (detectTypes && sourceFilePath) {
+    const className = park.constructor.name;
+    typeDetector.registerSourceFile(className, sourceFilePath);
+  }
 
   if (verbose) {
     console.log(`\n${'='.repeat(60)}`);
@@ -90,9 +100,11 @@ export async function testPark(
     console.log(`${'='.repeat(60)}\n`);
   }
 
-  // Test 1: getDestinations()
-  if (verbose) console.log('1. Testing getDestinations()...');
-  const destResult = await runTest('getDestinations', async () => {
+  // Helper to run tests (with or without tracing)
+  const executeTests = async () => {
+    // Test 1: getDestinations()
+    if (verbose) console.log('1. Testing getDestinations()...');
+    const destResult = await runTest('getDestinations', async () => {
     const destinations = await park.getDestinations();
     await waitForQueue();
 
@@ -232,23 +244,32 @@ export async function testPark(
     }
   }
 
-  const duration = Date.now() - startTime;
-  const passedTests = results.filter(r => r.passed).length;
-  const failedTests = results.filter(r => !r.passed).length;
-  const passed = failedTests === 0;
+    const duration = Date.now() - startTime;
+    const passedTests = results.filter(r => r.passed).length;
+    const failedTests = results.filter(r => !r.passed).length;
+    const passed = failedTests === 0;
 
-  if (verbose) {
-    console.log(`\n${passed ? '✅' : '❌'} ${parkName}: ${passedTests}/${results.length} tests passed (${duration}ms)`);
-  }
+    if (verbose) {
+      console.log(`\n${passed ? '✅' : '❌'} ${parkName}: ${passedTests}/${results.length} tests passed (${duration}ms)`);
+    }
 
-  return {
-    parkName,
-    parkId,
-    passed,
-    totalTests: results.length,
-    passedTests,
-    failedTests,
-    duration,
-    results,
+    return {
+      parkName,
+      parkId,
+      passed,
+      totalTests: results.length,
+      passedTests,
+      failedTests,
+      duration,
+      results,
+    };
   };
+
+  // Execute tests with or without tracing
+  if (detectTypes) {
+    const traceResult = await tracing.trace(executeTests, { parkId, parkName });
+    return traceResult.result;
+  } else {
+    return await executeTests();
+  }
 }

@@ -10,6 +10,7 @@
 
 import {getAllDestinations, getDestinationById, getDestinationsByCategory, listDestinationIds} from './destinationRegistry.js';
 import {testPark, ParkTestSummary} from './testRunner.js';
+import {typeDetector} from './typeDetector.js';
 
 /**
  * Parse CLI arguments
@@ -21,6 +22,7 @@ function parseArgs(): {
   verbose?: boolean;
   skipLiveData?: boolean;
   skipSchedules?: boolean;
+  detectTypes?: boolean;
 } {
   const args = process.argv.slice(2);
 
@@ -36,6 +38,7 @@ function parseArgs(): {
       verbose: args.includes('--verbose') || args.includes('-v'),
       skipLiveData: args.includes('--skip-live-data'),
       skipSchedules: args.includes('--skip-schedules'),
+      detectTypes: args.includes('--detect-types'),
     };
   }
 
@@ -48,6 +51,7 @@ function parseArgs(): {
       verbose: args.includes('--verbose') || args.includes('-v'),
       skipLiveData: args.includes('--skip-live-data'),
       skipSchedules: args.includes('--skip-schedules'),
+      detectTypes: args.includes('--detect-types'),
     };
   }
 
@@ -56,6 +60,7 @@ function parseArgs(): {
     verbose: args.includes('--verbose') || args.includes('-v'),
     skipLiveData: args.includes('--skip-live-data'),
     skipSchedules: args.includes('--skip-schedules'),
+    detectTypes: args.includes('--detect-types'),
   };
 }
 
@@ -97,7 +102,8 @@ async function listParks(): Promise<void> {
   console.log('  npm run dev                              # Test all parks');
   console.log('  npm run dev -- --verbose                 # Verbose output');
   console.log('  npm run dev -- --skip-live-data          # Skip live data tests');
-  console.log('  npm run dev -- --skip-schedules          # Skip schedule tests\n');
+  console.log('  npm run dev -- --skip-schedules          # Skip schedule tests');
+  console.log('  npm run dev -- --detect-types            # Generate type files from HTTP responses\n');
 }
 
 /**
@@ -171,6 +177,11 @@ async function main() {
 
   const summaries: ParkTestSummary[] = [];
 
+  // Start type detector if enabled
+  if (config.detectTypes) {
+    typeDetector.start();
+  }
+
   try {
     // Single park mode
     if (config.mode === 'single') {
@@ -188,6 +199,8 @@ async function main() {
         verbose: true,
         skipLiveData: config.skipLiveData,
         skipSchedules: config.skipSchedules,
+        detectTypes: config.detectTypes,
+        sourceFilePath: parkEntry.sourceFilePath,
       });
       summaries.push(summary);
     }
@@ -207,6 +220,8 @@ async function main() {
           verbose: config.verbose || parks.length === 1,
           skipLiveData: config.skipLiveData,
           skipSchedules: config.skipSchedules,
+          detectTypes: config.detectTypes,
+          sourceFilePath: parkEntry.sourceFilePath,
         });
         summaries.push(summary);
       }
@@ -222,6 +237,8 @@ async function main() {
           verbose: config.verbose,
           skipLiveData: config.skipLiveData,
           skipSchedules: config.skipSchedules,
+          detectTypes: config.detectTypes,
+          sourceFilePath: parkEntry.sourceFilePath,
         });
         summaries.push(summary);
 
@@ -235,6 +252,47 @@ async function main() {
 
     // Print summary
     printSummary(summaries);
+
+    // Generate type files if type detection was enabled
+    if (config.detectTypes) {
+      console.log('\n' + '='.repeat(80));
+      console.log('🔍 GENERATING TYPE FILES');
+      console.log('='.repeat(80) + '\n');
+
+      typeDetector.stop();
+      const summary = typeDetector.getSummary();
+
+      if (summary.length === 0) {
+        console.log('⚠️  No HTTP responses captured for type detection\n');
+      } else {
+        console.log(`Captured ${summary.length} unique HTTP method(s):\n`);
+        summary.forEach(({ key, count }) => {
+          console.log(`  📦 ${key}: ${count} response(s)`);
+        });
+        console.log('');
+
+        console.log('Generating TypeScript type files...\n');
+        const results = await typeDetector.generateTypeFiles();
+
+        const succeeded = results.filter(r => r.success);
+        const failed = results.filter(r => !r.success);
+
+        succeeded.forEach(({ filePath }) => {
+          console.log(`  ✅ ${filePath}`);
+        });
+
+        if (failed.length > 0) {
+          console.log('');
+          failed.forEach(({ filePath, error }) => {
+            console.log(`  ❌ ${filePath}: ${error}`);
+          });
+        }
+
+        console.log('');
+        console.log(`Generated ${succeeded.length}/${results.length} type file(s)`);
+        console.log('='.repeat(80) + '\n');
+      }
+    }
 
     // Exit with appropriate code
     const allPassed = summaries.every(s => s.passed);
