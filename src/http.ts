@@ -7,6 +7,8 @@ import {CacheLib} from "./cache";
 import {broadcast} from "./injector";
 import {tracing} from "./tracing";
 import Ajv, {DefinedError} from "ajv";
+import {getBasicProxyUrl} from "./proxy";
+import {makeHttpRequest} from "./httpProxy";
 const ajv = new Ajv();
 
 // OpenAPI-like parameter definition
@@ -270,20 +272,23 @@ class HTTPRequestImpl implements HTTPObj {
       }
     }
 
-    // use fetch to make the HTTP request
-    const fetchOptions: RequestInit = {
-      method: this.method,
-      headers: this.buildHeaders(),
-    };
+    // Use node:http/https for all requests (with optional proxy support)
+    const basicProxyUrl = getBasicProxyUrl();
+    const urlToFetch = this.buildUrl();
+    let requestBody: any = undefined;
 
-    // handle body, if set
     if (this.body) {
-      fetchOptions.body = this.options?.json ? JSON.stringify(this.body) : this.body;
+      requestBody = this.options?.json ? JSON.stringify(this.body) : this.body;
     }
 
-    // actually perform the fetch
-    const urlToFetch = this.buildUrl();
-    const response = await fetch(urlToFetch, fetchOptions);
+    const response = await makeHttpRequest({
+      method: this.method,
+      url: urlToFetch,
+      headers: this.buildHeaders(),
+      body: requestBody,
+      proxyUrl: basicProxyUrl, // Optional - only used if configured
+    });
+
     this.response = response;
 
     // cache the response if response is OK and cacheKey is set

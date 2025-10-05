@@ -1,6 +1,7 @@
 import {LiveData, Entity, EntitySchedule} from "@themeparks/typelib";
 import {trace} from "./tracing";
 import {reusable} from "./promiseReuse";
+import {enableProxySupport as enableProxySupportLib} from "./proxy";
 
 export type DestinationConstructor = {
   config?: {[key: string]: string | string[]};
@@ -43,15 +44,42 @@ export type EntityMapperConfig<T> = {
 
 // Base class for all destinations
 export abstract class Destination {
+  // Track if we've already enabled global proxies (static flag, shared across all destinations)
+  private static globalProxiesEnabled = false;
+
   constructor(options?: DestinationConstructor) {
     // Apply any configuration options passed in
     if (options?.config) {
       this.config = options.config;
     }
+
+    // Auto-enable global proxy configuration if GLOBAL_* env vars are set
+    // Only check once (first destination instantiation)
+    if (!Destination.globalProxiesEnabled) {
+      Destination.globalProxiesEnabled = true;
+      this.enableGlobalProxies();
+    }
   }
 
   // Configuration options for the destination
   config: {[key: string]: string | string[]} = {};
+
+  /**
+   * Enable global proxy configuration by checking for GLOBAL_* environment variables.
+   * Called automatically on first destination instantiation.
+   *
+   * Checks for: GLOBAL_CRAWLBASE, GLOBAL_SCRAPFLY, GLOBAL_BASICPROXY
+   */
+  private enableGlobalProxies() {
+    const hasGlobalProxy =
+      process.env.GLOBAL_CRAWLBASE ||
+      process.env.GLOBAL_SCRAPFLY ||
+      process.env.GLOBAL_BASICPROXY;
+
+    if (hasGlobalProxy) {
+      enableProxySupportLib(['GLOBAL']);
+    }
+  }
 
   /**
    * Add a prefix to use when looking up config values from environment variables
@@ -64,6 +92,32 @@ export abstract class Destination {
       this.config.configPrefixes = [];
     }
     (this.config.configPrefixes as string[]).push(prefix);
+  }
+
+  /**
+   * Enable proxy support for this destination's HTTP requests.
+   * Reads proxy configuration from environment variables using the destination's config prefixes.
+   *
+   * Supported proxy types:
+   * - CrawlBase: {PREFIX}_CRAWLBASE='{"apikey":"YOUR_TOKEN"}'
+   * - Scrapfly: {PREFIX}_SCRAPFLY='{"apikey":"YOUR_KEY"}'
+   * - Basic HTTP(S) proxy: {PREFIX}_BASICPROXY='{"proxy":"http://proxy.example.com:8080"}'
+   *
+   * @example
+   * ```typescript
+   * constructor(options?: DestinationConstructor) {
+   *   super(options);
+   *   this.addConfigPrefix('UNIVERSAL');
+   *   this.enableProxySupport(); // Will check UNIVERSAL_CRAWLBASE, UNIVERSAL_SCRAPFLY, etc.
+   * }
+   * ```
+   */
+  enableProxySupport() {
+    const prefixes = Array.isArray(this.config.configPrefixes)
+      ? this.config.configPrefixes as string[]
+      : [];
+
+    enableProxySupportLib(prefixes);
   }
 
   /**
