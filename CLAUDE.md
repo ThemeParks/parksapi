@@ -244,6 +244,101 @@ Zero-dependency date/time utilities using native Intl API (replaces moment-timez
 - `formatUTC(date, format)` - Format dates in UTC
 - `addDays(date, days)`, `isBefore(date1, date2)` - Date manipulation
 
+#### **Tag Validation System** (`src/tags/`)
+Type-safe tag creation and validation for entity metadata (height restrictions, accessibility, etc.)
+
+**TagBuilder API:**
+```typescript
+import {TagBuilder} from './tags/index.js';
+
+// Simple tags (boolean presence)
+const tags = [
+  TagBuilder.paidReturnTime(),
+  TagBuilder.singleRider(),
+  TagBuilder.mayGetWet(),
+  TagBuilder.onRidePhoto(),
+  TagBuilder.childSwap(),
+  TagBuilder.unsuitableForPregnantPeople(),
+];
+
+// Complex tags with values
+const complexTags = [
+  TagBuilder.minimumHeight(107, 'cm'),
+  TagBuilder.maximumHeight(200, 'in'),
+  TagBuilder.location(28.4743, -81.4677, 'Main Entrance'),  // tagName required
+];
+
+// Standard location helpers (with consistent IDs across all parks)
+const locationTags = [
+  TagBuilder.mainEntrance(28.4743, -81.4677),
+  TagBuilder.exitLocation(28.4744, -81.4678),
+  TagBuilder.singleRiderEntrance(28.4745, -81.4679),
+  TagBuilder.fastPassEntrance(28.4746, -81.4680),
+  TagBuilder.photoPickup(28.4747, -81.4681),
+  TagBuilder.wheelchairAccessibleEntrance(28.4748, -81.4682),
+];
+
+// Custom tagName and id (for non-standard locations)
+TagBuilder.paidReturnTime('Express Pass', 'express-123');
+TagBuilder.location(28.4743, -81.4677, 'VIP Lounge', 'custom-vip-lounge');
+
+// Validation
+TagBuilder.validate(tag);           // Validate single tag
+TagBuilder.validateAll(tags);       // Validate array
+
+// Query all entities with single rider entrances across all parks
+import {StandardLocationId} from './tags/index.js';
+
+const entitiesWithSingleRider = entities.filter(entity =>
+  entity.tags?.some(tag => tag.id === StandardLocationId.SINGLE_RIDER_ENTRANCE)
+);
+```
+
+**Integration with Entity Mapper:**
+```typescript
+protected async buildEntityList(): Promise<Entity[]> {
+  const rides = await this.fetchRides();
+
+  return this.mapEntities(rides, {
+    // ... other config
+    transform: (entity, ride) => {
+      entity.tags = [
+        ride.hasExpressPass ? TagBuilder.paidReturnTime() : undefined,
+        ride.minHeight ? TagBuilder.minimumHeight(ride.minHeight, 'cm') : undefined,
+        ride.lat && ride.lng ? TagBuilder.location(ride.lat, ride.lng, 'Attraction Location') : undefined,
+      ].filter(tag => tag !== undefined);
+      return entity;
+    }
+  });
+}
+```
+
+**Available Tag Types:**
+- Simple: `PAID_RETURN_TIME`, `MAY_GET_WET`, `UNSUITABLE_PREGNANT`, `ONRIDE_PHOTO`, `SINGLE_RIDER`, `CHILD_SWAP`
+- Complex: `LOCATION` (lat/lng), `MINIMUM_HEIGHT`, `MAXIMUM_HEIGHT` (height + unit)
+
+**Standard Location Helpers (with consistent IDs):**
+- `mainEntrance()` - Main entrance location
+- `exitLocation()` - Exit location
+- `singleRiderEntrance()` - Single rider queue entrance
+- `fastPassEntrance()` - Express/fast pass entrance
+- `photoPickup()` - On-ride photo pickup location
+- `wheelchairAccessibleEntrance()` - Accessible entrance
+
+Using standard helpers ensures consistent IDs across all parks, making it easy to query specific location types.
+
+**Features:**
+- ✅ Full TypeScript type safety
+- ✅ Runtime validation with helpful error messages
+- ✅ Auto-generated human-readable names
+- ✅ Standard location IDs for cross-park consistency
+- ✅ Completeness tests validate all tags are properly implemented
+- ✅ Compatible with `@themeparks/typelib` TagData interface
+- ✅ 405 comprehensive tests, 100% coverage
+
+**Adding New Tags:**
+See `src/tags/TAG_DEVELOPMENT_GUIDE.md` for step-by-step instructions. Use decorators (`@simpleTag`, `@complexTag`, `@locationHelper`) to automatically register tag methods - no manual mapping needed! The completeness tests will automatically verify you've implemented everything correctly.
+
 ## Implementation Patterns
 
 ### Adding a New Park
