@@ -140,10 +140,23 @@ export class TypeDetector {
           continue;
         }
 
-        // Generate output file path: <ClassName>.gentype.<methodName>.ts
+        // Generate output file path in gentype/ subfolder
         const sourceDir = path.dirname(sourceFilePath);
-        const outputFileName = `${data.className}.gentype.${data.methodName}.ts`;
-        const outputFilePath = path.join(sourceDir, outputFileName);
+        const gentypeDir = path.join(sourceDir, 'gentype');
+        const outputFileName = `${data.className}.${data.methodName}.ts`;
+        const outputFilePath = path.join(gentypeDir, outputFileName);
+
+        // Create gentype directory if it doesn't exist
+        try {
+          await fs.mkdir(gentypeDir, { recursive: true });
+        } catch (error) {
+          results.push({
+            filePath: outputFilePath,
+            success: false,
+            error: `Failed to create gentype directory: ${error}`,
+          });
+          continue;
+        }
 
         // Write file
         await fs.writeFile(outputFilePath, tsCode, 'utf-8');
