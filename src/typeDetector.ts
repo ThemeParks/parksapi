@@ -68,10 +68,9 @@ export class TypeDetector {
       collection.responses.push(event.body);
 
       // Add request parameters (simplified - just show HTTP method and path)
-      const timestamp = new Date(event.timestamp).toISOString();
       const urlObj = new URL(event.url);
       const params = `${event.method} ${urlObj.pathname}${urlObj.search}`;
-      collection.requestParams.push({ params, timestamp });
+      collection.requestParams.push({ params, timestamp: '' });
     };
 
     tracing.onHttpComplete(this.listener);

@@ -258,7 +258,7 @@ export function generateInterfaceFile(
   lines.push(' *');
   lines.push(' * Based on the following HTTP requests:');
   for (const req of requestParams) {
-    lines.push(` *   - ${req.timestamp}: ${req.params}`);
+    lines.push(` *   - ${req.params}`);
   }
   lines.push(' */');
   lines.push('');
