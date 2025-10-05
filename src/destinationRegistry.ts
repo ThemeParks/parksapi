@@ -39,6 +39,8 @@ export type DestinationRegistryEntry = {
   DestinationClass: new () => Destination;
   /** Category or categories for grouping */
   category: string | string[];
+  /** Source file path (for type generation) */
+  sourceFilePath?: string;
 };
 
 /**
@@ -172,12 +174,38 @@ export function destinationController(options: DestinationControllerOptions) {
     const id = classNameToId(className);
     const name = classNameToDisplayName(className);
 
+    // Try to capture source file path from stack trace
+    let sourceFilePath: string | undefined;
+    try {
+      const stack = new Error().stack;
+      if (stack) {
+        // Parse stack trace to find the file that called this decorator
+        // Stack format: "    at <location> (file:///path/to/file.ts:line:col)"
+        const lines = stack.split('\n');
+        for (const line of lines) {
+          // Look for file:// URLs in the stack
+          const match = line.match(/file:\/\/(.+?):\d+:\d+/);
+          if (match && match[1]) {
+            const filePath = match[1];
+            // Skip this file (destinationRegistry.ts)
+            if (!filePath.includes('destinationRegistry')) {
+              sourceFilePath = filePath;
+              break;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      // Ignore errors in capturing source file path
+    }
+
     // Register the destination in the global registry
     DESTINATION_REGISTRY.push({
       id,
       name,
       DestinationClass: target as new () => Destination,
       category: options.category,
+      sourceFilePath,
     });
 
     // Return the class unchanged
