@@ -157,6 +157,100 @@ describe('Injector System', () => {
       expect(mockFn1).toHaveBeenCalledWith('arg');
       expect(mockFn2).not.toHaveBeenCalled();
     });
+
+    it('should call multiple methods on same class matching same event', async () => {
+      const callOrder: string[] = [];
+
+      class MultiTransformer {
+        @inject({ eventName: 'httpResponse' })
+        async transform1(data: any) {
+          callOrder.push('transform1');
+          data.transformed1 = true;
+        }
+
+        @inject({ eventName: 'httpResponse' })
+        async transform2(data: any) {
+          callOrder.push('transform2');
+          data.transformed2 = true;
+        }
+
+        @inject({ eventName: 'httpResponse' })
+        async transform3(data: any) {
+          callOrder.push('transform3');
+          data.transformed3 = true;
+        }
+      }
+
+      const instance = new MultiTransformer();
+      const data = { value: 'test' };
+
+      await broadcast(instance, { eventName: 'httpResponse' }, data);
+
+      expect(data).toEqual({
+        value: 'test',
+        transformed1: true,
+        transformed2: true,
+        transformed3: true,
+      });
+      expect(callOrder).toHaveLength(3);
+      expect(callOrder).toContain('transform1');
+      expect(callOrder).toContain('transform2');
+      expect(callOrder).toContain('transform3');
+    });
+
+    it('should support priority ordering for multiple methods', async () => {
+      const callOrder: string[] = [];
+
+      class PriorityTransformer {
+        @inject({ eventName: 'httpResponse', priority: 10 })
+        async lowPriority(data: any) {
+          callOrder.push('low');
+        }
+
+        @inject({ eventName: 'httpResponse', priority: 1 })
+        async highPriority(data: any) {
+          callOrder.push('high');
+        }
+
+        @inject({ eventName: 'httpResponse', priority: 5 })
+        async mediumPriority(data: any) {
+          callOrder.push('medium');
+        }
+      }
+
+      const instance = new PriorityTransformer();
+      const data = { value: 'test' };
+
+      await broadcast(instance, { eventName: 'httpResponse' }, data);
+
+      // Should be called in priority order: high (1) -> medium (5) -> low (10)
+      expect(callOrder).toEqual(['high', 'medium', 'low']);
+    });
+
+    it('should handle methods without priority (default to 0)', async () => {
+      const callOrder: string[] = [];
+
+      class MixedPriorityTransformer {
+        @inject({ eventName: 'httpResponse' })
+        async noPriority(data: any) {
+          callOrder.push('noPriority');
+        }
+
+        @inject({ eventName: 'httpResponse', priority: 5 })
+        async withPriority(data: any) {
+          callOrder.push('withPriority');
+        }
+      }
+
+      const instance = new MixedPriorityTransformer();
+      const data = { value: 'test' };
+
+      await broadcast(instance, { eventName: 'httpResponse' }, data);
+
+      // noPriority has default priority 0, withPriority has 5
+      // Should be called: noPriority (0) -> withPriority (5)
+      expect(callOrder).toEqual(['noPriority', 'withPriority']);
+    });
   });
 
   describe('Dynamic Filter Resolution', () => {
