@@ -1,4 +1,4 @@
-import {LiveData, Entity, EntitySchedule} from "@themeparks/typelib";
+import {LiveData, Entity, EntitySchedule, LocalisedString, LanguageCode} from "@themeparks/typelib";
 import {trace} from "./tracing";
 import {reusable} from "./promiseReuse";
 import {enableProxySupport as enableProxySupportLib} from "./proxy";
@@ -14,8 +14,8 @@ export type EntityMapperConfig<T> = {
   /** Field name or extractor function for entity ID */
   idField: keyof T | ((item: T) => string | number);
 
-  /** Field name or extractor function for entity name */
-  nameField: keyof T | ((item: T) => string);
+  /** Field name or extractor function for entity name (can return string or multi-language object) */
+  nameField: keyof T | ((item: T) => LocalisedString);
 
   /** Entity type (DESTINATION, PARK, ATTRACTION, SHOW, RESTAURANT, etc.) */
   entityType: Entity['entityType'];
@@ -63,6 +63,13 @@ export abstract class Destination {
 
   // Configuration options for the destination
   config: {[key: string]: string | string[]} = {};
+
+  /**
+   * Default language for localized strings
+   * Can be overridden by subclasses or via {PREFIX}_LANGUAGE env var with @config decorator
+   * @default 'en'
+   */
+  language: LanguageCode = 'en';
 
   /**
    * Enable global proxy configuration by checking for GLOBAL_* environment variables.
@@ -278,9 +285,10 @@ export abstract class Destination {
       // Map to entities
       .map(item => {
         // Build base entity with required fields
+        const nameValue = getValue(item, config.nameField);
         const entity: Entity = {
           id: String(getValue(item, config.idField)),
-          name: String(getValue(item, config.nameField)),
+          name: typeof nameValue === 'string' ? nameValue : nameValue as LocalisedString,
           entityType: config.entityType,
           destinationId: config.destinationId,
           timezone: config.timezone,
@@ -310,6 +318,67 @@ export abstract class Destination {
         // Apply custom transform if provided
         return config.transform ? config.transform(entity, item) : entity;
       });
+  }
+
+  /**
+   * Get localized string value with fallback logic
+   *
+   * Handles both simple strings and multi-language objects. For multi-language objects,
+   * uses intelligent fallback: tries exact match, then base language (en-gb -> en),
+   * then fallback language, then first available.
+   *
+   * @param value LocalisedString (string or multi-language object)
+   * @param language Preferred language code (defaults to instance language config)
+   * @param fallbackLanguage Fallback language if preferred unavailable (defaults to 'en')
+   * @returns Localized string value
+   *
+   * @example
+   * ```typescript
+   * // Simple string - returns as-is
+   * this.getLocalizedString("Space Mountain") // => "Space Mountain"
+   *
+   * // Multi-language object with exact match
+   * this.getLocalizedString({ en: "Space Mountain", fr: "Space Mountain" }, "fr")
+   * // => "Space Mountain"
+   *
+   * // Multi-language with base language fallback
+   * this.getLocalizedString({ en: "Space Mountain" }, "en-gb")
+   * // => "Space Mountain" (falls back to 'en')
+   * ```
+   */
+  protected getLocalizedString(
+    value: LocalisedString,
+    language?: LanguageCode,
+    fallbackLanguage: LanguageCode = 'en'
+  ): string {
+    // Simple string case
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    // Use instance language config if not specified
+    const preferredLanguage = language || this.language;
+
+    // Try exact match
+    if (value[preferredLanguage]) {
+      return value[preferredLanguage]!;
+    }
+
+    // Try base language (en-gb -> en)
+    const baseLanguage = preferredLanguage.split('-')[0] as LanguageCode;
+    if (value[baseLanguage]) {
+      return value[baseLanguage]!;
+    }
+
+    // Try fallback language
+    if (value[fallbackLanguage]) {
+      return value[fallbackLanguage]!;
+    }
+
+    // Return first available language
+    const values = Object.values(value) as (string | undefined)[];
+    const firstValue = values.find(v => v !== undefined);
+    return firstValue || '';
   }
 
   /**

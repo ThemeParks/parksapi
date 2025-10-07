@@ -841,4 +841,112 @@ describe('Destination.mapEntities()', () => {
       expect((entities[1] as any).rideType).toBe('FAMILY');
     });
   });
+
+  describe('Multi-Language Support', () => {
+    test('should support multi-language name as object', () => {
+      const attractions = [
+        {
+          id: 'ride-1',
+          names: {
+            en: 'Space Mountain',
+            fr: 'Space Mountain',
+            de: 'Space Mountain'
+          }
+        }
+      ];
+
+      const entities = destination.testMapEntities(attractions, {
+        idField: 'id',
+        nameField: (item) => item.names,
+        entityType: 'ATTRACTION',
+        destinationId: 'test',
+        timezone: 'UTC'
+      });
+
+      expect(entities).toHaveLength(1);
+      expect(entities[0].name).toEqual({
+        en: 'Space Mountain',
+        fr: 'Space Mountain',
+        de: 'Space Mountain'
+      });
+    });
+
+    test('should support simple string name (backwards compatibility)', () => {
+      const attractions = [
+        {
+          id: 'ride-1',
+          name: 'Space Mountain'
+        }
+      ];
+
+      const entities = destination.testMapEntities(attractions, {
+        idField: 'id',
+        nameField: 'name',
+        entityType: 'ATTRACTION',
+        destinationId: 'test',
+        timezone: 'UTC'
+      });
+
+      expect(entities).toHaveLength(1);
+      expect(entities[0].name).toBe('Space Mountain');
+    });
+
+    test('should support extractor function returning multi-language object', () => {
+      const attractions = [
+        {
+          id: 'ride-1',
+          translations: {
+            en: { name: 'Thunder Mountain' },
+            nl: { name: 'Thunder Mountain' },
+            de: { name: 'Donnerbüchse' }
+          }
+        }
+      ];
+
+      const entities = destination.testMapEntities(attractions, {
+        idField: 'id',
+        nameField: (item) => ({
+          en: item.translations.en.name,
+          nl: item.translations.nl.name,
+          de: item.translations.de.name
+        }),
+        entityType: 'ATTRACTION',
+        destinationId: 'test',
+        timezone: 'UTC'
+      });
+
+      expect(entities).toHaveLength(1);
+      expect(entities[0].name).toEqual({
+        en: 'Thunder Mountain',
+        nl: 'Thunder Mountain',
+        de: 'Donnerbüchse'
+      });
+    });
+
+    test('should handle partial language coverage', () => {
+      const attractions = [
+        {
+          id: 'ride-1',
+          names: {
+            en: 'Pirates of the Caribbean',
+            nl: 'Piraten van het Caribisch Gebied'
+          }
+        }
+      ];
+
+      const entities = destination.testMapEntities(attractions, {
+        idField: 'id',
+        nameField: (item) => item.names,
+        entityType: 'ATTRACTION',
+        destinationId: 'test',
+        timezone: 'UTC'
+      });
+
+      expect(entities).toHaveLength(1);
+      expect(entities[0].name).toEqual({
+        en: 'Pirates of the Caribbean',
+        nl: 'Piraten van het Caribisch Gebied'
+      });
+    });
+  });
 });
