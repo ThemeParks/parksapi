@@ -1,5 +1,5 @@
 import { tracing } from '../tracing';
-import { http, HTTPObj, stopHttpQueue } from '../http';
+import { http, HTTPObj, stopHttpQueue, waitForHttpQueue } from '../http';
 import { inject } from '../injector';
 
 describe('Trace Context Propagation', () => {
@@ -70,8 +70,8 @@ describe('Trace Context Propagation', () => {
         // Ignore HTTP errors, we're testing trace context propagation
       }
 
-      // Wait for the queue to process
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Wait for the HTTP queue to finish processing
+      await waitForHttpQueue();
     });
 
     // Verify all events happened
@@ -88,7 +88,7 @@ describe('Trace Context Propagation', () => {
 
     // All should match the trace result
     expect(firstTraceId).toBe(result.traceId);
-  }, 15000);
+  }, 35000); // Increased timeout to account for external HTTP requests
 
   it('should capture HTTP events in trace when requests are made in injection handlers', async () => {
     class TestClass {
@@ -130,8 +130,8 @@ describe('Trace Context Propagation', () => {
         // Ignore HTTP errors
       }
 
-      // Wait for queue to process
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Wait for the HTTP queue to finish processing
+      await waitForHttpQueue();
     });
 
     // Both requests should be in the trace events (start events at minimum)
@@ -143,5 +143,5 @@ describe('Trace Context Propagation', () => {
 
     // All events should have the same trace ID
     expect(result.events.every(e => e.traceId === result.traceId)).toBe(true);
-  }, 15000);
+  }, 35000); // Increased timeout to account for external HTTP requests
 });

@@ -787,6 +787,40 @@ export function getHttpRequesterForClassMethod(
 let queueInterval: NodeJS.Timeout | null = setInterval(processHttpQueue, 100);
 
 /**
+ * Wait for the HTTP queue to be empty.
+ * This is useful for testing to ensure all queued requests have completed.
+ *
+ * @param timeout Maximum time to wait in milliseconds (default: 30000)
+ * @param checkInterval How often to check the queue in milliseconds (default: 100)
+ * @returns Promise that resolves when queue is empty or rejects on timeout
+ */
+export function waitForHttpQueue(timeout: number = 30000, checkInterval: number = 100): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+
+    const check = () => {
+      // Check if queue is empty
+      if (httpRequestQueue.length === 0) {
+        resolve();
+        return;
+      }
+
+      // Check if timeout exceeded
+      if (Date.now() - startTime > timeout) {
+        reject(new Error(`Timeout waiting for HTTP queue to empty (${httpRequestQueue.length} requests remaining)`));
+        return;
+      }
+
+      // Check again after interval
+      setTimeout(check, checkInterval);
+    };
+
+    // Start checking
+    check();
+  });
+}
+
+/**
  * Stop the HTTP queue processor.
  * This is useful for testing or graceful shutdown.
  * WARNING: After calling this, no HTTP requests will be processed until the process restarts.
