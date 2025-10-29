@@ -768,13 +768,56 @@ export class HeidePark extends AttractionsIO {
     config.timezone = config.timezone || 'Europe/Berlin';
     config.destinationId = config.destinationId || 'heideparkresort';
     config.parkId = config.parkId || 'heidepark';
-    config.initialDataVersion = config.initialDataVersion || '2022-05-10T09:00:46Z';
+    config.initialDataVersion = config.initialDataVersion || '2025-09-23T10:30:15Z';
 
-    config.appBuild = config.appBuild || 302018;
-    config.appVersion = config.appVersion || '4.0.5';
+    config.appBuild = config.appBuild || 302101;
+    config.appVersion = config.appVersion || '4.2.6';
 
     super(config);
   }
+
+  // override schedule fetching to use custom URL
+  async buildEntityScheduleData() {
+    // https://api.attractions.io/v2/resort-opening-times?endDate=2026-01-31&amp;startDate=2025-10-29
+    const startDate = moment().tz(this.config.timezone).startOf('day').format('YYYY-MM-DD');
+    const endDate = moment().tz(this.config.timezone).add(3, 'months').endOf('day').format('YYYY-MM-DD');
+
+    const url = `https://api.attractions.io/v2/resort-opening-times?startDate=${startDate}&amp;endDate=${endDate}`;
+
+    const scheduleData = await this.http('GET', url);
+
+    if (!scheduleData || !scheduleData.body || !scheduleData.body.openingTimes || !Array.isArray(scheduleData.body.openingTimes)) {
+      return [
+        {
+          _id: this.config.parkId,
+          schedule: [],
+        }
+      ];
+    }
+
+    const schedule = scheduleData.body.openingTimes.map((x) => {
+      const date = moment(x.date, 'YYYY-MM-DD').tz(this.config.timezone, true);
+
+      if (!x.openingTimes || !x.openingTimes.open || !x.openingTimes.close) {
+        return null;
+      }
+     
+      return {
+        date: date.format('YYYY-MM-DD'),
+        type: (x.status === 'open') ? scheduleType.operating : scheduleType.closed,
+        openingTime: date.clone().hour(Number(x.openingTimes.open.split(':')[0])).minute(Number(x.openingTimes.open.split(':')[1])).second(0).millisecond(0).format(),
+        closingTime: date.clone().hour(Number(x.openingTimes.close.split(':')[0])).minute(Number(x.openingTimes.close.split(':')[1])).second(0).millisecond(0).format(),
+      };
+    }).filter((x) => !!x);
+
+    return [
+      {
+        _id: this.config.parkId,
+        schedule,
+      }
+    ];
+  }
+
 }
 
 export class Knoebels extends AttractionsIO {
@@ -827,7 +870,7 @@ export class DjursSommerland extends AttractionsIO {
 
   async _fetchCalendarHTML() {
     '@cache|120'; // cache for 2 hours
-    
+
     const scheduleData = await this.http('GET', 'https://djurssommerland.dk/en/plan-your-trip/opening-hours/');
     return scheduleData.body;
   }
@@ -836,11 +879,11 @@ export class DjursSommerland extends AttractionsIO {
   async buildEntityScheduleData() {
     const html = await this._fetchCalendarHTML();
     const $ = cheerio.load(html);
-    
+
     // Extract calendar data from the body data-model attribute
     const $body = $('body');
     const dataModelAttr = $body.attr('data-model');
-    
+
     if (!dataModelAttr) {
       return [
         {
@@ -849,7 +892,7 @@ export class DjursSommerland extends AttractionsIO {
         }
       ];
     }
-    
+
     let calendarData;
     try {
       calendarData = JSON.parse(dataModelAttr);
@@ -862,7 +905,7 @@ export class DjursSommerland extends AttractionsIO {
         }
       ];
     }
-    
+
     if (!calendarData.parkEvents || !Array.isArray(calendarData.parkEvents)) {
       return [
         {
@@ -871,70 +914,70 @@ export class DjursSommerland extends AttractionsIO {
         }
       ];
     }
-    
+
     const schedule = [];
     const currentYear = new Date().getFullYear();
-    
+
     // Process each park event
     calendarData.parkEvents.forEach(event => {
-      const { type, start, end, days } = event;
-      
+      const {type, start, end, days} = event;
+
       // Skip events without proper time format
       if (!start || !end || !days || !days.ranges) return;
-      
+
       // Parse opening hours (format: "10:00")
       const startMatch = start.match(/(\d{1,2}):(\d{2})/);
       const endMatch = end.match(/(\d{1,2}):(\d{2})/);
-      
+
       if (!startMatch || !endMatch) return;
-      
+
       const openHour = parseInt(startMatch[1]);
       const openMinute = parseInt(startMatch[2]);
       const closeHour = parseInt(endMatch[1]);
       const closeMinute = parseInt(endMatch[2]);
-      
+
       // Determine schedule entry type based on event type
       // type 1 = Regular (theme park), type 2 = Water park, type 4 = Magical Halloween
       const isWaterPark = type === 2;
       const isSpecialEvent = type === 4; // Magical Halloween
-      
+
       let scheduleEntryType, scheduleDescription;
-      
+
       if (isWaterPark) {
         scheduleEntryType = 'INFO';
         scheduleDescription = 'Water Park';
       } else if (isSpecialEvent) {
-        scheduleEntryType = 'INFO'; 
+        scheduleEntryType = 'INFO';
         scheduleDescription = event.description || 'Magical Halloween';
       } else {
         scheduleEntryType = 'OPERATING';
       }
-      
+
       const scheduleEntry = {
         type: scheduleEntryType,
       };
-      
+
       if (scheduleDescription) {
         scheduleEntry.description = scheduleDescription;
       }
-      
+
       // Process each day range
       days.ranges.forEach(dayIndex => {
         // The dayIndex appears to be calculated as: monthIndex * 31 + dayOfMonth - 1
         // where monthIndex is 0-based (0=Jan, 1=Feb, etc.)
         const month = Math.floor(dayIndex / 31);
         const day = (dayIndex % 31) + 1;
-        
+
         // Create date object
         const date = moment.tz([currentYear, month, day], this.config.timezone);
-        
+
         // Skip invalid dates
         if (!date.isValid() || date.date() !== day) return;
-        
+
         // Create opening and closing times
         const openingTime = date.clone().hour(openHour).minute(openMinute).second(0).millisecond(0);
         const closingTime = date.clone().hour(closeHour).minute(closeMinute).second(0).millisecond(0);
-        
+
         schedule.push({
           date: date.format('YYYY-MM-DD'),
           openingTime: openingTime.format(),
@@ -943,7 +986,7 @@ export class DjursSommerland extends AttractionsIO {
         });
       });
     });
-    
+
     // Sort schedule by date and opening time (to handle multiple venues per date)
     const finalSchedule = schedule.sort((a, b) => {
       const dateCompare = a.date.localeCompare(b.date);
@@ -951,7 +994,7 @@ export class DjursSommerland extends AttractionsIO {
       // If dates are the same, sort by opening time
       return a.openingTime.localeCompare(b.openingTime);
     });
-    
+
     return [
       {
         _id: this.config.parkId,
@@ -1013,7 +1056,7 @@ export class PeppaPigThemeParkFlorida extends AttractionsIO {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Wed Oct 29 2025 07:53:34 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Wed Oct 29 2025 09:47:04 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
