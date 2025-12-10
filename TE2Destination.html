@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>IndexedWDWDB - Documentation</title>
+    <title>TE2Destination - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -35,7 +35,7 @@
 
 <div id="main">
     
-    <h1 class="page-title">IndexedWDWDB</h1>
+    <h1 class="page-title">TE2Destination</h1>
     
 
     
@@ -49,14 +49,12 @@
     
         <h2>
         
-            IndexedWDWDB
+            TE2Destination
         
         </h2>
         
-            <div class="class-description usertext">An indexed live WDW database
-Replicated WDW database to local disk for fast access
-While replicating, will build an in-memory index of entities for fast lookup
-Options to dump database to a single file or load a snapshot for quicker database boot ups</div>
+            <div class="class-description usertext">Base destination for TE2-powered parks.
+Handles basic auth using the configured username/password.</div>
         
     
 </header>
@@ -71,7 +69,7 @@ Options to dump database to a single file or load a snapshot for quicker databas
     <h2>Constructor</h2>
     
 
-    <h4 class="name" id="IndexedWDWDB"><span class="type-signature"></span>new IndexedWDWDB<span class="signature">(opts)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="TE2Destination"><span class="type-signature"></span>new TE2Destination<span class="signature">(options)</span><span class="type-signature"></span></h4>
 
     
 
@@ -81,13 +79,13 @@ Options to dump database to a single file or load a snapshot for quicker databas
 <dl class="details">
     
     <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Construct a new IndexedWDWDB object</li></ul></dd>
+    <dd class="tag-description"><ul class="dummy"><li>Create a new TE2Destination object</li></ul></dd>
     
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line76">line 76</a>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line20">line 20</a>
     </li></ul></dd>
     
 
@@ -159,7 +157,7 @@ Options to dump database to a single file or load a snapshot for quicker databas
 
         <tr>
             
-                <td class="name"><code>opts</code></td>
+                <td class="name"><code>options</code></td>
             
 
             <td class="type">
@@ -176,7 +174,7 @@ Options to dump database to a single file or load a snapshot for quicker databas
 
             
 
-            <td class="description last">PouchDB options object
+            <td class="description last">Configuration options
                 <h6>Properties</h6>
                 
 
@@ -194,8 +192,6 @@ Options to dump database to a single file or load a snapshot for quicker databas
         
 
         
-        <th>Default</th>
-        
 
         <th class="last">Description</th>
     </tr>
@@ -206,7 +202,7 @@ Options to dump database to a single file or load a snapshot for quicker databas
 
         <tr>
             
-                <td class="name"><code>remoteHost</code></td>
+                <td class="name"><code>timezone</code></td>
             
 
             <td class="type">
@@ -232,19 +228,15 @@ Options to dump database to a single file or load a snapshot for quicker databas
             
 
             
-                <td class="default">
-                
-                </td>
-            
 
-            <td class="description last">Remote database to replicate</td>
+            <td class="description last">Park timezone (default: Australia/Brisbane)</td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>remoteUsername</code></td>
+                <td class="name"><code>destinationId</code></td>
             
 
             <td class="type">
@@ -270,19 +262,15 @@ Options to dump database to a single file or load a snapshot for quicker databas
             
 
             
-                <td class="default">
-                
-                </td>
-            
 
-            <td class="description last">Remote database username to authenticate</td>
+            <td class="description last">Unique destination identifier</td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>remotePassword</code></td>
+                <td class="name"><code>venueId</code></td>
             
 
             <td class="type">
@@ -308,19 +296,15 @@ Options to dump database to a single file or load a snapshot for quicker databas
             
 
             
-                <td class="default">
-                
-                </td>
-            
 
-            <td class="description last">Remote database password to authenticate</td>
+            <td class="description last">TE2 API venue ID</td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>dbName</code></td>
+                <td class="name"><code>subdomain</code></td>
             
 
             <td class="type">
@@ -346,21 +330,15 @@ Options to dump database to a single file or load a snapshot for quicker databas
             
 
             
-                <td class="default">
-                
-                    <code>'wdw'</code>
-                
-                </td>
-            
 
-            <td class="description last">Local database name</td>
+            <td class="description last">TE2 API subdomain</td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>snapshot</code></td>
+                <td class="name"><code>apidomain</code></td>
             
 
             <td class="type">
@@ -386,19 +364,15 @@ Options to dump database to a single file or load a snapshot for quicker databas
             
 
             
-                <td class="default">
-                
-                </td>
-            
 
-            <td class="description last">File location of a snapshot to 'seed' the database during startup</td>
+            <td class="description last">TE2 API domain</td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>skipSync</code></td>
+                <td class="name"><code>apiuser</code></td>
             
 
             <td class="type">
@@ -424,12 +398,178 @@ Options to dump database to a single file or load a snapshot for quicker databas
             
 
             
-                <td class="default">
+
+            <td class="description last">TE2 API username</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>apipass</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
                 
                 </td>
             
 
-            <td class="description last">Skip network replication, only use data already on disk</td>
+            
+
+            <td class="description last">TE2 API password</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>rideTypes</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array.&lt;string></span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last">Categories to classify as rides</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>diningTypes</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array.&lt;string></span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last">Categories to classify as dining</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>showTypes</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array.&lt;string></span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last">Categories to classify as shows</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>eventScheduleDays</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last">Days to fetch for event schedule (default: 14)</td>
         </tr>
 
     
@@ -466,17 +606,6 @@ Options to dump database to a single file or load a snapshot for quicker databas
     
 
     
-        <h3 class="subsection-title">Extends</h3>
-
-        
-
-
-    <ul>
-        <li>PouchDB</li>
-    </ul>
-
-
-    
 
     
 
@@ -484,7 +613,7 @@ Options to dump database to a single file or load a snapshot for quicker databas
         <h3 class="subsection-title">Classes</h3>
 
         <dl>
-            <dt><a href="IndexedWDWDB.html">IndexedWDWDB</a></dt>
+            <dt><a href="TE2Destination.html">TE2Destination</a></dt>
             <dd></dd>
         </dl>
     
@@ -505,7 +634,7 @@ Options to dump database to a single file or load a snapshot for quicker databas
 
     
 
-    <h4 class="name" id="_createIndex"><span class="type-signature type-signature-async, private">(async, private) </span>_createIndex<span class="signature">(name, defaultIndex)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="_buildPOIMap"><span class="type-signature type-signature-private">(private) </span>_buildPOIMap<span class="signature">(poiData)</span><span class="type-signature"> &rarr; {Map}</span></h4>
 
     
 
@@ -515,13 +644,13 @@ Options to dump database to a single file or load a snapshot for quicker databas
 <dl class="details">
     
     <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Create an index object to be used by this database</li></ul></dd>
+    <dd class="tag-description"><ul class="dummy"><li>Build a POI lookup map from POI data array</li></ul></dd>
     
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line392">line 392</a>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line373">line 373</a>
     </li></ul></dd>
     
 
@@ -593,13 +722,13 @@ Options to dump database to a single file or load a snapshot for quicker databas
 
         <tr>
             
-                <td class="name"><code>name</code></td>
+                <td class="name"><code>poiData</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">string</span>
+<span class="param-type">Array</span>
 
 
 
@@ -610,251 +739,7 @@ Options to dump database to a single file or load a snapshot for quicker databas
 
             
 
-            <td class="description last">Index name</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>defaultIndex</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">*</span>
-
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Index initial object state</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="_createIndexes"><span class="type-signature type-signature-async, private">(async, private) </span>_createIndexes<span class="signature">()</span><span class="type-signature"></span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Setup our WDW indexes</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line367">line 367</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="_extractChannelLanguage"><span class="type-signature type-signature-private">(private) </span>_extractChannelLanguage<span class="signature">(doc)</span><span class="type-signature"> &rarr; {string}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Given a WDW database document, try to return its language</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line475">line 475</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <h5 class="h5-parameters">Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>doc</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">object</span>
-
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
+            <td class="description last">Array of POI data objects</td>
         </tr>
 
     
@@ -880,7 +765,7 @@ Options to dump database to a single file or load a snapshot for quicker databas
 
         
 <div class="param-desc">
-    Language of this document. Eg. en_intl, en_us
+    Map of POI ID to POI object
 </div>
 
 
@@ -891,7 +776,7 @@ Options to dump database to a single file or load a snapshot for quicker databas
     </dt>
     <dd>
         
-<span class="param-type">string</span>
+<span class="param-type">Map</span>
 
 
 
@@ -907,7 +792,7 @@ Options to dump database to a single file or load a snapshot for quicker databas
 
     
 
-    <h4 class="name" id="_extractEntityKeys"><span class="type-signature type-signature-private">(private) </span>_extractEntityKeys<span class="signature">(doc)</span><span class="type-signature"> &rarr; {object}</span></h4>
+    <h4 class="name" id="_buildShowEntityFromEvent"><span class="type-signature type-signature-private">(private) </span>_buildShowEntityFromEvent<span class="signature">(event, poiMap)</span><span class="type-signature"> &rarr; {object}</span></h4>
 
     
 
@@ -917,18 +802,13 @@ Options to dump database to a single file or load a snapshot for quicker databas
 <dl class="details">
     
     <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Given a WDW document, extract key identifiable data
-This is used to build a look-up index of unique document types
-See ancestorIndexes for some of the keys we use
-This is important so we can tell the difference between entities with the same ID, but different purposes
-eg. an entity ID can have multiple documents, one for the attraction itself, one for it's wait times, etc.
-These need to both be in the index under the same entity ID, but with different properties to make them distinct</li></ul></dd>
+    <dd class="tag-description"><ul class="dummy"><li>Build a show entity from event calendar data</li></ul></dd>
     
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line409">line 409</a>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line422">line 422</a>
     </li></ul></dd>
     
 
@@ -1000,7 +880,7 @@ These need to both be in the index under the same entity ID, but with different 
 
         <tr>
             
-                <td class="name"><code>doc</code></td>
+                <td class="name"><code>event</code></td>
             
 
             <td class="type">
@@ -1017,7 +897,31 @@ These need to both be in the index under the same entity ID, but with different 
 
             
 
-            <td class="description last">WDW Database Document</td>
+            <td class="description last">Event data from calendar</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>poiMap</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Map</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Map of POI IDs to POI objects</td>
         </tr>
 
     
@@ -1043,7 +947,7 @@ These need to both be in the index under the same entity ID, but with different 
 
         
 <div class="param-desc">
-    Index object containing important identifying data
+    Show entity object
 </div>
 
 
@@ -1070,7 +974,7 @@ These need to both be in the index under the same entity ID, but with different 
 
     
 
-    <h4 class="name" id="_indexWDWDocument"><span class="type-signature type-signature-async, private">(async, private) </span>_indexWDWDocument<span class="signature">(doc)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="_fetchCategories"><span class="type-signature type-signature-async, private">(async, private) </span>_fetchCategories<span class="signature">()</span><span class="type-signature"> &rarr; {Promise.&lt;object>}</span></h4>
 
     
 
@@ -1080,2666 +984,13 @@ These need to both be in the index under the same entity ID, but with different 
 <dl class="details">
     
     <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Add a document to the database index
-Used for fast lookups of entities etc. to the correct documents</li></ul></dd>
+    <dd class="tag-description"><ul class="dummy"><li>Fetch category definitions from the TE2 API</li></ul></dd>
     
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line518">line 518</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <h5 class="h5-parameters">Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>doc</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">object</span>
-
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">CouchDB document to index</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="_initIndexes"><span class="type-signature type-signature-async, private">(async, private) </span>_initIndexes<span class="signature">()</span><span class="type-signature"></span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Index initialisation
-This function wraps taking care of creating our indexes once only</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line348">line 348</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="_loadAndInit"><span class="type-signature type-signature-async, private">(async, private) </span>_loadAndInit<span class="signature">()</span><span class="type-signature"></span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Internal function
-Loads and performs an initial sync on the database</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line239">line 239</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="_removeFromArrayIndex"><span class="type-signature"></span>_removeFromArrayIndex<span class="signature">(index, docID)</span><span class="type-signature"></span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Remove all indexes referencing docID from the given index</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line498">line 498</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <h5 class="h5-parameters">Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>index</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">object</span>
-
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>docID</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="_replicate"><span class="type-signature type-signature-private">(private) </span>_replicate<span class="signature">()</span><span class="type-signature"></span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Start database replication</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line174">line 174</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="find"><span class="type-signature type-signature-async">(async) </span>find<span class="signature">(filter<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {array.&lt;object>}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Return all documents in the database that match the given filter
-This is a slow operation! Use sparingly!</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line826">line 826</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <h5 class="h5-parameters">Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>filter</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">object</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-
-
-<dl class="param-type">
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">array.&lt;object></span>
-
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="getByChannel"><span class="type-signature type-signature-async">(async) </span>getByChannel<span class="signature">(channel, filter<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {array.&lt;object>}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Find all documents by channel
-eg. 'wdw.facilitystatus.1_0' to get all WDW facility status documents</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line804">line 804</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <h5 class="h5-parameters">Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>channel</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last">Channel ID</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>filter</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">object</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last">Optional document index filter</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-<div class="param-desc">
-    All documents in this channel (or empty array)
-</div>
-
-
-
-<dl class="param-type">
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">array.&lt;object></span>
-
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="getDocChildren"><span class="type-signature type-signature-async">(async) </span>getDocChildren<span class="signature">(id)</span><span class="type-signature"></span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Return an array of children document IDs for a given entity ID</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line705">line 705</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <h5 class="h5-parameters">Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>id</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="getDocNameSearch"><span class="type-signature type-signature-async">(async) </span>getDocNameSearch<span class="signature">(name)</span><span class="type-signature"></span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Very rudementary text search for documents matching the incoming name.
-name argument will be stripped of all non-alphanumeric characters for searching.
-Will return an array of document IDs with matching name substrings.</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line720">line 720</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <h5 class="h5-parameters">Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>name</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="getDocsById"><span class="type-signature type-signature-async">(async) </span>getDocsById<span class="signature">(ids)</span><span class="type-signature"></span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Get an array of documents from an array of _id</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line671">line 671</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <h5 class="h5-parameters">Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>ids</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">array.&lt;string></span>
-
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="getDumpFilename"><span class="type-signature"></span>getDumpFilename<span class="signature">(postfix<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {string}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Get the filename we use for saving backups of the database to disk
-Used for creating simple "snapshots" to reduce initial sync times</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line274">line 274</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <h5 class="h5-parameters">Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>postfix</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last">Optional postfix for the filename
-eg. Use postfix to generate a temporary version of a file to write to before replacing the "real" database</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-
-
-<dl class="param-type">
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">string</span>
-
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="getEntity"><span class="type-signature type-signature-async">(async) </span>getEntity<span class="signature">(id, filter<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {array.&lt;object>}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Search for an entity in the WDW database</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line736">line 736</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <h5 class="h5-parameters">Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>id</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last">Entity ID</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>filter</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">object</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last">Filter index by field</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-<div class="param-desc">
-    Returns all documents for this entity ID
-</div>
-
-
-
-<dl class="param-type">
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">array.&lt;object></span>
-
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="getEntityIndex"><span class="type-signature type-signature-async">(async) </span>getEntityIndex<span class="signature">(id, filter<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {array.&lt;object>}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Find search index entries by ID
-If you want the actual document and not just the meta-index data, use getEntity() instead</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line690">line 690</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <h5 class="h5-parameters">Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>id</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>filter</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">object</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last"></td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-<div class="param-desc">
-    Returns the index data for this entity ID
-</div>
-
-
-
-<dl class="param-type">
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">array.&lt;object></span>
-
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="getEntityOne"><span class="type-signature type-signature-async">(async) </span>getEntityOne<span class="signature">(id, filter<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {object}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Search for an entity in the WDW database
-Attempts to return the "best candidate" single document that matches the incoming ID</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line753">line 753</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <h5 class="h5-parameters">Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>id</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last">Entity ID</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>filter</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">object</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last">Optional index filter</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-<div class="param-desc">
-    Returns the best candidate single document, or undefined
-</div>
-
-
-
-<dl class="param-type">
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">object</span>
-
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="getFacilityStatus"><span class="type-signature type-signature-async">(async) </span>getFacilityStatus<span class="signature">(id)</span><span class="type-signature"> &rarr; {object}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Get the live facility status for a given entity ID</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line783">line 783</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <h5 class="h5-parameters">Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>id</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Entity ID</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-<div class="param-desc">
-    Facility status document, or undefined
-</div>
-
-
-
-<dl class="param-type">
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">object</span>
-
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="getIndex"><span class="type-signature type-signature-private">(private) </span>getIndex<span class="signature">(name)</span><span class="type-signature"> &rarr; {*}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Get the internal index object for the given index type</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line382">line 382</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <h5 class="h5-parameters">Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>name</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">object</span>
-
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Index name (see constants.INDEX_*)</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5 class="h5-returns">Returns:</h5>
-
-        
-
-
-<dl class="param-type">
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">*</span>
-
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="init"><span class="type-signature type-signature-async">(async) </span>init<span class="signature">()</span><span class="type-signature"></span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Initialise the live database, returns once finished an initial sync</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line148">line 148</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="loadSnapshot"><span class="type-signature type-signature-async">(async) </span>loadSnapshot<span class="signature">(snapshotFile<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Restore a database backup from disk
-Perform this after running "dump()" on a previous synced database
-This will help to reduce the initial sync time for large databases</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line285">line 285</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-
-
-
-
-
-
-
-
-
-
-    <h5 class="h5-parameters">Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>snapshotFile</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-
-            <td class="description last">File path of the snapshot to restore into the database
-snapshotFile will use default saveSnapshot result location if not supplied</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-            
-
-    
-
-    <h4 class="name" id="saveSnapshot"><span class="type-signature type-signature-async">(async) </span>saveSnapshot<span class="signature">()</span><span class="type-signature"> &rarr; {string}</span></h4>
-
-    
-
-
-
-
-<dl class="details">
-    
-    <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Save a snapshot of this live database to disk
-This will be used to "seed" the database to speed up syncs for future runs</li></ul></dd>
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line316">line 316</a>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line117">line 117</a>
     </li></ul></dd>
     
 
@@ -3804,7 +1055,7 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
 
         
 <div class="param-desc">
-    Path to resulting database snapshot
+    Category data with POI associations
 </div>
 
 
@@ -3815,7 +1066,7 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
     </dt>
     <dd>
         
-<span class="param-type">string</span>
+<span class="param-type">Promise.&lt;object></span>
 
 
 
@@ -3831,7 +1082,7 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
 
     
 
-    <h4 class="name" id="subscribeToChanges"><span class="type-signature"></span>subscribeToChanges<span class="signature">(filter<span class="signature-attributes">opt</span>, callback)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="_fetchScheduleData"><span class="type-signature type-signature-async, private">(async, private) </span>_fetchScheduleData<span class="signature">(options)</span><span class="type-signature"> &rarr; {Promise.&lt;object>}</span></h4>
 
     
 
@@ -3841,13 +1092,13 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
 <dl class="details">
     
     <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Subscribe to all database changes with an optional mongo-style filter</li></ul></dd>
+    <dd class="tag-description"><ul class="dummy"><li>Fetch venue operating hours schedule data</li></ul></dd>
     
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line841">line 841</a>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line507">line 507</a>
     </li></ul></dd>
     
 
@@ -3907,8 +1158,6 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
         <th>Type</th>
 
         
-        <th>Attributes</th>
-        
 
         
 
@@ -3921,13 +1170,60 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
 
         <tr>
             
-                <td class="name"><code>filter</code></td>
+                <td class="name"><code>options</code></td>
             
 
             <td class="type">
             
                 
 <span class="param-type">object</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Options object
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+        <th>Default</th>
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>days</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
 
 
 
@@ -3947,15 +1243,624 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
             
 
             
+                <td class="default">
+                
+                    <code>120</code>
+                
+                </td>
+            
 
-            <td class="description last"></td>
+            <td class="description last">Number of days to fetch schedule for</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    Schedule data with daily operating hours
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;object></span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="_findLocationForShowEntity"><span class="type-signature type-signature-private">(private) </span>_findLocationForShowEntity<span class="signature">(associatedPois, basePoi)</span><span class="type-signature"> &rarr; {object|null}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Find location data from associated POIs or fallback sources</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line392">line 392</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>associatedPois</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Array of associated POI objects</td>
         </tr>
 
     
 
         <tr>
             
-                <td class="name"><code>callback</code></td>
+                <td class="name"><code>basePoi</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Base POI object to check for location</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    Location object with latitude/longitude or null
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
+|
+
+<span class="param-type">null</span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="_getEventCalendarData"><span class="type-signature type-signature-async, private">(async, private) </span>_getEventCalendarData<span class="signature">()</span><span class="type-signature"> &rarr; {Promise.&lt;object>}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Get parsed event calendar data with showtimes organized by event
+Filters out past events and creates showtime objects</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line532">line 532</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    Object containing events, eventsById map, and showtimesByEvent map
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;object></span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="_getFilteredEntities"><span class="type-signature type-signature-async, private">(async, private) </span>_getFilteredEntities<span class="signature">(categoryData, data, options)</span><span class="type-signature"> &rarr; {Promise.&lt;Array.&lt;object>>}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Filter POI data to get entities matching specified types/IDs
+Supports custom filtering via includeFn callback</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line287">line 287</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>categoryData</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Object containing types and entities arrays
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>types</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array.&lt;string></span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Category type IDs to match</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>entities</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Array.&lt;string></span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Entity IDs to match</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>data</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Additional data to merge into each entity</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>options</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Options object
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>includeFn</code></td>
             
 
             <td class="type">
@@ -3971,6 +1876,8 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
             
                 <td class="attributes">
                 
+                    &lt;optional><br>
+                
 
                 
 
@@ -3980,7 +1887,14 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
 
             
 
-            <td class="description last"></td>
+            <td class="description last">Custom filter function for additional inclusion logic</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
         </tr>
 
     
@@ -4002,6 +1916,29 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
 
 
 
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    Array of filtered entity objects
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;Array.&lt;object>></span>
+
+
+
+    </dd>
+</dl>
+
+    
 
 
 
@@ -4010,7 +1947,7 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
 
     
 
-    <h4 class="name" id="subscribeToChannel"><span class="type-signature"></span>subscribeToChannel<span class="signature">(channel, callback)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="_getParsedCategories"><span class="type-signature type-signature-async, private">(async, private) </span>_getParsedCategories<span class="signature">(params)</span><span class="type-signature"> &rarr; {Promise.&lt;object>}</span></h4>
 
     
 
@@ -4020,13 +1957,14 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
 <dl class="details">
     
     <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Subscribe to all changes to a channel</li></ul></dd>
+    <dd class="tag-description"><ul class="dummy"><li>Parse category data to find POI entities matching the given types
+Recursively includes child categories based on parent relationships</li></ul></dd>
     
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line863">line 863</a>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line131">line 131</a>
     </li></ul></dd>
     
 
@@ -4098,13 +2036,13 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
 
         <tr>
             
-                <td class="name"><code>channel</code></td>
+                <td class="name"><code>params</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">string</span>
+<span class="param-type">object</span>
 
 
 
@@ -4115,20 +2053,39 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
 
             
 
-            <td class="description last"></td>
-        </tr>
+            <td class="description last">Parameters
+                <h6>Properties</h6>
+                
 
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
     
 
         <tr>
             
-                <td class="name"><code>callback</code></td>
+                <td class="name"><code>initialTypes</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">function</span>
+<span class="param-type">Array.&lt;string></span>
 
 
 
@@ -4139,7 +2096,14 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
 
             
 
-            <td class="description last"></td>
+            <td class="description last">Initial category types to search for</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
         </tr>
 
     
@@ -4161,6 +2125,29 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
 
 
 
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    Object containing matched types and entity IDs
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;object></span>
+
+
+
+    </dd>
+</dl>
+
+    
 
 
 
@@ -4169,7 +2156,7 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
 
     
 
-    <h4 class="name" id="._pluginBulkDocs"><span class="type-signature type-signature-async, private, static">(async, private, static) </span>_pluginBulkDocs<span class="signature">(&hellip;args)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id="buildAttractionEntities"><span class="type-signature type-signature-async">(async) </span>buildAttractionEntities<span class="signature">()</span><span class="type-signature"> &rarr; {Promise.&lt;Array.&lt;object>>}</span></h4>
 
     
 
@@ -4179,14 +2166,123 @@ This will be used to "seed" the database to speed up syncs for future runs</li><
 <dl class="details">
     
     <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Plugin function to intercept bulkDocs function
-We index any WDW documents we find for easier lookup later</li></ul></dd>
+    <dd class="tag-description"><ul class="dummy"><li>Build attraction entities for this destination
+Includes rides identified by category or by presence of wait time/ride indicator tags</li></ul></dd>
     
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line880">line 880</a>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line329">line 329</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    Array of attraction entity objects
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;Array.&lt;object>></span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="buildBaseEntityObject"><span class="type-signature"></span>buildBaseEntityObject<span class="signature">(data)</span><span class="type-signature"> &rarr; {object}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Build a base entity object from TE2 API data
+Extracts common fields like name, ID, and location</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line204">line 204</a>
     </li></ul></dd>
     
 
@@ -4235,6 +2331,641 @@ We index any WDW documents we find for easier lookup later</li></ul></dd>
 
     <h5 class="h5-parameters">Parameters:</h5>
     
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>data</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Raw entity data from TE2 API</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    Base entity object with standardized fields
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">object</span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="buildDestinationEntity"><span class="type-signature type-signature-async">(async) </span>buildDestinationEntity<span class="signature">()</span><span class="type-signature"> &rarr; {Promise.&lt;object>}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Build the destination entity representing this venue</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line242">line 242</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    Destination entity object
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;object></span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="buildParkEntities"><span class="type-signature type-signature-async">(async) </span>buildParkEntities<span class="signature">()</span><span class="type-signature"> &rarr; {Promise.&lt;Array.&lt;object>>}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Build park entities for this destination
+In TE2, the destination and park are typically the same venue</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line259">line 259</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    Array of park entity objects
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;Array.&lt;object>></span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="buildRestaurantEntities"><span class="type-signature type-signature-async">(async) </span>buildRestaurantEntities<span class="signature">()</span><span class="type-signature"> &rarr; {Promise.&lt;Array.&lt;object>>}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Build restaurant/dining entities for this destination</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line358">line 358</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    Array of restaurant entity objects
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;Array.&lt;object>></span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="buildShowEntities"><span class="type-signature type-signature-async">(async) </span>buildShowEntities<span class="signature">()</span><span class="type-signature"> &rarr; {Promise.&lt;Array.&lt;object>>}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Build show/entertainment entities for this destination
+Combines show entities from categories and event calendar data</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line470">line 470</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    Array of show entity objects
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;Array.&lt;object>></span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="fetchEventCalendar"><span class="type-signature type-signature-async">(async) </span>fetchEventCalendar<span class="signature">(options)</span><span class="type-signature"> &rarr; {Promise.&lt;object>}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Fetch event calendar data including shows and entertainment schedules</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line519">line 519</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>options</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Options object
+                <h6>Properties</h6>
+                
 
 <table class="params">
     <thead>
@@ -4260,13 +2991,13 @@ We index any WDW documents we find for easier lookup later</li></ul></dd>
 
         <tr>
             
-                <td class="name"><code>args</code></td>
+                <td class="name"><code>days</code></td>
             
 
             <td class="type">
             
                 
-<span class="param-type">any</span>
+<span class="param-type">number</span>
 
 
 
@@ -4276,18 +3007,25 @@ We index any WDW documents we find for easier lookup later</li></ul></dd>
             
                 <td class="attributes">
                 
-
+                    &lt;optional><br>
                 
 
                 
-                    &lt;repeatable><br>
+
                 
                 </td>
             
 
             
 
-            <td class="description last">bulkDocs in</td>
+            <td class="description last">Number of days to fetch (uses config.eventScheduleDays if not specified)</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
         </tr>
 
     
@@ -4309,6 +3047,29 @@ We index any WDW documents we find for easier lookup later</li></ul></dd>
 
 
 
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    Event calendar data with events and schedules
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;object></span>
+
+
+
+    </dd>
+</dl>
+
+    
 
 
 
@@ -4317,7 +3078,7 @@ We index any WDW documents we find for easier lookup later</li></ul></dd>
 
     
 
-    <h4 class="name" id=".getDatabaseFilePath"><span class="type-signature type-signature-static">(static) </span>getDatabaseFilePath<span class="signature">(name)</span><span class="type-signature"> &rarr; {string}</span></h4>
+    <h4 class="name" id="getAttractionTypes"><span class="type-signature type-signature-async">(async) </span>getAttractionTypes<span class="signature">()</span><span class="type-signature"> &rarr; {Promise.&lt;object>}</span></h4>
 
     
 
@@ -4327,13 +3088,13 @@ We index any WDW documents we find for easier lookup later</li></ul></dd>
 <dl class="details">
     
     <dt class="tag-description">Description:</dt>
-    <dd class="tag-description"><ul class="dummy"><li>Get the LevelDOWN database location to use</li></ul></dd>
+    <dd class="tag-description"><ul class="dummy"><li>Get parsed category data for attraction/ride types</li></ul></dd>
     
 
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="parks_wdw_wdwdb.js.html">parks/wdw/wdwdb.js</a>, <a href="parks_wdw_wdwdb.js.html#line141">line 141</a>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line172">line 172</a>
     </li></ul></dd>
     
 
@@ -4380,54 +3141,112 @@ We index any WDW documents we find for easier lookup later</li></ul></dd>
 
 
 
-    <h5 class="h5-parameters">Parameters:</h5>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    Object with types array and entities array
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;object></span>
+
+
+
+    </dd>
+</dl>
+
     
 
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
 
-        <th>Type</th>
 
         
+            
 
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
     
 
-        <tr>
-            
-                <td class="name"><code>name</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">string</span>
-
-
-
-            
-            </td>
-
-            
-
-            
-
-            <td class="description last">Database name</td>
-        </tr>
+    <h4 class="name" id="getDestinationData"><span class="type-signature type-signature-async">(async) </span>getDestinationData<span class="signature">()</span><span class="type-signature"> &rarr; {Promise.&lt;object>}</span></h4>
 
     
-    </tbody>
-</table>
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Fetch venue/destination metadata</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line96">line 96</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -4447,6 +3266,10 @@ We index any WDW documents we find for easier lookup later</li></ul></dd>
 <h5 class="h5-returns">Returns:</h5>
 
         
+<div class="param-desc">
+    Destination data including name and location
+</div>
+
 
 
 <dl class="param-type">
@@ -4455,7 +3278,439 @@ We index any WDW documents we find for easier lookup later</li></ul></dd>
     </dt>
     <dd>
         
-<span class="param-type">string</span>
+<span class="param-type">Promise.&lt;object></span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="getDiningTypes"><span class="type-signature type-signature-async">(async) </span>getDiningTypes<span class="signature">()</span><span class="type-signature"> &rarr; {Promise.&lt;object>}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Get parsed category data for dining types</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line182">line 182</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    Object with types array and entities array
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;object></span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="getPOIData"><span class="type-signature type-signature-async">(async) </span>getPOIData<span class="signature">()</span><span class="type-signature"> &rarr; {Promise.&lt;Array>}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Fetch all Points of Interest (attractions, dining, shows, etc.) for this venue</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line106">line 106</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    Array of POI objects
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;Array></span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="getPOIStatus"><span class="type-signature type-signature-async">(async) </span>getPOIStatus<span class="signature">()</span><span class="type-signature"> &rarr; {Promise.&lt;object>}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Fetch current POI status data including wait times and operational status</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line86">line 86</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    POI status data
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;object></span>
+
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+        
+            
+
+    
+
+    <h4 class="name" id="getShowTypes"><span class="type-signature type-signature-async">(async) </span>getShowTypes<span class="signature">()</span><span class="type-signature"> &rarr; {Promise.&lt;object>}</span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li>Get parsed category data for show/entertainment types</li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="parks_te2_te2.js.html">parks/te2/te2.js</a>, <a href="parks_te2_te2.js.html#line192">line 192</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-returns">Returns:</h5>
+
+        
+<div class="param-desc">
+    Object with types array and entities array
+</div>
+
+
+
+<dl class="param-type">
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">Promise.&lt;object></span>
 
 
 
