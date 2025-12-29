@@ -457,3 +457,42 @@
   font-size: 13px;
   font-weight: 500;
 }
+
+/* JSON Viewer Button */
+.json-button {
+  padding: 4px 10px;
+  background: #238636;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.json-button:hover {
+  background: #2ea043;
+}
+
+.json-button:active {
+  background: #1a7f37;
+}
+
+.card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.generic-card {
+  position: relative;
+}
+
+.card-json-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+}

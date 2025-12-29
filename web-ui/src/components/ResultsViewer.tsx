@@ -1,5 +1,6 @@
 import React, {useState, useMemo} from 'react';
 import type {ExecutionResult} from '../types';
+import JsonViewerModal from './JsonViewerModal';
 import './ResultsViewer.css';
 
 type Props = {
@@ -190,67 +191,97 @@ export default function ResultsViewer({result, destinationId}: Props) {
 
 // Entity cards
 function EntityCards({data}: {data: any[]}) {
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+
   return (
-    <div className="data-cards">
-      {data.map((entity, idx) => (
-        <div key={entity.id || idx} className="data-card entity-card">
-          <div className="card-header">
-            <h4>{entity.name || 'Unnamed Entity'}</h4>
-            <span className="entity-type">{entity.entityType}</span>
-          </div>
-          <div className="card-body">
-            <p className="entity-id">ID: {entity.id}</p>
-            {entity.parkId && <p>Park: {entity.parkId}</p>}
-            {entity.destinationId && <p>Destination: {entity.destinationId}</p>}
-            {entity.location && (
-              <p>Location: {entity.location.latitude}, {entity.location.longitude}</p>
-            )}
-            {entity.tags && entity.tags.length > 0 && (
-              <div className="tags">
-                {entity.tags.map((tag: any, i: number) => (
-                  <span key={i} className="tag">{tag.type || tag}</span>
-                ))}
+    <>
+      <div className="data-cards">
+        {data.map((entity, idx) => (
+          <div key={entity.id || idx} className="data-card entity-card">
+            <div className="card-header">
+              <h4>{entity.name || 'Unnamed Entity'}</h4>
+              <div className="card-header-actions">
+                <span className="entity-type">{entity.entityType}</span>
+                <button
+                  className="json-button"
+                  onClick={() => setSelectedItem(entity)}
+                  title="View JSON"
+                >
+                  {}
+                </button>
               </div>
-            )}
+            </div>
+            <div className="card-body">
+              <p className="entity-id">ID: {entity.id}</p>
+              {entity.parkId && <p>Park: {entity.parkId}</p>}
+              {entity.destinationId && <p>Destination: {entity.destinationId}</p>}
+              {entity.location && (
+                <p>Location: {entity.location.latitude}, {entity.location.longitude}</p>
+              )}
+              {entity.tags && entity.tags.length > 0 && (
+                <div className="tags">
+                  {entity.tags.map((tag: any, i: number) => (
+                    <span key={i} className="tag">{tag.type || tag}</span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+      {selectedItem && (
+        <JsonViewerModal
+          data={selectedItem}
+          title={`Entity: ${selectedItem.name || selectedItem.id}`}
+          onClose={() => setSelectedItem(null)}
+        />
+      )}
+    </>
   );
 }
 
 // Live data cards
 function LiveDataCards({data}: {data: any[]}) {
-  return (
-    <div className="data-cards">
-      {data.map((liveData, idx) => {
-        // Calculate primary wait time for header
-        const primaryWaitTime = liveData.queue?.STANDBY?.waitTime ??
-                               liveData.queue?.RETURN_TIME?.waitTime ??
-                               null;
+  const [selectedItem, setSelectedItem] = useState<any>(null);
 
-        return (
-          <div key={liveData.id || idx} className="data-card live-data-card">
-            <div className="card-header">
-              <div className="card-title-section">
-                {liveData.entityName && liveData.entityName !== liveData.id ? (
-                  <>
-                    <h4>{liveData.entityName}</h4>
-                    <p className="entity-id">{liveData.id}</p>
-                  </>
-                ) : (
-                  <h4>{liveData.id}</h4>
-                )}
+  return (
+    <>
+      <div className="data-cards">
+        {data.map((liveData, idx) => {
+          // Calculate primary wait time for header
+          const primaryWaitTime = liveData.queue?.STANDBY?.waitTime ??
+                                 liveData.queue?.RETURN_TIME?.waitTime ??
+                                 null;
+
+          return (
+            <div key={liveData.id || idx} className="data-card live-data-card">
+              <div className="card-header">
+                <div className="card-title-section">
+                  {liveData.entityName && liveData.entityName !== liveData.id ? (
+                    <>
+                      <h4>{liveData.entityName}</h4>
+                      <p className="entity-id">{liveData.id}</p>
+                    </>
+                  ) : (
+                    <h4>{liveData.id}</h4>
+                  )}
+                </div>
+                <div className="card-status-section">
+                  {primaryWaitTime !== null && primaryWaitTime !== undefined && (
+                    <div className="primary-wait-time">{primaryWaitTime} min</div>
+                  )}
+                  <span className={`status-badge ${liveData.status?.toLowerCase()}`}>
+                    {liveData.status}
+                  </span>
+                  <button
+                    className="json-button"
+                    onClick={() => setSelectedItem(liveData)}
+                    title="View JSON"
+                  >
+                    {}
+                  </button>
+                </div>
               </div>
-              <div className="card-status-section">
-                {primaryWaitTime !== null && primaryWaitTime !== undefined && (
-                  <div className="primary-wait-time">{primaryWaitTime} min</div>
-                )}
-                <span className={`status-badge ${liveData.status?.toLowerCase()}`}>
-                  {liveData.status}
-                </span>
-              </div>
-            </div>
             <div className="card-body">
               {/* Queue information */}
               {liveData.queue && Object.keys(liveData.queue).length > 0 ? (
@@ -298,19 +329,39 @@ function LiveDataCards({data}: {data: any[]}) {
         );
       })}
     </div>
+      {selectedItem && (
+        <JsonViewerModal
+          data={selectedItem}
+          title={`Live Data: ${selectedItem.entityName || selectedItem.id}`}
+          onClose={() => setSelectedItem(null)}
+        />
+      )}
+    </>
   );
 }
 
 // Schedule cards
 function ScheduleCards({data}: {data: any[]}) {
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+
   return (
-    <div className="data-cards">
-      {data.map((schedule, idx) => (
-        <div key={schedule.entityId || idx} className="data-card schedule-card">
-          <div className="card-header">
-            <h4>{schedule.entityId}</h4>
-            <span className="schedule-type">{schedule.scheduleType || 'OPERATING'}</span>
-          </div>
+    <>
+      <div className="data-cards">
+        {data.map((schedule, idx) => (
+          <div key={schedule.entityId || idx} className="data-card schedule-card">
+            <div className="card-header">
+              <h4>{schedule.entityId}</h4>
+              <div className="card-header-actions">
+                <span className="schedule-type">{schedule.scheduleType || 'OPERATING'}</span>
+                <button
+                  className="json-button"
+                  onClick={() => setSelectedItem(schedule)}
+                  title="View JSON"
+                >
+                  {}
+                </button>
+              </div>
+            </div>
           <div className="card-body">
             {schedule.date && <p className="schedule-date">Date: {schedule.date}</p>}
             {schedule.openingTime && <p>Opens: {schedule.openingTime}</p>}
@@ -329,20 +380,46 @@ function ScheduleCards({data}: {data: any[]}) {
         </div>
       ))}
     </div>
+      {selectedItem && (
+        <JsonViewerModal
+          data={selectedItem}
+          title={`Schedule: ${selectedItem.entityId}`}
+          onClose={() => setSelectedItem(null)}
+        />
+      )}
+    </>
   );
 }
 
 // Generic fallback for unknown data structures
 function GenericCards({data}: {data: any[]}) {
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+
   return (
-    <div className="data-cards">
-      {data.map((item, idx) => (
-        <div key={idx} className="data-card generic-card">
-          <div className="card-body">
-            <pre>{JSON.stringify(item, null, 2)}</pre>
+    <>
+      <div className="data-cards">
+        {data.map((item, idx) => (
+          <div key={idx} className="data-card generic-card">
+            <button
+              className="json-button card-json-button"
+              onClick={() => setSelectedItem(item)}
+              title="View JSON"
+            >
+              {}
+            </button>
+            <div className="card-body">
+              <pre>{JSON.stringify(item, null, 2)}</pre>
+            </div>
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+      {selectedItem && (
+        <JsonViewerModal
+          data={selectedItem}
+          title="JSON Data"
+          onClose={() => setSelectedItem(null)}
+        />
+      )}
+    </>
   );
 }
