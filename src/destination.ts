@@ -72,6 +72,41 @@ export abstract class Destination {
   language: LanguageCode = 'en';
 
   /**
+   * Optional cache key prefix for all cached methods.
+   * When set, this prefix is prepended to all cache keys, preventing cache collisions
+   * when multiple instances of the same base class exist (e.g., multiple parks using the same framework).
+   *
+   * Can be set directly as a string property, or implement getCacheKeyPrefix() method for dynamic prefixes.
+   *
+   * @example
+   * ```typescript
+   * class MyPark extends Destination {
+   *   constructor(options) {
+   *     super(options);
+   *     this.cacheKeyPrefix = `mypark:${this.parkId}`;
+   *   }
+   * }
+   * ```
+   */
+  cacheKeyPrefix?: string;
+
+  /**
+   * Optional method to dynamically generate a cache key prefix.
+   * If implemented, this takes precedence over the cacheKeyPrefix property.
+   * Can return a string or Promise<string>.
+   *
+   * @example
+   * ```typescript
+   * class MyPark extends Destination {
+   *   getCacheKeyPrefix() {
+   *     return `mypark:${this.parkId}`;
+   *   }
+   * }
+   * ```
+   */
+  getCacheKeyPrefix?(): string | Promise<string>;
+
+  /**
    * Enable global proxy configuration by checking for GLOBAL_* environment variables.
    * Called automatically on first destination instantiation.
    *

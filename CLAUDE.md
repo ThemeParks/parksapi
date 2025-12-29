@@ -63,6 +63,84 @@ async getAPIKey() { ... }
 
 **Direct access:** `CacheLib.get()`, `CacheLib.set()`, `CacheLib.wrap()`
 
+**🚨 CRITICAL: Cache Key Collisions in Base Classes**
+
+When using `@cache` on methods in a base class that's shared by multiple instances (e.g., a framework base class for multiple parks), you MUST include instance-specific identifiers in the cache key to prevent cross-instance cache collisions.
+
+**Default cache key:** `${className}:${methodName}:${JSON.stringify(args)}`
+
+**Problem:** If multiple parks extend the same base class and call the same method with no arguments, they share the same cache entry!
+
+**Solutions (in order of preference):**
+
+1. **Implement `getCacheKeyPrefix()` method** (RECOMMENDED - cleanest approach):
+```typescript
+class AttractionsIOV3 extends Destination {
+  parkId: string;
+
+  // Implement cache key prefix method
+  getCacheKeyPrefix(): string {
+    return `attractionsio:${this.parkId}`;
+  }
+
+  // Now all cached methods automatically get the prefix!
+  @cache({ttlSeconds: 60})
+  async getWaitTimes(): Promise<WaitTime> {  // ✅ Auto-prefixed: attractionsio:1:AttractionsIOV3:getWaitTimes:[]
+    const resp = await this.fetchWaitTimes();
+    return await resp.json();
+  }
+
+  @cache({ttlSeconds: 60})
+  async getTypesFromCategories(categories: string[], fieldFilter: string): Promise<number[]> {
+    // ✅ Auto-prefixed with args: attractionsio:1:AttractionsIOV3:getTypesFromCategories:[["Rides"],"type"]
+  }
+}
+```
+
+2. **Set `cacheKeyPrefix` property** (simpler, less flexible):
+```typescript
+class MyPark extends Destination {
+  constructor(options) {
+    super(options);
+    this.cacheKeyPrefix = `mypark:${this.parkId}`;  // ✅ All cached methods auto-prefixed
+  }
+}
+```
+
+3. **Pass unique argument** (if applicable):
+```typescript
+@cache({ttlSeconds: 60})
+async getPOI(city: string): Promise<POIResponse> {  // ✅ city in args = unique cache key per city
+  const resp = await this.fetchPOI(city);
+  return await resp.json();
+}
+```
+
+4. **Use custom cache key function** (verbose, last resort):
+```typescript
+@cache({ttlSeconds: 60, key: function() { return `attractionsio:${this.parkId}:waitTimes`; }})
+async getWaitTimes(): Promise<WaitTime> {  // ⚠️ Works but verbose
+  const resp = await this.fetchWaitTimes();
+  return await resp.json();
+}
+```
+
+**How prefix resolution works:**
+1. If `getCacheKeyPrefix()` method exists, call it (can return string or Promise<string>)
+2. Else if `cacheKeyPrefix` property exists, use it
+3. Else no prefix (uses default class name)
+4. Prefix is prepended to ALL cache keys (default, custom, or function-based)
+
+**Real-world example of cache collision:**
+- Cedar Point (parkId: 1) calls `getParkConfig()` → without prefix: `AttractionsIOV3:getParkConfig:[]` (COLLISION!)
+- Knott's Berry Farm (parkId: 4) calls `getParkConfig()` → without prefix: `AttractionsIOV3:getParkConfig:[]` (COLLISION!)
+- With `getCacheKeyPrefix()`: Cedar Point → `attractionsio:1:AttractionsIOV3:getParkConfig:[]` ✅
+- With `getCacheKeyPrefix()`: Knott's → `attractionsio:4:AttractionsIOV3:getParkConfig:[]` ✅
+
+**Reference implementations:**
+- ✅ Universal: Uses `city` parameter in all cached methods (Solution 3)
+- ✅ Cedar Fair: Uses `getCacheKeyPrefix()` method (Solution 1 - RECOMMENDED)
+
 #### 3. **@http** (`src/http.ts`)
 Queue-based HTTP request system with automatic retry, validation, and caching.
 

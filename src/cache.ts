@@ -363,19 +363,31 @@ class CacheLib {
 export default function cacheDecorator({ttlSeconds = 60, callback, key}: {ttlSeconds?: number, callback?: (response: any) => number, key?: string | ((this: any, args: any[]) => string | Promise<string>)} = {}) {
   return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
-    descriptor.value = async function (...args: any[]) {
+    descriptor.value = async function (this: any, ...args: any[]) {
       // Include class name in cache key to prevent collisions between different classes
       const className = this.constructor.name;
+
+      // Check for cache key prefix (supports both method and property)
+      let prefix = '';
+      if (typeof this.getCacheKeyPrefix === 'function') {
+        const result = this.getCacheKeyPrefix();
+        prefix = result instanceof Promise ? await result : result;
+      } else if (this.cacheKeyPrefix) {
+        prefix = this.cacheKeyPrefix;
+      }
+
       let cacheKey: string;
 
       if (key) {
         if (typeof key === 'string') {
-          cacheKey = key;
+          cacheKey = prefix ? `${prefix}:${key}` : key;
         } else {
-          cacheKey = await key.call(this, args);
+          const customKey = await key.call(this, args);
+          cacheKey = prefix ? `${prefix}:${customKey}` : customKey;
         }
       } else {
-        cacheKey = `${className}:${propertyKey}:${JSON.stringify(args)}`;
+        const defaultKey = `${className}:${propertyKey}:${JSON.stringify(args)}`;
+        cacheKey = prefix ? `${prefix}:${defaultKey}` : defaultKey;
       }
 
       // If callback is provided, we need to call the function and let the callback determine TTL
