@@ -8,3 +8,7 @@ entity-map-viewer.html
 dist/
 cache.sqlite
 coverage/
+temp*.json
+temp*.js
+datacache/
+.claude/settings.local.json
