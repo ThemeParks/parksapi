@@ -3,6 +3,26 @@ import type {ExecutionResult} from '../types';
 import JsonViewerModal from './JsonViewerModal';
 import './ResultsViewer.css';
 
+// Helper function to format tag names from camelCase to Title Case
+function formatTagName(tagName: string): string {
+  // Handle special cases for common abbreviations
+  const specialCases: Record<string, string> = {
+    'onRidePhoto': 'On-Ride Photo',
+    'vipLounge': 'VIP Lounge',
+  };
+
+  if (specialCases[tagName]) {
+    return specialCases[tagName];
+  }
+
+  // Convert camelCase to Title Case
+  // e.g., "singleRider" -> "Single Rider", "mayGetWet" -> "May Get Wet"
+  return tagName
+    .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+    .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
+    .trim();
+}
+
 type Props = {
   result: ExecutionResult;
   destinationId?: string;
@@ -220,9 +240,18 @@ function EntityCards({data}: {data: any[]}) {
               )}
               {entity.tags && entity.tags.length > 0 && (
                 <div className="tags">
-                  {entity.tags.map((tag: any, i: number) => (
-                    <span key={i} className="tag">{tag.type || tag}</span>
-                  ))}
+                  {entity.tags.map((tag: any, i: number) => {
+                    // Handle new TagBuilder format {tag, tagName, value?, key?}
+                    const displayName = tag.tagName
+                      ? formatTagName(tag.tagName)
+                      : (tag.type || String(tag));
+
+                    return (
+                      <span key={i} className="tag" title={JSON.stringify(tag)}>
+                        {displayName}
+                      </span>
+                    );
+                  })}
                 </div>
               )}
             </div>
