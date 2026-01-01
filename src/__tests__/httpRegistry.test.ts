@@ -3,7 +3,6 @@
  * including parent class methods
  */
 
-import {describe, it, expect, beforeEach} from '@jest/globals';
 import {
   http,
   getHttpRequesters,

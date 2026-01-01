@@ -1,11 +1,10 @@
-import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { CacheLib as Cache, database } from '../cache.js';
 import cache from '../cache.js';
 
 // Mock console.error to avoid noise in test output
 const originalConsoleError = console.error;
 beforeEach(() => {
-  console.error = jest.fn();
+  console.error = vi.fn();
 });
 
 afterEach(() => {
@@ -181,7 +180,7 @@ describe('Cache', () => {
 
   describe('Wrap Functionality', () => {
     test('should execute function and cache result on first call', async () => {
-      const mockFn = jest.fn(() => 'computed-value');
+      const mockFn = vi.fn(() => 'computed-value');
 
       const result = await Cache.wrap('wrap-key', mockFn, 60);
 
@@ -191,7 +190,7 @@ describe('Cache', () => {
     });
 
     test('should return cached value on subsequent calls', async () => {
-      const mockFn = jest.fn(() => 'computed-value');
+      const mockFn = vi.fn(() => 'computed-value');
 
       // First call
       const result1 = await Cache.wrap('wrap-key', mockFn, 60);
@@ -205,7 +204,7 @@ describe('Cache', () => {
     });
 
     test('should re-execute function after cache expires', async () => {
-      const mockFn = jest.fn()
+      const mockFn = vi.fn()
         .mockReturnValueOnce('first-value')
         .mockReturnValueOnce('second-value');
 
@@ -230,7 +229,7 @@ describe('Cache', () => {
         timestamp: Date.now()
       };
 
-      const mockFn = jest.fn(() => complexObject);
+      const mockFn = vi.fn(() => complexObject);
 
       const result = await Cache.wrap('complex-wrap', mockFn, 60);
       expect(result).toEqual(complexObject);
@@ -261,17 +260,17 @@ describe('Cache', () => {
 
     test('should handle edge cases in wrap function', async () => {
       // Test with function that returns null
-      const nullFn = jest.fn(() => null);
+      const nullFn = vi.fn(() => null);
       const result1 = await Cache.wrap('null-key', nullFn, 60);
       expect(result1).toBeNull();
 
       // Test with function that returns empty string
-      const emptyStringFn = jest.fn(() => '');
+      const emptyStringFn = vi.fn(() => '');
       const result2 = await Cache.wrap('empty-string-key', emptyStringFn, 60);
       expect(result2).toBe('');
 
       // Test with function that throws
-      const throwingFn = jest.fn(() => {
+      const throwingFn = vi.fn(() => {
         throw new Error('Test error');
       });
       await expect(Cache.wrap('error-key', throwingFn, 60)).rejects.toThrow('Test error');

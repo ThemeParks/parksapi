@@ -2,7 +2,6 @@
  * Test @config decorator system
  */
 
-import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import config from '../config.js';
 
 // Store original env vars

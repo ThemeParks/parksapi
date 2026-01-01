@@ -8,7 +8,7 @@ describe('Injector System', () => {
 
   describe('Function Injection', () => {
     it('should call injected function when event matches filter', async () => {
-      const mockFn = jest.fn();
+      const mockFn = vi.fn();
       const filter = { eventName: 'testEvent' };
 
       inject(filter)(mockFn);
@@ -19,7 +19,7 @@ describe('Injector System', () => {
     });
 
     it('should not call injected function when event does not match filter', async () => {
-      const mockFn = jest.fn();
+      const mockFn = vi.fn();
       const filter = { eventName: 'testEvent' };
 
       inject(filter)(mockFn);
@@ -30,7 +30,7 @@ describe('Injector System', () => {
     });
 
     it('should call injected function with complex filter matching', async () => {
-      const mockFn = jest.fn();
+      const mockFn = vi.fn();
       const filter = { eventName: 'httpRequest', hostname: 'api.themeparks.wiki' };
 
       inject(filter)(mockFn);
@@ -41,7 +41,7 @@ describe('Injector System', () => {
     });
 
     it('should not call injected function with complex filter not matching', async () => {
-      const mockFn = jest.fn();
+      const mockFn = vi.fn();
       const filter = { eventName: 'httpRequest', hostname: 'api.themeparks.wiki' };
 
       inject(filter)(mockFn);
@@ -64,7 +64,7 @@ describe('Injector System', () => {
       const instance = new TestClass();
       registerInstance(instance);
 
-      const spy = jest.spyOn(instance, 'testMethod');
+      const spy = vi.spyOn(instance, 'testMethod');
 
       await broadcast('global', { eventName: 'methodEvent' }, 'testArg');
 
@@ -75,7 +75,7 @@ describe('Injector System', () => {
       const instance = new TestClass();
       registerInstance(instance);
 
-      const spy = jest.spyOn(instance, 'testMethod');
+      const spy = vi.spyOn(instance, 'testMethod');
 
       await broadcast('global', { eventName: 'otherEvent' }, 'testArg');
 
@@ -86,8 +86,8 @@ describe('Injector System', () => {
       const instance1 = new TestClass();
       const instance2 = new TestClass();
 
-      const spy1 = jest.spyOn(instance1, 'testMethod');
-      const spy2 = jest.spyOn(instance2, 'testMethod');
+      const spy1 = vi.spyOn(instance1, 'testMethod');
+      const spy2 = vi.spyOn(instance2, 'testMethod');
 
       await broadcast(instance1, { eventName: 'methodEvent' }, 'testArg');
 
@@ -99,8 +99,8 @@ describe('Injector System', () => {
       const instance1 = new TestClass();
       const instance2 = new TestClass();
 
-      const spy1 = jest.spyOn(instance1, 'testMethod');
-      const spy2 = jest.spyOn(instance2, 'testMethod');
+      const spy1 = vi.spyOn(instance1, 'testMethod');
+      const spy2 = vi.spyOn(instance2, 'testMethod');
 
       await broadcast([instance1, instance2], { eventName: 'methodEvent' }, 'testArg');
 
@@ -111,7 +111,7 @@ describe('Injector System', () => {
 
   describe('Mixed Injections', () => {
     it('should call both global functions and methods for global broadcast', async () => {
-      const mockFn = jest.fn();
+      const mockFn = vi.fn();
       inject({ eventName: 'mixedEvent' })(mockFn);
 
       class TestClass {
@@ -122,7 +122,7 @@ describe('Injector System', () => {
       const instance = new TestClass();
       registerInstance(instance);
 
-      const spy = jest.spyOn(instance, 'testMethod');
+      const spy = vi.spyOn(instance, 'testMethod');
 
       await broadcast('global', { eventName: 'mixedEvent' }, 'arg');
 
@@ -133,8 +133,8 @@ describe('Injector System', () => {
 
   describe('Multiple Injections', () => {
     it('should call all matching injections', async () => {
-      const mockFn1 = jest.fn();
-      const mockFn2 = jest.fn();
+      const mockFn1 = vi.fn();
+      const mockFn2 = vi.fn();
 
       inject({ eventName: 'multiEvent' })(mockFn1);
       inject({ eventName: 'multiEvent' })(mockFn2);
@@ -146,8 +146,8 @@ describe('Injector System', () => {
     });
 
     it('should handle different filters correctly', async () => {
-      const mockFn1 = jest.fn();
-      const mockFn2 = jest.fn();
+      const mockFn1 = vi.fn();
+      const mockFn2 = vi.fn();
 
       inject({ eventName: 'event1' })(mockFn1);
       inject({ eventName: 'event2' })(mockFn2);
@@ -270,7 +270,7 @@ describe('Injector System', () => {
       }
 
       const instance = new TestClass();
-      const spy = jest.spyOn(instance, 'injectMethod');
+      const spy = vi.spyOn(instance, 'injectMethod');
 
       await broadcast(instance, { eventName: 'httpRequest', hostname: 'api.example.com' }, { injected: false });
 
@@ -293,7 +293,7 @@ describe('Injector System', () => {
       }
 
       const instance = new TestClass();
-      const spy = jest.spyOn(instance, 'injectMethod');
+      const spy = vi.spyOn(instance, 'injectMethod');
 
       await broadcast(instance, { eventName: 'httpRequest', hostname: 'other.example.com' }, { injected: false });
 
@@ -316,7 +316,7 @@ describe('Injector System', () => {
       }
 
       const instance = new TestClass();
-      const spy = jest.spyOn(instance, 'injectMethod');
+      const spy = vi.spyOn(instance, 'injectMethod');
 
       await broadcast(instance, { eventName: 'httpRequest', hostname: 'example.com' }, { injected: false });
 
@@ -341,7 +341,7 @@ describe('Injector System', () => {
       }
 
       const instance = new TestClass();
-      const spy = jest.spyOn(instance, 'injectMethod');
+      const spy = vi.spyOn(instance, 'injectMethod');
 
       await broadcast(instance, { eventName: 'httpRequest', hostname: 'api.example.com' }, { injected: false });
 
@@ -364,7 +364,7 @@ describe('Injector System', () => {
       }
 
       const instance = new TestClass();
-      const spy = jest.spyOn(instance, 'injectMethod');
+      const spy = vi.spyOn(instance, 'injectMethod');
 
       await broadcast(instance, { eventName: 'httpRequest', hostname: 'universalorlando.com' }, { injected: false });
 
@@ -394,7 +394,7 @@ describe('Injector System', () => {
       }
 
       const instance = new TestClass();
-      const spy = jest.spyOn(instance, 'injectMethod');
+      const spy = vi.spyOn(instance, 'injectMethod');
 
       // Should match when tags don't include 'skipAuth'
       await broadcast(instance, {

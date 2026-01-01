@@ -6,7 +6,6 @@
  * through integration tests with actual park implementations.
  */
 
-import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { HTTPObj } from '../http.js';
 
 // We need to test the HTTPRequestImpl class internals

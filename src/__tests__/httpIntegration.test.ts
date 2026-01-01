@@ -1,4 +1,3 @@
-import {describe, test, expect, beforeAll, afterAll, beforeEach} from '@jest/globals';
 import {createServer, IncomingMessage, ServerResponse} from 'http';
 import {http, stopHttpQueue} from '../http.js';
 import {CacheLib} from '../cache.js';

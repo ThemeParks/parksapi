@@ -270,7 +270,7 @@ describe('Proxy Injection System', () => {
       process.env.TEST_BASICPROXY = JSON.stringify({proxy: 'http://myproxy.com:8080'});
       enableProxySupport(['TEST']);
 
-      const consoleLogSpy = jest.spyOn(console, 'log');
+      const consoleLogSpy = vi.spyOn(console, 'log');
 
       const requestObj: HTTPObj = {
         method: 'GET',

@@ -169,51 +169,46 @@ describe('AttractionsIOV3 Base Class', () => {
     CacheLib.clear();
 
     // Create test instance
-    class TestPark extends AttractionsIOV3 {
-      constructor() {
-        super({
-          config: {
-            timezone: 'America/New_York',
-            parkId: '999',
-            destinationId: 'testpark',
-            realTimeBaseURL: 'https://api.test.com',
-            appId: 'com.test.app',
-            appName: 'Test App',
-          },
-        });
-      }
+    testPark = new AttractionsIOV3({
+      config: {
+        timezone: 'America/New_York',
+        parkId: '999',
+        destinationId: 'testpark',
+        realTimeBaseURL: 'https://api.test.com',
+        appId: 'com.test.app',
+        appName: 'Test App',
+      },
+    });
 
-      // Mock HTTP methods for testing
-      async fetchWaitTimes() {
-        return {json: async () => mockWaitTimesResponse} as any;
-      }
+    // Mock HTTP methods using vi.spyOn()
+    vi.spyOn(testPark, 'fetchWaitTimes').mockResolvedValue({
+      json: async () => mockWaitTimesResponse
+    } as any);
 
-      async fetchVenueStatus() {
-        return {json: async () => mockVenueStatusResponse} as any;
-      }
+    vi.spyOn(testPark, 'fetchVenueStatus').mockResolvedValue({
+      json: async () => mockVenueStatusResponse
+    } as any);
 
-      async fetchParkConfig() {
-        return {json: async () => mockParkConfigResponse} as any;
-      }
+    vi.spyOn(testPark, 'fetchParkConfig').mockResolvedValue({
+      json: async () => mockParkConfigResponse
+    } as any);
 
-      async fetchParkPOI() {
-        return {json: async () => mockPOIResponse} as any;
-      }
+    vi.spyOn(testPark, 'fetchParkPOI').mockResolvedValue({
+      json: async () => mockPOIResponse
+    } as any);
 
-      async fetchScheduleForDate(date: string) {
-        return {json: async () => mockScheduleResponse} as any;
-      }
+    vi.spyOn(testPark, 'fetchScheduleForDate').mockResolvedValue({
+      json: async () => mockScheduleResponse
+    } as any);
 
-      async fetchAppVersion() {
-        return {json: async () => ({version: '1.2.3'})} as any;
-      }
-    }
-
-    testPark = new TestPark();
+    vi.spyOn(testPark, 'fetchAppVersion').mockResolvedValue({
+      json: async () => ({version: '1.2.3'})
+    } as any);
   });
 
   afterEach(() => {
     CacheLib.clear();
+    vi.restoreAllMocks();
   });
 
   describe('Cache Key Prefix', () => {
@@ -223,40 +218,31 @@ describe('AttractionsIOV3 Base Class', () => {
     });
 
     it('should prevent cache collisions between different parks', async () => {
-      class Park1 extends AttractionsIOV3 {
-        constructor() {
-          super({
-            config: {
-              timezone: 'America/New_York',
-              parkId: '1',
-              destinationId: 'park1',
-              realTimeBaseURL: 'https://api.test.com',
-            },
-          });
-        }
-        async fetchWaitTimes() {
-          return {json: async () => ({data: 'park1'})} as any;
-        }
-      }
+      const p1 = new AttractionsIOV3({
+        config: {
+          timezone: 'America/New_York',
+          parkId: '1',
+          destinationId: 'park1',
+          realTimeBaseURL: 'https://api.test.com',
+        },
+      });
 
-      class Park2 extends AttractionsIOV3 {
-        constructor() {
-          super({
-            config: {
-              timezone: 'America/New_York',
-              parkId: '2',
-              destinationId: 'park2',
-              realTimeBaseURL: 'https://api.test.com',
-            },
-          });
-        }
-        async fetchWaitTimes() {
-          return {json: async () => ({data: 'park2'})} as any;
-        }
-      }
+      const p2 = new AttractionsIOV3({
+        config: {
+          timezone: 'America/New_York',
+          parkId: '2',
+          destinationId: 'park2',
+          realTimeBaseURL: 'https://api.test.com',
+        },
+      });
 
-      const p1 = new Park1();
-      const p2 = new Park2();
+      vi.spyOn(p1, 'fetchWaitTimes').mockResolvedValue({
+        json: async () => ({data: 'park1'})
+      } as any);
+
+      vi.spyOn(p2, 'fetchWaitTimes').mockResolvedValue({
+        json: async () => ({data: 'park2'})
+      } as any);
 
       await p1.getWaitTimes();
       await p2.getWaitTimes();
@@ -299,8 +285,7 @@ describe('AttractionsIOV3 Base Class', () => {
 
       it('should return unique type IDs only', async () => {
         // Mock config with duplicate type IDs
-        const originalFetch = testPark.fetchParkConfig;
-        testPark.fetchParkConfig = async () => ({
+        vi.spyOn(testPark, 'fetchParkConfig').mockResolvedValueOnce({
           json: async () => ({
             parkName: 'Test',
             poi_config: {
@@ -323,13 +308,11 @@ describe('AttractionsIOV3 Base Class', () => {
               ],
             },
           }),
-        });
+        } as any);
 
         CacheLib.clear(); // Clear cache to use new mock
         const types = await testPark.getTypesFromCategories(['Test'], 'type');
         expect(types).toEqual([1, 2]); // No duplicates
-
-        testPark.fetchParkConfig = originalFetch;
       });
     });
 
@@ -344,22 +327,18 @@ describe('AttractionsIOV3 Base Class', () => {
 
       it('should return undefined if no entrance found', async () => {
         // Mock POI without entrance
-        const originalFetch = testPark.fetchParkPOI;
-        testPark.fetchParkPOI = async () => ({
+        vi.spyOn(testPark, 'fetchParkPOI').mockResolvedValueOnce({
           json: async () => [{fimsId: 'TEST', name: 'Test POI'}],
-        });
+        } as any);
 
         CacheLib.clear();
         const location = await testPark.getParkEntranceLocation();
         expect(location).toBeUndefined();
-
-        testPark.fetchParkPOI = originalFetch;
       });
 
       it('should try multiple entrance name variations', async () => {
         // Mock POI with "Accessible Gate" instead of "Main Entrance"
-        const originalFetch = testPark.fetchParkPOI;
-        testPark.fetchParkPOI = async () => ({
+        vi.spyOn(testPark, 'fetchParkPOI').mockResolvedValueOnce({
           json: async () => [
             {
               fimsId: 'GATE',
@@ -367,13 +346,11 @@ describe('AttractionsIOV3 Base Class', () => {
               location: {latitude: 10.0, longitude: 20.0},
             },
           ],
-        });
+        } as any);
 
         CacheLib.clear();
         const location = await testPark.getParkEntranceLocation();
         expect(location).toEqual({latitude: 10.0, longitude: 20.0});
-
-        testPark.fetchParkPOI = originalFetch;
       });
     });
 
@@ -384,23 +361,21 @@ describe('AttractionsIOV3 Base Class', () => {
       });
 
       it('should return fallback version if appId is null', async () => {
-        testPark.appId = null;
+        vi.restoreAllMocks();
         CacheLib.clear();
+        testPark.appId = null;
         const version = await testPark.getAndroidAppVersion();
         expect(version).toBe('1.0.0');
       });
 
       it('should return fallback version if API fails', async () => {
-        const originalFetch = testPark.fetchAppVersion;
-        testPark.fetchAppVersion = async () => {
-          throw new Error('API failed');
-        };
+        vi.spyOn(testPark, 'fetchAppVersion').mockRejectedValueOnce(
+          new Error('API failed')
+        );
 
         CacheLib.clear();
         const version = await testPark.getAndroidAppVersion();
         expect(version).toBe('1.0.0');
-
-        testPark.fetchAppVersion = originalFetch;
       });
     });
   });
@@ -500,10 +475,9 @@ describe('AttractionsIOV3 Base Class', () => {
 
     it('should handle missing venue status gracefully', async () => {
       // Mock venue status as null (API unavailable)
-      const originalFetch = testPark.fetchVenueStatus;
-      testPark.fetchVenueStatus = async () => {
-        throw new Error('Venue status unavailable');
-      };
+      vi.spyOn(testPark, 'fetchVenueStatus').mockRejectedValueOnce(
+        new Error('Venue status unavailable')
+      );
 
       const liveData = await testPark.buildLiveData();
       const ride001 = liveData.find((ld: any) => ld.id === 'RIDE001');
@@ -511,14 +485,11 @@ describe('AttractionsIOV3 Base Class', () => {
       // Should default to OPERATING when venue status is unavailable
       expect(ride001.status).toBe('OPERATING');
       expect(ride001.queue.STANDBY.waitTime).toBe(30);
-
-      testPark.fetchVenueStatus = originalFetch;
     });
 
     it('should normalize fimsId to uppercase', async () => {
       // Mock wait times with lowercase fimsId
-      const originalFetch = testPark.fetchWaitTimes;
-      testPark.fetchWaitTimes = async () => ({
+      vi.spyOn(testPark, 'fetchWaitTimes').mockResolvedValueOnce({
         json: async () => ({
           venues: [
             {
@@ -531,15 +502,13 @@ describe('AttractionsIOV3 Base Class', () => {
             },
           ],
         }),
-      });
+      } as any);
 
       const liveData = await testPark.buildLiveData();
       const ride = liveData.find((ld: any) => ld.id === 'RIDE001');
 
       expect(ride).toBeDefined();
       expect(ride.id).toBe('RIDE001'); // Should be uppercase
-
-      testPark.fetchWaitTimes = originalFetch;
     });
   });
 
@@ -562,29 +531,25 @@ describe('AttractionsIOV3 Base Class', () => {
     });
 
     it('should skip closed park days', async () => {
-      const originalFetch = testPark.fetchScheduleForDate;
       let callCount = 0;
-      testPark.fetchScheduleForDate = async (date: string) => {
+      vi.spyOn(testPark, 'fetchScheduleForDate').mockImplementation(async () => {
         callCount++;
         return {
           json: async () => ({
             isParkClosed: true, // All days closed
             operatings: [],
           }),
-        };
-      };
+        } as any;
+      });
 
       const schedules = await testPark.buildSchedules();
 
       expect(schedules[0].schedule.length).toBe(0); // No schedule entries
       expect(callCount).toBeGreaterThan(0); // But API was called
-
-      testPark.fetchScheduleForDate = originalFetch;
     });
 
     it('should handle missing operating times', async () => {
-      const originalFetch = testPark.fetchScheduleForDate;
-      testPark.fetchScheduleForDate = async () => ({
+      vi.spyOn(testPark, 'fetchScheduleForDate').mockImplementation(async () => ({
         json: async () => ({
           isParkClosed: false,
           operatings: [
@@ -596,14 +561,12 @@ describe('AttractionsIOV3 Base Class', () => {
             },
           ],
         }),
-      });
+      } as any));
 
       const schedules = await testPark.buildSchedules();
 
       // Should skip entries with missing times
       expect(schedules[0].schedule.length).toBe(0);
-
-      testPark.fetchScheduleForDate = originalFetch;
     });
   });
 });
