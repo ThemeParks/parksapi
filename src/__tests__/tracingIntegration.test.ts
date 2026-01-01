@@ -105,7 +105,8 @@ describe('Tracing Integration', () => {
     );
 
     completeEvents.forEach(event => {
-      expect(event.duration).toBeGreaterThan(0);
+      // Duration can be 0 for very fast cache hits (< 1ms)
+      expect(event.duration).toBeGreaterThanOrEqual(0);
       expect(event.status).toBe(200);
       expect(event.method).toBe('GET');
     });
