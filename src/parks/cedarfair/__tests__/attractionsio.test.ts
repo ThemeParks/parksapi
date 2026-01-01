@@ -597,21 +597,37 @@ describe('Park Subclasses - Integration Tests', () => {
   parks.forEach(({name, Class, parkId, timezone}) => {
     describe(name, () => {
       it('should instantiate with correct configuration', () => {
-        const park = new Class();
+        // Provide mock config for secrets (realTimeBaseURL)
+        const park = new Class({
+          config: {
+            realTimeBaseURL: 'https://api.mock.test.com',
+          },
+        });
         expect(park.parkId).toBe(parkId);
         expect(park.timezone).toBe(timezone);
       });
 
       it('should generate unique cache key prefix', () => {
-        const park = new Class();
+        const park = new Class({
+          config: {
+            realTimeBaseURL: 'https://api.mock.test.com',
+          },
+        });
         const prefix = park.getCacheKeyPrefix();
         expect(prefix).toBe(`attractionsio:${parkId}`);
       });
 
       it('should have required configuration', () => {
-        const park = new Class();
+        // Provide mock config for secrets
+        const park = new Class({
+          config: {
+            realTimeBaseURL: 'https://api.mock.test.com',
+          },
+        });
 
-        expect(park.realTimeBaseURL).toBeTruthy();
+        // Verify secret config was applied from mock
+        expect(park.realTimeBaseURL).toBe('https://api.mock.test.com');
+        // Verify non-secret config was applied from park class defaults
         expect(park.parkId).toBeTruthy();
         expect(park.destinationId).toBeTruthy();
       });
@@ -619,8 +635,17 @@ describe('Park Subclasses - Integration Tests', () => {
   });
 
   it('should have unique cache keys for different parks', () => {
-    const cedarPoint = new CedarPoint();
-    const knotts = new KnottsBerryFarm();
+    // Provide mock config for secrets
+    const cedarPoint = new CedarPoint({
+      config: {
+        realTimeBaseURL: 'https://api.mock.test.com',
+      },
+    });
+    const knotts = new KnottsBerryFarm({
+      config: {
+        realTimeBaseURL: 'https://api.mock.test.com',
+      },
+    });
 
     const prefix1 = cedarPoint.getCacheKeyPrefix();
     const prefix2 = knotts.getCacheKeyPrefix();
