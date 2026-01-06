@@ -49,6 +49,45 @@ function getConfigValue(target: any, propertyKey: string): any {
     return undefined;
 }
 
+/**
+ * Get all config keys and their resolved values for a class instance
+ * @param instance Instance of a class decorated with @config
+ * @returns Map of config key names to their resolved values
+ */
+export function getConfigKeys(instance: any): Map<string, any> {
+    const result = new Map<string, any>();
+    const seenKeys = new Set<string>();
+
+    // Walk up the prototype chain to get config properties from all classes
+    let currentProto = instance.constructor;
+    while (currentProto) {
+        const properties = classPropertyMap[currentProto];
+        if (properties) {
+            // Iterate through all config properties and resolve their values
+            // Access through the instance to trigger the proxy getter and get the actual value
+            for (const propertyKey of Object.keys(properties)) {
+                // Only add if we haven't seen this key before (derived class takes precedence)
+                if (!seenKeys.has(propertyKey)) {
+                    seenKeys.add(propertyKey);
+                    const value = instance[propertyKey];
+                    // Include all values, even undefined, since they might be intentionally set
+                    result.set(propertyKey, value);
+                }
+            }
+        }
+
+        // Move up the prototype chain
+        currentProto = Object.getPrototypeOf(currentProto);
+
+        // Stop at Object.prototype
+        if (currentProto === Object || currentProto === Function.prototype) {
+            break;
+        }
+    }
+
+    return result;
+}
+
 export default function config(target: any, propertyKey?: string | symbol) {
     if (typeof propertyKey !== 'undefined') {
         // == Property decorator ==
