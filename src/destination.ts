@@ -1,7 +1,7 @@
 import {LiveData, Entity, EntitySchedule, LocalisedString, LanguageCode} from "@themeparks/typelib";
-import {trace} from "./tracing";
-import {reusable} from "./promiseReuse";
-import {enableProxySupport as enableProxySupportLib} from "./proxy";
+import {trace} from "./tracing.js";
+import {reusable} from "./promiseReuse.js";
+import {enableProxySupport as enableProxySupportLib} from "./proxy.js";
 
 export type DestinationConstructor = {
   config?: {[key: string]: string | string[]};

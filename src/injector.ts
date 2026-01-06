@@ -1,7 +1,8 @@
 // Injector decorator
 //  Functions can subscribe using sift.js syntax to events
 
-import sift from "sift";
+import siftImport from "sift";
+const sift = siftImport.default || siftImport;
 
 // Global registry of instances for 'global' broadcasts
 const globalInstances = new Set<any>();

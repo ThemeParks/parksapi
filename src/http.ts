@@ -3,13 +3,13 @@
 //  The HTTP library will then execute the request and return an HTTPResponse object
 
 import {createHash} from "crypto";
-import {CacheLib} from "./cache";
-import {broadcast} from "./injector";
-import {tracing} from "./tracing";
-import Ajv, {DefinedError} from "ajv";
-import {getBasicProxyUrl} from "./proxy";
-import {makeHttpRequest} from "./httpProxy";
-const ajv = new Ajv();
+import {CacheLib} from "./cache.js";
+import {broadcast} from "./injector.js";
+import {tracing} from "./tracing.js";
+import Ajv, {type DefinedError} from "ajv";
+import {getBasicProxyUrl} from "./proxy.js";
+import {makeHttpRequest} from "./httpProxy.js";
+const ajv = new Ajv.default();
 
 // OpenAPI-like parameter definition
 export type HTTPParameter = {
