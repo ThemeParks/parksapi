@@ -701,7 +701,7 @@ class Universal extends Destination {
               });
             }
 
-            if (queue.status === 'EXTENDED_CLOSURE') {
+            if (queue.status === 'EXTENDED_CLOSURE' || queue.status === 'COMING_SOON') {
               attractionLiveData.status = 'CLOSED';
             }
 
