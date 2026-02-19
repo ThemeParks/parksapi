@@ -160,29 +160,55 @@ export class SixFlags extends Destination {
       });
     }
 
-    // Extract park IDs and filter out water parks (showThemePark === false)
-    const parkIds = Object.entries(parkSettings)
+    // Extract theme parks (showThemePark === true)
+    const themeParkEntries = Object.entries(parkSettings)
       .filter(([, settings]) => {
         return settings.showThemePark === true;
-      })
-      .map(([parkId, settings]) => ({
-        parkId: parseInt(parkId),
-        code: settings.code,
-      }));
+      });
+
+    const parkIds = themeParkEntries.map(([parkId, settings]) => ({
+      parkId: parseInt(parkId),
+      code: settings.code,
+    }));
+
+    // Extract water parks from otherParks config
+    for (const [parentParkId, settings] of themeParkEntries) {
+      if (settings.otherParks) {
+        for (const otherPark of settings.otherParks) {
+          if (otherPark.label === 'Water Park' &amp;&amp; otherPark.fimsId &amp;&amp; otherPark.fimsSiteCode) {
+            parkIds.push({
+              parkId: parseInt(otherPark.fimsId),
+              code: otherPark.fimsSiteCode,
+              parentCode: settings.code,
+              parentParkId: parseInt(parentParkId),
+              waterParkName: otherPark.subProperty,
+            });
+          }
+        }
+      }
+    }
 
     // Fetch park names from venue status endpoint for parks not in oneShot
     const parks = await Promise.all(parkIds.map(async (park) => {
-      let name = parkNamesMap[park.parkId];
+      let name = park.waterParkName || parkNamesMap[park.parkId];
 
       // If not in oneShot config, try to fetch from venue status
       if (!name) {
         name = await this._fetchParkName(park.parkId);
       }
 
-      return {
-        ...park,
+      const result = {
+        parkId: park.parkId,
+        code: park.code,
         name,
       };
+
+      if (park.parentCode) {
+        result.parentCode = park.parentCode;
+        result.parentParkId = park.parentParkId;
+      }
+
+      return result;
     }));
 
     return parks;
@@ -336,6 +362,9 @@ export class SixFlags extends Destination {
 
     const destinations = [];
     for (const park of parks) {
+      // Water parks share their parent's destination, skip them
+      if (park.parentCode) continue;
+
       // Try to get location from venue status first
       let location = null;
       try {
@@ -448,11 +477,14 @@ export class SixFlags extends Destination {
         }
       }
 
+      // Water parks use their parent's destination
+      const destinationCode = park.parentCode || park.code;
+
       const entity = {
         ...this.buildBaseEntityObject(location ? {location} : null),
         _id: `sixflags_park_${park.code}`,
-        _destinationId: `sixflags_destination_${park.code}`,
-        _parentId: `sixflags_destination_${park.code}`,
+        _destinationId: `sixflags_destination_${destinationCode}`,
+        _parentId: `sixflags_destination_${destinationCode}`,
         name: park.name,
         entityType: entityType.park,
       };
@@ -476,14 +508,17 @@ export class SixFlags extends Destination {
 
     const attractionEntities = [];
     for (const park of parks) {
-      const poiData = await this.fetchPOI({parkID: park.parkId});
+      // Water park POIs are served through the parent park's endpoint
+      const poiParkId = park.parentParkId || park.parkId;
+      const poiData = await this.fetchPOI({parkID: poiParkId});
 
       if (!poiData || !Array.isArray(poiData)) {
         continue;
       }
 
-      // Get destination location for fallback
-      const destinationEntity = destinations.find(d => d._id === `sixflags_destination_${park.code}`);
+      // Water parks use their parent's destination for fallback location
+      const destinationCode = park.parentCode || park.code;
+      const destinationEntity = destinations.find(d => d._id === `sixflags_destination_${destinationCode}`);
 
       // Filter for rides (venueId: 1) and ensure they belong to this park
       const rides = poiData.filter(poi => poi.venueId === 1 &amp;&amp; poi.parkId === park.parkId);
@@ -494,7 +529,7 @@ export class SixFlags extends Destination {
           _id: attraction.fimsId,
           _parkId: `sixflags_park_${park.code}`,
           _parentId: `sixflags_park_${park.code}`,
-          _destinationId: `sixflags_destination_${park.code}`,
+          _destinationId: `sixflags_destination_${destinationCode}`,
           entityType: entityType.attraction,
           attractionType: attractionType.ride,
         };
@@ -520,14 +555,17 @@ export class SixFlags extends Destination {
 
     const showEntities = [];
     for (const park of parks) {
-      const poiData = await this.fetchPOI({parkID: park.parkId});
+      // Water park POIs are served through the parent park's endpoint
+      const poiParkId = park.parentParkId || park.parkId;
+      const poiData = await this.fetchPOI({parkID: poiParkId});
 
       if (!poiData || !Array.isArray(poiData)) {
         continue;
       }
 
-      // Get destination location for fallback
-      const destinationEntity = destinations.find(d => d._id === `sixflags_destination_${park.code}`);
+      // Water parks use their parent's destination for fallback location
+      const destinationCode = park.parentCode || park.code;
+      const destinationEntity = destinations.find(d => d._id === `sixflags_destination_${destinationCode}`);
 
       // Filter for shows (venueId: 2) and ensure they belong to this park
       const shows = poiData.filter(poi => poi.venueId === 2 &amp;&amp; poi.parkId === park.parkId);
@@ -538,7 +576,7 @@ export class SixFlags extends Destination {
           _id: show.fimsId,
           _parkId: `sixflags_park_${park.code}`,
           _parentId: `sixflags_park_${park.code}`,
-          _destinationId: `sixflags_destination_${park.code}`,
+          _destinationId: `sixflags_destination_${destinationCode}`,
           entityType: entityType.show,
         };
 
@@ -563,14 +601,17 @@ export class SixFlags extends Destination {
 
     const restaurantEntities = [];
     for (const park of parks) {
-      const poiData = await this.fetchPOI({parkID: park.parkId});
+      // Water park POIs are served through the parent park's endpoint
+      const poiParkId = park.parentParkId || park.parkId;
+      const poiData = await this.fetchPOI({parkID: poiParkId});
 
       if (!poiData || !Array.isArray(poiData)) {
         continue;
       }
 
-      // Get destination location for fallback
-      const destinationEntity = destinations.find(d => d._id === `sixflags_destination_${park.code}`);
+      // Water parks use their parent's destination for fallback location
+      const destinationCode = park.parentCode || park.code;
+      const destinationEntity = destinations.find(d => d._id === `sixflags_destination_${destinationCode}`);
 
       // Filter for restaurants (venueId: 4) and ensure they belong to this park
       const restaurants = poiData.filter(poi => poi.venueId === 4 &amp;&amp; poi.parkId === park.parkId);
@@ -581,7 +622,7 @@ export class SixFlags extends Destination {
           _id: restaurant.fimsId,
           _parkId: `sixflags_park_${park.code}`,
           _parentId: `sixflags_park_${park.code}`,
-          _destinationId: `sixflags_destination_${park.code}`,
+          _destinationId: `sixflags_destination_${destinationCode}`,
           entityType: entityType.restaurant,
         };
 
@@ -855,8 +896,9 @@ export class SixFlags extends Destination {
           return null;
         }
 
-        // Find rides venue to determine park hours
-        const ridesVenue = dateObj.venues?.find(v => v.venueId === 1);
+        // Find rides venue to determine park hours, fall back to any venue with hours
+        const ridesVenue = dateObj.venues?.find(v => v.venueId === 1 &amp;&amp; v.detailHours?.length > 0)
+          || dateObj.venues?.find(v => v.detailHours?.length > 0);
         if (!ridesVenue || !ridesVenue.detailHours || ridesVenue.detailHours.length === 0) {
           return null;
         }
@@ -907,7 +949,7 @@ export class SixFlags extends Destination {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Wed Feb 04 2026 22:01:21 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Thu Feb 19 2026 22:47:59 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
