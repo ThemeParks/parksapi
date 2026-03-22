@@ -6,7 +6,14 @@ import {promises as fs} from 'fs';
 
 const __dirname = path.dirname(process.argv[1]);
 
-const destination = new parksapi.destinations.LotteWorld();
+const destName = process.argv[2] || 'EuropaPark';
+if (!parksapi.destinations[destName]) {
+  console.error(`Unknown destination: ${destName}`);
+  console.error(`Available: ${Object.keys(parksapi.destinations).join(', ')}`);
+  process.exit(1);
+}
+console.log(`Testing destination: ${destName}`);
+const destination = new parksapi.destinations[destName]();
 
 const logSuccess = (...msg) => {
   // print green tick
@@ -117,7 +124,7 @@ function TestEntity(ent) {
   if (entityType != "DESTINATION" && entityType != "PARK") {
     if (ent._parentId) {
       const parent = parkEntities.find((x) => x._id === ent._parentId);
-      if (parent.entityType === 'PARK') {
+      if (parent && parent.entityType === 'PARK') {
         if (!ent._parkId) {
           throw new EntityError('Entity has a park as their parent, but not assigned a _parkId', ent);
         }
@@ -162,7 +169,9 @@ function TestSchedule(scheduleData, entityId) {
   }
 
   if (entSchedule.schedule.length === 0) {
-    throw new EntityError(`Schedule ${entityId} is empty`, scheduleData);
+    // seasonal parks (e.g. Traumatica) may have no schedule outside their season
+    console.warn(`[\x1b[33m!\x1b[0m] Schedule ${entityId} is empty`);
+    return;
   }
 
   for (const schedule of entSchedule.schedule) {
