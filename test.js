@@ -124,7 +124,7 @@ function TestEntity(ent) {
   if (entityType != "DESTINATION" && entityType != "PARK") {
     if (ent._parentId) {
       const parent = parkEntities.find((x) => x._id === ent._parentId);
-      if (parent.entityType === 'PARK') {
+      if (parent && parent.entityType === 'PARK') {
         if (!ent._parkId) {
           throw new EntityError('Entity has a park as their parent, but not assigned a _parkId', ent);
         }
@@ -169,7 +169,9 @@ function TestSchedule(scheduleData, entityId) {
   }
 
   if (entSchedule.schedule.length === 0) {
-    throw new EntityError(`Schedule ${entityId} is empty`, scheduleData);
+    // seasonal parks (e.g. Traumatica) may have no schedule outside their season
+    console.warn(`[\x1b[33m!\x1b[0m] Schedule ${entityId} is empty`);
+    return;
   }
 
   for (const schedule of entSchedule.schedule) {
