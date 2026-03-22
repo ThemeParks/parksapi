@@ -262,6 +262,46 @@ async function TestDestination() {
     logSuccess(`No entity slugs are duplicated`);
   }
 
+  // Check for entities with locations more than 10 miles from their destination
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 3959; // Earth's radius in miles
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  let locationErrors = 0;
+  for (const ent of allEntities) {
+    if (ent.entityType === 'DESTINATION') continue;
+
+    // Find the destination for this entity
+    const dest = destinations.find(d => d._id === ent._destinationId);
+    if (!dest) continue;
+
+    if (ent.location && dest.location) {
+      const distance = calculateDistance(
+        ent.location.latitude,
+        ent.location.longitude,
+        dest.location.latitude,
+        dest.location.longitude
+      );
+
+      if (distance > 10) {
+        logError(`Entity ${ent._id} (${ent.name}) is ${distance.toFixed(2)} miles from destination ${dest._id} (${dest.name})`);
+        locationErrors++;
+      }
+    }
+  }
+  if (locationErrors === 0) {
+    logSuccess('All entities are within 10 miles of their destination');
+  } else {
+    logError(`${locationErrors} entities are more than 10 miles from their destination`);
+  }
+
   // sort entities by _id
   allEntities.sort((a, b) => a._id.localeCompare(b._id));
 
