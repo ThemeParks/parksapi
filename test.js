@@ -6,7 +6,14 @@ import {promises as fs} from 'fs';
 
 const __dirname = path.dirname(process.argv[1]);
 
-const destination = new parksapi.destinations.LotteWorld();
+const destName = process.argv[2] || 'EuropaPark';
+if (!parksapi.destinations[destName]) {
+  console.error(`Unknown destination: ${destName}`);
+  console.error(`Available: ${Object.keys(parksapi.destinations).join(', ')}`);
+  process.exit(1);
+}
+console.log(`Testing destination: ${destName}`);
+const destination = new parksapi.destinations[destName]();
 
 const logSuccess = (...msg) => {
   // print green tick
