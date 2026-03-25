@@ -1,7 +1,10 @@
-import {LiveData, Entity, EntitySchedule, LocalisedString, LanguageCode} from "@themeparks/typelib";
+import {LiveData, Entity, EntitySchedule, LocalisedString, LanguageCode, LiveQueue, ReturnTimeState, BoardingGroupState} from "@themeparks/typelib";
 import {trace} from "./tracing.js";
 import {reusable} from "./promiseReuse.js";
 import {enableProxySupport as enableProxySupportLib} from "./proxy.js";
+import {VQueueBuilder} from "./virtualQueue/builder.js";
+import {calculateReturnWindow} from "./virtualQueue/timeWindows.js";
+import {formatInTimezone} from "./datetime.js";
 
 export type DestinationConstructor = {
   config?: {[key: string]: string | string[]};
@@ -70,6 +73,14 @@ export abstract class Destination {
    * @default 'en'
    */
   language: LanguageCode = 'en';
+
+  /**
+   * Timezone for this destination.
+   * Subclasses should override this with the park's local timezone.
+   * Used by virtual queue helpers to format dates in the park's timezone.
+   * @default 'UTC'
+   */
+  timezone: string = 'UTC';
 
   /**
    * Optional cache key prefix for all cached methods.
@@ -414,6 +425,172 @@ export abstract class Destination {
     const values = Object.values(value) as (string | undefined)[];
     const firstValue = values.find(v => v !== undefined);
     return firstValue || '';
+  }
+
+  /**
+   * Helper to build return time queue data
+   *
+   * Constructs a RETURN_TIME queue object with proper formatting.
+   * Automatically formats dates in the destination's timezone.
+   *
+   * @param state Queue state (AVAILABLE, TEMP_FULL, or FINISHED)
+   * @param returnStart Start time of return window (Date or ISO string)
+   * @param returnEnd End time of return window (Date or ISO string)
+   * @returns Return time queue object
+   *
+   * @example
+   * ```typescript
+   * // In buildLiveData()
+   * liveData.queue!.RETURN_TIME = this.buildReturnTimeQueue(
+   *   'AVAILABLE',
+   *   new Date('2024-10-15T14:30:00'),
+   *   new Date('2024-10-15T14:45:00')
+   * );
+   * ```
+   */
+  protected buildReturnTimeQueue(
+    state: ReturnTimeState,
+    returnStart: string | Date | null,
+    returnEnd: string | Date | null
+  ): NonNullable<LiveQueue['RETURN_TIME']> {
+    return VQueueBuilder.returnTime()
+      .state(state)
+      .withWindow(
+        returnStart ? this.formatDateInTimezone(returnStart) : null,
+        returnEnd ? this.formatDateInTimezone(returnEnd) : null
+      )
+      .build();
+  }
+
+  /**
+   * Helper to build paid return time queue data
+   *
+   * Constructs a PAID_RETURN_TIME queue object with pricing information.
+   * Automatically formats dates in the destination's timezone.
+   *
+   * @param state Queue state (AVAILABLE, TEMP_FULL, or FINISHED)
+   * @param returnStart Start time of return window (Date or ISO string)
+   * @param returnEnd End time of return window (Date or ISO string)
+   * @param currency Currency code (e.g., 'USD', 'EUR')
+   * @param amountCents Price in cents (e.g., 1500 for $15.00)
+   * @returns Paid return time queue object
+   *
+   * @example
+   * ```typescript
+   * // In buildLiveData() for Lightning Lane/Express Pass
+   * liveData.queue!.PAID_RETURN_TIME = this.buildPaidReturnTimeQueue(
+   *   'AVAILABLE',
+   *   new Date('2024-10-15T14:30:00'),
+   *   null,
+   *   'USD',
+   *   1500
+   * );
+   * ```
+   */
+  protected buildPaidReturnTimeQueue(
+    state: ReturnTimeState,
+    returnStart: string | Date | null,
+    returnEnd: string | Date | null,
+    currency: string,
+    amountCents: number | null
+  ): NonNullable<LiveQueue['PAID_RETURN_TIME']> {
+    return VQueueBuilder.paidReturnTime()
+      .state(state)
+      .withWindow(
+        returnStart ? this.formatDateInTimezone(returnStart) : null,
+        returnEnd ? this.formatDateInTimezone(returnEnd) : null
+      )
+      .withPrice(currency, amountCents)
+      .build();
+  }
+
+  /**
+   * Helper to build boarding group queue data
+   *
+   * Constructs a BOARDING_GROUP queue object with allocation information.
+   * Automatically formats dates in the destination's timezone.
+   *
+   * @param status Boarding group status (AVAILABLE, PAUSED, or CLOSED)
+   * @param options Additional boarding group information
+   * @returns Boarding group queue object
+   *
+   * @example
+   * ```typescript
+   * // In buildLiveData() for Rise of the Resistance
+   * liveData.queue!.BOARDING_GROUP = this.buildBoardingGroupQueue('AVAILABLE', {
+   *   currentGroupStart: 45,
+   *   currentGroupEnd: 60,
+   *   estimatedWait: 30
+   * });
+   * ```
+   */
+  protected buildBoardingGroupQueue(
+    status: BoardingGroupState,
+    options?: {
+      currentGroupStart?: number | null;
+      currentGroupEnd?: number | null;
+      nextAllocationTime?: string | Date | null;
+      estimatedWait?: number | null;
+    }
+  ): NonNullable<LiveQueue['BOARDING_GROUP']> {
+    const builder = VQueueBuilder.boardingGroup().status(status);
+
+    if (options?.currentGroupStart !== undefined && options?.currentGroupEnd !== undefined) {
+      builder.currentGroups(options.currentGroupStart, options.currentGroupEnd);
+    }
+    if (options?.nextAllocationTime) {
+      builder.nextAllocationTime(this.formatDateInTimezone(options.nextAllocationTime));
+    }
+    if (options?.estimatedWait !== undefined) {
+      builder.estimatedWait(options.estimatedWait);
+    }
+
+    return builder.build();
+  }
+
+  /**
+   * Calculate return window based on current wait time
+   *
+   * Common pattern for parks like Efteling where virtual queue window
+   * is calculated as: now + waitTime to now + waitTime + windowDuration
+   *
+   * @param waitMinutes Wait time in minutes to add to base time
+   * @param options Optional configuration
+   * @returns Object with formatted start and end times
+   *
+   * @example
+   * ```typescript
+   * // In buildLiveData() for calculated return windows
+   * const window = this.calculateReturnWindow(45, { windowMinutes: 15 });
+   * liveData.queue!.RETURN_TIME = this.buildReturnTimeQueue(
+   *   'AVAILABLE',
+   *   window.start,
+   *   window.end
+   * );
+   * ```
+   */
+  protected calculateReturnWindow(
+    waitMinutes: number,
+    options?: {
+      baseTime?: Date;
+      windowMinutes?: number;
+    }
+  ): { start: string; end: string } {
+    return calculateReturnWindow({
+      baseTime: options?.baseTime || new Date(),
+      waitMinutes,
+      windowDurationMinutes: options?.windowMinutes || 15,
+      timezone: this.timezone,
+    });
+  }
+
+  /**
+   * Format date in park's timezone for virtual queue times
+   * @private
+   */
+  private formatDateInTimezone(date: string | Date): string {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return formatInTimezone(dateObj, this.timezone, 'iso');
   }
 
   /**

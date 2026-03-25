@@ -5,12 +5,16 @@ This document tracks the migration of legacy JavaScript park implementations to 
 ## Current Status
 
 **✅ Completed (TypeScript in `src/`):**
-- Core libraries: cache, config, http, injector, datetime (fully tested, 85-100% coverage)
+- Core libraries: cache, config, http, injector, datetime, proxy (fully tested, 85-100% coverage)
 - Base classes: Destination (Template Method Pattern with auto-hierarchy resolution)
-- Helper utilities: Entity mapper, hierarchy resolver
+- Helper utilities: Entity mapper, hierarchy resolver, tag validation, multi-language support
 - Parks: Universal Studios Orlando & Hollywood (complete, 834 lines)
-- Tests: 222 tests total, 88.84% overall coverage
+- Tests: 455 tests total, high coverage across all modules
 - Tracing: Full HTTP tracing with AsyncLocalStorage context propagation
+- Proxy support: CrawlBase, Scrapfly, basic HTTP(S) proxy with global/per-destination config
+- HTTP: Unified `node:http`/`node:https` implementation for all requests (consistent with/without proxy)
+- Injector: Priority-based execution, multiple transformers per event, sequential/parallel execution
+- Multi-language: LocalisedString type, intelligent fallback logic, 11 supported languages
 
 **🔄 Legacy (JavaScript in `lib/parks/`):**
 - 50+ park implementations
@@ -21,29 +25,8 @@ This document tracks the migration of legacy JavaScript park implementations to 
 
 ## Missing Core Features in TypeScript
 
-### 1. Database Class (`lib/parks/database.js`)
-**Status:** Partially implemented in TS
-
-**Features:**
-- Singleton pattern via `static get()` method
-- Scoped cache with version support (`cacheVersion` config)
-- Entity filtering via `getEntities(filter)` and `findEntity(filter)`
-- ✅ Promise reuse via `reusePromise` and `reusePromiseForever` - **Implemented as @reusable decorator!**
-- `_init()` lifecycle hook
-- HTTP domain injection with logging
-
-**TS Equivalent:**
-- We have basic caching but no Database abstraction
-- ✅ Promise reuse pattern implemented as `@reusable()` decorator (`src/promiseReuse.ts`)
-- No lifecycle hooks beyond constructor
-
-**Action Items:**
-- [ ] Evaluate if Database class is needed or if Destination suffices
-- [x] ~~Implement promise reuse utilities if beneficial~~ - **DONE!** Use `@reusable()` decorator
-- [x] ~~Add lifecycle hooks (`_init()`, `_cleanup()`) to Destination~~ - **DONE!** `init()` method with `@reusable({forever: true})` added, calls `_init()` hook
-
-### 2. Tag Validation System (`lib/parks/tags.js`)
-**Status:** Not implemented in TS
+### 1. Tag Validation System (`lib/parks/tags.js`)
+**Status:** ✅ Implemented in TS (`src/tags/`)
 
 **Features:**
 - Tag validators for different tag types (location, height restrictions, etc.)
@@ -52,64 +35,51 @@ This document tracks the migration of legacy JavaScript park implementations to 
 - Tag validation: `isValidTag()`, `isValidTagType()`, `getValidTagObject()`
 
 **TS Equivalent:**
-- Types exist in `@themeparks/typelib` but no validation
+- ✅ Full TypeScript implementation with `TagBuilder` class
+- ✅ Type-safe tag creation with static methods
+- ✅ Runtime validation with helpful error messages
+- ✅ 405 comprehensive tests, 100% coverage
+- ✅ Compatible with `@themeparks/typelib` TagData interface
 
 **Action Items:**
-- [ ] Port tag validation system to TypeScript
-- [ ] Add to Entity mapper helpers
-- [ ] Create decorators for automatic tag validation
-- [ ] Add tag type guards (TypeScript type narrowing)
+- [x] Port tag validation system to TypeScript
+- [x] Add to Entity mapper helpers
+- [ ] ~~Create decorators for automatic tag validation~~ (not needed - TagBuilder is sufficient)
+- [x] Add tag type guards (TypeScript type narrowing)
 
-### 3. Global Proxy Injection (`lib/parks/globalinjections.js`)
-**Status:** Not implemented in TS
+### 2. Global Proxy Injection (`lib/parks/globalinjections.js`)
+**Status:** ✅ Implemented in TS (`src/proxy.ts`, `src/httpProxy.ts`)
 
 **Features:**
 - CrawlBase proxy support
 - Scrapfly proxy support
-- Basic HTTP(S) proxy support
+- Basic HTTP(S) proxy support (using Node.js 24+ built-in proxy)
 - Environment variable driven configuration
 - Response transformation for proxy responses
+- Global and per-destination configuration
+- Automatic detection on first destination instantiation
 
 **TS Equivalent:**
-- None
+- ✅ Full TypeScript implementation with `ProxyInjector` singleton
+- ✅ Integration with `@inject` decorator system
+- ✅ Custom HTTP client using `node:http`/`node:https` for basic proxy
+- ✅ 25 comprehensive tests, 100% coverage
 
 **Action Items:**
-- [ ] Port proxy injection system to TypeScript
-- [ ] Add to HTTP library as optional middleware
-- [ ] Support env vars: `{PREFIX}_CRAWLBASE`, `{PREFIX}_SCRAPFLY`, `{PREFIX}_BASICPROXY`
-- [ ] Add response unwrapping for proxy responses
+- [x] Port proxy injection system to TypeScript
+- [x] Add to HTTP library as optional middleware
+- [x] Support env vars: `{PREFIX}_CRAWLBASE`, `{PREFIX}_SCRAPFLY`, `{PREFIX}_BASICPROXY`
+- [x] Add response unwrapping for proxy responses
+- [x] Add global configuration support via `GLOBAL_*` env vars
 
-### 4. Cache Decorators with String Syntax (`'@cache|60'`)
-**Status:** Partially implemented
-
-**Legacy Pattern:**
-```javascript
-async fetchData() {
-  '@cache|60'; // cache for 60 minutes
-  return data;
-}
-```
-
-**TS Equivalent:**
-```typescript
-@cache({ttlSeconds: 60 * 60})
-async fetchData() {
-  return data;
-}
-```
-
-**Action Items:**
-- [x] TS decorator-based caching works (already implemented)
-- [ ] Consider adding string syntax parser for easier migration (optional)
-
-### 5. Schedule Data Helpers (`lib/parks/scheduledata.js`)
+### 3. Schedule Data Helpers (`lib/parks/scheduledata.js`)
 **Status:** Not reviewed yet
 
 **Action Items:**
 - [ ] Review `scheduledata.js` for utility functions
 - [ ] Port any reusable schedule parsing/formatting utilities
 
-### 6. Sieve/Mingo Query Support
+### 4. Sieve/Mingo Query Support
 **Status:** Different library used
 
 **Legacy:** Uses `mingo` for MongoDB-style queries
@@ -120,32 +90,6 @@ async fetchData() {
 ---
 
 ## Park-Specific Patterns & Features
-
-### Disney Parks (WDW, DLP, TDR, SHDR)
-
-**File:** `lib/parks/wdw/waltdisneyworldbase.js` (+ database files)
-
-**Key Features:**
-- Virtual queue support (boarding groups)
-- Genie+ integration
-- Real-time live status updates via channels (`getFacilityStatusChannelID()`)
-- Complex entity relationship handling
-- Dedicated WDW database class (`wdwdb.js`, `wdwdatabase.js`)
-- Override data for shows (`override_shows.js`)
-- Soft delete support for entities
-- Culture/language filtering
-
-**Complexity:** High - Uses custom database, real-time channels, complex API
-
-**Action Items:**
-- [ ] Review WDW database architecture
-- [ ] Understand real-time channel system
-- [ ] Port virtual queue support to TS base class
-- [ ] Port Genie+ integration
-- [ ] Migrate WDW base class
-- [ ] Migrate DLP (Disneyland Paris)
-- [ ] Migrate TDR (Tokyo Disney Resort)
-- [ ] Migrate SHDR (Shanghai Disney Resort)
 
 ### Universal Parks
 
@@ -295,19 +239,29 @@ async fetchData() {
 - [ ] Create query helpers for traversing relationships
 
 ### 2. Multi-Language Support
+**Status:** ✅ Fully implemented
+
 **Description:** Systematic support for multiple languages
 
 **Features:**
-- Language-aware entity names
-- Fallback to English when native language unavailable
-- Language preference in API requests
+- ✅ Language-aware entity names (`LocalisedString` type)
+- ✅ Fallback to English when native language unavailable
+- ✅ Language preference via config (`language` property)
+- ✅ Intelligent fallback logic (exact → base language → fallback → first available)
+- ✅ Support for 11 languages (en, en-gb, en-us, de, fr, es, it, nl, ja, ko, zh)
 
 **Seen In:** Efteling, Disney parks
 
+**Implementation:**
+- Entity.name can be string or `Record<LanguageCode, string>`
+- `getLocalizedString()` helper method in Destination base class
+- `language` config property (defaults to 'en', configurable via `{PREFIX}_LANGUAGE`)
+- 22 comprehensive tests (18 localization, 4 mapEntities multi-language), 100% coverage
+
 **Action Items:**
-- [ ] Design multi-language Entity structure
-- [ ] Add language config to Destination base
-- [ ] Create language fallback helpers
+- [x] Design multi-language Entity structure - **DONE** (`LocalisedString` type in typelib)
+- [x] Add language config to Destination base - **DONE** (`language` property with `@config`)
+- [x] Create language fallback helpers - **DONE** (`getLocalizedString()` method)
 
 ### 3. Virtual Queue Framework
 **Description:** Unified virtual queue/boarding group system
@@ -362,10 +316,27 @@ async fetchData() {
 
 **Seen In:** Six Flags, global injections
 
+**Status:** ✅ Fully implemented
+- ✅ Scrapfly response unwrapping implemented in proxy system
+- ✅ Uses `@inject` with `httpResponse` event for transformations
+- ✅ Multiple transformers per event with priority ordering
+- ✅ Sequential execution by priority, parallel within same priority
+
 **Action Items:**
-- [ ] Add response transformation to HTTP decorator
-- [ ] Support chaining multiple transformers
-- [ ] Add to injector system
+- [x] Add response transformation to HTTP decorator - **DONE** (via @inject)
+- [x] Support chaining multiple transformers - **DONE** (priority-based ordering)
+- [x] Add to injector system - **DONE** (Scrapfly unwrapping uses this)
+
+**Example:**
+```typescript
+class MyPark extends Destination {
+  @inject({ eventName: 'httpResponse', priority: 1 })
+  async unwrapProxy(req: HTTPObj) { /* ... */ }
+
+  @inject({ eventName: 'httpResponse', priority: 5 })
+  async normalizeData(req: HTTPObj) { /* ... */ }
+}
+```
 
 ### 7. Retry Strategies
 **Description:** Configurable retry logic for different failure types
@@ -375,12 +346,16 @@ async fetchData() {
 - Conditional retries (only on certain errors)
 - Circuit breaker pattern
 
-**Current:** Basic retry with exponential backoff exists
+**Current:**
+- ✅ Exponential backoff with jitter implemented
+- ✅ Configurable retry count per request
+- ✅ Retry tracking in trace events
+- ⚠️ No conditional retries or circuit breaker yet
 
 **Action Items:**
-- [ ] Add conditional retry logic
-- [ ] Implement circuit breaker
-- [ ] Add retry statistics to tracing
+- [ ] Add conditional retry logic (e.g., only retry on 5xx errors)
+- [ ] Implement circuit breaker pattern
+- [x] Add retry statistics to tracing - **DONE** (retryCount in trace events)
 
 ### 8. Rate Limiting
 **Description:** Per-domain and per-park rate limiting
@@ -417,10 +392,10 @@ async fetchData() {
 ## Testing Priorities
 
 ### Unit Tests Needed
-- [ ] Tag validation system
+- [x] ~~Tag validation system~~ - **DONE!** (405 tests, 100% coverage)
 - [ ] Proxy injection system
 - [ ] Virtual queue helpers
-- [ ] Multi-language fallback logic
+- [x] ~~Multi-language fallback logic~~ - **DONE!** (22 tests, 100% coverage)
 - [ ] APK version detection
 - [ ] Rate limiting
 
@@ -443,55 +418,40 @@ Per park migration:
 ## Migration Priority Order
 
 ### Phase 1: Core Framework Enhancements
-1. [ ] Tag validation system
-2. [ ] Virtual queue framework
-3. [ ] Multi-language support helpers
-4. [ ] Proxy injection system
-5. [ ] Promise reuse utilities (if needed)
+1. [x] Tag validation system - **DONE!** (`src/tags/`, 405 tests, 100% coverage)
+2. [x] Proxy injection system - **DONE!** (`src/proxy.ts`, 25 tests, 100% coverage)
+3. [x] Promise reuse utilities - **DONE!** (`@reusable()` decorator)
+4. [x] Multi-language support helpers - **DONE!** (`src/destination.ts`, 22 tests, 100% coverage)
+5. [ ] Virtual queue framework
 
 ### Phase 2: Major Destinations
-6. [ ] Walt Disney World (high complexity)
-7. [ ] Disneyland Paris
-8. [ ] Tokyo Disney Resort
-9. [ ] Shanghai Disney Resort
-10. [ ] Six Flags framework
-11. [ ] SeaWorld / Busch Gardens framework
-12. [ ] Attractions.io v3 framework
+6. [ ] Six Flags framework
+7. [ ] SeaWorld / Busch Gardens framework
+8. [ ] Attractions.io v3 framework
 
 ### Phase 3: European Parks
-13. [ ] Efteling
-14. [ ] Europa Park
-15. [ ] Parc Astérix
-16. [ ] PortAventura
-17. [ ] Phantasialand
-18. [ ] Other smaller European parks (Liseberg, Toverland, etc.)
+9. [ ] Efteling
+10. [ ] Europa Park
+11. [ ] Parc Astérix
+12. [ ] PortAventura
+13. [ ] Phantasialand
+14. [ ] Other smaller European parks (Liseberg, Toverland, etc.)
 
 ### Phase 4: Asian Parks
-19. [ ] Everland
-20. [ ] Lotte World
-21. [ ] Chimelong
+15. [ ] Everland
+16. [ ] Lotte World
+17. [ ] Chimelong
 
 ### Phase 5: Regional Parks
-22. [ ] Herschend parks (Dollywood, Silver Dollar City)
-23. [ ] Hersheypark
-24. [ ] All Attractions.io-based parks
+18. [ ] Herschend parks (Dollywood, Silver Dollar City)
+19. [ ] Hersheypark
+20. [ ] All Attractions.io-based parks
 
 ---
 
 ## Architecture Decisions to Make
 
-### 1. Database Class vs Destination Class
-**Question:** Do we need a separate Database abstraction?
-
-**Options:**
-- Keep everything in Destination (current approach)
-- Create Database class for parks with complex data requirements (WDW, Europa Park)
-
-**Considerations:**
-- Destination works well for simple parks
-- WDW has very complex database needs (may justify separate class)
-
-### 2. Cache Strategies
+### 1. Cache Strategies
 **Question:** Should we support multiple cache backends?
 
 **Current:** SQLite only
@@ -500,22 +460,22 @@ Per park migration:
 
 **Recommendation:** Keep SQLite, add Redis option for multi-instance deployments
 
-### 3. Real-Time Updates
-**Question:** How to handle live status updates (Disney channels)?
+### 2. Real-Time Updates
+**Question:** How to handle live status updates?
 
 **Options:**
 - Polling (current approach)
 - WebSocket connections
 - Server-Sent Events (SSE)
 
-**Recommendation:** Start with polling, add SSE for Disney parks
+**Recommendation:** Start with polling, add SSE/WebSocket support as needed
 
-### 4. Configuration Management
+### 3. Configuration Management
 **Question:** How to handle park-specific overrides?
 
 **Current:** Config decorator with env vars
 
-**Consideration:** Some parks need JSON config files (override_shows.js for WDW)
+**Consideration:** Some parks may need JSON config files for complex static data
 
 **Recommendation:** Support both env vars and config files
 
@@ -527,8 +487,8 @@ Per park migration:
 - [ ] Pattern library for common park implementations
 - [ ] API mapping documentation (which parks use which APIs)
 - [ ] Virtual queue system documentation
-- [ ] Multi-language support guide
-- [ ] Proxy configuration guide
+- [x] ~~Multi-language support guide~~ - **DONE!** (documented in CLAUDE.md)
+- [x] ~~Proxy configuration guide~~ - **DONE!** (documented in CLAUDE.md)
 - [ ] Cache strategy guide
 - [ ] Testing checklist for new parks
 
@@ -572,7 +532,5 @@ Create a matrix documenting which parks use which APIs:
 **Total Parks in Legacy:** ~50+
 **Total Parks in TypeScript:** 2 (Universal Orlando, Universal Hollywood)
 **Estimated Migration Effort:** 6-12 months for full migration
-
-**Key Blocker:** Disney parks require understanding of real-time channel system and complex database architecture
 
 **Quick Wins:** Attractions.io-based parks (can migrate many at once with base class), Six Flags, SeaWorld

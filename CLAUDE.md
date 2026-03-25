@@ -206,6 +206,35 @@ async injectAuth(requestObj: HTTPObj) {
 }
 ```
 
+**Multiple Injectors & Priority:** Use multiple `@inject` methods on the same event with priority ordering:
+
+```typescript
+class MyTransformer {
+  // Priority 1 runs first (lower number = higher priority)
+  @inject({ eventName: 'httpResponse', priority: 1 })
+  async unwrapResponse(req: HTTPObj) {
+    // Unwrap proxy response first
+  }
+
+  // Priority 5 runs second
+  @inject({ eventName: 'httpResponse', priority: 5 })
+  async normalizeData(req: HTTPObj) {
+    // Normalize data structure
+  }
+
+  // No priority = 0 (runs before priority 1)
+  @inject({ eventName: 'httpResponse' })
+  async logResponse(req: HTTPObj) {
+    // Log the response
+  }
+}
+```
+
+**Execution Order:**
+- Injectors with same priority run in parallel
+- Different priorities run sequentially (lower number first)
+- Default priority is 0
+
 **Scopes:** `broadcast('global', event, args)` or `broadcast(instance, event, args)`
 
 #### 5. **@reusable** (`src/promiseReuse.ts`)
@@ -486,6 +515,305 @@ Using standard helpers ensures consistent IDs across all parks, making it easy t
 **Adding New Tags:**
 See `src/tags/TAG_DEVELOPMENT_GUIDE.md` for step-by-step instructions. Use decorators (`@simpleTag`, `@complexTag`, `@locationHelper`) to automatically register tag methods - no manual mapping needed! The completeness tests will automatically verify you've implemented everything correctly.
 
+#### **Multi-Language Support** (`src/destination.ts`)
+Entity names can be either simple strings (most parks) or multi-language objects (Disney, European parks, etc.).
+
+**Supported Languages:**
+- `en`, `en-gb`, `en-us` (English variants)
+- `de` (German), `fr` (French), `es` (Spanish), `it` (Italian)
+- `nl` (Dutch), `ja` (Japanese), `ko` (Korean), `zh` (Chinese)
+
+**Type System:**
+```typescript
+import {LocalisedString, LanguageCode} from '@themeparks/typelib';
+
+// Entity.name can be either:
+type EntityName = string | Record<LanguageCode, string>;
+
+// Examples:
+entity.name = "Space Mountain";  // Simple string (most parks)
+entity.name = { en: "Space Mountain", fr: "Space Mountain" };  // Multi-language
+```
+
+**Using Multi-Language Names:**
+
+1. **Simple case (most parks)** - Use string directly:
+```typescript
+return this.mapEntities(rides, {
+  nameField: 'name',  // API returns "Space Mountain"
+  // ...
+});
+```
+
+2. **Multi-language from API** - Build language object:
+```typescript
+return this.mapEntities(rides, {
+  idField: 'id',
+  nameField: (item) => ({
+    en: item.name_en,
+    nl: item.name_nl,
+    de: item.name_de,
+  }),
+  // ...
+});
+```
+
+3. **All languages in one response** - Extract from translations:
+```typescript
+protected async buildEntityList(): Promise<Entity[]> {
+  const data = await this.fetchPOI(); // Returns all languages
+
+  return this.mapEntities(data, {
+    idField: 'id',
+    nameField: (item) => ({
+      en: item.translations.en.name,
+      fr: item.translations.fr.name,
+      nl: item.translations.nl.name,
+    }),
+    // ...
+  });
+}
+```
+
+**Getting Localized Values:**
+
+The `getLocalizedString()` helper provides intelligent fallback logic:
+
+```typescript
+protected getLocalizedString(
+  value: LocalisedString,
+  language?: LanguageCode,
+  fallbackLanguage: LanguageCode = 'en'
+): string
+```
+
+**Fallback logic:**
+1. Try exact match (e.g., `en-gb`)
+2. Try base language (e.g., `en-gb` → `en`)
+3. Try fallback language (default: `en`)
+4. Return first available language
+
+**Examples:**
+```typescript
+// Simple string - returns as-is
+this.getLocalizedString("Space Mountain") // => "Space Mountain"
+
+// Multi-language with exact match
+const name = { en: "Space Mountain", fr: "Space Mountain" };
+this.getLocalizedString(name, "fr") // => "Space Mountain"
+
+// Base language fallback
+this.getLocalizedString(name, "en-gb") // => "Space Mountain" (falls back to 'en')
+
+// Custom fallback
+this.getLocalizedString({ nl: "Efteling", de: "Efteling" }, "es", "nl")
+// => "Efteling" (falls back to 'nl')
+```
+
+**Language Configuration:**
+
+Parks can set their default language via config:
+
+```typescript
+@config
+class Efteling extends Destination {
+  @config
+  language: LanguageCode = 'nl'; // Override default 'en'
+
+  constructor(options?) {
+    super(options);
+    this.addConfigPrefix('EFTELING');
+    // Now reads EFTELING_LANGUAGE env var
+  }
+
+  protected async buildEntityList(): Promise<Entity[]> {
+    const name = { en: "Flying Dutchman", nl: "De Vliegende Hollander" };
+
+    // Uses instance language ('nl') when no parameter provided
+    this.getLocalizedString(name); // => "De Vliegende Hollander"
+  }
+}
+```
+
+**Real-World Patterns:**
+
+1. **Efteling-style** (English priority, Dutch fallback):
+```typescript
+protected async buildEntityList(): Promise<Entity[]> {
+  const enData = await this.fetchPOI('en');
+  const nlData = await this.fetchPOI('nl');
+
+  // Merge: English wins if present, Dutch fills gaps
+  const merged = /* merge logic */;
+
+  return this.mapEntities(merged, {
+    nameField: (item) => ({ en: item.name_en, nl: item.name_nl })
+  });
+}
+```
+
+2. **Disney-style** (Many languages):
+```typescript
+nameField: (item) => ({
+  en: item.translations.en.name,
+  fr: item.translations.fr.name,
+  de: item.translations.de.name,
+  es: item.translations.es.name,
+  it: item.translations.it.name,
+  ja: item.translations.ja.name,
+})
+```
+
+3. **API returns all languages together**:
+```typescript
+nameField: (item) => item.localizedNames // Already in correct format
+```
+
+**Features:**
+- ✅ Backwards compatible (string names still work)
+- ✅ Type-safe with TypeScript
+- ✅ Intelligent fallback logic
+- ✅ Environment variable config support
+- ✅ 22 comprehensive tests, 100% coverage
+
+#### **Virtual Queue Framework** (`src/virtualQueue/`)
+Utilities and patterns for implementing virtual queue systems (return times, boarding groups, paid skip-the-line).
+
+**Virtual Queue Types:**
+- **RETURN_TIME** - Free virtual queue (Disney Genie, Universal Virtual Line, Efteling VQ)
+- **PAID_RETURN_TIME** - Paid virtual queue (Lightning Lane, Express Pass)
+- **BOARDING_GROUP** - Boarding group system (Rise of Resistance, Guardians of Galaxy)
+
+**VQueueBuilder API:**
+```typescript
+import { VQueueBuilder } from './virtualQueue/index.js';
+
+// Return time queue (free virtual queue)
+const returnTime = VQueueBuilder.returnTime()
+  .available()
+  .withWindow('2024-10-15T14:30:00-04:00', '2024-10-15T14:45:00-04:00')
+  .build();
+
+// Boarding group queue
+const boardingGroup = VQueueBuilder.boardingGroup()
+  .available()
+  .currentGroups(45, 60)
+  .estimatedWait(30)
+  .build();
+
+// Paid return time queue (Lightning Lane/Express Pass)
+const paidQueue = VQueueBuilder.paidReturnTime()
+  .available()
+  .withWindow('2024-10-15T14:30:00-04:00', null)
+  .withPrice('USD', 1500) // $15.00
+  .build();
+```
+
+**Destination Helper Methods:**
+
+The `Destination` base class provides helper methods for building virtual queues:
+
+```typescript
+// Build return time queue
+liveData.queue!.RETURN_TIME = this.buildReturnTimeQueue(
+  'AVAILABLE',
+  new Date('2024-10-15T14:30:00'),
+  new Date('2024-10-15T14:45:00')
+);
+
+// Build boarding group queue
+liveData.queue!.BOARDING_GROUP = this.buildBoardingGroupQueue('AVAILABLE', {
+  currentGroupStart: 45,
+  currentGroupEnd: 60,
+  estimatedWait: 30
+});
+
+// Calculate return window (Efteling pattern)
+const window = this.calculateReturnWindow(45, { windowMinutes: 15 });
+liveData.queue!.RETURN_TIME = this.buildReturnTimeQueue(
+  'AVAILABLE',
+  window.start,
+  window.end
+);
+```
+
+**Common Implementation Patterns:**
+
+1. **Explicit Time Slots (Universal)** - API returns array of available slots:
+```typescript
+import { findNextAvailableSlot } from './virtualQueue/index.js';
+
+const nextSlot = findNextAvailableSlot(apiSlots, {
+  currentTime: new Date(),
+  filterAvailable: true
+});
+
+liveData.queue!.RETURN_TIME = nextSlot
+  ? VQueueBuilder.returnTime().available().withWindow(nextSlot.start, nextSlot.end).build()
+  : VQueueBuilder.returnTime().temporarilyFull().build();
+```
+
+2. **Calculated Windows (Efteling)** - Calculate window from wait time:
+```typescript
+import { determineReturnTimeState } from './virtualQueue/index.js';
+
+const window = this.calculateReturnWindow(vq.waitTime, { windowMinutes: 15 });
+liveData.queue!.RETURN_TIME = this.buildReturnTimeQueue('AVAILABLE', window.start, window.end);
+```
+
+3. **Boarding Groups (Disney)** - Boarding group system with allocation:
+```typescript
+import { determineBoardingGroupState } from './virtualQueue/index.js';
+
+const bgState = determineBoardingGroupState({
+  isSystemActive: attraction.status === 'Virtual Queue',
+  isPaused: vq.state === 'PAUSED',
+  hasNextAllocationTime: !!vq.nextScheduledOpenTime,
+  isRideOpen: attraction.isOpen
+});
+
+liveData.queue!.BOARDING_GROUP = this.buildBoardingGroupQueue(bgState, {
+  currentGroupStart: vq.currentGroupStart,
+  currentGroupEnd: vq.currentGroupEnd,
+  nextAllocationTime: vq.nextOpenTime,
+  estimatedWait: bgState === 'AVAILABLE' ? vq.waitTimeMin : null
+});
+```
+
+**State Enums:**
+
+Return Time States:
+- `AVAILABLE` - Slots available now, can join immediately
+- `TEMP_FULL` - Currently full, but more slots coming later
+- `FINISHED` - All slots reserved for the day
+
+Boarding Group States:
+- `AVAILABLE` - Accepting new boarding group reservations
+- `PAUSED` - Temporarily paused, will resume (has next allocation time)
+- `CLOSED` - Not accepting reservations (system inactive or ride closed)
+
+**Utilities:**
+- `calculateReturnWindow()` - Calculate return window from wait time
+- `findNextAvailableSlot()` - Find earliest available slot from array
+- `parseTimeSlots()` - Parse API slots to standard format
+- `determineReturnTimeState()` - Determine state from API conditions
+- `determineBoardingGroupState()` - Determine boarding group state
+- `validateReturnTimeQueue()` - Runtime validation of queue data
+- `validateBoardingGroupQueue()` - Runtime validation of boarding groups
+- `validatePaidReturnTimeQueue()` - Runtime validation of paid queues
+
+**Features:**
+- ✅ Full TypeScript type safety with fluent API
+- ✅ Integrated with Destination base class
+- ✅ Runtime validation with helpful error messages
+- ✅ Time zone-aware date formatting
+- ✅ State determination helpers for complex logic
+- ✅ 99 comprehensive tests, 100% coverage
+- ✅ Compatible with `@themeparks/typelib` LiveData interface
+
+**Full Documentation:**
+See `src/virtualQueue/VIRTUAL_QUEUE_GUIDE.md` for complete guide with real-world examples from Universal, Disney, and Efteling.
+
 ## Implementation Patterns
 
 ### Adding a New Park
@@ -611,7 +939,7 @@ protected async buildEntityList(): Promise<Entity[]> {
 **Config:** `jest.config.js` (uses `ts-jest` with ESM preset)
 **Test Config:** `tsconfig.test.json` (extends main config)
 
-**Test Coverage:** 88.84% overall (222 tests total)
+**Test Coverage:** 88.84% overall (455 tests total)
 
 **Core Library Coverage:**
 - ✅ `cache.ts` - 100% coverage
@@ -626,7 +954,8 @@ protected async buildEntityList(): Promise<Entity[]> {
 - `src/__tests__/cache.test.ts` - CacheLib and @cache decorator (35 tests, 100% coverage)
 - `src/__tests__/config.test.ts` - @config decorator system (31 tests, 96.96% coverage)
 - `src/__tests__/datetime.test.ts` - Date/time utilities with ISO 8601 timezone offset (53 tests, 100% coverage)
-- `src/__tests__/mapEntities.test.ts` - Entity mapper helper (37 tests, 85.07% coverage)
+- `src/__tests__/mapEntities.test.ts` - Entity mapper helper with multi-language support (41 tests, 85.07% coverage)
+- `src/__tests__/localization.test.ts` - Multi-language string helper (18 tests, 100% coverage)
 - `src/__tests__/entityHierarchy.test.ts` - Entity hierarchy resolution (11 tests)
 - `src/__tests__/injector.test.ts` - Event injection system (11 tests, 100% coverage)
 - `src/__tests__/http.test.ts` - HTTP utility functions (30 tests)
@@ -636,22 +965,57 @@ protected async buildEntityList(): Promise<Entity[]> {
   - **Test Server:** Node.js HTTP server on port 9991
   - **Lifecycle:** Started in `beforeAll()`, stopped in `afterAll()` with `stopHttpQueue()`
   - **Tests:** GET/POST requests, headers, caching, validation, retries, callbacks
+  - **Helper:** Use `waitForHttpQueue()` to wait for all queued requests to complete (see example below)
 
 **Note on Coverage:**
 - Parks implementations (`src/parks/**`) are excluded from coverage reports (integration-tested via manual harness)
 - Run `npm run test:coverage` to see detailed coverage report
 
+**Testing HTTP Requests:**
+
+When testing code that makes HTTP requests via the `@http` decorator, use `waitForHttpQueue()` to ensure all queued requests complete before assertions:
+
+```typescript
+import { waitForHttpQueue, stopHttpQueue } from '../http';
+
+describe('My Tests', () => {
+  afterAll(() => {
+    stopHttpQueue(); // Clean up HTTP queue processor
+  });
+
+  it('should make HTTP requests', async () => {
+    const instance = new MyClass();
+
+    // Trigger HTTP requests
+    await instance.fetchData();
+
+    // Wait for all queued requests to complete (max 30s)
+    await waitForHttpQueue();
+
+    // Now safe to make assertions
+    expect(instance.data).toBeDefined();
+  });
+});
+```
+
+**Benefits:**
+- ✅ Tests wait only as long as needed (faster than arbitrary timeouts)
+- ✅ More reliable (no race conditions from fixed delays)
+- ✅ Automatic timeout (30s default, configurable)
+- ✅ Clear error messages if queue doesn't empty
+
 ## Migration Status
 
 **✅ Completed (TypeScript):**
-- Core libraries: cache, config, http, injector, datetime (all comprehensively tested)
+- Core libraries: cache, config, http, injector, datetime, proxy (all comprehensively tested)
 - Base classes: Destination (with Template Method Pattern)
-- Helper utilities: Entity mapper, hierarchy resolver
+- Helper utilities: Entity mapper, hierarchy resolver, multi-language support
 - Parks: Universal Studios (complete, 834 lines)
-- Tests: 222 tests total, 88.84% overall coverage
+- Tests: 455 tests total, 88.84% overall coverage
   - Core libraries at 85-100% coverage (cache, config, datetime, http, injector, destination)
   - Integration tests with local HTTP server
   - DateTime utilities with ISO 8601 timezone offset support
+  - Multi-language entity names with intelligent fallback (18 tests, 100% coverage)
 
 **🔄 Legacy (JavaScript in `lib/`):**
 - 50+ park implementations (Disney, Six Flags, Cedar Point, etc.)

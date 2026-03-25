@@ -8,6 +8,7 @@ import {
   nowInTimezone,
   formatUTC,
   addDays,
+  addMinutes,
   isBefore,
   timezone
 } from '../datetime.js';
@@ -462,6 +463,81 @@ describe('DateTime Utilities', () => {
       expect(instance.baseProperty).toBe('base');
       expect(instance.derivedProperty).toBe('derived');
       expect((instance as any).timezone).toBe('UTC');
+    });
+  });
+
+  describe('addMinutes()', () => {
+    test('should add minutes to a date', () => {
+      const date = new Date('2025-03-15T12:00:00Z');
+      const result = addMinutes(date, 30);
+
+      expect(result.getTime()).toBe(new Date('2025-03-15T12:30:00Z').getTime());
+    });
+
+    test('should not modify original date', () => {
+      const date = new Date('2025-03-15T12:00:00Z');
+      const originalTime = date.getTime();
+
+      addMinutes(date, 30);
+
+      expect(date.getTime()).toBe(originalTime);
+    });
+
+    test('should handle negative minutes', () => {
+      const date = new Date('2025-03-15T12:00:00Z');
+      const result = addMinutes(date, -30);
+
+      expect(result.getTime()).toBe(new Date('2025-03-15T11:30:00Z').getTime());
+    });
+
+    test('should handle zero minutes', () => {
+      const date = new Date('2025-03-15T12:00:00Z');
+      const result = addMinutes(date, 0);
+
+      expect(result.getTime()).toBe(date.getTime());
+    });
+
+    test('should add exactly N minutes in milliseconds regardless of timezone', () => {
+      // This is the DST-safety test: adding 60 minutes must always produce
+      // exactly 3,600,000ms difference, regardless of system timezone or
+      // whether a DST boundary falls within the span
+      const date = new Date('2025-03-15T12:00:00Z');
+      const result = addMinutes(date, 60);
+
+      expect(result.getTime() - date.getTime()).toBe(60 * 60 * 1000);
+    });
+
+    test('should produce exact millisecond offset across US DST spring-forward boundary', () => {
+      // 2024-03-10 02:00 AM EST -> clocks spring forward to 03:00 AM EDT
+      // At 06:30 UTC it's 01:30 AM EST. Adding 60 min should land at 07:30 UTC (03:30 AM EDT)
+      // The local-time arithmetic bug: setMinutes(getMinutes()+60) can produce
+      // wrong results when local clock skips an hour
+      const beforeDST = new Date('2024-03-10T06:30:00Z');
+      const result = addMinutes(beforeDST, 60);
+
+      // Must be exactly 60 * 60 * 1000 ms later
+      expect(result.getTime() - beforeDST.getTime()).toBe(60 * 60 * 1000);
+      expect(result.toISOString()).toBe('2024-03-10T07:30:00.000Z');
+    });
+
+    test('should produce exact millisecond offset across US DST fall-back boundary', () => {
+      // 2024-11-03 02:00 AM EDT -> clocks fall back to 01:00 AM EST
+      // At 05:30 UTC it's 01:30 AM EDT. Adding 60 min should land at 06:30 UTC
+      // BUG: setMinutes(getMinutes()+60) during fall-back lands in EST (UTC-5)
+      // instead of EDT (UTC-4), producing 07:30 UTC — 120 min instead of 60
+      const beforeFallback = new Date('2024-11-03T05:30:00Z');
+      const result = addMinutes(beforeFallback, 60);
+
+      expect(result.getTime() - beforeFallback.getTime()).toBe(60 * 60 * 1000);
+      expect(result.toISOString()).toBe('2024-11-03T06:30:00.000Z');
+    });
+
+    test('should handle large minute values crossing multiple hours', () => {
+      const date = new Date('2025-03-15T12:00:00Z');
+      const result = addMinutes(date, 150); // 2.5 hours
+
+      expect(result.getTime() - date.getTime()).toBe(150 * 60 * 1000);
+      expect(result.toISOString()).toBe('2025-03-15T14:30:00.000Z');
     });
   });
 

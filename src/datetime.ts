@@ -155,6 +155,16 @@ export function addDays(date: Date, days: number): Date {
 }
 
 /**
+ * Add minutes to a date
+ * @param date Starting date
+ * @param minutes Number of minutes to add
+ * @returns New date with minutes added
+ */
+export function addMinutes(date: Date, minutes: number): Date {
+  return new Date(date.getTime() + minutes * 60 * 1000);
+}
+
+/**
  * Check if a date is before another date
  * @param date1 First date
  * @param date2 Second date
