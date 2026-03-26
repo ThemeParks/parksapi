@@ -12,4 +12,5 @@ temp*.json
 temp*.js
 datacache/
 .claude/settings.local.json
-snapshots/*.report.json
+snapshots/*.report.jsondocs/
+VQUEUE_FRAMEWORK_SPEC.md
