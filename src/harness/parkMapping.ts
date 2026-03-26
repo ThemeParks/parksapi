@@ -8,8 +8,12 @@
  * This is also the registry of "which parks have both implementations."
  */
 export const parkMapping: Record<string, string> = {
+  // Universal
   'universalorlando': 'UniversalOrlando',
   'universalstudios': 'UniversalStudios',
+  // Cedar Fair parks are NOT in JS lib/index.js exports — they exist in
+  // lib/parks/attractionsio/attractionsiov3.js but aren't publicly exported.
+  // Cannot capture JS snapshots for these via the standard harness.
 };
 
 /**

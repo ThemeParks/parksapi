@@ -1,0 +1,1056 @@
+{
+  "parkId": "universalstudios",
+  "capturedAt": "2026-03-26T11:14:46.063Z",
+  "source": "js",
+  "version": 1,
+  "entities": [
+    {
+      "id": "13825",
+      "name": "Universal Studios",
+      "entityType": "PARK",
+      "parentId": "universalresort_hollywood",
+      "destinationId": "universalresort_hollywood",
+      "parkId": null,
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 28,
+        "longitude": -81
+      }
+    },
+    {
+      "id": "13867",
+      "name": "Buca di Beppo",
+      "entityType": "RESTAURANT",
+      "parentId": "13824",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13824",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.136385,
+        "longitude": -118.35139
+      }
+    },
+    {
+      "id": "13874",
+      "name": "WaterWorld",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.137142,
+        "longitude": -118.354626
+      }
+    },
+    {
+      "id": "13957",
+      "name": "Johnny Rockets",
+      "entityType": "RESTAURANT",
+      "parentId": "13824",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13824",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.136013,
+        "longitude": -118.353873
+      }
+    },
+    {
+      "id": "14002",
+      "name": "Three Broomsticks™",
+      "entityType": "RESTAURANT",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1387454,
+        "longitude": -118.3541847
+      }
+    },
+    {
+      "id": "17720",
+      "name": "Bubba Gump Shrimp Co.",
+      "entityType": "RESTAURANT",
+      "parentId": "13824",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13824",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.136154,
+        "longitude": -118.353319
+      }
+    },
+    {
+      "id": "17805",
+      "name": "Antojitos Cocina Mexicana",
+      "entityType": "RESTAURANT",
+      "parentId": "13824",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13824",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.136321,
+        "longitude": -118.354013
+      }
+    },
+    {
+      "id": "17833",
+      "name": "VIVO Italian Kitchen",
+      "entityType": "RESTAURANT",
+      "parentId": "13824",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13824",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.136208,
+        "longitude": -118.354624
+      }
+    },
+    {
+      "id": "18138",
+      "name": "The Simpsons Ride™",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.139487,
+        "longitude": -118.353919
+      }
+    },
+    {
+      "id": "18139",
+      "name": "Studio Tour",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138685,
+        "longitude": -118.35293
+      }
+    },
+    {
+      "id": "18140",
+      "name": "TRANSFORMERS™: The Ride-3D",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.14127,
+        "longitude": -118.356849
+      }
+    },
+    {
+      "id": "18141",
+      "name": "The Secret Life of Pets: Off the Leash",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138241,
+        "longitude": -118.355945
+      }
+    },
+    {
+      "id": "18142",
+      "name": "Jurassic World — The Ride",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.140467,
+        "longitude": -118.357079
+      }
+    },
+    {
+      "id": "18143",
+      "name": "Ollivanders™",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.13849,
+        "longitude": -118.35395
+      }
+    },
+    {
+      "id": "18144",
+      "name": "Revenge of the Mummy – The Ride",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.140642,
+        "longitude": -118.356795
+      }
+    },
+    {
+      "id": "18145",
+      "name": "Kung Fu Panda Adventure",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138439,
+        "longitude": -118.354549
+      }
+    },
+    {
+      "id": "18146",
+      "name": "Harry Potter and the Forbidden Journey™",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138123,
+        "longitude": -118.3536618
+      }
+    },
+    {
+      "id": "18147",
+      "name": "DinoPlay",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.140511,
+        "longitude": -118.357561
+      }
+    },
+    {
+      "id": "18148",
+      "name": "Flight of the Hippogriff™",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1380891,
+        "longitude": -118.3537738
+      }
+    },
+    {
+      "id": "18149",
+      "name": "Despicable Me Minion Mayhem",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.13823316,
+        "longitude": -118.35609427
+      }
+    },
+    {
+      "id": "18190",
+      "name": "Jimmy Buffett's Margaritaville",
+      "entityType": "RESTAURANT",
+      "parentId": "13824",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13824",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.136718,
+        "longitude": -118.351389
+      }
+    },
+    {
+      "id": "18203",
+      "name": "NBC Sports Grill & Brew",
+      "entityType": "RESTAURANT",
+      "parentId": "13824",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13824",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.136004,
+        "longitude": -118.353733
+      }
+    },
+    {
+      "id": "18786",
+      "name": "The Toothsome Chocolate Emporium & Savory Feast Kitchen",
+      "entityType": "RESTAURANT",
+      "parentId": "13824",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13824",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1365152290292,
+        "longitude": -118.351800260177
+      }
+    },
+    {
+      "id": "18845",
+      "name": "Mario Kart™: Bowser’s Challenge",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.140857,
+        "longitude": -118.357975
+      }
+    },
+    {
+      "id": "18847",
+      "name": "Meet Mario and Luigi",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1410142,
+        "longitude": -118.3578013
+      }
+    },
+    {
+      "id": "18852",
+      "name": "Power-Up Band™ Key Challenges",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.140952,
+        "longitude": -118.358064
+      }
+    },
+    {
+      "id": "18936",
+      "name": "Meet Princess Peach",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1411918,
+        "longitude": -118.3576072
+      }
+    },
+    {
+      "id": "19013",
+      "name": "Universal Cinema",
+      "entityType": "SHOW",
+      "parentId": "13824",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13824",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.136798,
+        "longitude": -118.352487
+      }
+    },
+    {
+      "id": "19046",
+      "name": "Triwizard Spirit Rally",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1381583539464,
+        "longitude": -118.353994715294
+      }
+    },
+    {
+      "id": "19140",
+      "name": "Meet Toad",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.141204,
+        "longitude": -118.357554
+      }
+    },
+    {
+      "id": "19148",
+      "name": "Meet DreamWorks Trolls",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138548537995,
+        "longitude": -118.354887117525
+      }
+    },
+    {
+      "id": "19219",
+      "name": "Raptor Encounter",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1402374561805,
+        "longitude": -118.356544658145
+      }
+    },
+    {
+      "id": "24008",
+      "name": "Strolling Characters",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138458,
+        "longitude": -118.355144
+      }
+    },
+    {
+      "id": "24010",
+      "name": "Storytime and Meet & Greet with Cindy-Lou Who",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138458,
+        "longitude": -118.355144
+      }
+    },
+    {
+      "id": "24012",
+      "name": "Meet & Greet with the Grinch™ and Max the dog",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 28.472865,
+        "longitude": -81.47055
+      }
+    },
+    {
+      "id": "24290",
+      "name": "Quint and Brody Meet & Greet",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138685,
+        "longitude": -118.35293
+      }
+    },
+    {
+      "id": "24291",
+      "name": "Nightly DJ’s Party in Universal Plaza",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138685,
+        "longitude": -118.35293
+      }
+    },
+    {
+      "id": "24292",
+      "name": "Back to the Future Meet & Greet",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138685,
+        "longitude": -118.35293
+      }
+    },
+    {
+      "id": "24293",
+      "name": "Aquilops Meet & Greet",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138685,
+        "longitude": -118.35293
+      }
+    },
+    {
+      "id": "24336",
+      "name": "Silly Swirly",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138771,
+        "longitude": -118.356554
+      }
+    },
+    {
+      "id": "24356",
+      "name": "Meet Scooby-Doo and the Mystery Gang",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138548537995,
+        "longitude": -118.354887117525
+      }
+    },
+    {
+      "id": "24387",
+      "name": "Meet Marilyn",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1376513674305,
+        "longitude": -118.355208451573
+      }
+    },
+    {
+      "id": "24388",
+      "name": "Meet Dracula",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138685,
+        "longitude": -118.35293
+      }
+    },
+    {
+      "id": "24414",
+      "name": "Meet Donkey",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1385733723846,
+        "longitude": -118.354716633633
+      }
+    },
+    {
+      "id": "24416",
+      "name": "Meet Shrek and Fiona",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1376513674305,
+        "longitude": -118.355208451573
+      }
+    },
+    {
+      "id": "24420",
+      "name": "The Purge: Dangerous Waters",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.13724,
+        "longitude": -118.354749
+      }
+    },
+    {
+      "id": "24421",
+      "name": "Chainsaw Man",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138397,
+        "longitude": -118.354649
+      }
+    },
+    {
+      "id": "24422",
+      "name": "Scarecrow: Music by Slash",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.140285,
+        "longitude": -118.356553
+      }
+    },
+    {
+      "id": "24423",
+      "name": "Monstruos 3",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1385,
+        "longitude": -118.355477
+      }
+    },
+    {
+      "id": "24424",
+      "name": "Jason Universe",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.141244,
+        "longitude": -118.356443
+      }
+    },
+    {
+      "id": "24425",
+      "name": "Terrifier",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1377027577073,
+        "longitude": -118.353377131242
+      }
+    },
+    {
+      "id": "24426",
+      "name": "Poltergeist",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.137698913249,
+        "longitude": -118.35346561308
+      }
+    },
+    {
+      "id": "24427",
+      "name": "Fallout",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1381847660322,
+        "longitude": -118.35545671252
+      }
+    },
+    {
+      "id": "24428",
+      "name": "Five Nights at Freddy's",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.141228,
+        "longitude": -118.357123
+      }
+    },
+    {
+      "id": "24429",
+      "name": "Terror Tram: Blumhouse",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.139067468517,
+        "longitude": -118.353764736305
+      }
+    },
+    {
+      "id": "24430",
+      "name": "WWE Wyatt Sicks",
+      "entityType": "ATTRACTION",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.140473,
+        "longitude": -118.35705
+      }
+    },
+    {
+      "id": "24432",
+      "name": "Meet Bumblebee",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1410273270363,
+        "longitude": -118.356781024188
+      }
+    },
+    {
+      "id": "24433",
+      "name": "Meet Optimus Prime",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1410273270363,
+        "longitude": -118.356781024188
+      }
+    },
+    {
+      "id": "24435",
+      "name": "Meet Hello Kitty",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1385733723846,
+        "longitude": -118.354716633633
+      }
+    },
+    {
+      "id": "24441",
+      "name": "Meet Characters from The Simpsons",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.139358054657,
+        "longitude": -118.353911383487
+      }
+    },
+    {
+      "id": "24442",
+      "name": "Meet Gabby",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1410273270363,
+        "longitude": -118.356781024188
+      }
+    },
+    {
+      "id": "24446",
+      "name": "Meet HamiKuma",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1379201832353,
+        "longitude": -118.354795986128
+      }
+    },
+    {
+      "id": "24447",
+      "name": "Meet Megatron",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1410273270363,
+        "longitude": -118.356781024188
+      }
+    },
+    {
+      "id": "24448",
+      "name": "Meet Characters from Despicable Me",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1384580538562,
+        "longitude": -118.356220031609
+      }
+    },
+    {
+      "id": "24461",
+      "name": "Meet Frankenstein's Monster and His Bride",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1380222617072,
+        "longitude": -118.354958533558
+      }
+    },
+    {
+      "id": "24467",
+      "name": "Meet King Julien",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1385859489645,
+        "longitude": -118.354863947355
+      }
+    },
+    {
+      "id": "24469",
+      "name": "Glinda Meet & Greet",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138685,
+        "longitude": -118.35293
+      }
+    },
+    {
+      "id": "24470",
+      "name": "Elphaba Meet & Greet",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138685,
+        "longitude": -118.35293
+      }
+    },
+    {
+      "id": "24479",
+      "name": "Meet & Greet With The Grinch™",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1386011839778,
+        "longitude": -118.355212752239
+      }
+    },
+    {
+      "id": "24481",
+      "name": "Storytime and Meet & Greet with Cindy-Lou Who",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.138458,
+        "longitude": -118.355144
+      }
+    },
+    {
+      "id": "24499",
+      "name": "Meet Snowball",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1410142,
+        "longitude": -118.3578013
+      }
+    },
+    {
+      "id": "24512",
+      "name": "Meet Characters from Back to the Future",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.1410273270363,
+        "longitude": -118.356781024188
+      }
+    },
+    {
+      "id": "24574",
+      "name": "Yoshi Meet and Greet",
+      "entityType": "SHOW",
+      "parentId": "13825",
+      "destinationId": "universalresort_hollywood",
+      "parkId": "13825",
+      "timezone": "America/Los_Angeles",
+      "location": {
+        "latitude": 34.141207,
+        "longitude": -118.35725
+      }
+    },
+    {
+      "id": "universalresort_hollywood",
+      "name": "Universal Studios",
+      "entityType": "DESTINATION",
+      "parentId": null,
+      "destinationId": null,
+      "parkId": null,
+      "timezone": "America/Los_Angeles",
+      "location": null
+    }
+  ],
+  "liveData": {
+    "entityIds": [
+      "13874",
+      "18138",
+      "18139",
+      "18140",
+      "18141",
+      "18142",
+      "18143",
+      "18144",
+      "18145",
+      "18146",
+      "18147",
+      "18148",
+      "18149",
+      "18845",
+      "18847",
+      "18852",
+      "18936",
+      "19013",
+      "19046",
+      "19140",
+      "19148",
+      "19219",
+      "24007",
+      "24008",
+      "24009",
+      "24010",
+      "24011",
+      "24012",
+      "24013",
+      "24290",
+      "24291",
+      "24292",
+      "24293",
+      "24310",
+      "24319",
+      "24336",
+      "24356",
+      "24387",
+      "24388",
+      "24414",
+      "24416",
+      "24420",
+      "24421",
+      "24422",
+      "24423",
+      "24424",
+      "24425",
+      "24426",
+      "24427",
+      "24428",
+      "24429",
+      "24430",
+      "24432",
+      "24433",
+      "24435",
+      "24441",
+      "24442",
+      "24446",
+      "24447",
+      "24448",
+      "24461",
+      "24467",
+      "24469",
+      "24470",
+      "24478",
+      "24479",
+      "24480",
+      "24481",
+      "24482",
+      "24483",
+      "24499",
+      "24512",
+      "24574"
+    ],
+    "perEntityQueueTypes": {},
+    "statusTypes": [
+      "CLOSED",
+      "OPERATING"
+    ]
+  },
+  "schedules": {
+    "entityIds": [
+      "13825"
+    ],
+    "entityCount": 1,
+    "hasScheduleEntries": true
+  }
+}
