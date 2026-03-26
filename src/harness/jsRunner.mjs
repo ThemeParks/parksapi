@@ -16,6 +16,11 @@ if (!className) {
   process.exit(1);
 }
 
+// Redirect stdout to stderr during import/execution so library logging
+// (dotenv, HTTP debug messages) doesn't corrupt our JSON output.
+const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+process.stdout.write = process.stderr.write.bind(process.stderr);
+
 try {
   // Dynamic import of the JS codebase entry point.
   // ESM import() resolves relative to import.meta.url, NOT process.cwd().
@@ -42,7 +47,8 @@ try {
   const liveData = await instance.getEntityLiveData();
   const schedules = await instance.getEntitySchedules();
 
-  // Write to stdout as JSON
+  // Restore stdout and write clean JSON
+  process.stdout.write = originalStdoutWrite;
   const output = JSON.stringify({ entities, liveData, schedules });
   process.stdout.write(output);
 

@@ -1,0 +1,2262 @@
+{
+  "parkId": "universalorlando",
+  "capturedAt": "2026-03-26T10:24:20.871Z",
+  "source": "js",
+  "version": 1,
+  "entities": [
+    {
+      "id": "10000",
+      "name": "Universal Islands of Adventure",
+      "entityType": "PARK",
+      "parentId": "universalresort_orlando",
+      "destinationId": "universalresort_orlando",
+      "parkId": null,
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.471778,
+        "longitude": -81.470832
+      }
+    },
+    {
+      "id": "10010",
+      "name": "Universal Studios Florida",
+      "entityType": "PARK",
+      "parentId": "universalresort_orlando",
+      "destinationId": "universalresort_orlando",
+      "parkId": null,
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.477986,
+        "longitude": -81.468386
+      }
+    },
+    {
+      "id": "10135",
+      "name": "Despicable Me Minion Mayhem™",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4753199,
+        "longitude": -81.4678895
+      }
+    },
+    {
+      "id": "10831",
+      "name": "The Amazing Adventures of Spider-Man®",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4705456,
+        "longitude": -81.469852
+      }
+    },
+    {
+      "id": "10832",
+      "name": "Caro-Seuss-el™",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.473017,
+        "longitude": -81.469916
+      }
+    },
+    {
+      "id": "10833",
+      "name": "The Cat in The Hat™",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.472969,
+        "longitude": -81.46928
+      }
+    },
+    {
+      "id": "10835",
+      "name": "Doctor Doom's Fearfall®",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.470678,
+        "longitude": -81.469502
+      }
+    },
+    {
+      "id": "10837",
+      "name": "Dudley Do-Right's Ripsaw Falls®",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4695018,
+        "longitude": -81.4714998
+      }
+    },
+    {
+      "id": "10838",
+      "name": "E.T. Adventure™",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.478075,
+        "longitude": -81.466783
+      }
+    },
+    {
+      "id": "10839",
+      "name": "Flight of the Hippogriff™",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.472416,
+        "longitude": -81.473636
+      }
+    },
+    {
+      "id": "10840",
+      "name": "Harry Potter and the Forbidden Journey™",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.472265,
+        "longitude": -81.4735195
+      }
+    },
+    {
+      "id": "10841",
+      "name": "Hollywood Rip Ride Rockit™",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47517,
+        "longitude": -81.46856
+      }
+    },
+    {
+      "id": "10842",
+      "name": "Jurassic Park River Adventure™",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.470597,
+        "longitude": -81.473134
+      }
+    },
+    {
+      "id": "10853",
+      "name": "MEN IN BLACK™ Alien Attack!™",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.480441,
+        "longitude": -81.468043
+      }
+    },
+    {
+      "id": "10855",
+      "name": "One Fish, Two Fish, Red Fish, Blue Fish™",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.473086,
+        "longitude": -81.469486
+      }
+    },
+    {
+      "id": "10856",
+      "name": "Popeye & Bluto's Bilge-Rat Barges®",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.470448,
+        "longitude": -81.471401
+      }
+    },
+    {
+      "id": "10857",
+      "name": "Pteranodon Flyers™",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.470164,
+        "longitude": -81.472939
+      }
+    },
+    {
+      "id": "10858",
+      "name": "Revenge of the Mummy™",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4766,
+        "longitude": -81.46954
+      }
+    },
+    {
+      "id": "10859",
+      "name": "The High in the Sky Seuss Trolley Train Ride!™",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.473011,
+        "longitude": -81.470178
+      }
+    },
+    {
+      "id": "10862",
+      "name": "The Incredible Hulk Coaster®",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.471257,
+        "longitude": -81.469121
+      }
+    },
+    {
+      "id": "10875",
+      "name": "The Simpsons Ride™",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.479604,
+        "longitude": -81.467788
+      }
+    },
+    {
+      "id": "10877",
+      "name": "TRANSFORMERS™: The Ride-3D",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47669,
+        "longitude": -81.46856
+      }
+    },
+    {
+      "id": "11585",
+      "name": "Triwizard Spirit Rally",
+      "entityType": "SHOW",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4725985,
+        "longitude": -81.473455
+      }
+    },
+    {
+      "id": "11599",
+      "name": "Bob Marley–A Tribute to Freedom℠",
+      "entityType": "RESTAURANT",
+      "parentId": "10011",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10011",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47281,
+        "longitude": -81.46522
+      }
+    },
+    {
+      "id": "11606",
+      "name": "Hard Rock Cafe® Orlando",
+      "entityType": "RESTAURANT",
+      "parentId": "10011",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10011",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47366,
+        "longitude": -81.46724
+      }
+    },
+    {
+      "id": "11607",
+      "name": "Jimmy Buffett's® Margaritaville®",
+      "entityType": "RESTAURANT",
+      "parentId": "10011",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10011",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47238,
+        "longitude": -81.46675
+      }
+    },
+    {
+      "id": "11613",
+      "name": "Pat O'Brien's®",
+      "entityType": "RESTAURANT",
+      "parentId": "10011",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10011",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47263,
+        "longitude": -81.46533
+      }
+    },
+    {
+      "id": "11616",
+      "name": "Bubba Gump Shrimp Co.™ Restaurant & Market",
+      "entityType": "RESTAURANT",
+      "parentId": "10011",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10011",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47337,
+        "longitude": -81.4649
+      }
+    },
+    {
+      "id": "11627",
+      "name": "Confisco Grille™",
+      "entityType": "RESTAURANT",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.471974,
+        "longitude": -81.469461
+      }
+    },
+    {
+      "id": "11632",
+      "name": "Hog's Head™",
+      "entityType": "RESTAURANT",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.472824,
+        "longitude": -81.472859
+      }
+    },
+    {
+      "id": "11635",
+      "name": "Mythos Restaurant™",
+      "entityType": "RESTAURANT",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.472634,
+        "longitude": -81.471492
+      }
+    },
+    {
+      "id": "11651",
+      "name": "Finnegan's Bar and Grill™",
+      "entityType": "RESTAURANT",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47666,
+        "longitude": -81.46916
+      }
+    },
+    {
+      "id": "11654",
+      "name": "Lombard's Seafood Grille™",
+      "entityType": "RESTAURANT",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.478761,
+        "longitude": -81.469118
+      }
+    },
+    {
+      "id": "12196",
+      "name": "Antojitos Authentic Mexican Food™",
+      "entityType": "RESTAURANT",
+      "parentId": "10011",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10011",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4722798,
+        "longitude": -81.4660065
+      }
+    },
+    {
+      "id": "12197",
+      "name": "Red Oven Pizza Bakery™",
+      "entityType": "RESTAURANT",
+      "parentId": "10011",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10011",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47308,
+        "longitude": -81.4654
+      }
+    },
+    {
+      "id": "12287",
+      "name": "Animal Actors on Location!™",
+      "entityType": "SHOW",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.478321,
+        "longitude": -81.46791
+      }
+    },
+    {
+      "id": "12292",
+      "name": "Universal Orlando's Horror Make-Up Show™",
+      "entityType": "SHOW",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47684,
+        "longitude": -81.46732
+      }
+    },
+    {
+      "id": "12319",
+      "name": "Bayliner Diner™",
+      "entityType": "RESTAURANT",
+      "parentId": "10155",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10155",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4651916913787,
+        "longitude": -81.4733934553345
+      }
+    },
+    {
+      "id": "12324",
+      "name": "Islands Dining Room",
+      "entityType": "RESTAURANT",
+      "parentId": "10156",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10156",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.468816,
+        "longitude": -81.467379
+      }
+    },
+    {
+      "id": "12326",
+      "name": "Mama Della's Ristorante℠",
+      "entityType": "RESTAURANT",
+      "parentId": "12122",
+      "destinationId": "universalresort_orlando",
+      "parkId": "12122",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4808715216165,
+        "longitude": -81.4607577489696
+      }
+    },
+    {
+      "id": "12327",
+      "name": "The Kitchen",
+      "entityType": "RESTAURANT",
+      "parentId": "10157",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10157",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4769698063566,
+        "longitude": -81.4646155779174
+      }
+    },
+    {
+      "id": "12328",
+      "name": "The Palm",
+      "entityType": "RESTAURANT",
+      "parentId": "10157",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10157",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4769698063566,
+        "longitude": -81.4646155779174
+      }
+    },
+    {
+      "id": "12329",
+      "name": "Trattoria del Porto™",
+      "entityType": "RESTAURANT",
+      "parentId": "12122",
+      "destinationId": "universalresort_orlando",
+      "parkId": "12122",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4808715216165,
+        "longitude": -81.4607577489696
+      }
+    },
+    {
+      "id": "12330",
+      "name": "Velvet Bar",
+      "entityType": "RESTAURANT",
+      "parentId": "10157",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10157",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4769642600763,
+        "longitude": -81.4648370383597
+      }
+    },
+    {
+      "id": "12984",
+      "name": "Bice Ristorante",
+      "entityType": "RESTAURANT",
+      "parentId": "12122",
+      "destinationId": "universalresort_orlando",
+      "parkId": "12122",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4805696506647,
+        "longitude": -81.4615918495747
+      }
+    },
+    {
+      "id": "12985",
+      "name": "Galaxy Bowl Restaurant™",
+      "entityType": "RESTAURANT",
+      "parentId": "10155",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10155",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4654057580261,
+        "longitude": -81.4736496004482
+      }
+    },
+    {
+      "id": "12986",
+      "name": "Jake's American Bar",
+      "entityType": "RESTAURANT",
+      "parentId": "10156",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10156",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.468415,
+        "longitude": -81.467076
+      }
+    },
+    {
+      "id": "13219",
+      "name": "Knight Bus™",
+      "entityType": "SHOW",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.479407,
+        "longitude": -81.469107
+      }
+    },
+    {
+      "id": "13220",
+      "name": "The Tales of Beedle the Bard",
+      "entityType": "SHOW",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.479921,
+        "longitude": -81.469499
+      }
+    },
+    {
+      "id": "13221",
+      "name": "Harry Potter and the Escape from Gringotts™",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.479719,
+        "longitude": -81.469922
+      }
+    },
+    {
+      "id": "13225",
+      "name": "Hogwarts™ Express - Hogsmeade™ Station",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47348,
+        "longitude": -81.472594
+      }
+    },
+    {
+      "id": "13228",
+      "name": "Hogwarts™ Express - King's Cross Station",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.479079,
+        "longitude": -81.46944
+      }
+    },
+    {
+      "id": "13229",
+      "name": "Vivo Italian Kitchen™",
+      "entityType": "RESTAURANT",
+      "parentId": "10011",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10011",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.472988,
+        "longitude": -81.465508
+      }
+    },
+    {
+      "id": "13335",
+      "name": "The Cowfish®",
+      "entityType": "RESTAURANT",
+      "parentId": "10011",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10011",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.473063,
+        "longitude": -81.465481
+      }
+    },
+    {
+      "id": "13368",
+      "name": "Classic Comic Book Characters",
+      "entityType": "SHOW",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.46989,
+        "longitude": -81.471039
+      }
+    },
+    {
+      "id": "13369",
+      "name": "Hollywood Character Zone",
+      "entityType": "SHOW",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.475461,
+        "longitude": -81.467616
+      }
+    },
+    {
+      "id": "13371",
+      "name": "Meet SpongeBob SquarePants",
+      "entityType": "SHOW",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.477885,
+        "longitude": -81.467342
+      }
+    },
+    {
+      "id": "13372",
+      "name": "Meet The TRANSFORMERS™",
+      "entityType": "SHOW",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.476183,
+        "longitude": -81.468079
+      }
+    },
+    {
+      "id": "13373",
+      "name": "Seuss Character Zone",
+      "entityType": "SHOW",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.473045,
+        "longitude": -81.470062
+      }
+    },
+    {
+      "id": "13512",
+      "name": "Raptor Encounter",
+      "entityType": "SHOW",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4709505197009,
+        "longitude": -81.4734815364348
+      }
+    },
+    {
+      "id": "13667",
+      "name": "The Simpsons™ Character Zone",
+      "entityType": "SHOW",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47915,
+        "longitude": -81.467804
+      }
+    },
+    {
+      "id": "13673",
+      "name": "NBC Sports Grill & Brew",
+      "entityType": "RESTAURANT",
+      "parentId": "10011",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10011",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.473987,
+        "longitude": -81.465816
+      }
+    },
+    {
+      "id": "13799",
+      "name": "Skull Island: Reign of Kong™",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.469317,
+        "longitude": -81.473013
+      }
+    },
+    {
+      "id": "13801",
+      "name": "Universal's Volcano Bay",
+      "entityType": "PARK",
+      "parentId": "universalresort_orlando",
+      "destinationId": "universalresort_orlando",
+      "parkId": null,
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.461355,
+        "longitude": -81.472286
+      }
+    },
+    {
+      "id": "13803",
+      "name": "Amatista Cookhouse",
+      "entityType": "RESTAURANT",
+      "parentId": "13798",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13798",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.466917,
+        "longitude": -81.47013
+      }
+    },
+    {
+      "id": "13804",
+      "name": "Drhum Club Kantine",
+      "entityType": "RESTAURANT",
+      "parentId": "13798",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13798",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.467834,
+        "longitude": -81.471876
+      }
+    },
+    {
+      "id": "13806",
+      "name": "Strong Water Tavern",
+      "entityType": "RESTAURANT",
+      "parentId": "13798",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13798",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.466972,
+        "longitude": -81.470307
+      }
+    },
+    {
+      "id": "14054",
+      "name": "The Toothsome Chocolate Emporium and Savory Feast Kitchen™",
+      "entityType": "RESTAURANT",
+      "parentId": "10011",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10011",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.473043,
+        "longitude": -81.46762
+      }
+    },
+    {
+      "id": "14348",
+      "name": "Race Through New York Starring Jimmy Fallon™",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.475881,
+        "longitude": -81.469363
+      }
+    },
+    {
+      "id": "15016",
+      "name": "Now Open",
+      "entityType": "ATTRACTION",
+      "parentId": "17674",
+      "destinationId": "universalresort_orlando",
+      "parkId": "17674",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.462491,
+        "longitude": -81.471656
+      }
+    },
+    {
+      "id": "16075",
+      "name": "Barventura",
+      "entityType": "RESTAURANT",
+      "parentId": "15503",
+      "destinationId": "universalresort_orlando",
+      "parkId": "15503",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.465173,
+        "longitude": -81.470892
+      }
+    },
+    {
+      "id": "16076",
+      "name": "Bar Sol",
+      "entityType": "RESTAURANT",
+      "parentId": "15503",
+      "destinationId": "universalresort_orlando",
+      "parkId": "15503",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4652093,
+        "longitude": -81.4713483
+      }
+    },
+    {
+      "id": "16077",
+      "name": "Bar 17 Bistro",
+      "entityType": "RESTAURANT",
+      "parentId": "15503",
+      "destinationId": "universalresort_orlando",
+      "parkId": "15503",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.465704,
+        "longitude": -81.471367
+      }
+    },
+    {
+      "id": "16193",
+      "name": "beachclub",
+      "entityType": "RESTAURANT",
+      "parentId": "10157",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10157",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.476515,
+        "longitude": -81.465262
+      }
+    },
+    {
+      "id": "16215",
+      "name": "Ollivanders™ Experience in Diagon Alley™",
+      "entityType": "SHOW",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47964,
+        "longitude": -81.46973
+      }
+    },
+    {
+      "id": "16386",
+      "name": "Backwater Bar",
+      "entityType": "RESTAURANT",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.472117,
+        "longitude": -81.469424
+      }
+    },
+    {
+      "id": "16536",
+      "name": "The Mystic Fountain",
+      "entityType": "SHOW",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47336,
+        "longitude": -81.472115
+      }
+    },
+    {
+      "id": "16816",
+      "name": "Splendido Bar & Grille™",
+      "entityType": "RESTAURANT",
+      "parentId": "12122",
+      "destinationId": "universalresort_orlando",
+      "parkId": "12122",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.481188,
+        "longitude": -81.461219
+      }
+    },
+    {
+      "id": "16817",
+      "name": "The Thirsty Fish",
+      "entityType": "RESTAURANT",
+      "parentId": "12122",
+      "destinationId": "universalresort_orlando",
+      "parkId": "12122",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.480657,
+        "longitude": -81.461396
+      }
+    },
+    {
+      "id": "17097",
+      "name": "Hagrid's Magical Creatures Motorbike Adventure™",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47308,
+        "longitude": -81.472862
+      }
+    },
+    {
+      "id": "17110",
+      "name": "Bigfire",
+      "entityType": "RESTAURANT",
+      "parentId": "10011",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10011",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.472802,
+        "longitude": -81.466187
+      }
+    },
+    {
+      "id": "17144",
+      "name": "Marvel Character Dinner",
+      "entityType": "RESTAURANT",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.471,
+        "longitude": -81.469391
+      }
+    },
+    {
+      "id": "17775",
+      "name": "The Bourne Stuntacular",
+      "entityType": "SHOW",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.475976,
+        "longitude": -81.466979
+      }
+    },
+    {
+      "id": "17797",
+      "name": "Orchid Court Lounge Sushi Bar",
+      "entityType": "RESTAURANT",
+      "parentId": "10156",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10156",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.468998,
+        "longitude": -81.467011
+      }
+    },
+    {
+      "id": "17799",
+      "name": "Swizzle Lounge",
+      "entityType": "RESTAURANT",
+      "parentId": "10155",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10155",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4659455513326,
+        "longitude": -81.473599936771
+      }
+    },
+    {
+      "id": "17800",
+      "name": "Sand Bar",
+      "entityType": "RESTAURANT",
+      "parentId": "15502",
+      "destinationId": "universalresort_orlando",
+      "parkId": "15502",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.46141,
+        "longitude": -81.464654
+      }
+    },
+    {
+      "id": "17801",
+      "name": "Hideaway Bar and Grill",
+      "entityType": "RESTAURANT",
+      "parentId": "10155",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10155",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4636853908222,
+        "longitude": -81.4733935234987
+      }
+    },
+    {
+      "id": "17807",
+      "name": "Bula Bar & Grill",
+      "entityType": "RESTAURANT",
+      "parentId": "10156",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10156",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.469036,
+        "longitude": -81.466754
+      }
+    },
+    {
+      "id": "17872",
+      "name": "Kang & Kodos' Twirl 'n' Hurl",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.479352,
+        "longitude": -81.467877
+      }
+    },
+    {
+      "id": "17921",
+      "name": "Ollivanders™ Experience in Hogsmeade™",
+      "entityType": "SHOW",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.472809,
+        "longitude": -81.473077
+      }
+    },
+    {
+      "id": "17924",
+      "name": "Fast & Furious - Supercharged™",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.477888,
+        "longitude": -81.469458
+      }
+    },
+    {
+      "id": "17965",
+      "name": "Meet Spider-Man and the Marvel® Super Heroes",
+      "entityType": "SHOW",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.470814,
+        "longitude": -81.469747
+      }
+    },
+    {
+      "id": "18016",
+      "name": "Honu of Honu ika Moana™",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.462759,
+        "longitude": -81.474116
+      }
+    },
+    {
+      "id": "18017",
+      "name": "Raki of Taniwha Tubes™",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4609955,
+        "longitude": -81.4741443
+      }
+    },
+    {
+      "id": "18018",
+      "name": "Maku of Maku Puihi Round Raft Rides™",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.460053,
+        "longitude": -81.47398
+      }
+    },
+    {
+      "id": "18019",
+      "name": "Puka Uli Lagoon™",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4611,
+        "longitude": -81.4723
+      }
+    },
+    {
+      "id": "18020",
+      "name": "Runamukka Reef™",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.461781,
+        "longitude": -81.473714
+      }
+    },
+    {
+      "id": "18021",
+      "name": "The Reef",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.462126,
+        "longitude": -81.473171
+      }
+    },
+    {
+      "id": "18022",
+      "name": "Tonga of Taniwha Tubes™",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4610545,
+        "longitude": -81.4741866
+      }
+    },
+    {
+      "id": "18023",
+      "name": "Tot Tiki Reef™",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.461949,
+        "longitude": -81.473857
+      }
+    },
+    {
+      "id": "18024",
+      "name": "Punga Racers™",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.460947,
+        "longitude": -81.473611
+      }
+    },
+    {
+      "id": "18025",
+      "name": "Kala & Tai Nui Serpentine Body Slides™",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4615,
+        "longitude": -81.4728
+      }
+    },
+    {
+      "id": "18026",
+      "name": "TeAwa The Fearless River™",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.460524,
+        "longitude": -81.474055
+      }
+    },
+    {
+      "id": "18027",
+      "name": "Krakatau™ Aqua Coaster",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.461352,
+        "longitude": -81.474089
+      }
+    },
+    {
+      "id": "18028",
+      "name": "Ko'okiri Body Plunge™",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.462218,
+        "longitude": -81.473297
+      }
+    },
+    {
+      "id": "18029",
+      "name": "ika Moana of Honu ika Moana™",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.462809,
+        "longitude": -81.474123
+      }
+    },
+    {
+      "id": "18030",
+      "name": "Kopiko Wai Winding River™",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.462111,
+        "longitude": -81.473571
+      }
+    },
+    {
+      "id": "18031",
+      "name": "Ohyah of the Ohyah and Ohno Drop Slides™",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4613,
+        "longitude": -81.4726
+      }
+    },
+    {
+      "id": "18032",
+      "name": "Ohno of the Ohyah and Ohno Drop Slides™",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4613,
+        "longitude": -81.4726
+      }
+    },
+    {
+      "id": "18033",
+      "name": "Waturi Beach",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.462105,
+        "longitude": -81.472014
+      }
+    },
+    {
+      "id": "18063",
+      "name": "Puihi of Maku Puihi Round Raft Rides™",
+      "entityType": "ATTRACTION",
+      "parentId": "13801",
+      "destinationId": "universalresort_orlando",
+      "parkId": "13801",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.460186,
+        "longitude": -81.473929
+      }
+    },
+    {
+      "id": "18154",
+      "name": "Jurassic World VelociCoaster",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.471429,
+        "longitude": -81.472284
+      }
+    },
+    {
+      "id": "18162",
+      "name": "Camp Jurassic™",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.470134,
+        "longitude": -81.4727356
+      }
+    },
+    {
+      "id": "18163",
+      "name": "If I Ran The Zoo™",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.472643,
+        "longitude": -81.4696767
+      }
+    },
+    {
+      "id": "18196",
+      "name": "Storm Force Accelatron®",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.471007,
+        "longitude": -81.468794
+      }
+    },
+    {
+      "id": "18218",
+      "name": "Me Ship, The Olive®",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4709684,
+        "longitude": -81.4712606
+      }
+    },
+    {
+      "id": "18219",
+      "name": "Jurassic Park Discovery Center™",
+      "entityType": "ATTRACTION",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4715876,
+        "longitude": -81.4726189
+      }
+    },
+    {
+      "id": "18332",
+      "name": "The Wave Maker’s Pool Bar",
+      "entityType": "RESTAURANT",
+      "parentId": "17943",
+      "destinationId": "universalresort_orlando",
+      "parkId": "17943",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.459222,
+        "longitude": -81.462389
+      }
+    },
+    {
+      "id": "19043",
+      "name": "Illumination's Villain-Con Minion Blast",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.475526,
+        "longitude": -81.467882
+      }
+    },
+    {
+      "id": "19045",
+      "name": "Illumination Theater",
+      "entityType": "SHOW",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.475880741324,
+        "longitude": -81.4683399259803
+      }
+    },
+    {
+      "id": "19060",
+      "name": "Illumination Theater",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.475880741324,
+        "longitude": -81.4683399259803
+      }
+    },
+    {
+      "id": "19303",
+      "name": "DreamWorks Character Zone",
+      "entityType": "SHOW",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47817,
+        "longitude": -81.46722
+      }
+    },
+    {
+      "id": "19304",
+      "name": "DreamWorks Imagination Celebration",
+      "entityType": "SHOW",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47906,
+        "longitude": -81.46681
+      }
+    },
+    {
+      "id": "19305",
+      "name": "Shrek’s Swamp Meet",
+      "entityType": "SHOW",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47818,
+        "longitude": -81.46696
+      }
+    },
+    {
+      "id": "19307",
+      "name": "Trolls Trollercoaster",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.47842,
+        "longitude": -81.46611
+      }
+    },
+    {
+      "id": "19325",
+      "name": "Hogwarts™ Express - First Train",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.479079,
+        "longitude": -81.46944
+      }
+    },
+    {
+      "id": "24000",
+      "name": "Universals Epic Universe",
+      "entityType": "PARK",
+      "parentId": "universalresort_orlando",
+      "destinationId": "universalresort_orlando",
+      "parkId": null,
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4414454548964,
+        "longitude": 81.4486740912188
+      }
+    },
+    {
+      "id": "24077",
+      "name": "Stardust Racers",
+      "entityType": "ATTRACTION",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.44151,
+        "longitude": -81.44753
+      }
+    },
+    {
+      "id": "24089",
+      "name": "Harry Potter and the Battle at the Ministry™",
+      "entityType": "ATTRACTION",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.44284,
+        "longitude": -81.4481
+      }
+    },
+    {
+      "id": "24106",
+      "name": "Constellation Carousel",
+      "entityType": "ATTRACTION",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.44033,
+        "longitude": -81.44805
+      }
+    },
+    {
+      "id": "24110",
+      "name": "Le Cirque Arcanus™",
+      "entityType": "SHOW",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.44277,
+        "longitude": -81.44732
+      }
+    },
+    {
+      "id": "24129",
+      "name": "Monsters Unchained: The Frankenstein Experiment",
+      "entityType": "ATTRACTION",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.44035,
+        "longitude": -81.45029
+      }
+    },
+    {
+      "id": "24130",
+      "name": "Mario Kart™: Bowser's Challenge",
+      "entityType": "ATTRACTION",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.43875,
+        "longitude": -81.44783
+      }
+    },
+    {
+      "id": "24131",
+      "name": "Hiccup Wing Glider",
+      "entityType": "ATTRACTION",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.44113,
+        "longitude": -81.44548
+      }
+    },
+    {
+      "id": "24132",
+      "name": "Mine-Cart Madness™",
+      "entityType": "ATTRACTION",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.43825,
+        "longitude": -81.44875
+      }
+    },
+    {
+      "id": "24133",
+      "name": "Yoshi's Adventure™",
+      "entityType": "ATTRACTION",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.43904,
+        "longitude": -81.44817
+      }
+    },
+    {
+      "id": "24134",
+      "name": "Curse of the Werewolf",
+      "entityType": "ATTRACTION",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.43995,
+        "longitude": -81.45002
+      }
+    },
+    {
+      "id": "24135",
+      "name": "Fyre Drill",
+      "entityType": "ATTRACTION",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.44061,
+        "longitude": -81.44545
+      }
+    },
+    {
+      "id": "24136",
+      "name": "Dragon Racer's Rally",
+      "entityType": "ATTRACTION",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.44122,
+        "longitude": -81.44549
+      }
+    },
+    {
+      "id": "24137",
+      "name": "The Untrainable Dragon",
+      "entityType": "SHOW",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.44004,
+        "longitude": -81.44463
+      }
+    },
+    {
+      "id": "24150",
+      "name": "Meet Toothless and Friends",
+      "entityType": "SHOW",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4408,
+        "longitude": -81.44624
+      }
+    },
+    {
+      "id": "24184",
+      "name": "Bowser Jr. Challenge",
+      "entityType": "ATTRACTION",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.439046,
+        "longitude": -81.447956
+      }
+    },
+    {
+      "id": "24234",
+      "name": "The Cosmos Fountain",
+      "entityType": "SHOW",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.440233,
+        "longitude": -81.44819
+      }
+    },
+    {
+      "id": "24235",
+      "name": "Meet Toad",
+      "entityType": "SHOW",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.439256,
+        "longitude": -81.44808
+      }
+    },
+    {
+      "id": "24236",
+      "name": "Dark Universe Character Zone",
+      "entityType": "SHOW",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4405,
+        "longitude": -81.44982
+      }
+    },
+    {
+      "id": "24237",
+      "name": "Meet Donkey Kong",
+      "entityType": "SHOW",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.43844,
+        "longitude": -81.44873
+      }
+    },
+    {
+      "id": "24238",
+      "name": "Meet Mario and Luigi",
+      "entityType": "SHOW",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.43913,
+        "longitude": -81.44807
+      }
+    },
+    {
+      "id": "24239",
+      "name": "Meet Princess Peach",
+      "entityType": "SHOW",
+      "parentId": "24000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "24000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4391,
+        "longitude": -81.44808
+      }
+    },
+    {
+      "id": "24398",
+      "name": "JASON UN1V3RSE",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.480345,
+        "longitude": -81.468763
+      }
+    },
+    {
+      "id": "24399",
+      "name": "Grave of Flesh",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.480345,
+        "longitude": -81.468763
+      }
+    },
+    {
+      "id": "24400",
+      "name": "Dolls: Let’s Play Dead",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.480345,
+        "longitude": -81.468763
+      }
+    },
+    {
+      "id": "24401",
+      "name": "El Artista: A Spanish Haunting",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.480345,
+        "longitude": -81.468763
+      }
+    },
+    {
+      "id": "24402",
+      "name": "Five Nights At Freddy’s",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.480345,
+        "longitude": -81.468763
+      }
+    },
+    {
+      "id": "24403",
+      "name": "WWE Presents: The Horrors of the Wyatt Sicks",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.480345,
+        "longitude": -81.468763
+      }
+    },
+    {
+      "id": "24404",
+      "name": "Terrifier",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.480345,
+        "longitude": -81.468763
+      }
+    },
+    {
+      "id": "24405",
+      "name": "Hatchet and Chains: Demon Bounty Hunters",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.480345,
+        "longitude": -81.468763
+      }
+    },
+    {
+      "id": "24406",
+      "name": "Fallout",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.480345,
+        "longitude": -81.468763
+      }
+    },
+    {
+      "id": "24407",
+      "name": "Gálkn: Monsters of the North",
+      "entityType": "ATTRACTION",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.480345,
+        "longitude": -81.468763
+      }
+    },
+    {
+      "id": "24474",
+      "name": "The Grinch™ Meet & Greet at Honk Honkers®",
+      "entityType": "SHOW",
+      "parentId": "10000",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10000",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.472865,
+        "longitude": -81.47055
+      }
+    },
+    {
+      "id": "24475",
+      "name": "Earl the Squirrel Meet & Greet",
+      "entityType": "SHOW",
+      "parentId": "10010",
+      "destinationId": "universalresort_orlando",
+      "parkId": "10010",
+      "timezone": "America/New_York",
+      "location": {
+        "latitude": 28.4771906,
+        "longitude": -81.4677356
+      }
+    },
+    {
+      "id": "universalresort_orlando",
+      "name": "Universal Orlando Resort",
+      "entityType": "DESTINATION",
+      "parentId": null,
+      "destinationId": null,
+      "parkId": null,
+      "timezone": "America/New_York",
+      "location": null
+    }
+  ],
+  "liveData": {
+    "entityIds": [
+      "10135",
+      "10831",
+      "10832",
+      "10833",
+      "10835",
+      "10837",
+      "10838",
+      "10839",
+      "10840",
+      "10841",
+      "10842",
+      "10853",
+      "10855",
+      "10856",
+      "10857",
+      "10858",
+      "10859",
+      "10862",
+      "10875",
+      "10877",
+      "11584",
+      "11585",
+      "11587",
+      "12287",
+      "12289",
+      "12292",
+      "13218",
+      "13219",
+      "13220",
+      "13221",
+      "13225",
+      "13228",
+      "13368",
+      "13369",
+      "13371",
+      "13372",
+      "13373",
+      "13512",
+      "13667",
+      "13799",
+      "14348",
+      "15016",
+      "15369",
+      "15371",
+      "16215",
+      "16536",
+      "17097",
+      "17775",
+      "17872",
+      "17921",
+      "17924",
+      "17965",
+      "18016",
+      "18017",
+      "18018",
+      "18019",
+      "18020",
+      "18021",
+      "18022",
+      "18023",
+      "18024",
+      "18025",
+      "18026",
+      "18027",
+      "18028",
+      "18029",
+      "18030",
+      "18031",
+      "18032",
+      "18033",
+      "18063",
+      "18154",
+      "18162",
+      "18163",
+      "18196",
+      "18218",
+      "18219",
+      "18843",
+      "18994",
+      "19043",
+      "19045",
+      "19060",
+      "19256",
+      "19303",
+      "19304",
+      "19305",
+      "19306",
+      "19307",
+      "19312",
+      "19313",
+      "19314",
+      "19325",
+      "19326",
+      "24077",
+      "24089",
+      "24106",
+      "24110",
+      "24129",
+      "24130",
+      "24131",
+      "24132",
+      "24133",
+      "24134",
+      "24135",
+      "24136",
+      "24137",
+      "24150",
+      "24184",
+      "24234",
+      "24235",
+      "24236",
+      "24237",
+      "24238",
+      "24239",
+      "24398",
+      "24399",
+      "24400",
+      "24401",
+      "24402",
+      "24403",
+      "24404",
+      "24405",
+      "24406",
+      "24407",
+      "24474",
+      "24475",
+      "24476",
+      "24572",
+      "null",
+      "null",
+      "null",
+      "null",
+      "null",
+      "null",
+      "null",
+      "null",
+      "null",
+      "null",
+      "null",
+      "null",
+      "null",
+      "null",
+      "null",
+      "null",
+      "null"
+    ],
+    "perEntityQueueTypes": {},
+    "statusTypes": [
+      "CLOSED",
+      "OPERATING"
+    ]
+  },
+  "schedules": {
+    "entityIds": [
+      "10000",
+      "10010",
+      "13801",
+      "24000"
+    ],
+    "entityCount": 4,
+    "hasScheduleEntries": true
+  }
+}
