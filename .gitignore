@@ -12,3 +12,4 @@ temp*.json
 temp*.js
 datacache/
 .claude/settings.local.json
+snapshots/*.report.json
