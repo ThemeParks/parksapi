@@ -334,8 +334,141 @@ export class Efteling extends Destination {
     return tags.filter(Boolean);
   }
 
+  /**
+   * Map Efteling WIS state strings to standard status values
+   */
+  private mapState(state: string): string {
+    switch (state?.toLowerCase()) {
+      case 'open': return 'OPERATING';
+      case 'storing':
+      case 'tijdelijkbuitenbedrijf': return 'DOWN';
+      case 'buitenbedrijf':
+      case 'inonderhoud': return 'REFURBISHMENT';
+      case 'gesloten':
+      case '':
+      case 'wachtrijgesloten':
+      case 'nognietopen': return 'CLOSED';
+      default:
+        console.warn(`[Efteling] Unknown state: ${state}`);
+        return 'CLOSED';
+    }
+  }
+
+  /**
+   * Build single rider alternate ID mapping from POI data.
+   * Rebuilds from cached POI data so buildLiveData() is independent of buildEntityList().
+   */
+  private buildSingleRiderMap(poiHits: any[]): Map<string, string> {
+    const map = new Map<string, string>();
+    for (const hit of poiHits) {
+      const fields = hit.fields;
+      if (fields?.alternatetype === 'singlerider' && fields?.alternateid) {
+        map.set(fields.alternateid, fields.id);
+      }
+    }
+    return map;
+  }
+
   protected async buildLiveData(): Promise<LiveData[]> {
-    return [];
+    const liveData: LiveData[] = [];
+    const liveDataMap = new Map<string, LiveData>();
+
+    const getOrCreate = (id: string): LiveData => {
+      let entry = liveDataMap.get(id);
+      if (!entry) {
+        entry = { id, status: 'CLOSED' } as LiveData;
+        liveDataMap.set(id, entry);
+        liveData.push(entry);
+      }
+      return entry;
+    };
+
+    // Get POI data for entity ID lookup + single rider mapping
+    const poiHits = await this.getPOIData('en');
+    const poiIds = new Set<string>();
+    for (const hit of poiHits) {
+      if (hit.fields?.id) poiIds.add(hit.fields.id);
+    }
+
+    const singleRiderMap = this.buildSingleRiderMap(poiHits);
+    const waitTimes = await this.getWaitTimes();
+
+    // First pass: collect single rider data
+    // WIS returns separate entries for single rider queues using the alternate ID
+    const singleRiderData = new Map<string, number | null>();
+    for (const entry of waitTimes) {
+      if (!entry.Id) continue;
+      // If this ID is NOT a known POI but IS a single rider alternate ID
+      if (!poiIds.has(entry.Id) && singleRiderMap.has(entry.Id)) {
+        const parentId = singleRiderMap.get(entry.Id)!;
+        const waitTime = entry.WaitingTime !== undefined ? parseInt(String(entry.WaitingTime), 10) : null;
+        singleRiderData.set(parentId, isNaN(waitTime as number) ? null : waitTime);
+      }
+    }
+
+    // Second pass: build live data for known entities
+    for (const entry of waitTimes) {
+      if (!entry.Id) continue;
+
+      // Droomvlucht special case: droomvluchtstandby maps to droomvlucht
+      let entityId = entry.Id;
+      if (entityId === 'droomvluchtstandby') {
+        entityId = 'droomvlucht';
+      }
+
+      // Skip entries not in our entity list (and not droomvluchtstandby)
+      if (!poiIds.has(entityId) && entry.Id !== 'droomvluchtstandby') continue;
+
+      const type = entry.Type;
+
+      if (type === 'Attraction' || type === 'Attracties') {
+        const ld = getOrCreate(entityId);
+        const status = this.mapState(entry.State);
+        ld.status = status as any;
+
+        if (status === 'OPERATING') {
+          const waitTime = entry.WaitingTime !== undefined ? parseInt(String(entry.WaitingTime), 10) : undefined;
+          if (!ld.queue) ld.queue = {};
+          ld.queue.STANDBY = { waitTime: (waitTime !== undefined && !isNaN(waitTime)) ? waitTime : undefined };
+        }
+
+        // Single rider queue
+        if (singleRiderData.has(entityId)) {
+          if (!ld.queue) ld.queue = {};
+          ld.queue.SINGLE_RIDER = { waitTime: null };
+        }
+
+        // Virtual queue
+        if (entry.VirtualQueue) {
+          if (!ld.queue) ld.queue = {};
+          const vqState = entry.VirtualQueue.State?.toLowerCase();
+          if (vqState === 'enabled' && entry.VirtualQueue.WaitingTime !== undefined) {
+            const window = this.calculateReturnWindow(entry.VirtualQueue.WaitingTime, { windowMinutes: 15 });
+            ld.queue.RETURN_TIME = this.buildReturnTimeQueue('AVAILABLE', window.start, window.end);
+          } else if (vqState === 'full') {
+            ld.queue.RETURN_TIME = this.buildReturnTimeQueue('FINISHED', null, null);
+          } else if (vqState === 'walkin') {
+            ld.queue.RETURN_TIME = this.buildReturnTimeQueue('TEMP_FULL', null, null);
+          }
+        }
+      } else if (type === 'Shows en Entertainment') {
+        const ld = getOrCreate(entityId);
+
+        // Combine upcoming and past show times
+        const allShowTimes = [...(entry.ShowTimes || []), ...(entry.PastShowTimes || [])];
+        ld.status = (allShowTimes.length > 0 ? 'OPERATING' : 'CLOSED') as any;
+
+        if (allShowTimes.length > 0) {
+          ld.showtimes = allShowTimes.map((time: any) => ({
+            startTime: time.StartDateTime,
+            endTime: time.EndDateTime || null,
+            type: time.Edition || 'Showtime',
+          }));
+        }
+      }
+    }
+
+    return liveData;
   }
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
