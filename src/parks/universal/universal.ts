@@ -719,6 +719,19 @@ class Universal extends Destination {
               hasOperatingQueue = true;
             }
             break;
+
+          case 'EXPRESS':
+            // Express Pass — status field unreliable (always CLOSED).
+            // display_wait_time !== 995 means Express is available.
+            // 995 is Universal's "not available" sentinel.
+            // Wait time values are unreliable, report null.
+            if (queue.display_wait_time !== undefined && queue.display_wait_time !== 995) {
+              if (!attractionLiveData.queue) {
+                attractionLiveData.queue = {};
+              }
+              attractionLiveData.queue.PAID_STANDBY = {waitTime: null};
+            }
+            break;
         }
       }
 
