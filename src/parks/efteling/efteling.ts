@@ -471,7 +471,65 @@ export class Efteling extends Destination {
     return liveData;
   }
 
+  /**
+   * Get the UTC offset string for a given date in Europe/Amsterdam timezone.
+   * Returns e.g. "+01:00" (CET winter) or "+02:00" (CEST summer).
+   */
+  private getAmsterdamOffset(dateStr: string): string {
+    // Create a date at noon UTC on that day to safely extract the offset
+    const refDate = new Date(`${dateStr}T12:00:00Z`);
+    const formatted = formatInTimezone(refDate, 'Europe/Amsterdam', 'iso');
+    // Extract offset from end of ISO string (e.g. "2024-10-15T14:00:00+02:00" -> "+02:00")
+    const match = formatted.match(/([+-]\d{2}:\d{2})$/);
+    return match ? match[1] : '+01:00';
+  }
+
   protected async buildSchedules(): Promise<EntitySchedule[]> {
-    return [];
+    const now = new Date();
+    const scheduleEntries: any[] = [];
+
+    // Fetch 4 months of calendar data (current + 3 forward)
+    for (let i = 0; i < 4; i++) {
+      const date = addDays(now, i * 30); // rough month offset
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1; // 1-indexed
+
+      const days = await this.getCalendar(year, month);
+
+      for (const day of days) {
+        if (!day.Date || !day.OpeningHours || !Array.isArray(day.OpeningHours)) continue;
+
+        // Sort opening hours by Open time
+        const hours = [...day.OpeningHours].sort((a: any, b: any) =>
+          (a.Open || '').localeCompare(b.Open || '')
+        );
+
+        // Get the Amsterdam UTC offset for this specific date (handles DST)
+        const offset = this.getAmsterdamOffset(day.Date);
+
+        for (let j = 0; j < hours.length; j++) {
+          const h = hours[j];
+          if (!h.Open || !h.Close) continue;
+
+          // Build ISO datetime strings with correct Amsterdam offset
+          // day.Date is "YYYY-MM-DD", h.Open/h.Close are "HH:mm"
+          const openingTime = `${day.Date}T${h.Open}:00${offset}`;
+          const closingTime = `${day.Date}T${h.Close}:00${offset}`;
+
+          scheduleEntries.push({
+            date: day.Date,
+            type: j === 0 ? 'OPERATING' : 'INFO',
+            description: j === 0 ? undefined : 'Evening Hours',
+            openingTime,
+            closingTime,
+          });
+        }
+      }
+    }
+
+    return [{
+      id: 'efteling',
+      schedule: scheduleEntries,
+    } as EntitySchedule];
   }
 }
