@@ -1,7 +1,9 @@
 // HTTP client using node:http/https with optional proxy support (Node.js 24+)
 import * as http from 'node:http';
 import * as https from 'node:https';
+import * as zlib from 'node:zlib';
 import {URL} from 'node:url';
+import {pipeline} from 'node:stream';
 
 /**
  * Make an HTTP request using node:http/https with optional proxy support
@@ -39,14 +41,36 @@ export async function makeHttpRequest(options: {
       } as any); // Type assertion needed as proxy option is new in Node 24
     }
 
+    // Add Accept-Encoding header to request compressed responses
+    const hdrs = requestOptions.headers as Record<string, string>;
+    if (!hdrs['accept-encoding'] && !hdrs['Accept-Encoding']) {
+      hdrs['accept-encoding'] = 'gzip, deflate, br';
+    }
+
     const req = httpModule.request(requestOptions, (res) => {
       const chunks: Buffer[] = [];
 
-      res.on('data', (chunk) => {
+      // Select decompression stream based on content-encoding
+      const encoding = res.headers['content-encoding'];
+      let stream: NodeJS.ReadableStream = res;
+
+      if (encoding === 'gzip' || encoding === 'x-gzip') {
+        stream = res.pipe(zlib.createGunzip());
+      } else if (encoding === 'deflate') {
+        stream = res.pipe(zlib.createInflate());
+      } else if (encoding === 'br') {
+        stream = res.pipe(zlib.createBrotliDecompress());
+      }
+
+      stream.on('data', (chunk: Buffer) => {
         chunks.push(chunk);
       });
 
-      res.on('end', () => {
+      stream.on('error', (error: Error) => {
+        reject(error);
+      });
+
+      stream.on('end', () => {
         const buffer = Buffer.concat(chunks);
         const responseBody = buffer.toString('utf-8');
 
