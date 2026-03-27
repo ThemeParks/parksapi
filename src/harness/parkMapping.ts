@@ -22,6 +22,8 @@ export const parkMapping: Record<string, string> = {
   'liseberg': 'Liseberg',
   // PortAventura
   'portaventuraworld': 'PortAventuraWorld',
+  // Six Flags
+  'sixflags': 'SixFlags',
   // Parcs Reunidos (StayApp)
   'movieparkgermany': 'MovieParkGermany',
   'bobbejaanland': 'Bobbejaanland',

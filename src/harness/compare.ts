@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { execFile } from 'child_process';
 import { fileURLToPath } from 'url';
@@ -24,9 +25,11 @@ if (!fs.existsSync(SNAPSHOTS_DIR)) {
 
 function runJsRunner(jsClassName: string): Promise<RawParkOutput> {
   return new Promise((resolve, reject) => {
+    // Write to temp file to avoid stdout buffer limits for large outputs (e.g., Six Flags)
+    const tmpFile = path.join(os.tmpdir(), `parksapi-jsrunner-${jsClassName}-${Date.now()}.json`);
     execFile(
       'node',
-      ['--env-file=.env', JS_RUNNER_PATH, jsClassName],
+      ['--env-file=.env', JS_RUNNER_PATH, jsClassName, tmpFile],
       { cwd: JS_CODEBASE, timeout: 120_000, maxBuffer: 50 * 1024 * 1024 },
       (error, stdout, stderr) => {
         if (error) {
@@ -34,9 +37,11 @@ function runJsRunner(jsClassName: string): Promise<RawParkOutput> {
           return;
         }
         try {
-          resolve(JSON.parse(stdout));
-        } catch (e) {
-          reject(new Error(`JS runner returned invalid JSON for ${jsClassName}: ${stdout.slice(0, 200)}`));
+          const data = fs.readFileSync(tmpFile, 'utf-8');
+          fs.unlinkSync(tmpFile);
+          resolve(JSON.parse(data));
+        } catch (e: any) {
+          reject(new Error(`JS runner output error for ${jsClassName}: ${e.message}`));
         }
       },
     );

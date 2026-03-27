@@ -1,18 +1,20 @@
 // src/harness/jsRunner.mjs
 //
 // Standalone ESM script — spawned as a child process against the JS codebase.
-// Usage: node --env-file=.env src/harness/jsRunner.mjs <JsClassName>
+// Usage: node --env-file=.env src/harness/jsRunner.mjs <JsClassName> [outputFile]
 //
-// Writes JSON to stdout: { entities: [...], liveData: [...], schedules: [...] }
+// Writes JSON to outputFile (if provided) or stdout.
 // Errors go to stderr. Non-zero exit on failure.
 
 import { pathToFileURL } from 'url';
 import * as path from 'path';
+import * as fs from 'fs';
 
 const className = process.argv[2];
+const outputFile = process.argv[3]; // Optional: write to file instead of stdout
 
 if (!className) {
-  console.error('Usage: node jsRunner.mjs <JsClassName>');
+  console.error('Usage: node jsRunner.mjs <JsClassName> [outputFile]');
   process.exit(1);
 }
 
@@ -47,10 +49,16 @@ try {
   const liveData = await instance.getEntityLiveData();
   const schedules = await instance.getEntitySchedules();
 
-  // Restore stdout and write clean JSON
-  process.stdout.write = originalStdoutWrite;
   const output = JSON.stringify({ entities, liveData, schedules });
-  process.stdout.write(output);
+
+  if (outputFile) {
+    // Write to file — avoids stdout buffer limits for large outputs
+    fs.writeFileSync(outputFile, output);
+  } else {
+    // Restore stdout and write clean JSON
+    process.stdout.write = originalStdoutWrite;
+    process.stdout.write(output);
+  }
 
   process.exit(0);
 } catch (error) {
