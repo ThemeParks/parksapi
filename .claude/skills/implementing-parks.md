@@ -234,6 +234,16 @@ const openingTime = new Date(`${dateStr}T${timeStr}:00`);
 
 **`addMinutes` is DST-safe** — uses millisecond arithmetic, not `setMinutes`.
 
+### HTML Scraping Gotchas
+
+When scraping HTML for calendar/schedule data:
+- **Quote styles vary:** Match both `value='...'` and `value="..."` in regex
+- **HTML entities in attributes:** `&#34;` instead of `"`, `&#39;` instead of `'`. Decode before JSON.parse:
+  ```typescript
+  const decoded = raw.replace(/&#34;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+  ```
+- **URLs change:** Park websites restructure frequently. Calendar URLs should be configurable via env vars, not hardcoded. Handle 301/404 gracefully.
+
 ### Status Mapping
 
 Create a private `mapStatus()` method. Every park has its own state strings:

@@ -339,12 +339,21 @@ class ParcsReunidosDestination extends Destination {
     const html = await resp.text();
 
     // Extract labels JSON from hidden input
-    const labelsMatch = html.match(/id="data-hour-labels"\s+value='([^']*)'/);
+    // Handle both value='...' (single quotes) and value="..." (double quotes)
+    const labelsMatch = html.match(/id="data-hour-labels"\s+value=["']([^"']*)["']/);
     if (!labelsMatch) return [];
 
     let labels: Array<Record<string, string>>;
     try {
-      labels = JSON.parse(labelsMatch[1]);
+      // Decode HTML entities (&#34; → ", &amp; → &, etc.) before JSON parsing
+      const decoded = labelsMatch[1]
+        .replace(/&#34;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"');
+      labels = JSON.parse(decoded);
     } catch {
       console.warn(`[ParcsReunidos:${this.appId}] Failed to parse calendar labels JSON`);
       return [];
@@ -358,8 +367,8 @@ class ParcsReunidosDestination extends Destination {
       }
     }
 
-    // Extract year data from hidden inputs
-    const yearRegex = /id="data-hour-(\d{4})"\s+value='([^']*)'/g;
+    // Extract year data from hidden inputs (handle both quote styles + HTML entities)
+    const yearRegex = /id="data-hour-(\d{4})"\s+value=["']([^"']*)["']/g;
     const scheduleEntries: Array<{date: string; type: string; openingTime: string; closingTime: string}> = [];
     let yearMatch;
 
@@ -367,7 +376,12 @@ class ParcsReunidosDestination extends Destination {
       const year = parseInt(yearMatch[1], 10);
       let monthsData: Array<Record<string, string>>;
       try {
-        monthsData = JSON.parse(yearMatch[2]);
+        const decoded = yearMatch[2]
+          .replace(/&#34;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&amp;/g, '&')
+          .replace(/&quot;/g, '"');
+        monthsData = JSON.parse(decoded);
       } catch {
         console.warn(`[ParcsReunidos:${this.appId}] Failed to parse calendar year ${year} JSON`);
         continue;
