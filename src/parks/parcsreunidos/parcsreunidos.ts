@@ -570,16 +570,4 @@ export class ParqueWarnerMadrid extends ParcsReunidosDestination {
   }
 }
 
-/**
- * Kennywood - West Mifflin, Pennsylvania, USA
- */
-@destinationController({category: ['Parcs Reunidos', 'Kennywood']})
-export class Kennywood extends ParcsReunidosDestination {
-  constructor(options?: DestinationConstructor) {
-    super(options);
-    this.timezone = 'America/New_York';
-    this.addConfigPrefix('KENNYWOOD');
-  }
-}
-
 export {ParcsReunidosDestination};

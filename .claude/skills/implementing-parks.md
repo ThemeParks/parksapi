@@ -426,6 +426,15 @@ Inject certs into requests via `@inject` by setting `requestObj.options.key` and
 | Virtual queues | `buildReturnTimeQueue()` | N/A | Base class helper |
 | Tags | `TagBuilder.*()` | N/A | Static factory methods |
 
+### HFE Corp (Herschend) API Pattern
+
+Parks like Kennywood, Dollywood, Silver Dollar City use `hfecorp.com` APIs:
+- **POI:** `{crmBase}/api/destination/activitiesbysite/{siteId}` — no auth, `user-agent: okhttp/5.1.0`
+- **Schedule:** `{crmBase}/api/park/dailyschedulebytime?parkids={parkId}&days=60&date={date}`
+- **Wait times:** `https://pulse.hfecorp.com/api/waitTimes/{destId}` — IDs: 1=Dollywood, 2=Silver Dollar City, 3=Wild Adventures, 4=Kentucky Kingdom
+
+Wait time `rideName` has park suffix like `(DW)`, `(KK)`. Join to POI via `rideWaitTimeRideId` field, or fall back to name matching (strip suffix).
+
 ## Reference Implementations
 
 - **Universal** (`src/parks/universal/universal.ts`) — Complex: multi-park resort, auth tokens, VQ, Express Pass
