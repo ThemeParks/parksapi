@@ -22,6 +22,13 @@ export const parkMapping: Record<string, string> = {
   'liseberg': 'Liseberg',
   // PortAventura
   'portaventuraworld': 'PortAventuraWorld',
+  // Parcs Reunidos (StayApp)
+  'movieparkgermany': 'MovieParkGermany',
+  'bobbejaanland': 'Bobbejaanland',
+  'mirabilandia': 'Mirabilandia',
+  'parquedeatraccionesmadrid': 'ParqueDeAtraccionesMadrid',
+  'parquewarnermadrid': 'ParqueWarnerMadrid',
+  'kennywood': 'Kennywood',
 };
 
 /**
