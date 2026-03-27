@@ -167,6 +167,91 @@ describe('@config property resolution across decorators', () => {
   });
 });
 
+describe('@config property resolution with inheritance (framework pattern)', () => {
+  test('@config property on base class resolves from env var via config prefix on subclass', () => {
+    // Regression: Parcs Reunidos pattern — base class has @config properties,
+    // subclasses add config prefixes. The env var is found via prefix lookup,
+    // not class name lookup (since base class name doesn't match env var prefix).
+    process.env.PARKPREFIX_BASEPROP = 'resolved-via-prefix';
+
+    @config
+    class TestBase extends Destination {
+      @config
+      baseProp: string = '';
+
+      constructor(options?: DestinationConstructor) {
+        super(options);
+        this.addConfigPrefix('SHARED');
+      }
+
+      protected async buildEntityList(): Promise<Entity[]> { return []; }
+      protected async buildLiveData(): Promise<LiveData[]> { return []; }
+      protected async buildSchedules(): Promise<EntitySchedule[]> { return []; }
+      async getDestinations(): Promise<Entity[]> { return []; }
+    }
+
+    // Subclass adds its own prefix (like Bobbejaanland adding BOBBEJAANLAND)
+    const WrappedSubclass = config(class TestSubclass extends TestBase {
+      constructor(options?: DestinationConstructor) {
+        super(options);
+        this.addConfigPrefix('PARKPREFIX');
+      }
+    }) as any;
+
+    const instance = new WrappedSubclass();
+    expect(instance.baseProp).toBe('resolved-via-prefix');
+
+    delete process.env.PARKPREFIX_BASEPROP;
+  });
+
+  test('@config properties resolve independently per subclass with different prefixes', () => {
+    // This is the Parcs Reunidos pattern: same base class, different parks
+    // Each subclass must get its own env var values
+    process.env.PARKA_PARKID = '1001';
+    process.env.PARKB_PARKID = '2002';
+
+    @config
+    class FrameworkBase extends Destination {
+      @config parkId: string = '';
+      @config timezone: string = 'UTC';
+
+      constructor(options?: DestinationConstructor) {
+        super(options);
+        this.addConfigPrefix('SHARED');
+      }
+
+      protected async buildEntityList(): Promise<Entity[]> { return []; }
+      protected async buildLiveData(): Promise<LiveData[]> { return []; }
+      protected async buildSchedules(): Promise<EntitySchedule[]> { return []; }
+      async getDestinations(): Promise<Entity[]> { return []; }
+    }
+
+    // Simulate two subclass parks with different config prefixes
+    const ParkAClass = config(class ParkA extends FrameworkBase {
+      constructor(options?: DestinationConstructor) {
+        super(options);
+        this.addConfigPrefix('PARKA');
+      }
+    }) as any;
+
+    const ParkBClass = config(class ParkB extends FrameworkBase {
+      constructor(options?: DestinationConstructor) {
+        super(options);
+        this.addConfigPrefix('PARKB');
+      }
+    }) as any;
+
+    const parkA = new ParkAClass();
+    const parkB = new ParkBClass();
+
+    expect(parkA.parkId).toBe('1001');
+    expect(parkB.parkId).toBe('2002');
+
+    delete process.env.PARKA_PARKID;
+    delete process.env.PARKB_PARKID;
+  });
+});
+
 describe('@config with Destination pattern (real-world)', () => {
   test('config property with sensible default works in URL construction', () => {
     @config
