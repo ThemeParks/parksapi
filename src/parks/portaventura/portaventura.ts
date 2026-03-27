@@ -1,4 +1,6 @@
 import {Destination, DestinationConstructor} from '../../destination.js';
+import {readFileSync} from 'fs';
+import {join} from 'path';
 
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
@@ -26,9 +28,35 @@ export class PortAventuraWorld extends Destination {
   @config
   timezone: string = 'Europe/Madrid';
 
+  /** Directory containing client SSL certificates (private.pem + cert.pem) */
+  @config
+  certDir: string = '';
+
+  /** Cached cert contents (loaded once from disk) */
+  private _certKey: string | undefined;
+  private _certPem: string | undefined;
+
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('PORTAVENTURAWORLD');
+  }
+
+  /**
+   * Load client SSL certificates from certDir.
+   * Reads private.pem and cert.pem once, caches in memory.
+   */
+  private loadCerts(): { key: string; cert: string } | undefined {
+    if (this._certKey && this._certPem) {
+      return { key: this._certKey, cert: this._certPem };
+    }
+    if (!this.certDir) return undefined;
+    try {
+      this._certKey = readFileSync(join(this.certDir, 'private.pem'), 'utf8');
+      this._certPem = readFileSync(join(this.certDir, 'cert.pem'), 'utf8');
+      return { key: this._certKey, cert: this._certPem };
+    } catch {
+      return undefined;
+    }
   }
 
   // ===== Hostname Helpers =====
@@ -66,6 +94,13 @@ export class PortAventuraWorld extends Destination {
       'X-App-Platform': 'android',
       'X-App-Version': '4.17.0',
     };
+    // Inject client SSL certificates for mutual TLS
+    const certs = this.loadCerts();
+    if (certs) {
+      if (!requestObj.options) requestObj.options = {};
+      requestObj.options.key = certs.key;
+      requestObj.options.cert = certs.cert;
+    }
   }
 
   /**
@@ -80,6 +115,13 @@ export class PortAventuraWorld extends Destination {
       ...requestObj.headers,
       'User-Agent': 'okhttp/4.9.2',
     };
+    // Inject client SSL certificates for mutual TLS
+    const certs = this.loadCerts();
+    if (certs) {
+      if (!requestObj.options) requestObj.options = {};
+      requestObj.options.key = certs.key;
+      requestObj.options.cert = certs.cert;
+    }
   }
 
   // ===== HTTP Fetch Methods =====

@@ -38,6 +38,10 @@ const httpRequesters: HTTPRequester[] = [];
 // Options for HTTP requests
 export type HTTPOptions = {
   json?: boolean; // shortcut to set Content-Type: application/json and stringify body
+  /** Client SSL certificate (PEM string) for mutual TLS */
+  cert?: string;
+  /** Client SSL private key (PEM string) for mutual TLS */
+  key?: string;
 };
 
 // Full HTTP object with response methods (for runtime use)
@@ -287,6 +291,8 @@ class HTTPRequestImpl implements HTTPObj {
       headers: this.buildHeaders(),
       body: requestBody,
       proxyUrl: basicProxyUrl, // Optional - only used if configured
+      cert: this.options?.cert,
+      key: this.options?.key,
     });
 
     this.response = response;

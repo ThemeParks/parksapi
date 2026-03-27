@@ -18,8 +18,12 @@ export async function makeHttpRequest(options: {
   headers?: Record<string, string>;
   body?: any;
   proxyUrl?: string;
+  /** Client SSL certificate (PEM format) for mutual TLS */
+  cert?: string;
+  /** Client SSL private key (PEM format) for mutual TLS */
+  key?: string;
 }): Promise<Response> {
-  const {method, url, headers, body, proxyUrl} = options;
+  const {method, url, headers, body, proxyUrl, cert, key} = options;
 
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url);
@@ -33,6 +37,12 @@ export async function makeHttpRequest(options: {
       path: urlObj.pathname + urlObj.search,
       headers: headers || {},
     };
+
+    // Client SSL certificate for mutual TLS (e.g., PortAventura)
+    if (isHttps && (key || cert)) {
+      (requestOptions as any).key = key;
+      (requestOptions as any).cert = cert;
+    }
 
     // Create agent with proxy support if proxy URL is provided (Node.js 24+ feature)
     if (proxyUrl) {

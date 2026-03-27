@@ -18,6 +18,10 @@ export const parkMapping: Record<string, string> = {
   'efteling': 'Efteling',
   // Phantasialand
   'phantasialand': 'Phantasialand',
+  // Liseberg
+  'liseberg': 'Liseberg',
+  // PortAventura
+  'portaventuraworld': 'PortAventuraWorld',
 };
 
 /**

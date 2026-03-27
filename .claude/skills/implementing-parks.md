@@ -385,6 +385,24 @@ const lng = 6.8776 + Math.random() * 0.001;
 const url = `${apiBase}/snapshots?loc=${lat},${lng}`;
 ```
 
+### Client SSL Certificates (Mutual TLS)
+
+Some parks (e.g., PortAventura) require client SSL certificates. The cert files are secrets — store them outside the repo, configured via env var:
+
+```typescript
+@config certDir: string = '';  // PARKNAME_CERTDIR env var
+
+private loadCerts(): { key: string; cert: string } | undefined {
+  if (!this.certDir) return undefined;
+  return {
+    key: readFileSync(join(this.certDir, 'private.pem'), 'utf8'),
+    cert: readFileSync(join(this.certDir, 'cert.pem'), 'utf8'),
+  };
+}
+```
+
+Inject certs into requests via `@inject` by setting `requestObj.options.key` and `requestObj.options.cert`. The HTTP layer passes these to Node.js HTTPS for mutual TLS.
+
 ## Quick Reference
 
 | What | Decorator | TTL | Notes |
