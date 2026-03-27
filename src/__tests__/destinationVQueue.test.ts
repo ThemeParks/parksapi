@@ -121,6 +121,47 @@ describe('Destination virtual queue helpers', () => {
       expect(result.end).toMatch(/14:45:00/);
     });
 
+    test('buildReturnTimeQueue should not fail when given pre-formatted GMT+N strings', () => {
+      // Regression: calculateReturnWindow returns strings like "2026-03-27T11:45:39GMT+1"
+      // buildReturnTimeQueue passes these through formatDateInTimezone which tried to
+      // new Date() them — but new Date("...GMT+1") is Invalid Date.
+      // The fix: formatDateInTimezone passes through already-formatted strings.
+      const park = new TestPark();
+
+      const window = park.testCalculateReturnWindow(35, {
+        baseTime: new Date('2025-07-15T12:00:00Z'),
+        windowMinutes: 15,
+      });
+
+      // calculateReturnWindow returns formatted strings (possibly with GMT+N offset)
+      expect(window.start).toBeDefined();
+      expect(window.end).toBeDefined();
+
+      // These strings should work when passed to buildReturnTimeQueue
+      // This is the exact pattern Efteling uses for virtual queues
+      const result = park.testBuildReturnTimeQueue('AVAILABLE', window.start, window.end);
+
+      expect(result.returnStart).toBeDefined();
+      expect(result.returnEnd).toBeDefined();
+      expect(result.state).toBe('AVAILABLE');
+    });
+
+    test('buildReturnTimeQueue should handle string dates with various offset formats', () => {
+      const park = new TestPark();
+
+      // GMT+N format (from formatInTimezone)
+      const r1 = park.testBuildReturnTimeQueue('AVAILABLE', '2025-07-15T14:30:00GMT-4', '2025-07-15T14:45:00GMT-4');
+      expect(r1.returnStart).toContain('14:30:00');
+
+      // Standard +HH:mm format
+      const r2 = park.testBuildReturnTimeQueue('AVAILABLE', '2025-07-15T14:30:00-04:00', '2025-07-15T14:45:00-04:00');
+      expect(r2.returnStart).toContain('14:30:00');
+
+      // UTC Z format
+      const r3 = park.testBuildReturnTimeQueue('AVAILABLE', '2025-07-15T14:30:00Z', null);
+      expect(r3.returnStart).toContain('14:30:00');
+    });
+
     test('default timezone should be UTC when subclass does not set timezone', () => {
       // Park with no timezone property set
       class UTCPark extends Destination {

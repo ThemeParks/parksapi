@@ -589,8 +589,15 @@ export abstract class Destination {
    * @private
    */
   private formatDateInTimezone(date: string | Date): string {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    return formatInTimezone(dateObj, this.timezone, 'iso');
+    if (typeof date === 'string') {
+      // If already a formatted datetime string (from calculateReturnWindow etc.), return as-is
+      // new Date() can't parse the GMT+N format that formatInTimezone produces
+      if (date.includes('T') && (date.includes('GMT') || date.includes('+') || date.includes('-') || date.endsWith('Z'))) {
+        return date;
+      }
+      return formatInTimezone(new Date(date), this.timezone, 'iso');
+    }
+    return formatInTimezone(date, this.timezone, 'iso');
   }
 
   /**
