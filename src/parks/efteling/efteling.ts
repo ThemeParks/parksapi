@@ -15,7 +15,6 @@ import {
 import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
-@config
 @destinationController({ category: 'Efteling' })
 export class Efteling extends Destination {
   @config

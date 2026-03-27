@@ -25,7 +25,6 @@ const categoryToEntityType: Record<string, Entity['entityType'] | undefined> = {
   'PHANTASIALAND_HOTELS_RESTAURANTS': 'RESTAURANT',
 };
 
-@config
 @destinationController({category: 'Phantasialand'})
 export class Phantasialand extends Destination {
   @config
@@ -37,6 +36,15 @@ export class Phantasialand extends Destination {
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('PHANTASIALAND');
+  }
+
+  /**
+   * Get the API hostname from apiBase config for use in @inject filters.
+   * Returns undefined if apiBase is not configured (inject will be skipped).
+   */
+  private getApiHostname(): string | undefined {
+    if (!this.apiBase) return undefined;
+    try { return new URL(this.apiBase).hostname; } catch { return undefined; }
   }
 
   // ===== Authentication =====
@@ -116,7 +124,7 @@ export class Phantasialand extends Destination {
    */
   @inject({
     eventName: 'httpError',
-    hostname: 'api.phlsys.de',
+    hostname: function() { return this.getApiHostname(); },
   })
   async handleUnauthorized(requestObj: HTTPObj): Promise<void> {
     if (requestObj.status === 401) {
@@ -131,7 +139,7 @@ export class Phantasialand extends Destination {
    */
   @inject({
     eventName: 'httpRequest',
-    hostname: 'api.phlsys.de',
+    hostname: function() { return this.getApiHostname(); },
   })
   async injectHeaders(requestObj: HTTPObj): Promise<void> {
     requestObj.headers = {
@@ -146,7 +154,7 @@ export class Phantasialand extends Destination {
    */
   @inject({
     eventName: 'httpRequest',
-    hostname: 'api.phlsys.de',
+    hostname: function() { return this.getApiHostname(); },
     tags: {$nin: ['auth']},
   })
   async injectAccessToken(requestObj: HTTPObj): Promise<void> {
@@ -197,7 +205,6 @@ export class Phantasialand extends Destination {
     // Generate random coordinates within park bounds
     const lat = 50.799683077 + (Math.random() * (50.800659529 - 50.799683077));
     const lng = 6.877570152 + (Math.random() * (6.878342628 - 6.877570152));
-
     return {
       method: 'GET',
       url: `${this.apiBase}/signage-snapshots?loc=${lat},${lng}`,

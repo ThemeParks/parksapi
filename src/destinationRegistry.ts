@@ -5,6 +5,7 @@
  */
 
 import {Destination} from './destination.js';
+import config from './config.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import {fileURLToPath} from 'url';
@@ -199,17 +200,24 @@ export function destinationController(options: DestinationControllerOptions) {
       // Ignore errors in capturing source file path
     }
 
+    // Apply @config to ensure the class has config proxy support.
+    // This must happen before registration so the registry stores the
+    // proxy-wrapped class, not the raw class. Without this, @config
+    // property resolution (env vars) silently fails when instances
+    // are created via the registry.
+    const configWrapped = config(target) as T ?? target;
+
     // Register the destination in the global registry
     DESTINATION_REGISTRY.push({
       id,
       name,
-      DestinationClass: target as new () => Destination,
+      DestinationClass: configWrapped as unknown as new () => Destination,
       category: options.category,
       sourceFilePath,
     });
 
-    // Return the class unchanged
-    return target;
+    // Return the config-wrapped class
+    return configWrapped;
   };
 }
 

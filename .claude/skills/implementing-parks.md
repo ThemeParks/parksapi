@@ -51,7 +51,9 @@ import {Entity, LiveData, EntitySchedule, LanguageCode} from '@themeparks/typeli
 import {formatInTimezone, parseTimeInTimezone, addDays, addMinutes} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
-@config
+// @destinationController automatically applies @config to the class.
+// No need for a separate @config class decorator.
+// Use @config on individual properties for env var resolution.
 @destinationController({ category: 'ParkName' })
 export class ParkName extends Destination {
   @config apiKey: string = '';
