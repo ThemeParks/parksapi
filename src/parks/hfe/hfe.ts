@@ -19,7 +19,7 @@ import {cache} from '../../cache.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import {formatInTimezone} from '../../datetime.js';
+import {formatInTimezone, addDays} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 // ============================================================================
@@ -205,15 +205,15 @@ class HFEBase extends Destination {
   }
 
   /**
-   * Fetch park schedule for the next 60 days.
-   * Cached for 12 hours at HTTP level.
+   * Fetch park schedule for a 7-day window.
+   * The API times out on large day counts (e.g., days=60), so we
+   * batch in 7-day chunks from the caller.
    */
   @http({cacheSeconds: 43200})
-  async fetchSchedule(): Promise<HTTPObj> {
-    const today = formatInTimezone(new Date(), this.timezone, 'iso').split('T')[0];
+  async fetchSchedule(startDate: string): Promise<HTTPObj> {
     return {
       method: 'GET',
-      url: `${this.crmBaseUrl}/api/park/dailyschedulebytime?parkids=${this.parkId}&days=60&date=${today}`,
+      url: `${this.crmBaseUrl}/api/park/dailyschedulebytime?parkids=${this.parkId}&days=7&date=${startDate}`,
       options: {json: true},
     } as any as HTTPObj;
   }
@@ -246,13 +246,29 @@ class HFEBase extends Destination {
   }
 
   /**
-   * Get schedule data (cached 12 hours).
+   * Get schedule data for ~60 days (cached 12 hours).
+   * Batches in 7-day chunks to avoid API timeouts.
    */
   @cache({ttlSeconds: 43200})
   async getSchedule(): Promise<HFEScheduleDay[]> {
-    const resp = await this.fetchSchedule();
-    const data: HFEScheduleDay[] = await resp.json();
-    return Array.isArray(data) ? data : [];
+    const allDays: HFEScheduleDay[] = [];
+    const now = new Date();
+
+    for (let i = 0; i < 9; i++) { // 9 x 7 = 63 days
+      const startDate = addDays(now, i * 7);
+      const dateStr = formatInTimezone(startDate, this.timezone, 'iso').split('T')[0];
+      try {
+        const resp = await this.fetchSchedule(dateStr);
+        const data: HFEScheduleDay[] = await resp.json();
+        if (Array.isArray(data)) {
+          allDays.push(...data);
+        }
+      } catch {
+        // Skip failed batches gracefully
+      }
+    }
+
+    return allDays;
   }
 
   /**

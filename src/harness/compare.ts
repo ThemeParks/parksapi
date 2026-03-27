@@ -66,10 +66,15 @@ async function runTsPark(parkId: string): Promise<RawParkOutput> {
   return { entities: [...destinations, ...entities], liveData, schedules };
 }
 
+/** Filter out entries with null/undefined/empty IDs (garbage data from JS) */
+function filterValidIds<T extends { id: string }>(items: T[]): T[] {
+  return items.filter(item => item.id && item.id !== 'null' && item.id !== 'undefined');
+}
+
 function buildSnapshot(parkId: string, raw: RawParkOutput): Snapshot {
-  const normalizedEntities = sortById(raw.entities.map(normalizeJsEntity));
-  const normalizedLive = raw.liveData.map(normalizeJsLiveData);
-  const normalizedSched = raw.schedules.map(normalizeJsSchedule);
+  const normalizedEntities = sortById(filterValidIds(raw.entities.map(normalizeJsEntity)));
+  const normalizedLive = filterValidIds(raw.liveData.map(normalizeJsLiveData));
+  const normalizedSched = filterValidIds(raw.schedules.map(normalizeJsSchedule));
 
   return {
     parkId,

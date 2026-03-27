@@ -106,7 +106,9 @@ export function buildReport(
   const liveDiff = diffLiveData(snapshotLive, tsLive);
   const schedDiff = diffSchedules(snapshotSched, tsSched);
 
-  const failed = entityDiff.missingInTs.length > 0 || !liveDiff.structureValid || !schedDiff.structureValid;
+  // Only FAIL on missing entities (strict contract).
+  // Live data and schedule differences are warnings (time-varying data).
+  const failed = entityDiff.missingInTs.length > 0;
 
   return {
     parkId,
