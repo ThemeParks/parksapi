@@ -48,6 +48,8 @@ async function runTsPark(parkId: string): Promise<RawParkOutput> {
   if (!entry) throw new Error(`TS park not found: ${parkId}`);
 
   const park = new entry.DestinationClass();
+  const destinations = await park.getDestinations();
+  await waitForHttpQueue();
   const entities = await park.getEntities();
   await waitForHttpQueue();
   const liveData = await park.getLiveData();
@@ -55,7 +57,8 @@ async function runTsPark(parkId: string): Promise<RawParkOutput> {
   const schedules = await park.getSchedules();
   await waitForHttpQueue();
 
-  return { entities, liveData, schedules };
+  // Merge destinations + entities (JS getAllEntities includes both)
+  return { entities: [...destinations, ...entities], liveData, schedules };
 }
 
 function buildSnapshot(parkId: string, raw: RawParkOutput): Snapshot {

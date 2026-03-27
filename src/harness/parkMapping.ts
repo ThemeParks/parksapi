@@ -16,6 +16,8 @@ export const parkMapping: Record<string, string> = {
   // Cannot capture JS snapshots for these via the standard harness.
   // Efteling
   'efteling': 'Efteling',
+  // Phantasialand
+  'phantasialand': 'Phantasialand',
 };
 
 /**
