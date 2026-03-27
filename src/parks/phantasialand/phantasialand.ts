@@ -29,7 +29,7 @@ const categoryToEntityType: Record<string, Entity['entityType'] | undefined> = {
 @destinationController({category: 'Phantasialand'})
 export class Phantasialand extends Destination {
   @config
-  apiBase: string = 'https://api.phlsys.de/api';
+  apiBase: string = '';
 
   @config
   timezone: string = 'Europe/Berlin';
