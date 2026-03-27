@@ -31,6 +31,8 @@ export const parkMapping: Record<string, string> = {
   'parquedeatraccionesmadrid': 'ParqueDeAtraccionesMadrid',
   'parquewarnermadrid': 'ParqueWarnerMadrid',
   'kennywood': 'Kennywood',
+  'dollywood': 'Dollywood',
+  'silverdollarcity': 'SilverDollarCity',
 };
 
 /**

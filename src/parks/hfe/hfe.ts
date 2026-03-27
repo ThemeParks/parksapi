@@ -1,11 +1,15 @@
 /**
- * Kennywood Theme Park (HFE Corp API)
+ * Herschend Family Entertainment (HFE) Theme Parks
  *
- * Standalone park implementation using the Herschend Family Entertainment API.
+ * Shared base class for parks using the HFE Corp API:
+ * - Dollywood (Pigeon Forge, TN)
+ * - Silver Dollar City (Branson, MO)
+ * - Kennywood (West Mifflin, PA)
+ *
  * Supports entity data (attractions, restaurants), live wait times, and
  * park operating schedules.
  *
- * @module kennywood
+ * @module hfe
  */
 
 import {Destination, type DestinationConstructor} from '../../destination.js';
@@ -31,7 +35,7 @@ type HFEActivity = {
   longitudeForDirections?: string | number;
   type?: string[];
   heightRequirement?: string | number | null;
-  rideWaitTimeRideId?: string | null;
+  rideWaitTimeRideId?: string | number | null;
 };
 
 /** Activities API response */
@@ -47,42 +51,47 @@ type HFEScheduleDay = {
     to: string;
     closedToPublic?: boolean;
     isAllDay?: boolean;
+    cmsKey?: string;
   }>;
   activities: unknown[];
 };
 
 /** Wait time entry from the Pulse API */
 type HFEWaitTime = {
-  rideId: number;
+  rideId: number | null;
   rideName: string;
   operationStatus: string;
-  waitTime: number;
+  waitTime: number | null;
   waitTimeDisplay: string;
 };
 
 // ============================================================================
-// Kennywood Destination
+// HFE Base Class (not registered as a destination)
 // ============================================================================
 
-@destinationController({category: 'Kennywood'})
-export class Kennywood extends Destination {
-  /** Base URL for the CRM/content API */
+/**
+ * Shared base class for Herschend Family Entertainment parks.
+ * Subclasses provide park-specific config via @destinationController.
+ */
+@config
+class HFEBase extends Destination {
+  /** Base URL for the CRM/content API (per-park) */
   @config
   crmBaseUrl: string = '';
 
-  /** Base URL for the wait times (Pulse) API */
+  /** Base URL for the wait times (Pulse) API (shared) */
   @config
   waitTimeUrl: string = '';
 
-  /** Site ID for activities endpoint */
+  /** Site ID for activities endpoint (per-park) */
   @config
   siteId: string = '';
 
-  /** Park ID for schedule endpoint */
+  /** Park ID for schedule endpoint (per-park) */
   @config
   parkId: string = '';
 
-  /** Destination ID for the wait times endpoint */
+  /** Destination ID for the wait times endpoint (per-park) */
   @config
   waitTimeDestId: string = '';
 
@@ -90,9 +99,44 @@ export class Kennywood extends Destination {
   @config
   timezone: string = 'America/New_York';
 
+  /** Activity category string used to filter attractions (differs per park) */
+  @config
+  attractionCategory: string = 'All Attractions';
+
+  /** Activity category string used to filter dining (differs per park) */
+  @config
+  diningCategory: string = 'All Dining';
+
+  /** Destination entity ID (set by subclass) */
+  protected destinationSlug: string = '';
+
+  /** Park entity ID (set by subclass) */
+  protected parkSlug: string = '';
+
+  /** Display name for destination entity (set by subclass) */
+  protected destinationName: string = '';
+
+  /** Display name for park entity (set by subclass) */
+  protected parkName: string = '';
+
+  /** Park location latitude */
+  protected parkLatitude: number = 0;
+
+  /** Park location longitude */
+  protected parkLongitude: number = 0;
+
   constructor(options?: DestinationConstructor) {
     super(options);
-    this.addConfigPrefix('KENNYWOOD');
+    // Shared prefix for waitTimeUrl
+    this.addConfigPrefix('HERSCHEND');
+  }
+
+  // ============================================================================
+  // Cache Key Prefix
+  // ============================================================================
+
+  getCacheKeyPrefix(): string {
+    return `hfe:${this.siteId || this.destinationSlug}`;
   }
 
   // ============================================================================
@@ -227,11 +271,11 @@ export class Kennywood extends Destination {
 
   async getDestinations(): Promise<Entity[]> {
     return [{
-      id: 'kennywood',
-      name: 'Kennywood',
+      id: this.destinationSlug,
+      name: this.destinationName,
       entityType: 'DESTINATION',
       timezone: this.timezone,
-      location: {latitude: 40.3866, longitude: -79.8625},
+      location: {latitude: this.parkLatitude, longitude: this.parkLongitude},
     } as Entity];
   }
 
@@ -239,23 +283,23 @@ export class Kennywood extends Destination {
     const activities = await this.getActivities();
 
     const parkEntity: Entity = {
-      id: 'kennywoodpark',
-      name: 'Kennywood',
+      id: this.parkSlug,
+      name: this.parkName,
       entityType: 'PARK',
-      parentId: 'kennywood',
-      destinationId: 'kennywood',
+      parentId: this.destinationSlug,
+      destinationId: this.destinationSlug,
       timezone: this.timezone,
-      location: {latitude: 40.3866, longitude: -79.8625},
+      location: {latitude: this.parkLatitude, longitude: this.parkLongitude},
     } as Entity;
 
     const attractions = this.mapEntities(
-      activities.filter(a => a.activityCategories?.includes('All Attractions')),
+      activities.filter(a => a.activityCategories?.includes(this.attractionCategory)),
       {
         idField: 'id',
         nameField: 'title',
         entityType: 'ATTRACTION',
-        parentIdField: () => 'kennywoodpark',
-        destinationId: 'kennywood',
+        parentIdField: () => this.parkSlug,
+        destinationId: this.destinationSlug,
         timezone: this.timezone,
         locationFields: {
           lat: (item: HFEActivity) => this.parseCoord(item.latitudeForDirections),
@@ -279,10 +323,8 @@ export class Kennywood extends Destination {
           const heightReq = activity.heightRequirement;
           if (heightReq != null) {
             if (typeof heightReq === 'number' && heightReq > 0) {
-              // Numeric value (assume inches)
               tags.push(TagBuilder.minimumHeight(heightReq, 'in'));
             } else if (typeof heightReq === 'string') {
-              // String like "46 inches" or "46"
               const heightMatch = heightReq.match(/(\d+)/);
               if (heightMatch) {
                 tags.push(TagBuilder.minimumHeight(parseInt(heightMatch[1], 10), 'in'));
@@ -299,13 +341,13 @@ export class Kennywood extends Destination {
     );
 
     const restaurants = this.mapEntities(
-      activities.filter(a => a.activityCategories?.includes('All Dining')),
+      activities.filter(a => a.activityCategories?.includes(this.diningCategory)),
       {
         idField: 'id',
         nameField: 'title',
         entityType: 'RESTAURANT',
-        parentIdField: () => 'kennywoodpark',
-        destinationId: 'kennywood',
+        parentIdField: () => this.parkSlug,
+        destinationId: this.destinationSlug,
         timezone: this.timezone,
         locationFields: {
           lat: (item: HFEActivity) => this.parseCoord(item.latitudeForDirections),
@@ -334,42 +376,55 @@ export class Kennywood extends Destination {
   // ============================================================================
 
   protected async buildLiveData(): Promise<LiveData[]> {
-    // Build entity lookup from POI data for name matching
     const activities = await this.getActivities();
     const attractionActivities = activities.filter(a =>
-      a.activityCategories?.includes('All Attractions'),
+      a.activityCategories?.includes(this.attractionCategory),
     );
 
     let waitTimes: HFEWaitTime[];
     try {
       waitTimes = await this.getWaitTimes();
     } catch {
-      // Wait times endpoint may not be available yet (wrong destId, park closed, etc.)
+      // Wait times endpoint may not be available (wrong destId, park closed, etc.)
       return [];
     }
 
     if (!waitTimes.length) return [];
 
-    // Build name lookup: normalized name -> activity ID
+    // Build lookup maps for joining wait times to entities
+    // 1. rideWaitTimeRideId -> activity ID (primary, more reliable)
+    const rideIdLookup = new Map<number, string>();
+    // 2. normalized name -> activity ID (fallback)
     const nameLookup = new Map<string, string>();
+
     for (const activity of attractionActivities) {
       nameLookup.set(this.normalizeName(activity.title), activity.id);
+
+      if (activity.rideWaitTimeRideId != null) {
+        const rideId = typeof activity.rideWaitTimeRideId === 'string'
+          ? parseInt(activity.rideWaitTimeRideId, 10)
+          : activity.rideWaitTimeRideId;
+        if (!isNaN(rideId)) {
+          rideIdLookup.set(rideId, activity.id);
+        }
+      }
     }
 
     const liveData: LiveData[] = [];
 
     for (const wt of waitTimes) {
-      // Try to match wait time to an entity
-      const entityId = this.resolveEntityId(wt, nameLookup);
+      const entityId = this.resolveEntityId(wt, rideIdLookup, nameLookup);
       if (!entityId) continue;
 
       const ld: LiveData = {id: entityId, status: 'CLOSED'} as LiveData;
       const statusUpper = (wt.operationStatus || '').toUpperCase();
       const displayUpper = (wt.waitTimeDisplay || '').toUpperCase();
 
-      if (statusUpper === 'CLOSED' || statusUpper === 'UNKNOWN') {
+      if (statusUpper === 'CLOSED' || statusUpper === 'CLOSED FOR THE DAY' || statusUpper === 'UNKNOWN') {
         ld.status = 'CLOSED' as any;
       } else if (statusUpper === 'TEMPORARILY CLOSED') {
+        ld.status = 'DOWN' as any;
+      } else if (statusUpper === 'TEMPORARILY DELAYED') {
         ld.status = 'DOWN' as any;
       } else if (displayUpper.includes('UNDER')) {
         // "Under XX minutes" pattern
@@ -378,9 +433,11 @@ export class Kennywood extends Destination {
         if (waitMatch) {
           ld.queue = {STANDBY: {waitTime: parseInt(waitMatch[1], 10)}};
         }
-      } else if (wt.waitTime != null && wt.waitTime > 0) {
+      } else if (statusUpper === 'OPEN' || (wt.waitTime != null && wt.waitTime >= 0)) {
         ld.status = 'OPERATING' as any;
-        ld.queue = {STANDBY: {waitTime: wt.waitTime}};
+        if (wt.waitTime != null && wt.waitTime > 0) {
+          ld.queue = {STANDBY: {waitTime: wt.waitTime}};
+        }
       } else {
         ld.status = 'CLOSED' as any;
       }
@@ -393,13 +450,20 @@ export class Kennywood extends Destination {
 
   /**
    * Resolve wait time entry to entity ID.
-   * First tries rideWaitTimeRideId match, then falls back to name matching.
+   * First tries rideWaitTimeRideId match (most reliable), then falls back to name matching.
    */
   private resolveEntityId(
     wt: HFEWaitTime,
+    rideIdLookup: Map<number, string>,
     nameLookup: Map<string, string>,
   ): string | null {
-    // Name-based matching: strip parenthetical suffix from wait time rideName
+    // Primary: match by rideId to rideWaitTimeRideId
+    if (wt.rideId != null) {
+      const match = rideIdLookup.get(wt.rideId);
+      if (match) return match;
+    }
+
+    // Fallback: name-based matching (strip parenthetical suffix from wait time rideName)
     const cleanName = this.normalizeName(wt.rideName.replace(/\s*\([^)]*\)\s*$/, ''));
     const match = nameLookup.get(cleanName);
     if (match) return match;
@@ -449,12 +513,16 @@ export class Kennywood extends Destination {
       if (!day.parkHours || !day.parkHours.length) continue;
 
       for (const hours of day.parkHours) {
-        // Skip closed-to-public and empty entries
+        // Skip closed-to-public, all-day (hotel/resort), and empty entries
         if (hours.closedToPublic) continue;
+        if (hours.isAllDay) continue;
         if (!hours.from || !hours.to) continue;
 
+        // Filter by cmsKey matching parkId (each destination has multiple sub-parks)
+        if (hours.cmsKey && hours.cmsKey !== this.parkId) continue;
+
         // from/to are ISO-ish strings without timezone (e.g., "2026-04-19T11:00:00")
-        // They're in the park's local timezone (America/New_York)
+        // They're in the park's local timezone
         const dateStr = day.date.split('T')[0];
         const offset = this.getTimezoneOffset(dateStr);
 
@@ -472,7 +540,7 @@ export class Kennywood extends Destination {
     }
 
     return [{
-      id: 'kennywoodpark',
+      id: this.parkSlug,
       schedule: scheduleEntries,
     } as EntitySchedule];
   }
@@ -494,5 +562,71 @@ export class Kennywood extends Destination {
       return `${sign}${String(Math.abs(num)).padStart(2, '0')}:00`;
     }
     return '-05:00';
+  }
+}
+
+// ============================================================================
+// Park Subclasses
+// ============================================================================
+
+/**
+ * Dollywood - Pigeon Forge, Tennessee
+ * Wait Time Dest ID: 1
+ */
+@destinationController({category: ['Herschend', 'Dollywood']})
+export class Dollywood extends HFEBase {
+  constructor(options?: DestinationConstructor) {
+    super(options);
+    this.addConfigPrefix('DOLLYWOOD');
+
+    this.destinationSlug = 'dollywood';
+    this.parkSlug = 'dollywoodpark';
+    this.destinationName = 'Dollywood';
+    this.parkName = 'Dollywood';
+    this.parkLatitude = 35.794496;
+    this.parkLongitude = -83.530368;
+    this.attractionCategory = 'Theme Park Rides';
+    this.diningCategory = 'Theme Park Dining';
+  }
+}
+
+/**
+ * Silver Dollar City - Branson, Missouri
+ * Wait Time Dest ID: 2
+ */
+@destinationController({category: ['Herschend', 'Silver Dollar City']})
+export class SilverDollarCity extends HFEBase {
+  constructor(options?: DestinationConstructor) {
+    super(options);
+    this.addConfigPrefix('SILVERDOLLARCITY');
+
+    this.destinationSlug = 'silverdollarcity';
+    this.parkSlug = 'silverdollarcitypark';
+    this.destinationName = 'Silver Dollar City';
+    this.parkName = 'Silver Dollar City';
+    this.parkLatitude = 36.604152;
+    this.parkLongitude = -93.29991;
+    this.timezone = 'America/Chicago';
+    this.attractionCategory = 'Rides & Attractions';
+    this.diningCategory = 'Dining';
+  }
+}
+
+/**
+ * Kennywood - West Mifflin, Pennsylvania
+ * Wait Time Dest ID: 4
+ */
+@destinationController({category: ['Herschend', 'Kennywood']})
+export class Kennywood extends HFEBase {
+  constructor(options?: DestinationConstructor) {
+    super(options);
+    this.addConfigPrefix('KENNYWOOD');
+
+    this.destinationSlug = 'kennywood';
+    this.parkSlug = 'kennywoodpark';
+    this.destinationName = 'Kennywood';
+    this.parkName = 'Kennywood';
+    this.parkLatitude = 40.3866;
+    this.parkLongitude = -79.8625;
   }
 }
