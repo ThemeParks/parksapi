@@ -1,0 +1,825 @@
+import {Destination, DestinationConstructor} from '../../destination.js';
+import crypto from 'crypto';
+
+import {cache} from '../../cache.js';
+import {http, HTTPObj} from '../../http.js';
+import {inject} from '../../injector.js';
+import config from '../../config.js';
+import {destinationController} from '../../destinationRegistry.js';
+import {
+  Entity,
+  LiveData,
+  EntitySchedule,
+  LanguageCode,
+} from '@themeparks/typelib';
+import {formatInTimezone, addDays} from '../../datetime.js';
+import {TagBuilder} from '../../tags/index.js';
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Entities to ignore entirely */
+const IGNORE_ENTITIES = new Set([
+  '00000',
+  'P1NA18',
+  'test2',
+  'P2AC00-REMOVED',
+  'P2AC00',
+  'armageddon',
+]);
+
+/** Entities that bypass visibility/hide rules */
+const VISIBILITY_EXCEPTIONS = new Set([
+  'P2EA00', // Frozen Ever After
+  'P2DA00', // Tangled Spin
+]);
+
+/** Hide rules that exclude entities from the POI list */
+const HIDE_RULES = new Set([
+  'Hide from Web List + Mobile App',
+  'Hide from the Service',
+  'Hide from Mobile App',
+]);
+
+/** Entertainment subtypes that map to SHOW entity type */
+const SHOW_SUBTYPES = new Set([
+  'Stage Show',
+  'Fireworks',
+  'Atmosphere',
+  'Parade',
+]);
+
+// ============================================================================
+// Types
+// ============================================================================
+
+type DLPCoordinate = {
+  lat: number;
+  lng: number;
+  type?: string;
+};
+
+type DLPScheduleEntry = {
+  language?: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  closed?: boolean;
+};
+
+type DLPPOIEntity = {
+  id: string;
+  name: string;
+  type: string; // __typename: 'Attraction', 'Entertainment', etc.
+  hideFunctionality?: string;
+  location?: { id: string; value?: string };
+  coordinates?: DLPCoordinate[];
+  schedules?: DLPScheduleEntry[];
+  subType?: string;
+  // Extended fields from detailed queries
+  height?: Array<{ id: string; value: string; iconFont?: string }>;
+  minimumHeight?: string;
+  physicalConsiderations?: Array<{ id: string }>;
+  interests?: Array<{ id: string }>;
+  duration?: { hours?: number; minutes?: number };
+};
+
+type DLPWaitTimeEntry = {
+  entityId: string;
+  type: string;
+  status: string | null;
+  postedWaitMinutes: number | null;
+  singleRider?: {
+    isAvailable: boolean;
+    singleRiderWaitMinutes?: number;
+  };
+};
+
+type DLPPremierAccessEntry = {
+  attractionId: string;
+  available: boolean;
+  nextTimeSlotStartDateTime?: string;
+  nextTimeSlotEndDateTime?: string;
+  price?: number;
+};
+
+type DLPScheduleActivityEntry = {
+  id: string;
+  name?: string;
+  subType?: string;
+  schedules?: DLPScheduleEntry[];
+  location?: { id: string; value?: string };
+};
+
+// ============================================================================
+// Destination Implementation
+// ============================================================================
+
+@destinationController({category: 'Disney'})
+export class DisneylandParis extends Destination {
+  @config
+  apiBase: string = '';
+
+  @config
+  apiKey: string = '';
+
+  @config
+  apiBaseWaitTimes: string = '';
+
+  @config
+  premierAccessUrl: string = '';
+
+  @config
+  premierAccessApiKey: string = '';
+
+  @config
+  language: LanguageCode = 'en-gb' as LanguageCode;
+
+  @config
+  timezone: string = 'Europe/Paris';
+
+  /** Cache of show entities with duration data (populated during entity building) */
+  private showDurationMap: Map<string, number> = new Map();
+
+  constructor(options?: DestinationConstructor) {
+    super(options);
+    this.addConfigPrefix('DLP');
+  }
+
+  // ===== Header Injection =====
+
+  /**
+   * Inject headers into GraphQL API requests
+   */
+  @inject({
+    eventName: 'httpRequest',
+    hostname: function () {
+      if (!this.apiBase) return '__noop__';
+      return new URL(this.apiBase).hostname;
+    },
+  })
+  async injectGraphQLHeaders(requestObj: HTTPObj): Promise<void> {
+    requestObj.headers = {
+      ...requestObj.headers,
+      'x-application-id': 'mobile-app',
+      'x-request-id': crypto.randomUUID(),
+    };
+  }
+
+  /**
+   * Inject headers into wait time API requests
+   */
+  @inject({
+    eventName: 'httpRequest',
+    hostname: function () {
+      if (!this.apiBaseWaitTimes) return '__noop__';
+      return new URL(this.apiBaseWaitTimes).hostname;
+    },
+  })
+  async injectWaitTimeHeaders(requestObj: HTTPObj): Promise<void> {
+    requestObj.headers = {
+      ...requestObj.headers,
+      'x-api-key': this.apiKey,
+      'accept': 'application/json',
+    };
+  }
+
+  /**
+   * Inject headers into premier access API requests
+   */
+  @inject({
+    eventName: 'httpRequest',
+    hostname: function () {
+      if (!this.premierAccessUrl) return '__noop__';
+      return new URL(this.premierAccessUrl).hostname;
+    },
+    tags: {$in: ['premierAccess']},
+  })
+  async injectPremierAccessHeaders(requestObj: HTTPObj): Promise<void> {
+    requestObj.headers = {
+      ...requestObj.headers,
+      'x-api-key': this.premierAccessApiKey,
+      'accept': 'application/json',
+    };
+  }
+
+  // ===== HTTP Fetch Methods =====
+
+  /**
+   * GraphQL query fields shared across entity queries
+   */
+  private get entityFields(): string {
+    return `id
+    name
+    type: __typename
+    hideFunctionality
+    location {
+      id
+      value
+    }
+    coordinates {
+      lat
+      lng
+      type
+    }
+    schedules {
+      language
+      date
+      startTime
+      endTime
+      status
+      closed
+    }
+    subType`;
+  }
+
+  /**
+   * Fetch all POI data via GraphQL
+   */
+  @http({cacheSeconds: 43200})
+  async fetchPOI(): Promise<HTTPObj> {
+    return {
+      method: 'POST',
+      url: `${this.apiBase}/query`,
+      body: {
+        query: `query activities($market: String!) {
+          Attraction: activities(market: $market, types: "Attraction") {
+            ${this.entityFields}
+          }
+          Entertainment: activities(market: $market, types: "Entertainment") {
+            ${this.entityFields}
+          }
+          Restaurant: activities(market: $market, types: "Restaurant") {
+            ${this.entityFields}
+          }
+          ThemePark: activities(market: $market, types: "ThemePark") {
+            ${this.entityFields}
+          }
+          DiningEvent: activities(market: $market, types: "DiningEvent") {
+            ${this.entityFields}
+          }
+          DinnerShow: activities(market: $market, types: "DinnerShow") {
+            ${this.entityFields}
+          }
+          Shop: activities(market: $market, types: "Shop") {
+            ${this.entityFields}
+          }
+        }`,
+        variables: {
+          market: this.language,
+        },
+      },
+      options: {json: true},
+    } as any as HTTPObj;
+  }
+
+  /**
+   * Get POI data (cached 12h)
+   */
+  @cache({ttlSeconds: 43200})
+  async getPOIData(): Promise<Record<string, DLPPOIEntity[]>> {
+    const resp = await this.fetchPOI();
+    const data = await resp.json();
+    return data?.data || {};
+  }
+
+  /**
+   * Fetch schedule data for a specific date via GraphQL
+   */
+  @http({cacheSeconds: 86400})
+  async fetchScheduleForDate(date: string): Promise<HTTPObj> {
+    return {
+      method: 'POST',
+      url: `${this.apiBase}/query`,
+      body: {
+        query: `query activitySchedules($market: String!, $types: [ActivityScheduleStatusInput]!, $date: String!) {
+          activitySchedules(market: $market, date: $date, types: $types) {
+            __typename
+            id
+            name
+            subType
+            hideFunctionality
+            location {
+              id
+              value
+            }
+            schedules(date: $date, types: $types) {
+              startTime
+              endTime
+              date
+              status
+              closed
+              language
+            }
+          }
+        }`,
+        variables: {
+          market: 'en-gb',
+          types: [
+            {type: 'ThemePark', status: ['OPERATING', 'EXTRA_MAGIC_HOURS']},
+            {type: 'Attraction', status: ['OPERATING', 'REFURBISHMENT', 'CLOSED']},
+            {type: 'Entertainment', status: ['PERFORMANCE_TIME']},
+            {type: 'Resort', status: ['OPERATING', 'REFURBISHMENT', 'CLOSED']},
+            {type: 'Shop', status: ['REFURBISHMENT', 'CLOSED']},
+            {type: 'Restaurant', status: ['REFURBISHMENT', 'CLOSED', 'OPERATING']},
+            {type: 'DiningEvent', status: ['REFURBISHMENT', 'CLOSED']},
+            {type: 'DinnerShow', status: ['REFURBISHMENT', 'CLOSED']},
+          ],
+          date,
+        },
+      },
+      options: {json: true},
+    } as any as HTTPObj;
+  }
+
+  /**
+   * Get schedule data for a date (cached 24h per date)
+   */
+  @cache({ttlSeconds: 86400})
+  async getScheduleForDate(date: string): Promise<DLPScheduleActivityEntry[]> {
+    const resp = await this.fetchScheduleForDate(date);
+    const data = await resp.json();
+    return data?.data?.activitySchedules || [];
+  }
+
+  /**
+   * Fetch wait time data from REST API
+   */
+  @http({cacheSeconds: 60})
+  async fetchWaitTimes(): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.apiBaseWaitTimes}waitTimes`,
+      options: {json: true},
+    } as any as HTTPObj;
+  }
+
+  /**
+   * Get wait times (cached 1min)
+   */
+  @cache({ttlSeconds: 60})
+  async getWaitTimes(): Promise<DLPWaitTimeEntry[]> {
+    const resp = await this.fetchWaitTimes();
+    const data = await resp.json();
+    return Array.isArray(data) ? data : [];
+  }
+
+  /**
+   * Fetch premier access data
+   */
+  @http({cacheSeconds: 60})
+  async fetchPremierAccess(): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: this.premierAccessUrl,
+      options: {json: true},
+      tags: ['premierAccess'],
+    } as any as HTTPObj;
+  }
+
+  /**
+   * Get premier access data (cached 1min)
+   * Returns empty array if premierAccessApiKey is not configured
+   */
+  @cache({ttlSeconds: 60})
+  async getPremierAccess(): Promise<DLPPremierAccessEntry[]> {
+    if (!this.premierAccessApiKey) {
+      return [];
+    }
+    try {
+      const resp = await this.fetchPremierAccess();
+      const data = await resp.json();
+      return Array.isArray(data) ? data : [];
+    } catch (e) {
+      console.error(`[DLP] Error fetching premier access data: ${e}`);
+      return [];
+    }
+  }
+
+  // ===== Helper Methods =====
+
+  /**
+   * Get the UTC offset string for a given date in Europe/Paris timezone.
+   * Returns e.g. "+01:00" (CET winter) or "+02:00" (CEST summer).
+   */
+  private getParisOffset(dateStr: string): string {
+    const refDate = new Date(`${dateStr}T12:00:00Z`);
+    const formatted = formatInTimezone(refDate, this.timezone, 'iso');
+    // Try standard offset format: +02:00
+    const match = formatted.match(/([+-]\d{2}:\d{2})$/);
+    if (match) return match[1];
+    // Fallback: GMT offset format from Intl (e.g., "GMT+1")
+    const gmtMatch = formatted.match(/GMT([+-]\d+)$/);
+    if (gmtMatch) {
+      const num = parseInt(gmtMatch[1], 10);
+      const sign = num >= 0 ? '+' : '-';
+      return `${sign}${String(Math.abs(num)).padStart(2, '0')}:00`;
+    }
+    return '+01:00';
+  }
+
+  /**
+   * Flatten all POI categories into a single array with category tag
+   */
+  private flattenPOI(poiData: Record<string, DLPPOIEntity[]>): Array<DLPPOIEntity & {category: string}> {
+    const result: Array<DLPPOIEntity & {category: string}> = [];
+    for (const [category, entities] of Object.entries(poiData)) {
+      if (!Array.isArray(entities)) continue;
+      for (const entity of entities) {
+        result.push({...entity, category});
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Filter POI entities to only include those in P1 or P2 parks,
+   * excluding hidden and ignored entities.
+   */
+  private filterPOIEntities(entities: Array<DLPPOIEntity & {category: string}>): Array<DLPPOIEntity & {category: string}> {
+    return entities.filter((entity) => {
+      // Must be in a park (P1 or P2)
+      const parkId = entity.location?.id;
+      if (parkId !== 'P1' && parkId !== 'P2') return false;
+
+      // Skip ignored entities
+      if (IGNORE_ENTITIES.has(entity.id)) return false;
+
+      // Visibility exceptions bypass hide rules
+      if (VISIBILITY_EXCEPTIONS.has(entity.id)) return true;
+
+      // Filter hidden entities
+      if (entity.hideFunctionality && HIDE_RULES.has(entity.hideFunctionality)) return false;
+
+      return true;
+    });
+  }
+
+  /**
+   * Get preferred coordinates from entity data.
+   * Prefers "Guest Entrance" type if available.
+   */
+  private getCoordinates(entity: DLPPOIEntity): {lat: number; lng: number} | undefined {
+    if (!entity.coordinates || entity.coordinates.length === 0) return undefined;
+
+    const entrance = entity.coordinates.find((c) => c.type === 'Guest Entrance');
+    if (entrance) return {lat: entrance.lat, lng: entrance.lng};
+
+    // Fall back to first coordinate
+    return {lat: entity.coordinates[0].lat, lng: entity.coordinates[0].lng};
+  }
+
+  /**
+   * Parse height string into centimeters.
+   * Handles "1.2 m" -> 120, "102 cm" -> 102
+   */
+  private parseHeightCm(heightStr: string): number | undefined {
+    const match = /([\d.]+)\s*(\w+)/.exec(heightStr);
+    if (!match) return undefined;
+
+    const value = parseFloat(match[1]);
+    const unit = match[2].toLowerCase();
+
+    if (unit === 'm') return Math.round(value * 100);
+    if (unit === 'cm') return Math.round(value);
+
+    return undefined;
+  }
+
+  /**
+   * Map DLP entity type to our entity type
+   */
+  private mapEntityType(entity: DLPPOIEntity & {category: string}): Entity['entityType'] | undefined {
+    if (entity.category === 'Attraction') return 'ATTRACTION';
+    if (entity.category === 'Restaurant') return 'RESTAURANT';
+    if (entity.category === 'Entertainment') {
+      if (entity.subType && SHOW_SUBTYPES.has(entity.subType)) return 'SHOW';
+      return undefined; // Non-show entertainment filtered out
+    }
+    return undefined;
+  }
+
+  /**
+   * Map DLP wait time status to our status
+   */
+  private mapStatus(status: string | null): string {
+    if (!status) return 'CLOSED';
+    switch (status) {
+      case 'DOWN': return 'DOWN';
+      case 'REFURBISHMENT': return 'CLOSED'; // DLP treats refurb as closed
+      case 'CLOSED': return 'CLOSED';
+      default: return 'OPERATING'; // Includes 'OPERATING' and any other active status
+    }
+  }
+
+  // ===== Data Builder Methods =====
+
+  async getDestinations(): Promise<Entity[]> {
+    return [{
+      id: 'dlp',
+      name: 'Disneyland Paris',
+      entityType: 'DESTINATION',
+      timezone: this.timezone,
+      location: {latitude: 48.868720, longitude: 2.781826},
+    } as Entity];
+  }
+
+  protected async buildEntityList(): Promise<Entity[]> {
+    const poiData = await this.getPOIData();
+    const allEntities = this.flattenPOI(poiData);
+    const filteredEntities = this.filterPOIEntities(allEntities);
+
+    const destinationId = 'dlp';
+
+    // Build park entities from ThemePark type
+    const parks = allEntities.filter((e) => e.category === 'ThemePark');
+
+    // Inject P2 manually if missing (DLP API sometimes drops it)
+    if (!parks.find((p) => p.id === 'P2')) {
+      parks.push({
+        id: 'P2',
+        name: 'Walt Disney Studios Park',
+        type: 'ThemePark',
+        category: 'ThemePark',
+        coordinates: [{lat: 48.868391, lng: 2.780802, type: 'Guest Entrance'}],
+      } as DLPPOIEntity & {category: string});
+    }
+
+    const parkEntities = this.mapEntities(parks, {
+      idField: 'id',
+      nameField: 'name',
+      entityType: 'PARK',
+      parentIdField: () => destinationId,
+      destinationId,
+      timezone: this.timezone,
+      locationFields: {
+        lat: (item) => this.getCoordinates(item)?.lat,
+        lng: (item) => this.getCoordinates(item)?.lng,
+      },
+    });
+
+    // Clear show duration map (rebuilt each time)
+    this.showDurationMap.clear();
+
+    // Build attraction, show, and restaurant entities
+    const entityEntries: Entity[] = [];
+    for (const poi of filteredEntities) {
+      const entityType = this.mapEntityType(poi);
+      if (!entityType) continue;
+
+      const coords = this.getCoordinates(poi);
+
+      const entity: Entity = {
+        id: poi.id,
+        name: poi.name,
+        entityType,
+        parentId: poi.location?.id || 'P1',
+        destinationId,
+        timezone: this.timezone,
+      } as Entity;
+
+      if (coords) {
+        entity.location = {latitude: coords.lat, longitude: coords.lng};
+      }
+
+      // Build tags
+      const tags: any[] = [];
+
+      // Location tag
+      if (coords) {
+        tags.push(TagBuilder.location(coords.lat, coords.lng, poi.name));
+      }
+
+      // Height restriction
+      if (poi.minimumHeight) {
+        const heightCm = this.parseHeightCm(poi.minimumHeight);
+        if (heightCm && heightCm > 0) {
+          tags.push(TagBuilder.minimumHeight(heightCm, 'cm'));
+        }
+      }
+      // Also check height array (older format)
+      if (poi.height) {
+        for (const h of poi.height) {
+          if (h.id === 'anyHeight') continue;
+          const heightCm = this.parseHeightCm(h.value);
+          if (heightCm && heightCm > 0) {
+            tags.push(TagBuilder.minimumHeight(heightCm, 'cm'));
+            break; // Only one height tag
+          }
+        }
+      }
+
+      // Pregnancy
+      if (poi.physicalConsiderations?.some((c) => c.id === 'expectantMothersMayNotRide')) {
+        tags.push(TagBuilder.unsuitableForPregnantPeople());
+      }
+
+      entity.tags = tags.filter(Boolean);
+
+      // Store show duration for live data
+      if (entityType === 'SHOW' && poi.duration) {
+        const durationMinutes = (poi.duration.minutes || 0) + ((poi.duration.hours || 0) * 60);
+        if (durationMinutes > 0) {
+          this.showDurationMap.set(poi.id, durationMinutes);
+        }
+      }
+
+      entityEntries.push(entity);
+    }
+
+    return [
+      ...await this.getDestinations(),
+      ...parkEntities,
+      ...entityEntries,
+    ];
+  }
+
+  protected async buildLiveData(): Promise<LiveData[]> {
+    const liveData: LiveData[] = [];
+    const liveDataMap = new Map<string, LiveData>();
+
+    const getOrCreate = (id: string): LiveData => {
+      let entry = liveDataMap.get(id);
+      if (!entry) {
+        entry = {id, status: 'CLOSED'} as LiveData;
+        liveDataMap.set(id, entry);
+        liveData.push(entry);
+      }
+      return entry;
+    };
+
+    // === Wait Times ===
+    const waitTimes = await this.getWaitTimes();
+
+    for (const wt of waitTimes) {
+      if (!wt.entityId || wt.type !== 'Attraction') continue;
+      if (IGNORE_ENTITIES.has(wt.entityId)) continue;
+
+      const ld = getOrCreate(wt.entityId);
+      ld.status = this.mapStatus(wt.status) as any;
+
+      // Standby queue
+      if (!ld.queue) ld.queue = {};
+      ld.queue.STANDBY = {
+        waitTime: ld.status === 'OPERATING' ? (wt.postedWaitMinutes ?? undefined) : undefined,
+      };
+
+      // Single rider
+      if (wt.singleRider?.isAvailable === true) {
+        ld.queue.SINGLE_RIDER = {
+          waitTime: ld.status === 'OPERATING'
+            ? (wt.singleRider.singleRiderWaitMinutes ?? null)
+            : null,
+        };
+      }
+    }
+
+    // === Premier Access (paid return time) ===
+    const premierAccess = await this.getPremierAccess();
+
+    for (const pa of premierAccess) {
+      if (!pa.attractionId) continue;
+
+      const ld = getOrCreate(pa.attractionId);
+      if (!ld.queue) ld.queue = {};
+
+      ld.queue.PAID_RETURN_TIME = this.buildPaidReturnTimeQueue(
+        pa.available ? 'AVAILABLE' : 'FINISHED',
+        pa.nextTimeSlotStartDateTime || null,
+        pa.nextTimeSlotEndDateTime || null,
+        'EUR',
+        pa.price != null ? Math.round(pa.price * 100) : null,
+      );
+    }
+
+    // === Show Times (from today's schedule) ===
+    const today = formatInTimezone(new Date(), this.timezone, 'date');
+    // formatInTimezone 'date' returns MM/DD/YYYY, convert to YYYY-MM-DD
+    const [mm, dd, yyyy] = today.split('/');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+
+    try {
+      const scheduleData = await this.getScheduleForDate(todayStr);
+      const offset = this.getParisOffset(todayStr);
+
+      for (const sched of scheduleData) {
+        if (!sched.schedules) continue;
+
+        const performances = sched.schedules.filter((s) => s.status === 'PERFORMANCE_TIME');
+        if (performances.length === 0) continue;
+
+        const showDuration = this.showDurationMap.get(sched.id) || 0;
+
+        const showtimes = performances.map((p) => {
+          const startTime = `${todayStr}T${p.startTime}${offset}`;
+          const endTimeStr = showDuration === 0 ? p.endTime : p.startTime;
+          let endDate = new Date(`${todayStr}T${endTimeStr}${offset}`);
+          if (showDuration > 0) {
+            endDate = new Date(endDate.getTime() + showDuration * 60 * 1000);
+          }
+          const endTime = formatInTimezone(endDate, this.timezone, 'iso');
+
+          return {
+            startTime,
+            endTime,
+            type: 'Performance Time',
+          };
+        });
+
+        const existing = liveDataMap.get(sched.id);
+        if (existing) {
+          existing.showtimes = showtimes;
+          if (showtimes.length > 0) {
+            existing.status = 'OPERATING' as any;
+          }
+        } else {
+          const ld = getOrCreate(sched.id);
+          ld.status = 'OPERATING' as any;
+          ld.showtimes = showtimes;
+        }
+      }
+    } catch (e) {
+      console.error(`[DLP] Error fetching today's schedule for show times: ${e}`);
+    }
+
+    return liveData;
+  }
+
+  protected async buildSchedules(): Promise<EntitySchedule[]> {
+    const now = new Date();
+    const scheduleMap = new Map<string, any[]>();
+
+    // Fetch 60 days of schedule data
+    for (let i = 0; i < 60; i++) {
+      const date = addDays(now, i);
+      const dateStr = formatInTimezone(date, this.timezone, 'date');
+      // Convert MM/DD/YYYY to YYYY-MM-DD
+      const [mm, dd, yyyy] = dateStr.split('/');
+      const dateString = `${yyyy}-${mm}-${dd}`;
+
+      let dateData: DLPScheduleActivityEntry[];
+      try {
+        dateData = await this.getScheduleForDate(dateString);
+      } catch {
+        continue;
+      }
+      if (!dateData) continue;
+
+      const offset = this.getParisOffset(dateString);
+
+      for (const entity of dateData) {
+        if (!entity.schedules) continue;
+        if (IGNORE_ENTITIES.has(entity.id)) continue;
+
+        for (const hours of entity.schedules) {
+          if (hours.status === 'REFURBISHMENT' || hours.status === 'CLOSED') continue;
+
+          const openTime = `${dateString}T${hours.startTime}${offset}`;
+          let closeTime = `${dateString}T${hours.endTime}${offset}`;
+
+          // Handle midnight crossing: if close < open, add 1 day to close
+          if (hours.endTime < hours.startTime) {
+            const nextDay = addDays(new Date(`${dateString}T00:00:00`), 1);
+            const nextDayStr = formatInTimezone(nextDay, this.timezone, 'date');
+            const [nmm, ndd, nyyyy] = nextDayStr.split('/');
+            const nextDayString = `${nyyyy}-${nmm}-${ndd}`;
+            // Use same offset (close enough for 1-day difference)
+            closeTime = `${nextDayString}T${hours.endTime}${offset}`;
+          }
+
+          let type: string = 'OPERATING';
+          let description: string | undefined;
+
+          if (hours.status === 'EXTRA_MAGIC_HOURS') {
+            type = 'EXTRA_HOURS';
+            description = 'Extra Magic Hours';
+          } else if (hours.status === 'PERFORMANCE_TIME') {
+            type = 'INFO';
+            description = 'Performance Time';
+          }
+
+          if (!scheduleMap.has(entity.id)) {
+            scheduleMap.set(entity.id, []);
+          }
+          scheduleMap.get(entity.id)!.push({
+            date: dateString,
+            openingTime: openTime,
+            closingTime: closeTime,
+            type,
+            description,
+          });
+        }
+      }
+    }
+
+    // Convert map to EntitySchedule array
+    const schedules: EntitySchedule[] = [];
+    for (const [id, schedule] of scheduleMap) {
+      schedules.push({id, schedule} as EntitySchedule);
+    }
+
+    return schedules;
+  }
+}
