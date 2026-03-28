@@ -33,6 +33,11 @@ export const parkMapping: Record<string, string> = {
   'kennywood': 'Kennywood',
   'dollywood': 'Dollywood',
   'silverdollarcity': 'SilverDollarCity',
+  // TE2 (Australia)
+  'seaworldgoldcoast': 'SeaWorldGoldCoast',
+  'warnerbrosmovieworld': 'WarnerBrosMovieWorld',
+  'paradisecountry': 'ParadiseCountry',
+  'wetnwildgoldcoast': 'WetNWildGoldCoast',
 };
 
 /**
