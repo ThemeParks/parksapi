@@ -611,6 +611,25 @@ export class SilverDollarCity extends HFEBase {
 }
 
 /**
+ * Wild Adventures - Valdosta, Georgia
+ * Wait Time Dest ID: 3
+ */
+@destinationController({category: ['Herschend', 'Wild Adventures']})
+export class WildAdventures extends HFEBase {
+  constructor(options?: DestinationConstructor) {
+    super(options);
+    this.addConfigPrefix('WILDADVENTURES');
+
+    this.destinationSlug = 'wildadventures';
+    this.parkSlug = 'wildadventurespark';
+    this.destinationName = 'Wild Adventures';
+    this.parkName = 'Wild Adventures';
+    this.parkLatitude = 30.8474;
+    this.parkLongitude = -83.2790;
+  }
+}
+
+/**
  * Kennywood - West Mifflin, Pennsylvania
  * Wait Time Dest ID: 4
  */
