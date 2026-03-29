@@ -821,4 +821,88 @@ describe('Cache', () => {
       // The exact behavior depends on how the cache handles 0 TTL
     });
   });
+
+  describe('Serialization Safety', () => {
+    test('should warn when caching a Set', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      Cache.set('test_set', new Set(['a', 'b']), 10);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Set'));
+      warnSpy.mockRestore();
+    });
+
+    test('should warn when caching a Map', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      Cache.set('test_map', new Map([['a', 1]]), 10);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Map'));
+      warnSpy.mockRestore();
+    });
+
+    test('should not warn for JSON-safe types', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      Cache.set('test_array', [1, 2, 3], 10);
+      Cache.set('test_object', { a: 1 }, 10);
+      Cache.set('test_string', 'hello', 10);
+      Cache.set('test_number', 42, 10);
+      expect(warnSpy).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    test('Set becomes empty object after cache round-trip', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const original = new Set(['a', 'b', 'c']);
+      Cache.set('test_set_rt', original, 60);
+      const retrieved = Cache.get('test_set_rt');
+      // Set serializes to {} — this is the bug this guard warns about
+      expect(retrieved).toEqual({});
+      expect(retrieved).not.toBeInstanceOf(Set);
+      warnSpy.mockRestore();
+    });
+
+    test('Map becomes empty object after cache round-trip', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const original = new Map([['key', 'value']]);
+      Cache.set('test_map_rt', original, 60);
+      const retrieved = Cache.get('test_map_rt');
+      expect(retrieved).toEqual({});
+      expect(retrieved).not.toBeInstanceOf(Map);
+      warnSpy.mockRestore();
+    });
+
+    test('arrays survive cache round-trip', () => {
+      const original = [1, 2, 3, 'four'];
+      Cache.set('test_arr_rt', original, 60);
+      const retrieved = Cache.get('test_arr_rt');
+      expect(retrieved).toEqual(original);
+      expect(Array.isArray(retrieved)).toBe(true);
+    });
+
+    test('nested objects survive cache round-trip', () => {
+      const original = { a: 1, b: { c: [1, 2], d: 'hello' }, e: null };
+      Cache.set('test_nested_rt', original, 60);
+      const retrieved = Cache.get('test_nested_rt');
+      expect(retrieved).toEqual(original);
+    });
+
+    test('Record<string, true> survives cache round-trip (Set alternative)', () => {
+      // This is the recommended pattern instead of Set
+      const original: Record<string, true> = { 'a': true, 'b': true, 'c': true };
+      Cache.set('test_record_rt', original, 60);
+      const retrieved = Cache.get('test_record_rt') as Record<string, true>;
+      expect(retrieved).toEqual(original);
+      expect('a' in retrieved).toBe(true);
+      expect('d' in retrieved).toBe(false);
+    });
+
+    test('Date becomes string after cache round-trip (warns)', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const original = new Date('2024-07-15T12:00:00Z');
+      Cache.set('test_date_rt', original, 60);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Date'));
+      const retrieved = Cache.get('test_date_rt');
+      // Date serializes to ISO string
+      expect(typeof retrieved).toBe('string');
+      expect(retrieved).toBe('2024-07-15T12:00:00.000Z');
+      warnSpy.mockRestore();
+    });
+  });
 });

@@ -20,7 +20,8 @@
     "web": "npm run build && NODE_ENV=production npm run ts-dev -- src/webServer.ts",
     "web:dev": "concurrently -n \"API,UI\" -c \"blue,magenta\" \"npm run ts-dev -- src/webServer.ts\" \"cd web-ui && npm run dev\"",
     "web:build": "cd web-ui && npm run build",
-    "harness": "tsx --env-file=.env src/harness/compare.ts"
+    "harness": "tsx --env-file=.env src/harness/compare.ts",
+    "health": "tsx --env-file=.env src/harness/health.ts"
   },
   "repository": {
     "type": "git",

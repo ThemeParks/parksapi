@@ -150,6 +150,21 @@ class CacheLib {
   }
 
   static set<T>(key: string, value: T, ttlSeconds: number = 60): void {
+    // Warn on types that don't survive JSON serialization
+    if (value instanceof Set || value instanceof Map) {
+      console.warn(
+        `[Cache] Warning: Storing ${value.constructor.name} in cache key "${key}". ` +
+        `Set/Map objects become plain objects after JSON serialization. ` +
+        `Use arrays or Record<string, T> instead.`
+      );
+    } else if (value instanceof Date) {
+      console.warn(
+        `[Cache] Warning: Storing Date in cache key "${key}". ` +
+        `Date objects become ISO strings after JSON serialization. ` +
+        `Store as ISO string directly if that's the intent.`
+      );
+    }
+
     try {
       retryOperation(() => {
         const timestamp = Date.now() + (ttlSeconds * 1000);
