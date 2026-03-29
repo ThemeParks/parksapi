@@ -12,7 +12,7 @@ import {
   LiveData,
   EntitySchedule,
 } from '@themeparks/typelib';
-import {formatInTimezone} from '../../datetime.js';
+import {constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 // Category to entity type mapping
@@ -411,21 +411,9 @@ export class Phantasialand extends Destination {
    */
   private formatShowTime(timeStr: string): string {
     // timeStr is "YYYY-MM-DD HH:mm:ss" in Europe/Berlin local time
-    // We need to get the correct offset for this date
     const dateStr = timeStr.substring(0, 10); // "YYYY-MM-DD"
-    const offset = this.getBerlinOffset(dateStr);
-    return `${timeStr.replace(' ', 'T')}${offset}`;
-  }
-
-  /**
-   * Get the UTC offset string for a given date in Europe/Berlin timezone.
-   * Returns e.g. "+01:00" (CET winter) or "+02:00" (CEST summer).
-   */
-  private getBerlinOffset(dateStr: string): string {
-    const refDate = new Date(`${dateStr}T12:00:00Z`);
-    const formatted = formatInTimezone(refDate, 'Europe/Berlin', 'iso');
-    const match = formatted.match(/([+-]\d{2}:\d{2})$/);
-    return match ? match[1] : '+01:00';
+    const timePart = timeStr.substring(11);   // "HH:mm:ss"
+    return constructDateTime(dateStr, timePart, this.timezone);
   }
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
@@ -447,9 +435,8 @@ export class Phantasialand extends Destination {
       for (const dateStr of event.days_selected) {
         if (!dateStr) continue;
 
-        const offset = this.getBerlinOffset(dateStr);
-        const openingTime = `${dateStr}T${hours.open}:00${offset}`;
-        const closingTime = `${dateStr}T${hours.close}:00${offset}`;
+        const openingTime = constructDateTime(dateStr, hours.open, this.timezone);
+        const closingTime = constructDateTime(dateStr, hours.close, this.timezone);
 
         scheduleEntries.push({
           date: dateStr,

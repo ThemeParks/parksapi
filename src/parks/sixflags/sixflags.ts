@@ -19,7 +19,7 @@ import {http, type HTTPObj} from '../../http.js';
 import {cache} from '../../cache.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import {formatInTimezone, addMinutes} from '../../datetime.js';
+import {formatInTimezone, addMinutes, constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 // ============================================================================
@@ -543,17 +543,6 @@ export class SixFlags extends Destination {
     return this.timezone;
   }
 
-  /**
-   * Get the UTC offset string for a date in a given timezone.
-   * E.g. "-04:00" for EDT, "-05:00" for EST.
-   */
-  private getTimezoneOffset(dateStr: string, tz: string): string {
-    const refDate = new Date(`${dateStr}T12:00:00Z`);
-    const formatted = formatInTimezone(refDate, tz, 'iso');
-    const match = formatted.match(/([+-]\d{2}:\d{2})$/);
-    return match ? match[1] : '+00:00';
-  }
-
   // ============================================================================
   // Status Mapping
   // ============================================================================
@@ -929,9 +918,9 @@ export class SixFlags extends Destination {
     if (dateParts.length !== 3) return null;
 
     const dateStr = `${dateParts[2]}-${dateParts[0]}-${dateParts[1]}`;
-    const offset = this.getTimezoneOffset(dateStr, tz);
+    const timeFormatted = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 
-    return `${dateStr}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00${offset}`;
+    return constructDateTime(dateStr, timeFormatted, tz);
   }
 
   // ============================================================================
@@ -1014,13 +1003,11 @@ export class SixFlags extends Destination {
         if (dateParts.length !== 3) continue;
         const dateStr = `${dateParts[2]}-${dateParts[0]}-${dateParts[1]}`;
 
-        const offset = this.getTimezoneOffset(dateStr, tz);
-
         scheduleEntries.push({
           date: dateStr,
           type: 'OPERATING',
-          openingTime: `${dateStr}T${earliestOpen}:00${offset}`,
-          closingTime: `${dateStr}T${latestClose}:00${offset}`,
+          openingTime: constructDateTime(dateStr, earliestOpen, tz),
+          closingTime: constructDateTime(dateStr, latestClose, tz),
         });
       }
     }

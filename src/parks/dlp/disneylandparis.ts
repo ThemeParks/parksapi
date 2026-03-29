@@ -12,7 +12,7 @@ import {
   EntitySchedule,
   LanguageCode,
 } from '@themeparks/typelib';
-import {formatInTimezone, addDays} from '../../datetime.js';
+import {formatInTimezone, addDays, constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 // ============================================================================
@@ -401,26 +401,6 @@ export class DisneylandParis extends Destination {
   // ===== Helper Methods =====
 
   /**
-   * Get the UTC offset string for a given date in Europe/Paris timezone.
-   * Returns e.g. "+01:00" (CET winter) or "+02:00" (CEST summer).
-   */
-  private getParisOffset(dateStr: string): string {
-    const refDate = new Date(`${dateStr}T12:00:00Z`);
-    const formatted = formatInTimezone(refDate, this.timezone, 'iso');
-    // Try standard offset format: +02:00
-    const match = formatted.match(/([+-]\d{2}:\d{2})$/);
-    if (match) return match[1];
-    // Fallback: GMT offset format from Intl (e.g., "GMT+1")
-    const gmtMatch = formatted.match(/GMT([+-]\d+)$/);
-    if (gmtMatch) {
-      const num = parseInt(gmtMatch[1], 10);
-      const sign = num >= 0 ? '+' : '-';
-      return `${sign}${String(Math.abs(num)).padStart(2, '0')}:00`;
-    }
-    return '+01:00';
-  }
-
-  /**
    * Flatten all POI categories into a single array with category tag
    */
   private flattenPOI(poiData: Record<string, DLPPOIEntity[]>): Array<DLPPOIEntity & {category: string}> {
@@ -702,7 +682,6 @@ export class DisneylandParis extends Destination {
 
     try {
       const scheduleData = await this.getScheduleForDate(todayStr);
-      const offset = this.getParisOffset(todayStr);
 
       for (const sched of scheduleData) {
         if (!sched.schedules) continue;
@@ -713,9 +692,10 @@ export class DisneylandParis extends Destination {
         const showDuration = this.showDurationMap.get(sched.id) || 0;
 
         const showtimes = performances.map((p) => {
-          const startTime = `${todayStr}T${p.startTime}${offset}`;
+          const startTime = constructDateTime(todayStr, p.startTime, this.timezone);
           const endTimeStr = showDuration === 0 ? p.endTime : p.startTime;
-          let endDate = new Date(`${todayStr}T${endTimeStr}${offset}`);
+          const endTimeIso = constructDateTime(todayStr, endTimeStr, this.timezone);
+          let endDate = new Date(endTimeIso);
           if (showDuration > 0) {
             endDate = new Date(endDate.getTime() + showDuration * 60 * 1000);
           }
@@ -767,8 +747,6 @@ export class DisneylandParis extends Destination {
       }
       if (!dateData) continue;
 
-      const offset = this.getParisOffset(dateString);
-
       for (const entity of dateData) {
         if (!entity.schedules) continue;
         if (IGNORE_ENTITIES.has(entity.id)) continue;
@@ -776,8 +754,8 @@ export class DisneylandParis extends Destination {
         for (const hours of entity.schedules) {
           if (hours.status === 'REFURBISHMENT' || hours.status === 'CLOSED') continue;
 
-          const openTime = `${dateString}T${hours.startTime}${offset}`;
-          let closeTime = `${dateString}T${hours.endTime}${offset}`;
+          const openTime = constructDateTime(dateString, hours.startTime, this.timezone);
+          let closeTime = constructDateTime(dateString, hours.endTime, this.timezone);
 
           // Handle midnight crossing: if close < open, add 1 day to close
           if (hours.endTime < hours.startTime) {
@@ -785,8 +763,7 @@ export class DisneylandParis extends Destination {
             const nextDayStr = formatInTimezone(nextDay, this.timezone, 'date');
             const [nmm, ndd, nyyyy] = nextDayStr.split('/');
             const nextDayString = `${nyyyy}-${nmm}-${ndd}`;
-            // Use same offset (close enough for 1-day difference)
-            closeTime = `${nextDayString}T${hours.endTime}${offset}`;
+            closeTime = constructDateTime(nextDayString, hours.endTime, this.timezone);
           }
 
           let type: string = 'OPERATING';

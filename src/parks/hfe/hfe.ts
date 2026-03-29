@@ -19,7 +19,7 @@ import {cache} from '../../cache.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import {formatInTimezone, addDays} from '../../datetime.js';
+import {formatInTimezone, addDays, constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 // ============================================================================
@@ -540,11 +540,11 @@ class HFEBase extends Destination {
         // from/to are ISO-ish strings without timezone (e.g., "2026-04-19T11:00:00")
         // They're in the park's local timezone
         const dateStr = day.date.split('T')[0];
-        const offset = this.getTimezoneOffset(dateStr);
+        const fromTime = hours.from.split('T')[1] || '00:00:00';
+        const toTime = hours.to.split('T')[1] || '00:00:00';
 
-        // Append the timezone offset to make them proper ISO strings
-        const openingTime = `${hours.from}${offset}`;
-        const closingTime = `${hours.to}${offset}`;
+        const openingTime = constructDateTime(dateStr, fromTime, this.timezone);
+        const closingTime = constructDateTime(dateStr, toTime, this.timezone);
 
         scheduleEntries.push({
           date: dateStr,
@@ -561,24 +561,6 @@ class HFEBase extends Destination {
     } as EntitySchedule];
   }
 
-  /**
-   * Get the UTC offset string for a given date in the park's timezone.
-   * Returns e.g. "-05:00" (EST winter) or "-04:00" (EDT summer).
-   */
-  private getTimezoneOffset(dateStr: string): string {
-    const refDate = new Date(`${dateStr}T12:00:00Z`);
-    const formatted = formatInTimezone(refDate, this.timezone, 'iso');
-    const match = formatted.match(/([+-]\d{2}:\d{2})$/);
-    if (match) return match[1];
-    // Fallback: try GMT offset format (e.g., "GMT-4")
-    const gmtMatch = formatted.match(/GMT([+-]\d+)$/);
-    if (gmtMatch) {
-      const num = parseInt(gmtMatch[1], 10);
-      const sign = num >= 0 ? '+' : '-';
-      return `${sign}${String(Math.abs(num)).padStart(2, '0')}:00`;
-    }
-    return '-05:00';
-  }
 }
 
 // ============================================================================

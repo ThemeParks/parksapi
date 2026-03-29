@@ -9,7 +9,7 @@ import {
   LiveData,
   EntitySchedule,
 } from '@themeparks/typelib';
-import {formatInTimezone, addDays} from '../../datetime.js';
+import {formatInTimezone, addDays, constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 @destinationController({category: 'Liseberg'})
@@ -75,19 +75,6 @@ export class Liseberg extends Destination {
     } catch {
       return [];
     }
-  }
-
-  // ===== Timezone Helpers =====
-
-  /**
-   * Get the UTC offset string for a given date in Europe/Stockholm timezone.
-   * Returns e.g. "+01:00" (CET winter) or "+02:00" (CEST summer).
-   */
-  private getStockholmOffset(dateStr: string): string {
-    const refDate = new Date(`${dateStr}T12:00:00Z`);
-    const formatted = formatInTimezone(refDate, 'Europe/Stockholm', 'iso');
-    const match = formatted.match(/([+-]\d{2}:\d{2})$/);
-    return match ? match[1] : '+01:00';
   }
 
   // ===== Data Builder Methods =====
@@ -194,13 +181,12 @@ export class Liseberg extends Destination {
 
         // dateRaw is "YYYY-MM-DDT00:00:00" - extract the date part
         const dateStr = String(day.dateRaw).substring(0, 10);
-        const offset = this.getStockholmOffset(dateStr);
 
         const openHour = String(from).padStart(2, '0');
         const closeHour = String(to).padStart(2, '0');
 
-        const openingTime = `${dateStr}T${openHour}:00:00${offset}`;
-        const closingTime = `${dateStr}T${closeHour}:00:00${offset}`;
+        const openingTime = constructDateTime(dateStr, `${openHour}:00:00`, this.timezone);
+        const closingTime = constructDateTime(dateStr, `${closeHour}:00:00`, this.timezone);
 
         scheduleEntries.push({
           date: dateStr,
@@ -225,7 +211,7 @@ export class Liseberg extends Destination {
                 ? `${eveningStr.padStart(2, '0')}:00`
                 : eveningStr;
 
-              const eveningOpeningTime = `${dateStr}T${eveningTime}:00${offset}`;
+              const eveningOpeningTime = constructDateTime(dateStr, `${eveningTime}:00`, this.timezone);
 
               scheduleEntries.push({
                 date: dateStr,

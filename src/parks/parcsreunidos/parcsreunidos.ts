@@ -15,7 +15,7 @@ import {cache} from '../../cache.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import {formatInTimezone} from '../../datetime.js';
+import {constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 // ============================================================================
@@ -408,13 +408,11 @@ class ParcsReunidosDestination extends Destination {
           if (!hours) continue;
 
           const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          const offset = this.getTimezoneOffset(dateStr);
-
           scheduleEntries.push({
             date: dateStr,
             type: 'OPERATING',
-            openingTime: `${dateStr}T${hours.open}:00${offset}`,
-            closingTime: `${dateStr}T${hours.close}:00${offset}`,
+            openingTime: constructDateTime(dateStr, hours.open, this.timezone),
+            closingTime: constructDateTime(dateStr, hours.close, this.timezone),
           });
         }
       }
@@ -494,16 +492,6 @@ class ParcsReunidosDestination extends Destination {
     return `${timeStr.padStart(2, '0')}:00`;
   }
 
-  /**
-   * Get the UTC offset string for a given date in the park's timezone.
-   * Returns e.g. "+01:00" (CET winter) or "+02:00" (CEST summer).
-   */
-  private getTimezoneOffset(dateStr: string): string {
-    const refDate = new Date(`${dateStr}T12:00:00Z`);
-    const formatted = formatInTimezone(refDate, this.timezone, 'iso');
-    const match = formatted.match(/([+-]\d{2}:\d{2})$/);
-    return match ? match[1] : '+00:00';
-  }
 }
 
 // ============================================================================

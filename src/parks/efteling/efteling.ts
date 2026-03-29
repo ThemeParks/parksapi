@@ -12,7 +12,7 @@ import {
   EntitySchedule,
   LanguageCode,
 } from '@themeparks/typelib';
-import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore} from '../../datetime.js';
+import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore, constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 @destinationController({ category: 'Efteling' })
@@ -470,19 +470,6 @@ export class Efteling extends Destination {
     return liveData;
   }
 
-  /**
-   * Get the UTC offset string for a given date in Europe/Amsterdam timezone.
-   * Returns e.g. "+01:00" (CET winter) or "+02:00" (CEST summer).
-   */
-  private getAmsterdamOffset(dateStr: string): string {
-    // Create a date at noon UTC on that day to safely extract the offset
-    const refDate = new Date(`${dateStr}T12:00:00Z`);
-    const formatted = formatInTimezone(refDate, 'Europe/Amsterdam', 'iso');
-    // Extract offset from end of ISO string (e.g. "2024-10-15T14:00:00+02:00" -> "+02:00")
-    const match = formatted.match(/([+-]\d{2}:\d{2})$/);
-    return match ? match[1] : '+01:00';
-  }
-
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const now = new Date();
     const scheduleEntries: any[] = [];
@@ -503,17 +490,14 @@ export class Efteling extends Destination {
           (a.Open || '').localeCompare(b.Open || '')
         );
 
-        // Get the Amsterdam UTC offset for this specific date (handles DST)
-        const offset = this.getAmsterdamOffset(day.Date);
-
         for (let j = 0; j < hours.length; j++) {
           const h = hours[j];
           if (!h.Open || !h.Close) continue;
 
           // Build ISO datetime strings with correct Amsterdam offset
           // day.Date is "YYYY-MM-DD", h.Open/h.Close are "HH:mm"
-          const openingTime = `${day.Date}T${h.Open}:00${offset}`;
-          const closingTime = `${day.Date}T${h.Close}:00${offset}`;
+          const openingTime = constructDateTime(day.Date, h.Open, this.timezone);
+          const closingTime = constructDateTime(day.Date, h.Close, this.timezone);
 
           scheduleEntries.push({
             date: day.Date,

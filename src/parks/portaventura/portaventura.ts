@@ -12,7 +12,7 @@ import {
   LiveData,
   EntitySchedule,
 } from '@themeparks/typelib';
-import {formatInTimezone} from '../../datetime.js';
+import {formatInTimezone, constructDateTime} from '../../datetime.js';
 
 @destinationController({category: 'PortAventura'})
 export class PortAventuraWorld extends Destination {
@@ -229,19 +229,6 @@ export class PortAventuraWorld extends Destination {
     return byId;
   }
 
-  // ===== Timezone Helpers =====
-
-  /**
-   * Get the UTC offset string for a given date in Europe/Madrid timezone.
-   * Returns e.g. "+01:00" (CET winter) or "+02:00" (CEST summer).
-   */
-  private getMadridOffset(dateStr: string): string {
-    const refDate = new Date(`${dateStr}T12:00:00Z`);
-    const formatted = formatInTimezone(refDate, 'Europe/Madrid', 'iso');
-    const match = formatted.match(/([+-]\d{2}:\d{2})$/);
-    return match ? match[1] : '+01:00';
-  }
-
   // ===== Data Builder Methods =====
 
   async getDestinations(): Promise<Entity[]> {
@@ -378,12 +365,11 @@ export class PortAventuraWorld extends Destination {
         if (openingTime === '00:00:00' || closingTime === '00:00:00') continue;
         if (openingTime === closingTime) continue;
 
-        const offset = this.getMadridOffset(date);
         scheduleEntries.push({
           date,
           type: 'OPERATING',
-          openingTime: `${date}T${openingTime}${offset}`,
-          closingTime: `${date}T${closingTime}${offset}`,
+          openingTime: constructDateTime(date, openingTime, this.timezone),
+          closingTime: constructDateTime(date, closingTime, this.timezone),
         });
       }
 

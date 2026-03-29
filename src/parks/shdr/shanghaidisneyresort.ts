@@ -6,7 +6,7 @@ import config from '../../config.js';
 import {destinationController} from '../../destinationRegistry.js';
 import {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {TagBuilder} from '../../tags/index.js';
-import {formatInTimezone, addDays} from '../../datetime.js';
+import {formatInTimezone, addDays, constructDateTime} from '../../datetime.js';
 
 // ============================================================================
 // Constants
@@ -212,14 +212,6 @@ export class ShanghaiDisneylandResort extends Destination {
   }
 
   // ===== Helper Methods =====
-
-  /**
-   * Get the UTC offset string for Asia/Shanghai.
-   * China Standard Time is always +08:00 (no DST).
-   */
-  private getShanghaiOffset(): string {
-    return '+08:00';
-  }
 
   /**
    * Extract the clean entity ID from a semicolon-delimited SHDR ID string.
@@ -519,7 +511,6 @@ export class ShanghaiDisneylandResort extends Destination {
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const activities = await this.getScheduleActivities();
-    const offset = this.getShanghaiOffset();
     const scheduleMap = new Map<string, any[]>();
 
     for (const activity of activities) {
@@ -531,8 +522,8 @@ export class ShanghaiDisneylandResort extends Destination {
         if (sched.type !== 'Operating') continue;
 
         const dateStr = sched.date;
-        const openingTime = `${dateStr}T${sched.startTime}:00${offset}`;
-        const closingTime = `${dateStr}T${sched.endTime}:00${offset}`;
+        const openingTime = constructDateTime(dateStr, sched.startTime, this.timezone);
+        const closingTime = constructDateTime(dateStr, sched.endTime, this.timezone);
 
         if (!scheduleMap.has(cleanId)) {
           scheduleMap.set(cleanId, []);

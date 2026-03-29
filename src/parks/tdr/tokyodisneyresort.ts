@@ -5,6 +5,7 @@ import {inject} from '../../injector.js';
 import config from '../../config.js';
 import {destinationController} from '../../destinationRegistry.js';
 import {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
+import {constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 // ============================================================================
@@ -338,14 +339,6 @@ export class TokyoDisneyResort extends Destination {
   // ===== Helper Methods =====
 
   /**
-   * Get the UTC offset string for Asia/Tokyo.
-   * Japan Standard Time is always +09:00 (no DST).
-   */
-  private getTokyoOffset(): string {
-    return '+09:00';
-  }
-
-  /**
    * Parse a height string like "107 cm" or "102cm" into centimeters.
    */
   private parseHeightCm(heightStr: string): number | undefined {
@@ -570,7 +563,6 @@ export class TokyoDisneyResort extends Destination {
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const calendar = await this.getCalendar();
-    const offset = this.getTokyoOffset();
 
     // Initialize schedule map for both parks
     const scheduleMap = new Map<string, any[]>();
@@ -590,8 +582,8 @@ export class TokyoDisneyResort extends Destination {
       if (entry.openTime && entry.closeTime) {
         scheduleMap.get(parkId)!.push({
           date: dateStr,
-          openingTime: `${dateStr}T${entry.openTime}:00${offset}`,
-          closingTime: `${dateStr}T${entry.closeTime}:00${offset}`,
+          openingTime: constructDateTime(dateStr, entry.openTime, this.timezone),
+          closingTime: constructDateTime(dateStr, entry.closeTime, this.timezone),
           type: 'OPERATING',
         });
       }
@@ -600,8 +592,8 @@ export class TokyoDisneyResort extends Destination {
       if (entry.spOpenTime && entry.spCloseTime) {
         scheduleMap.get(parkId)!.push({
           date: dateStr,
-          openingTime: `${dateStr}T${entry.spOpenTime}:00${offset}`,
-          closingTime: `${dateStr}T${entry.spCloseTime}:00${offset}`,
+          openingTime: constructDateTime(dateStr, entry.spOpenTime, this.timezone),
+          closingTime: constructDateTime(dateStr, entry.spCloseTime, this.timezone),
           type: 'EXTRA_HOURS',
           description: 'Special Hours',
         });
