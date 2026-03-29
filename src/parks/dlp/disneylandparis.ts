@@ -288,7 +288,7 @@ export class DisneylandParis extends Destination {
   /**
    * Fetch schedule data for a specific date via GraphQL
    */
-  @http({cacheSeconds: 86400})
+  @http({cacheSeconds: 86400, healthCheckArgs: ['{today}']})
   async fetchScheduleForDate(date: string): Promise<HTTPObj> {
     return {
       method: 'POST',

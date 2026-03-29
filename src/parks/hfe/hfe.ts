@@ -209,7 +209,7 @@ class HFEBase extends Destination {
    * The API times out on large day counts (e.g., days=60), so we
    * batch in 7-day chunks from the caller.
    */
-  @http({cacheSeconds: 43200})
+  @http({cacheSeconds: 43200, healthCheckArgs: ['{today}']})
   async fetchSchedule(startDate: string): Promise<HTTPObj> {
     return {
       method: 'GET',

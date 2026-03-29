@@ -145,7 +145,7 @@ export class Efteling extends Destination {
   /**
    * Fetch calendar/opening hours data
    */
-  @http({ cacheSeconds: 43200 })
+  @http({ cacheSeconds: 43200, healthCheckArgs: ['{year}', '{month}'] })
   async fetchCalendar(year: number, month: number): Promise<HTTPObj> {
     return {
       method: 'GET',

@@ -31,6 +31,10 @@ export type HTTPRequester = {
   methodName: string;
   // method arguments with OpenAPI-like schema
   args: HTTPParameter[];
+  // number of parameters the original function accepts (0 = can call without args)
+  paramCount: number;
+  // default arguments for health check testing (supports template variables)
+  healthCheckArgs?: any[];
 };
 const httpRequesters: HTTPRequester[] = [];
 
@@ -442,6 +446,11 @@ function httpDecoratorFactory(options?: {
   injectForRequests?: any, // sift query. When met, this request will be run before the matching method
   // JSON schema to validate response against (optional)
   validateResponse?: any, // JSON schema to validate response against
+  // Default arguments for health check testing. Supports template variables:
+  // {year} = current year, {month} = current month (1-indexed),
+  // {today} = YYYY-MM-DD, {date+N} = YYYY-MM-DD N days from now,
+  // {yyyymm} = YYYYMM format for current month
+  healthCheckArgs?: any[],
 }) {
   // create our validate function if needed
   const formatValidate = options?.validateResponse ? ajv.compile(options.validateResponse) : null;
@@ -462,7 +471,9 @@ function httpDecoratorFactory(options?: {
       const requester: HTTPRequester = {
         instance: target.constructor.name,
         methodName: propertyKey,
-        args: options?.parameters ? [...options.parameters] : []
+        args: options?.parameters ? [...options.parameters] : [],
+        paramCount: descriptor.value?.length ?? 0,
+        healthCheckArgs: options?.healthCheckArgs,
       };
 
       httpRequesters.push(requester);

@@ -329,7 +329,7 @@ class AttractionsIOV3 extends Destination {
    *
    * @param date - Date in YYYYMMDD format
    */
-  @http({cacheSeconds: 60 * 60 * 24})
+  @http({cacheSeconds: 60 * 60 * 24, healthCheckArgs: ['{yyyymmdd}']})
   async fetchScheduleForDate(date: string): Promise<HTTPObj> {
     return {
       method: 'GET',

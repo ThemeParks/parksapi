@@ -54,7 +54,7 @@ export class Liseberg extends Destination {
    * Fetch calendar data for a date range.
    * Cached 12 hours.
    */
-  @http({cacheSeconds: 43200})
+  @http({cacheSeconds: 43200, healthCheckArgs: ['{today}', 7]})
   async fetchCalendar(startDate: string, numDays: number): Promise<HTTPObj> {
     return {
       method: 'GET',
