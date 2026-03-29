@@ -37,6 +37,8 @@ export const parkMapping: Record<string, string> = {
   'disneylandparis': 'DisneylandParis',
   'tokyodisneyresort': 'TokyoDisneyResort',
   'shanghaidisneylandresort': 'ShanghaiDisneylandResort',
+  // Hersheypark
+  'hersheypark': 'Hersheypark',
   // TE2 (Australia)
   'seaworldgoldcoast': 'SeaWorldGoldCoast',
   'warnerbrosmovieworld': 'WarnerBrosMovieWorld',
