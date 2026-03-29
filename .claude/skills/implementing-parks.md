@@ -337,6 +337,14 @@ The `@config` decorator resolves from env vars automatically (`CLASSNAME_PROPERT
 
 **Always strings.** Even if the API returns numbers: `id: String(apiId)`.
 
+### Coordinates as Strings
+
+Some APIs return lat/lng as strings (e.g., Tokyo Disney). Always `Number()` before passing to TagBuilder or location fields:
+
+```typescript
+TagBuilder.location(Number(facility.latitude), Number(facility.longitude), name);
+```
+
 ### Gzip / Compressed Responses
 
 The HTTP library (`httpProxy.ts`) handles gzip/deflate/brotli decompression automatically. If an API returns compressed responses, this works out of the box.
