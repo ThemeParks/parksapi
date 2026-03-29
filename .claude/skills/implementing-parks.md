@@ -20,19 +20,25 @@ You'll typically receive one or more of:
 Before writing code, identify from the input:
 
 1. **Endpoints** — what URLs, what HTTP methods
-2. **Auth** — API keys, tokens, OAuth, app version headers
+2. **Auth** — API keys, tokens, OAuth, app version headers, client certificates
 3. **Entity source** — which endpoint returns the list of rides/shows (POI data)
 4. **Live data source** — which endpoint returns wait times/statuses
 5. **Schedule source** — which endpoint returns operating hours (often a different domain)
 6. **Response shapes** — document the JSON structure, field names, nesting
 7. **Language** — does the API support multiple languages? Via query param or header?
 8. **Timezone** — what timezone does the park operate in?
+9. **Entity ID format** — what format are IDs in? Must match JS for backwards compatibility
 
 ## File Structure
 
 ```
 src/parks/<parkname>/<parkname>.ts    # Single file per destination
-src/parks/<parkname>/__tests__/       # Tests if needed (parks are integration-tested via harness)
+src/parks/<parkname>/__tests__/       # Tests if needed
+```
+
+**Framework pattern** (multiple parks sharing one API): single file with base class + subclasses:
+```
+src/parks/<framework>/<framework>.ts  # Base class + subclasses in one file
 ```
 
 ## Implementation Order
@@ -41,18 +47,17 @@ src/parks/<parkname>/__tests__/       # Tests if needed (parks are integration-t
 
 ```typescript
 import {Destination, DestinationConstructor} from '../../destination.js';
-import crypto from 'crypto';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
 import config from '../../config.js';
 import {destinationController} from '../../destinationRegistry.js';
-import {Entity, LiveData, EntitySchedule, LanguageCode} from '@themeparks/typelib';
-import {formatInTimezone, parseTimeInTimezone, addDays, addMinutes} from '../../datetime.js';
+import {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
+import {constructDateTime, formatInTimezone, addDays} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
+import {decodeHtmlEntities, stripHtmlTags} from '../../htmlUtils.js';
 
 // @destinationController automatically applies @config to the class.
-// No need for a separate @config class decorator.
 // Use @config on individual properties for env var resolution.
 @destinationController({ category: 'ParkName' })
 export class ParkName extends Destination {
@@ -69,27 +74,40 @@ Config properties become env vars: `PARKNAME_APIKEY`, `PARKNAME_TIMEZONE`, etc.
 
 ### 2. Header Injection
 
-One `@inject` per hostname. Preserve existing headers with spread:
+One `@inject` per hostname. Preserve existing headers with spread. Use dynamic hostname from config:
 
 ```typescript
-@inject({ eventName: 'httpRequest', hostname: 'api.parkname.com' })
+@inject({
+  eventName: 'httpRequest',
+  hostname: function() { return this.getApiHostname(); },
+})
 async injectHeaders(req: HTTPObj): Promise<void> {
   req.headers = {
-    ...req.headers,  // Preserve any per-request overrides
+    ...req.headers,
     'x-api-key': this.apiKey,
     'user-agent': 'okhttp/5.1.0',
   };
+}
+
+private getApiHostname(): string | undefined {
+  if (!this.apiBase) return undefined;
+  try { return new URL(this.apiBase).hostname; } catch { return undefined; }
 }
 ```
 
 ### 3. HTTP Methods
 
-Pattern: `@http` fetch method returns HTTPObj, `@cache` wrapper calls it and parses response.
+Pattern: `@http` fetch method returns HTTPObj, `@cache` wrapper calls it and parses response. Add `healthCheckArgs` for endpoints with parameters so `npm run health` can test them:
 
 ```typescript
 @http({ cacheSeconds: 43200 })  // 12h for entity data
 async fetchPOI(): Promise<HTTPObj> {
-  return { method: 'GET', url: 'https://api.park.com/poi', options: { json: true } } as any as HTTPObj;
+  return { method: 'GET', url: `${this.apiBase}/poi`, options: { json: true } } as any as HTTPObj;
+}
+
+@http({ cacheSeconds: 43200, healthCheckArgs: ['{year}', '{month}'] })  // Test with current date
+async fetchCalendar(year: number, month: number): Promise<HTTPObj> {
+  return { method: 'GET', url: `${this.apiBase}/calendar/${year}/${month}`, options: { json: true } } as any as HTTPObj;
 }
 
 @cache({ ttlSeconds: 43200 })
@@ -100,11 +118,15 @@ async getPOI(): Promise<any[]> {
 }
 ```
 
+**healthCheckArgs template variables:** `{year}`, `{month}`, `{today}` (YYYY-MM-DD), `{yyyymmdd}`, `{yyyymm}`, `{date+N}` (N days from now).
+
 **Cache TTL guidelines:**
 - Entity/POI data: 12h (`43200`)
 - Live wait times: 1min (`60`)
 - Schedules/calendar: 12h (`43200`)
 - Auth tokens: dynamic via callback
+
+**Cache serialization:** Only JSON-safe types survive caching. Do NOT cache `Set`, `Map`, or `Date` objects — use arrays, `Record<string, true>`, or ISO strings instead.
 
 ### 4. Entity Building
 
@@ -118,10 +140,8 @@ async getDestinations(): Promise<Entity[]> {
 
 protected async buildEntityList(): Promise<Entity[]> {
   const poi = await this.getPOI();
-
   const parkEntity: Entity = { id: 'park', name: 'Park', entityType: 'PARK',
-    parentId: 'parkresort', destinationId: 'parkresort', timezone: this.timezone,
-    location: { latitude: 0, longitude: 0 } } as Entity;
+    parentId: 'parkresort', destinationId: 'parkresort', timezone: this.timezone } as Entity;
 
   const attractions = this.mapEntities(poi.filter(p => p.type === 'ride'), {
     idField: 'id',
@@ -131,7 +151,6 @@ protected async buildEntityList(): Promise<Entity[]> {
     destinationId: 'parkresort',
     timezone: this.timezone,
     locationFields: { lat: 'latitude', lng: 'longitude' },
-    filter: (item) => !item.hidden,
     transform: (entity, item) => {
       entity.tags = [/* TagBuilder calls */];
       return entity;
@@ -144,30 +163,23 @@ protected async buildEntityList(): Promise<Entity[]> {
 
 ### 5. Live Data
 
-Override `buildLiveData()`. Common pattern:
-
 ```typescript
 protected async buildLiveData(): Promise<LiveData[]> {
   const waitTimes = await this.getWaitTimes();
-  const liveData: LiveData[] = [];
-
-  for (const entry of waitTimes) {
+  return waitTimes.map(entry => {
     const status = this.mapStatus(entry.state);
     const ld: LiveData = { id: String(entry.id), status } as LiveData;
-
     if (status === 'OPERATING' && entry.waitTime != null) {
       ld.queue = { STANDBY: { waitTime: entry.waitTime } };
     }
-
-    liveData.push(ld);
-  }
-  return liveData;
+    return ld;
+  });
 }
 ```
 
 ### 6. Schedules
 
-Override `buildSchedules()`. Return `EntitySchedule[]` — typically just the park entity:
+Use `constructDateTime()` for building timezone-aware ISO strings from date + time:
 
 ```typescript
 protected async buildSchedules(): Promise<EntitySchedule[]> {
@@ -175,251 +187,173 @@ protected async buildSchedules(): Promise<EntitySchedule[]> {
   const schedule = calendar.map(day => ({
     date: day.date,
     type: 'OPERATING',
-    openingTime: /* ISO string in park timezone */,
-    closingTime: /* ISO string in park timezone */,
+    openingTime: constructDateTime(day.date, day.open, this.timezone),
+    closingTime: constructDateTime(day.date, day.close, this.timezone),
   }));
-
   return [{ id: 'park', schedule } as EntitySchedule];
 }
 ```
 
 ## Validation
 
-### Comparison Harness
-
-If a JS implementation exists:
-
+### Health Check
 ```bash
-# 1. Add to park mapping (src/harness/parkMapping.ts)
-# 2. Capture JS snapshot
-npm run harness -- capture parkname
-# 3. Implement TS
-# 4. Compare
-npm run harness -- compare parkname
+npm run health                          # All parks — tests every @http endpoint
+npm run health -- parkname              # Single park
+npm run health -- --category Disney     # Category
+```
+
+### Comparison Harness
+```bash
+npm run harness -- capture parkname     # Capture JS snapshot (if JS exists)
+npm run harness -- compare parkname     # Compare TS vs snapshot
 ```
 
 ### Manual Test
-
 ```bash
-npm run dev -- parkname -v              # Full test (entities + live data + schedules)
+npm run dev -- parkname -v              # Full test
 npm run dev -- parkname --skip-live-data --skip-schedules -v  # Entities only
+```
+
+## Shared Utilities
+
+### `constructDateTime(dateStr, timeStr, timezone)`
+Builds ISO 8601 from "YYYY-MM-DD" + "HH:mm" (or "HH:mm:ss") + timezone. **Always use this instead of manual offset construction.** Handles DST correctly.
+
+```typescript
+constructDateTime('2024-07-15', '10:00', 'Europe/Amsterdam')
+// → "2024-07-15T10:00:00+02:00"
+```
+
+### `decodeHtmlEntities(str)` / `stripHtmlTags(str)`
+Clean HTML from API responses. Import from `../../htmlUtils.js`.
+
+```typescript
+const name = decodeHtmlEntities(stripHtmlTags('<p>Tom &amp; Jerry&#x27;s</p>'));
+// → "Tom & Jerry's"
+```
+
+### `createStatusMap(config, options)`
+Declarative status mapping with unknown-state logging. Import from `../../statusMap.js`.
+
+```typescript
+import {createStatusMap} from '../../statusMap.js';
+const mapStatus = createStatusMap({
+  OPERATING: ['open', 'opened'],
+  DOWN: ['temp closed', 'temp closed due weather'],
+  CLOSED: ['closed', 'not scheduled', ''],
+  REFURBISHMENT: ['maintenance'],
+}, { parkName: 'MyPark' });
 ```
 
 ## Tips & Tricks
 
-### Timezone Handling
+### No Hardcoded URLs or Secrets
+All API URLs, keys, tokens, and credentials go in `@config` properties with empty defaults. Values come from env vars at runtime. **Never commit secrets to source code.**
 
-**All timestamps must be in the park's local timezone with correct offset.**
+### Entity IDs — Backwards Compatibility
+Entity IDs must match the JS implementation exactly — the ThemeParks.wiki collector references entities by ID. Always verify with `npm run harness -- compare parkname`.
 
-```typescript
-// GOOD: Format in park timezone
-formatInTimezone(date, 'Europe/Amsterdam', 'iso')
-// → "2024-10-15T14:30:00+02:00"
+### Entity IDs Must Be Strings
+Even if the API returns numbers: `id: String(apiId)`.
 
-// BAD: UTC or system timezone
-date.toISOString()
-// → "2024-10-15T12:30:00.000Z"  (wrong for consumer display)
-```
+### Coordinates as Strings
+Some APIs return lat/lng as strings. Always `Number()` before passing to TagBuilder or location fields.
 
-**Calendar time parsing (HH:mm strings):** Don't pass bare time strings to `new Date()` — it interprets them as local system time, not park time. Construct the full ISO string manually:
-
-```typescript
-// GOOD: Construct with known timezone offset
-const offset = getAmsterdamOffset(dateStr);  // "+01:00" or "+02:00"
-const openingTime = `${dateStr}T${timeStr}:00${offset}`;
-
-// BAD: new Date() uses system timezone
-const openingTime = new Date(`${dateStr}T${timeStr}:00`);
-```
-
-**`addMinutes` is DST-safe** — uses millisecond arithmetic, not `setMinutes`.
-
-### HTML Scraping Gotchas
-
-When scraping HTML for calendar/schedule data:
-- **Quote styles vary:** Match both `value='...'` and `value="..."` in regex
-- **HTML entities in attributes:** `&#34;` instead of `"`, `&#39;` instead of `'`. Decode before JSON.parse:
-  ```typescript
-  const decoded = raw.replace(/&#34;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
-  ```
-- **URLs change:** Park websites restructure frequently. Calendar URLs should be configurable via env vars, not hardcoded. Handle 301/404 gracefully.
-
-### Status Mapping
-
-Create a private `mapStatus()` method. Every park has its own state strings:
+### @config Inheritance (Framework Pattern)
+For framework parks (base class + subclasses): the base class has `@config` for shared properties, subclasses use `@destinationController` (which auto-applies `@config`). Each subclass adds its own config prefix:
 
 ```typescript
-private mapStatus(state: string): string {
-  switch (state?.toLowerCase()) {
-    case 'open': return 'OPERATING';
-    case 'closed': return 'CLOSED';
-    case 'down': case 'broken': return 'DOWN';
-    case 'maintenance': return 'REFURBISHMENT';
-    default:
-      console.warn(`[ParkName] Unknown state: ${state}`);
-      return 'CLOSED';
-  }
+@config
+class FrameworkBase extends Destination {
+  @config sharedToken: string = '';
+  constructor(options?) { super(options); this.addConfigPrefix('SHARED'); }
+}
+
+@destinationController({ category: 'MyPark' })
+export class ParkA extends FrameworkBase {
+  constructor(options?) { super(options); this.addConfigPrefix('PARKA'); }
 }
 ```
 
-Always log unknown states — they reveal API changes.
-
-### Multi-Language Names
-
-Fetch POI data per language, merge into `{ en: "...", nl: "..." }` objects. English is primary, other languages fill gaps. The framework's `getLocalizedString()` handles fallback display.
-
-```typescript
-nameField: (item) => ({ en: item.enName, nl: item.nlName }),
-```
-
-### Virtual Queues
-
-Use the Destination base class helpers:
-
-```typescript
-// Calculated return window (e.g., Efteling pattern)
-const window = this.calculateReturnWindow(waitMinutes, { windowMinutes: 15 });
-liveData.queue.RETURN_TIME = this.buildReturnTimeQueue('AVAILABLE', window.start, window.end);
-
-// Explicit time slots (e.g., Universal pattern)
-liveData.queue.RETURN_TIME = this.buildReturnTimeQueue('AVAILABLE', slotStart, slotEnd);
-
-// States: 'AVAILABLE', 'TEMP_FULL', 'FINISHED'
-```
-
-### Single Rider Queues
-
-Some APIs return separate entries for single rider. Pattern:
-1. During entity building, store a mapping: `{ alternateId → parentEntityId }`
-2. During live data, first pass collects single rider entries, second pass merges them into the parent's queue.
-
-```typescript
-ld.queue.SINGLE_RIDER = { waitTime: null };  // Available, no specific time
-```
-
-### Express / Paid Queues
-
-Map paid skip-the-line to `PAID_STANDBY`:
-
-```typescript
-ld.queue.PAID_STANDBY = { waitTime: null };  // Available, time unreliable
-```
-
-Watch for sentinel values (e.g., Universal uses `995` for "unavailable").
-
-### Tags
-
-Use `TagBuilder` for entity metadata:
-
-```typescript
-entity.tags = [
-  TagBuilder.minimumHeight(132, 'cm'),
-  TagBuilder.mayGetWet(),
-  TagBuilder.unsuitableForPregnantPeople(),
-  TagBuilder.childSwap(),
-  TagBuilder.singleRider(),
-  TagBuilder.location(lat, lng, 'Attraction Location'),
-].filter(Boolean);
-```
-
-### @config Properties for Secrets
-
-API base URLs, keys, and tokens should use `@config` with empty defaults — the env var provides the real value at runtime. Don't hardcode secrets in source:
-
-```typescript
-@config apiBase: string = '';   // Loaded from PARKNAME_APIBASE env var
-@config apiKey: string = '';    // Loaded from PARKNAME_APIKEY env var
-```
-
-The `@config` decorator resolves from env vars automatically (`CLASSNAME_PROPERTY` or `PREFIX_PROPERTY`). If no env var is set, the empty default is used and requests will fail with clear errors.
-
-### Entity IDs
-
-**Always strings.** Even if the API returns numbers: `id: String(apiId)`.
-
-### Coordinates as Strings
-
-Some APIs return lat/lng as strings (e.g., Tokyo Disney). Always `Number()` before passing to TagBuilder or location fields:
-
-```typescript
-TagBuilder.location(Number(facility.latitude), Number(facility.longitude), name);
-```
-
-### Gzip / Compressed Responses
-
-The HTTP library (`httpProxy.ts`) handles gzip/deflate/brotli decompression automatically. If an API returns compressed responses, this works out of the box.
-
 ### Cache Key Collisions
-
-If multiple parks share the same base class, implement `getCacheKeyPrefix()`:
+Framework parks sharing a base class MUST implement `getCacheKeyPrefix()`:
 
 ```typescript
 getCacheKeyPrefix(): string {
-  return `efteling:${this.parkId}`;
+  return `framework:${this.parkId}`;
 }
 ```
 
-### Droomvlucht Pattern (Merged Entries)
-
-Some parks return separate WIS entries for the same ride (e.g., standby vs VQ). Remap to a single entity ID:
+### Virtual Queues / Return Times
+Use base class helpers. Three patterns:
 
 ```typescript
-let entityId = entry.Id;
-if (entityId === 'droomvluchtstandby') entityId = 'droomvlucht';
+// Calculated window (Efteling pattern)
+const window = this.calculateReturnWindow(waitMinutes, { windowMinutes: 15 });
+liveData.queue.RETURN_TIME = this.buildReturnTimeQueue('AVAILABLE', window.start, window.end);
+
+// Explicit time slots (DLP pattern)
+liveData.queue.RETURN_TIME = this.buildReturnTimeQueue('AVAILABLE', slotStart, slotEnd);
+
+// State-only, no windows (TDR pattern — Priority Pass / Premier Access)
+liveData.queue.RETURN_TIME = { state: 'AVAILABLE', returnStart: null, returnEnd: null };
 ```
 
-Use a `getOrCreate` map pattern to merge data into one LiveData object.
+### Paid Return Time with Pricing (DLP pattern)
+```typescript
+liveData.queue.PAID_RETURN_TIME = {
+  state: available ? 'AVAILABLE' : 'FINISHED',
+  returnStart: startTime, returnEnd: endTime,
+  price: { currency: 'EUR', amount: priceInCents },
+};
+```
 
-### Anonymous Auth (Token via Self-Registration)
+### Single Rider Queues
+Some APIs return separate entries. Two-pass pattern: first pass collects alternates, second pass merges into parent.
 
-Some parks (e.g., Phantasialand) require creating a throwaway account to get an API token. Pattern:
+### Express / Paid Standby
+```typescript
+ld.queue.PAID_STANDBY = { waitTime: null };
+```
+Watch for sentinel values (Universal uses `995` for "unavailable").
+
+### Standby Pass Pattern (Shanghai Disney)
+Entities with "(Standby Pass Required)" in name aren't separate entities — fold into parent's RETURN_TIME queue.
+
+### Anonymous Auth (Phantasialand pattern)
+Create throwaway account, cache credentials for months, inject token via `@inject`. Exclude auth endpoints using tags.
+
+### Location Spoofing (Phantasialand pattern)
+Generate random coords within park bounds for endpoints requiring GPS.
+
+### Client SSL Certificates (PortAventura pattern)
+Store cert files outside repo, configure path via env var `PARKNAME_CERTDIR`. Read certs in `@inject`, set `requestObj.options.key` and `requestObj.options.cert`.
+
+### HTML Scraping Gotchas
+- Match both `value='...'` and `value="..."` in regex
+- Decode HTML entities before JSON.parse: use `decodeHtmlEntities()`
+- Calendar URLs change — make them configurable via env vars
+
+### Schedule Batching
+Some APIs time out on large day ranges. Batch in 7-day chunks (HFE pattern):
 
 ```typescript
-@cache({ ttlSeconds: 28908060, key: 'park:credentials' })  // ~11 months
-async createUser(): Promise<{ email: string; password: string }> {
-  const email = `${crypto.randomUUID()}@android.com`;
-  const password = crypto.randomUUID();
-  // POST to user creation endpoint
-  return { email, password };
+for (let i = 0; i < 9; i++) {
+  const startDate = addDays(now, i * 7);
+  const resp = await this.fetchSchedule(formatDate(startDate));
+  allDays.push(...resp);
 }
-
-@cache({ ttlSeconds: 28908060, key: 'park:accessToken' })
-async getAccessToken(): Promise<string> {
-  const creds = await this.createUser();
-  // POST to login endpoint with creds
-  return token;
-}
 ```
 
-Inject the token as a query parameter or header via `@inject`. Exclude auth endpoints from injection using tags or URL matching.
+### GraphQL APIs (DLP pattern)
+POST to query endpoint with `x-application-id` and `x-request-id` headers. Fetch entities and per-date schedules separately.
 
-### Location Spoofing
+### Dynamic Park Discovery (Six Flags pattern)
+Firebase Remote Config → park list. Single class serves all parks. Entity IDs include park code prefix.
 
-Some live data endpoints require a GPS `loc` parameter. Generate random coords within the park's bounding box:
-
-```typescript
-const lat = 50.7997 + Math.random() * 0.001;
-const lng = 6.8776 + Math.random() * 0.001;
-const url = `${apiBase}/snapshots?loc=${lat},${lng}`;
-```
-
-### Client SSL Certificates (Mutual TLS)
-
-Some parks (e.g., PortAventura) require client SSL certificates. The cert files are secrets — store them outside the repo, configured via env var:
-
-```typescript
-@config certDir: string = '';  // PARKNAME_CERTDIR env var
-
-private loadCerts(): { key: string; cert: string } | undefined {
-  if (!this.certDir) return undefined;
-  return {
-    key: readFileSync(join(this.certDir, 'private.pem'), 'utf8'),
-    cert: readFileSync(join(this.certDir, 'cert.pem'), 'utf8'),
-  };
-}
-```
-
-Inject certs into requests via `@inject` by setting `requestObj.options.key` and `requestObj.options.cert`. The HTTP layer passes these to Node.js HTTPS for mutual TLS.
+### Device Registration (TDR pattern)
+Bootstrap device ID via POST, cache for weeks. Send as header on subsequent requests. Handle 400 (version enforcement) by refreshing app version.
 
 ## Quick Reference
 
@@ -427,24 +361,27 @@ Inject certs into requests via `@inject` by setting `requestObj.options.key` and
 |------|-----------|-----|-------|
 | Entity data (POI) | `@http` + `@cache` | 12h | Rarely changes |
 | Wait times | `@http` + `@cache` | 1min | Real-time |
-| Calendar/schedules | `@http` + `@cache` | 12h | Per month |
+| Calendar/schedules | `@http` + `@cache` | 12h | Per month/date |
 | Auth tokens | `@cache` with callback | Dynamic | Refresh before expiry |
-| Header injection | `@inject` | N/A | Per hostname |
+| Header injection | `@inject` | N/A | Per hostname, dynamic |
 | Entity mapping | `mapEntities()` | N/A | Declarative config |
 | Virtual queues | `buildReturnTimeQueue()` | N/A | Base class helper |
+| DateTime construction | `constructDateTime()` | N/A | Timezone-aware ISO |
+| HTML decoding | `decodeHtmlEntities()` | N/A | From htmlUtils.js |
+| Status mapping | `createStatusMap()` | N/A | From statusMap.js |
 | Tags | `TagBuilder.*()` | N/A | Static factory methods |
-
-### HFE Corp (Herschend) API Pattern
-
-Parks like Kennywood, Dollywood, Silver Dollar City use `hfecorp.com` APIs:
-- **POI:** `{crmBase}/api/destination/activitiesbysite/{siteId}` — no auth, `user-agent: okhttp/5.1.0`
-- **Schedule:** `{crmBase}/api/park/dailyschedulebytime?parkids={parkId}&days=60&date={date}`
-- **Wait times:** `https://pulse.hfecorp.com/api/waitTimes/{destId}` — IDs: 1=Dollywood, 2=Silver Dollar City, 3=Wild Adventures, 4=Kentucky Kingdom
-
-Wait time `rideName` has park suffix like `(DW)`, `(KK)`. Join to POI via `rideWaitTimeRideId` field, or fall back to name matching (strip suffix).
 
 ## Reference Implementations
 
 - **Universal** (`src/parks/universal/universal.ts`) — Complex: multi-park resort, auth tokens, VQ, Express Pass
-- **Efteling** (`src/parks/efteling/efteling.ts`) — Moderate: multi-language, virtual queue, calendar schedules, single rider
-- **Cedar Fair** (`src/parks/cedarfair/attractionsio.ts`) — Framework: API-discovery, multiple parks from one class
+- **Efteling** (`src/parks/efteling/efteling.ts`) — Moderate: multi-language, virtual queue, calendar schedules
+- **DLP** (`src/parks/dlp/disneylandparis.ts`) — GraphQL API, paid return times with pricing, single rider
+- **TDR** (`src/parks/tdr/tokyodisneyresort.ts`) — Device registration, app version tracking, Priority Pass
+- **Shanghai** (`src/parks/shdr/shanghaidisneyresort.ts`) — Version compare API, standby pass pattern
+- **Six Flags** (`src/parks/sixflags/sixflags.ts`) — Firebase config, dynamic park discovery, 25+ parks
+- **Parcs Reunidos** (`src/parks/parcsreunidos/parcsreunidos.ts`) — Framework: base class + 5 subclasses, HTML calendar scraping
+- **HFE** (`src/parks/hfe/hfe.ts`) — Framework: 3 parks, configurable categories, name-based wait time matching
+- **Cedar Fair** (`src/parks/cedarfair/attractionsio.ts`) — Framework: API-discovery, 12 parks
+- **TE2** (`src/parks/te2/te2.ts`) — Dual ride status endpoints, Basic Auth, category-based POI discovery
+- **Phantasialand** (`src/parks/phantasialand/phantasialand.ts`) — Anonymous auth, location spoofing, HTML scraping
+- **PortAventura** (`src/parks/portaventura/portaventura.ts`) — Client SSL certificates, Strapi CMS, FTPName join
