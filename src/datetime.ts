@@ -155,6 +155,46 @@ export function addDays(date: Date, days: number): Date {
 }
 
 /**
+ * Construct a full ISO 8601 datetime string from separate date, time, and timezone.
+ * Replaces the per-park getXxxOffset() helpers that every park reimplemented.
+ *
+ * @param dateStr Date in YYYY-MM-DD format
+ * @param timeStr Time in HH:mm or HH:mm:ss format
+ * @param tz IANA timezone name (e.g., 'Europe/Amsterdam', 'America/New_York')
+ * @returns ISO 8601 string with correct timezone offset (e.g., '2024-07-15T10:00:00+02:00')
+ */
+export function constructDateTime(dateStr: string, timeStr: string, tz: string): string {
+  // Ensure seconds are present
+  const timeParts = timeStr.split(':');
+  const fullTime = timeParts.length === 2 ? `${timeStr}:00` : timeStr;
+
+  // Get the correct UTC offset for this date + timezone by probing with formatInTimezone.
+  // Use noon UTC as a safe reference point to determine the offset for this date.
+  const refDate = new Date(`${dateStr}T12:00:00Z`);
+  const formatted = formatInTimezone(refDate, tz, 'iso');
+
+  // Extract offset from the formatted string.
+  // formatInTimezone produces either "+HH:MM" or "GMT+N" format.
+  let offset: string;
+  const stdMatch = formatted.match(/([+-]\d{2}:\d{2})$/);
+  if (stdMatch) {
+    offset = stdMatch[1];
+  } else {
+    // Handle GMT+N / GMT-N format from Intl.DateTimeFormat
+    const gmtMatch = formatted.match(/GMT([+-])(\d+)$/);
+    if (gmtMatch) {
+      const sign = gmtMatch[1];
+      const hours = gmtMatch[2].padStart(2, '0');
+      offset = `${sign}${hours}:00`;
+    } else {
+      offset = '+00:00'; // UTC fallback
+    }
+  }
+
+  return `${dateStr}T${fullTime}${offset}`;
+}
+
+/**
  * Add minutes to a date
  * @param date Starting date
  * @param minutes Number of minutes to add

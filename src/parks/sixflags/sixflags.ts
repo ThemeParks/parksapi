@@ -21,6 +21,7 @@ import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {formatInTimezone, addMinutes, constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
+import {decodeHtmlEntities, stripHtmlTags} from '../../htmlUtils.js';
 
 // ============================================================================
 // API Response Types
@@ -147,18 +148,7 @@ const DEFAULT_SHOW_DURATION_MINUTES = 30;
  * Strip HTML tags and decode common HTML entities from POI names.
  */
 function cleanHtmlName(name: string): string {
-  return name
-    .replace(/<[^>]*>/g, '') // Strip HTML tags
-    .replace(/&#x27;/g, "'")
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_match, num) => String.fromCharCode(parseInt(num, 10)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_match, hex) => String.fromCharCode(parseInt(hex, 16)))
-    .trim();
+  return decodeHtmlEntities(stripHtmlTags(name));
 }
 
 /**

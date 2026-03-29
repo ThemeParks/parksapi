@@ -17,6 +17,7 @@ import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
+import {decodeHtmlEntities} from '../../htmlUtils.js';
 
 // ============================================================================
 // API Response Types
@@ -346,14 +347,7 @@ class ParcsReunidosDestination extends Destination {
     let labels: Array<Record<string, string>>;
     try {
       // Decode HTML entities (&#34; → ", &amp; → &, etc.) before JSON parsing
-      const decoded = labelsMatch[1]
-        .replace(/&#34;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"');
-      labels = JSON.parse(decoded);
+      labels = JSON.parse(decodeHtmlEntities(labelsMatch[1]));
     } catch {
       console.warn(`[ParcsReunidos:${this.appId}] Failed to parse calendar labels JSON`);
       return [];
@@ -376,12 +370,7 @@ class ParcsReunidosDestination extends Destination {
       const year = parseInt(yearMatch[1], 10);
       let monthsData: Array<Record<string, string>>;
       try {
-        const decoded = yearMatch[2]
-          .replace(/&#34;/g, '"')
-          .replace(/&#39;/g, "'")
-          .replace(/&amp;/g, '&')
-          .replace(/&quot;/g, '"');
-        monthsData = JSON.parse(decoded);
+        monthsData = JSON.parse(decodeHtmlEntities(yearMatch[2]));
       } catch {
         console.warn(`[ParcsReunidos:${this.appId}] Failed to parse calendar year ${year} JSON`);
         continue;

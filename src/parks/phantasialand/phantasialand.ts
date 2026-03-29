@@ -14,6 +14,7 @@ import {
 } from '@themeparks/typelib';
 import {constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
+import {decodeHtmlEntities} from '../../htmlUtils.js';
 
 // Category to entity type mapping
 const categoryToEntityType: Record<string, Entity['entityType'] | undefined> = {
@@ -246,12 +247,7 @@ export class Phantasialand extends Destination {
     if (!match) return [];
 
     // Clean HTML entities
-    let jsonStr = match[1];
-    jsonStr = jsonStr.replace(/&nbsp;/g, ' ');
-    jsonStr = jsonStr.replace(/&#125;/g, '}');
-    jsonStr = jsonStr.replace(/&amp;/g, '&');
-    jsonStr = jsonStr.replace(/&quot;/g, '"');
-    jsonStr = jsonStr.replace(/&#39;/g, "'");
+    const jsonStr = decodeHtmlEntities(match[1]);
 
     try {
       return JSON.parse(jsonStr);

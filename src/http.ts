@@ -330,7 +330,16 @@ class HTTPRequestImpl implements HTTPObj {
 
     // throw error if response not ok
     if (!response.ok) {
-      throw new Error(`HTTP request not OK: ${response.status} ${response.statusText}`);
+      let bodySnippet = '';
+      try {
+        const text = await response.clone().text();
+        bodySnippet = text.substring(0, 200);
+      } catch { /* ignore */ }
+      throw new Error(
+        `HTTP request not OK: ${response.status} ${response.statusText}\n` +
+        `  URL: ${this.method} ${urlToFetch}\n` +
+        (bodySnippet ? `  Body: ${bodySnippet}\n` : '')
+      );
     }
 
     // Capture response body for trace event
@@ -723,8 +732,11 @@ export async function processHttpQueue() {
           entry.earliestExecute = Date.now() + backoffDelay;
           httpRequestQueue.push(entry); // re-queue the request
         } else {
-          console.error(`HTTP request failed, no retries left: ${entry.request.method} ${entry.request.url}`, error);
-          entry.request.rejectPromise(error);
+          const errMsg = error instanceof Error ? error.message : String(error);
+          console.error(`HTTP request failed, no retries left: ${entry.request.method} ${entry.request.url} ${errMsg}`);
+          entry.request.rejectPromise(
+            new Error(`${entry.request.method} ${entry.request.url}: ${errMsg}`)
+          );
         }
       }
 

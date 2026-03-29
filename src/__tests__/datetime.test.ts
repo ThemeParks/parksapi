@@ -10,7 +10,8 @@ import {
   addDays,
   addMinutes,
   isBefore,
-  timezone
+  timezone,
+  constructDateTime,
 } from '../datetime.js';
 
 describe('DateTime Utilities', () => {
@@ -538,6 +539,70 @@ describe('DateTime Utilities', () => {
 
       expect(result.getTime() - date.getTime()).toBe(150 * 60 * 1000);
       expect(result.toISOString()).toBe('2025-03-15T14:30:00.000Z');
+    });
+  });
+
+  describe('constructDateTime()', () => {
+    test('should construct ISO datetime from date + time + timezone', () => {
+      const result = constructDateTime('2024-07-15', '10:00', 'Europe/Amsterdam');
+      // Summer CEST = UTC+2
+      expect(result).toBe('2024-07-15T10:00:00+02:00');
+    });
+
+    test('should handle winter timezone offset', () => {
+      const result = constructDateTime('2024-01-15', '10:00', 'Europe/Amsterdam');
+      // Winter CET = UTC+1
+      expect(result).toBe('2024-01-15T10:00:00+01:00');
+    });
+
+    test('should handle US Eastern timezone', () => {
+      // Summer EDT = UTC-4
+      const summer = constructDateTime('2024-07-15', '10:00', 'America/New_York');
+      expect(summer).toBe('2024-07-15T10:00:00-04:00');
+
+      // Winter EST = UTC-5
+      const winter = constructDateTime('2024-01-15', '10:00', 'America/New_York');
+      expect(winter).toBe('2024-01-15T10:00:00-05:00');
+    });
+
+    test('should handle Asia/Tokyo (fixed offset, no DST)', () => {
+      const result = constructDateTime('2024-07-15', '09:00', 'Asia/Tokyo');
+      expect(result).toBe('2024-07-15T09:00:00+09:00');
+    });
+
+    test('should handle Asia/Shanghai (fixed offset, no DST)', () => {
+      const result = constructDateTime('2024-07-15', '10:30', 'Asia/Shanghai');
+      expect(result).toBe('2024-07-15T10:30:00+08:00');
+    });
+
+    test('should handle HH:mm:ss format', () => {
+      const result = constructDateTime('2024-07-15', '10:30:45', 'Europe/Paris');
+      expect(result).toBe('2024-07-15T10:30:45+02:00');
+    });
+
+    test('should handle HH:mm format (appends :00 for seconds)', () => {
+      const result = constructDateTime('2024-07-15', '10:30', 'Europe/Paris');
+      expect(result).toBe('2024-07-15T10:30:00+02:00');
+    });
+
+    test('should handle DST spring-forward boundary correctly', () => {
+      // EU clocks spring forward on last Sunday of March
+      // 2024-03-31: CET→CEST, 02:00→03:00
+      const beforeDST = constructDateTime('2024-03-30', '10:00', 'Europe/Berlin');
+      expect(beforeDST).toBe('2024-03-30T10:00:00+01:00'); // CET
+
+      const afterDST = constructDateTime('2024-04-01', '10:00', 'Europe/Berlin');
+      expect(afterDST).toBe('2024-04-01T10:00:00+02:00'); // CEST
+    });
+
+    test('should handle Europe/Madrid (same as Paris/Berlin)', () => {
+      const result = constructDateTime('2024-07-15', '10:00', 'Europe/Madrid');
+      expect(result).toBe('2024-07-15T10:00:00+02:00');
+    });
+
+    test('should handle Australia/Brisbane (fixed UTC+10, no DST)', () => {
+      const result = constructDateTime('2024-07-15', '10:00', 'Australia/Brisbane');
+      expect(result).toBe('2024-07-15T10:00:00+10:00');
     });
   });
 
