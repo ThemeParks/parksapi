@@ -72,6 +72,20 @@ describe('HTTP Library Integration Tests', () => {
           res.writeHead(200, {'Content-Type': 'application/json'});
           res.end(JSON.stringify({url: url}));
         }
+        else if (url === '/binary') {
+          // Return binary data with bytes above 127 (non-UTF-8 safe)
+          const buf = Buffer.from([
+            0x50, 0x4B, 0x03, 0x04, // ZIP magic header PK\x03\x04
+            0xFF, 0xFE, 0x80, 0x90, // Bytes that would be corrupted by UTF-8 encoding
+            0xA0, 0xB0, 0xC0, 0xD0,
+            0xE0, 0xF0, 0x00, 0x01,
+          ]);
+          res.writeHead(200, {
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': String(buf.length),
+          });
+          res.end(buf);
+        }
         else {
           res.writeHead(404, {'Content-Type': 'application/json'});
           res.end(JSON.stringify({error: 'Not Found'}));
@@ -441,6 +455,56 @@ describe('HTTP Library Integration Tests', () => {
       await instance.getText();
 
       expect(callbackData).toBe('Hello World');
+    });
+  });
+
+  describe('Binary Responses', () => {
+    test('should preserve binary data integrity via arrayBuffer()', async () => {
+      class TestClass {
+        @http()
+        async getBinary(): Promise<any> {
+          return {
+            method: 'GET',
+            url: `${TEST_URL}/binary`,
+            tags: [],
+          };
+        }
+      }
+
+      const instance = new TestClass();
+      const resp = await instance.getBinary();
+      const ab = await resp.arrayBuffer();
+      const buf = Buffer.from(ab);
+
+      // Verify exact byte values — these include bytes above 127 that would be
+      // corrupted if the response was decoded as UTF-8 text (the old behavior)
+      expect(buf.length).toBe(16);
+      expect(buf[0]).toBe(0x50); // 'P'
+      expect(buf[1]).toBe(0x4B); // 'K'
+      expect(buf[4]).toBe(0xFF);
+      expect(buf[5]).toBe(0xFE);
+      expect(buf[6]).toBe(0x80);
+      expect(buf[7]).toBe(0x90);
+    });
+
+    test('binary response should have correct Content-Length', async () => {
+      class TestClass {
+        @http()
+        async getBinary(): Promise<any> {
+          return {
+            method: 'GET',
+            url: `${TEST_URL}/binary`,
+            tags: [],
+          };
+        }
+      }
+
+      const instance = new TestClass();
+      const resp = await instance.getBinary();
+      const ab = await resp.arrayBuffer();
+
+      // Content-Length should match actual binary data size (not inflated by UTF-8 encoding)
+      expect(ab.byteLength).toBe(16);
     });
   });
 });

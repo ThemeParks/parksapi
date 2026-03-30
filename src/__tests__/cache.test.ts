@@ -772,9 +772,36 @@ describe('Cache', () => {
 
       const instance = new TestClass();
 
-      // JSON.stringify(undefined) returns undefined, which gets stored as string "undefined"
+      // JSON.stringify(undefined) returns undefined — CacheLib.set skips storage
       const result = await instance.getUndefined();
       expect(result).toBeUndefined();
+    });
+
+    test('CacheLib.set should not crash when storing undefined', () => {
+      // Previously caused ERR_INVALID_ARG_TYPE in SQLite STRICT mode
+      // because JSON.stringify(undefined) returns JS undefined, not a string
+      expect(() => {
+        Cache.set('test-undefined-direct', undefined);
+      }).not.toThrow();
+
+      // Value should not be stored
+      expect(Cache.has('test-undefined-direct')).toBe(false);
+    });
+
+    test('CacheLib.set should not crash when storing function values', () => {
+      // JSON.stringify(function) returns undefined
+      expect(() => {
+        Cache.set('test-function', () => 'hello');
+      }).not.toThrow();
+
+      expect(Cache.has('test-function')).toBe(false);
+    });
+
+    test('CacheLib.set should store null values as JSON string', () => {
+      // JSON.stringify(null) returns "null" which is a valid string
+      Cache.set('test-null', null);
+      expect(Cache.has('test-null')).toBe(true);
+      expect(Cache.get('test-null')).toBeNull();
     });
 
     test('should handle errors in cached methods', async () => {
