@@ -68,6 +68,16 @@ function initializeDatabase(db: DatabaseSync, skipMigration: boolean = false): v
 // Initialize the default database
 initializeDatabase(database);
 
+// Enable WAL mode and busy timeout for better concurrent access.
+// WAL allows readers and writers to operate simultaneously, and
+// busy_timeout prevents SQLITE_BUSY errors under contention.
+try {
+  database.exec('PRAGMA journal_mode=WAL');
+  database.exec('PRAGMA busy_timeout=5000');
+} catch {
+  // Ignore if PRAGMAs fail (e.g. in-memory databases)
+}
+
 // Cleanup interval reference
 let cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
 
@@ -289,12 +299,14 @@ class CacheLib {
       const currentSize = this.size();
       if (currentSize > MAX_CACHE_ENTRIES) {
         const entriesToRemove = currentSize - MAX_CACHE_ENTRIES;
-        const stmt = database.prepare(`
-          DELETE FROM cache WHERE key IN (
-            SELECT key FROM cache ORDER BY lastAccess ASC LIMIT ?
-          )
-        `);
-        stmt.run(entriesToRemove);
+        retryOperation(() => {
+          const stmt = database.prepare(`
+            DELETE FROM cache WHERE key IN (
+              SELECT key FROM cache ORDER BY lastAccess ASC LIMIT ?
+            )
+          `);
+          stmt.run(entriesToRemove);
+        });
       }
     } catch (error) {
       console.error("Cache size enforcement error:", error);
