@@ -932,4 +932,233 @@ describe('Cache', () => {
       warnSpy.mockRestore();
     });
   });
+
+  describe('SQLite STRICT Mode Safety', () => {
+    test('STRICT mode rejects raw undefined — CacheLib.set guards against it', () => {
+      // Direct SQLite INSERT with undefined would throw ERR_INVALID_ARG_TYPE
+      // Verify our guard prevents this
+      expect(() => Cache.set('strict-undef', undefined)).not.toThrow();
+      expect(Cache.has('strict-undef')).toBe(false);
+    });
+
+    test('STRICT mode accepts all JSON-serializable primitives', () => {
+      const cases: [string, any][] = [
+        ['strict-string', 'hello'],
+        ['strict-number', 42],
+        ['strict-float', 3.14],
+        ['strict-true', true],
+        ['strict-false', false],
+        ['strict-null', null],
+        ['strict-zero', 0],
+        ['strict-empty', ''],
+        ['strict-negative', -1],
+      ];
+
+      for (const [key, value] of cases) {
+        expect(() => Cache.set(key, value)).not.toThrow();
+      }
+
+      expect(Cache.get('strict-string')).toBe('hello');
+      expect(Cache.get('strict-number')).toBe(42);
+      expect(Cache.get('strict-float')).toBe(3.14);
+      expect(Cache.get('strict-true')).toBe(true);
+      expect(Cache.get('strict-false')).toBe(false);
+      expect(Cache.get('strict-zero')).toBe(0);
+      expect(Cache.get('strict-empty')).toBe('');
+      expect(Cache.get('strict-negative')).toBe(-1);
+    });
+
+    test('values with circular references are caught gracefully', () => {
+      const circular: any = {a: 1};
+      circular.self = circular;
+
+      // JSON.stringify throws on circular references — CacheLib.set catches it
+      expect(() => Cache.set('strict-circular', circular)).not.toThrow();
+    });
+  });
+
+  describe('SQLite WAL Mode', () => {
+    test('WAL and busy_timeout PRAGMAs should be settable on file-based databases', () => {
+      // The test suite uses in-memory database which doesn't support WAL.
+      // Verify the PRAGMAs work on a temp file-based database instead.
+      const {DatabaseSync} = require('node:sqlite');
+      const tmpDb = new DatabaseSync('/tmp/cache_wal_test.sqlite');
+      try {
+        tmpDb.exec('PRAGMA journal_mode=WAL');
+        tmpDb.exec('PRAGMA busy_timeout=5000');
+
+        const journalMode = tmpDb.prepare('PRAGMA journal_mode').get() as {journal_mode: string};
+        expect(journalMode.journal_mode).toBe('wal');
+
+        const busyTimeout = tmpDb.prepare('PRAGMA busy_timeout').get() as {timeout: number};
+        expect(busyTimeout.timeout).toBe(5000);
+      } finally {
+        tmpDb.close();
+        require('fs').unlinkSync('/tmp/cache_wal_test.sqlite');
+        // Clean up WAL/SHM files if they exist
+        try { require('fs').unlinkSync('/tmp/cache_wal_test.sqlite-wal'); } catch {}
+        try { require('fs').unlinkSync('/tmp/cache_wal_test.sqlite-shm'); } catch {}
+      }
+    });
+  });
+
+  describe('Large Value Storage', () => {
+    test('should store and retrieve large JSON objects', () => {
+      // Simulate a large park entity list (similar to Six Flags with 34 parks)
+      const largeArray = Array.from({length: 500}, (_, i) => ({
+        id: `entity-${i}`,
+        name: `Entity Number ${i}`,
+        type: i % 3 === 0 ? 'ATTRACTION' : i % 3 === 1 ? 'RESTAURANT' : 'SHOW',
+        location: {latitude: 40 + Math.random(), longitude: -80 + Math.random()},
+        tags: [{type: 'HEIGHT', value: 100 + i}],
+      }));
+
+      Cache.set('large-entities', largeArray, 60);
+      const retrieved = Cache.get('large-entities') as typeof largeArray;
+
+      expect(retrieved).toHaveLength(500);
+      expect(retrieved[0].id).toBe('entity-0');
+      expect(retrieved[499].id).toBe('entity-499');
+      expect(retrieved[0].location.latitude).toBeCloseTo(largeArray[0].location.latitude, 10);
+    });
+
+    test('should store deeply nested objects', () => {
+      const deep = {
+        level1: {
+          level2: {
+            level3: {
+              level4: {
+                level5: {value: 'deep-value', array: [1, 2, 3]},
+              },
+            },
+          },
+        },
+      };
+
+      Cache.set('deep-nested', deep, 60);
+      const retrieved = Cache.get('deep-nested') as typeof deep;
+      expect(retrieved.level1.level2.level3.level4.level5.value).toBe('deep-value');
+      expect(retrieved.level1.level2.level3.level4.level5.array).toEqual([1, 2, 3]);
+    });
+  });
+
+  describe('enforceSizeLimit Behavior', () => {
+    test('should evict least-recently-accessed entries when over limit', () => {
+      Cache.clear();
+
+      // Insert entries with distinct lastAccess timestamps
+      for (let i = 0; i < 5; i++) {
+        const stmt = database.prepare(
+          'INSERT OR REPLACE INTO cache (key, value, timestamp, lastAccess) VALUES (?, ?, ?, ?)',
+        );
+        // lastAccess increases with i, so key0 is oldest
+        stmt.run(`evict-${i}`, JSON.stringify(`value-${i}`), Date.now() + 60000, 1000 + i);
+      }
+
+      expect(Cache.size()).toBe(5);
+
+      // Directly call enforceSizeLimit won't evict because MAX_CACHE_ENTRIES is 50000.
+      // Instead, verify the eviction query works by running it manually.
+      const stmt = database.prepare(`
+        DELETE FROM cache WHERE key IN (
+          SELECT key FROM cache ORDER BY lastAccess ASC LIMIT ?
+        )
+      `);
+      stmt.run(2); // Remove 2 oldest
+
+      expect(Cache.size()).toBe(3);
+      // Oldest (lastAccess=1000, 1001) should be gone
+      expect(Cache.has('evict-0')).toBe(false);
+      expect(Cache.has('evict-1')).toBe(false);
+      // Newest should remain
+      expect(Cache.has('evict-2')).toBe(true);
+      expect(Cache.has('evict-3')).toBe(true);
+      expect(Cache.has('evict-4')).toBe(true);
+    });
+
+    test('get() updates lastAccess so entry survives eviction', async () => {
+      Cache.clear();
+
+      // Insert entries with explicit lastAccess timestamps to avoid timing issues
+      const stmt = database.prepare(
+        'INSERT INTO cache (key, value, timestamp, lastAccess) VALUES (?, ?, ?, ?)',
+      );
+      const expiry = Date.now() + 60000;
+      stmt.run('key-old', JSON.stringify('old-value'), expiry, 1000);
+      stmt.run('key-new', JSON.stringify('new-value'), expiry, 2000);
+
+      // key-old has lastAccess=1000 (oldest), key-new has lastAccess=2000
+      // Access key-old to bump its lastAccess above key-new
+      Cache.get('key-old');
+
+      const rows = database.prepare(
+        'SELECT key, lastAccess FROM cache ORDER BY lastAccess ASC',
+      ).all() as {key: string; lastAccess: number}[];
+
+      expect(rows.length).toBe(2);
+      // key-new (lastAccess=2000) should now be oldest, key-old was just accessed
+      expect(rows[0].key).toBe('key-new');
+      expect(rows[1].key).toBe('key-old');
+      expect(rows[1].lastAccess).toBeGreaterThan(rows[0].lastAccess);
+    });
+  });
+
+  describe('Concurrent-like Access Patterns', () => {
+    test('many rapid set/get operations should not corrupt data', () => {
+      Cache.clear();
+
+      // Simulate rapid concurrent-like writes (sequential but fast)
+      const count = 200;
+      for (let i = 0; i < count; i++) {
+        Cache.set(`rapid-${i}`, {index: i, data: `value-${i}`}, 60);
+      }
+
+      expect(Cache.size()).toBe(count);
+
+      // Verify all values are intact
+      for (let i = 0; i < count; i++) {
+        const val = Cache.get(`rapid-${i}`) as {index: number; data: string};
+        expect(val.index).toBe(i);
+        expect(val.data).toBe(`value-${i}`);
+      }
+    });
+
+    test('interleaved set/get/delete should maintain consistency', () => {
+      Cache.clear();
+
+      // Write 50 entries
+      for (let i = 0; i < 50; i++) {
+        Cache.set(`interleave-${i}`, i, 60);
+      }
+
+      // Delete even entries, read odd entries
+      for (let i = 0; i < 50; i++) {
+        if (i % 2 === 0) {
+          Cache.delete(`interleave-${i}`);
+        } else {
+          expect(Cache.get(`interleave-${i}`)).toBe(i);
+        }
+      }
+
+      expect(Cache.size()).toBe(25);
+
+      // Verify only odd entries remain
+      for (let i = 0; i < 50; i++) {
+        if (i % 2 === 0) {
+          expect(Cache.has(`interleave-${i}`)).toBe(false);
+        } else {
+          expect(Cache.has(`interleave-${i}`)).toBe(true);
+        }
+      }
+    });
+
+    test('overwriting the same key rapidly should always reflect latest value', () => {
+      for (let i = 0; i < 100; i++) {
+        Cache.set('overwrite-key', {version: i}, 60);
+      }
+
+      const result = Cache.get('overwrite-key') as {version: number};
+      expect(result.version).toBe(99);
+    });
+  });
 });

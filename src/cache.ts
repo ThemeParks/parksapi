@@ -176,8 +176,13 @@ class CacheLib {
     }
 
     // JSON.stringify(undefined) returns undefined (not a string), which SQLite STRICT mode rejects.
-    // Skip caching undefined/null values rather than crashing.
-    const serialized = JSON.stringify(value);
+    // It also throws on circular references. Skip storage in both cases.
+    let serialized: string | undefined;
+    try {
+      serialized = JSON.stringify(value);
+    } catch {
+      return;
+    }
     if (serialized === undefined) {
       return;
     }
