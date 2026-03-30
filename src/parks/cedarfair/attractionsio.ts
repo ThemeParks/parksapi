@@ -249,6 +249,20 @@ class AttractionsIOV3 extends Destination {
   }
 
   /**
+   * Return destination info for this park.
+   */
+  async getDestinations(): Promise<Entity[]> {
+    return [
+      {
+        id: `${this.destinationId}_destination`,
+        name: this.appName || this.destinationId,
+        entityType: 'DESTINATION',
+        timezone: this.timezone,
+      } as Entity,
+    ];
+  }
+
+  /**
    * Initialize and validate configuration
    * @protected
    */

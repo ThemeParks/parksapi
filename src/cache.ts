@@ -165,13 +165,20 @@ class CacheLib {
       );
     }
 
+    // JSON.stringify(undefined) returns undefined (not a string), which SQLite STRICT mode rejects.
+    // Skip caching undefined/null values rather than crashing.
+    const serialized = JSON.stringify(value);
+    if (serialized === undefined) {
+      return;
+    }
+
     try {
       retryOperation(() => {
         const timestamp = Date.now() + (ttlSeconds * 1000);
         const now = Date.now();
 
         const stmt = database.prepare('INSERT OR REPLACE INTO cache (key, value, timestamp, lastAccess) VALUES (?, ?, ?, ?)');
-        stmt.run(key, JSON.stringify(value), timestamp, now);
+        stmt.run(key, serialized, timestamp, now);
 
         // Check if we need to evict entries after insert
         this.enforceSizeLimit();

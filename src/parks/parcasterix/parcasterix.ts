@@ -271,6 +271,9 @@ export class ParcAsterix extends Destination {
   @http({cacheSeconds: 0}) // No HTTP-level caching — binary ZIP corrupts text cache. Cached by @cache on getPOIData() instead.
   async fetchPackageZip(): Promise<HTTPObj> {
     const info = await this.getPackageInfo();
+    if (!info?.url) {
+      throw new Error('ParcAsterix: failed to get offline package URL');
+    }
     return {
       method: 'GET',
       url: info.url,
