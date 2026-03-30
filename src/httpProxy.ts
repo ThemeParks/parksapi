@@ -82,7 +82,6 @@ export async function makeHttpRequest(options: {
 
       stream.on('end', () => {
         const buffer = Buffer.concat(chunks);
-        const responseBody = buffer.toString('utf-8');
 
         // Create a Response object compatible with fetch API
         const responseHeaders: Record<string, string> = {};
@@ -92,7 +91,9 @@ export async function makeHttpRequest(options: {
           }
         });
 
-        const response = new Response(responseBody, {
+        // Pass raw buffer to preserve binary data (ZIP, images, etc.)
+        // Response constructor accepts ArrayBuffer/Uint8Array natively.
+        const response = new Response(buffer, {
           status: res.statusCode || 200,
           statusText: res.statusMessage || 'OK',
           headers: responseHeaders,
