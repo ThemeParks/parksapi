@@ -46,6 +46,23 @@ export const parkMapping: Record<string, string> = {
   'warnerbrosmovieworld': 'WarnerBrosMovieWorld',
   'paradisecountry': 'ParadiseCountry',
   'wetnwildgoldcoast': 'WetNWildGoldCoast',
+  // Attractions.io v1 (Merlin/Legoland)
+  'altontowers': 'AltonTowers',
+  'thorpepark': 'ThorpePark',
+  'chessingtonworldofadventures': 'ChessingtonWorldOfAdventures',
+  'legolandwindsor': 'LegolandWindsor',
+  'legolandorlando': 'LegolandOrlando',
+  'legolandcalifornia': 'LegolandCalifornia',
+  'legolandbillund': 'LegolandBillund',
+  'legolanddeutschland': 'LegolandDeutschland',
+  'gardaland': 'Gardaland',
+  'heidepark': 'HeidePark',
+  'knoebels': 'Knoebels',
+  'legolandjapan': 'LegolandJapan',
+  'djurssommerland': 'DjursSommerland',
+  'legolandnewyork': 'LegolandNewYork',
+  'legolandkorea': 'LegolandKorea',
+  'peppapigthemeparkflorida': 'PeppaPigThemeParkFlorida',
 };
 
 /**
