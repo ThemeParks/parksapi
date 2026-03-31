@@ -219,6 +219,31 @@ export class Phantasialand extends Destination {
           latitude: location.lat,
         };
       }
+
+      // tags
+      entity._tags = [];
+
+      if (Array.isArray(data.tags)) {
+        if (data.tags.includes('ATTRACTION_TYPE_WATER')) {
+          entity._tags.push({id: tagType.mayGetWet, value: true});
+        }
+        if (data.tags.includes('ATTRACTION_TYPE_SINGLE_RIDER_LINE')) {
+          entity._tags.push({id: tagType.singleRider, value: true});
+        }
+        if (data.tags.includes('ATTRACTION_TYPE_PICTURES')) {
+          entity._tags.push({id: tagType.onRidePhoto, value: true});
+        }
+        if (data.tags.includes('ATTRACTION_TYPE_QUICK_PASS') || data.tags.includes('ATTRACTION_TYPE_QUICK_PASS_PLUS')) {
+          entity._tags.push({id: tagType.fastPass, value: true});
+        }
+      }
+
+      if (data.minSize) {
+        entity._tags.push({id: tagType.minimumHeight, value: {height: data.minSize, unit: 'cm'}});
+      }
+      if (data.maxSize) {
+        entity._tags.push({id: tagType.maximumHeight, value: {height: data.maxSize, unit: 'cm'}});
+      }
     }
 
     return entity;
@@ -234,6 +259,10 @@ export class Phantasialand extends Destination {
       slug: 'phantasialand', // all destinations must have a unique slug
       name: 'Phantasialand',
       entityType: entityType.destination,
+      location: {
+        longitude: 6.879291227409914,
+        latitude: 50.798995255201866,
+      },
     };
   }
 
@@ -251,8 +280,8 @@ export class Phantasialand extends Destination {
         name: 'Phantasialand',
         entityType: entityType.park,
         location: {
-          longitude: 6.8792554,
-          latitude: 50.8005075
+          longitude: 6.879291227409914,
+          latitude: 50.798995255201866,
         }
       }
     ];
@@ -389,6 +418,15 @@ export class Phantasialand extends Destination {
   }
 
   /**
+   * Fetch live park info (isOpen, closing time) from API
+   */
+  async fetchParkInfos() {
+    '@cache|5'; // cache 5 minutes
+    const resp = await this.http('GET', `${this.config.apiBase}park-infos`, {});
+    return resp?.body?.[0];
+  }
+
+  /**
    * Fetch calendar HTML data
    */
   async fetchCalendarData() {
@@ -487,44 +525,50 @@ export class Phantasialand extends Destination {
    * @returns {array&lt;object>}
    */
   async buildEntityScheduleData() {
-    const calendarData = await this.getCalendarJSON();
+    const [calendarData, parkInfos] = await Promise.all([
+      this.getCalendarJSON(),
+      this.fetchParkInfos(),
+    ]);
 
     if (!calendarData) return [];
 
+    const today = moment.tz(this.config.timezone).format('YYYY-MM-DD');
     const parkSchedule = [];
-
     const hoursRegex = /([0-9]{1,2}):([0-9]{2}).*\s([0-9]{1,2}):([0-9]{2})/;
 
     calendarData.forEach((x) => {
       // skip closed entries
-      if (x.title_en === 'Closed') return;
-
-      //if (!x.days_selected) return;
+      if (x.title === 'Closed') return;
 
       const openingTimes = hoursRegex.exec(x.title);
       if (openingTimes) {
         const openingTime = moment.tz(`${openingTimes[1]}:${openingTimes[2]}`, 'HH:mm', this.config.timezone);
         const closingTime = moment.tz(`${openingTimes[3]}:${openingTimes[4]}`, 'HH:mm', this.config.timezone);
 
-        if (x.days_selected) {
-          x.days_selected.forEach((day) => {
-            parkSchedule.push({
-              "date": day,
-              "type": "OPERATING",
-              "openingTime": moment.tz(`${day} ${openingTime.format('HH:mm')}`, 'YYYY-MM-DD HH:mm', this.config.timezone).format(),
-              "closingTime": moment.tz(`${day} ${closingTime.format('HH:mm')}`, 'YYYY-MM-DD HH:mm', this.config.timezone).format(),
-            });
-          });
-        } else {
-          parkSchedule.push({
-            "date": x.date,
-            "type": "OPERATING",
-            "openingTime": moment.tz(`${x.date} ${openingTime.format('HH:mm')}`, 'YYYY-MM-DD HH:mm', this.config.timezone).format(),
-            "closingTime": moment.tz(`${x.date} ${closingTime.format('HH:mm')}`, 'YYYY-MM-DD HH:mm', this.config.timezone).format(),
-          });
-        }
+        parkSchedule.push({
+          "date": x.date,
+          "type": "OPERATING",
+          "openingTime": moment.tz(`${x.date} ${openingTime.format('HH:mm')}`, 'YYYY-MM-DD HH:mm', this.config.timezone).format(),
+          "closingTime": moment.tz(`${x.date} ${closingTime.format('HH:mm')}`, 'YYYY-MM-DD HH:mm', this.config.timezone).format(),
+        });
       }
     });
+
+    // Apply live overwrite for today's closing time from park-infos API
+    if (parkInfos) {
+      const todayIdx = parkSchedule.findIndex((x) => x.date === today);
+
+      if (todayIdx >= 0) {
+        const entry = parkSchedule[todayIdx];
+        const apiClose = moment.tz(parkInfos.close, 'YYYY-MM-DD HH:mm:ss', this.config.timezone);
+        const calOpen = moment.tz(entry.openingTime, this.config.timezone);
+
+        // Override closing time only if API provides a value for today and it's after the opening time
+        if (apiClose.format('YYYY-MM-DD') === today &amp;&amp; apiClose.isAfter(calOpen)) {
+          entry.closingTime = apiClose.format();
+        }
+      }
+    }
 
     return [
       {
@@ -548,7 +592,7 @@ export class Phantasialand extends Destination {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> on Tue Mar 31 2026 17:40:46 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> on Tue Mar 31 2026 20:44:07 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
