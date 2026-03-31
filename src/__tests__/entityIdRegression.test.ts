@@ -122,6 +122,65 @@ describe('Destination ID patterns', () => {
     expect(ids).toContain('knottsberryfarm');
     expect(ids).toContain('kingsisland');
   });
+
+  test('Attractions.io v1 Merlin parks are registered individually', async () => {
+    const destinations = await getAllDestinations();
+    const merlin = destinations.filter(d =>
+      Array.isArray(d.category) ? d.category.includes('Merlin') : d.category === 'Merlin'
+    );
+
+    // 15 Merlin parks (Knoebels is not Merlin)
+    expect(merlin.length).toBeGreaterThanOrEqual(14);
+    const ids = merlin.map(d => d.id);
+    expect(ids).toContain('altontowers');
+    expect(ids).toContain('thorpepark');
+    expect(ids).toContain('chessingtonworldofadventures');
+    expect(ids).toContain('legolandwindsor');
+    expect(ids).toContain('gardaland');
+    expect(ids).toContain('heidepark');
+  });
+
+  test('All 16 Attractions.io v1 parks are registered', async () => {
+    const destinations = await getAllDestinations();
+    const ids = destinations.map(d => d.id);
+
+    const expectedV1Parks = [
+      'altontowers', 'thorpepark', 'chessingtonworldofadventures',
+      'legolandwindsor', 'legolandorlando', 'legolandcalifornia',
+      'legolandbillund', 'legolanddeutschland', 'gardaland',
+      'heidepark', 'knoebels', 'legolandjapan',
+      'djurssommerland', 'legolandnewyork', 'legolandkorea',
+      'peppapigthemeparkflorida',
+    ];
+
+    for (const parkId of expectedV1Parks) {
+      expect(ids).toContain(parkId);
+    }
+  });
+
+  test('Parc Asterix is registered', async () => {
+    const destinations = await getAllDestinations();
+    const pa = destinations.find(d => d.id === 'parcasterix');
+    expect(pa).toBeDefined();
+    expect(pa!.name).toBe('Parc Asterix');
+  });
+
+  test('TE2 Australia parks are registered', async () => {
+    const destinations = await getAllDestinations();
+    const ids = destinations.map(d => d.id);
+    expect(ids).toContain('seaworldgoldcoast');
+    expect(ids).toContain('warnerbrosmovieworld');
+    expect(ids).toContain('paradisecountry');
+    expect(ids).toContain('wetnwildgoldcoast');
+  });
+
+  test('Disney parks are registered', async () => {
+    const destinations = await getAllDestinations();
+    const ids = destinations.map(d => d.id);
+    expect(ids).toContain('disneylandparis');
+    expect(ids).toContain('tokyodisneyresort');
+    expect(ids).toContain('shanghaidisneylandresort');
+  });
 });
 
 describe('Entity ID contract rules', () => {
