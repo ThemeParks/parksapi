@@ -48,6 +48,8 @@ export const parkMapping: Record<string, string> = {
   'wetnwildgoldcoast': 'WetNWildGoldCoast',
   // Europa-Park
   'europapark': 'EuropaPark',
+  // Toverland
+  'toverland': 'Toverland',
   // Attractions.io v1 (Merlin/Legoland)
   'altontowers': 'AltonTowers',
   'thorpepark': 'ThorpePark',
