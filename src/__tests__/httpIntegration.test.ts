@@ -72,6 +72,35 @@ describe('HTTP Library Integration Tests', () => {
           res.writeHead(200, {'Content-Type': 'application/json'});
           res.end(JSON.stringify({url: url}));
         }
+        else if (url === '/gzip') {
+          // Return gzip-compressed JSON
+          const zlib = require('zlib');
+          const payload = JSON.stringify({compressed: true, data: 'gzip-test'});
+          const compressed = zlib.gzipSync(payload);
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Content-Encoding': 'gzip',
+          });
+          res.end(compressed);
+        }
+        else if (url === '/large-binary') {
+          // Return a ~64KB binary payload
+          const buf = Buffer.alloc(65536);
+          for (let i = 0; i < buf.length; i++) buf[i] = i % 256;
+          res.writeHead(200, {
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': String(buf.length),
+          });
+          res.end(buf);
+        }
+        else if (url === '/redirect-target') {
+          res.writeHead(200, {'Content-Type': 'application/json'});
+          res.end(JSON.stringify({redirected: true}));
+        }
+        else if (url === '/redirect') {
+          res.writeHead(303, {'Location': `${TEST_URL}/redirect-target`});
+          res.end();
+        }
         else if (url === '/binary') {
           // Return binary data with bytes above 127 (non-UTF-8 safe)
           const buf = Buffer.from([
@@ -505,6 +534,90 @@ describe('HTTP Library Integration Tests', () => {
 
       // Content-Length should match actual binary data size (not inflated by UTF-8 encoding)
       expect(ab.byteLength).toBe(16);
+    });
+
+    test('should handle large binary payloads (64KB)', async () => {
+      class TestClass {
+        @http()
+        async getLargeBinary(): Promise<any> {
+          return {
+            method: 'GET',
+            url: `${TEST_URL}/large-binary`,
+            tags: [],
+          };
+        }
+      }
+
+      const instance = new TestClass();
+      const resp = await instance.getLargeBinary();
+      const ab = await resp.arrayBuffer();
+      const buf = Buffer.from(ab);
+
+      expect(buf.length).toBe(65536);
+      // Verify byte pattern survived intact
+      for (let i = 0; i < 256; i++) {
+        expect(buf[i]).toBe(i);
+      }
+      expect(buf[256]).toBe(0); // wraps around
+      expect(buf[511]).toBe(255);
+    });
+
+    test('should access binary data via text() as well', async () => {
+      class TestClass {
+        @http()
+        async getBinary(): Promise<any> {
+          return {
+            method: 'GET',
+            url: `${TEST_URL}/binary`,
+            tags: [],
+          };
+        }
+      }
+
+      const instance = new TestClass();
+      const resp = await instance.getBinary();
+      // text() should return something without throwing
+      const text = await resp.text();
+      expect(typeof text).toBe('string');
+    });
+  });
+
+  describe('Gzip Responses', () => {
+    test('should decompress gzip-encoded JSON responses', async () => {
+      class TestClass {
+        @http()
+        async getGzip(): Promise<any> {
+          return {
+            method: 'GET',
+            url: `${TEST_URL}/gzip`,
+            tags: [],
+          };
+        }
+      }
+
+      const instance = new TestClass();
+      const resp = await instance.getGzip();
+      const data = await resp.json();
+
+      expect(data.compressed).toBe(true);
+      expect(data.data).toBe('gzip-test');
+    });
+  });
+
+  describe('Redirect Handling', () => {
+    test('httpProxy does not auto-follow redirects (303 returns raw status)', async () => {
+      // This is critical for Attractions.io which uses 303 to signal new ZIP data
+      const {makeHttpRequest} = await import('../httpProxy.js');
+
+      const resp = await makeHttpRequest({
+        method: 'GET',
+        url: `${TEST_URL}/redirect`,
+        headers: {},
+      });
+
+      // httpProxy should NOT follow the redirect
+      expect(resp.status).toBe(303);
+      expect(resp.headers.get('location')).toBe(`${TEST_URL}/redirect-target`);
     });
   });
 });
