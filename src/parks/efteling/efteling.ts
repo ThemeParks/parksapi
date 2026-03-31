@@ -215,8 +215,8 @@ export class Efteling extends Destination {
     for (const { id, en, nl } of merged) {
       const category = en.category;
 
-      // Only include attractions and shows
-      if (category !== 'attraction' && category !== 'show') continue;
+      // Only include attractions, shows, and restaurants
+      if (category !== 'attraction' && category !== 'show' && category !== 'restaurant') continue;
 
       // Skip hidden entries
       if (en.hide_in_app) continue;
@@ -300,7 +300,20 @@ export class Efteling extends Destination {
       }
     );
 
-    return [parkEntity, ...attractions, ...shows];
+    const restaurants = this.mapEntities(
+      poiEntries.filter(e => e.category === 'restaurant' && e.lat && e.lng),
+      {
+        idField: 'id',
+        nameField: (item) => ({ en: item.enName, nl: item.nlName }),
+        entityType: 'RESTAURANT',
+        parentIdField: () => parkId,
+        destinationId,
+        timezone: 'Europe/Amsterdam',
+        locationFields: { lat: 'lat', lng: 'lng' },
+      }
+    );
+
+    return [parkEntity, ...attractions, ...shows, ...restaurants];
   }
 
   /**
@@ -341,8 +354,8 @@ export class Efteling extends Destination {
       case 'open': return 'OPERATING';
       case 'storing':
       case 'tijdelijkbuitenbedrijf': return 'DOWN';
-      case 'buitenbedrijf':
       case 'inonderhoud': return 'REFURBISHMENT';
+      case 'buitenbedrijf': return 'CLOSED';
       case 'gesloten':
       case '':
       case 'wachtrijgesloten':
@@ -384,9 +397,15 @@ export class Efteling extends Destination {
 
     // Get POI data for entity ID lookup + single rider mapping
     const poiHits = await this.getPOIData('en');
-    const poiIds = new Set<string>();
+    const validPoiTypes = new Set(['attraction', 'show', 'restaurant']);
+    const poiData = new Map<string, {type: string; hasLocation: boolean}>();
     for (const hit of poiHits) {
-      if (hit.fields?.id) poiIds.add(hit.fields.id);
+      if (hit.fields?.id) {
+        poiData.set(hit.fields.id, {
+          type: hit.fields.category || '',
+          hasLocation: !!(hit.fields.latlon && hit.fields.latlon !== '0.0,0.0'),
+        });
+      }
     }
 
     const singleRiderMap = this.buildSingleRiderMap(poiHits);
@@ -398,7 +417,7 @@ export class Efteling extends Destination {
     for (const entry of waitTimes) {
       if (!entry.Id) continue;
       // If this ID is NOT a known POI but IS a single rider alternate ID
-      if (!poiIds.has(entry.Id) && singleRiderMap.has(entry.Id)) {
+      if (!poiData.has(entry.Id) && singleRiderMap.has(entry.Id)) {
         const parentId = singleRiderMap.get(entry.Id)!;
         const waitTime = entry.WaitingTime !== undefined ? parseInt(String(entry.WaitingTime), 10) : null;
         singleRiderData.set(parentId, isNaN(waitTime as number) ? null : waitTime);
@@ -415,8 +434,12 @@ export class Efteling extends Destination {
         entityId = 'droomvlucht';
       }
 
-      // Skip entries not in our entity list (and not droomvluchtstandby)
-      if (!poiIds.has(entityId) && entry.Id !== 'droomvluchtstandby') continue;
+      // Skip entries without POI data or location (except droomvluchtstandby)
+      if (entry.Id !== 'droomvluchtstandby') {
+        const poi = poiData.get(entityId);
+        if (!poi?.hasLocation) continue;
+        if (!validPoiTypes.has(poi.type)) continue;
+      }
 
       const type = entry.Type;
 
@@ -425,21 +448,23 @@ export class Efteling extends Destination {
         const status = this.mapState(entry.State);
         ld.status = status as any;
 
-        if (status === 'OPERATING') {
-          const waitTime = entry.WaitingTime !== undefined ? parseInt(String(entry.WaitingTime), 10) : undefined;
-          if (!ld.queue) ld.queue = {};
-          ld.queue.STANDBY = { waitTime: (waitTime !== undefined && !isNaN(waitTime)) ? waitTime : undefined };
-        }
+        // Always include standby queue for attractions
+        if (!ld.queue) ld.queue = {};
+        const waitTime = entry.WaitingTime !== undefined ? parseInt(String(entry.WaitingTime), 10) : NaN;
+        ld.queue.STANDBY = {
+          waitTime: (status === 'OPERATING' && !isNaN(waitTime)) ? waitTime : undefined,
+        };
 
-        // Single rider queue
+        // Single rider queue with actual wait time
         if (singleRiderData.has(entityId)) {
-          if (!ld.queue) ld.queue = {};
-          ld.queue.SINGLE_RIDER = { waitTime: null };
+          const srTime = singleRiderData.get(entityId)!;
+          ld.queue.SINGLE_RIDER = {
+            waitTime: (status === 'OPERATING' && srTime !== null && srTime !== undefined) ? srTime : null,
+          };
         }
 
         // Virtual queue
         if (entry.VirtualQueue) {
-          if (!ld.queue) ld.queue = {};
           const vqState = entry.VirtualQueue.State?.toLowerCase();
           if (vqState === 'enabled' && entry.VirtualQueue.WaitingTime !== undefined) {
             const window = this.calculateReturnWindow(entry.VirtualQueue.WaitingTime, { windowMinutes: 15 });
@@ -462,6 +487,18 @@ export class Efteling extends Destination {
             startTime: time.StartDateTime,
             endTime: time.EndDateTime || null,
             type: time.Edition || 'Showtime',
+          }));
+        }
+      } else if (type === 'Eten en Drinken') {
+        const ld = getOrCreate(entityId);
+        const state = entry.State?.toLowerCase();
+        ld.status = (state === 'open' ? 'OPERATING' : 'CLOSED') as any;
+
+        if (entry.OpeningTimes && entry.OpeningTimes.length > 0) {
+          (ld as any).operatinghours = entry.OpeningTimes.map((ot: any) => ({
+            startTime: ot.HourFrom,
+            endTime: ot.HourTo,
+            type: 'OPERATING',
           }));
         }
       }
