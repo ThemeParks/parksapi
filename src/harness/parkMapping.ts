@@ -50,6 +50,8 @@ export const parkMapping: Record<string, string> = {
   'europapark': 'EuropaPark',
   // Toverland
   'toverland': 'Toverland',
+  // Paultons Park
+  'paultonspark': 'PaultonsPark',
   // Attractions.io v1 (Merlin/Legoland)
   'altontowers': 'AltonTowers',
   'thorpepark': 'ThorpePark',
