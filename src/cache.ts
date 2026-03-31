@@ -145,9 +145,13 @@ class CacheLib {
             return null;
           }
 
-          // Update last access time for LRU
-          const updateStmt = database.prepare('UPDATE cache SET lastAccess = ? WHERE key = ?');
-          updateStmt.run(Date.now(), key);
+          // Update last access time for LRU — best-effort, don't fail the read
+          try {
+            const updateStmt = database.prepare('UPDATE cache SET lastAccess = ? WHERE key = ?');
+            updateStmt.run(Date.now(), key);
+          } catch {
+            // LRU tracking is non-critical; stale lastAccess is acceptable
+          }
 
           return JSON.parse(row.value);
         }

@@ -272,7 +272,7 @@ export class ParcAsterix extends Destination {
   async fetchPackageZip(): Promise<HTTPObj> {
     const info = await this.getPackageInfo();
     if (!info?.url) {
-      throw new Error('ParcAsterix: failed to get offline package URL');
+      throw new Error('ParcAsterix: failed to get offline package URL from API');
     }
     return {
       method: 'GET',
