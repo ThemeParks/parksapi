@@ -63,6 +63,30 @@ function initializeDatabase(db: DatabaseSync, skipMigration: boolean = false): v
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_cache_timestamp ON cache(timestamp)
   `);
+
+  // ── Attractions.io entity store ──────────────────────────────────
+  // Normalized per-record storage replacing the old giant JSON blob in the cache table.
+  // Each Item/Category/Resort gets its own row, with soft-delete tracking.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS attractionsio_entities (
+      park_id       TEXT NOT NULL,
+      record_type   TEXT NOT NULL,
+      entity_id     TEXT NOT NULL,
+      data          TEXT NOT NULL,
+      last_version  TEXT NOT NULL,
+      removed_at    INTEGER,
+      updated_at    INTEGER NOT NULL,
+      PRIMARY KEY (park_id, record_type, entity_id)
+    ) STRICT
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS attractionsio_versions (
+      park_id       TEXT PRIMARY KEY,
+      version       TEXT NOT NULL,
+      updated_at    INTEGER NOT NULL
+    ) STRICT
+  `);
 }
 
 // Initialize the default database

@@ -28,7 +28,7 @@ import {http, type HTTPObj} from '../../http.js';
 import {cache} from '../../cache.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
-import {CacheLib} from '../../cache.js';
+import {CacheLib, database} from '../../cache.js';
 import {makeHttpRequest} from '../../httpProxy.js';
 import {constructDateTime, addDays, formatInTimezone} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
@@ -241,9 +241,6 @@ class AttractionsIOV1 extends Destination {
   @config
   deviceIdentifier: string = '123';
 
-  @config
-  initialDataVersion: string = '';
-
   // ── Instance properties set by subclass constructors ─────────────────────
 
   /** Destination-level entity ID (e.g. "altontowersresort") */
@@ -378,11 +375,10 @@ class AttractionsIOV1 extends Destination {
     } as any as HTTPObj;
   }
 
-  // ── Entity / POI data ─────────────────────────────────────────────────────
+  // ── Entity / POI data (SQLite-backed persistent store) ───────────────────
 
   /**
    * Download and extract the asset ZIP file from the given URL.
-   * Returns the parsed manifest and records objects.
    */
   private async downloadAssetPack(url: string): Promise<{
     manifestData: {version: string};
@@ -392,7 +388,7 @@ class AttractionsIOV1 extends Destination {
       method: 'GET',
       url,
       headers: {
-        'accept-encoding': 'identity', // do NOT gzip – we need the raw ZIP bytes
+        'accept-encoding': 'identity', // raw ZIP bytes, no gzip
         'user-agent': 'okhttp/4.11.0',
       },
     });
@@ -402,48 +398,41 @@ class AttractionsIOV1 extends Destination {
 
     const manifestEntry = zip.getEntry('manifest.json');
     const recordsEntry = zip.getEntry('records.json');
-
     if (!manifestEntry) throw new Error('No manifest.json found in ZIP');
     if (!recordsEntry) throw new Error('No records.json found in ZIP');
 
-    const manifestData = JSON.parse(zip.readAsText(manifestEntry));
-    const recordsData = JSON.parse(zip.readAsText(recordsEntry));
-
-    return {manifestData, recordsData};
+    return {
+      manifestData: JSON.parse(zip.readAsText(manifestEntry)),
+      recordsData: JSON.parse(zip.readAsText(recordsEntry)),
+    };
   }
 
   /**
-   * Fetch the POI/entity dataset from the /data endpoint.
+   * Return the full POI dataset for this park.
    *
-   * The endpoint responds with:
-   *   202  – data pack still being generated; retry with backoff (max 5 times)
-   *   303  – redirect to the ZIP; Location header contains the ZIP URL
-   *   Other 2xx – no new data; fall back to cached copy
-   *
-   * Because the HTTP framework throws on non-2xx we bypass it here and call
-   * makeHttpRequest directly so we can inspect the raw status code.
-   *
-   * Cached for 12 hours; the version check prevents unnecessary re-downloads.
+   * Data is stored in the `attractionsio_entities` SQLite table (one row per
+   * record), not as a giant JSON blob. The @cache decorator memoises the
+   * reconstructed RecordsData for 12 hours so we don't re-read from SQLite
+   * on every call within that window. When the cache expires, _syncFromAPI()
+   * checks for a new ZIP and applies deltas.
    */
   @cache({ttlSeconds: 60 * 60 * 12})
   async getPOIData(): Promise<RecordsData> {
-    return this._fetchPOIDataWithRetry(0);
+    await this._syncFromAPI();
+    return this._readEntitiesFromDB();
   }
 
-  private async _fetchPOIDataWithRetry(depth: number): Promise<RecordsData> {
-    const prefix = this.getCacheKeyPrefix();
-
-    // Determine version to send (if we have one stored)
-    const storedVersion: string | null = CacheLib.get(`${prefix}:poiVersion`);
-    const versionToSend = storedVersion || this.initialDataVersion || undefined;
-
-    // Build URL
-    const dataUrl = new URL(`${this.baseURL}data`);
-    if (versionToSend) {
-      dataUrl.searchParams.set('version', versionToSend);
-    }
-
-    // Build auth headers (we need the installation token)
+  /**
+   * Sync entity data from the Attractions.io API into the local SQLite store.
+   *
+   * Always fetches the /data endpoint without a version parameter so we get
+   * the full ZIP (matching the mobile app pattern). If the manifest version
+   * matches what we already have, we skip parsing. Otherwise we diff/upsert
+   * every record: new items are inserted, existing items are updated, and
+   * items missing from the new data are soft-deleted (removedAt set).
+   */
+  private async _syncFromAPI(depth = 0): Promise<void> {
+    // Build auth headers
     const token = await this.getInstallationToken();
     const now = new Date().toISOString().replace(/\.\d{3}Z$/, '+00:00');
     const authHeaders: Record<string, string> = {
@@ -455,49 +444,179 @@ class AttractionsIOV1 extends Destination {
 
     const response = await makeHttpRequest({
       method: 'GET',
-      url: dataUrl.toString(),
+      url: `${this.baseURL}data`,
       headers: authHeaders,
     });
 
     if (response.status === 202) {
-      // Data pack is still being generated
       if (depth >= 5) {
         throw new Error('AttractionsIO data generation still in progress after 5 attempts');
       }
       const waitSeconds = 10 * (depth + 1);
       console.log(
-        `[AttractionsIOV1] 202 received for ${this.destinationId}. ` +
-        `Waiting ${waitSeconds}s before retry (attempt ${depth + 1}/5)…`
+        `[AttractionsIOV1] 202 received for ${this.destinationId}, ` +
+        `waiting ${waitSeconds}s (attempt ${depth + 1}/5)…`,
       );
       await new Promise(resolve => setTimeout(resolve, waitSeconds * 1000));
-      return this._fetchPOIDataWithRetry(depth + 1);
+      return this._syncFromAPI(depth + 1);
     }
 
-    if (response.status === 303) {
-      // Redirect to ZIP download URL
-      const zipUrl = response.headers.get('location');
-      if (!zipUrl) {
-        throw new Error('AttractionsIO 303 response missing Location header');
+    if (response.status !== 303) {
+      // 200/304/etc. — no new data. If we already have data in the DB, that's fine.
+      const hasData = this._hasStoredEntities();
+      if (!hasData) {
+        throw new Error(
+          `AttractionsIO returned ${response.status} but no stored data exists for ${this.destinationId}`,
+        );
+      }
+      return;
+    }
+
+    // 303 — redirect to ZIP
+    const zipUrl = response.headers.get('location');
+    if (!zipUrl) {
+      throw new Error('AttractionsIO 303 response missing Location header');
+    }
+
+    const {manifestData, recordsData} = await this.downloadAssetPack(zipUrl);
+
+    // Check version — skip if we already have this exact version
+    const storedVersion = this._getStoredVersion();
+    if (storedVersion === manifestData.version) {
+      return;
+    }
+
+    // Diff and upsert into SQLite
+    this._diffAndUpsert(recordsData, manifestData.version);
+  }
+
+  // ── SQLite helpers ──────────────────────────────────────────────────────
+
+  private _getStoredVersion(): string | null {
+    const row = database
+      .prepare('SELECT version FROM attractionsio_versions WHERE park_id = ?')
+      .get(this.destinationId) as {version: string} | undefined;
+    return row?.version ?? null;
+  }
+
+  private _hasStoredEntities(): boolean {
+    const row = database
+      .prepare(
+        'SELECT COUNT(*) as cnt FROM attractionsio_entities WHERE park_id = ? AND removed_at IS NULL',
+      )
+      .get(this.destinationId) as {cnt: number};
+    return row.cnt > 0;
+  }
+
+  /**
+   * Read all active entities from SQLite and reconstruct the RecordsData shape.
+   */
+  private _readEntitiesFromDB(): RecordsData {
+    const rows = database
+      .prepare(
+        'SELECT record_type, data FROM attractionsio_entities WHERE park_id = ? AND removed_at IS NULL',
+      )
+      .all(this.destinationId) as {record_type: string; data: string}[];
+
+    const result: RecordsData = {Resort: [], Item: [], Category: []};
+    for (const row of rows) {
+      const parsed = JSON.parse(row.data);
+      if (row.record_type === 'Resort') result.Resort.push(parsed);
+      else if (row.record_type === 'Item') result.Item.push(parsed);
+      else if (row.record_type === 'Category') result.Category.push(parsed);
+    }
+    return result;
+  }
+
+  /**
+   * Diff incoming records against the SQLite store and apply changes.
+   * New records are inserted, existing records are updated (and un-deleted
+   * if they were previously soft-deleted), and records not present in the
+   * new data are soft-deleted.
+   */
+  private _diffAndUpsert(data: RecordsData, version: string): void {
+    const now = Date.now();
+
+    // Read all existing entities for this park (including soft-deleted)
+    const existing = database
+      .prepare(
+        'SELECT record_type, entity_id, removed_at FROM attractionsio_entities WHERE park_id = ?',
+      )
+      .all(this.destinationId) as {
+      record_type: string;
+      entity_id: string;
+      removed_at: number | null;
+    }[];
+    const existingKeys = new Set(existing.map(e => `${e.record_type}:${e.entity_id}`));
+    const existingRemoved = new Map(
+      existing.filter(e => e.removed_at !== null).map(e => [`${e.record_type}:${e.entity_id}`, true]),
+    );
+
+    const seenKeys = new Set<string>();
+
+    // Prepare statements
+    const upsertStmt = database.prepare(`
+      INSERT INTO attractionsio_entities (park_id, record_type, entity_id, data, last_version, removed_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, NULL, ?)
+      ON CONFLICT (park_id, record_type, entity_id) DO UPDATE SET
+        data = excluded.data,
+        last_version = excluded.last_version,
+        removed_at = NULL,
+        updated_at = excluded.updated_at
+    `);
+
+    const softDeleteStmt = database.prepare(`
+      UPDATE attractionsio_entities SET removed_at = ?, updated_at = ?
+      WHERE park_id = ? AND record_type = ? AND entity_id = ? AND removed_at IS NULL
+    `);
+
+    const versionStmt = database.prepare(`
+      INSERT OR REPLACE INTO attractionsio_versions (park_id, version, updated_at)
+      VALUES (?, ?, ?)
+    `);
+
+    // Wrap in a transaction for atomicity
+    database.exec('BEGIN');
+    try {
+      const recordTypes: Array<{type: keyof RecordsData; name: string}> = [
+        {type: 'Resort', name: 'Resort'},
+        {type: 'Category', name: 'Category'},
+        {type: 'Item', name: 'Item'},
+      ];
+
+      for (const {type, name} of recordTypes) {
+        const records = data[type] || [];
+        for (const record of records) {
+          const entityId = String(record._id);
+          const key = `${name}:${entityId}`;
+          seenKeys.add(key);
+          upsertStmt.run(
+            this.destinationId,
+            name,
+            entityId,
+            JSON.stringify(record),
+            version,
+            now,
+          );
+        }
       }
 
-      const {manifestData, recordsData} = await this.downloadAssetPack(zipUrl);
+      // Soft-delete records not in the new data
+      for (const key of existingKeys) {
+        if (!seenKeys.has(key) && !existingRemoved.has(key)) {
+          const [recordType, entityId] = key.split(':');
+          softDeleteStmt.run(now, now, this.destinationId, recordType, entityId);
+        }
+      }
 
-      // Persist version + data in long-lived cache (2 years)
-      const TWO_YEARS = 60 * 60 * 24 * 365 * 2;
-      CacheLib.set(`${prefix}:poiVersion`, manifestData.version, TWO_YEARS);
-      CacheLib.set(`${prefix}:poiData`, recordsData, TWO_YEARS);
+      // Update stored version
+      versionStmt.run(this.destinationId, version, now);
 
-      return recordsData;
+      database.exec('COMMIT');
+    } catch (e) {
+      database.exec('ROLLBACK');
+      throw e;
     }
-
-    // Any other status (200/304 etc.) – fall back to cached data
-    const cachedData: RecordsData | null = CacheLib.get(`${prefix}:poiData`);
-    if (!cachedData) {
-      throw new Error(
-        `AttractionsIO data endpoint returned ${response.status} but no cached data is available for ${this.destinationId}`
-      );
-    }
-    return cachedData;
   }
 
   // ── Category helpers ──────────────────────────────────────────────────────
@@ -850,7 +969,6 @@ export class AltonTowers extends AttractionsIOV1 {
         destinationId: 'altontowersresort',
         parkId: 'altontowers',
         timezone: 'Europe/London',
-        initialDataVersion: '2021-07-06T07:48:43Z',
         appBuild: 293 as any,
         appVersion: '5.3',
         ...options?.config,
@@ -871,7 +989,6 @@ export class ThorpePark extends AttractionsIOV1 {
         destinationId: 'thorpeparkresort',
         parkId: 'thorpepark',
         timezone: 'Europe/London',
-        initialDataVersion: '2021-04-15T15:28:08Z',
         appBuild: 299 as any,
         appVersion: '1.4',
         ...options?.config,
@@ -892,7 +1009,6 @@ export class ChessingtonWorldOfAdventures extends AttractionsIOV1 {
         destinationId: 'chessingtonworldofadventuresresort',
         parkId: 'chessingtonworldofadventures',
         timezone: 'Europe/London',
-        initialDataVersion: '2021-08-19T09:59:06Z',
         appBuild: 178 as any,
         appVersion: '3.3',
         ...options?.config,
@@ -913,7 +1029,6 @@ export class LegolandWindsor extends AttractionsIOV1 {
         destinationId: 'legolandwindsorresort',
         parkId: 'legolandwindsor',
         timezone: 'Europe/London',
-        initialDataVersion: '2021-08-20T08:22:20Z',
         appBuild: 113 as any,
         appVersion: '2.4',
         ...options?.config,
@@ -934,7 +1049,6 @@ export class LegolandOrlando extends AttractionsIOV1 {
         destinationId: 'legolandorlandoresort',
         parkId: 'legolandorlando',
         timezone: 'America/New_York',
-        initialDataVersion: '2021-08-09T15:48:56Z',
         appBuild: 115 as any,
         appVersion: '1.6.1',
         ...options?.config,
@@ -955,7 +1069,6 @@ export class LegolandCalifornia extends AttractionsIOV1 {
         destinationId: 'legolandcaliforniaresort',
         parkId: 'legolandcalifornia',
         timezone: 'America/Los_Angeles',
-        initialDataVersion: '',
         appBuild: 800000074 as any,
         appVersion: '8.4.11',
         ...options?.config,
@@ -976,7 +1089,6 @@ export class LegolandBillund extends AttractionsIOV1 {
         destinationId: 'legolandbillundresort',
         parkId: 'legolandbillund',
         timezone: 'Europe/Copenhagen',
-        initialDataVersion: '2023-10-31T09:22:05Z',
         appBuild: 162 as any,
         appVersion: '3.4.17',
         ...options?.config,
@@ -997,7 +1109,6 @@ export class LegolandDeutschland extends AttractionsIOV1 {
         destinationId: 'legolanddeutschlandresort',
         parkId: 'legolanddeutschland',
         timezone: 'Europe/Berlin',
-        initialDataVersion: '',
         appBuild: 113 as any,
         appVersion: '1.4.15',
         ...options?.config,
@@ -1018,7 +1129,6 @@ export class Gardaland extends AttractionsIOV1 {
         destinationId: 'gardalandresort',
         parkId: 'gardaland',
         timezone: 'Europe/Rome',
-        initialDataVersion: '2020-10-27T08:40:37Z',
         appBuild: 119 as any,
         appVersion: '4.2',
         ...options?.config,
@@ -1118,7 +1228,6 @@ export class HeidePark extends HeideParkBase {
         destinationId: 'heideparkresort',
         parkId: 'heidepark',
         timezone: 'Europe/Berlin',
-        initialDataVersion: '2025-09-23T10:30:15Z',
         appBuild: 302101 as any,
         appVersion: '4.2.6',
         ...options?.config,
@@ -1151,7 +1260,6 @@ export class Knoebels extends KnoebelsBase {
         destinationId: 'knoebels',
         parkId: 'knoebelspark',
         timezone: 'America/New_York',
-        initialDataVersion: '2024-05-05T15:08:58Z',
         appBuild: 48 as any,
         appVersion: '1.1.2',
         ...options?.config,
@@ -1314,7 +1422,6 @@ export class DjursSommerland extends DjursSommerlandBase {
         destinationId: 'djurs-sommerland-destination',
         parkId: 'djurs-sommerland',
         timezone: 'Europe/Copenhagen',
-        initialDataVersion: '2025-08-22T09:45:54Z',
         appBuild: 169 as any,
         appVersion: '2.5.1',
         ...options?.config,
@@ -1339,7 +1446,6 @@ export class LegolandJapan extends AttractionsIOV1 {
         destinationId: 'legolandjapanresort',
         parkId: 'legolandjapan',
         timezone: 'Asia/Tokyo',
-        initialDataVersion: '2025-08-21T05:37:16Z',
         appBuild: 186 as any,
         appVersion: '1.4.24',
         ...options?.config,
@@ -1360,7 +1466,6 @@ export class LegolandNewYork extends AttractionsIOV1 {
         destinationId: 'legolandnewyorkdestination',
         parkId: 'legolandnewyork',
         timezone: 'America/New_York',
-        initialDataVersion: '2025-08-29T04:23:53Z',
         appBuild: 217 as any,
         appVersion: '1.4.4',
         ...options?.config,
@@ -1381,7 +1486,6 @@ export class LegolandKorea extends AttractionsIOV1 {
         destinationId: 'legolandkoreadestination',
         parkId: 'legolandkorea',
         timezone: 'Asia/Seoul',
-        initialDataVersion: '2025-08-20T05:38:01Z',
         appBuild: 183 as any,
         appVersion: '1.2.3',
         ...options?.config,
@@ -1402,7 +1506,6 @@ export class PeppaPigThemeParkFlorida extends AttractionsIOV1 {
         destinationId: 'peppapigthemeparkfloridadestination',
         parkId: 'peppapigthemeparkflorida',
         timezone: 'America/New_York',
-        initialDataVersion: '2025-09-23T16:20:01Z',
         appBuild: 63 as any,
         appVersion: '1.0.16',
         ...options?.config,
