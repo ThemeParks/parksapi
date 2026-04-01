@@ -42,6 +42,17 @@
 - [ ] Lotte World
 - [ ] Chimelong
 
+## Post-Migration: Entity ID Changes
+
+These parks have different entity IDs in TS vs JS. Before switching the collector,
+run `npm run migrate -- <parkId>` to update externalIds on api.themeparks.wiki.
+
+- **Walibi Holland** — attractions switched from `attr_gforce` (slugified name) to API UUIDs
+- **Bellewaerde** — same change as Walibi Holland
+- **Walibi Rhône-Alpes** — same change as Walibi Holland
+- **Walibi Belgium** — same change as Walibi Holland
+- **Plopsaland De Panne** — old API used different ID format; new API uses `plopsa_id`
+
 ## Known Issues
 - Kennywood wait times: park opens April 28, 2026
 - Silver Dollar City schedules: 500s on large day ranges (fixed with 7-day batching)
