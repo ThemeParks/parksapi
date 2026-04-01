@@ -52,6 +52,11 @@ export const parkMapping: Record<string, string> = {
   'warnerbrosmovieworld': 'WarnerBrosMovieWorld',
   'paradisecountry': 'ParadiseCountry',
   'wetnwildgoldcoast': 'WetNWildGoldCoast',
+  // Walibi / Bellewaerde
+  'walibiholland': 'WalibiHolland',
+  'bellewaerde': 'Bellewaerde',
+  'walibirhonealpes': 'WalibiRhoneAlpes',
+  'walibibelgium': 'WalibiBelgium',
   // HansaPark
   'hansapark': 'HansaPark',
   // Europa-Park
