@@ -57,6 +57,9 @@ export const parkMapping: Record<string, string> = {
   'bellewaerde': 'Bellewaerde',
   'walibirhonealpes': 'WalibiRhoneAlpes',
   'walibibelgium': 'WalibiBelgium',
+  // Plopsa
+  'plopsaland': 'Plopsaland',
+  'plopsalanddeutschland': 'PlopsalandDeutschland',
   // HansaPark
   'hansapark': 'HansaPark',
   // Europa-Park
