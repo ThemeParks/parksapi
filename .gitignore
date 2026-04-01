@@ -3,14 +3,29 @@ docs
 .env
 .vscode
 .idea
-testout_*
-entity-map-viewer.html
 dist/
-cache.sqlite
 coverage/
+datacache/
+
+# SQLite cache database + WAL/SHM files
+cache.sqlite
+cache.sqlite-wal
+cache.sqlite-shm
+
+# HAR session dumps (API captures)
+*.har
+
+# Comparison snapshots (local only)
+snapshots/
+
+# Temporary files
+testout_*
 temp*.json
 temp*.js
-datacache/
+entity-map-viewer.html
+
+# Claude Code local settings
 .claude/settings.local.json
-snapshots/docs/
+
+# Specs/plans (local only, not committed)
 VQUEUE_FRAMEWORK_SPEC.md

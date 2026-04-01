@@ -371,17 +371,48 @@ Bootstrap device ID via POST, cache for weeks. Send as header on subsequent requ
 | Status mapping | `createStatusMap()` | N/A | From statusMap.js |
 | Tags | `TagBuilder.*()` | N/A | Static factory methods |
 
+### User-Agent Headers Required
+Many park APIs reject requests without a User-Agent header. Node.js `http`/`https` modules don't send one by default (unlike `needle` which sends random Android UAs). Always include `'user-agent': 'okhttp/4.11.0'` or similar in `@inject` headers.
+
+### Form-Encoded vs JSON POST Bodies
+Check whether the API expects `application/json` or `application/x-www-form-urlencoded`. The JS library used `needle` which defaults to form-encoding for object bodies. Use `URLSearchParams` for form-encoded:
+```typescript
+const params = new URLSearchParams({key: 'value', num: String(123)});
+return {
+  method: 'POST', url: '...', body: params.toString(),
+  headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+  options: {json: false},
+} as any as HTTPObj;
+```
+
+### Binary Downloads (ZIP files)
+For endpoints returning binary data (ZIP, images), set `options: {json: false}` and `'accept-encoding': 'identity'` to prevent double-decompression. Use `resp.arrayBuffer()` then `Buffer.from(ab)` for adm-zip. Do NOT use `@http` caching for binary responses — the HTTP cache stores text, which corrupts binary data.
+
+### 303 Redirect Handling
+`makeHttpRequest` does NOT follow redirects. For APIs that return 303 with a `Location` header (e.g., Attractions.io `/data`), read the header and make a second request manually.
+
+### SQLite Entity Store (Attractions.io pattern)
+For parks that download ZIP/database entity packs, use the `attractionsio_entities` SQLite table pattern instead of caching giant JSON blobs. See `src/parks/attractionsio/attractionsiov1.ts` for the diff/upsert approach with soft-delete tracking.
+
+### OAuth Client Credentials
+For parks using OAuth2 (e.g., Europa-Park), POST to the token endpoint with `grant_type=client_credentials` as form-encoded body. Cache the token with dynamic TTL from `expires_in`. Use `tags: ['auth']` to exclude the token endpoint from Bearer injection.
+
 ## Reference Implementations
 
 - **Universal** (`src/parks/universal/universal.ts`) — Complex: multi-park resort, auth tokens, VQ, Express Pass
-- **Efteling** (`src/parks/efteling/efteling.ts`) — Moderate: multi-language, virtual queue, calendar schedules
+- **Efteling** (`src/parks/efteling/efteling.ts`) — Moderate: multi-language, virtual queue, calendar schedules, restaurants
 - **DLP** (`src/parks/dlp/disneylandparis.ts`) — GraphQL API, paid return times with pricing, single rider
 - **TDR** (`src/parks/tdr/tokyodisneyresort.ts`) — Device registration, app version tracking, Priority Pass
 - **Shanghai** (`src/parks/shdr/shanghaidisneyresort.ts`) — Version compare API, standby pass pattern
 - **Six Flags** (`src/parks/sixflags/sixflags.ts`) — Firebase config, dynamic park discovery, 25+ parks
 - **Parcs Reunidos** (`src/parks/parcsreunidos/parcsreunidos.ts`) — Framework: base class + 5 subclasses, HTML calendar scraping
-- **HFE** (`src/parks/hfe/hfe.ts`) — Framework: 3 parks, configurable categories, name-based wait time matching
+- **HFE** (`src/parks/hfe/hfe.ts`) — Framework: 4 parks, configurable categories, name-based wait time matching
 - **Cedar Fair** (`src/parks/cedarfair/attractionsio.ts`) — Framework: API-discovery, 12 parks
+- **Attractions.io v1** (`src/parks/attractionsio/attractionsiov1.ts`) — Framework: 16 parks, SQLite entity store, ZIP data packs, form-encoded auth
 - **TE2** (`src/parks/te2/te2.ts`) — Dual ride status endpoints, Basic Auth, category-based POI discovery
 - **Phantasialand** (`src/parks/phantasialand/phantasialand.ts`) — Anonymous auth, location spoofing, HTML scraping
 - **PortAventura** (`src/parks/portaventura/portaventura.ts`) — Client SSL certificates, Strapi CMS, FTPName join
+- **Parc Asterix** (`src/parks/parcasterix/parcasterix.ts`) — GraphQL persisted queries, offline ZIP/SQLite package
+- **Europa-Park** (`src/parks/europapark/europapark.ts`) — OAuth2, 3 sub-parks, showlocation recursion, virtual queues
+- **Toverland** (`src/parks/toverland/toverland.ts`) — Simple REST API with bearer token, monthly calendar
+- **Paultons Park** (`src/parks/paultons/paultonspark.ts`) — Directus CMS, dual auth (x-token + Bearer), orms_id mapping
