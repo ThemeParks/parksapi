@@ -41,6 +41,12 @@ export const parkMapping: Record<string, string> = {
   'shanghaidisneylandresort': 'ShanghaiDisneylandResort',
   // Hersheypark
   'hersheypark': 'Hersheypark',
+  // SeaWorld / Busch Gardens
+  'seaworldorlando': 'SeaworldOrlando',
+  'seaworldsanantonio': 'SeaworldSanAntonio',
+  'seaworldsandiego': 'SeaworldSanDiego',
+  'buschgardenstampa': 'BuschGardensTampa',
+  'buschgardenswilliamsburg': 'BuschGardensWilliamsburg',
   // TE2 (Australia)
   'seaworldgoldcoast': 'SeaWorldGoldCoast',
   'warnerbrosmovieworld': 'WarnerBrosMovieWorld',
