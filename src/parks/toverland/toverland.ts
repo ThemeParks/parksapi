@@ -41,6 +41,7 @@ export class Toverland extends Destination {
     req.headers = {
       ...req.headers,
       'authorization': `Bearer ${this.authToken}`,
+      'user-agent': 'okhttp/4.11.0',
     };
   }
 

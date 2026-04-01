@@ -51,8 +51,14 @@ export async function makeHttpRequest(options: {
       } as any); // Type assertion needed as proxy option is new in Node 24
     }
 
-    // Add Accept-Encoding header to request compressed responses
     const hdrs = requestOptions.headers as Record<string, string>;
+
+    // Default User-Agent — parks that need app-specific UAs override via @inject
+    if (!hdrs['user-agent'] && !hdrs['User-Agent']) {
+      hdrs['user-agent'] = process.env.DEFAULT_USER_AGENT || 'parksapi/2.0';
+    }
+
+    // Add Accept-Encoding header to request compressed responses
     if (!hdrs['accept-encoding'] && !hdrs['Accept-Encoding']) {
       hdrs['accept-encoding'] = 'gzip, deflate, br';
     }

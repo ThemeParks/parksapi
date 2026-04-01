@@ -682,9 +682,14 @@ class AttractionsIOV1 extends Destination {
    */
   @http({cacheSeconds: 60 * 60 * 2})
   async fetchCalendar(): Promise<HTTPObj> {
+    // Calendar URLs are park websites (altontowers.com, gardaland.it, etc.)
+    // which block non-browser User-Agents. Use a browser-like UA.
     return {
       method: 'GET',
       url: this.calendarURL,
+      headers: {
+        'user-agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36',
+      },
       options: {json: true},
       tags: ['calendar'],
     } as any as HTTPObj;
