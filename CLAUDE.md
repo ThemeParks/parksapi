@@ -349,9 +349,13 @@ Basic entity type definitions. Prefer types from `@themeparks/typelib` when avai
 #### **datetime.ts** (`src/datetime.ts`)
 Zero-dependency date/time utilities using native Intl API (replaces moment-timezone):
 - `formatInTimezone(date, timezone, format)` - Format dates in specific timezone
+- `constructDateTime(dateStr, timeStr, tz)` - Build ISO 8601 from date + time + timezone (DST-safe)
+- `formatDate(date, timezone?)` - Format Date as `YYYY-MM-DD` (optional timezone)
+- `localFromFakeUtc(fakeUtcStr, tz)` - Convert UTC-encoded-local timestamps to correct offset
+- `hostnameFromUrl(url)` - Extract hostname for `@inject` filters
 - `parseTimeInTimezone(timeStr, date, timezone)` - Parse time strings with timezone
 - `formatUTC(date, format)` - Format dates in UTC
-- `addDays(date, days)`, `isBefore(date1, date2)` - Date manipulation
+- `addDays(date, days)`, `addMinutes(date, min)`, `isBefore(date1, date2)` - Date manipulation
 
 #### **Proxy Support** (`src/proxy.ts`)
 HTTP proxy injection for routing requests through third-party services or HTTP proxies.

@@ -233,6 +233,34 @@ const name = decodeHtmlEntities(stripHtmlTags('<p>Tom &amp; Jerry&#x27;s</p>'));
 // → "Tom & Jerry's"
 ```
 
+### `formatDate(date, timezone?)`
+Format a Date as `YYYY-MM-DD`. Use instead of verbose `getFullYear() + padStart(getMonth()+1) + padStart(getDate())`.
+
+```typescript
+formatDate(new Date())                              // → "2026-04-01"
+formatDate(new Date('2026-03-31T23:00:00Z'), 'Europe/Amsterdam') // → "2026-04-01" (next day in Amsterdam)
+```
+
+### `localFromFakeUtc(fakeUtcStr, timezone)`
+Convert "fake UTC" timestamps (local time encoded as UTC) to correctly-offset ISO strings. Many park APIs (SeaWorld, etc.) return timestamps ending in `Z` that actually represent local time.
+
+```typescript
+localFromFakeUtc('2026-04-01T09:00:00Z', 'America/New_York')
+// → "2026-04-01T09:00:00-04:00"
+```
+
+### `hostnameFromUrl(url)`
+Extract hostname from a URL string for `@inject` filters. Replaces the `getApiHostname()` private method that was duplicated in every park.
+
+```typescript
+import {hostnameFromUrl} from '../../datetime.js';
+
+@inject({
+  eventName: 'httpRequest',
+  hostname: function() { return hostnameFromUrl(this.apiBase); },
+})
+```
+
 ### `createStatusMap(config, options)`
 Declarative status mapping with unknown-state logging. Import from `../../statusMap.js`.
 
@@ -367,12 +395,15 @@ Bootstrap device ID via POST, cache for weeks. Send as header on subsequent requ
 | Entity mapping | `mapEntities()` | N/A | Declarative config |
 | Virtual queues | `buildReturnTimeQueue()` | N/A | Base class helper |
 | DateTime construction | `constructDateTime()` | N/A | Timezone-aware ISO |
+| Date formatting | `formatDate()` | N/A | YYYY-MM-DD from Date |
+| Fake UTC conversion | `localFromFakeUtc()` | N/A | UTC-encoded local → ISO |
+| Hostname extraction | `hostnameFromUrl()` | N/A | For @inject filters |
 | HTML decoding | `decodeHtmlEntities()` | N/A | From htmlUtils.js |
 | Status mapping | `createStatusMap()` | N/A | From statusMap.js |
 | Tags | `TagBuilder.*()` | N/A | Static factory methods |
 
-### User-Agent Headers Required
-Many park APIs reject requests without a User-Agent header. Node.js `http`/`https` modules don't send one by default (unlike `needle` which sends random Android UAs). Always include `'user-agent': 'okhttp/4.11.0'` or similar in `@inject` headers.
+### User-Agent Headers
+A default User-Agent (`parksapi/2.0`, configurable via `DEFAULT_USER_AGENT` env var) is sent on all HTTP requests. Parks that need app-specific UAs override via `@inject` headers. Some park websites (calendar endpoints) require a browser-like UA — use a Chrome/Android string for those.
 
 ### Form-Encoded vs JSON POST Bodies
 Check whether the API expects `application/json` or `application/x-www-form-urlencoded`. The JS library used `needle` which defaults to form-encoding for object bodies. Use `URLSearchParams` for form-encoded:
