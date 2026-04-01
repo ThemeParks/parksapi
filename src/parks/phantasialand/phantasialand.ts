@@ -12,7 +12,7 @@ import {
   LiveData,
   EntitySchedule,
 } from '@themeparks/typelib';
-import {constructDateTime, hostnameFromUrl} from '../../datetime.js';
+import {constructDateTime, hostnameFromUrl, formatDate} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 import {decodeHtmlEntities} from '../../htmlUtils.js';
 
@@ -215,6 +215,29 @@ export class Phantasialand extends Destination {
   }
 
   /**
+   * Fetch live park info (isOpen, closing time) from API
+   */
+  @http({cacheSeconds: 300}) // 5 min
+  async fetchParkInfos(): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.apiBase}/park-infos`,
+      options: {json: true},
+    } as any as HTTPObj;
+  }
+
+  @cache({ttlSeconds: 300})
+  async getParkInfos(): Promise<any> {
+    try {
+      const resp = await this.fetchParkInfos();
+      const data = await resp.json();
+      return Array.isArray(data) ? data[0] : data;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Fetch schedule HTML page
    */
   @http({cacheSeconds: 21600}) // 6 hours
@@ -256,7 +279,7 @@ export class Phantasialand extends Destination {
       name: {en: 'Phantasialand', de: 'Phantasialand'},
       entityType: 'DESTINATION',
       timezone: this.timezone,
-      location: {latitude: 50.8005075, longitude: 6.8792554},
+      location: {latitude: 50.798995255201866, longitude: 6.879291227409914},
     } as Entity];
   }
 
@@ -273,7 +296,7 @@ export class Phantasialand extends Destination {
       parentId: destinationId,
       destinationId,
       timezone: this.timezone,
-      location: {latitude: 50.8005075, longitude: 6.8792554},
+      location: {latitude: 50.798995255201866, longitude: 6.879291227409914},
     } as Entity;
 
     // Filter and map POIs
@@ -284,6 +307,9 @@ export class Phantasialand extends Destination {
       entityType: Entity['entityType'];
       lat?: number;
       lng?: number;
+      apiTags: string[];
+      minSize?: number;
+      maxSize?: number;
     }> = [];
 
     for (const poi of pois) {
@@ -325,6 +351,9 @@ export class Phantasialand extends Destination {
         entityType,
         lat,
         lng,
+        apiTags: Array.isArray(poi.tags) ? poi.tags : [],
+        minSize: poi.minSize,
+        maxSize: poi.maxSize,
       });
     }
 
@@ -338,9 +367,21 @@ export class Phantasialand extends Destination {
       locationFields: {lat: 'lat', lng: 'lng'},
       transform: (entity, item) => {
         entity.entityType = item.entityType;
+        const tags = [];
         if (item.lat && item.lng) {
-          entity.tags = [TagBuilder.location(item.lat, item.lng, item.enName)];
+          tags.push(TagBuilder.location(item.lat, item.lng, item.enName));
         }
+        // API tags
+        if (item.apiTags.includes('ATTRACTION_TYPE_WATER')) tags.push(TagBuilder.mayGetWet());
+        if (item.apiTags.includes('ATTRACTION_TYPE_SINGLE_RIDER_LINE')) tags.push(TagBuilder.singleRider());
+        if (item.apiTags.includes('ATTRACTION_TYPE_PICTURES')) tags.push(TagBuilder.onRidePhoto());
+        if (item.apiTags.includes('ATTRACTION_TYPE_QUICK_PASS') || item.apiTags.includes('ATTRACTION_TYPE_QUICK_PASS_PLUS')) {
+          tags.push(TagBuilder.paidReturnTime());
+        }
+        // Height restrictions
+        if (item.minSize) tags.push(TagBuilder.minimumHeight(item.minSize, 'cm'));
+        if (item.maxSize) tags.push(TagBuilder.maximumHeight(item.maxSize, 'cm'));
+        if (tags.length > 0) entity.tags = tags;
         return entity;
       },
     });
@@ -404,13 +445,14 @@ export class Phantasialand extends Destination {
   }
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
-    const calendar = await this.getCalendarJSON();
+    const [calendar, parkInfos] = await Promise.all([
+      this.getCalendarJSON(),
+      this.getParkInfos(),
+    ]);
     const scheduleEntries: any[] = [];
 
     for (const event of calendar) {
-      if (!event.days_selected || !Array.isArray(event.days_selected)) continue;
-
-      const title = event.title_en || event.title || '';
+      const title = event.title || '';
 
       // Skip "closed" entries
       if (title.toLowerCase().includes('closed')) continue;
@@ -419,9 +461,15 @@ export class Phantasialand extends Destination {
       const hours = this.parseHours(title);
       if (!hours) continue;
 
-      for (const dateStr of event.days_selected) {
-        if (!dateStr) continue;
+      // Calendar may have days_selected array or a single date field
+      const dates: string[] = [];
+      if (event.days_selected && Array.isArray(event.days_selected)) {
+        dates.push(...event.days_selected.filter(Boolean));
+      } else if (event.date) {
+        dates.push(event.date);
+      }
 
+      for (const dateStr of dates) {
         const openingTime = constructDateTime(dateStr, hours.open, this.timezone);
         const closingTime = constructDateTime(dateStr, hours.close, this.timezone);
 
@@ -431,6 +479,23 @@ export class Phantasialand extends Destination {
           openingTime,
           closingTime,
         });
+      }
+    }
+
+    // Apply live override for today's closing time from park-infos API
+    if (parkInfos?.close) {
+      const today = formatDate(new Date(), this.timezone);
+      const todayIdx = scheduleEntries.findIndex((e: any) => e.date === today);
+      if (todayIdx >= 0) {
+        // parkInfos.close is "YYYY-MM-DD HH:mm:ss" in local time
+        const closeParts = parkInfos.close.split(' ');
+        if (closeParts.length === 2 && closeParts[0] === today) {
+          const liveClose = constructDateTime(today, closeParts[1], this.timezone);
+          // Only override if live closing is after the calendar opening
+          if (liveClose > scheduleEntries[todayIdx].openingTime) {
+            scheduleEntries[todayIdx].closingTime = liveClose;
+          }
+        }
       }
     }
 
