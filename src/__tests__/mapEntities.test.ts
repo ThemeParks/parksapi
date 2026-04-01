@@ -949,4 +949,170 @@ describe('Destination.mapEntities()', () => {
       });
     });
   });
+
+  describe('getEntities name sanitization', () => {
+    class SanitizationTestDest extends Destination {
+      private testEntities: Entity[] = [];
+
+      setEntities(entities: Entity[]) {
+        this.testEntities = entities;
+      }
+
+      async getDestinations(): Promise<Entity[]> {
+        return [{id: 'dest', name: 'Test', entityType: 'DESTINATION', timezone: 'UTC'} as Entity];
+      }
+
+      protected async buildEntityList(): Promise<Entity[]> {
+        return this.testEntities;
+      }
+
+      protected async buildLiveData(): Promise<any[]> { return []; }
+      protected async buildSchedules(): Promise<any[]> { return []; }
+    }
+
+    let dest: SanitizationTestDest;
+    beforeEach(() => { dest = new SanitizationTestDest(); });
+
+    const makeEntity = (name: string | Record<string, string>): Entity => ({
+      id: 'test-1',
+      name,
+      entityType: 'ATTRACTION',
+      parentId: 'park',
+      destinationId: 'dest',
+      timezone: 'UTC',
+    } as Entity);
+
+    test('strips HTML tags from names', async () => {
+      dest.setEntities([makeEntity('Balloon <em>Race</em>')]);
+      const entities = await dest.getEntities();
+      expect(entities.find(e => e.id === 'test-1')?.name).toBe('Balloon Race');
+    });
+
+    test('decodes HTML entities', async () => {
+      dest.setEntities([makeEntity('Tom &amp; Jerry&#x27;s')]);
+      const entities = await dest.getEntities();
+      expect(entities.find(e => e.id === 'test-1')?.name).toBe("Tom & Jerry's");
+    });
+
+    test('strips " - Now Open!" suffix', async () => {
+      dest.setEntities([makeEntity('Expedition Odyssey - Now Open!')]);
+      const entities = await dest.getEntities();
+      expect(entities.find(e => e.id === 'test-1')?.name).toBe('Expedition Odyssey');
+    });
+
+    test('strips " - Temporarily Closed" suffix', async () => {
+      dest.setEntities([makeEntity('Thunder Mountain - Temporarily Closed')]);
+      const entities = await dest.getEntities();
+      expect(entities.find(e => e.id === 'test-1')?.name).toBe('Thunder Mountain');
+    });
+
+    test('strips " - NEW!" suffix', async () => {
+      dest.setEntities([makeEntity('Star Wars Ride - NEW!')]);
+      const entities = await dest.getEntities();
+      expect(entities.find(e => e.id === 'test-1')?.name).toBe('Star Wars Ride');
+    });
+
+    test('strips " - Coming Soon" suffix', async () => {
+      dest.setEntities([makeEntity('Future Coaster - Coming Soon')]);
+      const entities = await dest.getEntities();
+      expect(entities.find(e => e.id === 'test-1')?.name).toBe('Future Coaster');
+    });
+
+    test('strips " – Closed" with en-dash', async () => {
+      dest.setEntities([makeEntity('Old Ride – Closed')]);
+      const entities = await dest.getEntities();
+      expect(entities.find(e => e.id === 'test-1')?.name).toBe('Old Ride');
+    });
+
+    test('strips " - Closed for the Season"', async () => {
+      dest.setEntities([makeEntity('Shipwreck Rapids - Closed for the Season')]);
+      const entities = await dest.getEntities();
+      expect(entities.find(e => e.id === 'test-1')?.name).toBe('Shipwreck Rapids');
+    });
+
+    test('strips " - Coming Spring 2026!"', async () => {
+      dest.setEntities([makeEntity('Verbolten: Forbidden Turn - Coming Spring 2026!')]);
+      const entities = await dest.getEntities();
+      expect(entities.find(e => e.id === 'test-1')?.name).toBe('Verbolten: Forbidden Turn');
+    });
+
+    test('strips "NEW! " prefix', async () => {
+      dest.setEntities([makeEntity('NEW! Dolphin Trainer Talk')]);
+      const entities = await dest.getEntities();
+      expect(entities.find(e => e.id === 'test-1')?.name).toBe('Dolphin Trainer Talk');
+    });
+
+    test('strips "ALL-New Show! " prefix', async () => {
+      dest.setEntities([makeEntity('ALL-New Show! When the Pages Turn')]);
+      const entities = await dest.getEntities();
+      expect(entities.find(e => e.id === 'test-1')?.name).toBe('When the Pages Turn');
+    });
+
+    test('strips " — Opening May 26" with em-dash', async () => {
+      dest.setEntities([makeEntity("Soarin' Across America — Opening May 26")]);
+      const entities = await dest.getEntities();
+      expect(entities.find(e => e.id === 'test-1')?.name).toBe("Soarin' Across America");
+    });
+
+    test('strips "- OPENS MARCH 6, 2026!"', async () => {
+      dest.setEntities([makeEntity('LEGO® Galaxy- OPENS MARCH 6, 2026!')]);
+      const entities = await dest.getEntities();
+      expect(entities.find(e => e.id === 'test-1')?.name).toBe('LEGO® Galaxy');
+    });
+
+    test('strips " - NOW OPEN!" (all caps)', async () => {
+      dest.setEntities([makeEntity('Phoenix Rising - NOW OPEN!')]);
+      const entities = await dest.getEntities();
+      expect(entities.find(e => e.id === 'test-1')?.name).toBe('Phoenix Rising');
+    });
+
+    test('leaves normal names unchanged', async () => {
+      const names = [
+        'Space Mountain',
+        'Pirates of the Caribbean',
+        'It\'s a Small World',
+        'Rock \'n\' Roller Coaster',
+        'The Twilight Zone Tower of Terror',
+        'Expedition Everest - Legend of the Forbidden Mountain',  // dash is part of the name
+        'Star Wars: Rise of the Resistance',
+        'TRON Lightcycle / Run',
+        'Hagrid\'s Magical Creatures Motorbike Adventure',
+        'Slinky Dog Dash',
+        'Guardians of the Galaxy: Cosmic Rewind',
+        'Jurassic World VelociCoaster',
+        'Flight of the Hippogriff™',
+        'Verbolten: Forbidden Turn',  // colon in name
+        'Dr. Doom\'s Fearfall',
+        'Mr. Freeze: Reverse Blast',
+        'Escape from Pompeii',
+        'InvadR',
+        'The New Revolution',  // "New" in the middle is fine
+        'Journey to Atlantis',
+        'Mako',
+        'Kraken Unleashed - Virtual Reality',  // dash separating subtitle
+      ];
+      for (const name of names) {
+        dest.setEntities([makeEntity(name)]);
+        const entities = await dest.getEntities();
+        expect(entities.find(e => e.id === 'test-1')?.name).toBe(name);
+      }
+    });
+
+    test('sanitizes multi-language names', async () => {
+      dest.setEntities([makeEntity({
+        en: 'Ride <b>X</b> - NEW!',
+        de: 'Fahrt &amp; Spaß',
+      })]);
+      const entities = await dest.getEntities();
+      const name = entities.find(e => e.id === 'test-1')?.name as Record<string, string>;
+      expect(name.en).toBe('Ride X');
+      expect(name.de).toBe('Fahrt & Spaß');
+    });
+
+    test('combines HTML stripping and suffix removal', async () => {
+      dest.setEntities([makeEntity('Balloon <em>Race</em> - Now Open!')]);
+      const entities = await dest.getEntities();
+      expect(entities.find(e => e.id === 'test-1')?.name).toBe('Balloon Race');
+    });
+  });
 });

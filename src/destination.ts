@@ -5,6 +5,40 @@ import {enableProxySupport as enableProxySupportLib} from "./proxy.js";
 import {VQueueBuilder} from "./virtualQueue/builder.js";
 import {calculateReturnWindow} from "./virtualQueue/timeWindows.js";
 import {formatInTimezone} from "./datetime.js";
+import {stripHtmlTags, decodeHtmlEntities} from "./htmlUtils.js";
+
+/**
+ * Patterns for promotional/status text appended or prepended to entity names.
+ * Applied after HTML stripping and entity decoding.
+ */
+const NAME_SUFFIX_PATTERNS = [
+  // Suffixes: " - Temporarily Closed", " – NOW OPEN!", etc.
+  /\s*[-–—]\s*temporarily closed[!]?$/i,
+  /\s*[-–—]\s*closed(?:\s+for\s+the\s+season)?[!]?$/i,
+  /\s*[-–—]\s*coming (?:soon|spring|summer|fall|winter|autumn)\s*\d{0,4}[!]?$/i,
+  /\s*[-–—]\s*now open[!]?$/i,
+  /\s*[-–—]\s*new[!]?$/i,
+  /\s*[-–—]\s*opening\s+(?:\w+\s+)?\d{1,4}[!]?$/i,
+  /\s*[-–—]\s*opens\s+\w+\s+\d{1,2},?\s*\d{0,4}[!]?$/i,
+];
+const NAME_PREFIX_PATTERNS = [
+  // Prefixes: "NEW! Dolphin Trainer Talk", "ALL-New Show! When the Pages Turn"
+  // Only strip when followed by "!" to avoid false positives
+  /^(?:all-)?new!?\s+show!\s+/i,
+  /^new!\s+/i,
+];
+
+/** Strip HTML tags, decode entities, and remove promotional/status affixes */
+function sanitizeEntityName(name: string): string {
+  let clean = decodeHtmlEntities(stripHtmlTags(name)).trim();
+  for (const pattern of NAME_SUFFIX_PATTERNS) {
+    clean = clean.replace(pattern, '');
+  }
+  for (const pattern of NAME_PREFIX_PATTERNS) {
+    clean = clean.replace(pattern, '');
+  }
+  return clean.trim();
+}
 
 export type DestinationConstructor = {
   config?: {[key: string]: string | string[]};
@@ -662,7 +696,26 @@ export abstract class Destination {
   async getEntities(): Promise<Entity[]> {
     await this.init();
     const entities = await this.buildEntityList();
-    return this.resolveEntityHierarchy(entities);
+    const resolved = this.resolveEntityHierarchy(entities);
+
+    // Sanitize entity names:
+    // 1. Strip HTML tags and decode entities (e.g., "Balloon <em>Race</em>")
+    // 2. Remove promotional/status suffixes (e.g., " - Now Open!", " - Temporarily Closed")
+    for (const entity of resolved) {
+      if (!entity.name) continue;
+      if (typeof entity.name === 'string') {
+        entity.name = sanitizeEntityName(entity.name);
+      } else {
+        for (const lang of Object.keys(entity.name)) {
+          const val = (entity.name as any)[lang];
+          if (typeof val === 'string') {
+            (entity.name as any)[lang] = sanitizeEntityName(val);
+          }
+        }
+      }
+    }
+
+    return resolved;
   }
 
   /**
