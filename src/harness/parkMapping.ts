@@ -52,6 +52,8 @@ export const parkMapping: Record<string, string> = {
   'warnerbrosmovieworld': 'WarnerBrosMovieWorld',
   'paradisecountry': 'ParadiseCountry',
   'wetnwildgoldcoast': 'WetNWildGoldCoast',
+  // HansaPark
+  'hansapark': 'HansaPark',
   // Europa-Park
   'europapark': 'EuropaPark',
   // Toverland
