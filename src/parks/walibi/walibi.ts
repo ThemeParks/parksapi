@@ -35,6 +35,7 @@ interface AttractionPOI {
   latitude?: number;
   longitude?: number;
   waitingTimeName?: string;
+  path?: string;
 }
 
 interface WaitTimeEntry {
@@ -72,9 +73,10 @@ class WalibiBase extends Destination {
     return `walibi:${this.destinationSlug}`;
   }
 
-  /** Slugify a name to create a stable entity ID */
-  private nameToId(name: string): string {
-    return name.toLowerCase().replace(/[^\w]+/g, '');
+  /** Extract the last path segment from a CMS path as a stable slug */
+  private pathSlug(path: string | undefined): string | null {
+    if (!path) return null;
+    return path.split('/').pop() || null;
   }
 
   // ── Header injection ─────────────────────────────────────────
@@ -176,41 +178,47 @@ class WalibiBase extends Destination {
       location: {latitude: this.parkLat, longitude: this.parkLng},
     } as Entity;
 
-    const attrEntities = attractions.map(a => {
-      const entity: Entity = {
-        id: `attr_${this.nameToId(a.title)}`,
-        name: a.title,
-        entityType: 'ATTRACTION',
-        parentId: this.parkSlug,
-        destinationId: this.destinationSlug,
-        timezone: this.timezone,
-      } as Entity;
-      if (a.latitude && a.longitude) {
-        (entity as any).location = {
-          latitude: Number(a.latitude),
-          longitude: Number(a.longitude),
-        };
-      }
-      return entity;
-    });
+    // Attractions use waitingTimeName (UUID) as entity ID
+    const attrEntities = attractions
+      .filter(a => a.waitingTimeName)
+      .map(a => {
+        const entity: Entity = {
+          id: a.waitingTimeName!,
+          name: a.title,
+          entityType: 'ATTRACTION',
+          parentId: this.parkSlug,
+          destinationId: this.destinationSlug,
+          timezone: this.timezone,
+        } as Entity;
+        if (a.latitude && a.longitude) {
+          (entity as any).location = {
+            latitude: Number(a.latitude),
+            longitude: Number(a.longitude),
+          };
+        }
+        return entity;
+      });
 
-    const diningEntities = restaurants.map(r => {
-      const entity: Entity = {
-        id: `dining_${this.nameToId(r.title)}`,
-        name: r.title,
-        entityType: 'RESTAURANT',
-        parentId: this.parkSlug,
-        destinationId: this.destinationSlug,
-        timezone: this.timezone,
-      } as Entity;
-      if (r.latitude && r.longitude) {
-        (entity as any).location = {
-          latitude: Number(r.latitude),
-          longitude: Number(r.longitude),
-        };
-      }
-      return entity;
-    });
+    // Restaurants use CMS path slug as entity ID (no UUID available)
+    const diningEntities = restaurants
+      .filter(r => this.pathSlug(r.path))
+      .map(r => {
+        const entity: Entity = {
+          id: `dining_${this.pathSlug(r.path)}`,
+          name: r.title,
+          entityType: 'RESTAURANT',
+          parentId: this.parkSlug,
+          destinationId: this.destinationSlug,
+          timezone: this.timezone,
+        } as Entity;
+        if (r.latitude && r.longitude) {
+          (entity as any).location = {
+            latitude: Number(r.latitude),
+            longitude: Number(r.longitude),
+          };
+        }
+        return entity;
+      });
 
     return [parkEntity, ...attrEntities, ...diningEntities];
   }
@@ -233,7 +241,7 @@ class WalibiBase extends Destination {
         const status = mapStatus(entry.status);
 
         const ld: LiveData = {
-          id: `attr_${this.nameToId(attraction.title)}`,
+          id: entry.id, // UUID from waitingTimeName — matches entity ID directly
           status,
         } as LiveData;
 
