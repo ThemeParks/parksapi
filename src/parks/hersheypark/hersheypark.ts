@@ -10,7 +10,7 @@ import {
   LiveData,
   EntitySchedule,
 } from '@themeparks/typelib';
-import {constructDateTime} from '../../datetime.js';
+import {constructDateTime, hostnameFromUrl} from '../../datetime.js';
 import {createStatusMap} from '../../statusMap.js';
 import {TagBuilder} from '../../tags/index.js';
 
@@ -41,23 +41,12 @@ export class Hersheypark extends Destination {
     this.addConfigPrefix('HERSHEYPARK');
   }
 
-  // ===== Helper =====
-
-  private getApiHostname(): string | undefined {
-    if (!this.baseUrl) return undefined;
-    try {
-      return new URL(this.baseUrl).hostname;
-    } catch {
-      return undefined;
-    }
-  }
-
   // ===== Header Injection =====
 
   @inject({
     eventName: 'httpRequest',
     hostname: function () {
-      return this.getApiHostname();
+      return hostnameFromUrl(this.baseUrl);
     },
   })
   async injectApiHeaders(requestObj: HTTPObj): Promise<void> {

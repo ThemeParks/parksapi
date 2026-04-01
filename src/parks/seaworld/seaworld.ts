@@ -17,7 +17,7 @@ import {http, type HTTPObj} from '../../http.js';
 import {cache} from '../../cache.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import {constructDateTime} from '../../datetime.js';
+import {localFromFakeUtc} from '../../datetime.js';
 
 // ---------------------------------------------------------------------------
 // API response types
@@ -66,24 +66,6 @@ type SeaworldAvailabilityResponse = {
     }>;
   }>;
 };
-
-// ---------------------------------------------------------------------------
-// Helper — parse an opens_at / StartTime "fake-UTC" string into a local ISO
-// string, preserving the time value.
-//
-// The API encodes local times as UTC strings (e.g. "2026-04-01T09:00:00Z"
-// really means "09:00 local"). We need to strip the Z, extract the date and
-// time, then call constructDateTime so the correct offset is appended.
-// ---------------------------------------------------------------------------
-function localIsoFromFakeUtc(fakeUtcStr: string, timezone: string): string {
-  // Strip trailing Z and any fractional seconds / trailing zeros
-  const clean = fakeUtcStr.replace(/Z$/i, '').replace(/\.\d+$/, '');
-  // Split into date / time
-  const tIdx = clean.indexOf('T');
-  const dateStr = tIdx >= 0 ? clean.slice(0, tIdx) : clean;
-  const timeStr = tIdx >= 0 ? clean.slice(tIdx + 1) : '00:00:00';
-  return constructDateTime(dateStr, timeStr, timezone);
-}
 
 // ---------------------------------------------------------------------------
 // Base class shared by all SeaWorld/Busch Gardens destinations
@@ -395,8 +377,8 @@ export class SeaworldDestination extends Destination {
             // StartTime/EndTime are local datetime strings without a timezone
             // suffix (e.g. "2026-04-01T12:00:00").  Use constructDateTime to
             // attach the correct offset for this destination's timezone.
-            const startLocal = localIsoFromFakeUtc(time.StartTime, this.timezone);
-            const endLocal = localIsoFromFakeUtc(time.EndTime, this.timezone);
+            const startLocal = localFromFakeUtc(time.StartTime, this.timezone);
+            const endLocal = localFromFakeUtc(time.EndTime, this.timezone);
             return {
               startTime: startLocal,
               endTime: endLocal,
@@ -446,8 +428,8 @@ export class SeaworldDestination extends Destination {
       const schedule = parkDetail.open_hours
         .map((oh) => {
           // opens_at / closes_at are "fake UTC" strings that encode local times
-          const openTime = localIsoFromFakeUtc(oh.opens_at, this.timezone);
-          const closeTime = localIsoFromFakeUtc(oh.closes_at, this.timezone);
+          const openTime = localFromFakeUtc(oh.opens_at, this.timezone);
+          const closeTime = localFromFakeUtc(oh.closes_at, this.timezone);
           // Extract date portion from the ISO string (YYYY-MM-DD)
           const date = openTime.slice(0, 10);
           return {

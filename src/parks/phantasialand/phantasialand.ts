@@ -12,7 +12,7 @@ import {
   LiveData,
   EntitySchedule,
 } from '@themeparks/typelib';
-import {constructDateTime} from '../../datetime.js';
+import {constructDateTime, hostnameFromUrl} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 import {decodeHtmlEntities} from '../../htmlUtils.js';
 
@@ -37,15 +37,6 @@ export class Phantasialand extends Destination {
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('PHANTASIALAND');
-  }
-
-  /**
-   * Get the API hostname from apiBase config for use in @inject filters.
-   * Returns undefined if apiBase is not configured (inject will be skipped).
-   */
-  private getApiHostname(): string | undefined {
-    if (!this.apiBase) return undefined;
-    try { return new URL(this.apiBase).hostname; } catch { return undefined; }
   }
 
   // ===== Authentication =====
@@ -125,7 +116,7 @@ export class Phantasialand extends Destination {
    */
   @inject({
     eventName: 'httpError',
-    hostname: function() { return this.getApiHostname(); },
+    hostname: function() { return hostnameFromUrl(this.apiBase); },
   })
   async handleUnauthorized(requestObj: HTTPObj): Promise<void> {
     if (requestObj.status === 401) {
@@ -140,7 +131,7 @@ export class Phantasialand extends Destination {
    */
   @inject({
     eventName: 'httpRequest',
-    hostname: function() { return this.getApiHostname(); },
+    hostname: function() { return hostnameFromUrl(this.apiBase); },
   })
   async injectHeaders(requestObj: HTTPObj): Promise<void> {
     requestObj.headers = {
@@ -155,7 +146,7 @@ export class Phantasialand extends Destination {
    */
   @inject({
     eventName: 'httpRequest',
-    hostname: function() { return this.getApiHostname(); },
+    hostname: function() { return hostnameFromUrl(this.apiBase); },
     tags: {$nin: ['auth']},
   })
   async injectAccessToken(requestObj: HTTPObj): Promise<void> {

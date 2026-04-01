@@ -5,7 +5,7 @@ import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import {constructDateTime} from '../../datetime.js';
+import {constructDateTime, hostnameFromUrl} from '../../datetime.js';
 import {createStatusMap} from '../../statusMap.js';
 import {TagBuilder} from '../../tags/index.js';
 
@@ -28,14 +28,9 @@ export class Toverland extends Destination {
     this.addConfigPrefix('TOVERLAND');
   }
 
-  private getApiHostname(): string | undefined {
-    if (!this.apiBase) return undefined;
-    try { return new URL(this.apiBase).hostname; } catch { return undefined; }
-  }
-
   @inject({
     eventName: 'httpRequest',
-    hostname: function (this: Toverland) { return this.getApiHostname(); },
+    hostname: function (this: Toverland) { return hostnameFromUrl(this.apiBase); },
   })
   async injectAuth(req: HTTPObj): Promise<void> {
     req.headers = {

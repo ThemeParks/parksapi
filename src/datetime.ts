@@ -215,6 +215,74 @@ export function isBefore(date1: Date, date2: Date): boolean {
 }
 
 /**
+ * Format a Date as a YYYY-MM-DD string.
+ * Replaces the verbose `getFullYear() + '-' + padStart(getMonth()+1) + ...` pattern
+ * that was duplicated across 30+ call sites.
+ *
+ * @param date Date object (interpreted in UTC unless inTimezone is provided)
+ * @param inTimezone Optional IANA timezone — formats the date as seen in that timezone
+ */
+export function formatDate(date: Date, inTimezone?: string): string {
+  if (inTimezone) {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: inTimezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date); // en-CA gives YYYY-MM-DD natively
+    return parts;
+  }
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Convert a "fake UTC" timestamp to a correctly-offset local ISO string.
+ *
+ * Many park APIs (SeaWorld, etc.) return timestamps that look like UTC
+ * (ending in 'Z' or without offset) but actually represent local times.
+ * For example, "2026-04-01T09:00:00Z" really means 09:00 local time.
+ *
+ * This function strips the Z, extracts the date and time components,
+ * and uses constructDateTime() to attach the correct timezone offset.
+ *
+ * @param fakeUtcStr A UTC-formatted string that actually represents local time
+ * @param tz IANA timezone name
+ * @returns ISO 8601 string with correct timezone offset
+ */
+export function localFromFakeUtc(fakeUtcStr: string, tz: string): string {
+  // Strip trailing Z, fractional seconds, and any existing offset
+  const clean = fakeUtcStr.replace(/Z$/i, '').replace(/\.\d+$/, '');
+  // Split into date and time at the 'T'
+  const tIdx = clean.indexOf('T');
+  if (tIdx === -1) {
+    // No time component — treat as midnight
+    return constructDateTime(clean, '00:00', tz);
+  }
+  const dateStr = clean.substring(0, tIdx);
+  const timeStr = clean.substring(tIdx + 1);
+  return constructDateTime(dateStr, timeStr, tz);
+}
+
+/**
+ * Extract a hostname from a URL string, returning undefined if invalid.
+ * Commonly used in @inject hostname filters for dynamic API base URLs.
+ *
+ * @param url URL string (e.g., 'https://api.example.com/v1/')
+ * @returns hostname string or undefined
+ */
+export function hostnameFromUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Timezone decorator - injects timezone property into class
  * Use this on Destination classes to provide timezone context
  */

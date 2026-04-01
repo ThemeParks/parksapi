@@ -11,7 +11,7 @@ import {
   EntitySchedule,
   LanguageCode,
 } from '@themeparks/typelib';
-import {constructDateTime} from '../../datetime.js';
+import {constructDateTime, hostnameFromUrl, formatDate} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 import AdmZip from 'adm-zip';
@@ -148,23 +148,12 @@ export class ParcAsterix extends Destination {
     this.addConfigPrefix('PARCASTERIX');
   }
 
-  // ── API hostname for injector ────────────────────────────────
-
-  private getApiHostname(): string | undefined {
-    if (!this.apiBase) return undefined;
-    try {
-      return new URL(this.apiBase).hostname;
-    } catch {
-      return undefined;
-    }
-  }
-
   // ── Header injection ─────────────────────────────────────────
 
   @inject({
     eventName: 'httpRequest',
     hostname: function (this: ParcAsterix) {
-      return this.getApiHostname();
+      return hostnameFromUrl(this.apiBase);
     },
   })
   async injectHeaders(req: HTTPObj): Promise<void> {
@@ -359,7 +348,7 @@ export class ParcAsterix extends Destination {
 
       // Query calendar
       const now = new Date();
-      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const today = formatDate(now);
       const calendarItems = db
         .prepare('SELECT day, type FROM calendar_items WHERE day >= ?')
         .all(today) as unknown as SqliteCalendarItem[];
@@ -525,7 +514,7 @@ export class ParcAsterix extends Destination {
           const nextDay = new Date(
             new Date(dateStr + 'T12:00:00Z').getTime() + 86400000,
           );
-          const nextDayStr = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
+          const nextDayStr = formatDate(nextDay);
           closingTime = constructDateTime(nextDayStr, closeTime, this.timezone);
         }
 

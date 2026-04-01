@@ -5,7 +5,7 @@ import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import {constructDateTime, formatInTimezone} from '../../datetime.js';
+import {constructDateTime, formatInTimezone, hostnameFromUrl, formatDate} from '../../datetime.js';
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -46,11 +46,6 @@ export class PaultonsPark extends Destination {
     this.addConfigPrefix('PAULTONSPARK');
   }
 
-  private getApiHostname(): string | undefined {
-    if (!this.apiBaseURL) return undefined;
-    try { return new URL(this.apiBaseURL).hostname; } catch { return undefined; }
-  }
-
   /**
    * Inject headers for all API requests.
    * /api/ paths use x-token, /items/ paths use Bearer token,
@@ -58,7 +53,7 @@ export class PaultonsPark extends Destination {
    */
   @inject({
     eventName: 'httpRequest',
-    hostname: function (this: PaultonsPark) { return this.getApiHostname(); },
+    hostname: function (this: PaultonsPark) { return hostnameFromUrl(this.apiBaseURL); },
   })
   async injectHeaders(req: HTTPObj): Promise<void> {
     req.headers = {
@@ -114,8 +109,7 @@ export class PaultonsPark extends Destination {
 
   @http({cacheSeconds: 86400})
   async fetchOpeningHours(): Promise<HTTPObj> {
-    const date = formatInTimezone(new Date(), this.timezone, 'date')
-      .replace(/^(\d{2})\/(\d{2})\/(\d{4})$/, '$3-$1-$2');
+    const date = formatDate(new Date(), this.timezone);
     return {
       method: 'GET',
       url: `${this.apiBaseURL}/api/opening-hours?currentMonthInView=${date}T23:00:00.000Z`,
@@ -254,8 +248,7 @@ export class PaultonsPark extends Destination {
       const startDate = new Date(entry.start);
       const endDate = new Date(entry.end);
 
-      const dateStr = formatInTimezone(startDate, this.timezone, 'date')
-        .replace(/^(\d{2})\/(\d{2})\/(\d{4})$/, '$3-$1-$2');
+      const dateStr = formatDate(startDate, this.timezone);
 
       return {
         date: dateStr,

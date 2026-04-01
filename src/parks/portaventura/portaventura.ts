@@ -12,7 +12,7 @@ import {
   LiveData,
   EntitySchedule,
 } from '@themeparks/typelib';
-import {formatInTimezone, constructDateTime} from '../../datetime.js';
+import {formatInTimezone, constructDateTime, hostnameFromUrl} from '../../datetime.js';
 
 @destinationController({category: 'PortAventura'})
 export class PortAventuraWorld extends Destination {
@@ -62,14 +62,6 @@ export class PortAventuraWorld extends Destination {
   // ===== Hostname Helpers =====
 
   /**
-   * Get hostname from apiBase config for use in @inject filters.
-   */
-  private getApiHostname(): string | undefined {
-    if (!this.apiBase) return undefined;
-    try { return new URL(this.apiBase).hostname; } catch { return undefined; }
-  }
-
-  /**
    * Get hostname from waitTimeUrl config for use in @inject filters.
    */
   private getWaitTimeHostname(): string | undefined {
@@ -84,7 +76,7 @@ export class PortAventuraWorld extends Destination {
    */
   @inject({
     eventName: 'httpRequest',
-    hostname: function() { return this.getApiHostname(); },
+    hostname: function() { return hostnameFromUrl(this.apiBase); },
   })
   async injectCmsHeaders(requestObj: HTTPObj): Promise<void> {
     requestObj.headers = {

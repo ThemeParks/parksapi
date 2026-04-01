@@ -11,6 +11,9 @@ import {
   addMinutes,
   isBefore,
   timezone,
+  formatDate,
+  localFromFakeUtc,
+  hostnameFromUrl,
   constructDateTime,
 } from '../datetime.js';
 
@@ -645,6 +648,87 @@ describe('DateTime Utilities', () => {
 
       expect(isBefore(plusFiveDays, plusTenDays)).toBe(true);
       expect(isBefore(start, plusFiveDays)).toBe(true);
+    });
+  });
+
+  describe('formatDate', () => {
+    test('formats Date as YYYY-MM-DD in UTC', () => {
+      expect(formatDate(new Date('2026-07-15T12:00:00Z'))).toBe('2026-07-15');
+    });
+
+    test('pads single-digit month and day', () => {
+      expect(formatDate(new Date('2026-01-05T12:00:00Z'))).toBe('2026-01-05');
+    });
+
+    test('formats in specific timezone', () => {
+      // 2026-03-31T23:00:00Z is April 1st in Amsterdam (UTC+2 CEST)
+      expect(formatDate(new Date('2026-03-31T23:00:00Z'), 'Europe/Amsterdam')).toBe('2026-04-01');
+    });
+
+    test('UTC date stays same without timezone', () => {
+      expect(formatDate(new Date('2026-12-31T12:00:00Z'))).toBe('2026-12-31');
+    });
+  });
+
+  describe('localFromFakeUtc', () => {
+    test('converts fake UTC to local ISO with correct offset', () => {
+      const result = localFromFakeUtc('2026-04-01T09:00:00Z', 'America/New_York');
+      expect(result).toMatch(/^2026-04-01T09:00:00[+-]\d{2}:\d{2}$/);
+      expect(result).toContain('-04:00'); // EDT
+    });
+
+    test('strips fractional seconds', () => {
+      const result = localFromFakeUtc('2026-04-01T09:00:00.0000000Z', 'America/New_York');
+      expect(result).toContain('T09:00:00');
+      expect(result).not.toContain('.');
+    });
+
+    test('handles string without Z suffix', () => {
+      const result = localFromFakeUtc('2026-04-01T09:00:00', 'Europe/Berlin');
+      expect(result).toMatch(/^2026-04-01T09:00:00[+-]\d{2}:\d{2}$/);
+      expect(result).toContain('+02:00'); // CEST
+    });
+
+    test('handles date-only string (no time)', () => {
+      const result = localFromFakeUtc('2026-04-01', 'Europe/London');
+      expect(result).toContain('T00:00:00');
+    });
+
+    test('preserves time across DST boundary', () => {
+      // Winter: UTC+1, Summer: UTC+2 for Amsterdam
+      const winter = localFromFakeUtc('2026-01-15T10:00:00Z', 'Europe/Amsterdam');
+      const summer = localFromFakeUtc('2026-07-15T10:00:00Z', 'Europe/Amsterdam');
+      expect(winter).toContain('+01:00');
+      expect(summer).toContain('+02:00');
+      // Both should show 10:00 local time
+      expect(winter).toContain('T10:00:00');
+      expect(summer).toContain('T10:00:00');
+    });
+  });
+
+  describe('hostnameFromUrl', () => {
+    test('extracts hostname from URL', () => {
+      expect(hostnameFromUrl('https://api.example.com/v1/')).toBe('api.example.com');
+    });
+
+    test('returns undefined for empty string', () => {
+      expect(hostnameFromUrl('')).toBeUndefined();
+    });
+
+    test('returns undefined for undefined', () => {
+      expect(hostnameFromUrl(undefined)).toBeUndefined();
+    });
+
+    test('returns undefined for invalid URL', () => {
+      expect(hostnameFromUrl('not-a-url')).toBeUndefined();
+    });
+
+    test('handles URL with port', () => {
+      expect(hostnameFromUrl('https://api.example.com:8080/path')).toBe('api.example.com');
+    });
+
+    test('handles http URL', () => {
+      expect(hostnameFromUrl('http://localhost/api')).toBe('localhost');
     });
   });
 });
