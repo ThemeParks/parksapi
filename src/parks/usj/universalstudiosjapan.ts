@@ -93,6 +93,7 @@ type USJPlacesResponse = {
 
 const DESTINATION_ID = 'universalstudiosjapan';
 const PARK_ID = 'usj.usj';
+const VENUE_ID = '10251';
 const TIMEZONE = 'Asia/Tokyo';
 
 // Place types we want to expose as entities
@@ -117,6 +118,12 @@ export class UniversalStudiosJapan extends Destination {
 
   @config
   cdnBase: string = '';
+
+  @config
+  webApiKey: string = '';
+
+  @config
+  webApiToken: string = '';
 
   timezone: string = TIMEZONE;
 
@@ -376,12 +383,17 @@ export class UniversalStudiosJapan extends Destination {
 
   // ─── Schedule HTTP Methods ────────────────────────────────────────────────────
 
-  /** Fetch venue hours from mobile-service API (public, no auth needed) */
-  @http({cacheSeconds: 60 * 60 * 6} as any)
-  async fetchVenueHours(): Promise<HTTPObj> {
+  /** Fetch venue hours for a month from the USJ website's mobile-service API */
+  @http({cacheSeconds: 60 * 60 * 12} as any)
+  async fetchVenueHoursForMonth(endDate: string): Promise<HTTPObj> {
     return {
       method: 'GET',
-      url: 'https://mobile-service.usj.co.jp/api/venues?city=USJ&pageSize=All',
+      url: `https://mobile-service.usj.co.jp/api/Venues/${VENUE_ID}/Hours?endDate=${encodeURIComponent(endDate)}`,
+      headers: {
+        'X-UNIWebService-ApiKey': this.webApiKey,
+        'X-UNIWebService-Token': this.webApiToken,
+        'Accept-Language': 'en-US',
+      },
       options: {json: true},
       tags: ['schedule'],
     } as any as HTTPObj;
@@ -390,25 +402,34 @@ export class UniversalStudiosJapan extends Destination {
   // ─── Schedules ──────────────────────────────────────────────────────────────────
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
-    let venueData: any;
-    try {
-      const resp = await this.fetchVenueHours();
-      venueData = await resp.json();
-    } catch {
-      return [];
+    const schedule: Array<{date: string; type: string; openingTime: string; closingTime: string}> = [];
+
+    // Fetch 3 months of schedule data
+    const now = new Date();
+    for (let i = 0; i < 3; i++) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() + i + 1, 0); // last day of month
+      const mm = String(monthDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(monthDate.getDate()).padStart(2, '0');
+      const endDate = `${mm}/${dd}/${monthDate.getFullYear()}`;
+
+      try {
+        const resp = await this.fetchVenueHoursForMonth(endDate);
+        const hours = await resp.json();
+        if (!Array.isArray(hours)) continue;
+
+        for (const h of hours) {
+          if (!h.OpenTimeString || !h.CloseTimeString || !h.Date) continue;
+          schedule.push({
+            date: h.Date,
+            type: 'OPERATING',
+            openingTime: h.OpenTimeString,
+            closingTime: h.CloseTimeString,
+          });
+        }
+      } catch {
+        // Skip months that fail
+      }
     }
-
-    const venue = venueData?.Results?.[0];
-    if (!venue?.Hours || !Array.isArray(venue.Hours)) return [];
-
-    const schedule = venue.Hours
-      .filter((h: any) => h.OpenTimeString && h.CloseTimeString && h.Date)
-      .map((h: any) => ({
-        date: h.Date,
-        type: 'OPERATING',
-        openingTime: h.OpenTimeString,
-        closingTime: h.CloseTimeString,
-      }));
 
     return [{id: PARK_ID, schedule} as EntitySchedule];
   }
