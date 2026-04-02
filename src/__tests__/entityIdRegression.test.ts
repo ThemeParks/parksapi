@@ -65,9 +65,9 @@ describe('Destination ID patterns', () => {
       Array.isArray(d.category) ? d.category.includes('Universal') : d.category === 'Universal'
     );
 
-    expect(universal.length).toBe(2);
+    expect(universal.length).toBe(3);
     for (const u of universal) {
-      // Universal IDs are derived from class name: universalorlando, universalstudios
+      // Universal IDs are derived from class name: universalorlando, universalstudios, universalstudiosbeijing
       expect(u.id).toMatch(/^universal/);
     }
   });
