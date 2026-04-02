@@ -287,3 +287,30 @@ export async function getRegistrySize(): Promise<number> {
   await ensureDestinationsLoaded();
   return DESTINATION_REGISTRY.length;
 }
+
+/**
+ * Manually register an external destination class.
+ *
+ * Use this when the destination lives in a separate repo and can't be
+ * auto-discovered from the parks/ directory. The class should still
+ * extend Destination and use @config for configuration.
+ *
+ * @example
+ * ```typescript
+ * import {registerDestination} from '@themeparks/parksapi';
+ * import {DisneyWorldResort} from './disney/wdw.js';
+ *
+ * registerDestination({
+ *   id: 'disneyworldresort',
+ *   name: 'Walt Disney World Resort',
+ *   DestinationClass: DisneyWorldResort,
+ *   category: 'Disney',
+ * });
+ * ```
+ */
+export function registerDestination(entry: DestinationRegistryEntry): void {
+  // Prevent duplicates
+  const existing = DESTINATION_REGISTRY.find(d => d.id === entry.id);
+  if (existing) return;
+  DESTINATION_REGISTRY.push(entry);
+}
