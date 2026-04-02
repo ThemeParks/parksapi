@@ -83,7 +83,10 @@ export class SeaworldDestination extends Destination {
   // -------------------------------------------------------------------------
 
   @config
-  baseURL: string = 'https://public.api.seaworld.com/';
+  baseURL: string = '';
+
+  @config
+  appVersion: string = 'android-7.1.17.117525';
 
   // The list of park UUIDs for this destination (set by subclasses)
   resortIds: string[] = [];
@@ -125,7 +128,7 @@ export class SeaworldDestination extends Destination {
       url: `${this.baseURL}v1/park/${parkId}`,
       headers: {
         'user-agent': 'okhttp/4.12.0',
-        'app_version': 'android-7.1.17.117525',
+        'app_version': this.appVersion,
       },
       options: {json: true},
     } as any as HTTPObj;
@@ -143,7 +146,7 @@ export class SeaworldDestination extends Destination {
       queryParams: {searchDate},
       headers: {
         'user-agent': 'okhttp/4.12.0',
-        'app_version': 'android-7.1.17.117525',
+        'app_version': this.appVersion,
       },
       options: {json: true},
     } as any as HTTPObj;

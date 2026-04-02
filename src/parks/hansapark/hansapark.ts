@@ -17,7 +17,7 @@ import {constructDateTime, formatDate, addDays} from '../../datetime.js';
 @destinationController({category: 'Hansa-Park'})
 export class HansaPark extends Destination {
   @config apiKey: string = '';
-  @config baseURL: string = 'https://www.hansapark.de/api';
+  @config baseURL: string = '';
   @config timezone: string = 'Europe/Berlin';
 
   constructor(options?: DestinationConstructor) {

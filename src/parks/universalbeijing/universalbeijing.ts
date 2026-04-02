@@ -45,6 +45,7 @@ function gemsStatusToStatus(gemsStatus: string): string {
 @destinationController({category: 'Universal'})
 export class UniversalStudiosBeijing extends Destination {
   @config baseURL: string = '';
+  @config appVersion: string = '3.6.1';
   @config timezone: string = 'Asia/Shanghai';
 
   constructor(options?: DestinationConstructor) {
@@ -65,8 +66,7 @@ export class UniversalStudiosBeijing extends Destination {
       'language': 'en',
       'IsInPark': '1',
       'OS': 'Android',
-      'appversion': '3.6.1',
-      'versioncode': '36',
+      'appversion': this.appVersion,
       'USERAREA': 'other',
       'x-date': new Date().toUTCString(),
       'lat': '39.9042',

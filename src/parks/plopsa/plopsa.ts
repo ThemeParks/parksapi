@@ -108,7 +108,7 @@ class PlopsaBase extends Destination {
    * May be configured via PLOPSA_BASEURL or PLOPSALAND*_BASEURL env vars.
    * Accepts both '.../app-middleware' and '.../app-middleware/api' formats.
    */
-  @config baseURL: string = 'https://apim-stp-gwc-prd-infra.azure-api.net/app-middleware';
+  @config baseURL: string = '';
 
   /**
    * Returns baseURL with any trailing '/api' stripped, so the /api/ segment
@@ -142,7 +142,7 @@ class PlopsaBase extends Destination {
   parkLng: number = 0;
 
   /** Full URL for the plopsa.com opening-hours calendar endpoint */
-  calendarUrl: string = '';
+  @config calendarUrl: string = '';
 
   constructor(options?: DestinationConstructor) {
     super(options);
@@ -428,9 +428,8 @@ export class Plopsaland extends PlopsaBase {
     this.timezone = 'Europe/Brussels';
     this.parkLat = 51.0808363;
     this.parkLng = 2.5957221;
-    // Note: the /en/plopsaland-de-panne/ slug redirects to /en/plopsaland-belgium/
-    // Use the redirect target directly to avoid the HTTP 301 failure.
-    this.calendarUrl = 'https://www.plopsa.com/en/plopsaland-belgium/api/opening-hours-calendar';
+    // calendarUrl: the /en/plopsaland-de-panne/ slug redirects to /en/plopsaland-belgium/
+    // so use the redirect target. Set via PLOPSALAND_CALENDARURL env var.
   }
 }
 
@@ -551,7 +550,7 @@ export class PlopsalandDeutschland extends PlopsaBase {
     this.timezone = 'Europe/Berlin';
     this.parkLat = 49.317914992075146;
     this.parkLng = 8.300217955490842;
-    this.calendarUrl = 'https://www.plopsa.com/en/plopsaland-deutschland/api/opening-hours-calendar';
+    // calendarUrl set via PLOPSALANDDEUTSCHLAND_CALENDARURL env var
   }
 
   /**
