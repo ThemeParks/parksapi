@@ -37,6 +37,7 @@ interface FuturoscopePOIResponse {
 
 interface FuturoscopeLiveDataItem {
   id: number;
+  status?: number;
   minutes_left?: number | null;
   infos?: {
     texts?: string[] | null;
@@ -104,9 +105,9 @@ export class Futuroscope extends Destination {
 
   /**
    * Fetch a session token from the Futuroscope API.
-   * Cached for 30 days — tokens are long-lived.
+   * Cached for 1 day.
    */
-  @cache({ttlSeconds: 60 * 60 * 24 * 30})
+  @cache({ttlSeconds: 60 * 60 * 24})
   async getAPIToken(): Promise<string> {
     const resp = await this.fetchAPIToken();
     const data: any = await resp.json();
@@ -317,38 +318,31 @@ export class Futuroscope extends Destination {
         status: 'OPERATING',
       } as LiveData;
 
-      // Determine status from infos.texts if available
-      const texts: string[] = Array.isArray(data.infos?.texts)
-        ? (data.infos!.texts as string[])
-        : [];
-
-      const foundClosedText = texts.find((text) =>
-        text.toLowerCase().includes('closed'),
-      );
-
-      if (!foundClosedText) {
-        // Attraction is open — try to get wait time
-        liveDataObj.status = 'OPERATING';
-
-        if (data.minutes_left != null && data.minutes_left >= 0) {
-          liveDataObj.queue = {
-            STANDBY: {waitTime: data.minutes_left},
-          };
-        } else if (data.infos?.textCard) {
-          // Fallback: parse wait time from textCard (e.g. "15 minutes wait")
-          const match = data.infos.textCard.match(/(\d+) minutes wait/);
-          if (match) {
-            liveDataObj.queue = {
-              STANDBY: {waitTime: parseInt(match[1], 10)},
-            };
+      // Determine status from numeric status field
+      //  0 = no data, 1 = open facility, 2 = opening later,
+      //  3 = open with wait time, 4 = show, 6 = closed
+      switch (data.status) {
+        case 3:
+          liveDataObj.status = 'OPERATING';
+          // Parse wait time from textCard (e.g. "15 minutes wait")
+          if (data.infos?.textCard) {
+            const match = data.infos.textCard.match(/(\d+)\s*min/i);
+            if (match) {
+              liveDataObj.queue = {
+                STANDBY: {waitTime: parseInt(match[1], 10)},
+              };
+            }
           }
-        }
-      } else {
-        // Check if it's a temporary closure or full closure
-        const tempClosedText = texts.find((text) =>
-          text.toLowerCase().includes('temp'),
-        );
-        liveDataObj.status = tempClosedText ? 'DOWN' : 'CLOSED';
+          break;
+        case 4: // show with next session
+        case 1: // open facility (shops, WCs)
+          liveDataObj.status = 'OPERATING';
+          break;
+        case 2: // not yet open today
+        case 6: // closed
+        default: // 0 or unknown
+          liveDataObj.status = 'CLOSED';
+          break;
       }
 
       results.push(liveDataObj);
