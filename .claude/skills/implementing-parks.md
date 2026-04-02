@@ -277,7 +277,14 @@ const mapStatus = createStatusMap({
 ## Tips & Tricks
 
 ### No Hardcoded URLs or Secrets
-All API URLs, keys, tokens, and credentials go in `@config` properties with empty defaults. Values come from env vars at runtime. **Never commit secrets to source code.**
+All API URLs, keys, tokens, and credentials go in `@config` properties with **empty defaults**. Values come from env vars at runtime. This includes API base URLs, calendar URLs, client IDs/secrets, auth tokens — even if "publicly available" (e.g., from a website JS bundle).
+
+**App version strings** are the exception — these can have sensible defaults since they're not secrets:
+```typescript
+@config apiBase: string = '';           // URL → empty, value in .env
+@config clientId: string = '';          // credential → empty, value in .env  
+@config appVersion: string = '4.1.10'; // version → default OK, overridable via env
+```
 
 ### Entity IDs — Backwards Compatibility
 Entity IDs must match the JS implementation exactly — the ThemeParks.wiki collector references entities by ID. Always verify with `npm run harness -- compare parkname`.
@@ -447,3 +454,9 @@ For parks using OAuth2 (e.g., Europa-Park), POST to the token endpoint with `gra
 - **Europa-Park** (`src/parks/europapark/europapark.ts`) — OAuth2, 3 sub-parks, showlocation recursion, virtual queues
 - **Toverland** (`src/parks/toverland/toverland.ts`) — Simple REST API with bearer token, monthly calendar
 - **Paultons Park** (`src/parks/paultons/paultonspark.ts`) — Directus CMS, dual auth (x-token + Bearer), orms_id mapping
+- **SeaWorld** (`src/parks/seaworld/seaworld.ts`) — Framework: 5 parks, public API, UTC-as-local times
+- **Walibi** (`src/parks/walibi/walibi.ts`) — Framework: 4 parks, UUID entity IDs from waitingTimeName, path-slug restaurants
+- **Plopsa** (`src/parks/plopsa/plopsa.ts`) — Framework: 2 parks, nested POI contains[], affine map transform (Deutschland)
+- **Futuroscope** (`src/parks/futuroscope/futuroscope.ts`) — Session auth, Next.js calendar scraping
+- **Universal Beijing** (`src/parks/universalbeijing/universalbeijing.ts`) — Chinese backend, gems_status codes, month+daily schedule
+- **USJ** (`src/parks/usj/universalstudiosjapan.ts`) — UDX platform, OAuth2 + public CDN, fake-UTC show times, web API schedule
