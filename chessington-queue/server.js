@@ -34,10 +34,13 @@ if (existsSync(localZipPath)) {
     if (!manifestEntry) throw new Error('No manifest.json found in local zip');
     if (!recordsEntry) throw new Error('No records.json found in local zip');
 
-    return {
-      manifestData: JSON.parse(zip.readAsText(manifestEntry)),
-      recordsData: JSON.parse(zip.readAsText(recordsEntry)),
-    };
+    const manifestData = JSON.parse(zip.readAsText(manifestEntry));
+    const recordsData = JSON.parse(zip.readAsText(recordsEntry));
+
+    console.log('[Local ZIP] manifest keys:', Object.keys(manifestData));
+    console.log('[Local ZIP] records top-level keys:', Object.keys(recordsData));
+
+    return { manifestData, recordsData };
   };
   console.log(`[Local ZIP] Found chessington.zip — will use instead of downloading from S3`);
 }
