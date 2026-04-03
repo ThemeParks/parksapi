@@ -49,13 +49,6 @@
 import moment from 'moment-timezone';
 import Destination from '../destination.js';
 
-// get directory of this script
-import {fileURLToPath} from 'url';
-import {dirname, join as pathJoin} from 'path';
-import {promises as fs} from 'fs';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 /**
  * Efteling Park Object
  */
@@ -78,7 +71,7 @@ export class Efteling extends Destination {
     options.virtualQueueWindowMinutes = options.virtualQueueWindowMinutes || 15;
 
     // bump cache to invalidate the POI data that has been updated
-    options.cacheVersion = 1;
+    options.cacheVersion = 2;
 
     super(options);
 
@@ -100,12 +93,13 @@ export class Efteling extends Destination {
         }
       ],
     }, (method, url, data, options) => {
+      options.headers = options.headers || {};
       // all requests from the app to any efteling subdomain should send these headers
       options.headers['x-app-version'] = this.config.appVersion;
       options.headers['x-app-name'] = 'Efteling';
       options.headers['x-app-id'] = 'nl.efteling.android';
       options.headers['x-app-platform'] = 'Android';
-      options.headers['x-app-language'] = 'en';
+      options.headers['x-app-language'] = options.headers['x-app-language'] || 'en';
       options.headers['x-app-timezone'] = this.config.timezone;
       // override user-agent here, rather than class-wide
       //  any other non-Efteling API requests can use the default user-agent
@@ -117,6 +111,7 @@ export class Efteling extends Destination {
       // only use these headers for the main API domain
       hostname: 'api.efteling.com',
     }, (method, url, data, options) => {
+      options.headers = options.headers || {};
       // api.efteling.com requries an API key as well as the above headers
       options.headers['x-api-key'] = this.config.apiKey;
       options.headers['x-api-version'] = this.config.apiVersion;
@@ -130,20 +125,19 @@ export class Efteling extends Destination {
   async _fetchPOIData({language = 'en'} = {}) {
     // cache for 12 hours
     '@cache|720';
+    const data = await this.http(
+      'GET',
+      'https://api.efteling.com/app/poi',
+      null,
+      {
+        headers: {
+          'x-app-language': language,
+        },
+        json: true,
+      },
+    );
 
-    // build path to our JSON data
-    const jsonDataPath = pathJoin(__dirname, `poi-feed-${language}.json`);
-
-    // check if we have a local copy of the POI data
-    try {
-      const data = await fs.readFile(jsonDataPath, 'utf8');
-      const JSONdata = JSON.parse(data);
-
-      return JSONdata?.hits?.hit;
-    } catch (err) {
-      // return null if we can't find the file
-      return null;
-    }
+    return data?.body?.hits?.hit || null;
   }
 
   /**
@@ -166,56 +160,56 @@ export class Efteling extends Destination {
       throw new Error('Failed to fetch Efteling POI data [nl]');
     }
 
-    // merge the two arrays with English data replacing NL data
-    const mergedData = nativeData.map((nativeItem) => {
-      const englishItem = data.find((item) => item.fields.id === nativeItem.fields.id);
-      if (!englishItem) {
-        // if the native item is missing, add it to the end of the array
-        return nativeItem;
-      }
-
-      // if English version exists, use that one
-      return englishItem;
+    // merge EN/NL entries by ID with EN as primary and NL fallback
+    const englishMap = new Map();
+    const nativeMap = new Map();
+    data.forEach((item) => {
+      if (item?.fields?.id) englishMap.set(item.fields.id, item);
     });
+    nativeData.forEach((item) => {
+      if (item?.fields?.id) nativeMap.set(item.fields.id, item);
+    });
+
+    const allIds = new Set([...englishMap.keys(), ...nativeMap.keys()]);
+    const mergedData = [...allIds].map((id) => englishMap.get(id) || nativeMap.get(id));
 
     const poiData = {};
     mergedData.forEach((hit) => {
+      if (!hit?.fields) return;
       // skip any entries that aren't shown in the app
-      if (hit.hide_in_app) return;
+      if (hit.hide_in_app || hit.fields.hide_in_app) return;
 
-      if (hit.fields) {
-        poiData[hit.fields.id] = {
-          id: hit.fields.id,
-          name: hit.fields.name,
-          type: hit.fields.category,
-          props: hit.fields.properties,
-        };
+      poiData[hit.fields.id] = {
+        id: hit.fields.id,
+        name: hit.fields.name,
+        type: hit.fields.category,
+        props: hit.fields.properties,
+      };
 
-        // hard-code station names so they can be distinct
-        if (hit.fields.id === 'stoomtreinr') {
-          poiData[hit.fields.id].name = poiData[hit.fields.id].name + ' - Oost';
-        }
-        if (hit.fields.id === 'stoomtreinm') {
-          poiData[hit.fields.id].name = poiData[hit.fields.id].name + ' - Marerijk';
-        }
+      // hard-code station names so they can be distinct
+      if (hit.fields.id === 'stoomtreinr') {
+        poiData[hit.fields.id].name = poiData[hit.fields.id].name + ' - Oost';
+      }
+      if (hit.fields.id === 'stoomtreinm') {
+        poiData[hit.fields.id].name = poiData[hit.fields.id].name + ' - Marerijk';
+      }
 
-        // try to parse lat/long
-        //  edge-case: some rides have dud "0.0,0.0" location, ignore these
-        if (hit.fields.latlon &amp;&amp; hit.fields.latlon !== '0.0,0.0') {
-          const match = /([0-9.]+),([0-9.]+)/.exec(hit.fields.latlon);
-          if (match) {
-            poiData[hit.fields.id].location = {
-              latitude: Number(match[1]),
-              longitude: Number(match[2]),
-            };
-          }
+      // try to parse lat/long
+      //  edge-case: some rides have dud "0.0,0.0" location, ignore these
+      if (hit.fields.latlon &amp;&amp; hit.fields.latlon !== '0.0,0.0') {
+        const match = /([0-9.]+),([0-9.]+)/.exec(hit.fields.latlon);
+        if (match) {
+          poiData[hit.fields.id].location = {
+            latitude: Number(match[1]),
+            longitude: Number(match[2]),
+          };
         }
+      }
 
-        // check for any alternative versions of the ride
-        //  this is usually the single rider line, though one is a "boatride"
-        if (hit.fields.alternateid &amp;&amp; hit.fields.alternatetype === 'singlerider') {
-          poiData[hit.fields.id].singleRiderId = hit.fields.alternateid;
-        }
+      // check for any alternative versions of the ride
+      //  this is usually the single rider line, though one is a "boatride"
+      if (hit.fields.alternateid &amp;&amp; hit.fields.alternatetype === 'singlerider') {
+        poiData[hit.fields.id].singleRiderId = hit.fields.alternateid;
       }
     });
 
@@ -691,7 +685,7 @@ export default Efteling;
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> on Thu Apr 02 2026 11:24:33 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> on Fri Apr 03 2026 19:59:39 GMT+0000 (Coordinated Universal Time) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
