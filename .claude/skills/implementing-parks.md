@@ -454,6 +454,15 @@ return {
 } as any as HTTPObj;
 ```
 
+**JSON POST bodies: pass an object, not a string.** When `options.json = true`, the framework calls `JSON.stringify(body)` internally. If you pre-stringify (e.g. `body: JSON.stringify({...})`), the body gets double-serialised into a JSON-encoded string and the server returns 400. Always pass a plain object:
+```typescript
+// ✅ Correct
+return { method: 'POST', url: '...', body: { key: 'value' }, options: {json: true} } as any as HTTPObj;
+
+// ❌ Wrong — double-serialised, causes 400
+return { method: 'POST', url: '...', body: JSON.stringify({ key: 'value' }), options: {json: true} } as any as HTTPObj;
+```
+
 ### Binary Downloads (ZIP files)
 For endpoints returning binary data (ZIP, images), set `options: {json: false}` and `'accept-encoding': 'identity'` to prevent double-decompression. Use `resp.arrayBuffer()` then `Buffer.from(ab)` for adm-zip. Do NOT use `@http` caching for binary responses — the HTTP cache stores text, which corrupts binary data.
 
