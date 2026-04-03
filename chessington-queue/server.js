@@ -1,7 +1,14 @@
 import http from 'http';
+import { readFile } from 'fs/promises';
+import { existsSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import AdmZip from 'adm-zip';
 import config from './config.js';
 import parksapi from '../lib/index.js';
 const { ChessingtonWorldOfAdventures } = parksapi.destinations;
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const park = new ChessingtonWorldOfAdventures({
   apiKey: config.apiKey,
@@ -9,6 +16,31 @@ const park = new ChessingtonWorldOfAdventures({
   calendarURL: config.calendarURL,
   deviceIdentifier: config.deviceIdentifier,
 });
+
+// If a local ZIP is present, use it instead of downloading from S3.
+// Place the file at chessington-queue/chessington.zip.
+// Once successfully parsed the result is cached for 2 years, so this
+// only runs once per cache lifetime.
+const localZipPath = join(__dirname, 'chessington.zip');
+if (existsSync(localZipPath)) {
+  park.downloadAssetPack = async (_url) => {
+    console.log(`[Local ZIP] Reading ${localZipPath}`);
+    const buffer = await readFile(localZipPath);
+    const zip = new AdmZip(buffer);
+
+    const manifestEntry = zip.getEntry('manifest.json');
+    const recordsEntry = zip.getEntry('records.json');
+
+    if (!manifestEntry) throw new Error('No manifest.json found in local zip');
+    if (!recordsEntry) throw new Error('No records.json found in local zip');
+
+    return {
+      manifestData: JSON.parse(zip.readAsText(manifestEntry)),
+      recordsData: JSON.parse(zip.readAsText(recordsEntry)),
+    };
+  };
+  console.log(`[Local ZIP] Found chessington.zip — will use instead of downloading from S3`);
+}
 
 async function getQueueData() {
   const [attractions, liveData] = await Promise.all([
