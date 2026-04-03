@@ -15,6 +15,18 @@ You'll typically receive one or more of:
 - **API documentation** (rare — most park APIs are undocumented)
 - **Existing JS implementation** in `lib/parks/` to reference
 
+### HAR Analysis Tool
+
+`npm run har -- <harfile>` parses a HAR capture and prints all API hosts and endpoints in a clean summary. Useful flags:
+
+```bash
+npm run har -- session.har                     # Summary: all hosts + endpoints
+npm run har -- session.har --host api.park.com # Detailed request/response for one host
+npm run har -- session.har --dump ./responses  # Save response bodies to files
+```
+
+Use this before reading the JS implementation — it's faster for identifying the active endpoints. The `--host` flag is essential for inspecting request bodies, headers, and response shapes without manually grepping through raw JSON.
+
 ## Analysis Checklist
 
 Before writing code, identify from the input:
@@ -209,6 +221,10 @@ npm run harness -- capture parkname     # Capture JS snapshot (if JS exists)
 npm run harness -- compare parkname     # Compare TS vs snapshot
 ```
 
+**Before capturing, add the JS class name to `src/harness/parkMapping.ts`** — the harness won't find the park otherwise.
+
+**Legacy JS may be broken at capture time.** Many older JS implementations scrape HTML pages that have since changed, rely on `cheerio`/`moment` patterns, or hit APIs that have moved. A failed capture (`jsRunner error`) is common and expected — it means the JS output is unavailable for diff, not that your TS implementation is wrong. Continue without a snapshot and verify manually with `npm run dev`.
+
 ### Manual Test
 ```bash
 npm run dev -- parkname -v              # Full test
@@ -274,10 +290,14 @@ const mapStatus = createStatusMap({
 }, { parkName: 'MyPark' });
 ```
 
+**If the park is closed during HAR capture**, status codes in the live-data response are typically null or empty strings — the real values (e.g. Korean/Japanese status text) only appear when the park is open. In this case, include any status strings you can identify from the API docs or JS source, keep `defaultStatus: 'CLOSED'`, and rely on the built-in unknown-status logging to surface new values at runtime. Include an empty string `''` as a known CLOSED value so the null/empty case doesn't trigger a spurious warning.
+
 ## Tips & Tricks
 
 ### No Hardcoded URLs or Secrets
 All API URLs, keys, tokens, and credentials go in `@config` properties with **empty defaults**. Values come from env vars at runtime. This includes API base URLs, calendar URLs, client IDs/secrets, auth tokens — even if "publicly available" (e.g., from a website JS bundle).
+
+This rule also applies to **comments** — do not document specific API URLs or keys in the source file. The `.env` file is the right place for these values; the source code should only describe what the park does, not where its API lives.
 
 **App version strings** are the exception — these can have sensible defaults since they're not secrets:
 ```typescript
@@ -291,6 +311,17 @@ Entity IDs must match the JS implementation exactly — the ThemeParks.wiki coll
 
 ### Entity IDs Must Be Strings
 Even if the API returns numbers: `id: String(apiId)`.
+
+### AttractionType Import
+`AttractionType` is exported from `@themeparks/typelib` as `AttractionTypeEnum` (not from `parkTypes.js`):
+
+```typescript
+import {AttractionTypeEnum} from '@themeparks/typelib';
+// ...
+attractionType: AttractionTypeEnum.RIDE,
+```
+
+There is no `AttractionType` export in `../../parkTypes.js` — that file re-exports from `@themeparks/typelib` and only adds project-specific enums like `QueueType`. Always import `AttractionTypeEnum` directly from `@themeparks/typelib`.
 
 ### Coordinates as Strings
 Some APIs return lat/lng as strings. Always `Number()` before passing to TagBuilder or location fields.
