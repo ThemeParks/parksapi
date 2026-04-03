@@ -65,6 +65,8 @@ export const parkMapping: Record<string, string> = {
   'plopsalanddeutschland': 'PlopsalandDeutschland',
   // Everland
   'everland': 'Everland',
+  // Chimelong
+  'chimelong': 'Chimelong',
   // Lotte World Adventure
   'lotteworld': 'LotteWorld',
   // HansaPark
