@@ -105,9 +105,24 @@ export class Futuroscope extends Destination {
 
   /**
    * Fetch a session token from the Futuroscope API.
-   * Cached for 1 day.
+   * TTL is derived from the JWT exp claim (minus a 60-second safety buffer)
+   * so the token is always refreshed before it expires.
    */
-  @cache({ttlSeconds: 60 * 60 * 24})
+  @cache({
+    callback: (token: string) => {
+      try {
+        const payload = JSON.parse(
+          Buffer.from(token.split('.')[1], 'base64url').toString(),
+        );
+        const remainingSecs =
+          payload.exp - Math.floor(Date.now() / 1000) - 60;
+        return Math.max(60, remainingSecs);
+      } catch {
+        return 60 * 55; // fallback: 55 minutes
+      }
+    },
+    cacheVersion: 2,
+  })
   async getAPIToken(): Promise<string> {
     const resp = await this.fetchAPIToken();
     const data: any = await resp.json();
