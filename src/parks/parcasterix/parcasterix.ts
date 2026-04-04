@@ -129,10 +129,9 @@ interface ScheduleEntry {
   closingTime: string;
 }
 
-// ── Persisted query hashes (v6.0) ──────────────────────────────
+// ── Persisted query hashes ──────────────────────────────────────
 
 const POLLING_HASH = '3ceb23ec91c92568f084a99388dbfe442aae7bfc22c3271a474d27155c89c56d';
-const PACKAGE_HASH = '309702a5c744f3389a4cc971c589dfb351d4548701899f6335c17f8095d94982';
 
 // ── Implementation ─────────────────────────────────────────────
 
@@ -141,7 +140,7 @@ export class ParcAsterix extends Destination {
   @config apiBase: string = '';
   @config timezone: string = 'Europe/Paris';
   @config language: LanguageCode = 'en';
-  @config packageVersion: string = '1.1.73';
+  @config packageVersion: string = '1.1.238';
 
   constructor(options?: DestinationConstructor) {
     super(options);
@@ -230,20 +229,29 @@ export class ParcAsterix extends Destination {
     return data?.data?.paxConfiguration;
   }
 
-  // ── GraphQL: offlinePackageLast (persisted query, GET) ───────
+  // ── GraphQL: offlinePackageLast (POST, full query) ───────────
 
   @http({cacheSeconds: 3600})
   async fetchPackageInfo(): Promise<HTTPObj> {
-    const params = new URLSearchParams({
-      operationName: 'offlinePackageLast',
-      variables: '{}',
-      extensions: JSON.stringify({
-        persistedQuery: {version: 1, sha256Hash: PACKAGE_HASH},
-      }),
-    });
     return {
-      method: 'GET',
-      url: `${this.apiBase}graphql?${params.toString()}`,
+      method: 'POST',
+      url: `${this.apiBase}graphql`,
+      body: {
+        operationName: 'offlinePackageLast',
+        query: `query offlinePackageLast {
+  offlinePackageLast {
+    id
+    version
+    fileSize
+    md5Signature
+    builtAt
+    url
+    autoDownload
+    forcePush
+  }
+}`,
+        variables: {},
+      },
       options: {json: true},
     } as any as HTTPObj;
   }
