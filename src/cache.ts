@@ -427,7 +427,7 @@ class CacheLib {
   }
 }
 
-export default function cacheDecorator({ttlSeconds = 60, callback, key}: {ttlSeconds?: number, callback?: (response: any) => number, key?: string | ((this: any, args: any[]) => string | Promise<string>)} = {}) {
+export default function cacheDecorator({ttlSeconds = 60, callback, key, cacheVersion}: {ttlSeconds?: number, callback?: (response: any) => number, key?: string | ((this: any, args: any[]) => string | Promise<string>), cacheVersion?: number | string} = {}) {
   return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
     descriptor.value = async function (this: any, ...args: any[]) {
@@ -443,17 +443,21 @@ export default function cacheDecorator({ttlSeconds = 60, callback, key}: {ttlSec
         prefix = this.cacheKeyPrefix;
       }
 
+      // Version suffix: when cacheVersion changes, old cache entries become unreachable
+      // and expire naturally — no manual cache flush needed across machines.
+      const versionSuffix = cacheVersion !== undefined ? `:v${cacheVersion}` : '';
+
       let cacheKey: string;
 
       if (key) {
         if (typeof key === 'string') {
-          cacheKey = prefix ? `${prefix}:${key}` : key;
+          cacheKey = prefix ? `${prefix}:${key}${versionSuffix}` : `${key}${versionSuffix}`;
         } else {
           const customKey = await key.call(this, args);
-          cacheKey = prefix ? `${prefix}:${customKey}` : customKey;
+          cacheKey = prefix ? `${prefix}:${customKey}${versionSuffix}` : `${customKey}${versionSuffix}`;
         }
       } else {
-        const defaultKey = `${className}:${propertyKey}:${JSON.stringify(args)}`;
+        const defaultKey = `${className}:${propertyKey}:${JSON.stringify(args)}${versionSuffix}`;
         cacheKey = prefix ? `${prefix}:${defaultKey}` : defaultKey;
       }
 

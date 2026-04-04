@@ -487,6 +487,66 @@ describe('Cache', () => {
       expect(callCount).toBe(2);
     });
 
+    test('cacheVersion invalidates old entries without flushing the cache', async () => {
+      // Simulate a "v1" deployment: populate the cache under the unversioned key
+      let callCount = 0;
+      class VersionedPark {
+        @cache({ttlSeconds: 60})
+        async getData() { callCount++; return 'v1-data'; }
+      }
+      const v1 = new VersionedPark();
+      expect(await v1.getData()).toBe('v1-data');
+      expect(callCount).toBe(1);
+      expect(await v1.getData()).toBe('v1-data');
+      expect(callCount).toBe(1); // cached
+
+      // Simulate a "v2" deployment: same class/method name, cacheVersion bumped.
+      // The old unversioned entry sits in SQLite but is never reached via the new key.
+      class VersionedParkV2 {
+        @cache({ttlSeconds: 60, cacheVersion: 2})
+        async getData() { callCount++; return 'v2-data'; }
+      }
+      const v2 = new VersionedParkV2();
+      expect(await v2.getData()).toBe('v2-data');  // fresh call, not stale v1
+      expect(callCount).toBe(2);                   // underlying method ran again
+
+      // New key is now cached as well
+      expect(await v2.getData()).toBe('v2-data');
+      expect(callCount).toBe(2);
+    });
+
+    test('cacheVersion appended to custom key', async () => {
+      let callCount = 0;
+      class TestClassCustomKey {
+        @cache({ttlSeconds: 60, key: 'my-custom-key', cacheVersion: 'abc'})
+        async getData() { callCount++; return `result-${callCount}`; }
+      }
+      const instance = new TestClassCustomKey();
+      expect(await instance.getData()).toBe('result-1');
+      expect(callCount).toBe(1);
+      expect(await instance.getData()).toBe('result-1'); // cached
+      expect(callCount).toBe(1);
+
+      // Verify the actual key stored in SQLite contains the version suffix
+      const keys = Cache.keys();
+      expect(keys.some(k => k.includes('my-custom-key:vabc'))).toBe(true);
+    });
+
+    test('no cacheVersion leaves key unchanged (backward compat)', async () => {
+      let callCount = 0;
+      class TestNoVersion {
+        @cache({ttlSeconds: 60})
+        async getData() { callCount++; return 'data'; }
+      }
+      const instance = new TestNoVersion();
+      await instance.getData();
+      const keys = Cache.keys();
+      const matchingKey = keys.find(k => k.includes('TestNoVersion:getData'));
+      expect(matchingKey).toBeDefined();
+      // No version suffix present
+      expect(matchingKey).not.toMatch(/:v\w/);
+    });
+
     test('should handle default ttlSeconds parameter', async () => {
       let callCount = 0;
 
