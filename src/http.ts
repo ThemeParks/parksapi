@@ -720,8 +720,18 @@ export async function processHttpQueue() {
           await broadcastInjectionEvent(entry, 'httpError');
         });
 
-        // allow retries if configured, but push to the back of the queue
-        if (entry.request.retries && entry.request.retries > 0) {
+        // Determine if this error is retryable:
+        //   - No response at all (network/connection error) → retryable
+        //   - 429 Too Many Requests → retryable
+        //   - 5xx server error → retryable
+        //   - 4xx client error (other than 429) → NOT retryable (definitive failure)
+        const responseStatus = entry.request.response?.status;
+        const isRetryable = responseStatus === undefined ||
+          responseStatus === 429 ||
+          (responseStatus >= 500 && responseStatus < 600);
+
+        // allow retries if configured and error is retryable, but push to the back of the queue
+        if (isRetryable && entry.request.retries && entry.request.retries > 0) {
           entry.request.retries -= 1;
 
           // Track retry attempt (initialize if first retry)
@@ -744,7 +754,15 @@ export async function processHttpQueue() {
           httpRequestQueue.push(entry); // re-queue the request
         } else {
           const errMsg = error instanceof Error ? error.message : String(error);
-          console.error(`HTTP request failed, no retries left: ${entry.request.method} ${entry.request.url} ${errMsg}`);
+          if (!isRetryable && entry.request.retries && entry.request.retries > 0) {
+            // Had retries remaining but error is non-retryable (4xx)
+            console.error(
+              `HTTP request failed with non-retryable status ${responseStatus}, not retrying: ` +
+              `${entry.request.method} ${entry.request.url} ${errMsg}`
+            );
+          } else {
+            console.error(`HTTP request failed, no retries left: ${entry.request.method} ${entry.request.url} ${errMsg}`);
+          }
           entry.request.rejectPromise(
             new Error(`${entry.request.method} ${entry.request.url}: ${errMsg}`)
           );

@@ -1,5 +1,5 @@
 import {createServer, IncomingMessage, ServerResponse} from 'http';
-import {http, stopHttpQueue} from '../http.js';
+import {http, stopHttpQueue, waitForHttpQueue} from '../http.js';
 import {CacheLib} from '../cache.js';
 
 // Test server configuration
@@ -40,6 +40,18 @@ describe('HTTP Library Integration Tests', () => {
         else if (url === '/error') {
           res.writeHead(500, {'Content-Type': 'application/json'});
           res.end(JSON.stringify({error: 'Internal Server Error'}));
+        }
+        else if (url === '/not-found') {
+          res.writeHead(404, {'Content-Type': 'application/json'});
+          res.end(JSON.stringify({error: 'Not Found'}));
+        }
+        else if (url === '/unauthorized') {
+          res.writeHead(401, {'Content-Type': 'application/json'});
+          res.end(JSON.stringify({error: 'Unauthorized'}));
+        }
+        else if (url === '/too-many-requests') {
+          res.writeHead(429, {'Content-Type': 'application/json'});
+          res.end(JSON.stringify({error: 'Too Many Requests'}));
         }
         else if (url === '/text') {
           res.writeHead(200, {'Content-Type': 'text/plain'});
@@ -390,7 +402,7 @@ describe('HTTP Library Integration Tests', () => {
       await expect(instance.getError()).rejects.toThrow(/HTTP request not OK: 500/);
     });
 
-    test('should retry failed requests', async () => {
+    test('should retry on 5xx server errors', async () => {
       class TestClass {
         @http({retries: 2})
         async getWithRetry(): Promise<any> {
@@ -409,6 +421,70 @@ describe('HTTP Library Integration Tests', () => {
 
       // Should have made initial request + 2 retries = 3 total
       // Wait a bit for retries to complete
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      expect(requestLog.length).toBe(3);
+    }, 10000);
+
+    test('should NOT retry on 4xx client errors', async () => {
+      class TestClass {
+        @http({retries: 2})
+        async getNotFound(): Promise<any> {
+          return {
+            method: 'GET',
+            url: `${TEST_URL}/not-found`,
+            tags: []
+          };
+        }
+      }
+
+      const instance = new TestClass();
+
+      // Should fail immediately without retrying
+      await expect(instance.getNotFound()).rejects.toThrow(/HTTP request not OK: 404/);
+
+      // Wait briefly to confirm no retries were queued
+      await waitForHttpQueue();
+      expect(requestLog.length).toBe(1); // Only the initial request, no retries
+    }, 5000);
+
+    test('should NOT retry on 401 Unauthorized', async () => {
+      class TestClass {
+        @http({retries: 3})
+        async getUnauthorized(): Promise<any> {
+          return {
+            method: 'GET',
+            url: `${TEST_URL}/unauthorized`,
+            tags: []
+          };
+        }
+      }
+
+      const instance = new TestClass();
+
+      await expect(instance.getUnauthorized()).rejects.toThrow(/HTTP request not OK: 401/);
+
+      await waitForHttpQueue();
+      expect(requestLog.length).toBe(1); // Only the initial request, no retries
+    }, 5000);
+
+    test('should retry on 429 Too Many Requests', async () => {
+      class TestClass {
+        @http({retries: 2})
+        async getTooManyRequests(): Promise<any> {
+          return {
+            method: 'GET',
+            url: `${TEST_URL}/too-many-requests`,
+            tags: []
+          };
+        }
+      }
+
+      const instance = new TestClass();
+
+      // Should fail after retries
+      await expect(instance.getTooManyRequests()).rejects.toThrow();
+
+      // Should have made initial request + 2 retries = 3 total
       await new Promise(resolve => setTimeout(resolve, 5000));
       expect(requestLog.length).toBe(3);
     }, 10000);
