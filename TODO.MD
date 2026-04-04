@@ -3,7 +3,7 @@
 ## Current Status
 
 **Migrated (TypeScript in `src/`):**
-- Core framework: cache, config, http, injector, datetime, proxy, tracing, virtual queue (1058 tests)
+- Core framework: cache, config, http, injector, datetime, proxy, tracing, virtual queue
 - Universal Studios: Orlando, Hollywood, Japan (USJ), Singapore (USS), Beijing (5 destinations)
 - Cedar Fair / Attractions.io v3: 12 parks via API discovery
 - Attractions.io v1: 16 parks (Merlin/Legoland) with SQLite entity store
@@ -25,8 +25,10 @@
 - Everland
 - Universal Studios Japan (USJ): UDX platform, OAuth2 + public CDN, fake-UTC show times
 - Universal Studios Singapore (USS)
+- Lotte World
+- Chimelong: Guangzhou + Zhuhai (2 destinations)
 
-**Totals: ~115 destinations, 1058 tests, 45 test files**
+**Totals: ~118 destinations, 1064 tests, 45 test files**
 
 ## Remaining Migrations
 
@@ -34,10 +36,6 @@
 - [ ] **Walt Disney World** (4 parks) — most complex, multiple APIs, custom DB
 - [ ] **Disneyland Resort** (2 parks) — similar to WDW
 - [ ] **Hong Kong Disneyland** (1 park)
-
-### Standalone Asian Parks
-- [ ] Lotte World
-- [ ] Chimelong
 
 ## Post-Migration: Entity ID Changes
 
