@@ -195,7 +195,7 @@ class HFEBase extends Destination {
    * Fetch activities (POI data) for the park site.
    * Cached for 12 hours at HTTP level.
    */
-  @http({cacheSeconds: 43200})
+  @http({cacheSeconds: 43200, retries: 3})
   async fetchActivities(): Promise<HTTPObj> {
     return {
       method: 'GET',
@@ -209,7 +209,7 @@ class HFEBase extends Destination {
    * The API times out on large day counts (e.g., days=60), so we
    * batch in 7-day chunks from the caller.
    */
-  @http({cacheSeconds: 43200, healthCheckArgs: ['{today}']})
+  @http({cacheSeconds: 43200, healthCheckArgs: ['{today}'], retries: 3})
   async fetchSchedule(startDate: string): Promise<HTTPObj> {
     return {
       method: 'GET',
@@ -222,7 +222,7 @@ class HFEBase extends Destination {
    * Fetch live wait times from the Pulse API.
    * Cached for 1 minute at HTTP level.
    */
-  @http({cacheSeconds: 60})
+  @http({cacheSeconds: 60, retries: 3})
   async fetchWaitTimes(): Promise<HTTPObj> {
     return {
       method: 'GET',
