@@ -23,7 +23,8 @@
     "harness": "tsx --env-file=.env src/harness/compare.ts",
     "health": "tsx --env-file=.env src/harness/health.ts",
     "migrate": "tsx --env-file=.env src/tools/migrate/index.ts",
-    "har": "tsx src/tools/har/index.ts"
+    "har": "tsx src/tools/har/index.ts",
+    "prepare": "tsc"
   },
   "repository": {
     "type": "git",
