@@ -6,6 +6,7 @@ import {inject} from '../../injector.js';
 import config from '../../config.js';
 import {destinationController} from '../../destinationRegistry.js';
 import {hostnameFromUrl} from '../../datetime.js';
+import {CacheLib} from '../../cache.js';
 import {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -70,12 +71,12 @@ function nowTimestamp(): string {
 
 /**
  * Parse wait time from the WaitTime string.
- * Returns minutes as a number when the string is numeric ("15" → 15),
+ * Returns minutes as a number when the string starts with a number ("20 mins" → 20, "15" → 15),
  * or null when it's a time-of-day string ("10:00AM" → null).
  */
 function parseWaitTime(waitTimeStr: string): number | null {
   const minutes = parseInt(waitTimeStr, 10);
-  if (!isNaN(minutes) && minutes >= 0 && String(minutes) === waitTimeStr.trim()) {
+  if (!isNaN(minutes) && minutes >= 0) {
     return minutes;
   }
   return null;
@@ -192,6 +193,7 @@ export class UniversalSingapore extends Destination {
     eventName: 'httpRequest',
     hostname: function(this: UniversalSingapore) { return hostnameFromUrl(this.apiBase); },
     tags: {$nin: ['auth']},
+    priority: 2,
   } as any)
   async injectAuth(req: HTTPObj): Promise<void> {
     const token = await this.getToken();
@@ -230,6 +232,7 @@ export class UniversalSingapore extends Destination {
   @inject({
     eventName: 'httpRequest',
     hostname: function(this: UniversalSingapore) { return hostnameFromUrl(this.apiBase); },
+    priority: 1,
   } as any)
   async injectSigning(req: HTTPObj): Promise<void> {
     const urlPath = new URL(req.url).pathname.replace(/^\/uniapi/, '');
@@ -240,10 +243,28 @@ export class UniversalSingapore extends Destination {
     };
   }
 
+  /**
+   * On 401 from an authenticated request, the server-side token was invalidated
+   * (USS only allows one active token per device at a time). Clear the cached token
+   * and nullify the response so the framework treats it as a retryable network error —
+   * the retry will run the inject chain fresh and obtain a new token.
+   */
+  @inject({
+    eventName: 'httpError',
+    hostname: function(this: UniversalSingapore) { return hostnameFromUrl(this.apiBase); },
+    tags: {$nin: ['auth']},
+  } as any)
+  async injectTokenRefresh(req: HTTPObj): Promise<void> {
+    if (req.response && req.status === 401) {
+      CacheLib.delete(`${this.constructor.name}:getToken:[]`);
+      req.response = undefined as any; // treat as network error so framework retries
+    }
+  }
+
   // ─── HTTP fetch methods ──────────────────────────────────────────────────
 
   /** Fetch attractions for a given category. Timestamp is a cache-buster. */
-  @http({} as any)
+  @http({retries: 1} as any)
   async fetchAttractionList(categoryId: number): Promise<HTTPObj> {
     const ts = nowTimestamp();
     return {

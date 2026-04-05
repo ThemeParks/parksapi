@@ -56,4 +56,4 @@ run `npm run migrate -- <parkId>` to update externalIds on api.themeparks.wiki.
 ### Universal Studios Singapore (`src/parks/uss/universalsingapore.ts`)
 
 - **Schedule data**: No schedule endpoint has been found in the API yet. `buildSchedules()` returns empty. Needs investigation to find operating hours data.
-- **Wait time data**: Wait times untested while park is open. The `WaitTime` field is expected to return a numeric string (e.g. `"15"`) when attractions are operating — confirm this is parsed correctly once live data is available during park hours.
+- ~~**Wait time data**~~: Confirmed working. `WaitTime` format is `"20 mins"` (not a bare integer). `parseWaitTime` uses `parseInt` which correctly strips the suffix.
