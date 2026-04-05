@@ -55,5 +55,5 @@ run `npm run migrate -- <parkId>` to update externalIds on api.themeparks.wiki.
 
 ### Universal Studios Singapore (`src/parks/uss/universalsingapore.ts`)
 
-- **Schedule data**: No schedule endpoint has been found in the API yet. `buildSchedules()` returns empty. Needs investigation to find operating hours data.
+- ~~**Schedule data**~~: Implemented. Per-day hours from embedded Sitecore page HTML (`rwsentosa.com`) combined with `themeParkCalendarList` for availability. ~91 days coverage (current month + 2 more), accurate per-day close times (e.g. 19:00 on some days).
 - ~~**Wait time data**~~: Confirmed working. `WaitTime` format is `"20 mins"` (not a bare integer). `parseWaitTime` uses `parseInt` which correctly strips the suffix.
