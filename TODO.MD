@@ -32,10 +32,11 @@
 
 ## Remaining Migrations
 
-### High Priority
-- [ ] **Walt Disney World** (4 parks) — most complex, multiple APIs, custom DB
-- [ ] **Disneyland Resort** (2 parks) — similar to WDW
-- [ ] **Hong Kong Disneyland** (1 park)
+The following parks are out of scope for this repository:
+
+- Walt Disney World (4 parks)
+- Disneyland Resort (2 parks)
+- Hong Kong Disneyland (1 park)
 
 ## Post-Migration: Entity ID Changes
 
