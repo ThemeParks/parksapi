@@ -8,10 +8,12 @@
  *   npm run dev -- --category Universal  # Test all Universal parks
  */
 
+import {writeFileSync} from 'node:fs';
 import {getAllDestinations, getDestinationById, getDestinationsByCategory, listDestinationIds} from './destinationRegistry.js';
 import {testPark, ParkTestSummary} from './testRunner.js';
 import {typeDetector} from './typeDetector.js';
 import {CacheLib} from './cache.js';
+import {tracing, HttpTraceEvent} from './tracing.js';
 
 /**
  * Parse CLI arguments
@@ -25,12 +27,24 @@ function parseArgs(): {
   skipSchedules?: boolean;
   detectTypes?: boolean;
   ignoreCache?: boolean;
+  clearCache?: boolean;
+  dumpHttp?: string; // output path, or '-' for stdout
 } {
   const args = process.argv.slice(2);
 
   if (args.includes('--list')) {
     return { mode: 'list' };
   }
+
+  // Parse --dump-http [file]  (file is optional, defaults to ./http-dump.jsonl)
+  let dumpHttp: string | undefined;
+  const dumpIdx = args.indexOf('--dump-http');
+  if (dumpIdx !== -1) {
+    const next = args[dumpIdx + 1];
+    dumpHttp = (next && !next.startsWith('--')) ? next : './http-dump.jsonl';
+  }
+
+  const clearCache = args.includes('--clear-cache');
 
   const categoryIdx = args.indexOf('--category');
   if (categoryIdx !== -1 && args[categoryIdx + 1]) {
@@ -42,7 +56,9 @@ function parseArgs(): {
       skipLiveData: args.includes('--skip-live-data'),
       skipSchedules: args.includes('--skip-schedules'),
       detectTypes,
-      ignoreCache: args.includes('--ignore-cache') || detectTypes, // --detect-types implies --ignore-cache
+      ignoreCache: args.includes('--ignore-cache') || detectTypes,
+      clearCache,
+      dumpHttp,
     };
   }
 
@@ -57,7 +73,9 @@ function parseArgs(): {
       skipLiveData: args.includes('--skip-live-data'),
       skipSchedules: args.includes('--skip-schedules'),
       detectTypes,
-      ignoreCache: args.includes('--ignore-cache') || detectTypes, // --detect-types implies --ignore-cache
+      ignoreCache: args.includes('--ignore-cache') || detectTypes,
+      clearCache,
+      dumpHttp,
     };
   }
 
@@ -68,7 +86,9 @@ function parseArgs(): {
     skipLiveData: args.includes('--skip-live-data'),
     skipSchedules: args.includes('--skip-schedules'),
     detectTypes,
-    ignoreCache: args.includes('--ignore-cache') || detectTypes, // --detect-types implies --ignore-cache
+    ignoreCache: args.includes('--ignore-cache') || detectTypes,
+    clearCache,
+    dumpHttp,
   };
 }
 
@@ -112,7 +132,12 @@ async function listParks(): Promise<void> {
   console.log('  npm run dev -- --skip-live-data          # Skip live data tests');
   console.log('  npm run dev -- --skip-schedules          # Skip schedule tests');
   console.log('  npm run dev -- --detect-types            # Generate type files from HTTP responses');
-  console.log('  npm run dev -- --ignore-cache            # Use fresh in-memory cache (implied by --detect-types)\n');
+  console.log('  npm run dev -- --ignore-cache            # Use fresh in-memory cache (implied by --detect-types)');
+  console.log('  npm run dev -- <parkId> --clear-cache    # Clear that park\'s SQLite cache before testing');
+  console.log('  npm run dev -- --clear-cache             # Clear ALL cache then test all parks');
+  console.log('  npm run dev -- <parkId> --dump-http      # Dump HTTP responses to ./http-dump.jsonl');
+  console.log('  npm run dev -- <parkId> --dump-http -    # Dump HTTP responses to stdout');
+  console.log('  npm run dev -- <parkId> --dump-http file # Dump HTTP responses to specified file\n');
 }
 
 /**
@@ -186,9 +211,30 @@ async function main() {
 
   const summaries: ParkTestSummary[] = [];
 
+  // Clear SQLite cache if requested
+  if (config.clearCache) {
+    if (config.mode === 'single' && config.parkId) {
+      const parkEntry = await getDestinationById(config.parkId);
+      if (parkEntry) {
+        const deleted = CacheLib.clearByClassName(parkEntry.DestinationClass.name);
+        console.log(`🗑️  Cleared ${deleted} cache entries for ${parkEntry.DestinationClass.name}\n`);
+      }
+    } else {
+      const deleted = CacheLib.clearAll();
+      console.log(`🗑️  Cleared all ${deleted} cache entries\n`);
+    }
+  }
+
   // Enable temporary cache mode if requested
   if (config.ignoreCache) {
     CacheLib.enableTemporaryMode();
+  }
+
+  // Set up HTTP response capture if requested
+  const capturedHttpEvents: HttpTraceEvent[] = [];
+  if (config.dumpHttp) {
+    tracing.onHttpComplete(event => capturedHttpEvents.push(event));
+    tracing.onHttpError(event => capturedHttpEvents.push(event));
   }
 
   // Start type detector if enabled
@@ -287,6 +333,30 @@ async function main() {
 
     // Print summary
     printSummary(summaries);
+
+    // Write HTTP response dump if requested
+    if (config.dumpHttp && capturedHttpEvents.length > 0) {
+      // Omit request headers (may contain auth tokens); keep response body and metadata
+      const lines = capturedHttpEvents.map(e => JSON.stringify({
+        eventType: e.eventType,
+        url: e.url,
+        method: e.method,
+        status: e.status,
+        duration: e.duration,
+        cacheHit: e.cacheHit,
+        className: e.className,
+        methodName: e.methodName,
+        body: e.body,
+        error: e.error?.message,
+      })).join('\n') + '\n';
+
+      if (config.dumpHttp === '-') {
+        process.stdout.write(lines);
+      } else {
+        writeFileSync(config.dumpHttp, lines, 'utf-8');
+        console.log(`\n💾 HTTP dump: ${capturedHttpEvents.length} responses → ${config.dumpHttp}`);
+      }
+    }
 
     // Generate type files if type detection was enabled
     if (config.detectTypes) {

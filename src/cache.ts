@@ -414,6 +414,37 @@ class CacheLib {
     }
   }
 
+  /**
+   * Delete all cache entries whose key contains the given class name.
+   * Matches both plain keys (`ClassName:method:args`) and prefixed keys (`prefix:ClassName:method:args`).
+   * Returns the number of deleted entries.
+   */
+  static clearByClassName(className: string): number {
+    try {
+      return retryOperation(() => {
+        const stmt = database.prepare("DELETE FROM cache WHERE key LIKE ? OR key LIKE ?");
+        const result = stmt.run(`${className}:%`, `%:${className}:%`);
+        return Number(result.changes || 0);
+      });
+    } catch (error) {
+      console.error("Cache clearByClassName error:", error);
+      return 0;
+    }
+  }
+
+  /** Delete every entry in the cache. Returns number deleted. */
+  static clearAll(): number {
+    try {
+      return retryOperation(() => {
+        const result = database.prepare("DELETE FROM cache").run();
+        return Number(result.changes || 0);
+      });
+    } catch (error) {
+      console.error("Cache clearAll error:", error);
+      return 0;
+    }
+  }
+
   private static inflight = new Map<string, Promise<any>>();
 
   static async wrap<T>(key: string, fn: () => T, ttlSeconds: number): Promise<T> {
