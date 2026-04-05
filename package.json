@@ -43,6 +43,9 @@
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^4.0.16",
     "@vitest/ui": "^4.0.16",
+    "concurrently": "^9.2.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
     "tsx": "^4.20.5",
     "typescript": "^5.0.0",
     "vitest": "^4.0.16"
@@ -51,9 +54,6 @@
     "@themeparks/typelib": "^1.0.5",
     "adm-zip": "^0.5.16",
     "ajv": "^8.17.1",
-    "concurrently": "^9.2.1",
-    "cors": "^2.8.5",
-    "express": "^5.1.0",
     "sift": "^17.1.3"
   }
 }
