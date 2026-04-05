@@ -146,6 +146,10 @@ class HTTPRequestImpl implements HTTPObj {
   private _resolve?: (value: HTTPObj) => void;
   private _reject?: (reason?: any) => void;
 
+  // Buffered body bytes — set once on first read so that multiple callers sharing
+  // the same HTTPRequestImpl (via @http in-flight dedup) can all call .json()/.text()/.blob()/.arrayBuffer()
+  private _bufferPromise?: Promise<ArrayBuffer>;
+
   private _onJson: ((data: any) => void) | null = null;
   private _onText: ((data: string) => void) | null = null;
   private _onBlob: ((data: Blob) => void) | null = null;
@@ -404,33 +408,42 @@ class HTTPRequestImpl implements HTTPObj {
     }, traceContext);
   }
 
+  // Lazily buffer raw bytes so multiple callers sharing this HTTPRequestImpl
+  // (via @http in-flight dedup) can all call .json()/.text()/.blob()/.arrayBuffer()
+  private getBuffer(): Promise<ArrayBuffer> {
+    if (!this._bufferPromise) {
+      this._bufferPromise = this.response!.arrayBuffer();
+    }
+    return this._bufferPromise;
+  }
+
   // Passthrough common response methods
   async json(): Promise<any> {
     if (!this.response) {
       throw new Error("No response available.");
     }
-    return this.response.json();
+    return JSON.parse(new TextDecoder().decode(await this.getBuffer()));
   }
 
   async text(): Promise<string> {
     if (!this.response) {
       throw new Error("No response available.");
     }
-    return this.response.text();
+    return new TextDecoder().decode(await this.getBuffer());
   }
 
   async blob(): Promise<Blob> {
     if (!this.response) {
       throw new Error("No response available.");
     }
-    return this.response.blob();
+    return new Blob([await this.getBuffer()]);
   }
 
   async arrayBuffer(): Promise<ArrayBuffer> {
     if (!this.response) {
       throw new Error("No response available.");
     }
-    return this.response.arrayBuffer();
+    return this.getBuffer();
   }
 
   get status(): number {

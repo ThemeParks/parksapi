@@ -414,6 +414,8 @@ class CacheLib {
     }
   }
 
+  private static inflight = new Map<string, Promise<any>>();
+
   static async wrap<T>(key: string, fn: () => T, ttlSeconds: number): Promise<T> {
     if (this.has(key)) {
       const cachedValue = this.get(key);
@@ -421,9 +423,23 @@ class CacheLib {
         return cachedValue as T;
       }
     }
-    const result = await fn();
-    this.set(key, result, ttlSeconds);
-    return result;
+
+    // In-flight deduplication: concurrent cache misses on the same key share one execution
+    if (this.inflight.has(key)) {
+      return this.inflight.get(key) as Promise<T>;
+    }
+
+    const promise = Promise.resolve(fn()).then((result) => {
+      this.set(key, result, ttlSeconds);
+      this.inflight.delete(key);
+      return result;
+    }).catch((err) => {
+      this.inflight.delete(key);
+      throw err;
+    });
+
+    this.inflight.set(key, promise);
+    return promise;
   }
 }
 
