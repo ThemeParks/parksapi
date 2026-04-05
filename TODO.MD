@@ -28,7 +28,7 @@
 - Lotte World
 - Chimelong: Guangzhou + Zhuhai (2 destinations)
 
-**Totals: ~118 destinations, 1064 tests, 45 test files**
+**Totals: ~118 destinations, 1068 tests, 45 test files**
 
 ## Remaining Migrations
 

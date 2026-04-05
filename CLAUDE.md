@@ -61,7 +61,9 @@ async getParks() { ... }
 async getAPIKey() { ... }
 ```
 
-**Direct access:** `CacheLib.get()`, `CacheLib.set()`, `CacheLib.wrap()`
+**Direct access:** `CacheLib.get()`, `CacheLib.set()`, `CacheLib.wrap()`, `CacheLib.delete()`, `CacheLib.clearByClassName()`, `CacheLib.clearAll()`
+
+**In-flight deduplication:** `CacheLib.wrap()` deduplicates concurrent cache misses on the same key — if two callers hit a miss simultaneously, only one executes the function; the second waits for the first's result. This prevents double-fetches when `buildEntityList` and `buildLiveData` both call the same underlying method on a cold cache.
 
 **🚨 CRITICAL: Cache Key Collisions in Base Classes**
 
@@ -943,7 +945,7 @@ protected async buildEntityList(): Promise<Entity[]> {
 **Config:** `jest.config.js` (uses `ts-jest` with ESM preset)
 **Test Config:** `tsconfig.test.json` (extends main config)
 
-**Test Coverage:** 88.84% overall (455 tests total)
+**Test Coverage:** 1068 tests across 45 test files
 
 **Core Library Coverage:**
 - ✅ `cache.ts` - 100% coverage
@@ -1011,20 +1013,15 @@ describe('My Tests', () => {
 ## Migration Status
 
 **✅ Completed (TypeScript):**
-- Core libraries: cache, config, http, injector, datetime, proxy (all comprehensively tested)
-- Base classes: Destination (with Template Method Pattern)
-- Helper utilities: Entity mapper, hierarchy resolver, multi-language support
-- Parks: Universal Studios (complete, 834 lines)
-- Tests: 455 tests total, 88.84% overall coverage
-  - Core libraries at 85-100% coverage (cache, config, datetime, http, injector, destination)
-  - Integration tests with local HTTP server
-  - DateTime utilities with ISO 8601 timezone offset support
-  - Multi-language entity names with intelligent fallback (18 tests, 100% coverage)
+- Core libraries: cache, config, http, injector, datetime, proxy, tracing, virtual queue
+- Base classes: Destination (Template Method Pattern), full decorator system
+- Helper utilities: entity mapper, hierarchy resolver, multi-language, tags, statusMap, htmlUtils
+- ~118 destinations across 50+ park groups (see `TODO.MD` for the full list)
+- 1068 tests across 45 test files; core libraries at 85–100% coverage
 
-**🔄 Legacy (JavaScript in `lib/`):**
-- 50+ park implementations (Disney, Six Flags, Cedar Point, etc.)
-- Old base classes (destination.js, park.js, database.js)
-- Multiple cache backends (Memory, LMDB, LevelDB)
+**🔄 Remaining (JavaScript in `lib/`):**
+- Walt Disney World (4 parks), Disneyland Resort (2 parks), Hong Kong Disneyland (1 park)
+- Old base classes (destination.js, park.js, database.js) — will be removed once migration is complete
 
 **Migration Goal:** Port all parks from `lib/` to `src/`, maintain API compatibility with legacy implementations.
 
