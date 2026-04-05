@@ -134,6 +134,14 @@ export class UniversalSingapore extends Destination {
     this.addConfigPrefix('UNIVERSALSINGAPORE');
   }
 
+  // ─── Initialisation ──────────────────────────────────────────────────────
+
+  /** Pre-warm the auth token so it is cached before buildEntityList /
+   *  buildLiveData fire their concurrent fetchAttractionList requests. */
+  protected async _init(): Promise<void> {
+    await this.getToken();
+  }
+
   // ─── Authentication ──────────────────────────────────────────────────────
 
   /** Stable device UUID — generated once, cached for 3 months in SQLite */
@@ -165,7 +173,11 @@ export class UniversalSingapore extends Destination {
     } as any as HTTPObj;
   }
 
-  /** Bearer token cached for 11 hours (token expires in 12h) */
+  /** Bearer token cached for 11 hours (token expires in 12h).
+   * The @http decorator on fetchToken() provides in-flight deduplication at the
+   * framework level — concurrent cold-start calls share a single pending request,
+   * preventing the USS API from invalidating earlier tokens when a new one is issued
+   * for the same device. */
   @cache({ttlSeconds: 60 * 60 * 11})
   async getToken(): Promise<string> {
     const resp = await this.fetchToken();

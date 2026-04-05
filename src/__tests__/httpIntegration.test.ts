@@ -1,5 +1,5 @@
 import {createServer, IncomingMessage, ServerResponse} from 'http';
-import {http, stopHttpQueue, waitForHttpQueue} from '../http.js';
+import {http, stopHttpQueue, waitForHttpQueue, clearHttpInflightMap} from '../http.js';
 import {CacheLib} from '../cache.js';
 
 // Test server configuration
@@ -160,9 +160,10 @@ describe('HTTP Library Integration Tests', () => {
   });
 
   beforeEach(() => {
-    // Clear request log and cache before each test
+    // Clear request log, cache, and in-flight dedup map before each test
     requestLog = [];
     CacheLib.clear();
+    clearHttpInflightMap();
   });
 
   describe('Basic HTTP Requests', () => {
@@ -694,6 +695,123 @@ describe('HTTP Library Integration Tests', () => {
       // httpProxy should NOT follow the redirect
       expect(resp.status).toBe(303);
       expect(resp.headers.get('location')).toBe(`${TEST_URL}/redirect-target`);
+    });
+  });
+
+  describe('In-flight Deduplication', () => {
+    test('concurrent identical @http calls result in only one HTTP request', async () => {
+      // Simulate a cold-start race condition: multiple concurrent callers hit the
+      // same @http method before the first request resolves. Without dedup this
+      // would enqueue N separate requests; with dedup only one is enqueued.
+      class TestClass {
+        @http()
+        async fetchShared(): Promise<any> {
+          return {
+            method: 'GET',
+            url: `${TEST_URL}/success`,
+            tags: [],
+          };
+        }
+      }
+
+      const instance = new TestClass();
+
+      // Fire 5 concurrent calls — none should be cached at this point
+      const results = await Promise.all([
+        instance.fetchShared(),
+        instance.fetchShared(),
+        instance.fetchShared(),
+        instance.fetchShared(),
+        instance.fetchShared(),
+      ]);
+
+      await waitForHttpQueue();
+
+      // All promises should resolve successfully
+      expect(results).toHaveLength(5);
+      for (const r of results) {
+        expect(r.ok).toBe(true);
+      }
+
+      // Critically: only ONE actual HTTP request should have been made
+      expect(requestLog.length).toBe(1);
+    });
+
+    test('different instances each make their own request', async () => {
+      class TestClass {
+        @http()
+        async fetchData(): Promise<any> {
+          return {
+            method: 'GET',
+            url: `${TEST_URL}/success`,
+            tags: [],
+          };
+        }
+      }
+
+      const instance1 = new TestClass();
+      const instance2 = new TestClass();
+
+      // Fire concurrent calls from two different instances — each should get its own request
+      await Promise.all([
+        instance1.fetchData(),
+        instance2.fetchData(),
+      ]);
+
+      await waitForHttpQueue();
+
+      // Two instances → two separate HTTP requests
+      expect(requestLog.length).toBe(2);
+    });
+
+    test('different args each make their own request', async () => {
+      class TestClass {
+        @http()
+        async fetchWithParam(path: string): Promise<any> {
+          return {
+            method: 'GET',
+            url: `${TEST_URL}${path}`,
+            tags: [],
+          };
+        }
+      }
+
+      const instance = new TestClass();
+
+      await Promise.all([
+        instance.fetchWithParam('/success'),
+        instance.fetchWithParam('/text'),
+      ]);
+
+      await waitForHttpQueue();
+
+      // Different args → two separate HTTP requests (no dedup across different args)
+      expect(requestLog.length).toBe(2);
+    });
+
+    test('sequential calls each make their own request after the first resolves', async () => {
+      class TestClass {
+        @http()
+        async fetchData(): Promise<any> {
+          return {
+            method: 'GET',
+            url: `${TEST_URL}/success`,
+            tags: [],
+          };
+        }
+      }
+
+      const instance = new TestClass();
+
+      // First call
+      await instance.fetchData();
+      await waitForHttpQueue();
+      expect(requestLog.length).toBe(1);
+
+      // Second call — inflight entry was removed on resolve, so a fresh request is made
+      await instance.fetchData();
+      await waitForHttpQueue();
+      expect(requestLog.length).toBe(2);
     });
   });
 });

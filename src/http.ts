@@ -38,6 +38,31 @@ export type HTTPRequester = {
 };
 const httpRequesters: HTTPRequester[] = [];
 
+// In-flight deduplication map for @http decorated methods.
+// Key: "<instanceId>:<methodName>:<serialisedArgs>"
+// While a promise is pending, concurrent calls with the same key return the same promise.
+const httpInflightMap = new Map<string, Promise<HTTPObj>>();
+
+// WeakMap to assign stable numeric IDs to instances (for dedup key building)
+const httpInstanceIds = new WeakMap<object, number>();
+let httpInstanceIdCounter = 0;
+
+function getHttpInstanceId(instance: object): number {
+  let id = httpInstanceIds.get(instance);
+  if (id === undefined) {
+    id = ++httpInstanceIdCounter;
+    httpInstanceIds.set(instance, id);
+  }
+  return id;
+}
+
+/**
+ * Clear the in-flight deduplication map.
+ * WARNING: Only use in tests.
+ */
+export function clearHttpInflightMap(): void {
+  httpInflightMap.clear();
+}
 
 // Options for HTTP requests
 export type HTTPOptions = {
@@ -480,85 +505,112 @@ function httpDecoratorFactory(options?: {
     }
 
     const originalMethod = descriptor.value;
-    descriptor.value = async function (...args: any[]): Promise<HTTPObj> {
-      const result = await originalMethod.apply(this, args);
-      if (
-        typeof result === 'object' &&
-        result !== null &&
-        'method' in result &&
-        'url' in result
-      ) {
-        // Create internal implementation with private handlers
-        const internalRequest = new HTTPRequestImpl(result);
-
-        // Set class name for cache key uniqueness (prevents conflicts between different classes)
-        internalRequest.className = this.constructor.name;
-        // Regenerate cache key now that className is set
-        internalRequest.cacheKey = internalRequest.generateCacheKey();
-
-        // Apply decorator options
-        if (options?.retries !== undefined) {
-          internalRequest.retries = options.retries;
-        }
-
-        // Optionally override cache key
-        if (options?.cacheKey !== undefined) {
-          // Include class name in manual cache key override too
-          //internalRequest.cacheKey = createHash('sha256').update(`${this.constructor.name}:${options.cacheKey}`).digest('hex');
-          internalRequest.cacheKey = `${this.constructor.name}:${options.cacheKey}`;
-        }
-
-        // set cache TTL if provided
-        if (options?.cacheSeconds !== undefined) {
-          internalRequest.cacheTtlSeconds = options.cacheSeconds;
-        }
-
-        // Optionally set earliest execute time based on delayMs
-        let executeTime = 0;
-        if (options?.delayMs !== undefined) {
-          const now = Date.now();
-          executeTime = now + options.delayMs;
-        }
-
-        // Queue HTTP request
-        // Get real class name (bypass Proxy wrappers)
-        // Try multiple methods to get the actual class name
-        let realClassName = (this as any).__className__ || // Check if we stored it
-                           Reflect.get(Reflect.get(this, 'constructor'), 'name') || // Direct reflection
-                           Object.getPrototypeOf(Object.getPrototypeOf(this)).constructor.name; // Skip one level
-
-        httpRequestQueue.push({
-          instance: this,
-          methodName: propertyKey,
-          args: args,
-          request: internalRequest,
-          earliestExecute: executeTime > 0 ? executeTime : undefined,
-          validateResponse: formatValidate || undefined,
-          traceContext: tracing.getContext(), // Capture current trace context
-          className: realClassName,
-        });
-
-        // sort queue by earliestExecute time
-        httpRequestQueue.sort((a, b) => {
-          const aTime = a.earliestExecute || 0;
-          const bTime = b.earliestExecute || 0;
-          return aTime - bTime;
-        });
-
-        // Broadcast HTTP event for logging/debugging
-        console.log(`HTTP Request queued: ${result.method} ${result.url} (method: ${propertyKey})`);
-
-        // Attach response promise to the request entry
-        result.response = new Promise<HTTPObj>((resolve, reject) => {
-          internalRequest.setPromiseHandlers(resolve, reject);
-        });
-
-        return result.response;
-      } else {
-        throw new Error(
-          `${propertyKey} must return an HTTPRequest object with 'method' and 'url' properties.`
-        );
+    descriptor.value = function (...args: any[]): Promise<HTTPObj> {
+      // --- In-flight deduplication ---
+      // Build the dedup key synchronously before any async work, then register
+      // the promise immediately so subsequent concurrent calls see it and coalesce.
+      // This prevents race conditions where concurrent callers (e.g. multiple
+      // buildEntityList / buildLiveData calls hitting the same auth token endpoint
+      // simultaneously) each fire independent requests.
+      const dedupKey = `${getHttpInstanceId(this)}:${propertyKey}:${args.length > 0 ? JSON.stringify(args) : ''}`;
+      const existingInflight = httpInflightMap.get(dedupKey);
+      if (existingInflight) {
+        return existingInflight;
       }
+
+      // Create the outer promise and register it synchronously before any await,
+      // so concurrent calls see it immediately.
+      const instance = this;
+      const outerPromise = (async () => {
+        const result = await originalMethod.apply(instance, args);
+        if (
+          typeof result === 'object' &&
+          result !== null &&
+          'method' in result &&
+          'url' in result
+        ) {
+          // Create internal implementation with private handlers
+          const internalRequest = new HTTPRequestImpl(result);
+
+          // Set class name for cache key uniqueness (prevents conflicts between different classes)
+          internalRequest.className = instance.constructor.name;
+          // Regenerate cache key now that className is set
+          internalRequest.cacheKey = internalRequest.generateCacheKey();
+
+          // Apply decorator options
+          if (options?.retries !== undefined) {
+            internalRequest.retries = options.retries;
+          }
+
+          // Optionally override cache key
+          if (options?.cacheKey !== undefined) {
+            // Include class name in manual cache key override too
+            //internalRequest.cacheKey = createHash('sha256').update(`${instance.constructor.name}:${options.cacheKey}`).digest('hex');
+            internalRequest.cacheKey = `${instance.constructor.name}:${options.cacheKey}`;
+          }
+
+          // set cache TTL if provided
+          if (options?.cacheSeconds !== undefined) {
+            internalRequest.cacheTtlSeconds = options.cacheSeconds;
+          }
+
+          // Optionally set earliest execute time based on delayMs
+          let executeTime = 0;
+          if (options?.delayMs !== undefined) {
+            const now = Date.now();
+            executeTime = now + options.delayMs;
+          }
+
+          // Queue HTTP request
+          // Get real class name (bypass Proxy wrappers)
+          // Try multiple methods to get the actual class name
+          let realClassName = (instance as any).__className__ || // Check if we stored it
+                             Reflect.get(Reflect.get(instance, 'constructor'), 'name') || // Direct reflection
+                             Object.getPrototypeOf(Object.getPrototypeOf(instance)).constructor.name; // Skip one level
+
+          httpRequestQueue.push({
+            instance: instance,
+            methodName: propertyKey,
+            args: args,
+            request: internalRequest,
+            earliestExecute: executeTime > 0 ? executeTime : undefined,
+            validateResponse: formatValidate || undefined,
+            traceContext: tracing.getContext(), // Capture current trace context
+            className: realClassName,
+          });
+
+          // sort queue by earliestExecute time
+          httpRequestQueue.sort((a, b) => {
+            const aTime = a.earliestExecute || 0;
+            const bTime = b.earliestExecute || 0;
+            return aTime - bTime;
+          });
+
+          // Broadcast HTTP event for logging/debugging
+          console.log(`HTTP Request queued: ${result.method} ${result.url} (method: ${propertyKey})`);
+
+          // Attach response promise to the request entry
+          result.response = new Promise<HTTPObj>((resolve, reject) => {
+            internalRequest.setPromiseHandlers(resolve, reject);
+          });
+
+          return result.response;
+        } else {
+          throw new Error(
+            `${propertyKey} must return an HTTPRequest object with 'method' and 'url' properties.`
+          );
+        }
+      })();
+
+      httpInflightMap.set(dedupKey, outerPromise);
+
+      // Clean up the dedup entry once the promise settles (resolve or reject)
+      outerPromise.then(
+        () => { httpInflightMap.delete(dedupKey); },
+        () => { httpInflightMap.delete(dedupKey); },
+      );
+
+      return outerPromise;
     };
   };
 }
