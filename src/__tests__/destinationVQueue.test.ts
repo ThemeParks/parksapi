@@ -50,6 +50,10 @@ class TestPark extends Destination {
     return this.buildBoardingGroupQueue(...args);
   }
 
+  public testFormatDateInTimezone(date: string | Date): string {
+    return (this as any).formatDateInTimezone(date);
+  }
+
   public testCalculateReturnWindow(
     ...args: Parameters<Destination['calculateReturnWindow']>
   ) {
@@ -160,6 +164,31 @@ describe('Destination virtual queue helpers', () => {
       // UTC Z format
       const r3 = park.testBuildReturnTimeQueue('AVAILABLE', '2025-07-15T14:30:00Z', null);
       expect(r3.returnStart).toContain('14:30:00');
+    });
+
+    test('buildBoardingGroupQueue should include estimatedWait when provided', () => {
+      const park = new TestPark();
+
+      const result = park.testBuildBoardingGroupQueue('AVAILABLE', {
+        currentGroupStart: 10,
+        currentGroupEnd: 20,
+        estimatedWait: 45,
+      });
+
+      expect(result.estimatedWait).toBe(45);
+    });
+
+    test('formatDateInTimezone converts a plain date string (no T or offset) via formatInTimezone', () => {
+      const park = new TestPark();
+
+      // A date-only string has no 'T', so the pass-through condition is false
+      // and the code calls formatInTimezone(new Date(dateStr), timezone, 'iso').
+      // new Date('2025-07-15') = UTC midnight → July 14 20:00 in New York (EDT = UTC-4).
+      const result = park.testFormatDateInTimezone('2025-07-15');
+
+      // Result is a formatted timezone-aware datetime string, not a plain date
+      expect(result).toContain('T');
+      expect(result).not.toBe('2025-07-15'); // was processed, not returned as-is
     });
 
     test('default timezone should be UTC when subclass does not set timezone', () => {

@@ -178,6 +178,69 @@ describe('Cache', () => {
     });
   });
 
+  describe('clearByClassName', () => {
+    test('deletes plain ClassName:method:args keys', () => {
+      Cache.set('TestPark:getToken:[]', 'tok1');
+      Cache.set('TestPark:fetchPOI:["en"]', 'poi');
+      Cache.set('OtherPark:getToken:[]', 'tok2');
+      Cache.clear(); // clear beforeEach leftovers first
+
+      Cache.set('TestPark:getToken:[]', 'tok1');
+      Cache.set('TestPark:fetchPOI:["en"]', 'poi');
+      Cache.set('OtherPark:getToken:[]', 'tok2');
+
+      const deleted = Cache.clearByClassName('TestPark');
+
+      expect(deleted).toBe(2);
+      expect(Cache.has('TestPark:getToken:[]')).toBe(false);
+      expect(Cache.has('TestPark:fetchPOI:["en"]')).toBe(false);
+      expect(Cache.has('OtherPark:getToken:[]')).toBe(true);
+    });
+
+    test('deletes prefixed prefix:ClassName:method:args keys', () => {
+      Cache.clear();
+      Cache.set('attractionsio:1:AttractionsIOV3:getParkConfig:[]', 'cfg');
+      Cache.set('attractionsio:2:AttractionsIOV3:getParkConfig:[]', 'cfg2');
+      Cache.set('SomethingElse:method:[]', 'other');
+
+      const deleted = Cache.clearByClassName('AttractionsIOV3');
+
+      expect(deleted).toBe(2);
+      expect(Cache.has('attractionsio:1:AttractionsIOV3:getParkConfig:[]')).toBe(false);
+      expect(Cache.has('attractionsio:2:AttractionsIOV3:getParkConfig:[]')).toBe(false);
+      expect(Cache.has('SomethingElse:method:[]')).toBe(true);
+    });
+
+    test('returns 0 when no matching keys exist', () => {
+      Cache.clear();
+      Cache.set('UnrelatedPark:method:[]', 'val');
+
+      const deleted = Cache.clearByClassName('NonExistentPark');
+
+      expect(deleted).toBe(0);
+      expect(Cache.size()).toBe(1);
+    });
+  });
+
+  describe('clearAll', () => {
+    test('removes all entries and returns count', () => {
+      Cache.clear();
+      Cache.set('ParkA:method:[]', 'a');
+      Cache.set('ParkB:method:[]', 'b');
+      Cache.set('ParkC:method:[]', 'c');
+
+      const deleted = Cache.clearAll();
+
+      expect(deleted).toBe(3);
+      expect(Cache.size()).toBe(0);
+    });
+
+    test('returns 0 when cache is already empty', () => {
+      Cache.clear();
+      expect(Cache.clearAll()).toBe(0);
+    });
+  });
+
   describe('Wrap Functionality', () => {
     test('should execute function and cache result on first call', async () => {
       const mockFn = vi.fn(() => 'computed-value');
@@ -238,6 +301,43 @@ describe('Cache', () => {
       const result2 = await Cache.wrap('complex-wrap', mockFn, 60);
       expect(result2).toEqual(complexObject);
       expect(mockFn).toHaveBeenCalledTimes(1);
+    });
+
+    test('concurrent cache misses on same key share one execution (in-flight dedup)', async () => {
+      let callCount = 0;
+      const slowFn = () => new Promise<string>(resolve => {
+        callCount++;
+        setTimeout(() => resolve('result'), 20);
+      });
+
+      // Fire two concurrent wraps on the same key (both are cache misses)
+      const [r1, r2] = await Promise.all([
+        Cache.wrap('inflight-key', slowFn, 60),
+        Cache.wrap('inflight-key', slowFn, 60),
+      ]);
+
+      expect(r1).toBe('result');
+      expect(r2).toBe('result');
+      expect(callCount).toBe(1); // function executed exactly once
+    });
+
+    test('wrap in-flight dedup cleans up on error so next call retries', async () => {
+      let attempt = 0;
+      const flakyFn = () => new Promise<string>((resolve, reject) => {
+        attempt++;
+        if (attempt === 1) {
+          setTimeout(() => reject(new Error('flaky')), 10);
+        } else {
+          setTimeout(() => resolve('ok'), 10);
+        }
+      });
+
+      // First call fails
+      await expect(Cache.wrap('flaky-key', flakyFn, 60)).rejects.toThrow('flaky');
+      // After failure the inflight entry is cleaned up — next call retries successfully
+      const result = await Cache.wrap('flaky-key', flakyFn, 60);
+      expect(result).toBe('ok');
+      expect(attempt).toBe(2);
     });
   });
 
