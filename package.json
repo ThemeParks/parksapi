@@ -38,29 +38,22 @@
   "homepage": "https://github.com/ThemeParks/parksapi#readme",
   "devDependencies": {
     "@types/adm-zip": "^0.5.8",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
     "@types/node": "^22.0.0",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
-    "@vitejs/plugin-react": "^5.0.4",
     "@vitest/coverage-v8": "^4.0.16",
     "@vitest/ui": "^4.0.16",
-    "ts-node": "^10.9.0",
     "tsx": "^4.20.5",
     "typescript": "^5.0.0",
-    "vite": "^7.1.8",
     "vitest": "^4.0.16"
   },
   "dependencies": {
     "@themeparks/typelib": "^1.0.5",
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.3",
     "adm-zip": "^0.5.16",
     "ajv": "^8.17.1",
     "concurrently": "^9.2.1",
     "cors": "^2.8.5",
     "express": "^5.1.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
     "sift": "^17.1.3"
   }
 }
