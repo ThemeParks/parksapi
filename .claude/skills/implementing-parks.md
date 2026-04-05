@@ -91,7 +91,7 @@ One `@inject` per hostname. Preserve existing headers with spread. Use dynamic h
 ```typescript
 @inject({
   eventName: 'httpRequest',
-  hostname: function() { return this.getApiHostname(); },
+  hostname: function() { return hostnameFromUrl(this.apiBase); },
 })
 async injectHeaders(req: HTTPObj): Promise<void> {
   req.headers = {
@@ -100,12 +100,21 @@ async injectHeaders(req: HTTPObj): Promise<void> {
     'user-agent': 'okhttp/5.1.0',
   };
 }
-
-private getApiHostname(): string | undefined {
-  if (!this.apiBase) return undefined;
-  try { return new URL(this.apiBase).hostname; } catch { return undefined; }
-}
 ```
+
+**Priority and parallel execution:** Injectors with the same `priority` value run in **parallel**. If two injectors both do `req.headers = { ...req.headers, ... }`, the second spread wins and drops the first injector's additions. Give them different priorities so they run sequentially:
+
+```typescript
+// priority 1 runs first — sets signing headers
+@inject({ eventName: 'httpRequest', hostname: ..., priority: 1 })
+async injectSigning(req: HTTPObj): Promise<void> { ... }
+
+// priority 2 runs second — sees signing headers already in req.headers
+@inject({ eventName: 'httpRequest', hostname: ..., priority: 2 })
+async injectAuth(req: HTTPObj): Promise<void> { ... }
+```
+
+Lower number = higher priority (runs first). Default is 0.
 
 ### 3. HTTP Methods
 
@@ -229,7 +238,12 @@ npm run harness -- compare parkname     # Compare TS vs snapshot
 ```bash
 npm run dev -- parkname -v              # Full test
 npm run dev -- parkname --skip-live-data --skip-schedules -v  # Entities only
+npm run dev -- parkname --clear-cache   # Clear SQLite cache for this park, then test
+npm run dev -- parkname --dump-http     # Dump all HTTP responses to ./http-dump.jsonl
+npm run dev -- parkname --dump-http -   # Dump to stdout (pipe to jq for inspection)
 ```
+
+**`--dump-http`** is the fastest way to inspect raw API responses during development — one JSONL line per request with url, status, className, methodName, and full response body. Auth headers are stripped.
 
 ## Shared Utilities
 
@@ -387,6 +401,33 @@ Watch for sentinel values (Universal uses `995` for "unavailable").
 ### Standby Pass Pattern (Shanghai Disney)
 Entities with "(Standby Pass Required)" in name aren't separate entities — fold into parent's RETURN_TIME queue.
 
+### Token Invalidation Recovery (USS pattern)
+Some APIs allow only one active session per device — obtaining a new token invalidates all prior tokens for the same device ID. A cached token then triggers 401s on every request until the cache expires.
+
+Fix: register an `httpError` inject that clears the cached token and nullifies the response on 401. Setting `req.response = undefined` makes the framework treat the failure as a retryable network error rather than a terminal 4xx:
+
+```typescript
+@inject({
+  eventName: 'httpError',
+  hostname: function() { return hostnameFromUrl(this.apiBase); },
+  tags: {$nin: ['auth']},  // don't loop on the auth endpoint itself
+} as any)
+async injectTokenRefresh(req: HTTPObj): Promise<void> {
+  if (req.response && req.status === 401) {
+    CacheLib.delete(`${this.constructor.name}:getToken:[]`);
+    req.response = undefined as any; // treat as network error → framework retries
+  }
+}
+```
+
+Also add `retries: 1` to the fetch methods so the retry actually happens:
+```typescript
+@http({retries: 1} as any)
+async fetchData(): Promise<HTTPObj> { ... }
+```
+
+The guard `req.response &&` is important — on the retry itself, `req.response` may already be undefined, and calling `req.status` on a missing response throws.
+
 ### Anonymous Auth (Phantasialand pattern)
 Create throwaway account, cache credentials for months, inject token via `@inject`. Exclude auth endpoints using tags.
 
@@ -500,3 +541,4 @@ For parks using OAuth2 (e.g., Europa-Park), POST to the token endpoint with `gra
 - **Futuroscope** (`src/parks/futuroscope/futuroscope.ts`) — Session auth, Next.js calendar scraping
 - **Universal Beijing** (`src/parks/universalbeijing/universalbeijing.ts`) — Chinese backend, gems_status codes, month+daily schedule
 - **USJ** (`src/parks/usj/universalstudiosjapan.ts`) — UDX platform, OAuth2 + public CDN, fake-UTC show times, web API schedule
+- **USS** (`src/parks/uss/universalsingapore.ts`) — AES-256-CBC + HMAC-SHA256 request signing, single-active-token-per-device with 401 recovery, `[Temporarily unavailable]` title prefix → DOWN status
