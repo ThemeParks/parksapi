@@ -336,7 +336,7 @@ export class UniversalSingapore extends Destination {
       for (const attr of categoryData[i]) {
         const entity: Entity = {
           id: String(attr.AttractionId),
-          name: attr.Title,
+          name: attr.Title.replace(/^\[Temporarily unavailable\]\s*/i, ''),
           entityType,
           parentId: PARK_ID,
           destinationId: DESTINATION_ID,
@@ -364,10 +364,13 @@ export class UniversalSingapore extends Destination {
 
     for (let i = 0; i < ENTITY_CATEGORIES.length; i++) {
       for (const attr of categoryData[i]) {
-        const status = attr.IsAvailable ? 'OPERATING' : 'CLOSED';
+        // "[Temporarily unavailable]" prefix in the title means the ride is down
+        // during operating hours even though IsAvailable may be true
+        const tempUnavailable = /^\[Temporarily unavailable\]/i.test(attr.Title);
+        const status = tempUnavailable ? 'DOWN' : (attr.IsAvailable ? 'OPERATING' : 'CLOSED');
         const ld: LiveData = {id: String(attr.AttractionId), status} as LiveData;
 
-        if (attr.isWaitTimeEnable && attr.IsAvailable) {
+        if (attr.isWaitTimeEnable && attr.IsAvailable && !tempUnavailable) {
           // WaitTime is "15" (minutes) when live; fall back to AvgTime if non-numeric
           const waitTime = parseWaitTime(attr.WaitTime) ?? attr.AvgTime ?? undefined;
           ld.queue = {STANDBY: {waitTime: waitTime || undefined}};
