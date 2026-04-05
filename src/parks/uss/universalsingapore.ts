@@ -5,7 +5,7 @@ import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
 import config from '../../config.js';
 import {destinationController} from '../../destinationRegistry.js';
-import {hostnameFromUrl} from '../../datetime.js';
+import {hostnameFromUrl, formatDate, addDays, constructDateTime} from '../../datetime.js';
 import {CacheLib} from '../../cache.js';
 import {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 
@@ -46,6 +46,31 @@ type USSAttractionListResponse = {
   Result: USSAttraction[];
 };
 
+type USSCalendarEntry = {
+  Date: string;        // 'YYYY-MM-DD'
+  IsAvailable: boolean;
+};
+
+type USSCalendarResponse = {
+  ThemeParkCalendarList: USSCalendarEntry[];
+  ResultCode: number;
+  ResultMessage: string;
+};
+
+type USSScheduleDay = {
+  Number: string;    // day-of-month: "1"
+  StartHour: string; // "10:00"
+  EndHour: string;   // "20:00"
+  Activities: unknown[];
+};
+
+type USSScheduleMonth = {
+  Value: string;  // month number: "4"
+  Name: string;   // "April"
+  Year: string;   // "2026"
+  Days: USSScheduleDay[];
+};
+
 type USSAuthResponse = {
   StatusCode: number;
   Result: {
@@ -67,6 +92,48 @@ function nowTimestamp(): string {
     pad(now.getMinutes()) +
     pad(now.getSeconds())
   );
+}
+
+/**
+ * Extract the months schedule block from the RWS website HTML.
+ * The page embeds Sitecore JSS state containing:
+ * "months":{"Months":[{Value, Name, Year, Days:[{Number, StartHour, EndHour}]}]}
+ * Returns a map of "YYYY-MM-DD" → {start, end} for efficient lookup.
+ */
+function parseMonthsFromHtml(html: string): Map<string, {start: string; end: string}> {
+  const map = new Map<string, {start: string; end: string}>();
+  const marker = '"months":{"Months":';
+  const markerIdx = html.indexOf(marker);
+  if (markerIdx === -1) return map;
+
+  const bracketIdx = markerIdx + marker.length;
+  if (html[bracketIdx] !== '[') return map;
+
+  let depth = 0;
+  let end = -1;
+  for (let i = bracketIdx; i < html.length; i++) {
+    if (html[i] === '[') depth++;
+    else if (html[i] === ']') {
+      depth--;
+      if (depth === 0) { end = i; break; }
+    }
+  }
+  if (end === -1) return map;
+
+  try {
+    const months: USSScheduleMonth[] = JSON.parse(html.substring(bracketIdx, end + 1));
+    for (const month of months) {
+      const mm = String(month.Value).padStart(2, '0');
+      for (const day of month.Days) {
+        const dd = String(day.Number).padStart(2, '0');
+        map.set(`${month.Year}-${mm}-${dd}`, {start: day.StartHour, end: day.EndHour});
+      }
+    }
+  } catch {
+    // Malformed JSON — return whatever was parsed so far
+  }
+
+  return map;
 }
 
 /**
@@ -127,6 +194,12 @@ export class UniversalSingapore extends Destination {
 
   @config
   hmacSecret: string = '';
+
+  @config
+  websiteBase: string = '';
+
+  @config
+  websiteApiKey: string = '';
 
   timezone = TIMEZONE;
 
@@ -263,6 +336,49 @@ export class UniversalSingapore extends Destination {
 
   // ─── HTTP fetch methods ──────────────────────────────────────────────────
 
+  /** Fetch 31-day availability calendar from the public RWS website API. */
+  @http({retries: 1} as any)
+  async fetchCalendarApi(fromDate: string): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.websiteBase}/rwsapi/themeParkCalendarList?validTimeFrom=${fromDate}&themeParkCode=USS&loadCalendarFromBME=true&sc_apikey=${this.websiteApiKey}`,
+      headers: {
+        'accept': 'application/json, text/plain, */*',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      options: {json: true},
+    } as any as HTTPObj;
+  }
+
+  /** Cached calendar entries — refreshed every 12 hours. */
+  @cache({ttlSeconds: 60 * 60 * 12})
+  async getCalendar(fromDate: string): Promise<USSCalendarEntry[]> {
+    const resp = await this.fetchCalendarApi(fromDate);
+    const data: USSCalendarResponse = await resp.json();
+    return data?.ThemeParkCalendarList || [];
+  }
+
+  /** Fetch the USS attraction page — contains per-day schedule hours embedded in HTML. */
+  @http({retries: 1} as any)
+  async fetchWebsitePage(): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.websiteBase}/en/play/universal-studios-singapore`,
+      headers: {
+        'accept': 'text/html,application/xhtml+xml,*/*;q=0.9',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    } as any as HTTPObj;
+  }
+
+  /** Hours lookup map from embedded page data — refreshed every 24 hours. */
+  @cache({ttlSeconds: 60 * 60 * 24})
+  async getHoursMap(): Promise<[string, {start: string; end: string}][]> {
+    const resp = await this.fetchWebsitePage();
+    const html = await resp.text();
+    return Array.from(parseMonthsFromHtml(html).entries());
+  }
+
   /** Fetch attractions for a given category. Timestamp is a cache-buster. */
   @http({retries: 1} as any)
   async fetchAttractionList(categoryId: number): Promise<HTTPObj> {
@@ -386,7 +502,49 @@ export class UniversalSingapore extends Destination {
   // ─── Schedules ────────────────────────────────────────────────────────────
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
-    // No dated schedule endpoint available in this API — revisit when discovered
-    return [];
+    if (!this.websiteBase) return [];
+
+    const today = formatDate(new Date(), TIMEZONE);
+    const future = formatDate(addDays(new Date(), 31), TIMEZONE);
+
+    // Fetch availability calendar (62 days) and per-day hours concurrently.
+    // The page HTML covers ~90 days (current month + 2 more) with accurate
+    // per-day hours. The calendar API provides explicit open/closed status
+    // for the first 62 days — use it only to filter out explicitly-closed days.
+    const [window1, window2, hoursEntries] = await Promise.all([
+      this.getCalendar(today),
+      this.getCalendar(future),
+      this.getHoursMap(),
+    ]);
+
+    const hoursMap = new Map(hoursEntries);
+
+    // Build availability map from calendar API (undefined = not covered, assume open)
+    const availabilityMap = new Map<string, boolean>();
+    for (const entry of [...window1, ...window2]) {
+      availabilityMap.set(entry.Date, entry.IsAvailable);
+    }
+
+    const scheduleEntries: object[] = [];
+
+    for (const [date, hours] of hoursMap) {
+      // Skip days explicitly marked unavailable; include days not yet in the API window
+      if (availabilityMap.get(date) === false) continue;
+
+      scheduleEntries.push({
+        date,
+        type: 'PARK_OPEN',
+        openingTime: constructDateTime(date, hours.start, TIMEZONE),
+        closingTime: constructDateTime(date, hours.end, TIMEZONE),
+      });
+    }
+
+    // Sort chronologically
+    scheduleEntries.sort((a: any, b: any) => a.date.localeCompare(b.date));
+
+    return [{
+      id: PARK_ID,
+      schedule: scheduleEntries,
+    } as unknown as EntitySchedule];
   }
 }
