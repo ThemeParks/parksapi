@@ -292,14 +292,14 @@ export abstract class Destination {
       switch (entity.entityType) {
         case 'DESTINATION':
           // Destinations are roots - no parents
-          entity.parentId = undefined;
-          entity.parkId = undefined;
+          delete entity.parentId;
+          delete entity.parkId;
           entity.destinationId = entity.id;
           break;
 
         case 'PARK':
           // Parks should have destination parent, no parkId
-          entity.parkId = undefined;
+          delete entity.parkId;
           const parkDestination = findAncestor(entity.id, ['DESTINATION']);
           if (parkDestination) {
             entity.destinationId = parkDestination.id;
@@ -316,7 +316,11 @@ export abstract class Destination {
           const park = findAncestor(entity.id, ['PARK']);
           const destination = findAncestor(entity.id, ['DESTINATION']);
 
-          entity.parkId = park?.id;
+          if (park) {
+            entity.parkId = park.id;
+          } else {
+            delete entity.parkId;
+          }
           entity.destinationId = destination?.id || entity.destinationId;
 
           // Validation: all entities must have a destination
