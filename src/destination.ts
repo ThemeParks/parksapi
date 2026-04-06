@@ -714,6 +714,13 @@ export abstract class Destination {
     const merged = [...destinations.filter(d => !entityIds.has(d.id)), ...entities];
     const resolved = this.resolveEntityHierarchy(merged);
 
+    // Default attractionType for ATTRACTION entities that don't specify one
+    for (const entity of resolved) {
+      if (entity.entityType === 'ATTRACTION' && !(entity as any).attractionType) {
+        (entity as any).attractionType = 'RIDE';
+      }
+    }
+
     // Sanitize entity names:
     // 1. Strip HTML tags and decode entities (e.g., "Balloon <em>Race</em>")
     // 2. Remove promotional/status suffixes (e.g., " - Now Open!", " - Temporarily Closed")
