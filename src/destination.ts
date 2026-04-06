@@ -117,6 +117,14 @@ export abstract class Destination {
   timezone: string = 'UTC';
 
   /**
+   * Whether this destination supports a real-time live data stream.
+   * Parks with WebSocket or database sync feeds set this to true.
+   * The collector checks this to decide whether to run a stream loop.
+   * @default false
+   */
+  hasLiveStream: boolean = false;
+
+  /**
    * Optional cache key prefix for all cached methods.
    * When set, this prefix is prepended to all cache keys, preventing cache collisions
    * when multiple instances of the same base class exist (e.g., multiple parks using the same framework).
@@ -752,6 +760,27 @@ export abstract class Destination {
   }
 
   /**
+   * Stream live data updates in real time
+   *
+   * Returns an async generator that yields LiveData[] arrays as updates
+   * arrive from the upstream feed. Each yield contains only the item(s)
+   * that changed — a single-element array for per-document sources
+   * (e.g. Couchbase Lite), or a full snapshot for sources that send
+   * all data at once (e.g. WebSocket).
+   *
+   * For parks without a live feed (hasLiveStream = false), the generator
+   * returns immediately without yielding.
+   *
+   * The generator ends when the upstream connection closes. The caller
+   * is responsible for reconnecting by calling streamLiveData() again
+   * in a loop.
+   */
+  async *streamLiveData(): AsyncGenerator<LiveData[]> {
+    await this.init();
+    yield* this.buildLiveDataStream();
+  }
+
+  /**
    * Build live data for all entities in this destination
    *
    * Subclasses should override this method to return live data (wait times,
@@ -761,6 +790,23 @@ export abstract class Destination {
    */
   protected async buildLiveData(): Promise<LiveData[]> {
     throw new Error("buildLiveData not implemented.");
+  }
+
+  /**
+   * Build a real-time stream of live data updates
+   *
+   * Override this method in parks that have a WebSocket or database sync
+   * feed. The default implementation is an empty generator (returns
+   * immediately, never yields).
+   *
+   * The connection to the live data source should be opened in _init(),
+   * not here. This method subscribes to the already-open connection
+   * and yields updates as they arrive.
+   *
+   * @returns Async generator yielding LiveData[] per update
+   */
+  protected async *buildLiveDataStream(): AsyncGenerator<LiveData[]> {
+    // Default: no live stream — return immediately
   }
 
   /**
