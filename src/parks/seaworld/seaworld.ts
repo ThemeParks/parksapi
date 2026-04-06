@@ -275,6 +275,7 @@ export class SeaworldDestination extends Destination {
           id: poi.Id,
           name: poi.Name,
           entityType: 'ATTRACTION',
+          attractionType: 'RIDE',
           parentId: parkDetail.Id,
           destinationId: this.destinationId,
           timezone: this.timezone,

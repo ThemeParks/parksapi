@@ -58,7 +58,7 @@
     "vitest": "^4.0.16"
   },
   "dependencies": {
-    "@themeparks/typelib": "^1.0.5",
+    "@themeparks/typelib": "^1.1.3",
     "adm-zip": "^0.5.16",
     "ajv": "^8.17.1",
     "sift": "^17.1.3"
