@@ -687,7 +687,7 @@ export abstract class Destination {
    * @returns {Entity[]} List of destinations
    */
   async getDestinations(): Promise<Entity[]> {
-    throw new Error("getDestinations not implemented.");
+    return [];
   }
 
   /**
@@ -707,8 +707,12 @@ export abstract class Destination {
   @trace()
   async getEntities(): Promise<Entity[]> {
     await this.init();
+    const destinations = await this.getDestinations();
     const entities = await this.buildEntityList();
-    const resolved = this.resolveEntityHierarchy(entities);
+    // Merge destination entities with built entities, avoiding duplicates
+    const entityIds = new Set(entities.map(e => e.id));
+    const merged = [...destinations.filter(d => !entityIds.has(d.id)), ...entities];
+    const resolved = this.resolveEntityHierarchy(merged);
 
     // Sanitize entity names:
     // 1. Strip HTML tags and decode entities (e.g., "Balloon <em>Race</em>")

@@ -167,7 +167,7 @@ describe('Destination Lifecycle', () => {
   });
 
   describe('getDestinations()', () => {
-    test('should throw by default on base Destination class', async () => {
+    test('should return empty array by default on base Destination class', async () => {
       // Use a bare subclass that does not override getDestinations
       class BareDestination extends Destination {
         protected async buildEntityList(): Promise<Entity[]> {
@@ -182,7 +182,8 @@ describe('Destination Lifecycle', () => {
       }
 
       const bare = new BareDestination();
-      await expect(bare.getDestinations()).rejects.toThrow('getDestinations not implemented');
+      const result = await bare.getDestinations();
+      expect(result).toEqual([]);
     });
   });
 
