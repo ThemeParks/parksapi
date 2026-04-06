@@ -277,7 +277,6 @@ class HTTPRequestImpl implements HTTPObj {
       const cachedValue = CacheLib.get(this.cacheKey);
       if (cachedValue) {
         try {
-          console.log("Using cached response for", this.method, this.url);
           this.response = new Response(cachedValue);
 
           // Try to parse body for trace (but don't fail if we can't)
@@ -599,8 +598,7 @@ function httpDecoratorFactory(options?: {
             return aTime - bTime;
           });
 
-          // Broadcast HTTP event for logging/debugging
-          console.log(`HTTP Request queued: ${result.method} ${result.url} (method: ${propertyKey})`);
+          // Request is now queued for processing
 
           // Attach response promise to the request entry
           result.response = new Promise<HTTPObj>((resolve, reject) => {
@@ -699,8 +697,6 @@ export async function processHttpQueue() {
     // get the next request in the queue
     const entry = httpRequestQueue.shift();
     if (entry) {
-      console.log(`Processing HTTP request: ${entry.request.method} ${entry.request.url}`);
-
       const requestStartTime = Date.now();
 
       // Emit trace start event (use captured context if available)
@@ -739,7 +735,6 @@ export async function processHttpQueue() {
 
         // resolve the original promise
         entry.request.resolvePromise(entry.request);
-        console.log(`HTTP request completed: ${entry.request.method} ${entry.request.url}`);
 
         // broadcast response event (restore trace context)
         //  Note: opportunity here for the injection to throw an error to force a retry if needed
