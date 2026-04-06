@@ -25,5 +25,8 @@ export {TagBuilder} from './tags/index.js';
 // Virtual queue helpers
 export {VQueueBuilder} from './virtualQueue/builder.js';
 
+// WebSocket utilities
+export {wsMessages} from './wsUtils.js';
+
 // Re-export everything from @themeparks/typelib
 export * from '@themeparks/typelib';
