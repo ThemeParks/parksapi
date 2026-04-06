@@ -25,14 +25,11 @@ const LAT = 37.511360;
 const LNG = 127.099768;
 
 // ── Status mapping ─────────────────────────────────────────────
-// The park was closed during HAR capture so exact codes are unknown.
-// Conservative approach: log unknowns and default to CLOSED.
-
 const mapStatus = createStatusMap(
   {
-    OPERATING: ['정상운영', 'operating', 'open', 'normal'],
-    DOWN: ['일시중단', 'temp closed', 'temporarily closed', 'weather'],
-    REFURBISHMENT: ['정기점검', 'maintenance', 'refurbishment'],
+    OPERATING: ['정상운영', 'operating', 'open', 'normal', 'normal operation'],
+    DOWN: ['일시중단', 'temp closed', 'temporarily closed', 'weather', 'waiting list is closed'],
+    REFURBISHMENT: ['정기점검', 'maintenance', 'refurbishment', 'daily check'],
     CLOSED: ['운영종료', 'closed', ''],
   },
   {parkName: 'LotteWorld', defaultStatus: 'CLOSED'},
