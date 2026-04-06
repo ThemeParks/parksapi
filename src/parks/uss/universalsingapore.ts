@@ -489,7 +489,7 @@ export class UniversalSingapore extends Destination {
         if (attr.isWaitTimeEnable && attr.IsAvailable && !tempUnavailable) {
           // WaitTime is "15" (minutes) when live; fall back to AvgTime if non-numeric
           const waitTime = parseWaitTime(attr.WaitTime) ?? attr.AvgTime ?? undefined;
-          ld.queue = {STANDBY: {waitTime: waitTime || undefined}};
+          ld.queue = {STANDBY: {waitTime: waitTime ?? undefined}};
         }
 
         results.push(ld);
