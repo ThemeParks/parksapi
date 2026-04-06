@@ -110,10 +110,10 @@ describe('Destination Lifecycle', () => {
       expect(ride!.destinationId).toBe('dest1');
     });
 
-    test('should set destinationId on DESTINATION entities to self', async () => {
+    test('should not set destinationId on DESTINATION entities', async () => {
       const entities = await destination.getEntities();
       const dest = entities.find(e => e.id === 'dest1');
-      expect(dest!.destinationId).toBe('dest1');
+      expect('destinationId' in dest!).toBe(false);
       expect(dest!.parkId).toBeUndefined();
     });
 

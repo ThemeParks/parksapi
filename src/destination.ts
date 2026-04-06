@@ -294,7 +294,7 @@ export abstract class Destination {
           // Destinations are roots - no parents
           delete entity.parentId;
           delete entity.parkId;
-          entity.destinationId = entity.id;
+          delete entity.destinationId;
           break;
 
         case 'PARK':

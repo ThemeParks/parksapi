@@ -81,8 +81,8 @@ describe('Entity Hierarchy Resolution', () => {
     const entities = await dest.getEntities();
 
     // Verify hierarchy was automatically resolved
-    expect(entities[0].destinationId).toBe('dest1');
-    expect(entities[0].parkId).toBeUndefined();
+    expect('destinationId' in entities[0]).toBe(false); // DESTINATION entities don't have destinationId
+    expect('parkId' in entities[0]).toBe(false);
 
     expect(entities[1].destinationId).toBe('dest1');
     expect(entities[1].parkId).toBeUndefined();
@@ -91,7 +91,7 @@ describe('Entity Hierarchy Resolution', () => {
     expect(entities[2].parkId).toBe('park1');  // Automatically set!
   });
 
-  test('should set destinationId to self for DESTINATION entities', () => {
+  test('should not set destinationId on DESTINATION entities', () => {
     const entities: Entity[] = [
       {
         id: 'dest1',
@@ -103,9 +103,9 @@ describe('Entity Hierarchy Resolution', () => {
 
     const resolved = destination.testResolveHierarchy(entities);
 
-    expect(resolved[0].destinationId).toBe('dest1');
-    expect(resolved[0].parkId).toBeUndefined();
-    expect(resolved[0].parentId).toBeUndefined();
+    expect('destinationId' in resolved[0]).toBe(false);
+    expect('parkId' in resolved[0]).toBe(false);
+    expect('parentId' in resolved[0]).toBe(false);
   });
 
   test('should set destinationId for PARK entities based on parent', () => {
