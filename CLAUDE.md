@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ParksAPI is a TypeScript library for fetching real-time theme park data (wait times, schedules, entities) from 50+ parks worldwide. Currently undergoing migration from JavaScript (`lib/`) to TypeScript (`src/`). The `ts` branch contains the new TypeScript implementation.
+ParksAPI is a TypeScript library for fetching real-time theme park data (wait times, schedules, entities) from 118+ destinations worldwide. All park implementations live in `src/`.
 
 **Key Requirement:** Node 24+, npm 11+
 
@@ -15,8 +15,8 @@ ParksAPI is a TypeScript library for fetching real-time theme park data (wait ti
 npm run build          # Compile TypeScript to dist/
 npm run watch          # Auto-recompile on changes
 npm run dev            # Run src/test.ts with .env loaded
-npm test               # Run Jest tests
-npm run test:watch     # Jest watch mode
+npm test               # Run Vitest tests
+npm run test:watch     # Vitest watch mode
 npm run test:coverage  # Coverage report
 ```
 
@@ -516,7 +516,7 @@ Using standard helpers ensures consistent IDs across all parks, making it easy t
 - ✅ Standard location IDs for cross-park consistency
 - ✅ Completeness tests validate all tags are properly implemented
 - ✅ Compatible with `@themeparks/typelib` TagData interface
-- ✅ 405 comprehensive tests, 100% coverage
+- ✅ Comprehensive tests with 100% coverage
 
 **Adding New Tags:**
 See `src/tags/TAG_DEVELOPMENT_GUIDE.md` for step-by-step instructions. Use decorators (`@simpleTag`, `@complexTag`, `@locationHelper`) to automatically register tag methods - no manual mapping needed! The completeness tests will automatically verify you've implemented everything correctly.
@@ -680,7 +680,7 @@ nameField: (item) => item.localizedNames // Already in correct format
 - ✅ Type-safe with TypeScript
 - ✅ Intelligent fallback logic
 - ✅ Environment variable config support
-- ✅ 22 comprehensive tests, 100% coverage
+- ✅ Comprehensive tests with 100% coverage
 
 #### **Virtual Queue Framework** (`src/virtualQueue/`)
 Utilities and patterns for implementing virtual queue systems (return times, boarding groups, paid skip-the-line).
@@ -814,11 +814,19 @@ Boarding Group States:
 - ✅ Runtime validation with helpful error messages
 - ✅ Time zone-aware date formatting
 - ✅ State determination helpers for complex logic
-- ✅ 99 comprehensive tests, 100% coverage
+- ✅ Comprehensive tests with 100% coverage
 - ✅ Compatible with `@themeparks/typelib` LiveData interface
 
 **Full Documentation:**
 See `src/virtualQueue/VIRTUAL_QUEUE_GUIDE.md` for complete guide with real-world examples from Universal, Disney, and Efteling.
+
+#### **WebSocket / Live Stream Support** (`src/wsUtils.ts`)
+Utility for parks with real-time data feeds. See `docs/superpowers/specs/2026-04-06-livestream-design.md` for the full design spec.
+
+- `wsMessages(ws)` — Wraps a WebSocket into an async iterator for use in `buildLiveDataStream()`
+- `Destination.streamLiveData()` — Public async generator for real-time live data
+- `Destination.buildLiveDataStream()` — Protected generator for parks to override
+- `Destination.hasLiveStream` — Boolean flag for collector detection
 
 ## Implementation Patterns
 
@@ -942,32 +950,13 @@ protected async buildEntityList(): Promise<Entity[]> {
 ## Testing
 
 **Test Location:** `src/**/__tests__/**/*.test.ts`
-**Config:** `jest.config.js` (uses `ts-jest` with ESM preset)
-**Test Config:** `tsconfig.test.json` (extends main config)
+**Config:** `vitest.config.ts`
+**Runner:** Vitest (run `npm test` to see current count)
 
-**Test Coverage:** 1068 tests across 45 test files
-
-**Core Library Coverage:**
-- ✅ `cache.ts` - 100% coverage
-- ✅ `config.ts` - 96.96% coverage
-- ✅ `datetime.ts` - 100% coverage
-- ✅ `destination.ts` - 85.07% coverage
-- ✅ `http.ts` - 86.6% coverage
-- ✅ `injector.ts` - 100% coverage
-- ⚪ `parkTypes.ts` - 0% (type definitions only)
-
-**Unit Tests:**
-- `src/__tests__/cache.test.ts` - CacheLib and @cache decorator (35 tests, 100% coverage)
-- `src/__tests__/config.test.ts` - @config decorator system (31 tests, 96.96% coverage)
-- `src/__tests__/datetime.test.ts` - Date/time utilities with ISO 8601 timezone offset (53 tests, 100% coverage)
-- `src/__tests__/mapEntities.test.ts` - Entity mapper helper with multi-language support (41 tests, 85.07% coverage)
-- `src/__tests__/localization.test.ts` - Multi-language string helper (18 tests, 100% coverage)
-- `src/__tests__/entityHierarchy.test.ts` - Entity hierarchy resolution (11 tests)
-- `src/__tests__/injector.test.ts` - Event injection system (11 tests, 100% coverage)
-- `src/__tests__/http.test.ts` - HTTP utility functions (30 tests)
+**Core Library Coverage:** Run `npm run test:coverage` for current numbers. Core libraries (cache, config, datetime, destination, http, injector) are at 85–100% coverage.
 
 **Integration Tests:**
-- `src/__tests__/httpIntegration.test.ts` - HTTP library with local test server (14 tests, 86.6% coverage)
+- `src/__tests__/httpIntegration.test.ts` - HTTP library with local test server
   - **Test Server:** Node.js HTTP server on port 9991
   - **Lifecycle:** Started in `beforeAll()`, stopped in `afterAll()` with `stopHttpQueue()`
   - **Tests:** GET/POST requests, headers, caching, validation, retries, callbacks
@@ -1010,32 +999,6 @@ describe('My Tests', () => {
 - ✅ Automatic timeout (30s default, configurable)
 - ✅ Clear error messages if queue doesn't empty
 
-## Migration Status
-
-**✅ Completed (TypeScript):**
-- Core libraries: cache, config, http, injector, datetime, proxy, tracing, virtual queue
-- Base classes: Destination (Template Method Pattern), full decorator system
-- Helper utilities: entity mapper, hierarchy resolver, multi-language, tags, statusMap, htmlUtils
-- ~118 destinations across 50+ park groups (see `TODO.MD` for the full list)
-- 1068 tests across 45 test files; core libraries at 85–100% coverage
-
-**🔄 Remaining (JavaScript in `lib/`):**
-- Walt Disney World (4 parks), Disneyland Resort (2 parks), Hong Kong Disneyland (1 park)
-- Old base classes (destination.js, park.js, database.js) — will be removed once migration is complete
-
-**Migration Goal:** Port all parks from `lib/` to `src/`, maintain API compatibility with legacy implementations.
-
-## Key Differences: Legacy vs TypeScript
-
-| Feature | Legacy (lib/) | TypeScript (src/) |
-|---------|--------------|-------------------|
-| Config | Manual env checks | `@config` decorator |
-| HTTP | Callback-based | Queue-based with `@http` |
-| Caching | Multiple backends, `cache.wrap()` | SQLite, `@cache` decorator |
-| Injection | Domain-based injectors | `@inject` with Sift queries |
-| Types | JSDoc comments | Full TypeScript strict mode |
-| Date/Time | moment-timezone | Native Intl API |
-
 ## Destination Registration
 
 Destinations register automatically using the `@destinationController` decorator. ID and name are derived from class name:
@@ -1065,6 +1028,15 @@ export class SixFlagsMagicMountain extends Destination {
 4. Destination automatically discovered and appears in test harness with derived ID and name
 
 **No manual imports needed** - the test harness automatically discovers all `.ts`/`.js` files in `src/parks/`
+
+## Documentation
+
+- `docs/migration-v1-to-v2.md` — Migration guide for services upgrading from the JS (v1) to TS (v2) library API
+- `docs/superpowers/specs/2026-04-06-livestream-design.md` — Design spec for real-time `streamLiveData()` API
+- `docs/superpowers/plans/2026-04-06-livestream.md` — Implementation plan for live stream feature
+- `src/tags/TAG_DEVELOPMENT_GUIDE.md` — How to add new tag types to the tag system
+- `src/virtualQueue/VIRTUAL_QUEUE_GUIDE.md` — Virtual queue implementation guide with real-world examples
+- `TODO.MD` — Current migration status, known issues, and entity ID changes
 
 ## Important Notes
 
