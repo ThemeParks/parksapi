@@ -477,23 +477,36 @@ export class UniversalSingapore extends Destination {
     );
 
     const results: LiveData[] = [];
+    const allAttrs = categoryData.flat();
 
-    for (let i = 0; i < ENTITY_CATEGORIES.length; i++) {
-      for (const attr of categoryData[i]) {
-        // "[Temporarily unavailable]" prefix in the title means the ride is down
-        // during operating hours even though IsAvailable may be true
-        const tempUnavailable = /^\[Temporarily unavailable\]/i.test(attr.Title);
-        const status = tempUnavailable ? 'DOWN' : (attr.IsAvailable ? 'OPERATING' : 'CLOSED');
-        const ld: LiveData = {id: String(attr.AttractionId), status} as LiveData;
+    // Check if any ride has a non-zero wait time (park is operating)
+    const parkIsOpen = allAttrs.some(
+      (a) => a.isWaitTimeEnable && (parseWaitTime(a.WaitTime) ?? 0) > 0,
+    );
 
-        if (attr.isWaitTimeEnable && attr.IsAvailable && !tempUnavailable) {
-          // WaitTime is "15" (minutes) when live; fall back to AvgTime if non-numeric
-          const waitTime = parseWaitTime(attr.WaitTime) ?? attr.AvgTime ?? undefined;
-          ld.queue = {STANDBY: {waitTime: waitTime ?? undefined}};
-        }
+    for (const attr of allAttrs) {
+      const tempUnavailable = /^\[Temporarily unavailable\]/i.test(attr.Title);
+      const waitTime = attr.isWaitTimeEnable
+        ? (parseWaitTime(attr.WaitTime) ?? attr.AvgTime ?? undefined)
+        : undefined;
 
-        results.push(ld);
+      let status: string;
+      if (tempUnavailable) {
+        // Only report DOWN if the park is actually open, otherwise CLOSED
+        status = parkIsOpen ? 'DOWN' : 'CLOSED';
+      } else if (attr.IsAvailable) {
+        status = 'OPERATING';
+      } else {
+        status = 'CLOSED';
       }
+
+      const ld: LiveData = {id: String(attr.AttractionId), status} as LiveData;
+
+      if (status === 'OPERATING' && attr.isWaitTimeEnable && waitTime != null) {
+        ld.queue = {STANDBY: {waitTime: waitTime ?? undefined}};
+      }
+
+      results.push(ld);
     }
 
     return results;
