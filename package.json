@@ -38,7 +38,7 @@
     "url": "git+https://github.com/ThemeParks/parksapi.git"
   },
   "author": "@cube",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/ThemeParks/parksapi/issues"
   },
