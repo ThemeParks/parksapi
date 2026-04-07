@@ -1,7 +1,9 @@
 import {LiveData, Entity, EntitySchedule, LocalisedString, LanguageCode, LiveQueue, ReturnTimeState, BoardingGroupState} from "@themeparks/typelib";
 import {trace} from "./tracing.js";
 import {reusable} from "./promiseReuse.js";
-import {enableProxySupport as enableProxySupportLib} from "./proxy.js";
+import {loadProxyConfig, hasProxyConfig, type ProxyConfig} from "./proxy.js";
+import {inject} from "./injector.js";
+import {type HTTPObj} from "./http.js";
 import {VQueueBuilder} from "./virtualQueue/builder.js";
 import {calculateReturnWindow} from "./virtualQueue/timeWindows.js";
 import {formatInTimezone} from "./datetime.js";
@@ -81,8 +83,12 @@ export type EntityMapperConfig<T> = {
 
 // Base class for all destinations
 export abstract class Destination {
-  // Track if we've already enabled global proxies (static flag, shared across all destinations)
-  private static globalProxiesEnabled = false;
+  // Global proxy config — loaded once from GLOBAL_* env vars, shared across all destinations
+  private static globalProxyConfig: ProxyConfig | null = null;
+  private static globalProxiesChecked = false;
+
+  // Per-instance proxy config — set by enableProxySupport() or inherited from global
+  proxyConfig: ProxyConfig | null = null;
 
   constructor(options?: DestinationConstructor) {
     // Apply any configuration options passed in
@@ -90,11 +96,19 @@ export abstract class Destination {
       this.config = options.config;
     }
 
-    // Auto-enable global proxy configuration if GLOBAL_* env vars are set
-    // Only check once (first destination instantiation)
-    if (!Destination.globalProxiesEnabled) {
-      Destination.globalProxiesEnabled = true;
-      this.enableGlobalProxies();
+    // Load global proxy config once (first destination instantiation)
+    if (!Destination.globalProxiesChecked) {
+      Destination.globalProxiesChecked = true;
+      const globalConfig = loadProxyConfig(['GLOBAL']);
+      if (hasProxyConfig(globalConfig)) {
+        Destination.globalProxyConfig = globalConfig;
+        console.log('🔌 Global proxy support enabled');
+      }
+    }
+
+    // Apply global proxy config to this instance
+    if (Destination.globalProxyConfig) {
+      this.proxyConfig = {...Destination.globalProxyConfig};
     }
   }
 
@@ -160,20 +174,12 @@ export abstract class Destination {
   getCacheKeyPrefix?(): string | Promise<string>;
 
   /**
-   * Enable global proxy configuration by checking for GLOBAL_* environment variables.
-   * Called automatically on first destination instantiation.
-   *
-   * Checks for: GLOBAL_CRAWLBASE, GLOBAL_SCRAPFLY, GLOBAL_BASICPROXY
+   * Reset global proxy state. Used by tests only.
+   * @internal
    */
-  private enableGlobalProxies() {
-    const hasGlobalProxy =
-      process.env.GLOBAL_CRAWLBASE ||
-      process.env.GLOBAL_SCRAPFLY ||
-      process.env.GLOBAL_BASICPROXY;
-
-    if (hasGlobalProxy) {
-      enableProxySupportLib(['GLOBAL']);
-    }
+  static resetGlobalProxyState() {
+    Destination.globalProxyConfig = null;
+    Destination.globalProxiesChecked = false;
   }
 
   /**
@@ -192,6 +198,7 @@ export abstract class Destination {
   /**
    * Enable proxy support for this destination's HTTP requests.
    * Reads proxy configuration from environment variables using the destination's config prefixes.
+   * Per-destination config merges with (and overrides) any global proxy config.
    *
    * Supported proxy types:
    * - CrawlBase: {PREFIX}_CRAWLBASE='{"apikey":"YOUR_TOKEN"}'
@@ -212,7 +219,59 @@ export abstract class Destination {
       ? this.config.configPrefixes as string[]
       : [];
 
-    enableProxySupportLib(prefixes);
+    const destConfig = loadProxyConfig(prefixes);
+    if (hasProxyConfig(destConfig)) {
+      // Merge: destination-specific overrides global
+      this.proxyConfig = {...(this.proxyConfig || {}), ...destConfig};
+      console.log(`🔌 Proxy support enabled for ${this.constructor.name}`);
+    }
+  }
+
+  /**
+   * Inject proxy settings into HTTP requests.
+   * Runs with high priority (last) so auth/header injectors fire first.
+   */
+  @inject({eventName: 'httpRequest', priority: 999})
+  async _injectProxy(req: HTTPObj): Promise<void> {
+    if (!this.proxyConfig) return;
+
+    // Apply in priority order: CrawlBase > Scrapfly > BasicProxy
+    if (this.proxyConfig.crawlbase) {
+      const originalUrl = req.url;
+      req.url = `https://api.crawlbase.com/?url=${encodeURIComponent(originalUrl)}&token=${this.proxyConfig.crawlbase.apikey}`;
+      return;
+    }
+
+    if (this.proxyConfig.scrapfly) {
+      const originalUrl = req.url;
+      req.url = `https://api.scrapfly.io/scrape?url=${encodeURIComponent(originalUrl)}&key=${this.proxyConfig.scrapfly.apikey}`;
+      return;
+    }
+
+    if (this.proxyConfig.basicProxy) {
+      (req as any).proxyUrl = this.proxyConfig.basicProxy.proxy;
+    }
+  }
+
+  /**
+   * Unwrap proxy responses (e.g., Scrapfly wraps responses in JSON).
+   * Runs with low priority (first) so downstream code sees the unwrapped response.
+   */
+  @inject({eventName: 'httpResponse', priority: -999})
+  async _unwrapProxyResponse(req: HTTPObj): Promise<void> {
+    if (!this.proxyConfig?.scrapfly || !req.response) return;
+
+    try {
+      const body = await req.response.clone().json();
+      if (body.result && body.result.content !== undefined) {
+        req.response = new Response(body.result.content, {
+          status: body.result.status_code || 200,
+          headers: body.result.response_headers || {},
+        });
+      }
+    } catch {
+      // Not a Scrapfly response or failed to parse — leave as-is
+    }
   }
 
   /**

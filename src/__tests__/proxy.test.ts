@@ -1,380 +1,235 @@
 // Tests for proxy injection system
-import {enableProxySupport, disableProxySupport, getProxyConfig} from '../proxy';
+import {loadProxyConfig, hasProxyConfig, type ProxyConfig} from '../proxy';
+import {Destination} from '../destination';
 import {HTTPObj} from '../http';
 import {broadcast} from '../injector';
+import {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
+import config from '../config';
 
-describe('Proxy Injection System', () => {
-  // Save original environment before each test
+// Mock destination for testing proxy injection
+@config
+class ProxyTestDestination extends Destination {
+  protected async buildEntityList(): Promise<Entity[]> { return []; }
+  protected async buildLiveData(): Promise<LiveData[]> { return []; }
+  protected async buildSchedules(): Promise<EntitySchedule[]> { return []; }
+}
+
+// Create a mock HTTPObj for testing
+function createMockRequest(url: string = 'https://example.com/api/data'): HTTPObj {
+  const obj: HTTPObj = {
+    method: 'GET',
+    url,
+    headers: {},
+    options: {},
+    body: undefined,
+    tags: [],
+    json: async () => ({}),
+    text: async () => '',
+    blob: async () => new Blob(),
+    arrayBuffer: async () => new ArrayBuffer(0),
+    status: 200,
+    ok: true,
+    clone: () => obj,
+    onJson: null,
+    onText: null,
+    onBlob: null,
+    onArrayBuffer: null,
+  };
+  return obj;
+}
+
+describe('Proxy Configuration Loading', () => {
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(() => {
     originalEnv = {...process.env};
-    disableProxySupport(); // Ensure clean state
   });
 
   afterEach(() => {
     process.env = originalEnv;
-    disableProxySupport();
   });
 
-  describe('Configuration Loading', () => {
-    it('should load CrawlBase config from environment variable', () => {
-      process.env.TEST_CRAWLBASE = JSON.stringify({apikey: 'test-crawlbase-key'});
+  it('should load CrawlBase config from environment variable', () => {
+    process.env.TEST_CRAWLBASE = JSON.stringify({apikey: 'test-crawlbase-key'});
 
-      enableProxySupport(['TEST']);
-
-      const config = getProxyConfig();
-      expect(config.crawlbase).toEqual({apikey: 'test-crawlbase-key'});
-    });
-
-    it('should load Scrapfly config from environment variable', () => {
-      process.env.TEST_SCRAPFLY = JSON.stringify({apikey: 'test-scrapfly-key'});
-
-      enableProxySupport(['TEST']);
-
-      const config = getProxyConfig();
-      expect(config.scrapfly).toEqual({apikey: 'test-scrapfly-key'});
-    });
-
-    it('should load basic proxy config from environment variable', () => {
-      process.env.TEST_BASICPROXY = JSON.stringify({proxy: 'http://proxy.example.com:8080'});
-
-      enableProxySupport(['TEST']);
-
-      const config = getProxyConfig();
-      expect(config.basicProxy).toEqual({proxy: 'http://proxy.example.com:8080'});
-    });
-
-    it('should check multiple prefixes in order', () => {
-      process.env.PREFIX1_CRAWLBASE = JSON.stringify({apikey: 'key1'});
-      process.env.PREFIX2_SCRAPFLY = JSON.stringify({apikey: 'key2'});
-
-      enableProxySupport(['PREFIX1', 'PREFIX2']);
-
-      const config = getProxyConfig();
-      expect(config.crawlbase).toEqual({apikey: 'key1'});
-      expect(config.scrapfly).toEqual({apikey: 'key2'});
-    });
-
-    it('should handle invalid JSON gracefully', () => {
-      process.env.TEST_CRAWLBASE = 'invalid-json';
-
-      // Should not throw
-      enableProxySupport(['TEST']);
-
-      const config = getProxyConfig();
-      expect(config.crawlbase).toBeUndefined();
-    });
-
-    it('should return empty config when no environment variables set', () => {
-      enableProxySupport(['NONEXISTENT']);
-
-      const config = getProxyConfig();
-      expect(config).toEqual({});
-    });
+    const config = loadProxyConfig(['TEST']);
+    expect(config.crawlbase).toEqual({apikey: 'test-crawlbase-key'});
   });
 
-  describe('CrawlBase Proxy Injection', () => {
-    it('should rewrite URL to use CrawlBase API', async () => {
-      process.env.TEST_CRAWLBASE = JSON.stringify({apikey: 'test-key'});
-      enableProxySupport(['TEST']);
+  it('should load Scrapfly config from environment variable', () => {
+    process.env.TEST_SCRAPFLY = JSON.stringify({apikey: 'test-scrapfly-key'});
 
-      const requestObj: HTTPObj = {
-        method: 'GET',
-        url: 'https://example.com/api/data',
-        headers: {},
-        options: {},
-        body: undefined,
-        tags: [],
-        json: async () => ({}),
-        text: async () => '',
-        blob: async () => new Blob(),
-        arrayBuffer: async () => new ArrayBuffer(0),
-        status: 200,
-        ok: true,
-        clone: () => requestObj,
-        onJson: null,
-        onText: null,
-        onBlob: null,
-        onArrayBuffer: null,
-      };
-
-      await broadcast('global', {eventName: 'httpRequest'}, requestObj);
-
-      expect(requestObj.url).toBe(
-        'https://api.crawlbase.com/?url=https%3A%2F%2Fexample.com%2Fapi%2Fdata&token=test-key'
-      );
-    });
+    const config = loadProxyConfig(['TEST']);
+    expect(config.scrapfly).toEqual({apikey: 'test-scrapfly-key'});
   });
 
-  describe('Scrapfly Proxy Injection', () => {
-    it('should rewrite URL to use Scrapfly API', async () => {
-      process.env.TEST_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
-      enableProxySupport(['TEST']);
+  it('should load basic proxy config from environment variable', () => {
+    process.env.TEST_BASICPROXY = JSON.stringify({proxy: 'http://proxy.example.com:8080'});
 
-      const requestObj: HTTPObj = {
-        method: 'GET',
-        url: 'https://example.com/api/data',
-        headers: {},
-        options: {},
-        body: undefined,
-        tags: [],
-        json: async () => ({}),
-        text: async () => '',
-        blob: async () => new Blob(),
-        arrayBuffer: async () => new ArrayBuffer(0),
-        status: 200,
-        ok: true,
-        clone: () => requestObj,
-        onJson: null,
-        onText: null,
-        onBlob: null,
-        onArrayBuffer: null,
-      };
-
-      await broadcast('global', {eventName: 'httpRequest'}, requestObj);
-
-      expect(requestObj.url).toBe(
-        'https://api.scrapfly.io/scrape?url=https%3A%2F%2Fexample.com%2Fapi%2Fdata&key=test-key'
-      );
-    });
-
-    it('should unwrap Scrapfly response', async () => {
-      process.env.TEST_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
-      enableProxySupport(['TEST']);
-
-      const scrapflyResponse = {
-        result: {
-          content: '{"data": "unwrapped"}',
-          status_code: 200,
-          response_headers: {'content-type': 'application/json'},
-        },
-      };
-
-      const mockResponse = new Response(JSON.stringify(scrapflyResponse), {
-        status: 200,
-        headers: {'content-type': 'application/json'},
-      });
-
-      const requestObj: HTTPObj = {
-        method: 'GET',
-        url: 'https://api.scrapfly.io/scrape?url=...',
-        headers: {},
-        options: {},
-        body: undefined,
-        tags: [],
-        response: mockResponse,
-        json: async () => ({}),
-        text: async () => '',
-        blob: async () => new Blob(),
-        arrayBuffer: async () => new ArrayBuffer(0),
-        status: 200,
-        ok: true,
-        clone: () => requestObj,
-        onJson: null,
-        onText: null,
-        onBlob: null,
-        onArrayBuffer: null,
-      };
-
-      await broadcast('global', {eventName: 'httpResponse'}, requestObj);
-
-      // Response should be unwrapped
-      expect(requestObj.response).toBeDefined();
-      const text = await requestObj.response!.text();
-      expect(text).toBe('{"data": "unwrapped"}');
-      expect(requestObj.response!.status).toBe(200);
-    });
-
-    it('should handle non-Scrapfly responses gracefully', async () => {
-      process.env.TEST_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
-      enableProxySupport(['TEST']);
-
-      const normalResponse = new Response('{"data": "normal"}', {
-        status: 200,
-        headers: {'content-type': 'application/json'},
-      });
-
-      const requestObj: HTTPObj = {
-        method: 'GET',
-        url: 'https://example.com/api/data',
-        headers: {},
-        options: {},
-        body: undefined,
-        tags: [],
-        response: normalResponse,
-        json: async () => ({}),
-        text: async () => '',
-        blob: async () => new Blob(),
-        arrayBuffer: async () => new ArrayBuffer(0),
-        status: 200,
-        ok: true,
-        clone: () => requestObj,
-        onJson: null,
-        onText: null,
-        onBlob: null,
-        onArrayBuffer: null,
-      };
-
-      const originalResponse = requestObj.response;
-      await broadcast('global', {eventName: 'httpResponse'}, requestObj);
-
-      // Response should remain unchanged (not a Scrapfly response)
-      expect(requestObj.response).toBe(originalResponse);
-    });
+    const config = loadProxyConfig(['TEST']);
+    expect(config.basicProxy).toEqual({proxy: 'http://proxy.example.com:8080'});
   });
 
-  describe('Proxy Priority', () => {
-    it('should prefer CrawlBase over Scrapfly when both configured', async () => {
-      process.env.TEST_CRAWLBASE = JSON.stringify({apikey: 'crawlbase-key'});
-      process.env.TEST_SCRAPFLY = JSON.stringify({apikey: 'scrapfly-key'});
-      enableProxySupport(['TEST']);
+  it('should check multiple prefixes in order', () => {
+    process.env.PREFIX1_CRAWLBASE = JSON.stringify({apikey: 'key1'});
+    process.env.PREFIX2_SCRAPFLY = JSON.stringify({apikey: 'key2'});
 
-      const requestObj: HTTPObj = {
-        method: 'GET',
-        url: 'https://example.com/api/data',
-        headers: {},
-        options: {},
-        body: undefined,
-        tags: [],
-        json: async () => ({}),
-        text: async () => '',
-        blob: async () => new Blob(),
-        arrayBuffer: async () => new ArrayBuffer(0),
-        status: 200,
-        ok: true,
-        clone: () => requestObj,
-        onJson: null,
-        onText: null,
-        onBlob: null,
-        onArrayBuffer: null,
-      };
-
-      await broadcast('global', {eventName: 'httpRequest'}, requestObj);
-
-      // Should use CrawlBase (higher priority)
-      expect(requestObj.url).toContain('api.crawlbase.com');
-    });
+    const config = loadProxyConfig(['PREFIX1', 'PREFIX2']);
+    expect(config.crawlbase).toEqual({apikey: 'key1'});
+    expect(config.scrapfly).toEqual({apikey: 'key2'});
   });
 
-  describe('Basic Proxy Support', () => {
-    it('should configure basic proxy from environment variable', () => {
-      process.env.TEST_BASICPROXY = JSON.stringify({proxy: 'http://myproxy.com:8080'});
-      enableProxySupport(['TEST']);
+  it('should handle invalid JSON gracefully', () => {
+    process.env.TEST_CRAWLBASE = 'invalid-json';
 
-      const config = getProxyConfig();
-      expect(config.basicProxy).toEqual({proxy: 'http://myproxy.com:8080'});
-    });
-
-    it('should log basic proxy usage on injection', async () => {
-      process.env.TEST_BASICPROXY = JSON.stringify({proxy: 'http://myproxy.com:8080'});
-      enableProxySupport(['TEST']);
-
-      const consoleLogSpy = vi.spyOn(console, 'log');
-
-      const requestObj: HTTPObj = {
-        method: 'GET',
-        url: 'https://example.com/api/data',
-        headers: {},
-        options: {},
-        body: undefined,
-        tags: [],
-        json: async () => ({}),
-        text: async () => '',
-        blob: async () => new Blob(),
-        arrayBuffer: async () => new ArrayBuffer(0),
-        status: 200,
-        ok: true,
-        clone: () => requestObj,
-        onJson: null,
-        onText: null,
-        onBlob: null,
-        onArrayBuffer: null,
-      };
-
-      await broadcast('global', {eventName: 'httpRequest'}, requestObj);
-
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Using basic HTTP proxy: http://myproxy.com:8080')
-      );
-
-      consoleLogSpy.mockRestore();
-    });
-
-    it('should not modify URL for basic proxy (handled by HTTP client)', async () => {
-      process.env.TEST_BASICPROXY = JSON.stringify({proxy: 'http://myproxy.com:8080'});
-      enableProxySupport(['TEST']);
-
-      const requestObj: HTTPObj = {
-        method: 'GET',
-        url: 'https://example.com/api/data',
-        headers: {},
-        options: {},
-        body: undefined,
-        tags: [],
-        json: async () => ({}),
-        text: async () => '',
-        blob: async () => new Blob(),
-        arrayBuffer: async () => new ArrayBuffer(0),
-        status: 200,
-        ok: true,
-        clone: () => requestObj,
-        onJson: null,
-        onText: null,
-        onBlob: null,
-        onArrayBuffer: null,
-      };
-
-      const originalUrl = requestObj.url;
-      await broadcast('global', {eventName: 'httpRequest'}, requestObj);
-
-      // URL should remain unchanged (proxy handled at HTTP client level)
-      expect(requestObj.url).toBe(originalUrl);
-    });
+    const config = loadProxyConfig(['TEST']);
+    expect(config.crawlbase).toBeUndefined();
   });
 
-  describe('Enable/Disable', () => {
-    it('should not inject when disabled', async () => {
-      process.env.TEST_CRAWLBASE = JSON.stringify({apikey: 'test-key'});
-      enableProxySupport(['TEST']);
-      disableProxySupport();
+  it('should return empty config when no environment variables set', () => {
+    const config = loadProxyConfig(['NONEXISTENT']);
+    expect(config).toEqual({});
+    expect(hasProxyConfig(config)).toBe(false);
+  });
 
-      const requestObj: HTTPObj = {
-        method: 'GET',
-        url: 'https://example.com/api/data',
-        headers: {},
-        options: {},
-        body: undefined,
-        tags: [],
-        json: async () => ({}),
-        text: async () => '',
-        blob: async () => new Blob(),
-        arrayBuffer: async () => new ArrayBuffer(0),
-        status: 200,
-        ok: true,
-        clone: () => requestObj,
-        onJson: null,
-        onText: null,
-        onBlob: null,
-        onArrayBuffer: null,
-      };
+  it('should detect when config has proxy settings', () => {
+    process.env.TEST_CRAWLBASE = JSON.stringify({apikey: 'key'});
+    const config = loadProxyConfig(['TEST']);
+    expect(hasProxyConfig(config)).toBe(true);
+  });
+});
 
-      const originalUrl = requestObj.url;
-      await broadcast('global', {eventName: 'httpRequest'}, requestObj);
+describe('Per-Destination Proxy Injection', () => {
+  let originalEnv: NodeJS.ProcessEnv;
 
-      // URL should remain unchanged
-      expect(requestObj.url).toBe(originalUrl);
+  beforeEach(() => {
+    originalEnv = {...process.env};
+    Destination.resetGlobalProxyState();
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+    Destination.resetGlobalProxyState();
+  });
+
+  it('should rewrite URL to use CrawlBase for destinations that enable it', async () => {
+    process.env.PROXYTESTDESTINATION_CRAWLBASE = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+    dest.enableProxySupport();
+
+    const req = createMockRequest();
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(req.url).toBe('https://api.crawlbase.com/?url=https%3A%2F%2Fexample.com%2Fapi%2Fdata&token=test-key');
+  });
+
+  it('should rewrite URL to use Scrapfly for destinations that enable it', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+    dest.enableProxySupport();
+
+    const req = createMockRequest();
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(req.url).toBe('https://api.scrapfly.io/scrape?url=https%3A%2F%2Fexample.com%2Fapi%2Fdata&key=test-key');
+  });
+
+  it('should set proxyUrl for basic proxy', async () => {
+    process.env.PROXYTESTDESTINATION_BASICPROXY = JSON.stringify({proxy: 'http://myproxy.com:8080'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+    dest.enableProxySupport();
+
+    const req = createMockRequest();
+    const originalUrl = req.url;
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    // URL should remain unchanged (proxy handled at HTTP client level)
+    expect(req.url).toBe(originalUrl);
+    expect((req as any).proxyUrl).toBe('http://myproxy.com:8080');
+  });
+
+  it('should NOT proxy requests from destinations without enableProxySupport()', async () => {
+    process.env.PROXYTESTDESTINATION_CRAWLBASE = JSON.stringify({apikey: 'test-key'});
+
+    // Create destination but DON'T call enableProxySupport
+    const dest = new ProxyTestDestination();
+
+    const req = createMockRequest();
+    const originalUrl = req.url;
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    // URL should remain unchanged
+    expect(req.url).toBe(originalUrl);
+  });
+
+  it('should prefer CrawlBase over Scrapfly when both configured', async () => {
+    process.env.PROXYTESTDESTINATION_CRAWLBASE = JSON.stringify({apikey: 'crawlbase-key'});
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'scrapfly-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+    dest.enableProxySupport();
+
+    const req = createMockRequest();
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(req.url).toContain('api.crawlbase.com');
+  });
+
+  it('should unwrap Scrapfly response', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+    dest.enableProxySupport();
+
+    const scrapflyResponse = {
+      result: {
+        content: '{"data": "unwrapped"}',
+        status_code: 200,
+        response_headers: {'content-type': 'application/json'},
+      },
+    };
+
+    const mockResponse = new Response(JSON.stringify(scrapflyResponse), {
+      status: 200,
+      headers: {'content-type': 'application/json'},
     });
 
-    it('should clear config when disabled', () => {
-      process.env.TEST_CRAWLBASE = JSON.stringify({apikey: 'test-key'});
-      enableProxySupport(['TEST']);
+    const req = createMockRequest();
+    req.response = mockResponse;
+    await broadcast(dest, {eventName: 'httpResponse', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
 
-      expect(getProxyConfig().crawlbase).toBeDefined();
+    expect(req.response).toBeDefined();
+    const text = await req.response!.text();
+    expect(text).toBe('{"data": "unwrapped"}');
+    expect(req.response!.status).toBe(200);
+  });
 
-      disableProxySupport();
+  it('should not unwrap non-Scrapfly responses', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
 
-      expect(getProxyConfig()).toEqual({});
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+    dest.enableProxySupport();
+
+    const normalResponse = new Response('{"data": "normal"}', {
+      status: 200,
+      headers: {'content-type': 'application/json'},
     });
+
+    const req = createMockRequest();
+    req.response = normalResponse;
+    const originalResponse = req.response;
+    await broadcast(dest, {eventName: 'httpResponse', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    // Response should remain unchanged
+    expect(req.response).toBe(originalResponse);
   });
 });

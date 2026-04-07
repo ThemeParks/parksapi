@@ -7,7 +7,7 @@ import {CacheLib} from "./cache.js";
 import {broadcast} from "./injector.js";
 import {tracing} from "./tracing.js";
 import Ajv, {type DefinedError} from "ajv";
-import {getBasicProxyUrl} from "./proxy.js";
+// Note: basic proxy URL is now set per-request via proxyUrl property (injected by Destination._injectProxy)
 import {makeHttpRequest} from "./httpProxy.js";
 const ajv = new Ajv.default();
 
@@ -141,6 +141,7 @@ class HTTPRequestImpl implements HTTPObj {
   public cacheTtlSeconds?: number;
   public tags: string[];
   public className?: string; // Class name for cache key uniqueness
+  public proxyUrl?: string; // Per-request proxy URL (set by Destination._injectProxy)
 
   // Private promise handlers
   private _resolve?: (value: HTTPObj) => void;
@@ -309,7 +310,6 @@ class HTTPRequestImpl implements HTTPObj {
     }
 
     // Use node:http/https for all requests (with optional proxy support)
-    const basicProxyUrl = getBasicProxyUrl();
     const urlToFetch = this.buildUrl();
     let requestBody: any = undefined;
 
@@ -322,7 +322,7 @@ class HTTPRequestImpl implements HTTPObj {
       url: urlToFetch,
       headers: this.buildHeaders(),
       body: requestBody,
-      proxyUrl: basicProxyUrl, // Optional - only used if configured
+      proxyUrl: this.proxyUrl, // Per-request proxy URL (set by Destination._injectProxy)
       cert: this.options?.cert,
       key: this.options?.key,
     });

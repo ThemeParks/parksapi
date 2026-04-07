@@ -32,7 +32,7 @@ export function inject(filter: any) {
       globalFunctions.set(filter, target);
     } else if (propertyKey && descriptor) {
       // Applied to a method
-      if (!target.__injectFilters) {
+      if (!Object.prototype.hasOwnProperty.call(target, '__injectFilters')) {
         target.__injectFilters = new Map<string, any>();
       }
 
@@ -104,22 +104,25 @@ export async function broadcast(scope: 'global' | any[] | any, event: any, ...ar
     }
     // Call methods on registered instances
     for (const instance of globalInstances) {
-      const proto = Object.getPrototypeOf(instance);
-      const filters = proto.__injectFilters;
-      if (filters) {
-        for (const [methodName, filterData] of filters) {
-          // filterData is now { filter, priority }
-          const filter = filterData.filter || filterData; // Backwards compat
-          const priority = filterData.priority ?? 0;
+      let proto = Object.getPrototypeOf(instance);
+      while (proto) {
+        if (Object.prototype.hasOwnProperty.call(proto, '__injectFilters')) {
+          const filters = proto.__injectFilters;
+          for (const [methodName, filterData] of filters) {
+            // filterData is now { filter, priority }
+            const filter = filterData.filter || filterData; // Backwards compat
+            const priority = filterData.priority ?? 0;
 
-          const resolvedFilter = await resolveFilterFunctions(filter, instance);
-          if (sift(resolvedFilter)(event)) {
-            prioritizedCalls.push({
-              priority,
-              fn: () => instance[methodName](...args),
-            });
+            const resolvedFilter = await resolveFilterFunctions(filter, instance);
+            if (sift(resolvedFilter)(event)) {
+              prioritizedCalls.push({
+                priority,
+                fn: () => instance[methodName](...args),
+              });
+            }
           }
         }
+        proto = Object.getPrototypeOf(proto);
       }
     }
   } else {
@@ -132,22 +135,27 @@ export async function broadcast(scope: 'global' | any[] | any, event: any, ...ar
     }
 
     for (const instance of instances) {
-      const proto = Object.getPrototypeOf(instance);
-      const filters = proto.__injectFilters;
-      if (filters) {
-        for (const [methodName, filterData] of filters) {
-          // filterData is now { filter, priority }
-          const filter = filterData.filter || filterData; // Backwards compat
-          const priority = filterData.priority ?? 0;
+      // Walk the prototype chain to collect injectors from all ancestor classes
+      // (e.g., Destination base class injectors + subclass injectors)
+      let proto = Object.getPrototypeOf(instance);
+      while (proto) {
+        if (Object.prototype.hasOwnProperty.call(proto, '__injectFilters')) {
+          const filters = proto.__injectFilters;
+          for (const [methodName, filterData] of filters) {
+            // filterData is now { filter, priority }
+            const filter = filterData.filter || filterData; // Backwards compat
+            const priority = filterData.priority ?? 0;
 
-          const resolvedFilter = await resolveFilterFunctions(filter, instance);
-          if (sift(resolvedFilter)(event)) {
-            prioritizedCalls.push({
-              priority,
-              fn: () => instance[methodName](...args),
-            });
+            const resolvedFilter = await resolveFilterFunctions(filter, instance);
+            if (sift(resolvedFilter)(event)) {
+              prioritizedCalls.push({
+                priority,
+                fn: () => instance[methodName](...args),
+              });
+            }
           }
         }
+        proto = Object.getPrototypeOf(proto);
       }
     }
   }

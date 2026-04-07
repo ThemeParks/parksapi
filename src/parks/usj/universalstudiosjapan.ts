@@ -120,6 +120,9 @@ export class UniversalStudiosJapan extends Destination {
   cdnBase: string = '';
 
   @config
+  appVersion: string = '';
+
+  @config
   webApiKey: string = '';
 
   @config
@@ -130,6 +133,7 @@ export class UniversalStudiosJapan extends Destination {
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('UNIVERSALSTUDIOSJAPAN');
+    this.enableProxySupport();
   }
 
   // ─── Authentication ──────────────────────────────────────────────────────
@@ -150,7 +154,7 @@ export class UniversalStudiosJapan extends Destination {
       body: params.toString(),
       headers: {
         'Authorization': `Basic ${credentials}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
       },
       tags: ['auth'],
     } as any as HTTPObj;
@@ -198,6 +202,37 @@ export class UniversalStudiosJapan extends Destination {
       const {CacheLib} = await import('../../cache.js');
       await CacheLib.delete(`${this.constructor.name}:getToken:[]`);
     }
+  }
+
+  /** Inject Flutter app headers on api.usj.co.jp requests */
+  @inject({
+    eventName: 'httpRequest',
+    hostname: function(this: UniversalStudiosJapan) {
+      return hostnameFromUrl(this.apiBase);
+    },
+  })
+  async injectAppHeaders(req: HTTPObj): Promise<void> {
+    req.headers = {
+      ...req.headers,
+      'user-agent': 'Dart/3.6 (dart:io)',
+      'x-uniwebservice-platform': 'Android',
+      'x-uniwebservice-device': 'ONEPLUS A5000',
+      'x-uniwebservice-apikey': 'USJFlutterAndroidApp',
+      'x-uniwebservice-appversion': this.appVersion,
+      'x-uniwebservice-platformversion': '14',
+    };
+  }
+
+  /** Inject Flutter app User-Agent on mobile-service requests */
+  @inject({
+    eventName: 'httpRequest',
+    hostname: 'mobile-service.usj.co.jp',
+  })
+  async injectMobileServiceUA(req: HTTPObj): Promise<void> {
+    req.headers = {
+      ...req.headers,
+      'user-agent': 'Dart/3.6 (dart:io)',
+    };
   }
 
   // ─── HTTP fetch methods ──────────────────────────────────────────────────
