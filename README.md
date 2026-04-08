@@ -125,6 +125,7 @@ Setup `index.js` with your new class, and edit `test.js` to test your destinatio
 * SixFlags
 * HansaPark
 * Knoebels
+* OceanParkHongKong
 <!-- END_DESTINATIONS -->
 
 ## Configuration
