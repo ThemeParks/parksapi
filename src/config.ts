@@ -153,6 +153,18 @@ export default function config(target: any, propertyKey?: string | symbol) {
                     get(target, prop, receiver) {
                         const val = getConfigValue(target, String(prop));
                         if (typeof val !== 'undefined') {
+                            // Coerce string env values to match the property's default type
+                            if (typeof val === 'string') {
+                                const defaultVal = target[prop];
+                                if (typeof defaultVal === 'number') {
+                                    const parsed = Number(val);
+                                    return isNaN(parsed) ? defaultVal : parsed;
+                                }
+                                if (typeof defaultVal === 'boolean') {
+                                    const lower = val.toLowerCase();
+                                    return lower === 'true' || lower === '1';
+                                }
+                            }
                             return val;
                         }
 

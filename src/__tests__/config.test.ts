@@ -779,4 +779,205 @@ describe('Config Decorator System', () => {
       expect(keys.get('falseBool')).toBe(false);
     });
   });
+
+  describe('Environment variable type coercion', () => {
+    test('should coerce env string to number when default is number', () => {
+      process.env.TESTCLASS_TIMEOUT = '3000';
+
+      @config
+      class TestClass {
+        @config
+        timeout: number = 5000;
+      }
+
+      const instance = new TestClass();
+      expect(instance.timeout).toBe(3000);
+      expect(typeof instance.timeout).toBe('number');
+    });
+
+    test('should coerce env string to float', () => {
+      process.env.TESTCLASS_RATE = '1.5';
+
+      @config
+      class TestClass {
+        @config
+        rate: number = 1.0;
+      }
+
+      const instance = new TestClass();
+      expect(instance.rate).toBe(1.5);
+      expect(typeof instance.rate).toBe('number');
+    });
+
+    test('should coerce env "0" to number 0', () => {
+      process.env.TESTCLASS_COUNT = '0';
+
+      @config
+      class TestClass {
+        @config
+        count: number = 10;
+      }
+
+      const instance = new TestClass();
+      expect(instance.count).toBe(0);
+      expect(typeof instance.count).toBe('number');
+    });
+
+    test('should fall back to default for invalid number env value', () => {
+      process.env.TESTCLASS_TIMEOUT = 'not-a-number';
+
+      @config
+      class TestClass {
+        @config
+        timeout: number = 5000;
+      }
+
+      const instance = new TestClass();
+      expect(instance.timeout).toBe(5000);
+    });
+
+    test('should coerce env "true" to boolean true', () => {
+      process.env.TESTCLASS_ENABLED = 'true';
+
+      @config
+      class TestClass {
+        @config
+        enabled: boolean = false;
+      }
+
+      const instance = new TestClass();
+      expect(instance.enabled).toBe(true);
+      expect(typeof instance.enabled).toBe('boolean');
+    });
+
+    test('should coerce env "1" to boolean true', () => {
+      process.env.TESTCLASS_ENABLED = '1';
+
+      @config
+      class TestClass {
+        @config
+        enabled: boolean = false;
+      }
+
+      const instance = new TestClass();
+      expect(instance.enabled).toBe(true);
+    });
+
+    test('should coerce env "True" to boolean true (case-insensitive)', () => {
+      process.env.TESTCLASS_ENABLED = 'True';
+
+      @config
+      class TestClass {
+        @config
+        enabled: boolean = false;
+      }
+
+      const instance = new TestClass();
+      expect(instance.enabled).toBe(true);
+    });
+
+    test('should coerce env "TRUE" to boolean true (case-insensitive)', () => {
+      process.env.TESTCLASS_ENABLED = 'TRUE';
+
+      @config
+      class TestClass {
+        @config
+        enabled: boolean = false;
+      }
+
+      const instance = new TestClass();
+      expect(instance.enabled).toBe(true);
+    });
+
+    test('should coerce env "false" to boolean false', () => {
+      process.env.TESTCLASS_ENABLED = 'false';
+
+      @config
+      class TestClass {
+        @config
+        enabled: boolean = true;
+      }
+
+      const instance = new TestClass();
+      expect(instance.enabled).toBe(false);
+    });
+
+    test('should coerce env "0" to boolean false', () => {
+      process.env.TESTCLASS_ENABLED = '0';
+
+      @config
+      class TestClass {
+        @config
+        enabled: boolean = true;
+      }
+
+      const instance = new TestClass();
+      expect(instance.enabled).toBe(false);
+    });
+
+    test('should NOT coerce string env values for string properties', () => {
+      process.env.TESTCLASS_CODE = '12345';
+
+      @config
+      class TestClass {
+        @config
+        code: string = '';
+      }
+
+      const instance = new TestClass();
+      expect(instance.code).toBe('12345');
+      expect(typeof instance.code).toBe('string');
+    });
+
+    test('should NOT coerce config object values (only env vars)', () => {
+      @config
+      class TestClass {
+        config: { [key: string]: any } = {};
+
+        @config
+        timeout: number = 5000;
+
+        constructor(configObj?: any) {
+          if (configObj) {
+            this.config = configObj;
+          }
+        }
+      }
+
+      // Config object passes value directly — no coercion needed
+      const instance = new TestClass({ timeout: 3000 });
+      expect(instance.timeout).toBe(3000);
+      expect(typeof instance.timeout).toBe('number');
+    });
+
+    test('should coerce prefixed env var to number', () => {
+      process.env.MYPREFIX_TIMEOUT = '2000';
+
+      @config
+      class TestClass {
+        config: { [key: string]: any } = { configPrefixes: ['MYPREFIX'] };
+
+        @config
+        timeout: number = 5000;
+      }
+
+      const instance = new TestClass();
+      expect(instance.timeout).toBe(2000);
+      expect(typeof instance.timeout).toBe('number');
+    });
+
+    test('should coerce negative numbers', () => {
+      process.env.TESTCLASS_OFFSET = '-10';
+
+      @config
+      class TestClass {
+        @config
+        offset: number = 0;
+      }
+
+      const instance = new TestClass();
+      expect(instance.offset).toBe(-10);
+      expect(typeof instance.offset).toBe('number');
+    });
+  });
 });
