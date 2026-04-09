@@ -1,10 +1,30 @@
-# ThemeParks.wiki Parks API
+# ThemeParks.wiki Park Data Backend
 
 An open-source TypeScript library for fetching real-time theme park data — wait times, schedules, and entity metadata — from 74+ destinations worldwide.
 
 This library powers the free API at [ThemeParks.wiki](https://themeparks.wiki).
 
 **License:** MIT
+
+## Sponsored By
+
+<div style="display: flex; align-items: center;">
+  <a href="https://touringplans.com/">
+    <img src="https://themeparks.wiki/sponsors/touringplans.png" alt="TouringPlans.com" width="40" style="margin-right: 10px;"/>
+  </a>
+  <span>
+    <a href="https://touringplans.com/">TouringPlans.com</a>
+  </span>
+</div>
+
+<div style="display: flex; align-items: center;">
+  <a href="https://www.queue-times.com/">
+    <img src="https://themeparks.wiki/sponsors/queuetimes.png" alt="Queue Times" width="40" style="margin-right: 10px;"/>
+  </a>
+  <span>
+    <a href="https://www.queue-times.com/">Queue Times</a>
+  </span>
+</div>
 
 ## Quick Start
 
@@ -187,10 +207,6 @@ Contributions are welcome. To add a new destination:
 4. Submit a PR
 
 See `CLAUDE.md` and `.claude/skills/implementing-parks.md` for detailed implementation guidance.
-
-## Sponsored By
-
-<a href="https://touringplans.com/">TouringPlans.com</a> | <a href="https://www.queue-times.com/">Queue Times</a>
 
 ## Support
 
