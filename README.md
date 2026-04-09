@@ -34,7 +34,7 @@ This library powers the free API at [ThemeParks.wiki](https://themeparks.wiki).
 git clone https://github.com/ThemeParks/parksapi.git
 cd parksapi
 npm install
-cp .env.example .env  # Add your API credentials
+touch .env             # Add your API credentials
 npm run dev            # Test all parks
 ```
 
