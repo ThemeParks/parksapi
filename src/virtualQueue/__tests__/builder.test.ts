@@ -106,18 +106,35 @@ describe('VQueueBuilder', () => {
       });
     });
 
-    it('should handle null price amount', () => {
+    it('should mark null price amount as Unknown', () => {
       const queue = VQueueBuilder.paidReturnTime()
         .available()
         .withWindow('2024-10-15T14:30:00-04:00', null)
         .withPrice('EUR', null)
         .build();
 
-      // null is converted to 0 for compatibility with typelib PriceData
+      // typelib forces amount to be a number, so null is stored as 0 with
+      // the optional `formatted: 'Unknown'` marker so consumers can
+      // distinguish "price unknown" from "free"
       expect(queue.price).toEqual({
         currency: 'EUR',
         amount: 0,
+        formatted: 'Unknown',
       });
+    });
+
+    it('should not mark zero price as unknown (free is distinct)', () => {
+      const queue = VQueueBuilder.paidReturnTime()
+        .available()
+        .withPrice('USD', 0)
+        .build();
+
+      // Zero amount means free (e.g. included with park admission), no formatted marker
+      expect(queue.price).toEqual({
+        currency: 'USD',
+        amount: 0,
+      });
+      expect((queue.price as any).formatted).toBeUndefined();
     });
 
     it('should inherit return time builder methods', () => {

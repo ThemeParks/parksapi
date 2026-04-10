@@ -5,12 +5,11 @@
  * for completeness validation.
  */
 
-import {TagType, StandardLocationId} from './tagTypes.js';
+import {TagType} from './tagTypes.js';
 
 // Registry of tag builder methods
 const simpleTagRegistry = new Map<TagType, string>();
 const complexTagRegistry = new Map<TagType, string>();
-const locationHelperRegistry = new Map<StandardLocationId, string>();
 
 /**
  * Decorator for simple tag builder methods
@@ -62,30 +61,6 @@ export function complexTag(tagType: TagType) {
 }
 
 /**
- * Decorator for standard location helper methods
- *
- * Automatically registers the method for validation
- *
- * @example
- * ```typescript
- * @locationHelper(StandardLocationId.MAIN_ENTRANCE)
- * static mainEntrance(latitude: number, longitude: number): TagData {
- *   return TagBuilder.location(latitude, longitude, 'Main Entrance', StandardLocationId.MAIN_ENTRANCE);
- * }
- * ```
- */
-export function locationHelper(locationId: StandardLocationId) {
-  return function (
-    target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor
-  ) {
-    locationHelperRegistry.set(locationId, propertyKey);
-    return descriptor;
-  };
-}
-
-/**
  * Get all registered simple tag methods
  */
 export function getSimpleTagRegistry(): ReadonlyMap<TagType, string> {
@@ -97,11 +72,4 @@ export function getSimpleTagRegistry(): ReadonlyMap<TagType, string> {
  */
 export function getComplexTagRegistry(): ReadonlyMap<TagType, string> {
   return complexTagRegistry;
-}
-
-/**
- * Get all registered location helper methods
- */
-export function getLocationHelperRegistry(): ReadonlyMap<StandardLocationId, string> {
-  return locationHelperRegistry;
 }

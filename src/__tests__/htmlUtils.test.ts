@@ -42,6 +42,14 @@ describe('decodeHtmlEntities', () => {
   test('handles &#125; (closing brace)', () => {
     expect(decodeHtmlEntities('&#125;')).toBe('}');
   });
+
+  test('does not double-decode nested entity encoding', () => {
+    // &#38; is the numeric encoding of '&'. Naive sequential decoding would
+    // expand &#38;amp; to &amp; then to &. The correct one-pass result keeps
+    // &amp; literal because each entity is only decoded once.
+    expect(decodeHtmlEntities('&#38;amp;')).toBe('&amp;');
+    expect(decodeHtmlEntities('&#x26;amp;')).toBe('&amp;');
+  });
 });
 
 describe('stripHtmlTags', () => {

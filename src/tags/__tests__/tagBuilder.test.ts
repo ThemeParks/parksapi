@@ -126,55 +126,66 @@ describe('TagBuilder', () => {
       const tag = TagBuilder.mainEntrance(28.4743, -81.4677);
       expect(tag.tag).toBe(TagType.LOCATION);
       expect(tag.tagName).toBe('Main Entrance');
-      expect(tag.id).toBe(StandardLocationId.MAIN_ENTRANCE);
+      expect(tag.id).toBe(StandardLocationId.mainEntrance);
       expect(tag.value).toEqual({latitude: 28.4743, longitude: -81.4677});
     });
 
     it('should create exit with standard ID', () => {
-      const tag = TagBuilder.exitLocation(28.4744, -81.4678);
+      const tag = TagBuilder.exit(28.4744, -81.4678);
       expect(tag.tag).toBe(TagType.LOCATION);
       expect(tag.tagName).toBe('Exit');
-      expect(tag.id).toBe(StandardLocationId.EXIT);
+      expect(tag.id).toBe(StandardLocationId.exit);
     });
 
     it('should create single rider entrance with standard ID', () => {
       const tag = TagBuilder.singleRiderEntrance(28.4745, -81.4679);
       expect(tag.tag).toBe(TagType.LOCATION);
       expect(tag.tagName).toBe('Single Rider Entrance');
-      expect(tag.id).toBe(StandardLocationId.SINGLE_RIDER_ENTRANCE);
+      expect(tag.id).toBe(StandardLocationId.singleRiderEntrance);
     });
 
     it('should create fast pass entrance with standard ID', () => {
       const tag = TagBuilder.fastPassEntrance(28.4746, -81.4680);
       expect(tag.tag).toBe(TagType.LOCATION);
       expect(tag.tagName).toBe('Express Entrance');
-      expect(tag.id).toBe(StandardLocationId.FASTPASS_ENTRANCE);
+      expect(tag.id).toBe(StandardLocationId.fastPassEntrance);
     });
 
     it('should create photo pickup with standard ID', () => {
       const tag = TagBuilder.photoPickup(28.4747, -81.4681);
       expect(tag.tag).toBe(TagType.LOCATION);
       expect(tag.tagName).toBe('Photo Pickup');
-      expect(tag.id).toBe(StandardLocationId.PHOTO_PICKUP);
+      expect(tag.id).toBe(StandardLocationId.photoPickup);
     });
 
     it('should create wheelchair accessible entrance with standard ID', () => {
       const tag = TagBuilder.wheelchairAccessibleEntrance(28.4748, -81.4682);
       expect(tag.tag).toBe(TagType.LOCATION);
       expect(tag.tagName).toBe('Wheelchair Accessible Entrance');
-      expect(tag.id).toBe(StandardLocationId.WHEELCHAIR_ACCESSIBLE_ENTRANCE);
+      expect(tag.id).toBe(StandardLocationId.wheelchairAccessibleEntrance);
+    });
+
+    it('should create newly-added helpers (guest services, restrooms, etc.)', () => {
+      expect(TagBuilder.guestServices(0, 0).id).toBe(StandardLocationId.guestServices);
+      expect(TagBuilder.restrooms(0, 0).id).toBe(StandardLocationId.restrooms);
+      expect(TagBuilder.firstAid(0, 0).id).toBe(StandardLocationId.firstAid);
+      expect(TagBuilder.lostAndFound(0, 0).id).toBe(StandardLocationId.lostAndFound);
+      expect(TagBuilder.strollerParking(0, 0).id).toBe(StandardLocationId.strollerParking);
+      expect(TagBuilder.lockerArea(0, 0).id).toBe(StandardLocationId.lockerArea);
+      expect(TagBuilder.viewingArea(0, 0).id).toBe(StandardLocationId.viewingArea);
+      expect(TagBuilder.queueEntrance(0, 0).id).toBe(StandardLocationId.queueEntrance);
     });
 
     it('should allow querying by standard ID', () => {
       const tags = [
         TagBuilder.mainEntrance(28.4743, -81.4677),
         TagBuilder.singleRiderEntrance(28.4745, -81.4679),
-        TagBuilder.exitLocation(28.4744, -81.4678),
+        TagBuilder.exit(28.4744, -81.4678),
       ];
 
       // Simulate querying all single rider entrances across all entities
       const singleRiderEntrances = tags.filter(
-        tag => tag.id === StandardLocationId.SINGLE_RIDER_ENTRANCE
+        tag => tag.id === StandardLocationId.singleRiderEntrance
       );
 
       expect(singleRiderEntrances).toHaveLength(1);

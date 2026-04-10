@@ -95,24 +95,43 @@ export function isValidTagType(type: string): type is TagType {
 }
 
 /**
- * Standard location IDs for consistency across all destinations
+ * Standard location metadata — single source of truth.
  *
- * Using these IDs makes it easy to query specific location types
- * across all parks (e.g., find all single rider entrances)
+ * Each entry maps a builder method name to:
+ *  - `id`: a stable identifier used in the tag (consistent across all parks)
+ *  - `displayName`: the human-readable name shown to users
+ *
+ * Adding a new standard location: add an entry here. The corresponding
+ * `TagBuilder.<key>(lat, lng)` helper is auto-generated from this table.
+ *
+ * Using consistent IDs makes it easy to query specific location types across
+ * parks (e.g., find every entity with a `location-single-rider-entrance` tag).
  */
-export enum StandardLocationId {
-  MAIN_ENTRANCE = 'location-main-entrance',
-  EXIT = 'location-exit',
-  SINGLE_RIDER_ENTRANCE = 'location-single-rider-entrance',
-  FASTPASS_ENTRANCE = 'location-fastpass-entrance',
-  PHOTO_PICKUP = 'location-photo-pickup',
-  GUEST_SERVICES = 'location-guest-services',
-  RESTROOMS = 'location-restrooms',
-  FIRST_AID = 'location-first-aid',
-  LOST_AND_FOUND = 'location-lost-and-found',
-  WHEELCHAIR_ACCESSIBLE_ENTRANCE = 'location-wheelchair-accessible-entrance',
-  STROLLER_PARKING = 'location-stroller-parking',
-  LOCKER_AREA = 'location-locker-area',
-  VIEWING_AREA = 'location-viewing-area',
-  QUEUE_ENTRANCE = 'location-queue-entrance',
-}
+export const STANDARD_LOCATIONS = {
+  mainEntrance:                 {id: 'location-main-entrance',                  displayName: 'Main Entrance'},
+  exit:                         {id: 'location-exit',                           displayName: 'Exit'},
+  singleRiderEntrance:          {id: 'location-single-rider-entrance',          displayName: 'Single Rider Entrance'},
+  fastPassEntrance:             {id: 'location-fastpass-entrance',              displayName: 'Express Entrance'},
+  photoPickup:                  {id: 'location-photo-pickup',                   displayName: 'Photo Pickup'},
+  guestServices:                {id: 'location-guest-services',                 displayName: 'Guest Services'},
+  restrooms:                    {id: 'location-restrooms',                      displayName: 'Restrooms'},
+  firstAid:                     {id: 'location-first-aid',                      displayName: 'First Aid'},
+  lostAndFound:                 {id: 'location-lost-and-found',                 displayName: 'Lost and Found'},
+  wheelchairAccessibleEntrance: {id: 'location-wheelchair-accessible-entrance', displayName: 'Wheelchair Accessible Entrance'},
+  strollerParking:              {id: 'location-stroller-parking',               displayName: 'Stroller Parking'},
+  lockerArea:                   {id: 'location-locker-area',                    displayName: 'Locker Area'},
+  viewingArea:                  {id: 'location-viewing-area',                   displayName: 'Viewing Area'},
+  queueEntrance:                {id: 'location-queue-entrance',                 displayName: 'Queue Entrance'},
+} as const satisfies Record<string, {id: string; displayName: string}>;
+
+/** All keys of STANDARD_LOCATIONS — used as the parameter type for TagBuilder helpers. */
+export type StandardLocationKey = keyof typeof STANDARD_LOCATIONS;
+
+/**
+ * Convenience constant exposing all standard location IDs by camelCase key
+ * (e.g. `StandardLocationId.mainEntrance` → `'location-main-entrance'`).
+ * Useful when filtering entities by location type in client code.
+ */
+export const StandardLocationId = Object.fromEntries(
+  Object.entries(STANDARD_LOCATIONS).map(([key, val]) => [key, val.id])
+) as {readonly [K in StandardLocationKey]: typeof STANDARD_LOCATIONS[K]['id']};

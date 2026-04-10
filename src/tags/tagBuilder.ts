@@ -6,9 +6,9 @@
  */
 
 import {TagData} from '@themeparks/typelib';
-import {TagType, TAG_NAMES, LocationTagValue, HeightTagValue, isSimpleTag, StandardLocationId} from './tagTypes.js';
+import {TagType, TAG_NAMES, LocationTagValue, HeightTagValue, isSimpleTag, STANDARD_LOCATIONS, StandardLocationKey} from './tagTypes.js';
 import {validateTagValue} from './validators.js';
-import {simpleTag, complexTag, locationHelper} from './tagMetadata.js';
+import {simpleTag, complexTag} from './tagMetadata.js';
 
 /**
  * TagBuilder provides a fluent API for creating validated entity tags
@@ -150,71 +150,73 @@ export class TagBuilder {
   }
 
   // ==================== Standard Location Helpers ====================
+  //
+  // Each helper below is a one-line delegate to `standardLocation()`, which
+  // reads name + id from the STANDARD_LOCATIONS table in tagTypes.ts.
+  // To add a new standard location: add an entry to STANDARD_LOCATIONS, then
+  // add a one-line static method below. Both the name and the id come from
+  // the table — there is no duplicated data.
 
-  /**
-   * Create a Main Entrance location tag with standard ID
-   *
-   * @param latitude Latitude coordinate
-   * @param longitude Longitude coordinate
-   */
-  @locationHelper(StandardLocationId.MAIN_ENTRANCE)
+  /** Build a location tag using a key from STANDARD_LOCATIONS. */
+  private static standardLocation(key: StandardLocationKey, latitude: number, longitude: number): TagData {
+    const {id, displayName} = STANDARD_LOCATIONS[key];
+    return TagBuilder.location(latitude, longitude, displayName, id);
+  }
+
   static mainEntrance(latitude: number, longitude: number): TagData {
-    return TagBuilder.location(latitude, longitude, 'Main Entrance', StandardLocationId.MAIN_ENTRANCE);
+    return TagBuilder.standardLocation('mainEntrance', latitude, longitude);
   }
 
-  /**
-   * Create an Exit location tag with standard ID
-   *
-   * @param latitude Latitude coordinate
-   * @param longitude Longitude coordinate
-   */
-  @locationHelper(StandardLocationId.EXIT)
-  static exitLocation(latitude: number, longitude: number): TagData {
-    return TagBuilder.location(latitude, longitude, 'Exit', StandardLocationId.EXIT);
+  static exit(latitude: number, longitude: number): TagData {
+    return TagBuilder.standardLocation('exit', latitude, longitude);
   }
 
-  /**
-   * Create a Single Rider Entrance location tag with standard ID
-   *
-   * @param latitude Latitude coordinate
-   * @param longitude Longitude coordinate
-   */
-  @locationHelper(StandardLocationId.SINGLE_RIDER_ENTRANCE)
   static singleRiderEntrance(latitude: number, longitude: number): TagData {
-    return TagBuilder.location(latitude, longitude, 'Single Rider Entrance', StandardLocationId.SINGLE_RIDER_ENTRANCE);
+    return TagBuilder.standardLocation('singleRiderEntrance', latitude, longitude);
   }
 
-  /**
-   * Create a Fast Pass/Express Entrance location tag with standard ID
-   *
-   * @param latitude Latitude coordinate
-   * @param longitude Longitude coordinate
-   */
-  @locationHelper(StandardLocationId.FASTPASS_ENTRANCE)
   static fastPassEntrance(latitude: number, longitude: number): TagData {
-    return TagBuilder.location(latitude, longitude, 'Express Entrance', StandardLocationId.FASTPASS_ENTRANCE);
+    return TagBuilder.standardLocation('fastPassEntrance', latitude, longitude);
   }
 
-  /**
-   * Create a Photo Pickup location tag with standard ID
-   *
-   * @param latitude Latitude coordinate
-   * @param longitude Longitude coordinate
-   */
-  @locationHelper(StandardLocationId.PHOTO_PICKUP)
   static photoPickup(latitude: number, longitude: number): TagData {
-    return TagBuilder.location(latitude, longitude, 'Photo Pickup', StandardLocationId.PHOTO_PICKUP);
+    return TagBuilder.standardLocation('photoPickup', latitude, longitude);
   }
 
-  /**
-   * Create a Wheelchair Accessible Entrance location tag with standard ID
-   *
-   * @param latitude Latitude coordinate
-   * @param longitude Longitude coordinate
-   */
-  @locationHelper(StandardLocationId.WHEELCHAIR_ACCESSIBLE_ENTRANCE)
+  static guestServices(latitude: number, longitude: number): TagData {
+    return TagBuilder.standardLocation('guestServices', latitude, longitude);
+  }
+
+  static restrooms(latitude: number, longitude: number): TagData {
+    return TagBuilder.standardLocation('restrooms', latitude, longitude);
+  }
+
+  static firstAid(latitude: number, longitude: number): TagData {
+    return TagBuilder.standardLocation('firstAid', latitude, longitude);
+  }
+
+  static lostAndFound(latitude: number, longitude: number): TagData {
+    return TagBuilder.standardLocation('lostAndFound', latitude, longitude);
+  }
+
   static wheelchairAccessibleEntrance(latitude: number, longitude: number): TagData {
-    return TagBuilder.location(latitude, longitude, 'Wheelchair Accessible Entrance', StandardLocationId.WHEELCHAIR_ACCESSIBLE_ENTRANCE);
+    return TagBuilder.standardLocation('wheelchairAccessibleEntrance', latitude, longitude);
+  }
+
+  static strollerParking(latitude: number, longitude: number): TagData {
+    return TagBuilder.standardLocation('strollerParking', latitude, longitude);
+  }
+
+  static lockerArea(latitude: number, longitude: number): TagData {
+    return TagBuilder.standardLocation('lockerArea', latitude, longitude);
+  }
+
+  static viewingArea(latitude: number, longitude: number): TagData {
+    return TagBuilder.standardLocation('viewingArea', latitude, longitude);
+  }
+
+  static queueEntrance(latitude: number, longitude: number): TagData {
+    return TagBuilder.standardLocation('queueEntrance', latitude, longitude);
   }
 
   // ==================== Height Tags ====================

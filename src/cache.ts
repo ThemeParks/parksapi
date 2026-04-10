@@ -121,7 +121,7 @@ class CacheLib {
       return; // Already in temporary mode
     }
 
-    console.log('🔄 Cache: Switching to temporary in-memory mode');
+    console.log('Cache: Switching to temporary in-memory mode');
     isTemporaryMode = true;
 
     // Stop cleanup if running

@@ -19,27 +19,33 @@ type PromiseEntry = {
   value?: any;
 };
 
-// Global registry of active promises
-const activePromises: PromiseEntry[] = [];
+// Two-level map: instance -> (methodName + args key) -> entry. Lookups are
+// O(1) for both levels rather than O(n) over a flat array, which matters
+// because @reusable({forever: true}) entries (used by Destination.init) are
+// never removed and accumulate over the lifetime of the process.
+const activePromises = new Map<any, Map<string, PromiseEntry>>();
+
+/** Build the per-instance lookup key from method name + serialized args. */
+function entryKey(methodName: string, args: string): string {
+  return args ? `${methodName}:${args}` : methodName;
+}
 
 /**
  * Find an active promise entry
  */
 function findPromiseEntry(instance: any, methodName: string, args: string): PromiseEntry | undefined {
-  return activePromises.find(
-    (entry) => entry.instance === instance && entry.methodName === methodName && entry.args === args
-  );
+  return activePromises.get(instance)?.get(entryKey(methodName, args));
 }
 
 /**
  * Remove a promise entry from the registry
  */
 function removePromiseEntry(instance: any, methodName: string, args: string): void {
-  const index = activePromises.findIndex(
-    (entry) => entry.instance === instance && entry.methodName === methodName && entry.args === args
-  );
-  if (index >= 0) {
-    activePromises.splice(index, 1);
+  const inner = activePromises.get(instance);
+  if (!inner) return;
+  inner.delete(entryKey(methodName, args));
+  if (inner.size === 0) {
+    activePromises.delete(instance);
   }
 }
 
@@ -101,7 +107,7 @@ export function reusable(options: ReusableOptions = {}): MethodDecorator {
       // Create a new promise
       const newPromise = originalMethod.apply(this, args);
 
-      // Store the promise entry
+      // Store the promise entry in the two-level map
       const entry: PromiseEntry = {
         instance: this,
         methodName,
@@ -110,7 +116,12 @@ export function reusable(options: ReusableOptions = {}): MethodDecorator {
         resolved: false,
       };
 
-      activePromises.push(entry);
+      let inner = activePromises.get(this);
+      if (!inner) {
+        inner = new Map<string, PromiseEntry>();
+        activePromises.set(this, inner);
+      }
+      inner.set(entryKey(methodName, argsSerialised), entry);
 
       // Handle resolution and cleanup
       // Don't change the promise chain, just observe it
@@ -146,7 +157,11 @@ export function reusable(options: ReusableOptions = {}): MethodDecorator {
  * Get the number of active promise entries
  */
 export function getActivePromiseCount(): number {
-  return activePromises.length;
+  let total = 0;
+  for (const inner of activePromises.values()) {
+    total += inner.size;
+  }
+  return total;
 }
 
 /**
@@ -154,12 +169,18 @@ export function getActivePromiseCount(): number {
  * Warning: This should only be used in tests
  */
 export function clearActivePromises(): void {
-  activePromises.length = 0;
+  activePromises.clear();
 }
 
 /**
  * Get all active promise entries (for debugging)
  */
 export function getActivePromises(): ReadonlyArray<Readonly<PromiseEntry>> {
-  return activePromises;
+  const all: PromiseEntry[] = [];
+  for (const inner of activePromises.values()) {
+    for (const entry of inner.values()) {
+      all.push(entry);
+    }
+  }
+  return all;
 }

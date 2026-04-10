@@ -6,13 +6,13 @@
  * - Missing SIMPLE_TAG_TYPES entries
  * - Missing validators for complex tags
  * - Missing TagBuilder methods
- * - Missing StandardLocationId helper methods
+ * - Missing STANDARD_LOCATIONS helper methods
  */
 
-import {TagType, TAG_NAMES, SIMPLE_TAG_TYPES, StandardLocationId} from '../tagTypes';
+import {TagType, TAG_NAMES, SIMPLE_TAG_TYPES, STANDARD_LOCATIONS, StandardLocationId} from '../tagTypes';
 import {TagBuilder} from '../tagBuilder';
 import {validateTagValue} from '../validators';
-import {getSimpleTagRegistry, getComplexTagRegistry, getLocationHelperRegistry} from '../tagMetadata';
+import {getSimpleTagRegistry, getComplexTagRegistry} from '../tagMetadata';
 
 describe('Tag System Completeness', () => {
   describe('TagType enum coverage', () => {
@@ -147,83 +147,53 @@ describe('Tag System Completeness', () => {
     });
   });
 
-  describe('StandardLocationId coverage', () => {
-    it('recommended StandardLocationIds should have helper methods with @locationHelper decorator', () => {
-      const recommendedLocationIds = [
-        StandardLocationId.MAIN_ENTRANCE,
-        StandardLocationId.EXIT,
-        StandardLocationId.SINGLE_RIDER_ENTRANCE,
-        StandardLocationId.FASTPASS_ENTRANCE,
-        StandardLocationId.PHOTO_PICKUP,
-        StandardLocationId.WHEELCHAIR_ACCESSIBLE_ENTRANCE,
-      ];
+  describe('STANDARD_LOCATIONS coverage', () => {
+    it('every entry in STANDARD_LOCATIONS should have a TagBuilder helper with the same name', () => {
+      const missing: string[] = [];
 
-      const locationHelperRegistry = getLocationHelperRegistry();
-      const missingHelpers: string[] = [];
-
-      recommendedLocationIds.forEach(locationId => {
-        const methodName = locationHelperRegistry.get(locationId);
-        if (!methodName) {
-          missingHelpers.push(locationId);
-        } else if (typeof TagBuilder[methodName as keyof typeof TagBuilder] !== 'function') {
-          missingHelpers.push(`${locationId} (method exists but is not a function)`);
+      for (const key of Object.keys(STANDARD_LOCATIONS)) {
+        const fn = (TagBuilder as any)[key];
+        if (typeof fn !== 'function') {
+          missing.push(key);
         }
-      });
+      }
 
-      expect(missingHelpers).toEqual([]);
-      if (missingHelpers.length > 0) {
+      expect(missing).toEqual([]);
+      if (missing.length > 0) {
         throw new Error(
-          `Missing TagBuilder helper methods for StandardLocationIds: ${missingHelpers.join(', ')}\n` +
-          `Add helper methods to TagBuilder class with @locationHelper(StandardLocationId.XXX) decorator`
+          `Missing TagBuilder helpers for STANDARD_LOCATIONS keys: ${missing.join(', ')}\n` +
+          `Add a one-line static method to TagBuilder that delegates to standardLocation('<key>', lat, lng).`
         );
       }
     });
 
-    it('all location helper methods should return LOCATION tag with correct ID', () => {
-      const locationHelperRegistry = getLocationHelperRegistry();
-      locationHelperRegistry.forEach((methodName, expectedId) => {
-        const tag = (TagBuilder[methodName as keyof typeof TagBuilder] as any)(28.4743, -81.4677);
+    it('every helper should return a LOCATION tag with the correct id and displayName', () => {
+      for (const [key, {id, displayName}] of Object.entries(STANDARD_LOCATIONS)) {
+        const tag = (TagBuilder as any)[key](28.4743, -81.4677);
         expect(tag.tag).toBe(TagType.LOCATION);
-        expect(tag.id).toBe(expectedId);
-        expect(tag.tagName).toBeTruthy();
+        expect(tag.id).toBe(id);
+        expect(tag.tagName).toBe(displayName);
         expect(tag.value).toEqual({latitude: 28.4743, longitude: -81.4677});
-      });
-    });
-
-    it('all StandardLocationIds should use consistent prefix', () => {
-      const allLocationIds = Object.values(StandardLocationId);
-      const invalidIds: string[] = [];
-
-      allLocationIds.forEach(locationId => {
-        if (!locationId.startsWith('location-')) {
-          invalidIds.push(locationId);
-        }
-      });
-
-      expect(invalidIds).toEqual([]);
-      if (invalidIds.length > 0) {
-        throw new Error(
-          `StandardLocationIds must start with 'location-': ${invalidIds.join(', ')}`
-        );
       }
     });
 
-    it('all StandardLocationIds should be lowercase with hyphens', () => {
-      const allLocationIds = Object.values(StandardLocationId);
-      const invalidFormat: string[] = [];
+    it('all standard location ids should use the location- prefix', () => {
+      const invalidIds = Object.values(STANDARD_LOCATIONS)
+        .map(loc => loc.id)
+        .filter(id => !id.startsWith('location-'));
+      expect(invalidIds).toEqual([]);
+    });
 
-      allLocationIds.forEach(locationId => {
-        // Should be lowercase with hyphens only
-        if (!/^[a-z-]+$/.test(locationId)) {
-          invalidFormat.push(locationId);
-        }
-      });
-
+    it('all standard location ids should be lowercase with hyphens', () => {
+      const invalidFormat = Object.values(STANDARD_LOCATIONS)
+        .map(loc => loc.id)
+        .filter(id => !/^[a-z-]+$/.test(id));
       expect(invalidFormat).toEqual([]);
-      if (invalidFormat.length > 0) {
-        throw new Error(
-          `StandardLocationIds must be lowercase with hyphens only: ${invalidFormat.join(', ')}`
-        );
+    });
+
+    it('StandardLocationId convenience constant should mirror STANDARD_LOCATIONS ids', () => {
+      for (const [key, {id}] of Object.entries(STANDARD_LOCATIONS)) {
+        expect((StandardLocationId as any)[key]).toBe(id);
       }
     });
   });
@@ -252,12 +222,11 @@ describe('Tag System Completeness', () => {
       7. Add tests for the new tag
       (No manual mapping needed - decorator handles it!)
 
-      Standard Location ID:
-      1. Add to StandardLocationId enum in tagTypes.ts
-      2. (Optional) Add helper method with @locationHelper(StandardLocationId.XXX) decorator
-      3. (Optional) Add to recommendedLocationIds array in this test
-      4. Add tests for the new location ID
-      (No manual mapping needed - decorator handles it!)
+      Standard Location:
+      1. Add an entry to STANDARD_LOCATIONS in tagTypes.ts (id + displayName)
+      2. Add a one-line static method to TagBuilder that delegates to
+         standardLocation('<yourKey>', lat, lng)
+      3. The completeness test will fail until both are present.
 
       Run: npm test -- src/tags/__tests__/tagCompleteness.test.ts
       This test will catch any missing steps!

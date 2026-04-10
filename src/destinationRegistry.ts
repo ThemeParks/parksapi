@@ -50,9 +50,12 @@ export type DestinationRegistryEntry = {
 const DESTINATION_REGISTRY: DestinationRegistryEntry[] = [];
 
 /**
- * Track if destinations have been loaded
+ * Track if destinations have been loaded.
+ * `loadPromise` holds the in-flight load so concurrent callers share one
+ * filesystem scan rather than racing.
  */
 let destinationsLoaded = false;
+let loadPromise: Promise<void> | null = null;
 
 /**
  * Recursively find all TypeScript/JavaScript files in a directory
@@ -97,41 +100,48 @@ function findDestinationFiles(dir: string, fileExtension: string = '.js'): strin
  */
 async function loadAllDestinations(): Promise<void> {
   if (destinationsLoaded) return;
+  // If a load is already in progress, return its promise so concurrent
+  // callers share a single filesystem scan instead of racing.
+  if (loadPromise) return loadPromise;
 
-  // Determine if we're running from src (TS) or dist (JS)
-  const currentDir = __dirname;
-  const isBuilt = currentDir.includes('dist');
-  const fileExtension = isBuilt ? '.js' : '.ts';
+  loadPromise = (async () => {
+    // Determine if we're running from src (TS) or dist (JS)
+    const currentDir = __dirname;
+    const isBuilt = currentDir.includes('dist');
+    const fileExtension = isBuilt ? '.js' : '.ts';
 
-  // Find the parks directory relative to this file
-  const parksDir = path.join(__dirname, 'parks');
+    // Find the parks directory relative to this file
+    const parksDir = path.join(__dirname, 'parks');
 
-  if (!fs.existsSync(parksDir)) {
-    destinationsLoaded = true; // Nothing to load; mark done so we don't re-check on every call
-    return;
-  }
-
-  // Find all destination files
-  const destinationFiles = findDestinationFiles(parksDir, fileExtension);
-
-  // Import all files to trigger decorators
-  const importPromises = destinationFiles.map(async (file) => {
-    try {
-      // Convert absolute path to relative import path
-      const relativePath = path.relative(__dirname, file);
-      const importPath = './' + relativePath.replace(/\\/g, '/').replace(/\.(ts|js)$/, '.js');
-
-      await import(importPath);
-    } catch (error) {
-      // Log import errors in development mode for debugging
-      if (process.env.NODE_ENV !== 'production') {
-        console.error(`[destinationRegistry] Failed to import destination file: ${file}\n`, error);
-      }
+    if (!fs.existsSync(parksDir)) {
+      destinationsLoaded = true; // Nothing to load; mark done so we don't re-check on every call
+      return;
     }
-  });
 
-  await Promise.all(importPromises);
-  destinationsLoaded = true;
+    // Find all destination files
+    const destinationFiles = findDestinationFiles(parksDir, fileExtension);
+
+    // Import all files to trigger decorators
+    const importPromises = destinationFiles.map(async (file) => {
+      try {
+        // Convert absolute path to relative import path
+        const relativePath = path.relative(__dirname, file);
+        const importPath = './' + relativePath.replace(/\\/g, '/').replace(/\.(ts|js)$/, '.js');
+
+        await import(importPath);
+      } catch (error) {
+        // Log import errors in development mode for debugging
+        if (process.env.NODE_ENV !== 'production') {
+          console.error(`[destinationRegistry] Failed to import destination file: ${file}\n`, error);
+        }
+      }
+    });
+
+    await Promise.all(importPromises);
+    destinationsLoaded = true;
+  })();
+
+  return loadPromise;
 }
 
 /**
@@ -293,8 +303,10 @@ export async function getRegistrySize(): Promise<number> {
  * Manually register an external destination class.
  *
  * Use this when the destination lives in a separate repo and can't be
- * auto-discovered from the parks/ directory. The class should still
- * extend Destination and use @config for configuration.
+ * auto-discovered from the parks/ directory. The class should extend
+ * Destination and use property-level @config decorators for configuration —
+ * the class-level config wrapper is applied automatically here, matching
+ * the behavior of @destinationController.
  *
  * @example
  * ```typescript
@@ -313,5 +325,14 @@ export function registerDestination(entry: DestinationRegistryEntry): void {
   // Prevent duplicates
   const existing = DESTINATION_REGISTRY.find(d => d.id === entry.id);
   if (existing) return;
-  DESTINATION_REGISTRY.push(entry);
+
+  // Apply @config wrapping so property-level @config decorators resolve env
+  // vars correctly. Without this, externally-registered destinations would
+  // silently miss env var configuration unless the consumer manually applied
+  // the class decorator themselves.
+  const configWrapped = (config(entry.DestinationClass) as typeof entry.DestinationClass) ?? entry.DestinationClass;
+  DESTINATION_REGISTRY.push({
+    ...entry,
+    DestinationClass: configWrapped,
+  });
 }

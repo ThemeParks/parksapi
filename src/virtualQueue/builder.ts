@@ -83,9 +83,14 @@ export class PaidReturnTimeBuilder extends ReturnTimeBuilder {
   private _amount: number | null = 0;
 
   /**
-   * Set price for paid return time
+   * Set price for paid return time.
+   *
    * @param currency - Currency code (e.g., 'USD', 'EUR')
-   * @param amountCents - Price in cents (e.g., 1500 for $15.00)
+   * @param amountCents - Price in cents (e.g., 1500 for $15.00). Pass `null`
+   *   when the API confirms a paid queue exists but does not expose the price
+   *   (e.g. Tokyo Disney Premier Access). The built queue will have
+   *   `amount: 0, formatted: 'Unknown'` so consumers can distinguish unknown
+   *   from free.
    */
   withPrice(currency: string, amountCents: number | null): this {
     this._currency = currency;
@@ -98,12 +103,15 @@ export class PaidReturnTimeBuilder extends ReturnTimeBuilder {
    */
   build(): NonNullable<LiveQueue['PAID_RETURN_TIME']> {
     const baseQueue = super.build();
+    // typelib's PriceData.amount is required as `number`, so we can't
+    // store `null` directly. Use the optional `formatted` field to mark
+    // unknown prices — this is distinct from `amount: 0` which means free.
+    const price = this._amount === null
+      ? {currency: this._currency as any, amount: 0, formatted: 'Unknown'}
+      : {currency: this._currency as any, amount: this._amount};
     return {
       ...baseQueue,
-      price: {
-        currency: this._currency as any,
-        amount: (this._amount ?? 0) as number,
-      },
+      price,
     };
   }
 }

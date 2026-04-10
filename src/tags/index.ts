@@ -23,12 +23,13 @@ export {
   TagType,
   TAG_NAMES,
   SIMPLE_TAG_TYPES,
+  STANDARD_LOCATIONS,
   StandardLocationId,
   isSimpleTag,
   isValidTagType,
 } from './tagTypes.js';
 
-export type {LocationTagValue, HeightTagValue} from './tagTypes.js';
+export type {LocationTagValue, HeightTagValue, StandardLocationKey} from './tagTypes.js';
 
 // Export validators (for advanced use cases)
 export {

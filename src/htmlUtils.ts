@@ -8,24 +8,37 @@
  * Handles named entities (&amp;, &lt;, etc.), decimal (&#34;),
  * and hex (&#x27;) entities.
  *
+ * Single-pass decoding: each entity is matched once and replaced with its
+ * literal character. This avoids the double-decode trap where running
+ * substitutions sequentially would cause `&#38;amp;` (literal `&amp;`)
+ * to become `&` instead of staying as `&amp;`.
+ *
  * @param str String with HTML entities
  * @returns Decoded string
  */
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+};
+
 export function decodeHtmlEntities(str: string): string {
   if (!str) return '';
 
-  return str
-    // Hex entities: &#x27; → '
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-    // Decimal entities: &#34; → "
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
-    // Named entities
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&nbsp;/g, ' ');
+  // One pass over the string. The combined regex matches hex entities,
+  // decimal entities, and named entities; the replace callback decides
+  // how to decode each match. Because each entity is consumed in a single
+  // pass, decoded output is never re-scanned for further entities.
+  return str.replace(/&(?:#x([0-9a-fA-F]+)|#(\d+)|(amp|lt|gt|quot|apos|nbsp));/g,
+    (match, hex, dec, name) => {
+      if (hex !== undefined) return String.fromCharCode(parseInt(hex, 16));
+      if (dec !== undefined) return String.fromCharCode(parseInt(dec, 10));
+      if (name !== undefined) return NAMED_ENTITIES[name];
+      return match;
+    });
 }
 
 /**
