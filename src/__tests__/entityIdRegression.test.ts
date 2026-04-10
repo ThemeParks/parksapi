@@ -72,14 +72,19 @@ describe('Destination ID patterns', () => {
     }
   });
 
-  test('Six Flags is registered as single destination', async () => {
+  test('Six Flags framework is registered as a single destination entry', async () => {
     const destinations = await getAllDestinations();
     const sixflags = destinations.filter(d =>
       Array.isArray(d.category) ? d.category.includes('Six Flags') : d.category === 'Six Flags'
     );
 
-    expect(sixflags.length).toBe(1);
-    expect(sixflags[0].id).toBe('sixflags');
+    // The original framework class (handles 25+ US parks via Firebase config)
+    // must be exactly one entry — it must not have been double-registered.
+    const framework = sixflags.filter(d => d.id === 'sixflags');
+    expect(framework.length).toBe(1);
+
+    // Other Six Flags-branded destinations with their own API (e.g. Qiddiya
+    // City) may also live in this category — they're separate entries.
   });
 
   test('Parcs Reunidos parks are registered individually', async () => {
