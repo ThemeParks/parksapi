@@ -3,7 +3,6 @@ import * as http from 'node:http';
 import * as https from 'node:https';
 import * as zlib from 'node:zlib';
 import {URL} from 'node:url';
-import {pipeline} from 'node:stream';
 
 /**
  * Make an HTTP request using node:http/https with optional proxy support

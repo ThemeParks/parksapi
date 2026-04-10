@@ -20,10 +20,15 @@ describe('Tag Validators', () => {
       expect(isLocationValue({})).toBe(false);
       expect(isLocationValue({latitude: 28.4743})).toBe(false);
       expect(isLocationValue({longitude: -81.4677})).toBe(false);
-      expect(isLocationValue({latitude: 28.4743, longitude: -81.4677, extra: 'field'})).toBe(false);
       expect(isLocationValue({latitude: '28.4743', longitude: -81.4677})).toBe(false);
       expect(isLocationValue({latitude: NaN, longitude: -81.4677})).toBe(false);
       expect(isLocationValue({latitude: 28.4743, longitude: NaN})).toBe(false);
+    });
+
+    it('should accept location values with extra fields', () => {
+      // Structural typing — extra properties don't invalidate the shape
+      expect(isLocationValue({latitude: 28.4743, longitude: -81.4677, extra: 'field'})).toBe(true);
+      expect(isLocationValue({latitude: 28.4743, longitude: -81.4677, accuracy: 10})).toBe(true);
     });
   });
 
@@ -40,11 +45,14 @@ describe('Tag Validators', () => {
       expect(isHeightValue({})).toBe(false);
       expect(isHeightValue({height: 107})).toBe(false);
       expect(isHeightValue({unit: 'cm'})).toBe(false);
-      expect(isHeightValue({height: 107, unit: 'cm', extra: 'field'})).toBe(false);
       expect(isHeightValue({height: '107', unit: 'cm'})).toBe(false);
       expect(isHeightValue({height: 107, unit: 'meters'})).toBe(false);
       expect(isHeightValue({height: -10, unit: 'cm'})).toBe(false);
       expect(isHeightValue({height: NaN, unit: 'cm'})).toBe(false);
+    });
+
+    it('should accept height values with extra fields', () => {
+      expect(isHeightValue({height: 107, unit: 'cm', extra: 'field'})).toBe(true);
     });
   });
 

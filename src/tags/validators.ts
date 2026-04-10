@@ -8,19 +8,13 @@
 import {TagType, LocationTagValue, HeightTagValue, isSimpleTag} from './tagTypes.js';
 
 /**
- * Type guard for LocationTagValue
+ * Type guard for LocationTagValue.
+ * Accepts any object with valid `latitude` and `longitude` numbers — additional
+ * properties (e.g. `accuracy`) are allowed for structural compatibility with
+ * API-shaped objects.
  */
 export function isLocationValue(value: any): value is LocationTagValue {
   if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-
-  const keys = Object.keys(value);
-  if (keys.length !== 2) {
-    return false;
-  }
-
-  if (!keys.includes('latitude') || !keys.includes('longitude')) {
     return false;
   }
 
@@ -37,19 +31,11 @@ export function isLocationValue(value: any): value is LocationTagValue {
 }
 
 /**
- * Type guard for HeightTagValue
+ * Type guard for HeightTagValue.
+ * Accepts any object with valid `height` and `unit` — additional properties are allowed.
  */
 export function isHeightValue(value: any): value is HeightTagValue {
   if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-
-  const keys = Object.keys(value);
-  if (keys.length !== 2) {
-    return false;
-  }
-
-  if (!keys.includes('height') || !keys.includes('unit')) {
     return false;
   }
 

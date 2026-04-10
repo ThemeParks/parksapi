@@ -2,7 +2,6 @@
 //  Methods decorated with @http must return an HTTPRequest object
 //  The HTTP library will then execute the request and return an HTTPResponse object
 
-import {createHash} from "crypto";
 import {CacheLib} from "./cache.js";
 import {broadcast} from "./injector.js";
 import {tracing} from "./tracing.js";
@@ -247,9 +246,10 @@ class HTTPRequestImpl implements HTTPObj {
     const headers = this.buildHeaders();
     const bodyString = this.body ? JSON.stringify(this.body) : '';
     const classPrefix = this.className ? `${this.className}:` : '';
-    // hash result - include class name to prevent conflicts between different destination classes
-    const inStr = `${classPrefix}${this.method}:${url}:${JSON.stringify(headers)}:${bodyString}`;
-    return inStr; //createHash('sha256').update(inStr).digest('hex');
+    // Plaintext key — includes class name to prevent conflicts between destinations.
+    // Not hashed: SQLite TEXT PRIMARY KEY indexes handle long keys fine, and keeping
+    // the raw key makes cache inspection/debugging trivial.
+    return `${classPrefix}${this.method}:${url}:${JSON.stringify(headers)}:${bodyString}`;
   }
 
   // Internal method to set promise handlers
@@ -554,10 +554,8 @@ function httpDecoratorFactory(options?: {
             internalRequest.retries = options.retries;
           }
 
-          // Optionally override cache key
+          // Optionally override cache key (include class name to scope it per destination)
           if (options?.cacheKey !== undefined) {
-            // Include class name in manual cache key override too
-            //internalRequest.cacheKey = createHash('sha256').update(`${instance.constructor.name}:${options.cacheKey}`).digest('hex');
             internalRequest.cacheKey = `${instance.constructor.name}:${options.cacheKey}`;
           }
 
@@ -681,7 +679,7 @@ function calculateBackoffDelay(retryAttempt: number): number {
   // Cap at max delay after jitter
   return Math.floor(Math.min(jitteredDelay, MAX_RETRY_DELAY_MS));
 }
-// Process queued HTTP requests (stub implementation)
+// Process queued HTTP requests — invoked on a 100ms interval
 export async function processHttpQueue() {
   while (httpRequestQueue.length > 0) {
     // peek at the first request in the queue

@@ -14,7 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Convert class name to kebab-case ID
+ * Convert class name to a lowercase ID (no separators).
  * UniversalOrlando -> universalorlando
  */
 function classNameToId(className: string): string {
@@ -107,6 +107,7 @@ async function loadAllDestinations(): Promise<void> {
   const parksDir = path.join(__dirname, 'parks');
 
   if (!fs.existsSync(parksDir)) {
+    destinationsLoaded = true; // Nothing to load; mark done so we don't re-check on every call
     return;
   }
 

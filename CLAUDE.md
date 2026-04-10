@@ -140,9 +140,7 @@ All parks extend `Destination` using the **Template Method Pattern**.
 
 ### Type System
 
-Types from `@themeparks/typelib`: `Entity`, `LiveData`, `EntitySchedule`, `TagType`, `LocalisedString`, `LanguageCode`
-
-Project enums in `src/parkTypes.ts`: `AttractionType` (RIDE, SHOW, TRANSPORT, etc.), `QueueType` (STANDBY, SINGLE_RIDER, etc.)
+All types come from `@themeparks/typelib`: `Entity`, `LiveData`, `EntitySchedule`, `TagType`, `LocalisedString`, `LanguageCode`, `AttractionTypeEnum`, `QueueType`.
 
 ### Utilities
 

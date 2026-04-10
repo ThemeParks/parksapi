@@ -229,7 +229,8 @@ export abstract class Destination {
 
   /**
    * Inject proxy settings into HTTP requests.
-   * Runs with high priority (last) so auth/header injectors fire first.
+   * Runs last (priority 999) so all auth/header injectors fire before
+   * the URL is rewritten to point at the proxy service.
    */
   @inject({eventName: 'httpRequest', priority: 999})
   async _injectProxy(req: HTTPObj): Promise<void> {
@@ -255,7 +256,8 @@ export abstract class Destination {
 
   /**
    * Unwrap proxy responses (e.g., Scrapfly wraps responses in JSON).
-   * Runs with low priority (first) so downstream code sees the unwrapped response.
+   * Runs first (priority -999) so downstream response handlers see
+   * the unwrapped response, not the proxy envelope.
    */
   @inject({eventName: 'httpResponse', priority: -999})
   async _unwrapProxyResponse(req: HTTPObj): Promise<void> {
