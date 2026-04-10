@@ -23,9 +23,6 @@ export class PortAventuraWorld extends Destination {
   waitTimeUrl: string = '';
 
   @config
-  guestPassword: string = '';
-
-  @config
   timezone: string = 'Europe/Madrid';
 
   /** Directory containing client SSL certificates (private.pem + cert.pem) */
@@ -71,22 +68,17 @@ export class PortAventuraWorld extends Destination {
 
   // ===== Header Injection =====
 
-  /**
-   * Inject headers into CMS API requests.
-   */
-  @inject({
-    eventName: 'httpRequest',
-    hostname: function() { return hostnameFromUrl(this.apiBase); },
-  })
-  async injectCmsHeaders(requestObj: HTTPObj): Promise<void> {
+  /** Add app-identification headers and client SSL certs to a request. */
+  private applyAppHeadersAndCerts(requestObj: HTTPObj): void {
     requestObj.headers = {
       ...requestObj.headers,
-      'User-Agent': 'okhttp/4.9.2',
+      'User-Agent': 'okhttp/4.12.0',
+      'X-App-Name': 'mobile',
       'X-App-Environment': 'production',
       'X-App-Platform': 'android',
-      'X-App-Version': '4.17.0',
+      'X-App-Version': '6.0.0',
     };
-    // Inject client SSL certificates for mutual TLS
+    // Cloudflare requires mutual TLS — client SSL certs must be presented
     const certs = this.loadCerts();
     if (certs) {
       if (!requestObj.options) requestObj.options = {};
@@ -96,24 +88,25 @@ export class PortAventuraWorld extends Destination {
   }
 
   /**
-   * Inject headers into wait time API requests.
+   * Inject headers + client certs into CMS API requests.
+   */
+  @inject({
+    eventName: 'httpRequest',
+    hostname: function() { return hostnameFromUrl(this.apiBase); },
+  })
+  async injectCmsHeaders(requestObj: HTTPObj): Promise<void> {
+    this.applyAppHeadersAndCerts(requestObj);
+  }
+
+  /**
+   * Inject headers + client certs into wait time API requests.
    */
   @inject({
     eventName: 'httpRequest',
     hostname: function() { return this.getWaitTimeHostname(); },
   })
   async injectWaitTimeHeaders(requestObj: HTTPObj): Promise<void> {
-    requestObj.headers = {
-      ...requestObj.headers,
-      'User-Agent': 'okhttp/4.9.2',
-    };
-    // Inject client SSL certificates for mutual TLS
-    const certs = this.loadCerts();
-    if (certs) {
-      if (!requestObj.options) requestObj.options = {};
-      requestObj.options.key = certs.key;
-      requestObj.options.cert = certs.cert;
-    }
+    this.applyAppHeadersAndCerts(requestObj);
   }
 
   // ===== HTTP Fetch Methods =====
@@ -200,22 +193,23 @@ export class PortAventuraWorld extends Destination {
   /**
    * Get wait time data (cached 5 minutes).
    * Deduplicates entries by id, preferring entries with non-null queue.
+   * Returns a Record (not a Map) because @cache serializes via JSON.
    */
   @cache({ttlSeconds: 300})
-  async getWaitTimes(): Promise<Map<string, any>> {
+  async getWaitTimes(): Promise<Record<string, any>> {
     const resp = await this.fetchWaitTimes();
     const data = await resp.json();
-    if (!Array.isArray(data)) return new Map();
+    if (!Array.isArray(data)) return {};
 
     // Deduplicate: group by id, prefer first entry with queue !== null
-    const byId = new Map<string, any>();
+    const byId: Record<string, any> = {};
     for (const entry of data) {
       if (!entry.id) continue;
-      const existing = byId.get(entry.id);
+      const existing = byId[entry.id];
       if (!existing) {
-        byId.set(entry.id, entry);
+        byId[entry.id] = entry;
       } else if (existing.queue === null && entry.queue !== null) {
-        byId.set(entry.id, entry);
+        byId[entry.id] = entry;
       }
     }
     return byId;
@@ -303,7 +297,7 @@ export class PortAventuraWorld extends Destination {
 
     const liveData: LiveData[] = [];
 
-    for (const [ftpName, entry] of waitTimes) {
+    for (const [ftpName, entry] of Object.entries(waitTimes)) {
       const entityId = ftpToEntityId.get(ftpName);
       if (!entityId) continue;
 
