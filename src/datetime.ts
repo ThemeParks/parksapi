@@ -4,6 +4,40 @@
  */
 
 /**
+ * Normalize a `timeZoneName: 'shortOffset'` string from Intl.DateTimeFormat
+ * into a standard ISO 8601 offset like "+HH:MM" or "-HH:MM".
+ *
+ * Handles all formats Node/ICU produces:
+ *  - "GMT"          -> "+00:00"
+ *  - "GMT+2"        -> "+02:00"
+ *  - "GMT-4"        -> "-04:00"
+ *  - "GMT+5:30"     -> "+05:30"  (half-hour zones like Asia/Kolkata)
+ *  - "GMT+10:30"    -> "+10:30"  (Australia/Lord_Howe)
+ *  - "+02:00"       -> "+02:00"  (already ISO)
+ */
+function normalizeOffset(raw: string | undefined): string {
+  if (!raw) return '+00:00';
+
+  // Already in ISO format
+  const isoMatch = raw.match(/^([+-])(\d{1,2}):(\d{2})$/);
+  if (isoMatch) {
+    return `${isoMatch[1]}${isoMatch[2].padStart(2, '0')}:${isoMatch[3]}`;
+  }
+
+  // GMT / UTC (+ optional offset + optional minutes)
+  const gmtMatch = raw.match(/^(?:GMT|UTC)(?:([+-])(\d{1,2})(?::(\d{2}))?)?$/);
+  if (gmtMatch) {
+    if (!gmtMatch[1]) return '+00:00'; // bare "GMT" / "UTC"
+    const sign = gmtMatch[1];
+    const hours = gmtMatch[2].padStart(2, '0');
+    const minutes = gmtMatch[3] ?? '00';
+    return `${sign}${hours}:${minutes}`;
+  }
+
+  return '+00:00'; // unknown format, fall back to UTC
+}
+
+/**
  * Format a date in a specific timezone
  * @param date Date to format
  * @param timezone IANA timezone name (e.g., 'America/New_York')
@@ -32,10 +66,13 @@ export function formatInTimezone(
     const year = parts.find(p => p.type === 'year')?.value;
     const month = parts.find(p => p.type === 'month')?.value;
     const day = parts.find(p => p.type === 'day')?.value;
-    const hour = parts.find(p => p.type === 'hour')?.value;
+    let hour = parts.find(p => p.type === 'hour')?.value;
     const minute = parts.find(p => p.type === 'minute')?.value;
     const second = parts.find(p => p.type === 'second')?.value;
-    const offset = parts.find(p => p.type === 'timeZoneName')?.value || 'Z';
+    const offset = normalizeOffset(parts.find(p => p.type === 'timeZoneName')?.value);
+
+    // Intl uses 24:00 for midnight in en-US with hour12: false
+    if (hour === '24') hour = '00';
 
     return `${year}-${month}-${day}T${hour}:${minute}:${second}${offset}`;
   }
@@ -64,53 +101,48 @@ export function formatInTimezone(
 }
 
 /**
- * Parse a time string in a specific timezone and return ISO string
- * @param timeString Time string to parse
- * @param timezone IANA timezone name
- * @returns ISO 8601 formatted string
+ * Interpret a naive (offset-less) date/time string as local-to-the-given-timezone
+ * and return an ISO 8601 string with the correct offset.
+ *
+ * If the input already includes an explicit offset or `Z`, it is returned as-is.
+ *
+ * Supports the following input formats for naive strings:
+ *   - "YYYY-MM-DDTHH:mm[:ss]"   (ISO bare)
+ *   - "YYYY-MM-DD HH:mm[:ss]"   (ISO bare with space)
+ *   - "MM/DD/YYYY HH:mm[:ss]"   (US format, used by Cedar Fair)
+ *
+ * @param timeString Time string to interpret
+ * @param timezone IANA timezone name (e.g. 'America/New_York')
+ * @returns ISO 8601 string with timezone offset
  */
 export function parseTimeInTimezone(timeString: string, timezone: string): string {
-  // If already in ISO format with timezone, return as-is
-  if (timeString.includes('T') && (timeString.includes('Z') || timeString.includes('+'))) {
+  // Already has explicit timezone info — return as-is
+  if (timeString.includes('T') &&
+      (timeString.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(timeString))) {
     return timeString;
   }
 
-  // Parse the date and format it with timezone offset
+  // Parse into date + time components, then delegate to constructDateTime
+  // which knows how to apply the correct offset for the target timezone.
+  const isoMatch = timeString.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (isoMatch) {
+    const [, y, m, d, h, mi, s] = isoMatch;
+    return constructDateTime(`${y}-${m}-${d}`, `${h.padStart(2, '0')}:${mi}:${s ?? '00'}`, timezone);
+  }
+
+  const usMatch = timeString.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (usMatch) {
+    const [, mo, d, y, h, mi, s] = usMatch;
+    return constructDateTime(`${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`,
+                             `${h.padStart(2, '0')}:${mi}:${s ?? '00'}`,
+                             timezone);
+  }
+
+  // Unknown format — fall back to Date parsing (system local time interpretation)
+  // and at least produce a valid ISO string in the target timezone, rather than crashing.
   const date = new Date(timeString);
-
-  // Get the timezone offset in minutes
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-    timeZoneName: 'shortOffset',
-  });
-
-  const parts = formatter.formatToParts(date);
-  const offset = parts.find(p => p.type === 'timeZoneName')?.value || '+00:00';
-
-  const year = parts.find(p => p.type === 'year')?.value;
-  const month = parts.find(p => p.type === 'month')?.value;
-  const day = parts.find(p => p.type === 'day')?.value;
-  const hour = parts.find(p => p.type === 'hour')?.value;
-  const minute = parts.find(p => p.type === 'minute')?.value;
-  const second = parts.find(p => p.type === 'second')?.value;
-
-  return `${year}-${month}-${day}T${hour}:${minute}:${second}${offset}`;
-}
-
-/**
- * Get current date/time in a specific timezone
- * @param timezone IANA timezone name
- * @returns Current date in that timezone
- */
-export function nowInTimezone(timezone: string): Date {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: timezone }));
+  if (isNaN(date.getTime())) return timeString;
+  return formatInTimezone(date, timezone, 'iso');
 }
 
 /**
@@ -167,31 +199,43 @@ export function constructDateTime(dateStr: string, timeStr: string, tz: string):
   // Ensure seconds are present
   const timeParts = timeStr.split(':');
   const fullTime = timeParts.length === 2 ? `${timeStr}:00` : timeStr;
+  const target = `${dateStr}T${fullTime}`;
 
-  // Get the correct UTC offset for this date + timezone by probing with formatInTimezone.
-  // Use noon UTC as a safe reference point to determine the offset for this date.
-  const refDate = new Date(`${dateStr}T12:00:00Z`);
-  const formatted = formatInTimezone(refDate, tz, 'iso');
+  // Format a UTC ms timestamp as a wall-clock string in the target timezone
+  // (no offset, just the components).
+  const wallClockIn = (ms: number): string => {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false,
+    }).formatToParts(new Date(ms));
+    const get = (t: string) => parts.find(p => p.type === t)!.value;
+    let hour = get('hour');
+    if (hour === '24') hour = '00';
+    return `${get('year')}-${get('month')}-${get('day')}T${hour}:${get('minute')}:${get('second')}`;
+  };
 
-  // Extract offset from the formatted string.
-  // formatInTimezone produces either "+HH:MM" or "GMT+N" format.
-  let offset: string;
-  const stdMatch = formatted.match(/([+-]\d{2}:\d{2})$/);
-  if (stdMatch) {
-    offset = stdMatch[1];
-  } else {
-    // Handle GMT+N / GMT-N format from Intl.DateTimeFormat
-    const gmtMatch = formatted.match(/GMT([+-])(\d+)$/);
-    if (gmtMatch) {
-      const sign = gmtMatch[1];
-      const hours = gmtMatch[2].padStart(2, '0');
-      offset = `${sign}${hours}:00`;
-    } else {
-      offset = '+00:00'; // UTC fallback
-    }
+  // Iterative search: pretend the target wall clock IS UTC, get a candidate
+  // moment, see what wall clock that moment maps to in the target tz, and
+  // adjust by the difference. Converges in 2 iterations for normal times,
+  // 3 iterations for half-hour-offset zones near DST transitions.
+  //
+  // For DST gap wall clocks (e.g. 02:30 NY on spring-forward day), the loop
+  // exhausts iterations and returns whichever side it last landed on. The
+  // result is always a valid moment, but its wall clock will not match the
+  // (non-existent) input. Park APIs don't report times during gap hours in
+  // practice, so this edge case is documented rather than special-cased.
+  let ms = new Date(`${target}Z`).getTime();
+  for (let i = 0; i < 3; i++) {
+    const wc = wallClockIn(ms);
+    if (wc === target) break;
+    const diff = new Date(`${target}Z`).getTime() - new Date(`${wc}Z`).getTime();
+    if (diff === 0) break;
+    ms += diff;
   }
 
-  return `${dateStr}T${fullTime}${offset}`;
+  return formatInTimezone(new Date(ms), tz, 'iso');
 }
 
 /**

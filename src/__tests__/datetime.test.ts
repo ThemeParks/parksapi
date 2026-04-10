@@ -5,7 +5,6 @@
 import {
   formatInTimezone,
   parseTimeInTimezone,
-  nowInTimezone,
   formatUTC,
   addDays,
   addMinutes,
@@ -140,41 +139,27 @@ describe('DateTime Utilities', () => {
       expect(nyResult).toContain('-');
       expect(laResult).toContain('-');
     });
-  });
 
-  describe('nowInTimezone()', () => {
-    test('should return a Date object', () => {
-      const result = nowInTimezone('America/New_York');
-      expect(result).toBeInstanceOf(Date);
+    test('should interpret naive ISO strings as local-to-target-timezone', () => {
+      // "14:30" should mean 14:30 NY time, regardless of server's actual timezone
+      const result = parseTimeInTimezone('2025-03-15T14:30:00', 'America/New_York');
+      expect(result).toBe('2025-03-15T14:30:00-04:00');
     });
 
-    test('should return valid date', () => {
-      const result = nowInTimezone('America/New_York');
-      expect(result.getTime()).toBeGreaterThan(0);
-      expect(isNaN(result.getTime())).toBe(false);
+    test('should parse US-format date strings (Cedar Fair style)', () => {
+      // Cedar Fair builds inputs like "03/15/2025 10:00" via formatInTimezone(date, tz, 'date')
+      const result = parseTimeInTimezone('03/15/2025 10:00', 'America/New_York');
+      expect(result).toBe('2025-03-15T10:00:00-04:00');
     });
 
-    test('should work with different timezones', () => {
-      const ny = nowInTimezone('America/New_York');
-      const tokyo = nowInTimezone('Asia/Tokyo');
-      const london = nowInTimezone('Europe/London');
-
-      // All should be valid dates
-      expect(ny).toBeInstanceOf(Date);
-      expect(tokyo).toBeInstanceOf(Date);
-      expect(london).toBeInstanceOf(Date);
+    test('should parse US-format with seconds', () => {
+      const result = parseTimeInTimezone('07/15/2025 22:30:45', 'America/Los_Angeles');
+      expect(result).toBe('2025-07-15T22:30:45-07:00');
     });
 
-    test('should return current time (roughly)', () => {
-      const before = Date.now();
-      const result = nowInTimezone('UTC');
-      const after = Date.now();
-
-      const resultTime = result.getTime();
-
-      // Should be within a reasonable range of current time
-      expect(resultTime).toBeGreaterThanOrEqual(before - 5000);
-      expect(resultTime).toBeLessThanOrEqual(after + 5000);
+    test('should handle half-hour offset timezones', () => {
+      const result = parseTimeInTimezone('2025-07-15T14:30:00', 'Asia/Kolkata');
+      expect(result).toBe('2025-07-15T14:30:00+05:30');
     });
   });
 
@@ -607,6 +592,76 @@ describe('DateTime Utilities', () => {
       const result = constructDateTime('2024-07-15', '10:00', 'Australia/Brisbane');
       expect(result).toBe('2024-07-15T10:00:00+10:00');
     });
+
+    test('should handle Asia/Kolkata (half-hour offset UTC+5:30)', () => {
+      const result = constructDateTime('2024-07-15', '10:00', 'Asia/Kolkata');
+      expect(result).toBe('2024-07-15T10:00:00+05:30');
+    });
+
+    test('should handle Australia/Lord_Howe (half-hour offset UTC+10:30 standard)', () => {
+      // July in southern hemisphere = standard time (not DST)
+      const result = constructDateTime('2024-07-15', '10:00', 'Australia/Lord_Howe');
+      expect(result).toBe('2024-07-15T10:00:00+10:30');
+    });
+
+    test('should pick correct offset for early-morning times before DST starts (NY spring forward)', () => {
+      // 2024-03-10: DST starts at 02:00 EST → 03:00 EDT
+      // 01:30 is BEFORE the transition, so EST (-05:00)
+      // The old noon-UTC probe would incorrectly return -04:00 (post-DST offset)
+      const result = constructDateTime('2024-03-10', '01:30', 'America/New_York');
+      expect(result).toBe('2024-03-10T01:30:00-05:00');
+    });
+
+    test('should pick correct offset for early-morning times after DST starts (NY spring forward)', () => {
+      // Same day, 04:30 is AFTER the transition, so EDT (-04:00)
+      const result = constructDateTime('2024-03-10', '04:30', 'America/New_York');
+      expect(result).toBe('2024-03-10T04:30:00-04:00');
+    });
+
+    test('should pick correct offset for ambiguous fall-back times (returns first occurrence / EDT)', () => {
+      // 2024-11-03: DST ends at 02:00 EDT → 01:00 EST
+      // 01:30 occurs twice — once at -04 EDT, once at -05 EST
+      // The iterative algorithm converges to the first occurrence (EDT)
+      const result = constructDateTime('2024-11-03', '01:30', 'America/New_York');
+      expect(result).toBe('2024-11-03T01:30:00-04:00');
+    });
+
+    test('should handle Lord_Howe early morning before DST starts (rare half-hour DST transition)', () => {
+      // Lord_Howe DST starts on first Sunday October at 02:00 LHST → 02:30 LHDT (+30 min jump!)
+      // 2024-10-06: DST starts. 01:30 is before the transition (LHST = +10:30)
+      const result = constructDateTime('2024-10-06', '01:30', 'Australia/Lord_Howe');
+      expect(result).toBe('2024-10-06T01:30:00+10:30');
+    });
+
+    test('should handle Lord_Howe afternoon after DST starts (LHDT +11:00)', () => {
+      // Same day, afternoon is after transition (LHDT = +11:00)
+      const result = constructDateTime('2024-10-06', '14:00', 'Australia/Lord_Howe');
+      expect(result).toBe('2024-10-06T14:00:00+11:00');
+    });
+  });
+
+  describe('Offset normalization (formatInTimezone iso)', () => {
+    test('should produce parseable ISO 8601 strings for half-hour offsets', () => {
+      const date = new Date('2024-07-15T06:30:00Z');
+      const formatted = formatInTimezone(date, 'Asia/Kolkata', 'iso');
+      expect(formatted).toBe('2024-07-15T12:00:00+05:30');
+      // Round-trip: new Date() must parse the output back to the same instant
+      expect(new Date(formatted).getTime()).toBe(date.getTime());
+    });
+
+    test('should produce parseable ISO 8601 strings for single-digit hour offsets', () => {
+      const date = new Date('2024-07-15T10:00:00Z');
+      const formatted = formatInTimezone(date, 'Europe/Paris', 'iso');
+      expect(formatted).toBe('2024-07-15T12:00:00+02:00');
+      expect(new Date(formatted).getTime()).toBe(date.getTime());
+    });
+
+    test('should produce parseable ISO 8601 strings for UTC', () => {
+      const date = new Date('2024-07-15T10:00:00Z');
+      const formatted = formatInTimezone(date, 'UTC', 'iso');
+      expect(formatted).toBe('2024-07-15T10:00:00+00:00');
+      expect(new Date(formatted).getTime()).toBe(date.getTime());
+    });
   });
 
   describe('Edge Cases and Integration', () => {
@@ -622,9 +677,9 @@ describe('DateTime Utilities', () => {
       expect(formatted1).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
       expect(formatted2).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
 
-      // Verify timezone offsets are included
-      expect(formatted1).toMatch(/(-5|GMT-5)/); // EST
-      expect(formatted2).toMatch(/(-4|GMT-4)/); // EDT
+      // Verify timezone offsets are normalized to ISO 8601
+      expect(formatted1).toMatch(/-05:00$/); // EST
+      expect(formatted2).toMatch(/-04:00$/); // EDT
     });
 
     test('should handle midnight correctly', () => {

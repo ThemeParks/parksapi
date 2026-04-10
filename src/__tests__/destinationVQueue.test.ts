@@ -153,11 +153,7 @@ describe('Destination virtual queue helpers', () => {
     test('buildReturnTimeQueue should handle string dates with various offset formats', () => {
       const park = new TestPark();
 
-      // GMT+N format (from formatInTimezone)
-      const r1 = park.testBuildReturnTimeQueue('AVAILABLE', '2025-07-15T14:30:00GMT-4', '2025-07-15T14:45:00GMT-4');
-      expect(r1.returnStart).toContain('14:30:00');
-
-      // Standard +HH:mm format
+      // Standard +HH:mm format (the format formatInTimezone produces)
       const r2 = park.testBuildReturnTimeQueue('AVAILABLE', '2025-07-15T14:30:00-04:00', '2025-07-15T14:45:00-04:00');
       expect(r2.returnStart).toContain('14:30:00');
 

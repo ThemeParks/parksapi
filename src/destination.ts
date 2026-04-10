@@ -697,9 +697,10 @@ export abstract class Destination {
    */
   private formatDateInTimezone(date: string | Date): string {
     if (typeof date === 'string') {
-      // If already a formatted datetime string (from calculateReturnWindow etc.), return as-is
-      // new Date() can't parse the GMT+N format that formatInTimezone produces
-      if (date.includes('T') && (date.includes('GMT') || date.includes('+') || date.includes('-') || date.endsWith('Z'))) {
+      // If the string already has an explicit timezone offset (or trailing Z),
+      // pass it through unchanged. Otherwise, treat it as a naive timestamp
+      // that needs formatting in the park's timezone.
+      if (date.includes('T') && /([+-]\d{2}:?\d{2}|Z)$/.test(date)) {
         return date;
       }
       return formatInTimezone(new Date(date), this.timezone, 'iso');
