@@ -3,8 +3,8 @@ import {DatabaseSync} from 'node:sqlite';
 const CACHE_DB_PATH = process.env.CACHE_DB_PATH || './cache.sqlite';
 const MAX_CACHE_ENTRIES = parseInt(process.env.CACHE_MAX_ENTRIES || '50000', 10);
 const CLEANUP_INTERVAL_MS = parseInt(process.env.CACHE_CLEANUP_INTERVAL_MS || '300000', 10); // 5 minutes
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 100;
+// SQLite contention is handled by PRAGMA busy_timeout=5000 (waits up to 5s for
+// the lock). No application-level retry needed.
 
 // Track if we're in temporary mode
 let isTemporaryMode = false;
@@ -105,28 +105,11 @@ try {
 // Cleanup interval reference
 let cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
 
-/**
- * Retry a database operation with exponential backoff (synchronous)
- */
-function retryOperation<T>(operation: () => T, retries = MAX_RETRIES): T {
-  let lastError: any;
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      return operation();
-    } catch (error) {
-      lastError = error;
-      if (attempt < retries - 1) {
-        // Simple delay for sync operations (not ideal but works)
-        const delay = RETRY_DELAY_MS * Math.pow(2, attempt);
-        const start = Date.now();
-        while (Date.now() - start < delay) {
-          // Busy wait (blocking)
-        }
-      }
-    }
-  }
-  throw lastError;
-}
+// Size limit enforcement runs every N inserts rather than every insert.
+// At 50k entries (default MAX_CACHE_ENTRIES), the limit is rarely exceeded,
+// so a SELECT COUNT(*) on every set() is wasted work.
+const SIZE_CHECK_INTERVAL = 100;
+let insertsSinceLastSizeCheck = 0;
 
 class CacheLib {
   /**
@@ -158,29 +141,27 @@ class CacheLib {
 
   static get(key: string): any | null {
     try {
-      return retryOperation(() => {
-        const stmt = database.prepare('SELECT value, timestamp FROM cache WHERE key = ?');
-        const row = stmt.get(key) as {value: string, timestamp: number} | undefined;
+      const stmt = database.prepare('SELECT value, timestamp FROM cache WHERE key = ?');
+      const row = stmt.get(key) as {value: string, timestamp: number} | undefined;
 
-        if (row) {
-          const isExpired = Date.now() > row.timestamp;
-          if (isExpired) {
-            this.delete(key);
-            return null;
-          }
-
-          // Update last access time for LRU — best-effort, don't fail the read
-          try {
-            const updateStmt = database.prepare('UPDATE cache SET lastAccess = ? WHERE key = ?');
-            updateStmt.run(Date.now(), key);
-          } catch {
-            // LRU tracking is non-critical; stale lastAccess is acceptable
-          }
-
-          return JSON.parse(row.value);
+      if (row) {
+        const isExpired = Date.now() > row.timestamp;
+        if (isExpired) {
+          this.delete(key);
+          return null;
         }
-        return null;
-      });
+
+        // Update last access time for LRU — best-effort, don't fail the read
+        try {
+          const updateStmt = database.prepare('UPDATE cache SET lastAccess = ? WHERE key = ?');
+          updateStmt.run(Date.now(), key);
+        } catch {
+          // LRU tracking is non-critical; stale lastAccess is acceptable
+        }
+
+        return JSON.parse(row.value);
+      }
+      return null;
     } catch (error) {
       console.error("Cache get error:", error);
       return null;
@@ -216,16 +197,20 @@ class CacheLib {
     }
 
     try {
-      retryOperation(() => {
-        const timestamp = Date.now() + (ttlSeconds * 1000);
-        const now = Date.now();
+      const timestamp = Date.now() + (ttlSeconds * 1000);
+      const now = Date.now();
 
-        const stmt = database.prepare('INSERT OR REPLACE INTO cache (key, value, timestamp, lastAccess) VALUES (?, ?, ?, ?)');
-        stmt.run(key, serialized, timestamp, now);
+      const stmt = database.prepare('INSERT OR REPLACE INTO cache (key, value, timestamp, lastAccess) VALUES (?, ?, ?, ?)');
+      stmt.run(key, serialized, timestamp, now);
 
-        // Check if we need to evict entries after insert
+      // Check if we need to evict entries after insert.
+      // Only run the SELECT COUNT(*) periodically (every SIZE_CHECK_INTERVAL inserts)
+      // to avoid a full table scan on every write.
+      insertsSinceLastSizeCheck++;
+      if (insertsSinceLastSizeCheck >= SIZE_CHECK_INTERVAL) {
+        insertsSinceLastSizeCheck = 0;
         this.enforceSizeLimit();
-      });
+      }
     } catch (error) {
       console.error("Cache set error:", error);
     }
@@ -233,10 +218,8 @@ class CacheLib {
 
   static delete(key: string): void {
     try {
-      retryOperation(() => {
-        const stmt = database.prepare('DELETE FROM cache WHERE key = ?');
-        stmt.run(key);
-      });
+      const stmt = database.prepare('DELETE FROM cache WHERE key = ?');
+      stmt.run(key);
     } catch (error) {
       console.error("Cache delete error:", error);
     }
@@ -244,10 +227,8 @@ class CacheLib {
 
   static clear(): void {
     try {
-      retryOperation(() => {
-        const stmt = database.prepare('DELETE FROM cache');
-        stmt.run();
-      });
+      const stmt = database.prepare('DELETE FROM cache');
+      stmt.run();
     } catch (error) {
       console.error("Cache clear error:", error);
     }
@@ -255,11 +236,9 @@ class CacheLib {
 
   static has(key: string): boolean {
     try {
-      return retryOperation(() => {
-        const stmt = database.prepare('SELECT 1 FROM cache WHERE key = ? AND timestamp > ?');
-        const row = stmt.get(key, Date.now());
-        return !!row;
-      });
+      const stmt = database.prepare('SELECT 1 FROM cache WHERE key = ? AND timestamp > ?');
+      const row = stmt.get(key, Date.now());
+      return !!row;
     } catch (error) {
       console.error("Cache has error:", error);
       return false;
@@ -268,11 +247,9 @@ class CacheLib {
 
   static keys(): string[] {
     try {
-      return retryOperation(() => {
-        const stmt = database.prepare('SELECT key FROM cache WHERE timestamp > ?');
-        const rows = stmt.all(Date.now()) as {key: string}[];
-        return rows.map(row => row.key);
-      });
+      const stmt = database.prepare('SELECT key FROM cache WHERE timestamp > ?');
+      const rows = stmt.all(Date.now()) as {key: string}[];
+      return rows.map(row => row.key);
     } catch (error) {
       console.error("Cache keys error:", error);
       return [];
@@ -281,11 +258,9 @@ class CacheLib {
 
   static size(): number {
     try {
-      return retryOperation(() => {
-        const stmt = database.prepare('SELECT COUNT(*) as count FROM cache');
-        const row = stmt.get() as {count: number};
-        return row.count;
-      });
+      const stmt = database.prepare('SELECT COUNT(*) as count FROM cache');
+      const row = stmt.get() as {count: number};
+      return row.count;
     } catch (error) {
       console.error("Cache size error:", error);
       return 0;
@@ -304,20 +279,18 @@ class CacheLib {
     isExpired: boolean;
   }> {
     try {
-      return retryOperation(() => {
-        const stmt = database.prepare('SELECT key, value, timestamp, lastAccess FROM cache');
-        const rows = stmt.all() as Array<{key: string, value: string, timestamp: number, lastAccess: number}>;
-        const now = Date.now();
+      const stmt = database.prepare('SELECT key, value, timestamp, lastAccess FROM cache');
+      const rows = stmt.all() as Array<{key: string, value: string, timestamp: number, lastAccess: number}>;
+      const now = Date.now();
 
-        return rows.map(row => ({
-          key: row.key,
-          value: JSON.parse(row.value),
-          expiresAt: row.timestamp,
-          lastAccess: row.lastAccess,
-          size: row.value.length,
-          isExpired: now > row.timestamp,
-        }));
-      });
+      return rows.map(row => ({
+        key: row.key,
+        value: JSON.parse(row.value),
+        expiresAt: row.timestamp,
+        lastAccess: row.lastAccess,
+        size: row.value.length,
+        isExpired: now > row.timestamp,
+      }));
     } catch (error) {
       console.error("Cache getAllEntries error:", error);
       return [];
@@ -325,21 +298,20 @@ class CacheLib {
   }
 
   /**
-   * Enforce cache size limit by removing least recently accessed entries
+   * Enforce cache size limit by removing least recently accessed entries.
+   * Called periodically from set() rather than on every write.
    */
   static enforceSizeLimit(): void {
     try {
       const currentSize = this.size();
       if (currentSize > MAX_CACHE_ENTRIES) {
         const entriesToRemove = currentSize - MAX_CACHE_ENTRIES;
-        retryOperation(() => {
-          const stmt = database.prepare(`
-            DELETE FROM cache WHERE key IN (
-              SELECT key FROM cache ORDER BY lastAccess ASC LIMIT ?
-            )
-          `);
-          stmt.run(entriesToRemove);
-        });
+        const stmt = database.prepare(`
+          DELETE FROM cache WHERE key IN (
+            SELECT key FROM cache ORDER BY lastAccess ASC LIMIT ?
+          )
+        `);
+        stmt.run(entriesToRemove);
       }
     } catch (error) {
       console.error("Cache size enforcement error:", error);
@@ -351,11 +323,9 @@ class CacheLib {
    */
   static cleanupExpired(): number {
     try {
-      return retryOperation(() => {
-        const stmt = database.prepare('DELETE FROM cache WHERE timestamp <= ?');
-        const result = stmt.run(Date.now());
-        return Number(result.changes || 0);
-      });
+      const stmt = database.prepare('DELETE FROM cache WHERE timestamp <= ?');
+      const result = stmt.run(Date.now());
+      return Number(result.changes || 0);
     } catch (error) {
       console.error("Cache cleanup error:", error);
       return 0;
@@ -395,19 +365,17 @@ class CacheLib {
    */
   static stats(): {total: number, expired: number, active: number} {
     try {
-      return retryOperation(() => {
-        const totalStmt = database.prepare('SELECT COUNT(*) as count FROM cache');
-        const expiredStmt = database.prepare('SELECT COUNT(*) as count FROM cache WHERE timestamp <= ?');
+      const totalStmt = database.prepare('SELECT COUNT(*) as count FROM cache');
+      const expiredStmt = database.prepare('SELECT COUNT(*) as count FROM cache WHERE timestamp <= ?');
 
-        const total = (totalStmt.get() as {count: number}).count;
-        const expired = (expiredStmt.get(Date.now()) as {count: number}).count;
+      const total = (totalStmt.get() as {count: number}).count;
+      const expired = (expiredStmt.get(Date.now()) as {count: number}).count;
 
-        return {
-          total,
-          expired,
-          active: total - expired
-        };
-      });
+      return {
+        total,
+        expired,
+        active: total - expired
+      };
     } catch (error) {
       console.error("Cache stats error:", error);
       return {total: 0, expired: 0, active: 0};
@@ -421,11 +389,9 @@ class CacheLib {
    */
   static clearByClassName(className: string): number {
     try {
-      return retryOperation(() => {
-        const stmt = database.prepare("DELETE FROM cache WHERE key LIKE ? OR key LIKE ?");
-        const result = stmt.run(`${className}:%`, `%:${className}:%`);
-        return Number(result.changes || 0);
-      });
+      const stmt = database.prepare("DELETE FROM cache WHERE key LIKE ? OR key LIKE ?");
+      const result = stmt.run(`${className}:%`, `%:${className}:%`);
+      return Number(result.changes || 0);
     } catch (error) {
       console.error("Cache clearByClassName error:", error);
       return 0;
@@ -435,10 +401,8 @@ class CacheLib {
   /** Delete every entry in the cache. Returns number deleted. */
   static clearAll(): number {
     try {
-      return retryOperation(() => {
-        const result = database.prepare("DELETE FROM cache").run();
-        return Number(result.changes || 0);
-      });
+      const result = database.prepare("DELETE FROM cache").run();
+      return Number(result.changes || 0);
     } catch (error) {
       console.error("Cache clearAll error:", error);
       return 0;
@@ -447,7 +411,19 @@ class CacheLib {
 
   private static inflight = new Map<string, Promise<any>>();
 
-  static async wrap<T>(key: string, fn: () => T, ttlSeconds: number): Promise<T> {
+  /**
+   * Cache-with-dedup wrapper. Concurrent callers on a cache miss for the same
+   * key share a single execution rather than each running `fn` independently.
+   *
+   * @param ttl Either a fixed TTL in seconds, or a callback that derives a TTL
+   *            from the function's result (e.g. for OAuth tokens that expire
+   *            on a server-supplied schedule).
+   */
+  static async wrap<T>(
+    key: string,
+    fn: () => T | Promise<T>,
+    ttl: number | ((result: T) => number | Promise<number>),
+  ): Promise<T> {
     if (this.has(key)) {
       const cachedValue = this.get(key);
       if (cachedValue !== null) {
@@ -460,7 +436,8 @@ class CacheLib {
       return this.inflight.get(key) as Promise<T>;
     }
 
-    const promise = Promise.resolve(fn()).then((result) => {
+    const promise = Promise.resolve(fn()).then(async (result) => {
+      const ttlSeconds = typeof ttl === 'function' ? await ttl(result) : ttl;
       this.set(key, result, ttlSeconds);
       this.inflight.delete(key);
       return result;
@@ -508,22 +485,16 @@ export default function cacheDecorator({ttlSeconds = 60, callback, key, cacheVer
         cacheKey = prefix ? `${prefix}:${defaultKey}` : defaultKey;
       }
 
-      // If callback is provided, we need to call the function and let the callback determine TTL
-      if (callback) {
-        if (CacheLib.has(cacheKey)) {
-          const cachedValue = CacheLib.get(cacheKey);
-          if (cachedValue !== null) {
-            return cachedValue;
-          }
-        }
-        const result = await originalMethod.apply(this, args);
-        const dynamicTtl = await callback(result);
-        CacheLib.set(cacheKey, result, dynamicTtl);
-        return result;
-      }
-
-      // Otherwise use the standard wrap with fixed TTL
-      return await CacheLib.wrap(cacheKey, () => originalMethod.apply(this, args), ttlSeconds);
+      // Use wrap for both fixed and dynamic TTL — both paths get in-flight
+      // deduplication so concurrent cache misses share a single execution.
+      // Critical for OAuth token refresh: without dedup, two concurrent
+      // callers would both hit the token endpoint and the second's response
+      // would overwrite the first in cache.
+      return await CacheLib.wrap(
+        cacheKey,
+        () => originalMethod.apply(this, args),
+        callback ?? ttlSeconds,
+      );
     };
   };
 }

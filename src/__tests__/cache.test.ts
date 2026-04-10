@@ -443,6 +443,37 @@ describe('Cache', () => {
       expect(callCount).toBe(2);
     });
 
+    test('callback path dedupes concurrent cache misses (OAuth-style)', async () => {
+      // Critical bug fix: previously the callback path bypassed in-flight dedup,
+      // so two concurrent callers on a cold cache would both run the function and
+      // store conflicting results — breaking OAuth token refresh.
+      let callCount = 0;
+
+      class TokenFetcher {
+        @cache({callback: (result: any) => result.expiresIn})
+        async getToken() {
+          callCount++;
+          return new Promise<{token: string; expiresIn: number}>(resolve => {
+            setTimeout(() => resolve({token: `token-${callCount}`, expiresIn: 60}), 20);
+          });
+        }
+      }
+
+      const instance = new TokenFetcher();
+      const [a, b, c] = await Promise.all([
+        instance.getToken(),
+        instance.getToken(),
+        instance.getToken(),
+      ]);
+
+      // All three callers must receive the SAME token, and the underlying
+      // function must have been called exactly once.
+      expect(callCount).toBe(1);
+      expect(a.token).toBe('token-1');
+      expect(b.token).toBe('token-1');
+      expect(c.token).toBe('token-1');
+    });
+
     test('should cache method results with dynamic TTL callback', async () => {
       let callCount = 0;
 
