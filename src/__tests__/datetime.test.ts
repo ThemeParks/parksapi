@@ -224,10 +224,20 @@ describe('DateTime Utilities', () => {
     test('should handle custom format strings', () => {
       const date = new Date('2025-03-15T14:30:45Z');
       const result = formatUTC(date, 'YYYY-MM-DD HH:mm:ss');
+      expect(result).toBe('2025-03-15 14:30:45');
+    });
 
-      // Note: MM is not replaced (only MMM for month name)
-      expect(result).toContain('2025');
-      expect(result).toContain('14:30:45');
+    test('should format MM as 2-digit month number', () => {
+      expect(formatUTC(new Date('2025-01-15T12:00:00Z'), 'MM')).toBe('01');
+      expect(formatUTC(new Date('2025-12-15T12:00:00Z'), 'MM')).toBe('12');
+    });
+
+    test('should preserve MMM when both MMM and MM appear in format', () => {
+      // MMM must be replaced before MM, otherwise MM would consume the first
+      // two letters of MMM and break it.
+      const date = new Date('2025-03-15T12:00:00Z');
+      expect(formatUTC(date, 'MMM MM')).toBe('Mar 03');
+      expect(formatUTC(date, 'MM MMM')).toBe('03 Mar');
     });
 
     test('should handle partial format strings', () => {

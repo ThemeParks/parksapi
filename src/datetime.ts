@@ -146,10 +146,24 @@ export function parseTimeInTimezone(timeString: string, timezone: string): strin
 }
 
 /**
- * Format date in UTC with specific format string
- * @param date Date to format
- * @param formatStr Format string (e.g., 'ddd, DD MMM YYYY HH:mm:ss')
- * @returns Formatted date string
+ * Format a Date in UTC using a moment-style format string.
+ *
+ * Supported tokens (each token is replaced once, in this order):
+ *  - `YYYY` — 4-digit year
+ *  - `MMM`  — short month name (Jan, Feb, ...)
+ *  - `MM`   — 2-digit month (01-12)
+ *  - `DD`   — 2-digit day (01-31)
+ *  - `ddd`  — short day name (Sun, Mon, ...)
+ *  - `HH`   — 2-digit hour, 24-hour clock (00-23)
+ *  - `mm`   — 2-digit minute (00-59)
+ *  - `ss`   — 2-digit second (00-59)
+ *
+ * Any other tokens (e.g., `YY`, `M`, `h`, `a`) are NOT supported and will
+ * appear unchanged in the output.
+ *
+ * @example
+ *   formatUTC(new Date('2024-03-15T14:30:00Z'), 'YYYY-MM-DD HH:mm:ss')
+ *   // => '2024-03-15 14:30:00'
  */
 export function formatUTC(date: Date, formatStr: string): string {
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -157,17 +171,21 @@ export function formatUTC(date: Date, formatStr: string): string {
 
   const dayName = days[date.getUTCDay()];
   const monthName = months[date.getUTCMonth()];
+  const monthNum = String(date.getUTCMonth() + 1).padStart(2, '0');
   const dayNum = String(date.getUTCDate()).padStart(2, '0');
   const year = date.getUTCFullYear();
   const hours = String(date.getUTCHours()).padStart(2, '0');
   const minutes = String(date.getUTCMinutes()).padStart(2, '0');
   const seconds = String(date.getUTCSeconds()).padStart(2, '0');
 
-  // Simple format string replacement
+  // Simple format string replacement.
+  // Order matters: MMM must come before MM (otherwise the MM substitution
+  // would consume the first two letters of MMM and break it).
   return formatStr
     .replace('ddd', dayName)
     .replace('MMM', monthName)
     .replace('YYYY', String(year))
+    .replace('MM', monthNum)
     .replace('DD', dayNum)
     .replace('HH', hours)
     .replace('mm', minutes)

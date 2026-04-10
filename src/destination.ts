@@ -786,15 +786,19 @@ export abstract class Destination {
     // Sanitize entity names:
     // 1. Strip HTML tags and decode entities (e.g., "Balloon <em>Race</em>")
     // 2. Remove promotional/status suffixes (e.g., " - Now Open!", " - Temporarily Closed")
+    // If sanitization would produce an empty string (e.g., the entire name was
+    // a promotional pattern), keep the original to avoid losing the entity.
     for (const entity of resolved) {
       if (!entity.name) continue;
       if (typeof entity.name === 'string') {
-        entity.name = sanitizeEntityName(entity.name);
+        const sanitized = sanitizeEntityName(entity.name);
+        entity.name = sanitized || entity.name;
       } else {
         for (const lang of Object.keys(entity.name)) {
           const val = (entity.name as any)[lang];
           if (typeof val === 'string') {
-            (entity.name as any)[lang] = sanitizeEntityName(val);
+            const sanitized = sanitizeEntityName(val);
+            (entity.name as any)[lang] = sanitized || val;
           }
         }
       }

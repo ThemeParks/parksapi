@@ -28,8 +28,14 @@ type MessageEvent = { data: any };
  * Wrap a WebSocket-like object as an async iterable of message events.
  *
  * Supports both browser-style WebSocket (addEventListener/removeEventListener)
- * and Node.js EventEmitter-style (on/off). Returns when the socket closes
- * or emits an error.
+ * and Node.js EventEmitter-style (on/off).
+ *
+ * - Returns cleanly when the socket emits 'close'.
+ * - Throws when the socket emits 'error'. Any messages received before the
+ *   error are yielded first; the error is thrown when the consumer tries to
+ *   read the next message. Consumers should wrap the for-await loop in try/catch
+ *   to distinguish clean close from connection failure (and decide whether to
+ *   reconnect).
  */
 export async function* wsMessages(ws: WebSocketLike): AsyncGenerator<MessageEvent> {
   // If already closed, return immediately
@@ -49,6 +55,7 @@ export async function* wsMessages(ws: WebSocketLike): AsyncGenerator<MessageEven
   const queue: MessageEvent[] = [];
   let resolve: ((value: MessageEvent | null) => void) | null = null;
   let done = false;
+  let pendingError: Error | null = null;
 
   const onMessage = (event: MessageEvent) => {
     if (resolve) {
@@ -69,8 +76,17 @@ export async function* wsMessages(ws: WebSocketLike): AsyncGenerator<MessageEven
     }
   };
 
-  const onError = () => {
+  const onError = (event: any) => {
     done = true;
+    // WebSocket error event shape varies by environment:
+    // - Node 'ws' library: Error object directly
+    // - Browser WebSocket: generic Event with little info
+    // - Some shims: { error: Error, message: string }
+    pendingError = event instanceof Error
+      ? event
+      : event?.error instanceof Error
+        ? event.error
+        : new Error(`WebSocket error: ${String(event?.message || event || 'unknown')}`);
     if (resolve) {
       const r = resolve;
       resolve = null;
@@ -84,21 +100,28 @@ export async function* wsMessages(ws: WebSocketLike): AsyncGenerator<MessageEven
 
   try {
     while (true) {
-      // Drain buffered messages first
+      // Drain buffered messages first (so messages received before an error
+      // are still delivered)
       if (queue.length > 0) {
         yield queue.shift()!;
         continue;
       }
 
-      // If closed while draining, stop
-      if (done) return;
+      // If closed while draining, surface any error or stop
+      if (done) {
+        if (pendingError) throw pendingError;
+        return;
+      }
 
       // Wait for next message or close
       const msg = await new Promise<MessageEvent | null>((r) => {
         resolve = r;
       });
 
-      if (msg === null) return; // closed or errored
+      if (msg === null) {
+        if (pendingError) throw pendingError;
+        return; // clean close
+      }
       yield msg;
     }
   } finally {

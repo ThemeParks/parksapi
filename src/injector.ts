@@ -7,8 +7,11 @@ const sift = siftImport.default || siftImport;
 // Global registry of instances for 'global' broadcasts
 const globalInstances = new Set<any>();
 
-// Global registry of functions for 'global' broadcasts
-const globalFunctions = new Map<any, Function>();
+// Global registry of standalone functions for 'global' broadcasts.
+// Stored as a list of {filter, fn} pairs because each @inject call should
+// register independently — using a Map keyed by filter object would still
+// iterate the whole collection (filter is matched by sift, not by identity).
+const globalFunctions: Array<{filter: any; fn: Function}> = [];
 
 /**
  * Register an instance to be included in 'global' broadcasts.
@@ -16,6 +19,23 @@ const globalFunctions = new Map<any, Function>();
  */
 export function registerInstance(instance: any) {
   globalInstances.add(instance);
+}
+
+/**
+ * Remove an instance from the global broadcast registry.
+ * Call this when tearing down an instance that was registered via registerInstance().
+ */
+export function deregisterInstance(instance: any) {
+  globalInstances.delete(instance);
+}
+
+/**
+ * Clear all global injector state (instances and functions).
+ * Intended for test isolation between suites.
+ */
+export function clearGlobalRegistry() {
+  globalInstances.clear();
+  globalFunctions.length = 0;
 }
 
 /**
@@ -27,21 +47,26 @@ export function registerInstance(instance: any) {
  */
 export function inject(filter: any) {
   return function(target: any, propertyKey?: string, descriptor?: PropertyDescriptor) {
+    // Separate priority from filter — priority is execution metadata, not part
+    // of the event match. Always use the stripped filter, even if it's empty
+    // (empty filter = match all events).
+    const {priority, ...eventFilter} = filter ?? {};
+    const priorityVal = priority ?? 0;
+
     if (typeof target === 'function' && !propertyKey) {
-      // Applied to a function
-      globalFunctions.set(filter, target);
+      // Applied to a standalone function
+      globalFunctions.push({filter: eventFilter, fn: target});
     } else if (propertyKey && descriptor) {
-      // Applied to a method
+      // Applied to a method.
+      // Use hasOwnProperty so subclass decorators don't pollute the parent class's
+      // __injectFilters via prototype chain lookup.
       if (!Object.prototype.hasOwnProperty.call(target, '__injectFilters')) {
         target.__injectFilters = new Map<string, any>();
       }
 
-      // Separate priority from filter (priority is metadata, not part of the event match)
-      const {priority, ...eventFilter} = filter;
-
       target.__injectFilters.set(propertyKey, {
-        filter: Object.keys(eventFilter).length > 0 ? eventFilter : filter, // Use original if no other fields
-        priority: priority ?? 0,
+        filter: eventFilter,
+        priority: priorityVal,
       });
     }
   };
@@ -79,6 +104,35 @@ async function resolveFilterFunctions(filter: any, instance: any): Promise<any> 
 }
 
 /**
+ * Walk an instance's prototype chain to collect any matching injectors and
+ * push them onto the prioritized call list. Used by both global and
+ * instance-scoped broadcasts.
+ */
+async function collectInjectorsFromPrototypeChain(
+  instance: any,
+  event: any,
+  prioritizedCalls: Array<{priority: number; fn: () => Promise<any>}>,
+  args: any[],
+): Promise<void> {
+  let proto = Object.getPrototypeOf(instance);
+  while (proto) {
+    if (Object.prototype.hasOwnProperty.call(proto, '__injectFilters')) {
+      const filters = proto.__injectFilters as Map<string, {filter: any; priority: number}>;
+      for (const [methodName, {filter, priority}] of filters) {
+        const resolvedFilter = await resolveFilterFunctions(filter, instance);
+        if (sift(resolvedFilter)(event)) {
+          prioritizedCalls.push({
+            priority,
+            fn: () => instance[methodName](...args),
+          });
+        }
+      }
+    }
+    proto = Object.getPrototypeOf(proto);
+  }
+}
+
+/**
  * Broadcast an event to matching injected functions.
  * @param scope 'global' to broadcast to all registered instances and global functions, or an array/single instance to broadcast to specific instances' methods.
  * @param event The event object to match against filters.
@@ -93,8 +147,8 @@ export async function broadcast(scope: 'global' | any[] | any, event: any, ...ar
   const prioritizedCalls: PrioritizedCall[] = [];
 
   if (scope === 'global') {
-    // Call global functions (no priority support for global functions yet)
-    for (const [filter, fn] of globalFunctions) {
+    // Call global standalone functions (priority always 0)
+    for (const {filter, fn} of globalFunctions) {
       if (sift(filter)(event)) {
         prioritizedCalls.push({
           priority: 0,
@@ -104,59 +158,13 @@ export async function broadcast(scope: 'global' | any[] | any, event: any, ...ar
     }
     // Call methods on registered instances
     for (const instance of globalInstances) {
-      let proto = Object.getPrototypeOf(instance);
-      while (proto) {
-        if (Object.prototype.hasOwnProperty.call(proto, '__injectFilters')) {
-          const filters = proto.__injectFilters;
-          for (const [methodName, filterData] of filters) {
-            // filterData is now { filter, priority }
-            const filter = filterData.filter || filterData; // Backwards compat
-            const priority = filterData.priority ?? 0;
-
-            const resolvedFilter = await resolveFilterFunctions(filter, instance);
-            if (sift(resolvedFilter)(event)) {
-              prioritizedCalls.push({
-                priority,
-                fn: () => instance[methodName](...args),
-              });
-            }
-          }
-        }
-        proto = Object.getPrototypeOf(proto);
-      }
+      await collectInjectorsFromPrototypeChain(instance, event, prioritizedCalls, args);
     }
   } else {
     // Specific instances
-    let instances: any[];
-    if (Array.isArray(scope)) {
-      instances = scope;
-    } else {
-      instances = [scope];
-    }
-
+    const instances: any[] = Array.isArray(scope) ? scope : [scope];
     for (const instance of instances) {
-      // Walk the prototype chain to collect injectors from all ancestor classes
-      // (e.g., Destination base class injectors + subclass injectors)
-      let proto = Object.getPrototypeOf(instance);
-      while (proto) {
-        if (Object.prototype.hasOwnProperty.call(proto, '__injectFilters')) {
-          const filters = proto.__injectFilters;
-          for (const [methodName, filterData] of filters) {
-            // filterData is now { filter, priority }
-            const filter = filterData.filter || filterData; // Backwards compat
-            const priority = filterData.priority ?? 0;
-
-            const resolvedFilter = await resolveFilterFunctions(filter, instance);
-            if (sift(resolvedFilter)(event)) {
-              prioritizedCalls.push({
-                priority,
-                fn: () => instance[methodName](...args),
-              });
-            }
-          }
-        }
-        proto = Object.getPrototypeOf(proto);
-      }
+      await collectInjectorsFromPrototypeChain(instance, event, prioritizedCalls, args);
     }
   }
 

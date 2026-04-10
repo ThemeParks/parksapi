@@ -21,8 +21,10 @@ export async function makeHttpRequest(options: {
   cert?: string;
   /** Client SSL private key (PEM format) for mutual TLS */
   key?: string;
+  /** Request timeout in milliseconds (default 30s) */
+  timeoutMs?: number;
 }): Promise<Response> {
-  const {method, url, headers, body, proxyUrl, cert, key} = options;
+  const {method, url, headers, body, proxyUrl, cert, key, timeoutMs = 30000} = options;
 
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url);
@@ -35,6 +37,7 @@ export async function makeHttpRequest(options: {
       port: urlObj.port,
       path: urlObj.pathname + urlObj.search,
       headers: headers || {},
+      timeout: timeoutMs,
     };
 
     // Client SSL certificate for mutual TLS (e.g., PortAventura)
@@ -110,6 +113,12 @@ export async function makeHttpRequest(options: {
 
     req.on('error', (error) => {
       reject(error);
+    });
+
+    req.on('timeout', () => {
+      // The 'timeout' event fires when the socket is idle, not the overall
+      // request duration. We treat it as a hard fail and abort the request.
+      req.destroy(new Error(`HTTP request timed out after ${timeoutMs}ms: ${method} ${url}`));
     });
 
     // Send body if present

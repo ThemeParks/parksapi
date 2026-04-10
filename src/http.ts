@@ -288,12 +288,15 @@ class HTTPRequestImpl implements HTTPObj {
             responseBody = cachedValue.substring(0, 1000); // First 1000 chars if not JSON
           }
 
-          // Emit trace event for cache hit (use provided context if available)
+          // Emit trace event for cache hit (use provided context if available).
+          // We don't store the original status code in the cache, so the trace
+          // reports whatever new Response() gave us (always 200 today). Only
+          // 2xx responses are cached, so this is the right ballpark.
           tracing.emitHttpEvent({
             eventType: 'http.request.complete',
             url: this.url,
             method: this.method,
-            status: 200,
+            status: this.response.status,
             duration: Date.now() - startTime,
             cacheHit: true,
             headers: this.buildHeaders(),

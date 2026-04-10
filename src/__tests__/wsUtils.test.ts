@@ -43,18 +43,45 @@ describe('wsMessages', () => {
     expect(results).toHaveLength(0);
   });
 
-  test('ends cleanly on error event', async () => {
+  test('throws on error event after yielding pre-error messages', async () => {
     const ws = new FakeWebSocket();
     const results: string[] = [];
+    let caught: Error | null = null;
 
     setTimeout(() => ws.emit('message', { data: 'before-error' }), 10);
     setTimeout(() => ws.emit('error', new Error('connection lost')), 20);
 
-    for await (const msg of wsMessages(ws as any)) {
-      results.push(msg.data);
+    try {
+      for await (const msg of wsMessages(ws as any)) {
+        results.push(msg.data);
+      }
+    } catch (e) {
+      caught = e as Error;
     }
 
+    // Pre-error messages are still delivered
     expect(results).toEqual(['before-error']);
+    // The error is then thrown so the consumer can distinguish it from a clean close
+    expect(caught).toBeInstanceOf(Error);
+    expect(caught?.message).toBe('connection lost');
+  });
+
+  test('wraps non-Error error events into an Error', async () => {
+    const ws = new FakeWebSocket();
+    let caught: Error | null = null;
+
+    setTimeout(() => ws.emit('error', { message: 'browser-style error event' }), 10);
+
+    try {
+      for await (const _msg of wsMessages(ws as any)) {
+        // never yielded
+      }
+    } catch (e) {
+      caught = e as Error;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    expect(caught?.message).toContain('browser-style error event');
   });
 
   test('cleans up listeners on break', async () => {
