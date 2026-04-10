@@ -184,51 +184,40 @@ npm test -- src/tags/__tests__/tagCompleteness.test.ts
 
 ---
 
-## Adding a Standard Location ID
+## Adding a Standard Location
 
-Standard location IDs ensure consistency across parks.
+Standard locations have consistent IDs and display names across parks. They're defined in a single source-of-truth table (`STANDARD_LOCATIONS` in `tagTypes.ts`), and `TagBuilder` exposes one helper method per entry.
 
 ### Example: Adding "BABY_CARE_CENTER"
 
-**1. Add to `StandardLocationId` enum** (`src/tags/tagTypes.ts`)
+**1. Add an entry to `STANDARD_LOCATIONS`** (`src/tags/tagTypes.ts`)
 ```typescript
-export enum StandardLocationId {
-  // ... existing IDs
-  BABY_CARE_CENTER = 'location-baby-care-center',
-}
+export const STANDARD_LOCATIONS = {
+  // ... existing entries
+  babyCareCenter: {id: 'location-baby-care-center', displayName: 'Baby Care Center'},
+} as const satisfies Record<string, {id: string; displayName: string}>;
 ```
 
-**2. (Optional) Add helper method with @locationHelper decorator** (`src/tags/tagBuilder.ts`)
+The key (`babyCareCenter`) becomes the helper method name. The `id` becomes the tag's `id` field. The `displayName` becomes the tag's `tagName` field.
 
-Helper methods are optional - for common locations only.
-
+**2. Add the matching helper to `TagBuilder`** (`src/tags/tagBuilder.ts`)
 ```typescript
-/**
- * Create a Baby Care Center location tag with standard ID
- */
-@locationHelper(StandardLocationId.BABY_CARE_CENTER)
 static babyCareCenter(latitude: number, longitude: number): TagData {
-  return TagBuilder.location(latitude, longitude, 'Baby Care Center', StandardLocationId.BABY_CARE_CENTER);
+  return TagBuilder.standardLocation('babyCareCenter', latitude, longitude);
 }
 ```
 
-**Note:** The `@locationHelper` decorator automatically registers this method for validation - no manual mapping needed!
+That's it — one line. The completeness test will check that:
+- Every entry in `STANDARD_LOCATIONS` has a matching `TagBuilder` method
+- Every helper returns a `LOCATION` tag with the correct `id` and `displayName`
+- All ids use the `location-` prefix and are lowercase-with-hyphens
 
-**3. Update test's recommended list** (if you added helper)
-
-Edit `src/tags/__tests__/tagCompleteness.test.ts` to add your location to the `recommendedLocationIds` array:
-
-```typescript
-const recommendedLocationIds = [
-  // ... existing IDs
-  StandardLocationId.BABY_CARE_CENTER,
-];
-```
-
-**4. Run completeness tests**
+**3. Run completeness tests**
 ```bash
 npm test -- src/tags/__tests__/tagCompleteness.test.ts
 ```
+
+If you skip step 2, the completeness test will fail with a helpful error.
 
 ---
 
@@ -236,12 +225,13 @@ npm test -- src/tags/__tests__/tagCompleteness.test.ts
 
 The completeness tests automatically verify:
 
-✅ **Every `TagType` has a `TAG_NAME`** - Catches missing human-readable names
-✅ **Every tag is categorized** - Either simple (in `SIMPLE_TAG_TYPES`) or complex (has validator)
-✅ **Every tag has a builder method** - Maps tag types to builder methods
-✅ **Builder methods work correctly** - Returns correct tag type and format
-✅ **Standard location IDs are consistent** - All use `location-` prefix and lowercase-with-hyphens
-✅ **Location helpers return correct IDs** - Maps StandardLocationId to helper methods
+- **Every `TagType` has a `TAG_NAME`** — catches missing human-readable names
+- **Every tag is categorized** — either simple (in `SIMPLE_TAG_TYPES`) or complex (has validator)
+- **Every tag has a builder method** — maps tag types to builder methods
+- **Builder methods work correctly** — return the correct tag type and format
+- **Every `STANDARD_LOCATIONS` entry has a matching `TagBuilder` helper** — caught at test time, not runtime
+- **Standard location helpers return the correct id and displayName** — sourced from the table
+- **All location ids use the `location-` prefix and lowercase-with-hyphens format**
 
 ## Error Messages
 
@@ -279,11 +269,9 @@ Call registerComplex(TagType.AGE_RESTRICTION, 'Age Restriction') or add validato
 - [ ] Add tests
 - [ ] Run completeness tests ✅
 
-### Standard Location ID Checklist
-- [ ] Add to `StandardLocationId` enum (with `location-` prefix)
-- [ ] (Optional) Add helper method with `@locationHelper` decorator ⚡
-- [ ] (Optional) Add to `recommendedLocationIds` in completeness test
-- [ ] Add tests
+### Standard Location Checklist
+- [ ] Add an entry to `STANDARD_LOCATIONS` in `tagTypes.ts` (id + displayName)
+- [ ] Add a one-line `TagBuilder.<key>` helper that delegates to `standardLocation()`
 - [ ] Run completeness tests ✅
 
 🎯 = Single registration call automatically adds to TAG_NAMES and SIMPLE_TAG_TYPES/complex category!
