@@ -679,6 +679,27 @@ function calculateBackoffDelay(retryAttempt: number): number {
   // Cap at max delay after jitter
   return Math.floor(Math.min(jitteredDelay, MAX_RETRY_DELAY_MS));
 }
+// Global rate limiter — shared across all concurrent processHttpQueue invocations.
+// We can't simply guard against re-entry: HTTP request injectors may make nested
+// requests that must be processed by a different invocation while the outer one
+// awaits the injector. Instead, we serialize firing across invocations via a
+// "next request can fire at" timestamp.
+let nextRequestEarliestMs = 0;
+
+async function waitForRateLimit(): Promise<void> {
+  while (true) {
+    const now = Date.now();
+    if (now >= nextRequestEarliestMs) {
+      // Reserve this slot atomically (Node.js is single-threaded, so the check
+      // and set above happen in the same microtask — no other invocation can
+      // observe nextRequestEarliestMs between them)
+      nextRequestEarliestMs = now + nextRequestDelayMs;
+      return;
+    }
+    await new Promise(r => setTimeout(r, nextRequestEarliestMs - now));
+  }
+}
+
 // Process queued HTTP requests — invoked on a 100ms interval
 export async function processHttpQueue() {
   while (httpRequestQueue.length > 0) {
@@ -695,6 +716,9 @@ export async function processHttpQueue() {
     // get the next request in the queue
     const entry = httpRequestQueue.shift();
     if (entry) {
+      // Wait for our turn under the global rate limit before firing
+      await waitForRateLimit();
+
       const requestStartTime = Date.now();
 
       // Emit trace start event (use captured context if available)
@@ -731,14 +755,16 @@ export async function processHttpQueue() {
           }
         }
 
-        // resolve the original promise
-        entry.request.resolvePromise(entry.request);
-
-        // broadcast response event (restore trace context)
-        //  Note: opportunity here for the injection to throw an error to force a retry if needed
+        // Broadcast response event BEFORE resolving the caller's promise.
+        // Response injectors can throw to trigger a retry — if we resolve first,
+        // the caller has already moved on with the unmodified response, and any
+        // thrown error from the injector is silently lost.
         await tracing.runWithContext(entry.traceContext, async () => {
           await broadcastInjectionEvent(entry, 'httpResponse');
         });
+
+        // Resolve the original promise (now safe — injectors have all run)
+        entry.request.resolvePromise(entry.request);
       } catch (error) {
         // Try to capture error response body if available
         let errorBody: any = undefined;
@@ -826,8 +852,9 @@ export async function processHttpQueue() {
           );
         }
       }
-
-      await new Promise((resolve) => setTimeout(resolve, nextRequestDelayMs)); // Simple rate limiting
+      // Note: rate limiting now happens at request start via waitForRateLimit()
+      // rather than after each request, so it's correctly serialized across
+      // concurrent processHttpQueue invocations.
     } else {
       // queue is empty, wait a bit before checking again
       await new Promise((resolve) => setTimeout(resolve, emptyQueueDelayMs));

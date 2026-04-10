@@ -515,6 +515,51 @@ describe('HTTP Library Integration Tests', () => {
     }, 10000);
   });
 
+  describe('Global Rate Limiting', () => {
+    test('should enforce 250ms spacing between concurrent requests', async () => {
+      // 5 requests to distinct URLs fired in parallel must take at least
+      // (5-1)*250ms = 1000ms due to the global rate limiter, even though
+      // they all start "at once" via Promise.all.
+      class TestClass {
+        @http()
+        async getSuccess(): Promise<any> {
+          return {method: 'GET', url: `${TEST_URL}/success`, tags: []};
+        }
+        @http()
+        async getText(): Promise<any> {
+          return {method: 'GET', url: `${TEST_URL}/text`, tags: []};
+        }
+        @http()
+        async getValidateGood(): Promise<any> {
+          return {method: 'GET', url: `${TEST_URL}/validate-good`, tags: []};
+        }
+        @http()
+        async getDelay0(): Promise<any> {
+          return {method: 'GET', url: `${TEST_URL}/delay/0`, tags: []};
+        }
+        @http()
+        async getEchoHeaders(): Promise<any> {
+          return {method: 'GET', url: `${TEST_URL}/echo-headers`, tags: []};
+        }
+      }
+
+      const instance = new TestClass();
+      const startTime = Date.now();
+
+      await Promise.all([
+        instance.getSuccess(),
+        instance.getText(),
+        instance.getValidateGood(),
+        instance.getDelay0(),
+        instance.getEchoHeaders(),
+      ]);
+
+      const elapsed = Date.now() - startTime;
+      // 5 requests, 250ms apart minimum → at least ~1000ms total
+      expect(elapsed).toBeGreaterThanOrEqual(1000);
+    }, 10000);
+  });
+
   describe('Response Callbacks', () => {
     test('should call onJson callback on successful response', async () => {
       let callbackData: any = null;
