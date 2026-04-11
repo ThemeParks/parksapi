@@ -199,7 +199,7 @@ export class SixFlagsQiddiyaCity extends Destination {
       transform: (entity, item) => {
         const tags: any[] = [];
         if (item.location && item.location.latitude !== 0 && item.location.longitude !== 0) {
-          tags.push(TagBuilder.location(item.location.latitude, item.location.longitude, 'Attraction Location'));
+          tags.push(TagBuilder.location(item.location.latitude, item.location.longitude, 'Location'));
         }
         if (item.minHeight != null && item.minHeight > 0) {
           tags.push(TagBuilder.minimumHeight(item.minHeight, 'cm'));
@@ -224,15 +224,18 @@ export class SixFlagsQiddiyaCity extends Destination {
       this.getDashboard(),
     ]);
 
-    const parkOpen = dashboard?.parkInfo?.isOpen === true;
+    // The dashboard's `isOpen` flag is authoritative when present (it's a real
+    // boolean from the park's own status). Only fall back to per-ride hours if
+    // the dashboard hasn't surfaced an explicit value.
+    const dashboardIsOpen = dashboard?.parkInfo?.isOpen;
+    const dashboardKnows = typeof dashboardIsOpen === 'boolean';
 
     return activities
       .filter((a) => a.category === 'RIDES')
       .map((ride) => {
-        // The API returns waitTime even when the park is closed; use the
-        // dashboard's isOpen flag (when present) as the gate. When the dashboard
-        // doesn't expose isOpen, fall back to the ride's hoursOfOperation.
-        const isOperatingNow = parkOpen || this.isRideWithinOperatingHours(ride);
+        const isOperatingNow = dashboardKnows
+          ? dashboardIsOpen
+          : this.isRideWithinOperatingHours(ride);
         const status: LiveData['status'] = isOperatingNow ? 'OPERATING' : 'CLOSED';
 
         const ld: LiveData = {id: ride.id, status} as LiveData;
