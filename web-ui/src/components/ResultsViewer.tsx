@@ -3,6 +3,15 @@ import type {ExecutionResult} from '../types';
 import JsonViewerModal from './JsonViewerModal';
 import './ResultsViewer.css';
 
+// Helper: extract a displayable string from a name value.
+// entity.name can be a plain string OR a LocalisedString object ({en: "...", nl: "..."}).
+function displayName(name: any): string {
+  if (!name) return 'Unnamed';
+  if (typeof name === 'string') return name;
+  if (typeof name === 'object') return name.en || Object.values(name)[0] || 'Unnamed';
+  return String(name);
+}
+
 // Helper function to format tag names from camelCase to Title Case
 function formatTagName(tagName: string): string {
   // Handle special cases for common abbreviations
@@ -74,7 +83,7 @@ export default function ResultsViewer({result, destinationId}: Props) {
         const entityMap = new Map<string, string>();
         entitiesResult.data.forEach((entity: any) => {
           if (entity.id && entity.name) {
-            entityMap.set(entity.id, entity.name);
+            entityMap.set(entity.id, displayName(entity.name));
           }
         });
 
@@ -219,7 +228,7 @@ function EntityCards({data}: {data: any[]}) {
         {data.map((entity, idx) => (
           <div key={entity.id || idx} className="data-card entity-card">
             <div className="card-header">
-              <h4>{entity.name || 'Unnamed Entity'}</h4>
+              <h4>{displayName(entity.name)}</h4>
               <div className="card-header-actions">
                 <span className="entity-type">{entity.entityType}</span>
                 <button
@@ -241,14 +250,14 @@ function EntityCards({data}: {data: any[]}) {
               {entity.tags && entity.tags.length > 0 && (
                 <div className="tags">
                   {entity.tags.map((tag: any, i: number) => {
-                    // Handle new TagBuilder format {tag, tagName, value?, key?}
-                    const displayName = tag.tagName
-                      ? formatTagName(tag.tagName)
-                      : (tag.type || String(tag));
+                    // Handle TagBuilder format {tag, tagName, value?, id?}
+                    const tagLabel = tag.tagName
+                      ? formatTagName(String(tag.tagName))
+                      : String(tag.tag || tag.type || 'Tag');
 
                     return (
                       <span key={i} className="tag" title={JSON.stringify(tag)}>
-                        {displayName}
+                        {tagLabel}
                       </span>
                     );
                   })}
@@ -261,7 +270,7 @@ function EntityCards({data}: {data: any[]}) {
       {selectedItem && (
         <JsonViewerModal
           data={selectedItem}
-          title={`Entity: ${selectedItem.name || selectedItem.id}`}
+          title={`Entity: ${displayName(selectedItem.name) || selectedItem.id}`}
           onClose={() => setSelectedItem(null)}
         />
       )}
