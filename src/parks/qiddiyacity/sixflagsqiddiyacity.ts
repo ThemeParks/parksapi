@@ -380,24 +380,27 @@ export class SixFlagsQiddiyaCity extends Destination {
       this.getDashboard(),
     ]);
 
-    // The dashboard's `isOpen` flag is the only reliable source for current
-    // park status. The per-ride hoursOfOperation data reflects generic weekly
-    // patterns that don't account for seasonal schedule changes (e.g., the park
-    // may open at 3PM instead of the listed 9AM). When isOpen is absent from
-    // the dashboard, the park is closed — don't fall back to hoursOfOperation.
-    const parkOpen = dashboard?.parkInfo?.isOpen === true;
+    // Determine park status from multiple signals:
+    // 1. Dashboard isOpen flag (authoritative when present, but often absent)
+    // 2. Whether any ride has waitTime > 0 (strongest real-world signal)
+    // 3. Default to CLOSED if no signal
+    const dashboardIsOpen = dashboard?.parkInfo?.isOpen;
+    const rides = activities.filter((a) => a.category === 'RIDES');
+    const anyRideHasWait = rides.some((r) => r.waitTime != null && r.waitTime > 0);
+    const parkOpen = dashboardIsOpen === true || (dashboardIsOpen === undefined && anyRideHasWait);
 
-    return activities
-      .filter((a) => a.category === 'RIDES')
-      .map((ride) => {
-        const status: LiveData['status'] = parkOpen ? 'OPERATING' : 'CLOSED';
+    return rides.map((ride) => {
+      // Per-ride status: if park is open and ride has a wait time, it's operating.
+      // Rides at waitTime === 0 while others have waits are likely temporarily closed.
+      const isRideOperating = parkOpen && ride.waitTime != null && ride.waitTime >= 0;
+      const status: LiveData['status'] = isRideOperating ? 'OPERATING' : 'CLOSED';
 
-        const ld: LiveData = {id: ride.id, status} as LiveData;
-        if (status === 'OPERATING' && ride.waitTime != null) {
-          ld.queue = {STANDBY: {waitTime: ride.waitTime}};
-        }
-        return ld;
-      });
+      const ld: LiveData = {id: ride.id, status} as LiveData;
+      if (status === 'OPERATING' && ride.waitTime != null && ride.waitTime > 0) {
+        ld.queue = {STANDBY: {waitTime: ride.waitTime}};
+      }
+      return ld;
+    });
   }
 
   // ─── Schedules ───────────────────────────────────────────────────────────
