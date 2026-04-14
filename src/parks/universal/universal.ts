@@ -15,6 +15,7 @@ import {
 } from '@themeparks/typelib';
 import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore, hostnameFromUrl} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
+import {randomPointInRadius} from '../../geo.js';
 
 // Only return restaurants using these dining types
 const WANTED_DINING_TYPES = ['CasualDining', 'FineDining'];
@@ -124,6 +125,25 @@ type UniversalVirtualQueueDetails = {
 };
 
 /**
+ * One Express Now offer, post-parsing.
+ *
+ * The raw JSON — confirmed via static analysis of the Flutter
+ * `_$ExpressNowOfferResponseFromJson` parser — uses string-typed numerics:
+ * `inventory_time_minutes`, `return_time_detail_id`, `product_price`,
+ * `max_quantity`, `vl_inventory` all arrive as strings and are parsed
+ * via `int.parse()` / `double.parse()`. `inventory_time_slot` is a
+ * `DateTime.parse()`-compatible string.
+ */
+type ExpressNowOffer = {
+  offer_id: string;
+  place_id: string;
+  inventory_time_slot: string;   // ISO datetime — return window start
+  inventory_time_minutes: number; // window length in minutes
+  product_price: number;          // USD, decimal (e.g. 19.99)
+  vl_inventory: number;           // remaining inventory
+};
+
+/**
  * Universal schedule API response
  */
 type UniversalScheduleResponse = Array<{
@@ -178,6 +198,14 @@ class Universal extends Destination {
 
   @config
   timezone: string = "America/New_York";
+
+  /** Park centre latitude (for Express Now offers request). */
+  @config
+  parkLatitude: number = 0;
+
+  /** Park centre longitude. */
+  @config
+  parkLongitude: number = 0;
 
   constructor(options?: DestinationConstructor) {
     super(options);
@@ -259,60 +287,109 @@ class Universal extends Destination {
     };
   }
 
-  /** Fetch places from the UDX API — contains Express Now attributes. */
-  @http({cacheSeconds: 60 * 60} as any) // 1h — POI data changes infrequently
-  async fetchUdxPlaces(): Promise<HTTPObj> {
+  /**
+   * Inject Express Now request headers (x-source-id microservice, resort code,
+   * legacy webservice key). The /get-offers endpoint requires both the UDX
+   * Bearer token and these legacy headers.
+   */
+  @inject({
+    eventName: 'httpRequest',
+    tags: 'expressNowOffers',
+  })
+  async injectExpressNowHeaders(requestObj: HTTPObj): Promise<void> {
+    requestObj.headers = {
+      ...requestObj.headers,
+      'x-source-id': 'ms-express-now',
+      'x-resort-area-code': this.resortKey.toUpperCase(),
+      'X-UNIWebService-ApiKey': this.appKey,
+      'Content-Type': 'application/json',
+    };
+  }
+
+  /**
+   * Stable instance ID for unauthenticated Express Now calls.
+   * Cached for 30 days — the Flutter app generates this with Uuid().v4() once
+   * and treats it as a long-lived guest identifier.
+   */
+  @cache({ttlSeconds: 60 * 60 * 24 * 30})
+  async getExpressNowInstanceId(): Promise<string> {
+    return crypto.randomUUID();
+  }
+
+  /**
+   * POST to UDX Express Now offers endpoint.
+   * Returns a list of offers keyed by place_id (a UUID matching the legacy
+   * POI's ExternalIds.PlaceId).
+   */
+  @http({tags: ['expressNowOffers'], retries: 0} as any)
+  async fetchExpressNowOffers(): Promise<HTTPObj> {
+    const instanceId = await this.getExpressNowInstanceId();
+    // Jitter the point within ~150m of park centre so requests don't look
+    // identical across polls / installations.
+    const point = randomPointInRadius(
+      {latitude: this.parkLatitude, longitude: this.parkLongitude},
+      150,
+    );
     return {
-      method: 'GET',
-      url: `${this.udxBase}/resort-areas/${this.resortKey.toUpperCase()}/places`,
+      method: 'POST',
+      url: `${this.udxBase}/instances/${instanceId}/get-offers`,
+      body: {
+        location_lat: String(point.latitude),
+        location_long: String(point.longitude),
+        device_id: instanceId,
+      },
       options: {json: true},
+      tags: ['expressNowOffers'],
     } as any as HTTPObj;
   }
 
   /**
-   * Get Express Now data from the UDX places endpoint.
-   * Returns a map keyed by UDX place_id (which matches the legacy POI's
-   * ExternalIds.PlaceId and the wait time CDN's wait_time_attraction_id).
-   * The caller must resolve these to numeric POI IDs via getRideIDFromWaitTimeId.
+   * Get parsed Express Now offers, grouped by place_id (latest/cheapest per ride).
    */
-  @cache({ttlSeconds: 60 * 60}) // 1h
-  async getExpressNowData(): Promise<Record<string, {eligible: boolean; price: number | null; tier: string | null}>> {
-    if (!this.udxBase) return {};
+  @cache({ttlSeconds: 60})
+  async getExpressNowOffers(): Promise<Record<string, ExpressNowOffer>> {
+    if (!this.udxBase || !this.parkLatitude || !this.parkLongitude) return {};
 
+    let resp: HTTPObj | undefined;
     try {
-      const resp = await this.fetchUdxPlaces();
-      const data: any = await resp.json();
-      const results: Record<string, {eligible: boolean; price: number | null; tier: string | null}> = {};
-
-      for (const entry of (data?.results || [])) {
-        const place = entry?.place;
-        if (!place) continue;
-
-        const placeType = place.place_type?.type;
-        if (placeType !== 'Ride') continue;
-
-        // Read attributes array: [{name, value}, ...]
-        const attrs: Array<{name: string; value: string}> = place.place_type?.attributes || [];
-        const attrMap = new Map(attrs.map((a: any) => [a.name, a.value]));
-
-        const expressEligible = attrMap.get('express_now_eligible') === 'true';
-        const priceStr = attrMap.get('starting_price');
-        const tier = attrMap.get('tier') || null;
-
-        // Key by place_id — the caller maps to numeric POI ID via
-        // getRideIDFromWaitTimeId(poiData, placeId)
-        results[place.place_id] = {
-          eligible: expressEligible,
-          price: priceStr ? parseInt(priceStr, 10) * 100 : null, // Convert dollars to cents
-          tier,
-        };
-      }
-
-      return results;
-    } catch (err) {
-      console.warn('Universal: failed to fetch UDX Express Now data:', err);
+      resp = await this.fetchExpressNowOffers();
+    } catch (err: any) {
+      const msg = String(err?.message ?? err);
+      // OFFERS_NOT_FOUND / 404 is expected when Express Now isn't actively
+      // offering — not a real error.
+      if (msg.includes('404') || msg.includes('OFFERS_NOT_FOUND')) return {};
+      console.warn('Universal: Express Now offers fetch failed:', msg.split('\n')[0]);
       return {};
     }
+
+    const data: any = await resp.json();
+    // Wrapper shape confirmed from APK: `{"predictions": [<offer>, ...]}`.
+    const offers: any[] = Array.isArray(data?.predictions) ? data.predictions : [];
+    const grouped: Record<string, ExpressNowOffer> = {};
+
+    for (const raw of offers) {
+      const placeId = raw?.place_id;
+      if (!placeId) continue;
+
+      // All numeric fields arrive as strings — parse explicitly.
+      const parsed: ExpressNowOffer = {
+        offer_id: raw.offer_id,
+        place_id: placeId,
+        inventory_time_slot: raw.inventory_time_slot,
+        inventory_time_minutes: parseInt(raw.inventory_time_minutes, 10),
+        product_price: parseFloat(raw.product_price),
+        vl_inventory: parseInt(raw.vl_inventory, 10),
+      };
+
+      if (!Number.isFinite(parsed.product_price) || !Number.isFinite(parsed.inventory_time_minutes)) continue;
+
+      const existing = grouped[placeId];
+      // Prefer the earliest-starting available slot per place
+      if (!existing || new Date(parsed.inventory_time_slot) < new Date(existing.inventory_time_slot)) {
+        grouped[placeId] = parsed;
+      }
+    }
+    return grouped;
   }
 
   // ─── Legacy API injection ────────────────────────────────────────────────
@@ -922,15 +999,11 @@ class Universal extends Destination {
       }
     }
 
-    // Layer Express Now data from the UDX API.
-    // When express_now_eligible is true, add PAID_RETURN_TIME with the starting
-    // price. The actual return-time window isn't available in the places endpoint
-    // (it's a per-purchase concept), so we report state + price only.
-    const expressNowData = await this.getExpressNowData();
-    for (const [placeId, expressInfo] of Object.entries(expressNowData)) {
-      if (!expressInfo.eligible) continue;
+    // Layer Express Now (paid return time) offers from the UDX API.
+    const expressNowOffers = await this.getExpressNowOffers();
+    for (const [placeId, offer] of Object.entries(expressNowOffers)) {
+      if (offer.vl_inventory <= 0) continue;
 
-      // Map UDX place_id → legacy numeric POI ID (via ExternalIds.PlaceId match)
       const poiId = this.getRideIDFromWaitTimeId(poi, placeId);
       if (!poiId) continue;
 
@@ -938,14 +1011,17 @@ class Universal extends Destination {
       if (!entry) continue;
       if (!entry.queue) entry.queue = {};
 
+      const start = parseTimeInTimezone(offer.inventory_time_slot, this.timezone);
+      const endDate = new Date(new Date(offer.inventory_time_slot).getTime() + offer.inventory_time_minutes * 60_000);
+      const end = parseTimeInTimezone(endDate.toISOString(), this.timezone);
+
       entry.queue.PAID_RETURN_TIME = {
-        returnStart: null,
-        returnEnd: null,
-        state: entry.status === 'OPERATING' ? 'AVAILABLE' : 'FINISHED',
+        returnStart: start,
+        returnEnd: end,
+        state: 'AVAILABLE',
         price: {
           currency: 'USD' as any,
-          amount: expressInfo.price ?? 0,
-          ...(expressInfo.price == null ? {formatted: 'Unknown'} : {}),
+          amount: Math.round(offer.product_price * 100), // dollars → cents
         },
       };
     }
@@ -1010,6 +1086,8 @@ export class UniversalOrlando extends Universal {
         resortSlug: 'universalorlando',
         resortKey: 'uor',
         timezone: 'America/New_York',
+        parkLatitude: '28.4747',
+        parkLongitude: '-81.4682',
         ...options?.config,
       },
     });
@@ -1030,6 +1108,8 @@ export class UniversalStudios extends Universal {
         resortSlug: 'universalstudios',
         resortKey: 'ush',
         timezone: 'America/Los_Angeles',
+        parkLatitude: '34.1381',
+        parkLongitude: '-118.3534',
         ...options?.config,
       },
     });
