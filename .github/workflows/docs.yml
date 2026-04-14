@@ -1,8 +1,8 @@
-name: JSDoc
+name: API Docs
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build:
@@ -11,14 +11,14 @@ jobs:
       contents: read
 
     steps:
-    - uses: actions/checkout@v2
-    
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24.x
     - run: npm ci
+    - run: npm run docs
 
-    - name: Build
-      run: npm run docs
-
-    - name: Deploy
+    - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v4
       with:
         deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}

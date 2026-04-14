@@ -31,6 +31,7 @@
     "health": "tsx --env-file=.env src/harness/health.ts",
     "migrate": "tsx --env-file=.env src/tools/migrate/index.ts",
     "har": "tsx src/tools/har/index.ts",
+    "docs": "typedoc",
     "prepare": "tsc"
   },
   "repository": {
@@ -54,6 +55,7 @@
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "tsx": "^4.20.5",
+    "typedoc": "^0.28.19",
     "typescript": "^5.0.0",
     "vitest": "^4.0.16"
   },
