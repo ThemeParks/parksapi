@@ -452,7 +452,7 @@ export class UniversalSingapore extends Destination {
       for (const attr of categoryData[i]) {
         const entity: Entity = {
           id: String(attr.AttractionId),
-          name: attr.Title.replace(/^\[Temporarily unavailable\]\s*/i, ''),
+          name: attr.Title.replace(/^\[(?:Temporarily )?unavailable\]\s*/i, ''),
           entityType,
           parentId: PARK_ID,
           destinationId: DESTINATION_ID,
@@ -485,7 +485,7 @@ export class UniversalSingapore extends Destination {
     );
 
     for (const attr of allAttrs) {
-      const tempUnavailable = /^\[Temporarily unavailable\]/i.test(attr.Title);
+      const tempUnavailable = /^\[(?:Temporarily )?unavailable\]/i.test(attr.Title);
       const waitTime = attr.isWaitTimeEnable
         ? (parseWaitTime(attr.WaitTime) ?? attr.AvgTime ?? undefined)
         : undefined;

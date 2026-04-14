@@ -24,6 +24,9 @@ const NAME_SUFFIX_PATTERNS = [
   /\s*[-–—]\s*opens\s+\w+\s+\d{1,2},?\s*\d{0,4}[!]?$/i,
 ];
 const NAME_PREFIX_PATTERNS = [
+  // Bracketed status prefixes: "[Unavailable] WaterWorld™", "[Temporarily unavailable] Ride Name"
+  /^\[(?:temporarily\s+)?unavailable\]\s*/i,
+  /^\[(?:closed|coming soon|new|opening soon)\]\s*/i,
   // Prefixes: "NEW! Dolphin Trainer Talk", "ALL-New Show! When the Pages Turn"
   // Only strip when followed by "!" to avoid false positives
   /^(?:all-)?new!?\s+show!\s+/i,
