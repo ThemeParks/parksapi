@@ -1,6 +1,6 @@
 # ThemeParks.wiki Park Data Backend
 
-An open-source TypeScript library for fetching real-time theme park data — wait times, schedules, and entity metadata — from 74+ destinations worldwide.
+An open-source TypeScript library for fetching real-time theme park data — wait times, schedules, and entity metadata — from 75+ destinations worldwide.
 
 This library powers the free API at [ThemeParks.wiki](https://themeparks.wiki).
 
@@ -74,7 +74,7 @@ npm run health         # Health check all endpoints
 
 ## Supported Destinations
 
-74 destinations across Disney, Universal, Cedar Fair, Six Flags, Merlin, and many more.
+75 destinations across Disney, Universal, Cedar Fair, Six Flags, Merlin, and many more.
 
 Run `npm run dev -- --list` for the full list with IDs and categories, or see below:
 
@@ -141,6 +141,7 @@ Run `npm run dev -- --list` for the full list with IDs and categories, or see be
 | Shanghai Disneyland Resort | `shanghaidisneylandresort` |
 | Silver Dollar City | `silverdollarcity` |
 | Six Flags | `sixflags` |
+| Six Flags Qiddiya City | `sixflagsqiddiyacity` |
 | Thorpe Park | `thorpepark` |
 | Tokyo Disney Resort | `tokyodisneyresort` |
 | Toverland | `toverland` |

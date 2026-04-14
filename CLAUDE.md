@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ParksAPI is a TypeScript library for fetching real-time theme park data (wait times, schedules, entities) from 118+ destinations worldwide. All park implementations live in `src/parks/`.
+ParksAPI is a TypeScript library for fetching real-time theme park data (wait times, schedules, entities) from 75+ park implementations, serving ~118 destination entities worldwide. All park implementations live in `src/parks/`.
 
 **Key Requirement:** Node 24+, npm 11+
 
@@ -193,11 +193,9 @@ Parks are excluded from coverage (integration-tested via `npm run dev`). Core li
 ## Documentation
 
 - `.claude/skills/implementing-parks.md` — How to build a new park destination
-- `.claude/agents/park-ts-migrator.md` — JS-to-TS migration agent
 - `src/tags/TAG_DEVELOPMENT_GUIDE.md` — Adding new tag types
 - `src/virtualQueue/VIRTUAL_QUEUE_GUIDE.md` — Virtual queue patterns with real-world examples
-- `docs/migration-v1-to-v2.md` — Library API migration guide (v1 JS to v2 TS)
-- `TODO.MD` — Migration status, known issues, entity ID changes
+- `TODO.MD` — Known issues, code review findings
 
 ## Important Rules
 
