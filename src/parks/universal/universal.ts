@@ -13,7 +13,7 @@ import {
   AttractionTypeEnum,
   QueueTypeEnum,
 } from '@themeparks/typelib';
-import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore} from '../../datetime.js';
+import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore, hostnameFromUrl} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 // Only return restaurants using these dining types
@@ -152,6 +152,18 @@ class Universal extends Destination {
   @config
   assetsBase: string = "";
 
+  /** UDX platform API base — new Flutter app API (Express Now, places). */
+  @config
+  udxBase: string = "";
+
+  /** UDX OAuth2 client ID for client_credentials flow. */
+  @config
+  udxClientId: string = "";
+
+  /** UDX OAuth2 client secret. */
+  @config
+  udxClientSecret: string = "";
+
   @config
   city: string = "orlando";
 
@@ -191,6 +203,119 @@ class Universal extends Destination {
       'X-UNIWebService-Token': apiKeyData.apiKey,
     };
   }
+
+  // ─── UDX platform API (Express Now, new Flutter app) ──────────────────────
+
+  /**
+   * Inject Bearer token on UDX API requests (not auth endpoint).
+   */
+  @inject({
+    eventName: 'httpRequest',
+    hostname: function() {
+      if (!this.udxBase) return null;
+      return hostnameFromUrl(this.udxBase);
+    },
+    tags: {$nin: ['udxAuth']},
+  })
+  async injectUdxToken(requestObj: HTTPObj): Promise<void> {
+    if (!this.udxBase) return;
+    const {token} = await this.getUdxToken();
+    requestObj.headers = {
+      ...requestObj.headers,
+      'user-agent': 'Dart/3.6 (dart:io)',
+      'accept-language': 'en-US',
+      'Authorization': `Bearer ${token}`,
+    };
+  }
+
+  /** Fetch UDX OAuth2 token via client credentials. */
+  @http({tags: ['udxAuth']} as any)
+  async fetchUdxToken(): Promise<HTTPObj> {
+    const credentials = Buffer.from(`${this.udxClientId}:${this.udxClientSecret}`).toString('base64');
+    return {
+      method: 'POST',
+      url: `${this.udxBase}/oidc/connect/token`,
+      body: 'scope=default&grant_type=client_credentials',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
+        'user-agent': 'Dart/3.6 (dart:io)',
+      },
+      tags: ['udxAuth'],
+    } as any as HTTPObj;
+  }
+
+  /** Cached UDX token — expires per API-supplied expires_in. */
+  @cache({callback: (resp: {token: string; expiresIn: number}) => resp?.expiresIn || 3600})
+  async getUdxToken(): Promise<{token: string; expiresIn: number}> {
+    const resp = await this.fetchUdxToken();
+    const data: any = await resp.json();
+    if (!data?.access_token) {
+      throw new Error('Universal UDX: failed to obtain access_token');
+    }
+    return {
+      token: data.access_token,
+      expiresIn: (data.expires_in as number) || 3600,
+    };
+  }
+
+  /** Fetch places from the UDX API — contains Express Now attributes. */
+  @http({cacheSeconds: 60 * 60} as any) // 1h — POI data changes infrequently
+  async fetchUdxPlaces(): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.udxBase}/resort-areas/${this.resortKey.toUpperCase()}/places`,
+      options: {json: true},
+    } as any as HTTPObj;
+  }
+
+  /**
+   * Get Express Now data from the UDX places endpoint.
+   * Returns a map keyed by UDX place_id (which matches the legacy POI's
+   * ExternalIds.PlaceId and the wait time CDN's wait_time_attraction_id).
+   * The caller must resolve these to numeric POI IDs via getRideIDFromWaitTimeId.
+   */
+  @cache({ttlSeconds: 60 * 60}) // 1h
+  async getExpressNowData(): Promise<Record<string, {eligible: boolean; price: number | null; tier: string | null}>> {
+    if (!this.udxBase) return {};
+
+    try {
+      const resp = await this.fetchUdxPlaces();
+      const data: any = await resp.json();
+      const results: Record<string, {eligible: boolean; price: number | null; tier: string | null}> = {};
+
+      for (const entry of (data?.results || [])) {
+        const place = entry?.place;
+        if (!place) continue;
+
+        const placeType = place.place_type?.type;
+        if (placeType !== 'Ride') continue;
+
+        // Read attributes array: [{name, value}, ...]
+        const attrs: Array<{name: string; value: string}> = place.place_type?.attributes || [];
+        const attrMap = new Map(attrs.map((a: any) => [a.name, a.value]));
+
+        const expressEligible = attrMap.get('express_now_eligible') === 'true';
+        const priceStr = attrMap.get('starting_price');
+        const tier = attrMap.get('tier') || null;
+
+        // Key by place_id — the caller maps to numeric POI ID via
+        // getRideIDFromWaitTimeId(poiData, placeId)
+        results[place.place_id] = {
+          eligible: expressEligible,
+          price: priceStr ? parseInt(priceStr, 10) * 100 : null, // Convert dollars to cents
+          tier,
+        };
+      }
+
+      return results;
+    } catch (err) {
+      console.warn('Universal: failed to fetch UDX Express Now data:', err);
+      return {};
+    }
+  }
+
+  // ─── Legacy API injection ────────────────────────────────────────────────
 
   /**
    * Handle 401 responses by clearing cached API key
@@ -795,6 +920,34 @@ class Universal extends Destination {
           rideEntry.status = 'CLOSED';
         }
       }
+    }
+
+    // Layer Express Now data from the UDX API.
+    // When express_now_eligible is true, add PAID_RETURN_TIME with the starting
+    // price. The actual return-time window isn't available in the places endpoint
+    // (it's a per-purchase concept), so we report state + price only.
+    const expressNowData = await this.getExpressNowData();
+    for (const [placeId, expressInfo] of Object.entries(expressNowData)) {
+      if (!expressInfo.eligible) continue;
+
+      // Map UDX place_id → legacy numeric POI ID (via ExternalIds.PlaceId match)
+      const poiId = this.getRideIDFromWaitTimeId(poi, placeId);
+      if (!poiId) continue;
+
+      const entry = liveDataMap.get(poiId);
+      if (!entry) continue;
+      if (!entry.queue) entry.queue = {};
+
+      entry.queue.PAID_RETURN_TIME = {
+        returnStart: null,
+        returnEnd: null,
+        state: entry.status === 'OPERATING' ? 'AVAILABLE' : 'FINISHED',
+        price: {
+          currency: 'USD' as any,
+          amount: expressInfo.price ?? 0,
+          ...(expressInfo.price == null ? {formatted: 'Unknown'} : {}),
+        },
+      };
     }
 
     return liveData;
