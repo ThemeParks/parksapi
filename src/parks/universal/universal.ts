@@ -184,6 +184,14 @@ class Universal extends Destination {
   @config
   udxClientSecret: string = "";
 
+  /**
+   * Flutter app API key for UDX calls (e.g. `UORFlutterAndroidApp`). The
+   * legacy Android app key (`AndroidMobileApp`) is NOT accepted by the UDX
+   * Express Now endpoint — a resort-specific Flutter key is required.
+   */
+  @config
+  flutterAppKey: string = "";
+
   @config
   city: string = "orlando";
 
@@ -252,6 +260,10 @@ class Universal extends Destination {
       ...requestObj.headers,
       'user-agent': 'Dart/3.6 (dart:io)',
       'accept-language': 'en-US',
+      'x-uniwebservice-platform': 'Android',
+      'x-uniwebservice-platformversion': '14',
+      'x-uniwebservice-device': 'ONEPLUS A5000',
+      'x-uniwebservice-appversion': '7.14.0',
       'Authorization': `Bearer ${token}`,
     };
   }
@@ -297,11 +309,14 @@ class Universal extends Destination {
     tags: 'expressNowOffers',
   })
   async injectExpressNowHeaders(requestObj: HTTPObj): Promise<void> {
+    // Real app uses resort-specific flagship key (UORFlutterAndroidApp,
+    // USHFlutterAndroidApp, etc.). Fall back to the legacy appKey if the
+    // Flutter-specific one isn't configured.
+    const flutterKey = this.flutterAppKey || `${this.resortKey.toUpperCase()}FlutterAndroidApp`;
     requestObj.headers = {
       ...requestObj.headers,
-      'x-source-id': 'ms-express-now',
       'x-resort-area-code': this.resortKey.toUpperCase(),
-      'X-UNIWebService-ApiKey': this.appKey,
+      'X-UNIWebService-ApiKey': flutterKey,
       'Content-Type': 'application/json',
     };
   }
