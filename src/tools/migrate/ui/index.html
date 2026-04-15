@@ -23,6 +23,10 @@
   tr.skip td { opacity: 0.35; }
   tr.fuzzy { background: #2a2210; }
   tr.unmatched { background: #2a1510; }
+  tr.noop td { opacity: 0.5; }
+  tr.noop { background: #1a2a1a; }
+  .badge-noop { background: #2a4a2a; color: #8fdc8f; }
+  .tag-noop { display: inline-block; background: #2a4a2a; color: #8fdc8f; font-size: 10px; padding: 1px 6px; border-radius: 3px; margin-left: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 
   .mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; color: #888; }
   .arrow { text-align: center; font-size: 16px; }
@@ -164,6 +168,7 @@ function render() {
     <span class="badge badge-exact">${s.exact} exact</span>
     <span class="badge badge-fuzzy">${s.fuzzy} fuzzy</span>
     <span class="badge badge-unmatched">${s.unmatched} unmatched</span>
+    <span class="badge badge-noop">${s.noop || 0} already match</span>
     <span class="badge badge-confirmed">${s.confirmed} to migrate</span>
   `;
 
@@ -172,13 +177,17 @@ function render() {
 
   data.mappings.forEach((m, idx) => {
     const tr = document.createElement('tr');
-    tr.className = m.status === 'skip' ? `${m.confidence} skip` : m.confidence;
+    const rowClasses = [m.confidence];
+    if (m.noop) rowClasses.push('noop');
+    if (m.status === 'skip') rowClasses.push('skip');
+    tr.className = rowClasses.join(' ');
 
     const distStr = m.distance !== null ? `<span class="distance">${m.distance}m</span>` : '';
+    const noopTag = m.noop ? '<span class="tag-noop">No-op</span>' : '';
 
     tr.innerHTML = `
       <td class="mono">${esc(m.oldExternalId)}</td>
-      <td>${esc(m.oldName)}</td>
+      <td>${esc(m.oldName)}${noopTag}</td>
       <td class="arrow arrow-${m.confidence}">${m.newExternalId ? '→' : '—'}</td>
       <td class="mono">${m.newExternalId ? esc(m.newExternalId.substring(0, 12) + '...') : renderPairDropdown(idx, m)}</td>
       <td>${m.newName ? esc(m.newName) : ''} ${distStr}</td>
@@ -189,7 +198,7 @@ function render() {
     tbody.appendChild(tr);
   });
 
-  const confirmed = data.mappings.filter(m => m.status === 'confirmed' && m.newExternalId).length;
+  const confirmed = data.mappings.filter(m => m.status === 'confirmed' && m.newExternalId && !m.noop).length;
   const commitBtn = document.getElementById('commitBtn');
   commitBtn.textContent = `Commit ${confirmed} Migrations`;
   commitBtn.disabled = confirmed === 0;
@@ -296,7 +305,7 @@ function exportJson() {
 }
 
 function confirmCommit() {
-  const count = data.mappings.filter(m => m.status === 'confirmed' && m.newExternalId).length;
+  const count = data.mappings.filter(m => m.status === 'confirmed' && m.newExternalId && !m.noop).length;
   document.getElementById('confirmText').textContent = `Migrate ${count} entity IDs? This cannot be undone.`;
   document.getElementById('confirmOverlay').classList.add('active');
 }
