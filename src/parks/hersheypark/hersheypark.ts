@@ -12,7 +12,6 @@ import {
 } from '@themeparks/typelib';
 import {constructDateTime, hostnameFromUrl} from '../../datetime.js';
 import {createStatusMap} from '../../statusMap.js';
-import {TagBuilder} from '../../tags/index.js';
 
 /**
  * Status mapping for Hersheypark ride statuses.
@@ -152,14 +151,6 @@ export class Hersheypark extends Destination {
       locationFields: {
         lat: (item: any) => item.latitude ? Number(item.latitude) : undefined,
         lng: (item: any) => item.longitude ? Number(item.longitude) : undefined,
-      },
-      transform: (entity, item: any) => {
-        const lat = item.latitude ? Number(item.latitude) : undefined;
-        const lng = item.longitude ? Number(item.longitude) : undefined;
-        if (lat && lng) {
-          entity.tags = [TagBuilder.location(lat, lng, entity.name as string)];
-        }
-        return entity;
       },
     });
 
