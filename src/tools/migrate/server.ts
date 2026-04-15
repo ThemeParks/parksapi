@@ -41,17 +41,22 @@ export function startMigrationServer(config: ServerConfig): void {
 
   // ── API: Mappings ────────────────────────────────────────────
 
+  const isNoop = (m: Mapping) =>
+    m.newExternalId != null && m.oldExternalId === m.newExternalId;
+
   app.get('/api/mappings', (_req, res) => {
+    const enriched = mappings.map(m => ({...m, noop: isNoop(m)}));
     res.json({
       parkName: config.parkName,
-      mappings,
+      mappings: enriched,
       unmatchedNew: config.unmatchedNew,
       allNewEntities: config.allNewEntities,
       summary: {
         exact: mappings.filter(m => m.confidence === 'exact').length,
         fuzzy: mappings.filter(m => m.confidence === 'fuzzy').length,
         unmatched: mappings.filter(m => m.confidence === 'unmatched').length,
-        confirmed: mappings.filter(m => m.status === 'confirmed' && m.newExternalId).length,
+        noop: mappings.filter(isNoop).length,
+        confirmed: mappings.filter(m => m.status === 'confirmed' && m.newExternalId && !isNoop(m)).length,
         skipped: mappings.filter(m => m.status === 'skip').length,
       },
     });
@@ -106,9 +111,11 @@ export function startMigrationServer(config: ServerConfig): void {
       return res.status(400).json({error: 'WIKI_API_URL, WIKI_USERNAME, and WIKI_API_KEY must be configured in .env'});
     }
 
-    const toCommit = mappings.filter(m => m.status === 'confirmed' && m.newExternalId);
+    const toCommit = mappings.filter(
+      m => m.status === 'confirmed' && m.newExternalId && !isNoop(m),
+    );
     if (toCommit.length === 0) {
-      return res.status(400).json({error: 'No confirmed mappings to commit'});
+      return res.status(400).json({error: 'No confirmed mappings to commit (IDs already match are skipped)'});
     }
 
     commitInProgress = true;
