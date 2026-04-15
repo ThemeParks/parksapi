@@ -182,6 +182,8 @@ protected async buildEntityList(): Promise<Entity[]> {
 }
 ```
 
+**Do not emit a `TagBuilder.location(...)` that duplicates the entity's primary coordinate.** `locationFields` already puts that lat/lng on `entity.location`. LOCATION tags are only for *additional* named sub-points (e.g. a separate single-rider entrance or exit with distinct coordinates). If the source API only gives you one point, stop at `locationFields` — no tag needed. See `src/tags/TAG_DEVELOPMENT_GUIDE.md` §"When to Emit a LOCATION Tag".
+
 ### 5. Live Data
 
 ```typescript

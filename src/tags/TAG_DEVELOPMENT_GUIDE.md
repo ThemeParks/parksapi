@@ -184,6 +184,21 @@ npm test -- src/tags/__tests__/tagCompleteness.test.ts
 
 ---
 
+## When to Emit a LOCATION Tag
+
+LOCATION tags mark a **distinct named sub-point** of an entity — something separate from the entity's primary coordinate. They are **not** a way to re-publish the main location.
+
+**Do emit a LOCATION tag when:**
+- The ride has a separate single-rider entrance, FastPass entrance, or exit with a coordinate distinct from its main entrance.
+- A show venue has both a stage and a standby queue entry whose coordinates differ meaningfully.
+- A park facility has multiple visitor-facing waypoints (a standard POI like `TagBuilder.mainEntrance(...)` is preferable here — see below).
+
+**Do NOT emit a LOCATION tag when:**
+- The only coordinate you have is the entity's primary position. That belongs in `entity.location` (populated via `mapEntities`' `locationFields`) and nothing else. A LOCATION tag with the same lat/lng is pure duplication and was purged from all parks in April 2026.
+- You have a single `{latitude, longitude}` field in the source API. Put it on `entity.location`; stop.
+
+**Prefer standard POI helpers** (`TagBuilder.mainEntrance`, `TagBuilder.babyCareCenter`, `TagBuilder.firstAidStation`, etc.) when the location is a well-known park facility — they use a consistent id and `displayName` across parks.
+
 ## Adding a Standard Location
 
 Standard locations have consistent IDs and display names across parks. They're defined in a single source-of-truth table (`STANDARD_LOCATIONS` in `tagTypes.ts`), and `TagBuilder` exposes one helper method per entry.

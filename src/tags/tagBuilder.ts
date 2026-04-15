@@ -118,8 +118,21 @@ export class TagBuilder {
   /**
    * Create a Location tag
    *
-   * Location tags represent specific points of interest for an entity,
-   * such as "Main Entrance", "Exit", "Single Rider Entrance", etc.
+   * Location tags mark DISTINCT named sub-points of interest for an entity,
+   * such as "Main Entrance", "Exit", "Single Rider Entrance", etc. They
+   * are additional to the entity's primary `location` — never a duplicate
+   * of it.
+   *
+   * **Do not use this tag to mirror `entity.location`.** The entity's
+   * main coordinate belongs in `entity.location` (populated via
+   * `mapEntities`' `locationFields`). A LOCATION tag with the same
+   * coordinates as the main location adds nothing and should be omitted.
+   * If your API only exposes one point per entity, do not emit any
+   * LOCATION tag — the primary `entity.location` is sufficient.
+   *
+   * For standard POIs like baby care centres, first aid, smoking areas,
+   * prefer the dedicated `TagBuilder.mainEntrance()`,
+   * `TagBuilder.babyCareCenter()`, etc. helpers.
    *
    * @param latitude Latitude coordinate
    * @param longitude Longitude coordinate
@@ -130,9 +143,13 @@ export class TagBuilder {
    *
    * @example
    * ```typescript
+   * // Correct: distinct sub-locations beyond the primary entity.location
    * TagBuilder.location(28.4743, -81.4677, 'Main Entrance')
    * TagBuilder.location(28.4744, -81.4678, 'Single Rider Entrance')
    * TagBuilder.location(28.4745, -81.4679, 'Exit')
+   *
+   * // Wrong: duplicates entity.location — don't do this
+   * // TagBuilder.location(ride.lat, ride.lng, ride.name)
    * ```
    */
   @complexTag(TagType.LOCATION)
