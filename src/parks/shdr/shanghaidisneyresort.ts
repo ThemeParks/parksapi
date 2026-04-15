@@ -374,12 +374,6 @@ export class ShanghaiDisneylandResort extends Destination {
           }
         }
 
-        // Location
-        const loc = this.getPrimaryLocation(facility);
-        if (loc) {
-          tags.push(TagBuilder.location(loc.lat, loc.lng, entity.name as string));
-        }
-
         entity.tags = tags.filter(Boolean);
         return entity;
       },
@@ -401,17 +395,6 @@ export class ShanghaiDisneylandResort extends Destination {
       locationFields: {
         lat: (item) => this.getPrimaryLocation(item)?.lat,
         lng: (item) => this.getPrimaryLocation(item)?.lng,
-      },
-      transform: (entity, facility) => {
-        const tags: any[] = [];
-
-        const loc = this.getPrimaryLocation(facility);
-        if (loc) {
-          tags.push(TagBuilder.location(loc.lat, loc.lng, entity.name as string));
-        }
-
-        entity.tags = tags.filter(Boolean);
-        return entity;
       },
     });
 

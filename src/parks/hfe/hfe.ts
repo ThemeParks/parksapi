@@ -324,17 +324,6 @@ class HFEBase extends Destination {
         transform: (entity, activity) => {
           const tags = [];
 
-          // Add location tag if available
-          const lat = this.parseCoord(activity.latitudeForDirections);
-          const lng = this.parseCoord(activity.longitudeForDirections);
-          if (lat != null && lng != null) {
-            tags.push(TagBuilder.location(
-              lat,
-              lng,
-              typeof entity.name === 'string' ? entity.name : 'Attraction Location',
-            ));
-          }
-
           // Parse height requirement
           const heightReq = activity.heightRequirement;
           if (heightReq != null) {
@@ -368,18 +357,6 @@ class HFEBase extends Destination {
         locationFields: {
           lat: (item: HFEActivity) => this.parseCoord(item.latitudeForDirections),
           lng: (item: HFEActivity) => this.parseCoord(item.longitudeForDirections),
-        },
-        transform: (entity, activity) => {
-          const lat = this.parseCoord(activity.latitudeForDirections);
-          const lng = this.parseCoord(activity.longitudeForDirections);
-          if (lat != null && lng != null) {
-            entity.tags = [TagBuilder.location(
-              lat,
-              lng,
-              typeof entity.name === 'string' ? entity.name : 'Restaurant Location',
-            )];
-          }
-          return entity;
         },
       },
     );

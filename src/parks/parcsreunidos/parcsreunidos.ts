@@ -16,7 +16,6 @@ import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {constructDateTime} from '../../datetime.js';
-import {TagBuilder} from '../../tags/index.js';
 import {decodeHtmlEntities} from '../../htmlUtils.js';
 
 // ============================================================================
@@ -242,14 +241,6 @@ class ParcsReunidosDestination extends Destination {
       locationFields: {
         lat: (item: StayAppAttraction) => item.place?.point?.latitude,
         lng: (item: StayAppAttraction) => item.place?.point?.longitude,
-      },
-      transform: (entity, item) => {
-        const lat = item.place?.point?.latitude;
-        const lng = item.place?.point?.longitude;
-        if (lat && lng) {
-          entity.tags = [TagBuilder.location(lat, lng, typeof entity.name === 'string' ? entity.name : 'Attraction Location')];
-        }
-        return entity;
       },
     });
 

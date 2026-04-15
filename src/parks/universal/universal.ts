@@ -538,9 +538,6 @@ class Universal extends Destination {
           entity.tags = [
             ride.HasChildSwap ? TagBuilder.childSwap() : undefined,
             ride.MinHeightInInches ? TagBuilder.minimumHeight(ride.MinHeightInInches, 'in') : undefined,
-            ride.Latitude && ride.Longitude
-              ? TagBuilder.location(ride.Latitude, ride.Longitude, 'Attraction Location')
-              : undefined,
           ].filter((tag): tag is NonNullable<typeof tag> => tag !== undefined);
           return entity;
         },
@@ -555,15 +552,6 @@ class Universal extends Destination {
         locationFields: {lat: 'Latitude', lng: 'Longitude'},
         destinationId,
         timezone: this.timezone,
-        transform: (entity, show) => {
-          // Add location tag if available
-          entity.tags = [
-            show.Latitude && show.Longitude
-              ? TagBuilder.location(show.Latitude, show.Longitude, 'Show Venue')
-              : undefined,
-          ].filter((tag): tag is NonNullable<typeof tag> => tag !== undefined);
-          return entity;
-        },
       }),
 
       // Restaurants
@@ -577,15 +565,6 @@ class Universal extends Destination {
         timezone: this.timezone,
         filter: (dining) =>
           dining.DiningTypes?.some((type) => WANTED_DINING_TYPES.includes(type)) ?? false,
-        transform: (entity, dining) => {
-          // Add location tag if available
-          entity.tags = [
-            dining.Latitude && dining.Longitude
-              ? TagBuilder.location(dining.Latitude, dining.Longitude, 'Restaurant Location')
-              : undefined,
-          ].filter((tag): tag is NonNullable<typeof tag> => tag !== undefined);
-          return entity;
-        },
       }),
     ];
   }

@@ -463,11 +463,6 @@ export class TokyoDisneyResort extends Destination {
           tags.push(TagBuilder.unsuitableForPregnantPeople());
         }
 
-        // Location
-        if (facility.latitude && facility.longitude) {
-          tags.push(TagBuilder.location(Number(facility.latitude), Number(facility.longitude), entity.name as string));
-        }
-
         entity.tags = tags.filter(Boolean);
         return entity;
       },
@@ -488,16 +483,6 @@ export class TokyoDisneyResort extends Destination {
       locationFields: {
         lat: 'latitude',
         lng: 'longitude',
-      },
-      transform: (entity, facility) => {
-        const tags: any[] = [];
-
-        if (facility.latitude && facility.longitude) {
-          tags.push(TagBuilder.location(Number(facility.latitude), Number(facility.longitude), entity.name as string));
-        }
-
-        entity.tags = tags.filter(Boolean);
-        return entity;
       },
     });
 

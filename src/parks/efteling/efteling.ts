@@ -322,11 +322,6 @@ export class Efteling extends Destination {
   private buildTags(item: any): any[] {
     const tags: any[] = [];
 
-    // Location
-    if (item.lat && item.lng) {
-      tags.push(TagBuilder.location(item.lat, item.lng, item.enName));
-    }
-
     // Height restrictions from properties
     for (const prop of item.properties) {
       const heightMatch = prop.match(/^minimum(\d+)$/);
