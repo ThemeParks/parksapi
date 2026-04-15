@@ -58,6 +58,26 @@ const PARK_ID = 'sixflagsqiddiyacity.park';
 const PARK_LATITUDE = 24.5876;
 const PARK_LONGITUDE = 46.3327;
 
+// The Qiddiya API returns some `title` values in Arabic (roughly 40% of
+// entries, despite `accept-language: en`). The `name` field is always a
+// consistent English slug, so fall back to it when the title contains any
+// Arabic-script characters.
+const ARABIC_SCRIPT_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+
+function pickEnglishName(item: QiddiyaActivity): string {
+  const title = (item.title || '').trim();
+  if (title && !ARABIC_SCRIPT_RE.test(title)) return title;
+  return slugToTitleCase(item.name || '');
+}
+
+function slugToTitleCase(slug: string): string {
+  return slug
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 // JS Date.getDay() returns 0 (Sun) ... 6 (Sat).
 const DAY_NAMES = [
   'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
@@ -342,7 +362,7 @@ export class SixFlagsQiddiyaCity extends Destination {
   private mapActivities(items: QiddiyaActivity[], entityType: Entity['entityType']): Entity[] {
     return this.mapEntities(items, {
       idField: 'id',
-      nameField: (item) => (item.title || item.name || '').trim(),
+      nameField: (item) => pickEnglishName(item),
       entityType,
       parentIdField: () => PARK_ID,
       destinationId: DESTINATION_ID,
