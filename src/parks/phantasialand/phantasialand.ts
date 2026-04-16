@@ -119,7 +119,8 @@ export class Phantasialand extends Destination {
     hostname: function() { return hostnameFromUrl(this.apiBase); },
   })
   async handleUnauthorized(requestObj: HTTPObj): Promise<void> {
-    if (requestObj.status === 401 || requestObj.status === 403) {
+    const status = requestObj.response?.status;
+    if (status === 401 || status === 403) {
       CacheLib.delete('phantasialand:accessToken');
     }
   }
