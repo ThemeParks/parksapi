@@ -20,7 +20,7 @@ import {createStatusMap} from '../../statusMap.js';
 
 const mapStatus = createStatusMap({
   OPERATING: ['open', 'Open'],
-  CLOSED: ['closed', 'Closed', 'closed_indefinitely', 'full_and_closed', 'custom', 'unknown_status', 'not_operational'],
+  CLOSED: ['closed', 'Closed', 'closed_indefinitely', 'temporary_closed', 'full_and_closed', 'custom', 'unknown_status', 'not_operational'],
   DOWN: ['full', 'Full', 'Down'],
   REFURBISHMENT: ['maintenance', 'Maintenance'],
 }, {parkName: 'Walibi', defaultStatus: 'OPERATING'});
