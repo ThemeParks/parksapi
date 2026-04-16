@@ -18,6 +18,7 @@ interface ServerConfig {
   wikiApiUrl: string;
   wikiUsername: string;
   wikiApiKey: string;
+  wikiToken: string;
   port: number;
 }
 
@@ -107,8 +108,8 @@ export function startMigrationServer(config: ServerConfig): void {
     if (commitInProgress) {
       return res.status(409).json({error: 'Commit already in progress'});
     }
-    if (!config.wikiApiUrl || !config.wikiUsername || !config.wikiApiKey) {
-      return res.status(400).json({error: 'WIKI_API_URL, WIKI_USERNAME, and WIKI_API_KEY must be configured in .env'});
+    if (!config.wikiApiUrl || (!config.wikiToken && (!config.wikiUsername || !config.wikiApiKey))) {
+      return res.status(400).json({error: 'WIKI_API_URL and either WIKI_TOKEN or WIKI_USERNAME+WIKI_API_KEY must be configured in .env'});
     }
 
     const toCommit = mappings.filter(
@@ -127,20 +128,23 @@ export function startMigrationServer(config: ServerConfig): void {
       // Authenticate
       broadcast('status', {message: 'Authenticating...', progress: 0, total: toCommit.length});
 
-      const authResp = await fetch(`${config.wikiApiUrl}/auth/login`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({username: config.wikiUsername, apiKey: config.wikiApiKey}),
-      });
+      let token = config.wikiToken;
+      if (!token) {
+        const authResp = await fetch(`${config.wikiApiUrl}/auth/login`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({username: config.wikiUsername, apiKey: config.wikiApiKey}),
+        });
 
-      if (!authResp.ok) {
-        const err = await authResp.text();
-        broadcast('error', {message: `Authentication failed: ${authResp.status} ${err}`});
-        commitInProgress = false;
-        return;
+        if (!authResp.ok) {
+          const err = await authResp.text();
+          broadcast('error', {message: `Authentication failed: ${authResp.status} ${err}`});
+          commitInProgress = false;
+          return;
+        }
+
+        token = (await authResp.json() as {token: string}).token;
       }
-
-      const {token} = await authResp.json() as {token: string};
       broadcast('status', {message: 'Authenticated', progress: 0, total: toCommit.length});
 
       // Commit each mapping

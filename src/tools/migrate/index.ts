@@ -17,6 +17,7 @@ import type {WikiEntity, NewEntity} from './matcher.js';
 const WIKI_API_URL = process.env.WIKI_API_URL || 'https://api.themeparks.wiki';
 const WIKI_USERNAME = process.env.WIKI_USERNAME || '';
 const WIKI_API_KEY = process.env.WIKI_API_KEY || '';
+const WIKI_TOKEN = process.env.WIKI_TOKEN || '';
 const PORT = parseInt(process.env.MIGRATE_PORT || '9900', 10);
 
 async function main() {
@@ -156,6 +157,7 @@ async function main() {
     wikiApiUrl: WIKI_API_URL,
     wikiUsername: WIKI_USERNAME,
     wikiApiKey: WIKI_API_KEY,
+    wikiToken: WIKI_TOKEN,
     port: PORT,
   });
 }
