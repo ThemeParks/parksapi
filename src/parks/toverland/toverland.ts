@@ -5,9 +5,8 @@ import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import {constructDateTime, hostnameFromUrl} from '../../datetime.js';
+import {constructDateTime, hostnameFromUrl, localFromFakeUtc} from '../../datetime.js';
 import {createStatusMap} from '../../statusMap.js';
-import {TagBuilder} from '../../tags/index.js';
 
 const mapStatus = createStatusMap({
   OPERATING: ['Open', 'Variable schedule'],
@@ -177,21 +176,46 @@ export class Toverland extends Destination {
 
   protected async buildLiveData(): Promise<LiveData[]> {
     const rides = await this.getRideData();
+    const now = new Date();
 
     return rides.map((entry) => {
       const statusName = entry?.last_status?.status?.name?.en;
       if (!statusName) return null;
 
-      const waitTime = entry?.last_waiting_time?.waiting_time;
-      if (waitTime === undefined) return null;
+      // Use per-ride opening_times to determine if the ride is actually
+      // operating right now. The API reports status "Open" even when
+      // the park/ride is closed.
+      const todayHours = (entry.opening_times as any[] || []).find((ot: any) => {
+        if (!ot?.start || !ot?.end) return false;
+        // API returns naive datetimes in park-local time (Europe/Amsterdam)
+        const start = new Date(localFromFakeUtc(ot.start.replace(' ', 'T'), this.timezone));
+        const end = new Date(localFromFakeUtc(ot.end.replace(' ', 'T'), this.timezone));
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) return false;
+        return now >= new Date(start.getTime() - 30 * 60_000) && now <= end;
+      });
 
-      return {
+      if (!todayHours) {
+        return {
+          id: String(entry.id),
+          status: 'CLOSED',
+        } as LiveData;
+      }
+
+      const mappedStatus = mapStatus(statusName);
+      const waitTime = entry?.last_waiting_time?.waiting_time;
+
+      const ld: LiveData = {
         id: String(entry.id),
-        status: mapStatus(statusName),
-        queue: {
-          STANDBY: {waitTime: Number(waitTime)},
-        },
+        status: mappedStatus,
       } as LiveData;
+
+      if (mappedStatus === 'OPERATING' && waitTime !== undefined) {
+        ld.queue = {
+          STANDBY: {waitTime: Number(waitTime)},
+        };
+      }
+
+      return ld;
     }).filter((x): x is LiveData => x !== null);
   }
 
