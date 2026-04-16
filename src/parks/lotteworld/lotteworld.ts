@@ -29,8 +29,8 @@ const mapStatus = createStatusMap(
   {
     OPERATING: ['정상운영', 'operating', 'open', 'normal', 'normal operation'],
     DOWN: ['일시중단', 'temp closed', 'temporarily closed', 'weather', 'waiting list is closed'],
-    REFURBISHMENT: ['정기점검', 'maintenance', 'refurbishment', 'daily check'],
-    CLOSED: ['운영종료', 'closed', ''],
+    REFURBISHMENT: ['정기점검', 'maintenance', 'refurbishment', 'daily check', 'regular inspection'],
+    CLOSED: ['운영종료', 'closed', '', 'end of operation', 'regular closing day'],
   },
   {parkName: 'LotteWorld', defaultStatus: 'CLOSED'},
 );
