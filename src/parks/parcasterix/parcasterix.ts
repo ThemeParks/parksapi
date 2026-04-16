@@ -593,15 +593,6 @@ export class ParcAsterix extends Destination {
               ),
             );
           }
-          if (item.latitude && item.longitude) {
-            tags.push(
-              TagBuilder.location(
-                Number(item.latitude),
-                Number(item.longitude),
-                entity.name as string,
-              ),
-            );
-          }
           if (tags.length > 0) {
             entity.tags = tags;
           }

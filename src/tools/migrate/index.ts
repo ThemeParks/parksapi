@@ -20,9 +20,14 @@ const WIKI_API_KEY = process.env.WIKI_API_KEY || '';
 const PORT = parseInt(process.env.MIGRATE_PORT || '9900', 10);
 
 async function main() {
-  const parkId = process.argv[2];
+  const args = process.argv.slice(2).filter(a => !a.startsWith('--'));
+  const flagArgs = process.argv.slice(2).filter(a => a.startsWith('--'));
+  const parkId = args[0];
+  const wikiSlugOverride = flagArgs
+    .find(a => a.startsWith('--wiki-slug='))
+    ?.split('=')[1];
   if (!parkId) {
-    console.error('Usage: npm run migrate -- <parkId>');
+    console.error('Usage: npm run migrate -- <parkId> [--wiki-slug=<wikiSlug>]');
     console.error('Example: npm run migrate -- walibiholland');
     process.exit(1);
   }
@@ -69,11 +74,24 @@ async function main() {
     if (!destsResp.ok) throw new Error(`Failed to fetch destinations: ${destsResp.status}`);
     const destsData = await destsResp.json() as any;
 
-    const wikiDest = destsData.destinations?.find((d: any) => d.slug === parkId);
+    const candidates = wikiSlugOverride
+      ? [wikiSlugOverride]
+      : [parkId, `${parkId}resort`, `${parkId}-resort`, `${parkId}destination`];
+    let wikiDest: any = null;
+    for (const candidate of candidates) {
+      wikiDest = destsData.destinations?.find((d: any) => d.slug === candidate);
+      if (wikiDest) {
+        if (candidate !== parkId) {
+          console.log(`  Resolved wiki slug "${candidate}" (parksapi id: "${parkId}")`);
+        }
+        break;
+      }
+    }
     if (!wikiDest) {
-      console.warn(`  Warning: destination "${parkId}" not found in wiki API (slug match).`);
+      console.warn(`  Warning: destination "${parkId}" not found in wiki API.`);
+      console.warn(`  Tried slugs: ${candidates.join(', ')}`);
       console.warn(`  Available slugs: ${destsData.destinations?.map((d: any) => d.slug).filter(Boolean).sort().join(', ')}`);
-      console.warn(`  Proceeding with empty wiki entities — review will show all as "new".`);
+      console.warn(`  Re-run with --wiki-slug=<slug> to override, or proceed with empty wiki entities.`);
     } else {
       console.log(`  Found wiki destination: ${wikiDest.name} (${wikiDest.id})`);
 

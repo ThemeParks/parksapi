@@ -368,9 +368,6 @@ export class Phantasialand extends Destination {
       transform: (entity, item) => {
         entity.entityType = item.entityType;
         const tags = [];
-        if (item.lat && item.lng) {
-          tags.push(TagBuilder.location(item.lat, item.lng, item.enName));
-        }
         // API tags
         if (item.apiTags.includes('ATTRACTION_TYPE_WATER')) tags.push(TagBuilder.mayGetWet());
         if (item.apiTags.includes('ATTRACTION_TYPE_SINGLE_RIDER_LINE')) tags.push(TagBuilder.singleRider());

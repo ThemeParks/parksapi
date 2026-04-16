@@ -567,11 +567,6 @@ export class DisneylandParis extends Destination {
       // Build tags
       const tags: any[] = [];
 
-      // Location tag
-      if (coords) {
-        tags.push(TagBuilder.location(coords.lat, coords.lng, poi.name));
-      }
-
       // Height restriction
       if (poi.minimumHeight) {
         const heightCm = this.parseHeightCm(poi.minimumHeight);

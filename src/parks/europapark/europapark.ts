@@ -480,10 +480,6 @@ class EuropaParkBase extends Destination {
 
         // Tags
         const tags = [];
-        if (entity.latitude && entity.longitude) {
-          const locTag = TagBuilder.location(entity.latitude, entity.longitude, 'Attraction Location');
-          if (locTag) tags.push(locTag);
-        }
         if (entity.minHeight) {
           tags.push(TagBuilder.minimumHeight(entity.minHeight, 'cm'));
         }

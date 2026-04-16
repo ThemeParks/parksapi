@@ -20,7 +20,6 @@ import {cache} from '../../cache.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {formatInTimezone, addMinutes, constructDateTime} from '../../datetime.js';
-import {TagBuilder} from '../../tags/index.js';
 import {decodeHtmlEntities, stripHtmlTags} from '../../htmlUtils.js';
 
 // ============================================================================
@@ -696,14 +695,6 @@ export class SixFlags extends Destination {
         // Add attraction type for rides
         if (entityType === 'ATTRACTION') {
           (entity as any).attractionType = 'RIDE';
-        }
-        // Add location tag if coordinates available
-        const coords = parseCoordinates(poi);
-        if (coords) {
-          entity.tags = [
-            TagBuilder.location(coords.latitude, coords.longitude,
-              typeof entity.name === 'string' ? entity.name : 'Attraction Location'),
-          ];
         }
         return entity;
       },

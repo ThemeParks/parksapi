@@ -10,7 +10,6 @@ import {
   EntitySchedule,
 } from '@themeparks/typelib';
 import {formatInTimezone, addDays, constructDateTime} from '../../datetime.js';
-import {TagBuilder} from '../../tags/index.js';
 
 @destinationController({category: 'Liseberg'})
 export class Liseberg extends Destination {
@@ -119,14 +118,6 @@ export class Liseberg extends Destination {
       locationFields: {
         lat: (item: any) => item.coordinates?.latitude,
         lng: (item: any) => item.coordinates?.longitude,
-      },
-      transform: (entity, item: any) => {
-        const lat = item.coordinates?.latitude;
-        const lng = item.coordinates?.longitude;
-        if (lat && lng) {
-          entity.tags = [TagBuilder.location(lat, lng, entity.name as string)];
-        }
-        return entity;
       },
     });
 

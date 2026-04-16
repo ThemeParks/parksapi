@@ -19,7 +19,6 @@ import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {formatInTimezone} from '../../datetime.js';
-import {TagBuilder} from '../../tags/index.js';
 
 // ============================================================================
 // Constants
@@ -705,10 +704,6 @@ class TE2Destination extends Destination {
         location,
       } as Entity;
 
-      if (location) {
-        entity.tags = [TagBuilder.location(location.latitude, location.longitude, typeof entity.name === 'string' ? entity.name : 'Location')];
-      }
-
       entities.push(entity);
     }
 
@@ -763,10 +758,6 @@ class TE2Destination extends Destination {
         timezone: this.timezone,
         location,
       } as Entity;
-
-      if (location) {
-        entity.tags = [TagBuilder.location(location.latitude, location.longitude, typeof entity.name === 'string' ? entity.name : 'Show Location')];
-      }
 
       entities.push(entity);
       existingShowIds.add(String(event.id));

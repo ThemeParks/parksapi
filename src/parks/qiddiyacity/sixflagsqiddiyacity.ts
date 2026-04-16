@@ -374,9 +374,6 @@ export class SixFlagsQiddiyaCity extends Destination {
       },
       transform: (entity, item) => {
         const tags: any[] = [];
-        if (item.location && item.location.latitude !== 0 && item.location.longitude !== 0) {
-          tags.push(TagBuilder.location(item.location.latitude, item.location.longitude, 'Location'));
-        }
         if (item.minHeight != null && item.minHeight > 0) {
           tags.push(TagBuilder.minimumHeight(item.minHeight, 'cm'));
         }
