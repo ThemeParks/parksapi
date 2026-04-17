@@ -80,6 +80,7 @@ export function validateTagValue(type: TagType, value: any): void {
       break;
 
     case TagType.MINIMUM_HEIGHT:
+    case TagType.MINIMUM_HEIGHT_UNACCOMPANIED:
     case TagType.MAXIMUM_HEIGHT:
       if (!isHeightValue(value)) {
         throw new Error(
