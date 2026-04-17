@@ -259,6 +259,29 @@ export class TagBuilder {
   }
 
   /**
+   * Create a Minimum Height (Unaccompanied) tag
+   *
+   * The minimum height for a rider to ride without an accompanying adult.
+   * Typically higher than the standard minimum height.
+   *
+   * @param height The minimum unaccompanied height value
+   * @param unit The unit of measurement ('cm' or 'in')
+   * @param tagName Optional custom tag name
+   * @param id Optional unique identifier
+   * @throws {Error} If height or unit are invalid
+   */
+  @complexTag(TagType.MINIMUM_HEIGHT_UNACCOMPANIED)
+  static minimumHeightUnaccompanied(
+    height: number,
+    unit: 'cm' | 'in',
+    tagName?: string,
+    id?: string
+  ): TagData {
+    const value: HeightTagValue = {height, unit};
+    return TagBuilder.createTag(TagType.MINIMUM_HEIGHT_UNACCOMPANIED, value, tagName, id);
+  }
+
+  /**
    * Create a Maximum Height tag
    *
    * @param height The maximum height value

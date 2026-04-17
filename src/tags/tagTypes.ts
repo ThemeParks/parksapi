@@ -14,6 +14,7 @@ export enum TagType {
   MAY_GET_WET = 'MAY_GET_WET',
   UNSUITABLE_PREGNANT = 'UNSUITABLE_PREGNANT',
   MINIMUM_HEIGHT = 'MINIMUM_HEIGHT',
+  MINIMUM_HEIGHT_UNACCOMPANIED = 'MINIMUM_HEIGHT_UNACCOMPANIED',
   MAXIMUM_HEIGHT = 'MAXIMUM_HEIGHT',
   ONRIDE_PHOTO = 'ONRIDE_PHOTO',
   SINGLE_RIDER = 'SINGLE_RIDER',
@@ -49,6 +50,7 @@ registerSimple(TagType.PAID_RETURN_TIME, 'Paid Return Time');
 registerSimple(TagType.MAY_GET_WET, 'May Get Wet');
 registerSimple(TagType.UNSUITABLE_PREGNANT, 'Unsuitable for Pregnant People');
 registerComplex(TagType.MINIMUM_HEIGHT, 'Minimum Height');
+registerComplex(TagType.MINIMUM_HEIGHT_UNACCOMPANIED, 'Minimum Height (Unaccompanied)');
 registerComplex(TagType.MAXIMUM_HEIGHT, 'Maximum Height');
 registerSimple(TagType.ONRIDE_PHOTO, 'On-Ride Photo');
 registerSimple(TagType.SINGLE_RIDER, 'Single Rider');
