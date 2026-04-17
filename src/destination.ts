@@ -840,7 +840,23 @@ export abstract class Destination {
   @trace()
   async getLiveData(): Promise<LiveData[]> {
     await this.init();
-    return await this.buildLiveData();
+    const data = await this.buildLiveData();
+    // Sanitise waitTime values — must be a finite number or null/undefined.
+    // Catches bugs like waitTime:"" which crash downstream integer columns.
+    for (const entry of data) {
+      if (entry.queue) {
+        for (const queueType of Object.keys(entry.queue)) {
+          const q = (entry.queue as Record<string, any>)[queueType];
+          if (q && 'waitTime' in q) {
+            const wt = q.waitTime;
+            if (wt != null && (typeof wt !== 'number' || !Number.isFinite(wt))) {
+              q.waitTime = null;
+            }
+          }
+        }
+      }
+    }
+    return data;
   }
 
   /**

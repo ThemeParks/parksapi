@@ -208,9 +208,9 @@ export class Everland extends Destination {
           status,
         } as LiveData;
 
-        if (status === 'OPERATING' && fac.waitTime != null && !isNaN(fac.waitTime)) {
+        if (status === 'OPERATING' && fac.waitTime != null && fac.waitTime !== '' && !isNaN(Number(fac.waitTime))) {
           ld.queue = {
-            STANDBY: {waitTime: fac.waitTime},
+            STANDBY: {waitTime: Number(fac.waitTime)},
           };
         }
 
