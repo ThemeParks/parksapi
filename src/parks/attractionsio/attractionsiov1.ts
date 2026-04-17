@@ -940,14 +940,13 @@ function buildItemEntity(
     typeof item.MinimumUnaccompaniedHeightRequirement === 'number'
   ) {
     const heightCm = Math.floor(item.MinimumUnaccompaniedHeightRequirement * 100);
-    // Use minimumHeight for unaccompanied as there is no separate tag type
-    // Only add if different from accompanied height
+    // Only add if different from the supervised minimum height
     if (
       typeof item.MinimumHeightRequirement !== 'number' ||
       Math.floor(item.MinimumUnaccompaniedHeightRequirement * 100) !==
         Math.floor(item.MinimumHeightRequirement * 100)
     ) {
-      tags.push(TagBuilder.minimumHeight(heightCm, 'cm'));
+      tags.push(TagBuilder.minimumHeightUnaccompanied(heightCm, 'cm'));
     }
   }
 
