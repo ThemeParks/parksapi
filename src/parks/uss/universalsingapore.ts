@@ -184,7 +184,10 @@ export class UniversalSingapore extends Destination {
   apiBase: string = '';
 
   @config
-  appVersion: string = '2.1.2';
+  appVersion: string = '2.1.3';
+
+  @config
+  appBuild: string = '36';
 
   @config
   aesKey: string = '';
@@ -192,8 +195,11 @@ export class UniversalSingapore extends Destination {
   @config
   aesIv: string = '';
 
+  /** Pre-provisioned bearer JWT (~12h TTL). When set, skips WithoutLogin entirely.
+   *  The `/api/Login/WithoutLogin` endpoint returns a low-privilege token that can't
+   *  see attractions; the real token currently has to be captured from the live app. */
   @config
-  hmacSecret: string = '';
+  bearerToken: string = '';
 
   @config
   websiteBase: string = '';
@@ -229,7 +235,7 @@ export class UniversalSingapore extends Destination {
     const deviceId = await this.getDeviceId();
     return {
       method: 'POST',
-      url: `${this.apiBase}/uniapi/api/v3/Guest/WithoutLogin`,
+      url: `${this.apiBase}/uniapi/api/Login/WithoutLogin`,
       body: JSON.stringify({
         deviceType: '1',
         deviceId,
@@ -241,7 +247,7 @@ export class UniversalSingapore extends Destination {
       }),
       headers: {
         'content-type': 'application/json; charset=UTF-8',
-        'user-agent': `Universal SG/${this.appVersion}+33 (android)`,
+        'user-agent': `Universal SG/${this.appVersion}+${this.appBuild} (android)`,
       },
       tags: ['auth'],
     } as any as HTTPObj;
@@ -254,6 +260,7 @@ export class UniversalSingapore extends Destination {
    * for the same device. */
   @cache({ttlSeconds: 60 * 60 * 11})
   async getToken(): Promise<string> {
+    if (this.bearerToken) return this.bearerToken;
     const resp = await this.fetchToken();
     const data: USSAuthResponse = await resp.json();
     if (!data?.Result?.Token) {
@@ -276,43 +283,18 @@ export class UniversalSingapore extends Destination {
     };
   }
 
-  /** Build per-request signing headers (USS security scheme) */
-  private buildSecurityHeaders(urlPath: string): Record<string, string> {
-    const key = Buffer.from(this.aesKey, 'base64');
-    const iv = Buffer.from(this.aesIv, 'base64');
-    const isoTime = dartIsoString();
-    const uuid = crypto.randomUUID();
-
-    // X-Request-Id: AES(fresh-timestamp) — uses its own timestamp
-    const requestId = aesEncrypt(dartIsoString(), key, iv);
-    // X-Nonce: AES(uuid|isoTime)
-    const nonce = aesEncrypt(`${uuid}|${isoTime}`, key, iv);
-    // X-Signature: HMAC-SHA256("isoTime|uuid|urlPath")
-    const signature = crypto
-      .createHmac('sha256', this.hmacSecret)
-      .update(`${isoTime}|${uuid}|${urlPath}`, 'utf8')
-      .digest('base64');
-
-    return {
-      'X-Request-Id': requestId,
-      'X-Timestamp': isoTime,
-      'X-Nonce': nonce,
-      'X-Signature': signature,
-    };
-  }
-
-  /** Inject signing headers on every request to ama.rwsentosa.com */
+  /** Inject x-request-id (AES-encrypted timestamp) on every API request. */
   @inject({
     eventName: 'httpRequest',
     hostname: function(this: UniversalSingapore) { return hostnameFromUrl(this.apiBase); },
     priority: 1,
   } as any)
   async injectSigning(req: HTTPObj): Promise<void> {
-    const urlPath = new URL(req.url).pathname.replace(/^\/uniapi/, '');
-    const signingHeaders = this.buildSecurityHeaders(urlPath);
+    const key = Buffer.from(this.aesKey, 'base64');
+    const iv = Buffer.from(this.aesIv, 'base64');
     req.headers = {
       ...req.headers,
-      ...signingHeaders,
+      'X-Request-Id': aesEncrypt(dartIsoString(), key, iv),
     };
   }
 
@@ -329,6 +311,11 @@ export class UniversalSingapore extends Destination {
   } as any)
   async injectTokenRefresh(req: HTTPObj): Promise<void> {
     if (req.response && req.status === 401) {
+      // If a static bearer token is configured, don't try to refresh — it's expired
+      // and needs to be replaced manually via the env var.
+      if (this.bearerToken) {
+        throw new Error('USS: UNIVERSALSINGAPORE_BEARERTOKEN has expired — paste a fresh JWT from the live app');
+      }
       CacheLib.delete(`${this.constructor.name}:getToken:[]`);
       req.response = undefined as any; // treat as network error so framework retries
     }
@@ -387,7 +374,7 @@ export class UniversalSingapore extends Destination {
       method: 'GET',
       url: `${this.apiBase}/uniapi/api/v2/Transaction/GetAttractionList/${PARK_DB_ID}/${categoryId}/${ts}`,
       headers: {
-        'user-agent': `Universal SG/${this.appVersion}+33 (android)`,
+        'user-agent': `Universal SG/${this.appVersion}+${this.appBuild} (android)`,
         'content-type': 'application/json; charset=UTF-8',
       },
       options: {json: true},
