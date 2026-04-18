@@ -1,8 +1,11 @@
-// HTTP client using node:http/https with optional proxy support (Node.js 24+)
+// HTTP client using node:http/https with optional proxy support
+// - HTTP/HTTPS proxies: Node 24.5+ native proxyEnv support
+// - SOCKS5 proxies: socks-proxy-agent
 import * as http from 'node:http';
 import * as https from 'node:https';
 import * as zlib from 'node:zlib';
 import {URL} from 'node:url';
+import {SocksProxyAgent} from 'socks-proxy-agent';
 
 /**
  * Make an HTTP request using node:http/https with optional proxy support
@@ -46,11 +49,18 @@ export async function makeHttpRequest(options: {
       (requestOptions as any).cert = cert;
     }
 
-    // Create agent with proxy support if proxy URL is provided (Node.js 24+ feature)
+    // Create agent with proxy support if proxy URL is provided
     if (proxyUrl) {
-      requestOptions.agent = new httpModule.Agent({
-        proxy: proxyUrl,
-      } as any); // Type assertion needed as proxy option is new in Node 24
+      if (proxyUrl.startsWith('socks')) {
+        // SOCKS4/5 proxies need socks-proxy-agent
+        requestOptions.agent = new SocksProxyAgent(proxyUrl);
+      } else {
+        // HTTP/HTTPS proxies use Node 24.5+ native proxyEnv
+        const envKey = isHttps ? 'HTTPS_PROXY' : 'HTTP_PROXY';
+        requestOptions.agent = new httpModule.Agent({
+          proxyEnv: {[envKey]: proxyUrl},
+        } as any);
+      }
     }
 
     const hdrs = requestOptions.headers as Record<string, string>;
