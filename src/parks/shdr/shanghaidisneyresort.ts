@@ -290,14 +290,16 @@ export class ShanghaiDisneylandResort extends Destination {
    * Check if this is a duplicate show variant (DSP, DPA, or reserved viewing
    * entry for the same underlying show).
    */
-  private isDuplicateShowVariant(name: string): boolean {
+  private isDuplicateShowVariant(name: string, id?: string): boolean {
     const lower = name.toLowerCase();
+    const cleanId = id ? this.cleanEntityId(id) : '';
     return (
       lower.includes('standby pass required') ||
       lower.includes('disney premier access') ||
       lower.includes('reserved viewing') ||
       / - (east|west) entrance$/i.test(name) ||
-      / - close to /i.test(name)
+      / - close to /i.test(name) ||
+      /^entD[PS]A/.test(cleanId)
     );
   }
 
@@ -412,7 +414,7 @@ export class ShanghaiDisneylandResort extends Destination {
 
     // Build show entities (type === 'Entertainment', excluding DSP/DPA duplicates)
     const shows = facilities.filter((f) => {
-      return f.type === 'Entertainment' && !this.isDuplicateShowVariant(f.name);
+      return f.type === 'Entertainment' && !this.isDuplicateShowVariant(f.name, f.id);
     });
 
     const showEntities = this.mapEntities(shows, {
@@ -441,9 +443,23 @@ export class ShanghaiDisneylandResort extends Destination {
     ];
   }
 
+  /** Map of clean-IDs of facilities that survive buildEntityList's filter → entity type. */
+  private async getEmittableEntityTypes(): Promise<Map<string, 'PARK' | 'ATTRACTION' | 'SHOW'>> {
+    const facilities = await this.getFacilities();
+    const out = new Map<string, 'PARK' | 'ATTRACTION' | 'SHOW'>();
+    for (const f of facilities) {
+      const id = this.cleanEntityId(f.id);
+      if (f.type === 'theme-park') out.set(id, 'PARK');
+      else if (f.type === 'Attraction' && !this.isNonRideAttraction(f.name)) out.set(id, 'ATTRACTION');
+      else if (f.type === 'Entertainment' && !this.isDuplicateShowVariant(f.name, f.id)) out.set(id, 'SHOW');
+    }
+    return out;
+  }
+
   protected async buildLiveData(): Promise<LiveData[]> {
     const waitTimes = await this.getWaitTimes();
     const facilities = await this.getFacilities();
+    const emittableTypes = await this.getEmittableEntityTypes();
     const liveData: LiveData[] = [];
     const liveDataMap = new Map<string, LiveData>();
 
@@ -505,23 +521,30 @@ export class ShanghaiDisneylandResort extends Destination {
         continue;
       }
 
+      // Skip entries whose entity we filtered out (merchandise, restaurants, etc.)
+      const entityType = emittableTypes.get(cleanId);
+      if (!entityType) continue;
+
       const status = this.mapStatus(entry.waitTime?.status);
       const ld = getOrCreate(cleanId);
       ld.status = status as any;
 
-      // Standby queue
-      if (!ld.queue) ld.queue = {};
-      ld.queue.STANDBY = {
-        waitTime: entry.waitTime?.postedWaitMinutes !== undefined
-          ? entry.waitTime.postedWaitMinutes
-          : undefined,
-      };
-
-      // Single rider queue
-      if (entry.waitTime?.singleRider === true) {
-        ld.queue.SINGLE_RIDER = {
-          waitTime: null,
+      // Standby waitTime only makes sense for rides — shows use showtimes (schedules).
+      // SHDR's API sometimes emits sentinel values (e.g. 310 min) for character meet-greets
+      // that are really pre-open timers; skip emitting STANDBY for SHOW entities entirely.
+      if (entityType === 'ATTRACTION') {
+        if (!ld.queue) ld.queue = {};
+        ld.queue.STANDBY = {
+          waitTime: entry.waitTime?.postedWaitMinutes !== undefined
+            ? entry.waitTime.postedWaitMinutes
+            : undefined,
         };
+      }
+
+      // Single rider queue — attraction-only
+      if (entityType === 'ATTRACTION' && entry.waitTime?.singleRider === true) {
+        if (!ld.queue) ld.queue = {};
+        ld.queue.SINGLE_RIDER = {waitTime: null};
       }
     }
 
