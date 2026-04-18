@@ -264,10 +264,41 @@ export class ShanghaiDisneylandResort extends Destination {
   }
 
   /**
-   * Check if this is a standby pass entity (name contains "(Standby Pass Required)").
+   * Check if this is a non-ride attraction (merchandise, priority entrances,
+   * disability services, land entrances/exits, standby-pass-only items).
+   * SHDR tags all of these as type=Attraction with no distinguishing metadata,
+   * so we filter by name patterns.
    */
-  private isStandbyPassEntity(name: string): boolean {
-    return name.indexOf('(Standby Pass Required)') >= 0;
+  private isNonRideAttraction(name: string): boolean {
+    const lower = name.toLowerCase();
+    return (
+      lower.includes('merchandise') ||
+      lower.includes('purchase chance') ||
+      lower.includes('purchase voucher') ||
+      lower.includes('themed bucket') ||
+      lower.includes('tumbler') ||
+      lower.includes('priority entrance') ||
+      lower.includes('premier admission') ||
+      lower.includes('early park entry') ||
+      lower.includes('disability access') ||
+      lower.includes('standby pass required') ||
+      /\b(entrance|exit)\s*(\(|$)/i.test(name)
+    );
+  }
+
+  /**
+   * Check if this is a duplicate show variant (DSP, DPA, or reserved viewing
+   * entry for the same underlying show).
+   */
+  private isDuplicateShowVariant(name: string): boolean {
+    const lower = name.toLowerCase();
+    return (
+      lower.includes('standby pass required') ||
+      lower.includes('disney premier access') ||
+      lower.includes('reserved viewing') ||
+      / - (east|west) entrance$/i.test(name) ||
+      / - close to /i.test(name)
+    );
   }
 
   /**
@@ -310,7 +341,7 @@ export class ShanghaiDisneylandResort extends Destination {
 
     // First pass: identify standby pass entities and store references
     for (const facility of facilities) {
-      if (this.isStandbyPassEntity(facility.name)) {
+      if (this.isNonRideAttraction(facility.name) && facility.name.toLowerCase().includes('standby pass')) {
         standbyPassMap.set(this.cleanEntityId(facility.id), facility);
       }
     }
@@ -331,9 +362,9 @@ export class ShanghaiDisneylandResort extends Destination {
       },
     });
 
-    // Build attraction entities (type === 'Attraction', excluding standby pass entries)
+    // Build attraction entities (type === 'Attraction', excluding non-ride items)
     const attractions = facilities.filter((f) => {
-      return f.type === 'Attraction' && !this.isStandbyPassEntity(f.name);
+      return f.type === 'Attraction' && !this.isNonRideAttraction(f.name);
     });
 
     const attractionEntities = this.mapEntities(attractions, {
@@ -379,8 +410,10 @@ export class ShanghaiDisneylandResort extends Destination {
       },
     });
 
-    // Build show entities (type === 'Entertainment')
-    const shows = facilities.filter((f) => f.type === 'Entertainment');
+    // Build show entities (type === 'Entertainment', excluding DSP/DPA duplicates)
+    const shows = facilities.filter((f) => {
+      return f.type === 'Entertainment' && !this.isDuplicateShowVariant(f.name);
+    });
 
     const showEntities = this.mapEntities(shows, {
       idField: (item) => this.cleanEntityId(item.id),
@@ -430,14 +463,17 @@ export class ShanghaiDisneylandResort extends Destination {
     const standbyPassIds = new Set<string>();
 
     for (const facility of facilities) {
-      if (this.isStandbyPassEntity(facility.name)) {
+      if (facility.name.toLowerCase().includes('standby pass required')) {
         const standbyCleanId = this.cleanEntityId(facility.id);
         standbyPassIds.add(standbyCleanId);
 
         // Find the parent attraction by stripping the standby suffix from the name
-        const originalName = facility.name.replace(/\s*\(Standby Pass Required\)/, '').trim();
+        const originalName = facility.name
+          .replace(/\s*\(Disney Standby Pass Required\)\s*/i, '')
+          .replace(/\s*\(Standby Pass Required\)\s*/i, '')
+          .trim();
         const parentFacility = facilities.find(
-          (f) => f.type === 'Attraction' && f.name === originalName && !this.isStandbyPassEntity(f.name),
+          (f) => f.type === 'Attraction' && f.name === originalName && !this.isNonRideAttraction(f.name),
         );
 
         if (parentFacility) {
