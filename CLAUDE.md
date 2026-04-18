@@ -207,4 +207,5 @@ Parks are excluded from coverage (integration-tested via `npm run dev`). Core li
 - **Config lookup order:** Instance config > `{CLASSNAME}_{PROPERTY}` > `{PREFIX}_{PROPERTY}` > default
 - **HTTP:** Uses `node:http`/`node:https` (not `fetch`) for proxy consistency
 - **Cache:** Only cache JSON-safe types (no Set, Map, Date objects)
+- **Numeric validation:** Never use `isNaN()` on values from external APIs — `isNaN("")` returns `false` due to JS coercion. Use `Number.isFinite()` after `Number()`, or `parseInt()`/`parseFloat()` which return `NaN` for empty strings. `waitTime` must always be a finite number or null/undefined — the base class `getLiveData()` sanitises output as a safety net.
 - **TypeScript:** ES2022, strict mode, decorators enabled, ESM modules

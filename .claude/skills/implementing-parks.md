@@ -193,12 +193,17 @@ protected async buildLiveData(): Promise<LiveData[]> {
     const status = this.mapStatus(entry.state);
     const ld: LiveData = { id: String(entry.id), status } as LiveData;
     if (status === 'OPERATING' && entry.waitTime != null) {
-      ld.queue = { STANDBY: { waitTime: entry.waitTime } };
+      const wt = Number(entry.waitTime);
+      if (Number.isFinite(wt)) {
+        ld.queue = { STANDBY: { waitTime: wt } };
+      }
     }
     return ld;
   });
 }
 ```
+
+**waitTime must be a finite number or null/undefined — never a string.** The base class `getLiveData()` sanitises output and replaces any non-numeric waitTime with `null`, but always validate at the source too. The base class guard is a safety net, not an excuse to skip validation.
 
 ### 6. Schedules
 
@@ -339,8 +344,30 @@ attractionType: AttractionTypeEnum.RIDE,
 
 There is no `AttractionType` export in `../../parkTypes.js` — that file re-exports from `@themeparks/typelib` and only adds project-specific enums like `QueueType`. Always import `AttractionTypeEnum` directly from `@themeparks/typelib`.
 
+### Numeric Values from External APIs
+
+**Never use `isNaN()` to validate numbers from API responses.** JS coercion makes `isNaN("")` return `false` (because `Number("")` is `0`), allowing empty strings through as zero. This caused a production outage.
+
+Use instead:
+- **`Number.isFinite(x)`** — rejects `NaN`, `Infinity`, non-numbers, and empty strings. Use after `Number(x)` coercion.
+- **`parseInt()`/`parseFloat()`** — safe for string→number conversion since they return `NaN` for empty strings. Can then check with `isNaN()` or `Number.isFinite()`.
+
+```typescript
+// WRONG — isNaN("") returns false, waitTime becomes 0
+const wt = Number(apiValue);
+if (!isNaN(wt)) { /* "" passes as 0 */ }
+
+// RIGHT
+const wt = Number(apiValue);
+if (Number.isFinite(wt)) { /* "" correctly rejected */ }
+
+// ALSO RIGHT — parseInt("") returns NaN
+const wt = parseInt(apiValue, 10);
+if (!isNaN(wt)) { /* safe because parseInt("") → NaN */ }
+```
+
 ### Coordinates as Strings
-Some APIs return lat/lng as strings. Always `Number()` before passing to TagBuilder or location fields.
+Some APIs return lat/lng as strings. Always `Number()` before passing to location fields, and verify with `Number.isFinite()` to avoid 0,0 coordinates from empty strings.
 
 ### @config Inheritance (Framework Pattern)
 For framework parks (base class + subclasses): the base class has `@config` for shared properties, subclasses use `@destinationController` (which auto-applies `@config`). Each subclass adds its own config prefix:
