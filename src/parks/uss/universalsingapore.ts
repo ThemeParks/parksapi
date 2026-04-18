@@ -195,11 +195,8 @@ export class UniversalSingapore extends Destination {
   @config
   aesIv: string = '';
 
-  /** Pre-provisioned bearer JWT (~12h TTL). When set, skips WithoutLogin entirely.
-   *  The `/api/Login/WithoutLogin` endpoint returns a low-privilege token that can't
-   *  see attractions; the real token currently has to be captured from the live app. */
   @config
-  bearerToken: string = '';
+  hmacSecret: string = '';
 
   @config
   websiteBase: string = '';
@@ -235,7 +232,7 @@ export class UniversalSingapore extends Destination {
     const deviceId = await this.getDeviceId();
     return {
       method: 'POST',
-      url: `${this.apiBase}/uniapi/api/Login/WithoutLogin`,
+      url: `${this.apiBase}/uniapi/api/v3/Guest/WithoutLogin`,
       body: JSON.stringify({
         deviceType: '1',
         deviceId,
@@ -260,7 +257,6 @@ export class UniversalSingapore extends Destination {
    * for the same device. */
   @cache({ttlSeconds: 60 * 60 * 11})
   async getToken(): Promise<string> {
-    if (this.bearerToken) return this.bearerToken;
     const resp = await this.fetchToken();
     const data: USSAuthResponse = await resp.json();
     if (!data?.Result?.Token) {
@@ -283,7 +279,11 @@ export class UniversalSingapore extends Destination {
     };
   }
 
-  /** Inject x-request-id (AES-encrypted timestamp) on every API request. */
+  /**
+   * Inject request headers. All requests get x-request-id; the v3/Guest/*
+   * unauthenticated endpoints additionally require the full signing set
+   * (x-timestamp, x-nonce, x-signature).
+   */
   @inject({
     eventName: 'httpRequest',
     hostname: function(this: UniversalSingapore) { return hostnameFromUrl(this.apiBase); },
@@ -292,10 +292,27 @@ export class UniversalSingapore extends Destination {
   async injectSigning(req: HTTPObj): Promise<void> {
     const key = Buffer.from(this.aesKey, 'base64');
     const iv = Buffer.from(this.aesIv, 'base64');
-    req.headers = {
+    const urlPath = new URL(req.url).pathname.replace(/^\/uniapi/, '');
+
+    const headers: Record<string, string> = {
       ...req.headers,
       'X-Request-Id': aesEncrypt(dartIsoString(), key, iv),
     };
+
+    if (urlPath.startsWith('/api/v3/Guest/')) {
+      const isoTime = dartIsoString();
+      const uuid = crypto.randomUUID();
+      const body = typeof req.body === 'string' ? req.body : '';
+      const bodyHash = crypto.createHash('sha256').update(body, 'utf8').digest('base64');
+      headers['X-Timestamp'] = isoTime;
+      headers['X-Nonce'] = aesEncrypt(`${uuid}|${isoTime}`, key, iv);
+      headers['X-Signature'] = crypto
+        .createHmac('sha256', this.hmacSecret)
+        .update(`${isoTime}|${uuid}|${urlPath}|${bodyHash}`, 'utf8')
+        .digest('base64');
+    }
+
+    req.headers = headers;
   }
 
   /**
@@ -311,11 +328,6 @@ export class UniversalSingapore extends Destination {
   } as any)
   async injectTokenRefresh(req: HTTPObj): Promise<void> {
     if (req.response && req.status === 401) {
-      // If a static bearer token is configured, don't try to refresh — it's expired
-      // and needs to be replaced manually via the env var.
-      if (this.bearerToken) {
-        throw new Error('USS: UNIVERSALSINGAPORE_BEARERTOKEN has expired — paste a fresh JWT from the live app');
-      }
       CacheLib.delete(`${this.constructor.name}:getToken:[]`);
       req.response = undefined as any; // treat as network error so framework retries
     }
