@@ -770,7 +770,7 @@ export class SixFlags extends Destination {
 
         if (waitInfo?.regularWaittime?.waitTime != null) {
           const wt = Number(waitInfo.regularWaittime.waitTime);
-          if (!isNaN(wt)) waitTime = wt;
+          if (Number.isFinite(wt)) waitTime = wt;
         }
 
         const venueStatusStr = ride.status || '';
@@ -793,7 +793,7 @@ export class SixFlags extends Destination {
         // Add Fast Lane (paid standby) if available
         if (status === 'OPERATING' && waitInfo?.isFastLane && waitInfo.fastlaneWaittime?.waitTime != null) {
           const flWait = Number(waitInfo.fastlaneWaittime.waitTime);
-          if (!isNaN(flWait) && flWait > 0) {
+          if (Number.isFinite(flWait) && flWait > 0) {
             ld.queue!.PAID_STANDBY = {waitTime: flWait};
           }
         }

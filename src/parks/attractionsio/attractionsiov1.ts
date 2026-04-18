@@ -805,7 +805,7 @@ class AttractionsIOV1 extends Destination {
 
       // Wait time (in seconds from API – convert to minutes)
       if (record.QueueTime !== undefined && record.QueueTime !== null) {
-        if (!isNaN(record.QueueTime)) {
+        if (typeof record.QueueTime === 'number' && Number.isFinite(record.QueueTime)) {
           entry.queue = {
             STANDBY: {waitTime: Math.floor(record.QueueTime / 60)},
           };
