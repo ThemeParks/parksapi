@@ -225,6 +225,31 @@ class AttractionsIOV3 extends Destination {
   @config
   extraRestaurantCategoryTypes: number[] = [];
 
+  /**
+   * Sister water park (optional). Cedar Point has Cedar Point Shores;
+   * Knott's Berry Farm has Knott's Soak City. These live on a different
+   * back-end API (venue-status only, no POI/wait-times), so we fetch them
+   * separately and emit as a second PARK under the same destination.
+   * @config
+   */
+  @config
+  waterParkId: string = '';
+
+  @config
+  waterParkEntityId: string = '';
+
+  @config
+  waterParkName: string = '';
+
+  @config
+  waterParkLatitude: string = '';
+
+  @config
+  waterParkLongitude: string = '';
+
+  @config
+  waterParkStatusBaseURL: string = '';
+
   constructor(options?: DestinationConstructor) {
     super(options);
 
@@ -304,6 +329,32 @@ class AttractionsIOV3 extends Destination {
       url: `${this.realTimeBaseURL}/venue-status/park/${this.parkId}`,
       options: {json: true},
     } as HTTPObj;
+  }
+
+  /**
+   * Fetch venue-status for the sister water park (lives on a different API
+   * than the main park). Returns the raw response for buildEntityList to
+   * consume — no entity translation here.
+   */
+  @http({cacheSeconds: 60, retries: 1})
+  async fetchWaterParkVenueStatus(): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.waterParkStatusBaseURL}/venue-status/park/${this.waterParkId}`,
+      options: {json: true},
+      tags: ['waterpark'],
+    } as HTTPObj;
+  }
+
+  @cache({ttlSeconds: 60})
+  async getWaterParkVenueStatus(): Promise<any | null> {
+    if (!this.waterParkId || !this.waterParkStatusBaseURL) return null;
+    try {
+      const resp = await this.fetchWaterParkVenueStatus();
+      return await resp.json();
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -631,7 +682,64 @@ class AttractionsIOV3 extends Destination {
       ...this.mapEntities(poiData.filter(isAttraction), mapConfig('ATTRACTION')),
       ...this.mapEntities(poiData.filter(isShow), mapConfig('SHOW')),
       ...this.mapEntities(poiData.filter(isRestaurant), mapConfig('RESTAURANT')),
+
+      // Sister water park entities (if configured)
+      ...await this.buildWaterParkEntities(destinationId),
     ];
+  }
+
+  /**
+   * Emit a second PARK + its children for a sister water park whose data
+   * lives on a different back-end API (venue-status only). Returns empty
+   * when this destination has no sister water park configured.
+   */
+  protected async buildWaterParkEntities(destinationId: string): Promise<Entity[]> {
+    if (!this.waterParkId || !this.waterParkEntityId) return [];
+
+    const status = await this.getWaterParkVenueStatus();
+    if (!status) return [];
+
+    const lat = Number(this.waterParkLatitude);
+    const lng = Number(this.waterParkLongitude);
+    const location = (Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0))
+      ? {latitude: lat, longitude: lng}
+      : undefined;
+
+    const parkEntity: Entity = {
+      id: this.waterParkEntityId,
+      name: this.waterParkName || status.parkName || 'Water Park',
+      entityType: 'PARK',
+      timezone: this.timezone,
+      parentId: destinationId,
+      ...(location ? {location} : {}),
+    } as Entity;
+
+    // venue-status returns { venues: [{ venueId, venueName, details: [{ id, name, fimsId, status }] }] }
+    // venueId 1 = Rides, 4 = Restaurants (matches main-park convention).
+    const children: Entity[] = [];
+    for (const venue of status.venues || []) {
+      const venueId = venue.venueId;
+      const entityType: Entity['entityType'] =
+        venueId === 1 ? 'ATTRACTION' :
+        venueId === 4 ? 'RESTAURANT' :
+        venueId === 3 ? 'SHOW' :
+        'ATTRACTION';
+      if (venueId !== 1 && venueId !== 3 && venueId !== 4) continue;
+
+      for (const item of venue.details || []) {
+        if (!item.fimsId || !item.name) continue;
+        children.push({
+          id: item.fimsId,
+          name: item.name,
+          entityType,
+          timezone: this.timezone,
+          parentId: this.waterParkEntityId,
+          destinationId: this.destinationId,
+        } as Entity);
+      }
+    }
+
+    return [parkEntity, ...children];
   }
 
   /**
@@ -806,6 +914,11 @@ export class CedarPoint extends AttractionsIOV3 {
         destinationId: 'cedarpoint',
         appId: 'com.cedarfair.cedarpoint',
         appName: 'Cedar Point',
+        waterParkId: '202',
+        waterParkEntityId: 'sixflags_park_CPS',
+        waterParkName: 'Cedar Point Shores',
+        waterParkLatitude: '41.47929',
+        waterParkLongitude: '-82.68392',
         ...options?.config,
       },
     });
@@ -829,6 +942,11 @@ export class KnottsBerryFarm extends AttractionsIOV3 {
         extraAttractionCategoryTypes: [19] as any,  // Water rides (typed as number[] in class)
         appId: 'com.cedarfair.knottsberry',
         appName: 'Knott\'s Berry Farm',
+        waterParkId: '201',
+        waterParkEntityId: 'sixflags_park_KSC',
+        waterParkName: 'Knott’s Soak City',
+        waterParkLatitude: '33.8362',
+        waterParkLongitude: '-117.9997',
         ...options?.config,
       },
     });
