@@ -1,18 +1,15 @@
-// HTTP client using node:http/https with optional proxy support
-// - HTTP/HTTPS proxies: Node 24.5+ native proxyEnv support
-// - SOCKS5 proxies: socks-proxy-agent
-import * as http from 'node:http';
-import * as https from 'node:https';
-import * as zlib from 'node:zlib';
-import {URL} from 'node:url';
-import {SocksProxyAgent} from 'socks-proxy-agent';
+// HTTP client built on Node's global fetch (undici).
+// Undici handles the socket/parse work on its own thread pool, so the main
+// event loop stays free for scheduling and timer callbacks. The previous
+// node:http/https implementation did everything on the main thread, which
+// starved setTimeout callbacks when 50+ destinations were pulling data at once.
+import {Agent, ProxyAgent, Socks5ProxyAgent, type Dispatcher} from 'undici';
 
 /**
- * Make an HTTP request using node:http/https with optional proxy support
- * Uses Node.js 24+ built-in proxy support via Agent when proxy is provided
+ * Make an HTTP request via fetch() with optional proxy / mutual-TLS support.
  *
  * @param options Request options
- * @returns Response object compatible with fetch Response
+ * @returns Standard fetch Response
  */
 export async function makeHttpRequest(options: {
   method: string;
@@ -29,119 +26,69 @@ export async function makeHttpRequest(options: {
 }): Promise<Response> {
   const {method, url, headers, body, proxyUrl, cert, key, timeoutMs = 30000} = options;
 
-  return new Promise((resolve, reject) => {
-    const urlObj = new URL(url);
-    const isHttps = urlObj.protocol === 'https:';
-    const httpModule = isHttps ? https : http;
+  const hdrs: Record<string, string> = {...(headers || {})};
 
-    const requestOptions: http.RequestOptions = {
-      method,
-      hostname: urlObj.hostname,
-      port: urlObj.port,
-      path: urlObj.pathname + urlObj.search,
-      headers: headers || {},
-      timeout: timeoutMs,
-    };
+  // Default User-Agent — parks that need app-specific UAs override via @inject
+  if (!hdrs['user-agent'] && !hdrs['User-Agent']) {
+    hdrs['user-agent'] = process.env.DEFAULT_USER_AGENT || 'parksapi/2.0';
+  }
 
-    // Client SSL certificate for mutual TLS (e.g., PortAventura)
-    if (isHttps && (key || cert)) {
-      (requestOptions as any).key = key;
-      (requestOptions as any).cert = cert;
+  // Ask for compressed responses — fetch decompresses transparently.
+  if (!hdrs['accept-encoding'] && !hdrs['Accept-Encoding']) {
+    hdrs['accept-encoding'] = 'gzip, deflate, br';
+  }
+
+  let fetchBody: BodyInit | undefined;
+  if (body !== undefined && body !== null) {
+    if (typeof body === 'string' || body instanceof Uint8Array || body instanceof ArrayBuffer) {
+      fetchBody = body as BodyInit;
+    } else if (typeof body === 'object') {
+      fetchBody = JSON.stringify(body);
+    } else {
+      fetchBody = String(body);
     }
+  }
 
-    // Create agent with proxy support if proxy URL is provided
-    if (proxyUrl) {
-      if (proxyUrl.startsWith('socks')) {
-        // SOCKS4/5 proxies need socks-proxy-agent
-        requestOptions.agent = new SocksProxyAgent(proxyUrl);
-      } else {
-        // HTTP/HTTPS proxies use Node 24.5+ native proxyEnv
-        const envKey = isHttps ? 'HTTPS_PROXY' : 'HTTP_PROXY';
-        requestOptions.agent = new httpModule.Agent({
-          proxyEnv: {[envKey]: proxyUrl},
-        } as any);
-      }
+  const dispatcher = buildDispatcher(proxyUrl, cert, key);
+
+  const init: RequestInit & {dispatcher?: Dispatcher} = {
+    method,
+    headers: hdrs,
+    body: fetchBody,
+    signal: AbortSignal.timeout(timeoutMs),
+    // Attractions.io uses 303 to signal new ZIP data — callers need the raw
+    // status + Location header, not the redirected body.
+    redirect: 'manual',
+  };
+  if (dispatcher) {
+    init.dispatcher = dispatcher;
+  }
+
+  try {
+    return await fetch(url, init);
+  } catch (err: any) {
+    // Surface timeouts with the same message shape we used before so callers
+    // (and log greps) don't need to change.
+    if (err?.name === 'TimeoutError' || err?.code === 'UND_ERR_ABORTED' || err?.name === 'AbortError') {
+      throw new Error(`HTTP request timed out after ${timeoutMs}ms: ${method} ${url}`);
     }
+    throw err;
+  }
+}
 
-    const hdrs = requestOptions.headers as Record<string, string>;
-
-    // Default User-Agent — parks that need app-specific UAs override via @inject
-    if (!hdrs['user-agent'] && !hdrs['User-Agent']) {
-      hdrs['user-agent'] = process.env.DEFAULT_USER_AGENT || 'parksapi/2.0';
+function buildDispatcher(
+  proxyUrl: string | undefined,
+  cert: string | undefined,
+  key: string | undefined,
+): Dispatcher | undefined {
+  if (proxyUrl) {
+    if (proxyUrl.startsWith('socks')) {
+      return new Socks5ProxyAgent(proxyUrl);
     }
-
-    // Add Accept-Encoding header to request compressed responses
-    if (!hdrs['accept-encoding'] && !hdrs['Accept-Encoding']) {
-      hdrs['accept-encoding'] = 'gzip, deflate, br';
-    }
-
-    const req = httpModule.request(requestOptions, (res) => {
-      const chunks: Buffer[] = [];
-
-      // Select decompression stream based on content-encoding
-      const encoding = res.headers['content-encoding'];
-      let stream: NodeJS.ReadableStream = res;
-
-      if (encoding === 'gzip' || encoding === 'x-gzip') {
-        stream = res.pipe(zlib.createGunzip());
-      } else if (encoding === 'deflate') {
-        stream = res.pipe(zlib.createInflate());
-      } else if (encoding === 'br') {
-        stream = res.pipe(zlib.createBrotliDecompress());
-      }
-
-      stream.on('data', (chunk: Buffer) => {
-        chunks.push(chunk);
-      });
-
-      stream.on('error', (error: Error) => {
-        reject(error);
-      });
-
-      stream.on('end', () => {
-        const buffer = Buffer.concat(chunks);
-
-        // Create a Response object compatible with fetch API
-        const responseHeaders: Record<string, string> = {};
-        Object.entries(res.headers || {}).forEach(([key, value]) => {
-          if (value) {
-            responseHeaders[key] = Array.isArray(value) ? value.join(', ') : value;
-          }
-        });
-
-        // Pass raw buffer to preserve binary data (ZIP, images, etc.)
-        // Response constructor accepts ArrayBuffer/Uint8Array natively.
-        const response = new Response(buffer, {
-          status: res.statusCode || 200,
-          statusText: res.statusMessage || 'OK',
-          headers: responseHeaders,
-        });
-
-        resolve(response);
-      });
-    });
-
-    req.on('error', (error) => {
-      reject(error);
-    });
-
-    req.on('timeout', () => {
-      // The 'timeout' event fires when the socket is idle, not the overall
-      // request duration. We treat it as a hard fail and abort the request.
-      req.destroy(new Error(`HTTP request timed out after ${timeoutMs}ms: ${method} ${url}`));
-    });
-
-    // Send body if present
-    if (body) {
-      if (typeof body === 'string') {
-        req.write(body);
-      } else if (typeof body === 'object') {
-        req.write(JSON.stringify(body));
-      } else {
-        req.write(body);
-      }
-    }
-
-    req.end();
-  });
+    return new ProxyAgent(proxyUrl);
+  }
+  if (cert || key) {
+    return new Agent({connect: {cert, key}});
+  }
+  return undefined;
 }
