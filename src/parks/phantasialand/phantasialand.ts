@@ -112,16 +112,21 @@ export class Phantasialand extends Destination {
   }
 
   /**
-   * Handle 401 responses by clearing cached access token to force re-login
+   * Handle 401/403 responses by clearing cached access token and nullifying the
+   * response so the HTTP framework treats it as a retryable network error —
+   * the retry will then obtain a fresh token. Skipped for auth requests
+   * themselves to avoid infinite loops.
    */
   @inject({
     eventName: 'httpError',
     hostname: function() { return hostnameFromUrl(this.apiBase); },
-  })
+    tags: {$nin: ['auth']},
+  } as any)
   async handleUnauthorized(requestObj: HTTPObj): Promise<void> {
     const status = requestObj.response?.status;
     if (status === 401 || status === 403) {
       CacheLib.delete('phantasialand:accessToken');
+      requestObj.response = undefined as any;
     }
   }
 
@@ -168,7 +173,7 @@ export class Phantasialand extends Destination {
   /**
    * Fetch POI data (entity list)
    */
-  @http({cacheSeconds: 21600}) // 6 hours
+  @http({cacheSeconds: 21600, retries: 2}) // 6 hours
   async fetchPOI(): Promise<HTTPObj> {
 
     return {
@@ -193,7 +198,7 @@ export class Phantasialand extends Destination {
    * Fetch signage/wait time data.
    * Requires random coordinates within park bounds.
    */
-  @http({cacheSeconds: 60}) // 1 minute
+  @http({cacheSeconds: 60, retries: 2}) // 1 minute
   async fetchSignage(): Promise<HTTPObj> {
     // Generate random coordinates within park bounds
     const lat = 50.799683077 + (Math.random() * (50.800659529 - 50.799683077));
@@ -218,7 +223,7 @@ export class Phantasialand extends Destination {
   /**
    * Fetch live park info (isOpen, closing time) from API
    */
-  @http({cacheSeconds: 300}) // 5 min
+  @http({cacheSeconds: 300, retries: 2}) // 5 min
   async fetchParkInfos(): Promise<HTTPObj> {
     return {
       method: 'GET',
