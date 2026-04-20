@@ -125,7 +125,11 @@ export class Phantasialand extends Destination {
   async handleUnauthorized(requestObj: HTTPObj): Promise<void> {
     const status = requestObj.response?.status;
     if (status === 401 || status === 403) {
+      // Clear both token AND user — if the anonymous account was pruned server-side,
+      // re-login will keep succeeding but every issued token will 403. Forcing a
+      // new createUser on retry is the only recovery path.
       CacheLib.delete('phantasialand:accessToken');
+      CacheLib.delete(`${this.constructor.name}:createUser:[]`);
       requestObj.response = undefined as any;
     }
   }
