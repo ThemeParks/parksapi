@@ -73,8 +73,6 @@ describe('Destination registry', () => {
       'dollywood',
       'silverdollarcity',
       'kennywood',
-      'cedarpoint',
-      'knottsberryfarm',
     ];
 
     for (const parkId of expectedParks) {

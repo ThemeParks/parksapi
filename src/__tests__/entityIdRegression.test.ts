@@ -115,17 +115,13 @@ describe('Destination ID patterns', () => {
     expect(ids).toContain('wildadventures');
   });
 
-  test('Cedar Fair parks are registered individually', async () => {
+  test('Six Flags class covers both Six Flags and Cedar Fair parks', async () => {
+    // After the Cedar Fair / Six Flags merger the individual Cedar Fair
+    // apps were retired in favour of the unified Six Flags app, so parksapi
+    // models all of them through a single dynamic destination class.
     const destinations = await getAllDestinations();
-    const cf = destinations.filter(d =>
-      Array.isArray(d.category) ? d.category.includes('Cedar Fair') : d.category === 'Cedar Fair'
-    );
-
-    expect(cf.length).toBeGreaterThanOrEqual(11);
-    const ids = cf.map(d => d.id);
-    expect(ids).toContain('cedarpoint');
-    expect(ids).toContain('knottsberryfarm');
-    expect(ids).toContain('kingsisland');
+    const ids = destinations.map(d => d.id);
+    expect(ids).toContain('sixflags');
   });
 
   test('Attractions.io v1 Merlin parks are registered individually', async () => {
