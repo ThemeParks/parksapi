@@ -8,6 +8,17 @@ import {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {hostnameFromUrl, localFromFakeUtc} from '../../datetime.js';
 import {createStatusMap} from '../../statusMap.js';
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Upstream place/show IDs occasionally contain characters the wiki API rejects
+ * (colons, zero-width spaces, other non-ASCII). Normalise to a conservative
+ * [\w.-] charset. Idempotent, so repeated calls produce the same result.
+ */
+function sanitizeId(id: string): string {
+  return id.replace(/[^\w.-]/g, '_');
+}
+
 // ─── Status mapping ───────────────────────────────────────────────────────────
 
 const mapQueueStatus = createStatusMap(
@@ -335,7 +346,7 @@ export class UniversalStudiosJapan extends Destination {
       const lng = mapLoc?.lat_lng?.lng;
 
       const entity: Entity = {
-        id: place.place_id,
+        id: sanitizeId(place.place_id),
         name: place.name,
         entityType,
         parentId: PARK_ID,
@@ -373,7 +384,7 @@ export class UniversalStudiosJapan extends Destination {
         if (queueType === 'STANDBY') {
           const status = mapQueueStatus(queue.status);
           const ld: LiveData = {
-            id: entry.wait_time_attraction_id,
+            id: sanitizeId(entry.wait_time_attraction_id),
             status,
           } as LiveData;
 
@@ -400,7 +411,7 @@ export class UniversalStudiosJapan extends Destination {
         }));
 
       const ld: LiveData = {
-        id: show.show_id,
+        id: sanitizeId(show.show_id),
         status: showStatus,
       } as LiveData;
 

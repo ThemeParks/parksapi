@@ -121,7 +121,7 @@ export class SeaworldDestination extends Destination {
    * Fetch detailed data for a single park UUID.
    * Cached for 12 hours — POIs and schedules rarely change.
    */
-  @http({cacheSeconds: 12 * 60 * 60})
+  @http({cacheSeconds: 12 * 60 * 60, retries: 2})
   async fetchParkDetail(parkId: string): Promise<HTTPObj> {
     return {
       method: 'GET',
@@ -138,7 +138,7 @@ export class SeaworldDestination extends Destination {
    * Fetch live availability data (wait times + show times) for a single park.
    * Cached for 1 minute.
    */
-  @http({cacheSeconds: 60})
+  @http({cacheSeconds: 60, retries: 2})
   async fetchAvailability(parkId: string, searchDate: string): Promise<HTTPObj> {
     return {
       method: 'GET',

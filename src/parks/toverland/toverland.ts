@@ -10,9 +10,9 @@ import {createStatusMap} from '../../statusMap.js';
 
 const mapStatus = createStatusMap({
   OPERATING: ['Open', 'Variable schedule'],
-  CLOSED: ['Closed'],
+  CLOSED: ['Closed', 'Closed for maintenance'],
   REFURBISHMENT: ['Maintenance'],
-  DOWN: ['Disorder'],
+  DOWN: ['Disorder', 'Malfunction'],
 }, {parkName: 'Toverland', defaultStatus: 'OPERATING'});
 
 @destinationController({category: 'Toverland'})

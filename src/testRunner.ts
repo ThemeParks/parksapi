@@ -148,10 +148,16 @@ export async function testPark(
     }
 
     // Validate entity structures
+    const ID_CHARSET = /^[\w.-]+$/;
     entities.forEach((entity, idx) => {
       if (!entity.id) throw new Error(`Entity ${idx} missing 'id'`);
       if (!entity.name) throw new Error(`Entity ${idx} missing 'name'`);
       if (!entity.entityType) throw new Error(`Entity ${idx} missing 'entityType'`);
+      if (!ID_CHARSET.test(entity.id)) {
+        // Report invisible/non-ASCII chars verbosely for diagnosis
+        const escaped = JSON.stringify(entity.id);
+        throw new Error(`Entity ${idx} id has unsafe characters: ${escaped} ("${entity.name}")`);
+      }
     });
 
     // Structural location requirement: DESTINATION + PARK must have location.
