@@ -21,6 +21,7 @@ import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {formatInTimezone, addMinutes, constructDateTime} from '../../datetime.js';
 import {decodeHtmlEntities, stripHtmlTags} from '../../htmlUtils.js';
+import tzLookup from 'tz-lookup';
 
 // ============================================================================
 // API Response Types
@@ -218,20 +219,17 @@ function parkCentroidFromPOI(
 }
 
 /**
- * Estimate IANA timezone from longitude using rough US timezone bands.
- * This works well for Six Flags parks which are all in North/Central America.
- *
- * Falls back to America/New_York if longitude is out of expected range.
+ * Resolve IANA timezone from coordinates. tz-lookup uses tzdb polygon data so
+ * it correctly handles state-level exceptions the old longitude-band heuristic
+ * got wrong (Michigan, Indiana's Eastern counties, Arizona's no-DST rule, the
+ * Ohio/Kentucky Eastern salient, Mexico, Quebec, etc.).
  */
-function timezoneFromLongitude(longitude: number): string {
-  // Use positive longitude for comparisons (all SF parks are Western Hemisphere)
-  const absLng = Math.abs(longitude);
-  if (absLng < 80) return 'America/New_York';       // Eastern
-  if (absLng < 90) return 'America/Chicago';         // Central (eastern half)
-  if (absLng < 105) return 'America/Chicago';        // Central (western half)
-  if (absLng < 115) return 'America/Denver';         // Mountain
-  if (absLng < 125) return 'America/Los_Angeles';    // Pacific
-  return 'America/New_York'; // Fallback
+function timezoneFromCoords(latitude: number, longitude: number): string {
+  try {
+    return tzLookup(latitude, longitude);
+  } catch {
+    return 'America/New_York';
+  }
 }
 
 // ============================================================================
@@ -563,7 +561,7 @@ export class SixFlags extends Destination {
     const sourceParkId = owner?.parkId ?? parkId;
     const poi = await this.getPOI(sourceParkId);
     const coords = parkCentroidFromPOI(poi, parkId);
-    if (coords) return timezoneFromLongitude(coords.longitude);
+    if (coords) return timezoneFromCoords(coords.latitude, coords.longitude);
     return this.timezone;
   }
 
