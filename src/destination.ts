@@ -3,7 +3,7 @@ import {trace} from "./tracing.js";
 import {reusable} from "./promiseReuse.js";
 import {loadProxyConfig, hasProxyConfig, type ProxyConfig} from "./proxy.js";
 import {inject} from "./injector.js";
-import {type HTTPObj} from "./http.js";
+import {type HTTPObj, HttpQueue} from "./http.js";
 import {VQueueBuilder} from "./virtualQueue/builder.js";
 import {calculateReturnWindow} from "./virtualQueue/timeWindows.js";
 import {formatInTimezone} from "./datetime.js";
@@ -93,6 +93,12 @@ export abstract class Destination {
   // Per-instance proxy config. Auto-populated from GLOBAL_* and {PREFIX}_* env vars
   // at construction / addConfigPrefix time. Consumers can also assign directly.
   proxyConfig: ProxyConfig | null = null;
+
+  // Per-instance HTTP queue. The @http decorator routes this destination's
+  // requests through its own queue so one slow / failing park doesn't block
+  // the rest. Subclasses can override rate-limit behaviour by assigning a
+  // different HttpQueue in their constructor.
+  public readonly httpQueue: HttpQueue = new HttpQueue();
 
   constructor(options?: DestinationConstructor) {
     // Apply any configuration options passed in

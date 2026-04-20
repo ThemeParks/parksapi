@@ -124,7 +124,67 @@ type InternalHTTPRequestEntry = HTTPRequestEntry & {
   // capture trace context when request is queued
   traceContext?: any;
 };
-const httpRequestQueue: InternalHTTPRequestEntry[] = [];
+
+// Per-destination HTTP queue. Each destination gets its own so that a slow or
+// failing park doesn't block requests for any other park. The global helpers
+// below (waitForHttpQueue / getQueueLength / processHttpQueue / stopHttpQueue)
+// aggregate across all registered queues.
+export class HttpQueue {
+  public readonly requests: InternalHTTPRequestEntry[] = [];
+  private nextRequestEarliestMs = 0;
+  private readonly rateLimitMs: number;
+
+  constructor(rateLimitMs = 250) {
+    this.rateLimitMs = rateLimitMs;
+  }
+
+  push(entry: InternalHTTPRequestEntry): void {
+    this.requests.push(entry);
+    this.requests.sort((a, b) => (a.earliestExecute || 0) - (b.earliestExecute || 0));
+    activeQueues.add(this);
+  }
+
+  size(): number {
+    return this.requests.length;
+  }
+
+  /**
+   * Process queued requests until the queue is empty or blocked by an
+   * earliest-execute / rate-limit gate. Concurrent invocations are safe:
+   * Node's single-threaded event loop makes the atomic check-and-set on
+   * `nextRequestEarliestMs` and the `requests.shift()` race-free. We can't
+   * simply guard against re-entry — HTTP request injectors frequently make
+   * nested requests that need to be processed by another invocation while
+   * the outer one is awaiting the injector.
+   */
+  async processOne(): Promise<void> {
+    while (this.requests.length > 0 && !globalStopped) {
+      const now = Date.now();
+      const firstEntry = this.requests[0];
+      if (firstEntry.earliestExecute && firstEntry.earliestExecute > now) break;
+
+      if (this.nextRequestEarliestMs > now) break;
+
+      // Reserve rate-limit slot and pull the request off the head of the queue.
+      this.nextRequestEarliestMs = now + this.rateLimitMs;
+      const entry = this.requests.shift()!;
+      await fireRequest(entry, (e) => this.push(e));
+    }
+    if (this.requests.length === 0) activeQueues.delete(this);
+  }
+}
+
+// Registry of queues with pending work. The global pump iterates this set.
+const activeQueues = new Set<HttpQueue>();
+
+// Global stop flag, set by stopHttpQueue(). Per-queue loops check this each
+// iteration and exit cleanly — this is how tests shut down all HTTP activity.
+let globalStopped = false;
+
+// Default queue for any legacy caller that invokes an @http-decorated method
+// on something that isn't a Destination. Every Destination instance gets its
+// own dedicated queue; this one is a safety net only.
+const defaultHttpQueue = new HttpQueue();
 
 // Internal class to handle HTTPRequest with private promise handlers
 class HTTPRequestImpl implements HTTPObj {
@@ -581,7 +641,14 @@ function httpDecoratorFactory(options?: {
                              Reflect.get(Reflect.get(instance, 'constructor'), 'name') || // Direct reflection
                              Object.getPrototypeOf(Object.getPrototypeOf(instance)).constructor.name; // Skip one level
 
-          httpRequestQueue.push({
+          // Route to the owning destination's queue so one park's failures
+          // don't block other parks. Fall back to the shared default queue
+          // for any consumer that isn't a Destination instance.
+          const queue: HttpQueue = (instance as any).httpQueue instanceof HttpQueue
+            ? (instance as any).httpQueue
+            : defaultHttpQueue;
+
+          queue.push({
             instance: instance,
             methodName: propertyKey,
             args: args,
@@ -590,13 +657,6 @@ function httpDecoratorFactory(options?: {
             validateResponse: formatValidate || undefined,
             traceContext: tracing.getContext(), // Capture current trace context
             className: realClassName,
-          });
-
-          // sort queue by earliestExecute time
-          httpRequestQueue.sort((a, b) => {
-            const aTime = a.earliestExecute || 0;
-            const bTime = b.earliestExecute || 0;
-            return aTime - bTime;
           });
 
           // Request is now queued for processing
@@ -682,195 +742,170 @@ function calculateBackoffDelay(retryAttempt: number): number {
   // Cap at max delay after jitter
   return Math.floor(Math.min(jitteredDelay, MAX_RETRY_DELAY_MS));
 }
-// Global rate limiter — shared across all concurrent processHttpQueue invocations.
-// We can't simply guard against re-entry: HTTP request injectors may make nested
-// requests that must be processed by a different invocation while the outer one
-// awaits the injector. Instead, we serialize firing across invocations via a
-// "next request can fire at" timestamp.
-let nextRequestEarliestMs = 0;
+/**
+ * Process a single queued request end-to-end: fire the HTTP call, run the
+ * injection hooks, optionally validate, and either resolve the caller's
+ * promise or push the entry back onto its queue for retry. Extracted from
+ * HttpQueue.processOne so the loop body stays readable.
+ */
+async function fireRequest(
+  entry: InternalHTTPRequestEntry,
+  requeue: (e: InternalHTTPRequestEntry) => void,
+): Promise<void> {
+  const requestStartTime = Date.now();
 
-async function waitForRateLimit(): Promise<void> {
-  while (true) {
-    const now = Date.now();
-    if (now >= nextRequestEarliestMs) {
-      // Reserve this slot atomically (Node.js is single-threaded, so the check
-      // and set above happen in the same microtask — no other invocation can
-      // observe nextRequestEarliestMs between them)
-      nextRequestEarliestMs = now + nextRequestDelayMs;
-      return;
-    }
-    await new Promise(r => setTimeout(r, nextRequestEarliestMs - now));
-  }
-}
+  // Emit trace start event (use captured context if available)
+  tracing.emitHttpEvent({
+    eventType: 'http.request.start',
+    url: entry.request.url,
+    method: entry.request.method,
+    headers: entry.request.buildHeaders(),
+    retryCount: entry.retryAttempt || 0,
+    className: entry.className,
+    methodName: entry.methodName,
+  }, entry.traceContext);
 
-// Process queued HTTP requests — invoked on a 100ms interval
-export async function processHttpQueue() {
-  while (httpRequestQueue.length > 0) {
-    // peek at the first request in the queue
-    const now = Date.now();
-    const firstEntry = httpRequestQueue[0];
-    if (firstEntry.earliestExecute && firstEntry.earliestExecute > now) {
-      // not yet time to execute this request
-      // wait a bit before checking again
-      await new Promise((resolve) => setTimeout(resolve, emptyQueueDelayMs));
-      continue;
-    }
+  try {
+    // Broadcast to injection system (restore trace context so nested requests inherit it)
+    await tracing.runWithContext(entry.traceContext, async () => {
+      await broadcastInjectionEvent(entry, 'httpRequest');
+    });
 
-    // get the next request in the queue
-    const entry = httpRequestQueue.shift();
-    if (entry) {
-      // Wait for our turn under the global rate limit before firing
-      await waitForRateLimit();
+    // make the actual HTTP request (pass trace context, className, methodName)
+    await entry.request.makeRequest(entry.traceContext, entry.className, entry.methodName);
 
-      const requestStartTime = Date.now();
-
-      // Emit trace start event (use captured context if available)
-      tracing.emitHttpEvent({
-        eventType: 'http.request.start',
-        url: entry.request.url,
-        method: entry.request.method,
-        headers: entry.request.buildHeaders(),
-        retryCount: entry.retryAttempt || 0,
-        className: entry.className,
-        methodName: entry.methodName,
-      }, entry.traceContext);
-
+    // if we have a response validator, run it now
+    if (entry.validateResponse && entry.request.response) {
       try {
-        // Broadcast to injection system (restore trace context so nested requests inherit it)
-        await tracing.runWithContext(entry.traceContext, async () => {
-          await broadcastInjectionEvent(entry, 'httpRequest');
-        });
-
-        // make the actual HTTP request (pass trace context, className, methodName)
-        await entry.request.makeRequest(entry.traceContext, entry.className, entry.methodName);
-
-        // if we have a response validator, run it now
-        if (entry.validateResponse && entry.request.response) {
-          try {
-            const data = await entry.request.clone().json();
-            if (!entry.validateResponse(data)) {
-              const errors = entry.validateResponse.errors as DefinedError[] | null;
-              const errorStr = errors ? errors.map(err => `  ${err.instancePath} ${err.message}`).join('\n') : 'Unknown validation error';
-              throw new Error(`Response from ${entry.methodName} does not match the expected format. Errors: \n${errorStr}`);
-            }
-          } catch (e) {
-            throw new Error(`Response from ${entry.methodName} is not valid JSON or does not match the expected format: ${e}`);
-          }
+        const data = await entry.request.clone().json();
+        if (!entry.validateResponse(data)) {
+          const errors = entry.validateResponse.errors as DefinedError[] | null;
+          const errorStr = errors ? errors.map(err => `  ${err.instancePath} ${err.message}`).join('\n') : 'Unknown validation error';
+          throw new Error(`Response from ${entry.methodName} does not match the expected format. Errors: \n${errorStr}`);
         }
-
-        // Broadcast response event BEFORE resolving the caller's promise.
-        // Response injectors can throw to trigger a retry — if we resolve first,
-        // the caller has already moved on with the unmodified response, and any
-        // thrown error from the injector is silently lost.
-        await tracing.runWithContext(entry.traceContext, async () => {
-          await broadcastInjectionEvent(entry, 'httpResponse');
-        });
-
-        // Resolve the original promise (now safe — injectors have all run)
-        entry.request.resolvePromise(entry.request);
-      } catch (error) {
-        // Try to capture error response body if available
-        let errorBody: any = undefined;
-        if (entry.request.response) {
-          try {
-            const clonedResponse = entry.request.response.clone();
-            const contentType = entry.request.response.headers.get('content-type');
-
-            if (contentType?.includes('application/json')) {
-              errorBody = await clonedResponse.json();
-            } else {
-              const text = await clonedResponse.text();
-              errorBody = text.length > 1000 ? text.substring(0, 1000) + '...' : text;
-            }
-          } catch (bodyError) {
-            // Failed to get body, just skip it
-          }
-        }
-
-        // Emit trace error event (use captured context if available)
-        tracing.emitHttpEvent({
-          eventType: 'http.request.error',
-          url: entry.request.url,
-          method: entry.request.method,
-          status: entry.request.response?.status,
-          duration: Date.now() - requestStartTime,
-          error: error instanceof Error ? error : new Error(String(error)),
-          headers: entry.request.buildHeaders(),
-          body: errorBody,
-          retryCount: entry.retryAttempt || 0,
-          className: entry.className,
-          methodName: entry.methodName,
-        }, entry.traceContext);
-
-        // broadcast error event (restore trace context)
-        await tracing.runWithContext(entry.traceContext, async () => {
-          await broadcastInjectionEvent(entry, 'httpError');
-        });
-
-        // Determine if this error is retryable:
-        //   - No response at all (network/connection error) → retryable
-        //   - 429 Too Many Requests → retryable
-        //   - 5xx server error → retryable
-        //   - 4xx client error (other than 429) → NOT retryable (definitive failure)
-        const responseStatus = entry.request.response?.status;
-        const isRetryable = responseStatus === undefined ||
-          responseStatus === 429 ||
-          (responseStatus >= 500 && responseStatus < 600);
-
-        // allow retries if configured and error is retryable, but push to the back of the queue
-        if (isRetryable && entry.request.retries && entry.request.retries > 0) {
-          entry.request.retries -= 1;
-
-          // Track retry attempt (initialize if first retry)
-          if (entry.retryAttempt === undefined) {
-            entry.retryAttempt = 0;
-          } else {
-            entry.retryAttempt += 1;
-          }
-
-          const backoffDelay = calculateBackoffDelay(entry.retryAttempt);
-
-          console.warn(
-            `HTTP request failed, retrying in ${Math.round(backoffDelay / 1000)}s ` +
-            `(attempt ${entry.retryAttempt + 1}, ${entry.request.retries} retries left): ` +
-            `${entry.request.method} ${entry.request.url}`,
-            error
-          );
-
-          entry.earliestExecute = Date.now() + backoffDelay;
-          httpRequestQueue.push(entry); // re-queue the request
-        } else {
-          const errMsg = error instanceof Error ? error.message : String(error);
-          if (!isRetryable && entry.request.retries && entry.request.retries > 0) {
-            // Had retries remaining but error is non-retryable (4xx)
-            console.error(
-              `HTTP request failed with non-retryable status ${responseStatus}, not retrying: ` +
-              `${entry.request.method} ${entry.request.url} ${errMsg}`
-            );
-          } else {
-            console.error(`HTTP request failed, no retries left: ${entry.request.method} ${entry.request.url} ${errMsg}`);
-          }
-          entry.request.rejectPromise(
-            new Error(`${entry.request.method} ${entry.request.url}: ${errMsg}`)
-          );
-        }
+      } catch (e) {
+        throw new Error(`Response from ${entry.methodName} is not valid JSON or does not match the expected format: ${e}`);
       }
-      // Note: rate limiting now happens at request start via waitForRateLimit()
-      // rather than after each request, so it's correctly serialized across
-      // concurrent processHttpQueue invocations.
+    }
+
+    // Broadcast response event BEFORE resolving the caller's promise.
+    // Response injectors can throw to trigger a retry — if we resolve first,
+    // the caller has already moved on with the unmodified response, and any
+    // thrown error from the injector is silently lost.
+    await tracing.runWithContext(entry.traceContext, async () => {
+      await broadcastInjectionEvent(entry, 'httpResponse');
+    });
+
+    // Resolve the original promise (now safe — injectors have all run)
+    entry.request.resolvePromise(entry.request);
+  } catch (error) {
+    // Try to capture error response body if available
+    let errorBody: any = undefined;
+    if (entry.request.response) {
+      try {
+        const clonedResponse = entry.request.response.clone();
+        const contentType = entry.request.response.headers.get('content-type');
+
+        if (contentType?.includes('application/json')) {
+          errorBody = await clonedResponse.json();
+        } else {
+          const text = await clonedResponse.text();
+          errorBody = text.length > 1000 ? text.substring(0, 1000) + '...' : text;
+        }
+      } catch (bodyError) {
+        // Failed to get body, just skip it
+      }
+    }
+
+    // Emit trace error event (use captured context if available)
+    tracing.emitHttpEvent({
+      eventType: 'http.request.error',
+      url: entry.request.url,
+      method: entry.request.method,
+      status: entry.request.response?.status,
+      duration: Date.now() - requestStartTime,
+      error: error instanceof Error ? error : new Error(String(error)),
+      headers: entry.request.buildHeaders(),
+      body: errorBody,
+      retryCount: entry.retryAttempt || 0,
+      className: entry.className,
+      methodName: entry.methodName,
+    }, entry.traceContext);
+
+    // broadcast error event (restore trace context)
+    await tracing.runWithContext(entry.traceContext, async () => {
+      await broadcastInjectionEvent(entry, 'httpError');
+    });
+
+    // Determine if this error is retryable:
+    //   - No response at all (network/connection error) → retryable
+    //   - 429 Too Many Requests → retryable
+    //   - 5xx server error → retryable
+    //   - 4xx client error (other than 429) → NOT retryable (definitive failure)
+    const responseStatus = entry.request.response?.status;
+    const isRetryable = responseStatus === undefined ||
+      responseStatus === 429 ||
+      (responseStatus >= 500 && responseStatus < 600);
+
+    // allow retries if configured and error is retryable, but push to the back of the queue
+    if (isRetryable && entry.request.retries && entry.request.retries > 0) {
+      entry.request.retries -= 1;
+
+      // Track retry attempt (initialize if first retry)
+      if (entry.retryAttempt === undefined) {
+        entry.retryAttempt = 0;
+      } else {
+        entry.retryAttempt += 1;
+      }
+
+      const backoffDelay = calculateBackoffDelay(entry.retryAttempt);
+
+      console.warn(
+        `HTTP request failed, retrying in ${Math.round(backoffDelay / 1000)}s ` +
+        `(attempt ${entry.retryAttempt + 1}, ${entry.request.retries} retries left): ` +
+        `${entry.request.method} ${entry.request.url}`,
+        error
+      );
+
+      entry.earliestExecute = Date.now() + backoffDelay;
+      requeue(entry); // re-queue the request on its own queue
     } else {
-      // queue is empty, wait a bit before checking again
-      await new Promise((resolve) => setTimeout(resolve, emptyQueueDelayMs));
+      const errMsg = error instanceof Error ? error.message : String(error);
+      if (!isRetryable && entry.request.retries && entry.request.retries > 0) {
+        // Had retries remaining but error is non-retryable (4xx)
+        console.error(
+          `HTTP request failed with non-retryable status ${responseStatus}, not retrying: ` +
+          `${entry.request.method} ${entry.request.url} ${errMsg}`
+        );
+      } else {
+        console.error(`HTTP request failed, no retries left: ${entry.request.method} ${entry.request.url} ${errMsg}`);
+      }
+      entry.request.rejectPromise(
+        new Error(`${entry.request.method} ${entry.request.url}: ${errMsg}`)
+      );
     }
   }
 }
 
 /**
- * Get the current length of the HTTP request queue.
- * @returns Number of HTTP requests currently in the queue
+ * Process every registered queue. Invoked by the global interval below. Each
+ * queue's processOne has its own re-entrancy guard, so overlapping ticks are
+ * harmless — a slow queue simply skips this tick.
+ */
+export async function processHttpQueue(): Promise<void> {
+  // Snapshot — processOne() may remove items from activeQueues mid-iteration.
+  const queues = [...activeQueues];
+  await Promise.all(queues.map((q) => q.processOne().catch(() => {})));
+}
+
+/**
+ * Get the total number of HTTP requests pending across all destination
+ * queues. Used by the test harness to wait for quiescence.
  */
 export function getQueueLength(): number {
-  return httpRequestQueue.length;
+  let total = 0;
+  for (const q of activeQueues) total += q.size();
+  return total;
 }
 
 /**
@@ -934,23 +969,20 @@ export function waitForHttpQueue(timeout: number = 30000, checkInterval: number 
     const startTime = Date.now();
 
     const check = () => {
-      // Check if queue is empty
-      if (httpRequestQueue.length === 0) {
+      const pending = getQueueLength();
+      if (pending === 0) {
         resolve();
         return;
       }
 
-      // Check if timeout exceeded
       if (Date.now() - startTime > timeout) {
-        reject(new Error(`Timeout waiting for HTTP queue to empty (${httpRequestQueue.length} requests remaining)`));
+        reject(new Error(`Timeout waiting for HTTP queue to empty (${pending} requests remaining)`));
         return;
       }
 
-      // Check again after interval
       setTimeout(check, checkInterval);
     };
 
-    // Start checking
     check();
   });
 }
@@ -961,6 +993,7 @@ export function waitForHttpQueue(timeout: number = 30000, checkInterval: number 
  * WARNING: After calling this, no HTTP requests will be processed until the process restarts.
  */
 export function stopHttpQueue(): void {
+  globalStopped = true;
   if (queueInterval) {
     clearInterval(queueInterval);
     queueInterval = null;
