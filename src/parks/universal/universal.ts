@@ -82,6 +82,8 @@ type UniversalVenuesResponse = {
     Id: number;
     MblDisplayName: string;
     AdmissionRequired: boolean;
+    Latitude?: number;
+    Longitude?: number;
     ExternalIds: {
       ContentId: string;
     };
@@ -154,6 +156,9 @@ class Universal extends Destination {
 
   @config
   city: string = "orlando";
+
+  /** Resort-level (destination) coordinates. Overridden per subclass. */
+  resortLocation: {latitude: number; longitude: number} = {latitude: 28.4719, longitude: -81.4685};
 
   @config
   resortName: string = "Universal Orlando Resort";
@@ -495,6 +500,7 @@ class Universal extends Destination {
         name: this.resortName,
         entityType: 'DESTINATION',
         timezone: this.timezone,
+        location: this.resortLocation,
       } as Entity
     ];
   }
@@ -521,6 +527,7 @@ class Universal extends Destination {
         parentIdField: () => destinationId,
         destinationId,
         timezone: this.timezone,
+        locationFields: {lat: 'Latitude', lng: 'Longitude'},
       }),
 
       // Attractions
@@ -827,6 +834,8 @@ class Universal extends Destination {
  */
 @destinationController({category: 'Universal'})
 export class UniversalOrlando extends Universal {
+  resortLocation = {latitude: 28.4719, longitude: -81.4685};
+
   constructor(options?: DestinationConstructor) {
     super({
       ...options,
@@ -847,6 +856,8 @@ export class UniversalOrlando extends Universal {
  */
 @destinationController({category: 'Universal'})
 export class UniversalStudios extends Universal {
+  resortLocation = {latitude: 34.1381, longitude: -118.3534};
+
   constructor(options?: DestinationConstructor) {
     super({
       ...options,

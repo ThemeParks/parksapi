@@ -154,13 +154,33 @@ export async function testPark(
       if (!entity.entityType) throw new Error(`Entity ${idx} missing 'entityType'`);
     });
 
+    // Structural location requirement: DESTINATION + PARK must have location.
+    // These are the anchor points for the whole hierarchy — a missing coord
+    // almost always indicates a mapEntities wiring bug.
+    const missingAnchorLocation = entities.filter(
+      (e) => (e.entityType === 'DESTINATION' || e.entityType === 'PARK') && !e.location,
+    );
+    if (missingAnchorLocation.length > 0) {
+      const list = missingAnchorLocation.map((e) => `${e.entityType} "${e.name}" (${e.id})`).join(', ');
+      throw new Error(`Anchor entities missing 'location': ${list}`);
+    }
+
     // Count by type
     const entityTypes = entities.reduce((acc, e) => {
       acc[e.entityType] = (acc[e.entityType] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    return { count: entities.length, entityTypes, entities };
+    // Non-anchor entities without location — report as a count, not a failure
+    // (some venues genuinely don't publish coords for every attraction).
+    const missingLocation = entities.reduce((acc, e) => {
+      if (e.entityType !== 'DESTINATION' && e.entityType !== 'PARK' && !e.location) {
+        acc[e.entityType] = (acc[e.entityType] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
+    return { count: entities.length, entityTypes, entities, missingLocation };
   });
   results.push(entitiesResult);
   if (verbose) {
@@ -169,6 +189,11 @@ export async function testPark(
       Object.entries(entitiesResult.details.entityTypes).forEach(([type, count]) => {
         console.log(`     - ${type}: ${count}`);
       });
+      const missing = entitiesResult.details.missingLocation as Record<string, number>;
+      if (missing && Object.keys(missing).length > 0) {
+        const summary = Object.entries(missing).map(([type, n]) => `${type}:${n}`).join(' ');
+        console.log(`     ⚠ Missing location: ${summary}`);
+      }
     } else {
       console.log(`   ✗ Failed: ${entitiesResult.error}`);
     }

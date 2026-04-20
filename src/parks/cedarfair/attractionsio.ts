@@ -514,16 +514,28 @@ class AttractionsIOV3 extends Destination {
    */
   async getParkEntranceLocation(): Promise<{latitude: number; longitude: number} | undefined> {
     const poiData = await this.getParkPOI();
-    const entranceNames = ["Main Entrance", "Accessible Gate", "Front Gate"];
+    const entranceNames = ["Main Entrance", "Accessible Gate", "Front Gate", "Park Entrance"];
 
     for (const name of entranceNames) {
       const entrance = poiData.find(poi => poi.name?.startsWith(name));
       if (entrance?.location?.latitude && entrance?.location?.longitude) {
         return {
-          latitude: entrance.location.latitude,
-          longitude: entrance.location.longitude,
+          latitude: Number(entrance.location.latitude),
+          longitude: Number(entrance.location.longitude),
         };
       }
+    }
+
+    // Fallback: exact name "Park Entrance" or any POI whose name exactly equals an
+    // entrance-ish word (e.g. "Entrance", "Main Gate").
+    const fallback = poiData.find(poi =>
+      /^(park entrance|entrance|main gate|front gate)$/i.test(poi.name || ''),
+    );
+    if (fallback?.location?.latitude && fallback?.location?.longitude) {
+      return {
+        latitude: Number(fallback.location.latitude),
+        longitude: Number(fallback.location.longitude),
+      };
     }
 
     return undefined;
