@@ -56,7 +56,7 @@
     "express": "^5.1.0",
     "tsx": "^4.20.5",
     "typedoc": "^0.28.19",
-    "typescript": "^5.0.0",
+    "typescript": "^6.0.3",
     "vitest": "^4.0.16"
   },
   "dependencies": {
