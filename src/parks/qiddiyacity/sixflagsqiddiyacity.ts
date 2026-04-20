@@ -177,7 +177,13 @@ export class SixFlagsQiddiyaCity extends Destination {
   async getActivities(): Promise<QiddiyaActivity[]> {
     const resp = await this.fetchActivities();
     const data: QiddiyaActivitiesResponse = await resp.json();
-    return data?.data || [];
+    // The shared /sixflags/info-guide/ endpoint also returns Aqua Rabia Qiddiya City
+    // (sister water park) activities. Filter them out by asset path — Six Flags
+    // items live under /assets/sixflags/, Aqua Rabia under /assets/aquarabia/.
+    return (data?.data || []).filter((a: any) => {
+      const path: string = a?.mobileImageAttribute?.externalPath || '';
+      return !path.includes('/assets/aquarabia/');
+    });
   }
 
   @cache({ttlSeconds: 60})
