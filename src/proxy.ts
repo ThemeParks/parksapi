@@ -11,6 +11,8 @@ export type CrawlBaseConfig = {
 
 export type ScrapflyConfig = {
   apikey: string;
+  /** Extra query parameters to pass through to the Scrapfly API. */
+  params?: Record<string, string>;
 };
 
 export type BasicProxyConfig = {

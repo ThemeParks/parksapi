@@ -144,7 +144,6 @@ export class UniversalStudiosJapan extends Destination {
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('UNIVERSALSTUDIOSJAPAN');
-    this.enableProxySupport();
   }
 
   // ─── Authentication ──────────────────────────────────────────────────────

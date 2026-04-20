@@ -247,8 +247,12 @@ export abstract class Destination {
     }
 
     if (this.proxyConfig.scrapfly) {
-      const originalUrl = req.url;
-      req.url = `https://api.scrapfly.io/scrape?url=${encodeURIComponent(originalUrl)}&key=${this.proxyConfig.scrapfly.apikey}`;
+      const sf = this.proxyConfig.scrapfly;
+      const params = new URLSearchParams({url: req.url, key: sf.apikey});
+      if (sf.params) {
+        for (const [k, v] of Object.entries(sf.params)) params.set(k, v);
+      }
+      req.url = `https://api.scrapfly.io/scrape?${params.toString()}`;
       return;
     }
 
