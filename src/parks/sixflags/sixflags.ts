@@ -58,6 +58,7 @@ type SixFlagsParkData = {
   waterParks: Array<{
     parkId: number;
     code: string;
+    name: string;
     label: string;
   }>;
 };
@@ -191,17 +192,29 @@ function parseCoordinates(poi: SixFlagsPOI): {latitude: number; longitude: numbe
 }
 
 /**
- * Parse coordinates from venue status response. Applies Western
- * Hemisphere longitude fix.
+ * Compute a park centroid from its POI data — averages the valid
+ * coordinates of all rides (venueId=1) whose `parkId` matches. Applies
+ * the Western-Hemisphere longitude fix to each row before averaging.
+ *
+ * The `/venue-status/park/{id}` response doesn't expose a park location,
+ * so this POI-derived centroid is the only server-provided coordinate.
  */
-function parseVenueStatusCoordinates(vs: SixFlagsVenueStatus): {latitude: number; longitude: number} | null {
-  if (!vs.lat || !vs.lng) return null;
-  const lat = parseFloat(vs.lat);
-  let lng = parseFloat(vs.lng);
-  if (isNaN(lat) || isNaN(lng)) return null;
-  if (lat === 0 && lng === 0) return null;
-  if (lng > 0) lng = -lng;
-  return {latitude: lat, longitude: lng};
+function parkCentroidFromPOI(
+  poi: SixFlagsPOI[],
+  parkId: number,
+): {latitude: number; longitude: number} | null {
+  let latSum = 0, lngSum = 0, count = 0;
+  for (const p of poi) {
+    if (p.parkId !== parkId) continue;
+    if (p.venueId !== 1) continue; // rides only — most consistently geolocated
+    const coords = parseCoordinates(p);
+    if (!coords) continue;
+    latSum += coords.latitude;
+    lngSum += coords.longitude;
+    count++;
+  }
+  if (count === 0) return null;
+  return {latitude: latSum / count, longitude: lngSum / count};
 }
 
 /**
@@ -483,12 +496,27 @@ export class SixFlags extends Destination {
   }
 
   /**
+   * Water park IDs derived from getParkData — these don't expose the
+   * /wait-times endpoint so we skip the fetch to avoid noisy 404s.
+   */
+  private async getWaterParkIdSet(): Promise<Set<number>> {
+    const parks = await this.getParkData();
+    const set = new Set<number>();
+    for (const p of parks) {
+      for (const wp of p.waterParks) set.add(wp.parkId);
+    }
+    return set;
+  }
+
+  /**
    * Get wait times for a specific park (cached 1min).
-   * Returns null on failure (some parks don't have this endpoint).
+   * Returns null for water parks (which don't expose this endpoint) and on
+   * any fetch failure.
    */
   @cache({ttlSeconds: 60})
   async getWaitTimes(parkId: number): Promise<SixFlagsWaitTimes | null> {
-    if (PARKS_WITHOUT_WAIT_TIMES.has(parkId)) {
+    const waterParkIds = await this.getWaterParkIdSet();
+    if (waterParkIds.has(parkId) || PARKS_WITHOUT_WAIT_TIMES.has(parkId)) {
       return null;
     }
     try {
@@ -521,14 +549,21 @@ export class SixFlags extends Destination {
    * Get the timezone for a park, derived from its GPS coordinates.
    * Falls back to instance timezone if no location available.
    */
+  /**
+   * Timezone lookup. Uses the main-park's POI (same response includes sister
+   * water park POIs, keyed by `parkId`) rather than fetching /poi/park/{id}
+   * per park — water parks return 404 on their own POI endpoint.
+   */
   private async getTimezoneForPark(parkId: number): Promise<string> {
-    const venueStatus = await this.getVenueStatus(parkId);
-    if (venueStatus) {
-      const coords = parseVenueStatusCoordinates(venueStatus);
-      if (coords) {
-        return timezoneFromLongitude(coords.longitude);
-      }
-    }
+    // Find which main-park this parkId belongs to (itself, or a sister water park).
+    const parks = await this.getParkData();
+    const owner = parks.find((p) =>
+      p.parkId === parkId || p.waterParks.some((wp) => wp.parkId === parkId),
+    );
+    const sourceParkId = owner?.parkId ?? parkId;
+    const poi = await this.getPOI(sourceParkId);
+    const coords = parkCentroidFromPOI(poi, parkId);
+    if (coords) return timezoneFromLongitude(coords.longitude);
     return this.timezone;
   }
 
@@ -562,8 +597,8 @@ export class SixFlags extends Destination {
 
     for (const park of parks) {
       const tz = await this.getTimezoneForPark(park.parkId);
-      const venueStatus = await this.getVenueStatus(park.parkId);
-      const location = venueStatus ? parseVenueStatusCoordinates(venueStatus) : null;
+      const poi = await this.getPOI(park.parkId);
+      const location = parkCentroidFromPOI(poi, park.parkId);
 
       destinations.push({
         id: `sixflags_destination_${park.code}`,
@@ -586,9 +621,9 @@ export class SixFlags extends Destination {
       const destinationId = `sixflags_destination_${park.code}`;
       const mainParkId = `sixflags_park_${park.code}`;
 
-      // Get park-level location
-      const venueStatus = await this.getVenueStatus(park.parkId);
-      const parkLocation = venueStatus ? parseVenueStatusCoordinates(venueStatus) : null;
+      // Get park-level location — centroid of the main park's rides.
+      const poiData = await this.getPOI(park.parkId);
+      const parkLocation = parkCentroidFromPOI(poiData, park.parkId);
 
       // Destination entity
       entities.push({
@@ -610,15 +645,16 @@ export class SixFlags extends Destination {
         ...(parkLocation ? {location: parkLocation} : {}),
       } as Entity);
 
-      // Water park entities (share parent's destination)
+      // Water park entities (share parent's destination). The sister water
+      // park's own /poi/park/{id} 404s on the Six Flags API, but the sister
+      // items live inside the main park's POI response keyed by `parkId`.
       for (const wp of park.waterParks) {
         const wpTz = await this.getTimezoneForPark(wp.parkId);
-        const wpVenueStatus = await this.getVenueStatus(wp.parkId);
-        const wpLocation = wpVenueStatus ? parseVenueStatusCoordinates(wpVenueStatus) : parkLocation;
+        const wpLocation = parkCentroidFromPOI(poiData, wp.parkId) ?? parkLocation;
 
         entities.push({
           id: `sixflags_park_${wp.code}`,
-          name: wpVenueStatus?.parkName || `${park.name} Water Park`,
+          name: wp.name,
           entityType: 'PARK',
           parentId: destinationId,
           destinationId,
@@ -627,8 +663,8 @@ export class SixFlags extends Destination {
         } as Entity);
       }
 
-      // Fetch POI for main park
-      const poiData = await this.getPOI(park.parkId);
+      // Emit main-park attractions/shows/restaurants from the POI data we
+      // already fetched above for location calculation.
       if (Array.isArray(poiData)) {
         // Rides (venueId: 1)
         const rides = poiData.filter(poi => poi.venueId === 1 && poi.parkId === park.parkId);
@@ -641,21 +677,20 @@ export class SixFlags extends Destination {
         // Restaurants (venueId: 4)
         const restaurants = poiData.filter(poi => poi.venueId === 4 && poi.parkId === park.parkId);
         entities.push(...this.mapPOIEntities(restaurants, mainParkId, destinationId, tz, 'RESTAURANT'));
-      }
 
-      // Fetch POI for water parks
-      for (const wp of park.waterParks) {
-        const wpParkEntityId = `sixflags_park_${wp.code}`;
-        const wpTz = await this.getTimezoneForPark(wp.parkId);
-        const wpPoi = await this.getPOI(wp.parkId);
-        if (Array.isArray(wpPoi)) {
-          const wpRides = wpPoi.filter(poi => poi.venueId === 1 && poi.parkId === wp.parkId);
+        // Water-park children — filter the same POI response by the water
+        // park's parkId. /poi/park/{wpId} doesn't work.
+        for (const wp of park.waterParks) {
+          const wpParkEntityId = `sixflags_park_${wp.code}`;
+          const wpTz = await this.getTimezoneForPark(wp.parkId);
+
+          const wpRides = poiData.filter(poi => poi.venueId === 1 && poi.parkId === wp.parkId);
           entities.push(...this.mapPOIEntities(wpRides, wpParkEntityId, destinationId, wpTz, 'ATTRACTION'));
 
-          const wpShows = wpPoi.filter(poi => poi.venueId === 2 && poi.parkId === wp.parkId);
+          const wpShows = poiData.filter(poi => poi.venueId === 2 && poi.parkId === wp.parkId);
           entities.push(...this.mapPOIEntities(wpShows, wpParkEntityId, destinationId, wpTz, 'SHOW'));
 
-          const wpRestaurants = wpPoi.filter(poi => poi.venueId === 4 && poi.parkId === wp.parkId);
+          const wpRestaurants = poiData.filter(poi => poi.venueId === 4 && poi.parkId === wp.parkId);
           entities.push(...this.mapPOIEntities(wpRestaurants, wpParkEntityId, destinationId, wpTz, 'RESTAURANT'));
         }
       }
