@@ -559,19 +559,54 @@ class AttractionsIOV3 extends Destination {
     const entranceLocation = await this.getParkEntranceLocation();
     const destinationId = `${this.destinationId}_destination`;
 
-    // Get category types for filtering
+    // Primary classification is by fimsId prefix (RIDE-, MAZE-, SHOW-,
+    // RESTAURANT-). The legacy type/showType/foodTypes category filters are
+    // kept as an extra fallback because some parks populate type.id but leave
+    // foodTypes/showType unset.
     const attractionTypes = [
-      ...await this.getTypesFromCategories(this.attractionCategories, "type"),
-      ...this.extraAttractionCategoryTypes
+      ...await this.getTypesFromCategories(this.attractionCategories, 'type'),
+      ...this.extraAttractionCategoryTypes,
     ];
     const showTypes = [
-      ...await this.getTypesFromCategories(this.showCategories, "showType"),
-      ...this.extraShowCategoryTypes
+      ...await this.getTypesFromCategories(this.showCategories, 'showType'),
+      ...this.extraShowCategoryTypes,
     ];
     const diningTypes = [
-      ...await this.getTypesFromCategories(this.diningCategories, "foodTypes"),
-      ...this.extraRestaurantCategoryTypes
+      ...await this.getTypesFromCategories(this.diningCategories, 'foodTypes'),
+      ...this.extraRestaurantCategoryTypes,
     ];
+
+    const fimsPrefix = (poi: AttractionsIOPOI): string =>
+      (poi.fimsId || '').split('-')[0].toUpperCase();
+
+    const isAttraction = (poi: AttractionsIOPOI): boolean => {
+      const p = fimsPrefix(poi);
+      if (p === 'RIDE' || p === 'MAZE') return true;
+      return !!(poi.type?.id && attractionTypes.includes(poi.type.id));
+    };
+    const isShow = (poi: AttractionsIOPOI): boolean => {
+      const p = fimsPrefix(poi);
+      if (p === 'SHOW') return true;
+      return !!(poi.showType?.id && showTypes.includes(poi.showType.id));
+    };
+    const isRestaurant = (poi: AttractionsIOPOI): boolean => {
+      const p = fimsPrefix(poi);
+      if (p === 'RESTAURANT') return true;
+      return !!(poi.foodTypes?.id && diningTypes.includes(poi.foodTypes.id));
+    };
+
+    const mapConfig = (entityType: Entity['entityType']) => ({
+      idField: 'fimsId' as const,
+      nameField: 'name' as const,
+      entityType,
+      parentIdField: () => this.destinationId,
+      locationFields: {
+        lat: (poi: AttractionsIOPOI) => poi.location?.latitude,
+        lng: (poi: AttractionsIOPOI) => poi.location?.longitude,
+      },
+      destinationId: this.destinationId,
+      timezone: this.timezone,
+    });
 
     return [
       // Destination entity
@@ -593,56 +628,9 @@ class AttractionsIOV3 extends Destination {
         parentId: destinationId,
       } as Entity,
 
-      // Attractions (filtered by type)
-      ...this.mapEntities(
-        poiData.filter(poi => poi.type?.id && attractionTypes.includes(poi.type.id)),
-        {
-          idField: 'fimsId',
-          nameField: 'name',
-          entityType: 'ATTRACTION',
-          parentIdField: () => this.destinationId,
-          locationFields: {
-            lat: (poi: AttractionsIOPOI) => poi.location?.latitude,
-            lng: (poi: AttractionsIOPOI) => poi.location?.longitude,
-          },
-          destinationId: this.destinationId,
-          timezone: this.timezone,
-        }
-      ),
-
-      // Shows (filtered by showType)
-      ...this.mapEntities(
-        poiData.filter(poi => poi.showType?.id && showTypes.includes(poi.showType.id)),
-        {
-          idField: 'fimsId',
-          nameField: 'name',
-          entityType: 'SHOW',
-          parentIdField: () => this.destinationId,
-          locationFields: {
-            lat: (poi: AttractionsIOPOI) => poi.location?.latitude,
-            lng: (poi: AttractionsIOPOI) => poi.location?.longitude,
-          },
-          destinationId: this.destinationId,
-          timezone: this.timezone,
-        }
-      ),
-
-      // Restaurants (filtered by foodTypes)
-      ...this.mapEntities(
-        poiData.filter(poi => poi.foodTypes?.id && diningTypes.includes(poi.foodTypes.id)),
-        {
-          idField: 'fimsId',
-          nameField: 'name',
-          entityType: 'RESTAURANT',
-          parentIdField: () => this.destinationId,
-          locationFields: {
-            lat: (poi: AttractionsIOPOI) => poi.location?.latitude,
-            lng: (poi: AttractionsIOPOI) => poi.location?.longitude,
-          },
-          destinationId: this.destinationId,
-          timezone: this.timezone,
-        }
-      ),
+      ...this.mapEntities(poiData.filter(isAttraction), mapConfig('ATTRACTION')),
+      ...this.mapEntities(poiData.filter(isShow), mapConfig('SHOW')),
+      ...this.mapEntities(poiData.filter(isRestaurant), mapConfig('RESTAURANT')),
     ];
   }
 
