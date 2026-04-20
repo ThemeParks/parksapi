@@ -117,7 +117,6 @@ describe('Per-Destination Proxy Injection', () => {
 
     const dest = new ProxyTestDestination();
     dest.addConfigPrefix('PROXYTESTDESTINATION');
-    dest.enableProxySupport();
 
     const req = createMockRequest();
     await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
@@ -130,7 +129,6 @@ describe('Per-Destination Proxy Injection', () => {
 
     const dest = new ProxyTestDestination();
     dest.addConfigPrefix('PROXYTESTDESTINATION');
-    dest.enableProxySupport();
 
     const req = createMockRequest();
     await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
@@ -143,7 +141,6 @@ describe('Per-Destination Proxy Injection', () => {
 
     const dest = new ProxyTestDestination();
     dest.addConfigPrefix('PROXYTESTDESTINATION');
-    dest.enableProxySupport();
 
     const req = createMockRequest();
     const originalUrl = req.url;
@@ -154,10 +151,11 @@ describe('Per-Destination Proxy Injection', () => {
     expect((req as any).proxyUrl).toBe('http://myproxy.com:8080');
   });
 
-  it('should NOT proxy requests from destinations without enableProxySupport()', async () => {
+  it('should NOT proxy requests when no matching config prefix is registered', async () => {
     process.env.PROXYTESTDESTINATION_CRAWLBASE = JSON.stringify({apikey: 'test-key'});
 
-    // Create destination but DON'T call enableProxySupport
+    // Create destination but DON'T register the PROXYTESTDESTINATION prefix,
+    // so env vars under that prefix are never loaded.
     const dest = new ProxyTestDestination();
 
     const req = createMockRequest();
@@ -174,7 +172,6 @@ describe('Per-Destination Proxy Injection', () => {
 
     const dest = new ProxyTestDestination();
     dest.addConfigPrefix('PROXYTESTDESTINATION');
-    dest.enableProxySupport();
 
     const req = createMockRequest();
     await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
@@ -187,7 +184,6 @@ describe('Per-Destination Proxy Injection', () => {
 
     const dest = new ProxyTestDestination();
     dest.addConfigPrefix('PROXYTESTDESTINATION');
-    dest.enableProxySupport();
 
     const scrapflyResponse = {
       result: {
@@ -217,7 +213,6 @@ describe('Per-Destination Proxy Injection', () => {
 
     const dest = new ProxyTestDestination();
     dest.addConfigPrefix('PROXYTESTDESTINATION');
-    dest.enableProxySupport();
 
     const normalResponse = new Response('{"data": "normal"}', {
       status: 200,

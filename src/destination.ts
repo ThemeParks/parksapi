@@ -90,7 +90,8 @@ export abstract class Destination {
   private static globalProxyConfig: ProxyConfig | null = null;
   private static globalProxiesChecked = false;
 
-  // Per-instance proxy config — set by enableProxySupport() or inherited from global
+  // Per-instance proxy config. Auto-populated from GLOBAL_* and {PREFIX}_* env vars
+  // at construction / addConfigPrefix time. Consumers can also assign directly.
   proxyConfig: ProxyConfig | null = null;
 
   constructor(options?: DestinationConstructor) {
@@ -196,37 +197,14 @@ export abstract class Destination {
       this.config.configPrefixes = [];
     }
     (this.config.configPrefixes as string[]).push(prefix);
-  }
 
-  /**
-   * Enable proxy support for this destination's HTTP requests.
-   * Reads proxy configuration from environment variables using the destination's config prefixes.
-   * Per-destination config merges with (and overrides) any global proxy config.
-   *
-   * Supported proxy types:
-   * - CrawlBase: {PREFIX}_CRAWLBASE='{"apikey":"YOUR_TOKEN"}'
-   * - Scrapfly: {PREFIX}_SCRAPFLY='{"apikey":"YOUR_KEY"}'
-   * - Basic HTTP(S) proxy: {PREFIX}_BASICPROXY='{"proxy":"http://proxy.example.com:8080"}'
-   *
-   * @example
-   * ```typescript
-   * constructor(options?: DestinationConstructor) {
-   *   super(options);
-   *   this.addConfigPrefix('UNIVERSAL');
-   *   this.enableProxySupport(); // Will check UNIVERSAL_CRAWLBASE, UNIVERSAL_SCRAPFLY, etc.
-   * }
-   * ```
-   */
-  enableProxySupport() {
-    const prefixes = Array.isArray(this.config.configPrefixes)
-      ? this.config.configPrefixes as string[]
-      : [];
-
-    const destConfig = loadProxyConfig(prefixes);
+    // Auto-load per-destination proxy config from env vars for this prefix.
+    // If {PREFIX}_CRAWLBASE / _SCRAPFLY / _BASICPROXY is set, merge into proxyConfig.
+    // Per-destination overrides global. No opt-in required — absence of env vars
+    // simply leaves proxyConfig inheriting from global (or null).
+    const destConfig = loadProxyConfig([prefix]);
     if (hasProxyConfig(destConfig)) {
-      // Merge: destination-specific overrides global
       this.proxyConfig = {...(this.proxyConfig || {}), ...destConfig};
-      console.log(`🔌 Proxy support enabled for ${this.constructor.name}`);
     }
   }
 

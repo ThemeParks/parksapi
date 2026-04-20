@@ -157,7 +157,7 @@ Per-destination HTTP proxy for routing through CrawlBase, Scrapfly, or basic HTT
 
 **Global** (all destinations): Set `GLOBAL_CRAWLBASE`, `GLOBAL_SCRAPFLY`, or `GLOBAL_BASICPROXY` env vars. Auto-detected on first destination instantiation.
 
-**Per-destination:** Proxy assignment is the consumer's responsibility — destinations should not opt themselves into proxying. The consumer (e.g. a collector) sets `destInstance.proxyConfig` directly after construction, or calls `destInstance.enableProxySupport()` on the instance to auto-load from the destination's config-prefix env vars (`MYPARK_CRAWLBASE`, `MYPARK_SCRAPFLY`, `MYPARK_BASICPROXY`).
+**Per-destination:** Each time a destination registers a config prefix via `addConfigPrefix('MYPARK')`, the matching env vars (`MYPARK_CRAWLBASE`, `MYPARK_SCRAPFLY`, `MYPARK_BASICPROXY`) are auto-loaded and merged into `proxyConfig`. No opt-in required — if the env var is set, the proxy is used. Consumers can also assign `destInstance.proxyConfig` directly after construction for fully explicit wiring.
 
 Priority: CrawlBase > Scrapfly > Basic proxy. Per-destination overrides global. Proxy injection runs at priority 999 (after all auth/header injectors). Note: CrawlBase/Scrapfly rewrite URLs and are scraping services — they don't forward custom headers or POST bodies. Use `BASICPROXY` for authenticated API proxying.
 

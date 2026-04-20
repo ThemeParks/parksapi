@@ -89,7 +89,6 @@ describe('Global Proxy Configuration', () => {
 
       const dest = new TestGlobalProxyDestination();
       dest.addConfigPrefix('OVERRIDE');
-      dest.enableProxySupport();
 
       // Destination-specific should override global
       expect(dest.proxyConfig!.crawlbase).toEqual({apikey: 'override-key'});
@@ -101,7 +100,6 @@ describe('Global Proxy Configuration', () => {
 
       const dest = new TestGlobalProxyDestination();
       dest.addConfigPrefix('DEST');
-      dest.enableProxySupport();
 
       // Should have both
       expect(dest.proxyConfig!.crawlbase).toEqual({apikey: 'global-key'});
@@ -114,7 +112,6 @@ describe('Global Proxy Configuration', () => {
 
       process.env.DEST1_CRAWLBASE = JSON.stringify({apikey: 'dest1-key'});
       dest1.addConfigPrefix('DEST1');
-      dest1.enableProxySupport();
 
       // dest1 should have proxy, dest2 should not
       expect(dest1.proxyConfig!.crawlbase).toEqual({apikey: 'dest1-key'});
