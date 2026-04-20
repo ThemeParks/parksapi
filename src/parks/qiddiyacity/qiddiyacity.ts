@@ -34,6 +34,7 @@ type QiddiyaActivity = {
   minHeight?: number;
   maxHeight?: number;
   waitTime?: number | null;
+  mobileImageAttribute?: {externalPath?: string};
   rideAttributes?: {
     features?: Array<{code: string; label: string}>;
   };
@@ -52,11 +53,16 @@ type QiddiyaDashboardResponse = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DESTINATION_ID = 'sixflagsqiddiyacity';
-const PARK_ID = 'sixflagsqiddiyacity.park';
-// Park entrance coordinates (approximate centroid of the published ride locations)
-const PARK_LATITUDE = 24.5876;
-const PARK_LONGITUDE = 46.3327;
+const DESTINATION_ID = 'qiddiyacity';
+const DESTINATION_NAME = 'Qiddiya City';
+
+// Park identifiers (stable — used as wiki external IDs).
+const SIX_FLAGS_PARK_ID = 'sixflagsqiddiyacity';
+const AQUA_RABIA_PARK_ID = 'aquarabiaqiddiyacity';
+
+// Approximate centroids derived from the published ride locations in each park.
+const SIX_FLAGS_LOCATION = {latitude: 24.5876, longitude: 46.3327};
+const AQUA_RABIA_LOCATION = {latitude: 24.5865, longitude: 46.3260};
 
 // The Qiddiya API returns some `title` values in Arabic (roughly 40% of
 // entries, despite `accept-language: en`). The `name` field is always a
@@ -92,10 +98,18 @@ const DAY_NAME_TO_INDEX: Record<string, number> = {
 // Number of days of schedule data to project from the weekly pattern.
 const SCHEDULE_DAYS = 30;
 
+// Classify an activity as belonging to Six Flags or Aqua Rabia based on the
+// asset path in its image URL. The shared API endpoint returns activities for
+// both parks mixed together.
+function activityParkId(a: QiddiyaActivity): string {
+  const path = a?.mobileImageAttribute?.externalPath || '';
+  return path.includes('/assets/aquarabia/') ? AQUA_RABIA_PARK_ID : SIX_FLAGS_PARK_ID;
+}
+
 // ─── Implementation ───────────────────────────────────────────────────────────
 
-@destinationController({category: 'Six Flags'})
-export class SixFlagsQiddiyaCity extends Destination {
+@destinationController({category: 'Qiddiya City'})
+export class QiddiyaCity extends Destination {
   @config
   apiBase: string = '';
 
@@ -109,7 +123,7 @@ export class SixFlagsQiddiyaCity extends Destination {
 
   constructor(options?: DestinationConstructor) {
     super(options);
-    this.addConfigPrefix('SIXFLAGSQIDDIYACITY');
+    this.addConfigPrefix('QIDDIYACITY');
   }
 
   // ─── Header injection ────────────────────────────────────────────────────
@@ -117,7 +131,7 @@ export class SixFlagsQiddiyaCity extends Destination {
   /** Inject mobile-app identification headers on API requests (not website). */
   @inject({
     eventName: 'httpRequest',
-    hostname: function(this: SixFlagsQiddiyaCity) {
+    hostname: function(this: QiddiyaCity) {
       return hostnameFromUrl(this.apiBase);
     },
     tags: {$nin: ['website']},
@@ -145,7 +159,7 @@ export class SixFlagsQiddiyaCity extends Destination {
     } as any as HTTPObj;
   }
 
-  /** Fetch park-level dashboard (isOpen, opening hours). */
+  /** Fetch park-level dashboard (isOpen, opening hours). Six Flags only. */
   @http({cacheSeconds: 60} as any)
   async fetchDashboard(): Promise<HTTPObj> {
     return {
@@ -173,17 +187,12 @@ export class SixFlagsQiddiyaCity extends Destination {
 
   // ─── Cached data accessors ──────────────────────────────────────────────
 
+  /** All activities for both parks. Use activityParkId() to partition. */
   @cache({ttlSeconds: 60})
   async getActivities(): Promise<QiddiyaActivity[]> {
     const resp = await this.fetchActivities();
     const data: QiddiyaActivitiesResponse = await resp.json();
-    // The shared /sixflags/info-guide/ endpoint also returns Aqua Rabia Qiddiya City
-    // (sister water park) activities. Filter them out by asset path — Six Flags
-    // items live under /assets/sixflags/, Aqua Rabia under /assets/aquarabia/.
-    return (data?.data || []).filter((a: any) => {
-      const path: string = a?.mobileImageAttribute?.externalPath || '';
-      return !path.includes('/assets/aquarabia/');
-    });
+    return data?.data || [];
   }
 
   @cache({ttlSeconds: 60})
@@ -241,7 +250,7 @@ export class SixFlagsQiddiyaCity extends Destination {
 
       return schedule;
     } catch (err) {
-      console.warn('SixFlagsQiddiyaCity: failed to scrape website schedule:', err);
+      console.warn('QiddiyaCity: failed to scrape website schedule:', err);
       return {};
     }
   }
@@ -328,40 +337,56 @@ export class SixFlagsQiddiyaCity extends Destination {
   async getDestinations(): Promise<Entity[]> {
     return [{
       id: DESTINATION_ID,
-      name: 'Six Flags Qiddiya City',
+      name: DESTINATION_NAME,
       entityType: 'DESTINATION',
       timezone: this.timezone,
-      location: {latitude: PARK_LATITUDE, longitude: PARK_LONGITUDE},
+      location: SIX_FLAGS_LOCATION,
     } as Entity];
   }
 
   protected async buildEntityList(): Promise<Entity[]> {
     const activities = await this.getActivities();
 
-    const parkEntity: Entity = {
-      id: PARK_ID,
+    const sixFlagsPark: Entity = {
+      id: SIX_FLAGS_PARK_ID,
       name: 'Six Flags Qiddiya City',
       entityType: 'PARK',
       parentId: DESTINATION_ID,
       destinationId: DESTINATION_ID,
       timezone: this.timezone,
-      location: {latitude: PARK_LATITUDE, longitude: PARK_LONGITUDE},
+      location: SIX_FLAGS_LOCATION,
     } as Entity;
 
-    const rides = this.mapActivities(
+    const aquaRabiaPark: Entity = {
+      id: AQUA_RABIA_PARK_ID,
+      name: 'Aqua Rabia Qiddiya City',
+      entityType: 'PARK',
+      parentId: DESTINATION_ID,
+      destinationId: DESTINATION_ID,
+      timezone: this.timezone,
+      location: AQUA_RABIA_LOCATION,
+    } as Entity;
+
+    const attractionEntities = this.mapActivities(
       activities.filter((a) => a.category === 'RIDES'),
       'ATTRACTION',
     );
-    const restaurants = this.mapActivities(
+    const restaurantEntities = this.mapActivities(
       activities.filter((a) => a.category === 'DINING'),
       'RESTAURANT',
     );
-    const shows = this.mapActivities(
+    const showEntities = this.mapActivities(
       activities.filter((a) => a.category === 'ENTERTAINMENT'),
       'SHOW',
     );
 
-    return [parkEntity, ...rides, ...restaurants, ...shows];
+    return [
+      sixFlagsPark,
+      aquaRabiaPark,
+      ...attractionEntities,
+      ...restaurantEntities,
+      ...showEntities,
+    ];
   }
 
   /** Shared mapEntities config for the three categories we expose. */
@@ -370,7 +395,7 @@ export class SixFlagsQiddiyaCity extends Destination {
       idField: 'id',
       nameField: (item) => pickEnglishName(item),
       entityType,
-      parentIdField: () => PARK_ID,
+      parentIdField: (item) => activityParkId(item),
       destinationId: DESTINATION_ID,
       timezone: this.timezone,
       locationFields: {
@@ -403,27 +428,37 @@ export class SixFlagsQiddiyaCity extends Destination {
       this.getDashboard(),
     ]);
 
-    // Determine park status from multiple signals:
+    const rides = activities.filter((a) => a.category === 'RIDES');
+    const sixFlagsRides = rides.filter((r) => activityParkId(r) === SIX_FLAGS_PARK_ID);
+    const aquaRabiaRides = rides.filter((r) => activityParkId(r) === AQUA_RABIA_PARK_ID);
+
+    // Determine Six Flags park status from multiple signals:
     // 1. Dashboard isOpen flag (authoritative when present, but often absent)
     // 2. Whether any ride has waitTime > 0 (strongest real-world signal)
     // 3. Default to CLOSED if no signal
-    const dashboardIsOpen = dashboard?.parkInfo?.isOpen;
-    const rides = activities.filter((a) => a.category === 'RIDES');
-    const anyRideHasWait = rides.some((r) => r.waitTime != null && r.waitTime > 0);
-    const parkOpen = dashboardIsOpen === true || (dashboardIsOpen === undefined && anyRideHasWait);
+    const sixFlagsDashboardOpen = dashboard?.parkInfo?.isOpen;
+    const sixFlagsAnyWait = sixFlagsRides.some((r) => r.waitTime != null && r.waitTime > 0);
+    const sixFlagsOpen = sixFlagsDashboardOpen === true
+      || (sixFlagsDashboardOpen === undefined && sixFlagsAnyWait);
 
-    return rides.map((ride) => {
-      // Per-ride status: if park is open and ride has a wait time, it's operating.
-      // Rides at waitTime === 0 while others have waits are likely temporarily closed.
+    // Aqua Rabia: no dedicated dashboard endpoint yet. Use the same wait-time
+    // heuristic; defaults to CLOSED until the park opens and starts publishing.
+    const aquaRabiaOpen = aquaRabiaRides.some((r) => r.waitTime != null && r.waitTime > 0);
+
+    const toLiveData = (ride: QiddiyaActivity, parkOpen: boolean): LiveData => {
       const isRideOperating = parkOpen && ride.waitTime != null && ride.waitTime >= 0;
       const status: LiveData['status'] = isRideOperating ? 'OPERATING' : 'CLOSED';
-
       const ld: LiveData = {id: ride.id, status} as LiveData;
       if (status === 'OPERATING' && ride.waitTime != null && ride.waitTime > 0) {
         ld.queue = {STANDBY: {waitTime: ride.waitTime}};
       }
       return ld;
-    });
+    };
+
+    return [
+      ...sixFlagsRides.map((r) => toLiveData(r, sixFlagsOpen)),
+      ...aquaRabiaRides.map((r) => toLiveData(r, aquaRabiaOpen)),
+    ];
   }
 
   // ─── Schedules ───────────────────────────────────────────────────────────
@@ -431,8 +466,13 @@ export class SixFlagsQiddiyaCity extends Destination {
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const weeklyHours = await this.getWebsiteSchedule();
 
+    // Six Flags schedule from sixflagsqiddiyacity.com. Aqua Rabia's dedicated
+    // schedule isn't available yet; return an empty schedule for it until we
+    // can scrape aquarabiaqiddiyacity.com closer to opening.
+    const aquaRabia: EntitySchedule = {id: AQUA_RABIA_PARK_ID, schedule: []} as EntitySchedule;
+
     if (Object.keys(weeklyHours).length === 0) {
-      return [{id: PARK_ID, schedule: []} as EntitySchedule];
+      return [{id: SIX_FLAGS_PARK_ID, schedule: []} as EntitySchedule, aquaRabia];
     }
 
     // Project the weekly pattern onto the next N days.
@@ -458,7 +498,7 @@ export class SixFlagsQiddiyaCity extends Destination {
       });
     }
 
-    return [{id: PARK_ID, schedule} as EntitySchedule];
+    return [{id: SIX_FLAGS_PARK_ID, schedule} as EntitySchedule, aquaRabia];
   }
 
   /** Get day-of-week (0 = Sunday) for a Date as observed in the park's timezone. */
