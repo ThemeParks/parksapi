@@ -186,6 +186,61 @@ let globalStopped = false;
 // own dedicated queue; this one is a safety net only.
 const defaultHttpQueue = new HttpQueue();
 
+/**
+ * Global cap on the number of HTTP requests in the actual network-I/O phase
+ * at any one time. Per-destination queues isolate failures, but with 50+
+ * queues each firing concurrently the event loop saturates and timers
+ * (including task timeouts) miss their deadlines by many seconds.
+ *
+ * We only hold a permit across the makeRequest() call itself — NOT across
+ * request/response injection handlers, which frequently make nested HTTP
+ * calls. Holding the permit across injectors would priority-invert: every
+ * permit-holder waits on a nested request that can't acquire a permit.
+ * Simple counter + waiting queue (not a mutex) for the same reason the
+ * old rate limiter was a timestamp rather than a lock.
+ */
+class HttpConcurrencyLimiter {
+  private readonly max: number;
+  private inflight = 0;
+  private waiting: Array<() => void> = [];
+
+  constructor(max: number) {
+    this.max = Math.max(1, max);
+  }
+
+  async acquire(): Promise<void> {
+    if (this.inflight < this.max) {
+      this.inflight++;
+      return;
+    }
+    await new Promise<void>((resolve) => this.waiting.push(resolve));
+  }
+
+  release(): void {
+    const next = this.waiting.shift();
+    if (next) {
+      // Hand the permit off directly — inflight stays unchanged.
+      next();
+    } else {
+      this.inflight--;
+    }
+  }
+
+  get inFlight(): number {
+    return this.inflight;
+  }
+
+  get waitingCount(): number {
+    return this.waiting.length;
+  }
+}
+
+const HTTP_MAX_CONCURRENT = Math.max(
+  1,
+  parseInt(process.env.HTTP_MAX_CONCURRENT || '20', 10) || 20,
+);
+const globalHttpLimiter = new HttpConcurrencyLimiter(HTTP_MAX_CONCURRENT);
+
 // Internal class to handle HTTPRequest with private promise handlers
 class HTTPRequestImpl implements HTTPObj {
   public method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
@@ -771,8 +826,15 @@ async function fireRequest(
       await broadcastInjectionEvent(entry, 'httpRequest');
     });
 
-    // make the actual HTTP request (pass trace context, className, methodName)
-    await entry.request.makeRequest(entry.traceContext, entry.className, entry.methodName);
+    // Hold a global permit only for the network-I/O phase. Releasing before
+    // response injection lets nested @http calls from those injectors acquire
+    // their own permits without waiting for us to finish.
+    await globalHttpLimiter.acquire();
+    try {
+      await entry.request.makeRequest(entry.traceContext, entry.className, entry.methodName);
+    } finally {
+      globalHttpLimiter.release();
+    }
 
     // if we have a response validator, run it now
     if (entry.validateResponse && entry.request.response) {
