@@ -19,7 +19,7 @@ import config from '../../config.js';
 import {http, HTTPObj} from '../../http.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import {formatDate, addDays} from '../../datetime.js';
+import {formatDate, addDays, formatInTimezone} from '../../datetime.js';
 
 // ── API response types ──────────────────────────────────────────
 
@@ -34,6 +34,10 @@ interface PlopsaContainsItem {
     max_height?: number;
   };
   express_pass?: boolean;
+  schedule_info?: {
+    temporarily_closed?: boolean;
+    temporarily_closed_message?: string;
+  };
 }
 
 interface PlopsaPOIItem {
@@ -79,6 +83,31 @@ interface PlopsaEntertainmentResponse {
 }
 
 type PlopsaWaitTimesResponse = Record<string, number>;
+
+interface PlopsaTodayHours {
+  date: string;
+  timeslots?: Array<{type: string; start_time: string; end_time: string}>;
+}
+
+/** YYYY-MM-DD for today in the given timezone. */
+function formatTodayInTimezone(tz: string): string {
+  const raw = formatInTimezone(new Date(), tz, 'date');  // MM/DD/YYYY
+  const [mm, dd, yyyy] = raw.split('/');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/** Is the park currently within an "open" timeslot from today's hours? */
+function isParkOpenNow(hours: PlopsaTodayHours | null, tz: string): boolean {
+  if (!hours?.timeslots?.length) return false;
+  // Pull HH:MM out of the ISO string the framework's helper produces.
+  const iso = formatInTimezone(new Date(), tz, 'iso');  // YYYY-MM-DDTHH:MM:SS±HH:MM
+  const nowHM = iso.substring(11, 16);
+  for (const slot of hours.timeslots) {
+    if (slot.type !== 'open') continue;
+    if (slot.start_time <= nowHM && nowHM < slot.end_time) return true;
+  }
+  return false;
+}
 
 interface CalendarDaySlot {
   type: string;
@@ -191,6 +220,20 @@ class PlopsaBase extends Destination {
       method: 'GET',
       url: this.calendarUrl,
       queryParams: {start: startDate, end: endDate},
+      options: {json: true},
+    } as any as HTTPObj;
+  }
+
+  /**
+   * Today's park hours. The API endpoint without `openOn` returns 500;
+   * always pin a date.
+   */
+  @http({cacheSeconds: 60 * 30})
+  async fetchTodayHours(date: string): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.apiBase}/api/park-opening-hours`,
+      queryParams: {language: this.apiLanguage, park: this.parkParam, openOn: date},
       options: {json: true},
     } as any as HTTPObj;
   }
@@ -315,21 +358,53 @@ class PlopsaBase extends Destination {
   // ── Live data ─────────────────────────────────────────────────
 
   protected async buildLiveData(): Promise<LiveData[]> {
-    const resp = await this.fetchWaitTimes();
-    const waitTimes = (await resp.json()) as PlopsaWaitTimesResponse;
+    const today = formatTodayInTimezone(this.timezone);
 
+    const [waitResp, poiResp, hoursResp] = await Promise.all([
+      this.fetchWaitTimes(),
+      this.fetchPOI(),
+      this.fetchTodayHours(today).catch(() => null),
+    ]);
+
+    const waitTimes = (await waitResp.json()) as PlopsaWaitTimesResponse;
     if (!waitTimes) return [];
 
+    const poiData = (await poiResp.json()) as PlopsaPOIResponse;
+    const hoursData = hoursResp ? (await hoursResp.json()) as PlopsaTodayHours : null;
+
+    // Per-attraction temporarily-closed flag from POI.
+    const closedById = new Map<string, boolean>();
+    for (const poi of poiData?.items ?? []) {
+      for (const item of poi.contains ?? []) {
+        if (item.type !== 'attraction') continue;
+        const id = this.entityId(item);
+        const flag = !!item.schedule_info?.temporarily_closed;
+        closedById.set(id, flag);
+      }
+    }
+
+    // Whether the park is operating right now. The wait-times feed keeps
+    // returning per-ride numbers (mostly 0/1 noise) outside park hours, so
+    // we explicitly mark everything CLOSED in that window — the alternative
+    // is "Closed. Wait time: 1 minute" inconsistency in the wiki.
+    const parkOpenNow = isParkOpenNow(hoursData, this.timezone);
+
+    const lastUpdated = new Date().toISOString();
     return Object.entries(waitTimes).map(([attractionId, waitTime]) => {
-      const ld: LiveData = {
-        id: String(attractionId),
+      const id = String(attractionId);
+      const operating = parkOpenNow && closedById.get(id) !== true;
+
+      if (!operating) {
+        return {id, status: 'CLOSED', lastUpdated} as unknown as LiveData;
+      }
+      return {
+        id,
         status: 'OPERATING',
         queue: {
           STANDBY: {waitTime: typeof waitTime === 'number' ? waitTime : null},
         },
-        lastUpdated: new Date().toISOString(),
+        lastUpdated,
       } as unknown as LiveData;
-      return ld;
     });
   }
 
