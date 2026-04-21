@@ -16,6 +16,25 @@ import {constructDateTime, hostnameFromUrl, formatDate} from '../../datetime.js'
 import {TagBuilder} from '../../tags/index.js';
 import {decodeHtmlEntities} from '../../htmlUtils.js';
 
+/**
+ * Normalise the Phantasialand API's name-ish fields. The API has at various
+ * times returned either a bare string (in the default language) or an object
+ * like {en, de, ...}. Accept both without losing data: when only a string is
+ * given, use it as both locales so the framework's locale resolution still
+ * works downstream.
+ */
+function pickLocalisedName(raw: unknown): {en: string; de: string} {
+  if (!raw) return {en: '', de: ''};
+  if (typeof raw === 'string') return {en: raw, de: raw};
+  if (typeof raw === 'object') {
+    const o = raw as Record<string, string | undefined>;
+    const en = o.en || '';
+    const de = o.de || en || '';
+    return {en: en || de, de};
+  }
+  return {en: '', de: ''};
+}
+
 // Category to entity type mapping
 const categoryToEntityType: Record<string, Entity['entityType'] | undefined> = {
   'ATTRACTIONS': 'ATTRACTION',
@@ -339,10 +358,14 @@ export class Phantasialand extends Destination {
 
       if (!entityType) continue;
 
-      // Build multi-language name
-      const enName = poi.title?.en || poi._title?.en || '';
-      const deName = poi.title?.de || poi._title?.de || enName;
-
+      // Build multi-language name. The API ships two shapes:
+      //   - Legacy / full:   title = {en, de}
+      //   - compact=true:    title is a bare string in the API's default
+      //                      language (German) with a separate tagline
+      // Accept either; fall back to the tagline/name fields if title's empty.
+      const {en: enName, de: deName} = pickLocalisedName(
+        poi.title ?? poi._title ?? poi.name,
+      );
       if (!enName && !deName) continue;
 
       // Parse location
