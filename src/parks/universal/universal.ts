@@ -13,7 +13,7 @@ import {
   AttractionTypeEnum,
   QueueTypeEnum,
 } from '@themeparks/typelib';
-import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore} from '../../datetime.js';
+import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore, constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 // Only return restaurants using these dining types
@@ -740,17 +740,22 @@ class Universal extends Destination {
       const showEntry = getOrCreateLiveData(show.Id.toString());
       showEntry.status = 'OPERATING';
 
-      if (show.StartDateTimes) {
+      if (show.StartDateTimes?.length) {
+        // The API returns naive "YYYY-MM-DD HH:mm:ss" strings in the park's
+        // local time. The previous code did `new Date(str)` which V8 parses
+        // as UTC for the space-separated form, then re-projected through the
+        // timezone — leaving every show shifted by the park's UTC offset and
+        // most of the day's slots wrongly "in the past".
         showEntry.showtimes = show.StartDateTimes
           .map((timeStr) => {
-            const showTime = new Date(timeStr);
-            if (isBefore(showTime, now)) return null;
-
-            const formattedTime = parseTimeInTimezone(showTime.toISOString(), this.timezone);
+            const [datePart, timePart] = timeStr.split(' ');
+            if (!datePart || !timePart) return null;
+            const startIso = constructDateTime(datePart, timePart, this.timezone);
+            if (isBefore(new Date(startIso), now)) return null;
             return {
               type: 'Performance Time',
-              startTime: formattedTime,
-              endTime: formattedTime,
+              startTime: startIso,
+              endTime: startIso,
             };
           })
           .filter((x): x is NonNullable<typeof x> => x !== null);
