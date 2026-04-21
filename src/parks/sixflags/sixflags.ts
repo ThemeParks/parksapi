@@ -732,30 +732,31 @@ export class SixFlags extends Destination {
       if (Array.isArray(poiData)) {
         // Rides (venueId: 1)
         const rides = poiData.filter(poi => poi.venueId === 1 && poi.parkId === park.parkId);
-        entities.push(...this.mapPOIEntities(rides, mainParkId, destinationId, tz, 'ATTRACTION'));
+        entities.push(...this.mapPOIEntities(rides, mainParkId, destinationId, tz, 'ATTRACTION', parkLocation));
 
         // Shows (venueId: 2)
         const shows = poiData.filter(poi => poi.venueId === 2 && poi.parkId === park.parkId);
-        entities.push(...this.mapPOIEntities(shows, mainParkId, destinationId, tz, 'SHOW'));
+        entities.push(...this.mapPOIEntities(shows, mainParkId, destinationId, tz, 'SHOW', parkLocation));
 
         // Restaurants (venueId: 4)
         const restaurants = poiData.filter(poi => poi.venueId === 4 && poi.parkId === park.parkId);
-        entities.push(...this.mapPOIEntities(restaurants, mainParkId, destinationId, tz, 'RESTAURANT'));
+        entities.push(...this.mapPOIEntities(restaurants, mainParkId, destinationId, tz, 'RESTAURANT', parkLocation));
 
         // Water-park children — filter the same POI response by the water
         // park's parkId. /poi/park/{wpId} doesn't work.
         for (const wp of park.waterParks) {
           const wpParkEntityId = `sixflags_park_${wp.code}`;
           const wpTz = await this.getTimezoneForPark(wp.parkId);
+          const wpLocation = parkCentroidFromPOI(poiData, wp.parkId) ?? parkLocation;
 
           const wpRides = poiData.filter(poi => poi.venueId === 1 && poi.parkId === wp.parkId);
-          entities.push(...this.mapPOIEntities(wpRides, wpParkEntityId, destinationId, wpTz, 'ATTRACTION'));
+          entities.push(...this.mapPOIEntities(wpRides, wpParkEntityId, destinationId, wpTz, 'ATTRACTION', wpLocation));
 
           const wpShows = poiData.filter(poi => poi.venueId === 2 && poi.parkId === wp.parkId);
-          entities.push(...this.mapPOIEntities(wpShows, wpParkEntityId, destinationId, wpTz, 'SHOW'));
+          entities.push(...this.mapPOIEntities(wpShows, wpParkEntityId, destinationId, wpTz, 'SHOW', wpLocation));
 
           const wpRestaurants = poiData.filter(poi => poi.venueId === 4 && poi.parkId === wp.parkId);
-          entities.push(...this.mapPOIEntities(wpRestaurants, wpParkEntityId, destinationId, wpTz, 'RESTAURANT'));
+          entities.push(...this.mapPOIEntities(wpRestaurants, wpParkEntityId, destinationId, wpTz, 'RESTAURANT', wpLocation));
         }
       }
     }
@@ -772,6 +773,7 @@ export class SixFlags extends Destination {
     destinationId: string,
     tz: string,
     entityType: Entity['entityType'],
+    fallbackLocation: {latitude: number; longitude: number} | null,
   ): Entity[] {
     return this.mapEntities(pois, {
       idField: 'fimsId',
@@ -791,9 +793,14 @@ export class SixFlags extends Destination {
         },
       },
       transform: (entity, poi) => {
-        // Add attraction type for rides
         if (entityType === 'ATTRACTION') {
           (entity as any).attractionType = 'RIDE';
+        }
+        // Fall back to the park's centroid when the POI didn't carry
+        // coordinates. Shows and outdoor restaurants are the main offenders;
+        // without this they'd have no location at all.
+        if (!(entity as any).location && fallbackLocation) {
+          (entity as any).location = fallbackLocation;
         }
         return entity;
       },

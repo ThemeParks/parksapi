@@ -224,6 +224,23 @@ export class PaultonsPark extends Destination {
           };
         }
 
+        // Per-ride operating hours. The legacy JS implementation emitted
+        // these when the feed carried `openingTime`/`closingTime` alongside
+        // `updatedAt`. The feed currently omits them, so this block is
+        // inert — but in place ready to resume if/when those fields return.
+        if (entry.updatedAt && entry.openingTime && entry.closingTime) {
+          const date = entry.updatedAt.substring(0, 10);
+          if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            (ld as any).operatingHours = [
+              {
+                type: 'OPERATING',
+                startTime: constructDateTime(date, entry.openingTime, this.timezone),
+                endTime: constructDateTime(date, entry.closingTime, this.timezone),
+              },
+            ];
+          }
+        }
+
         return ld;
       })
       .filter((x): x is LiveData => x !== null);

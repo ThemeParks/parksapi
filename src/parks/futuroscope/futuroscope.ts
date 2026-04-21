@@ -360,6 +360,19 @@ export class Futuroscope extends Destination {
           break;
       }
 
+      // Refine CLOSED → DOWN when the status texts flag a temporary closure.
+      // Legacy parity: the API exposes this nuance only via free-text hints
+      // ("temporairement fermé" / "temporarily closed"), not a dedicated
+      // numeric code. No-op when `texts` is empty or missing.
+      if (liveDataObj.status === 'CLOSED' && Array.isArray(data.infos?.texts)) {
+        const tempClosed = data.infos.texts.some((t) =>
+          typeof t === 'string' && /temp/i.test(t),
+        );
+        if (tempClosed) {
+          liveDataObj.status = 'DOWN';
+        }
+      }
+
       results.push(liveDataObj);
     }
 

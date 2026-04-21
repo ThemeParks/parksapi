@@ -407,6 +407,20 @@ export class ShanghaiDisneylandResort extends Destination {
           }
         }
 
+        // mayGetWet — inferred from attraction policy text. Legacy checked
+        // only "You may get wet." which missed Roaring Rapids ("You will
+        // get wet, and you may get soaked!"). Broader pattern catches both.
+        if (facility.policies) {
+          const mayGetWet = facility.policies.some((p) =>
+            p.descriptions?.some((d) =>
+              /\byou\s+(?:may|will|might)\s+get\s+(?:wet|soaked|drenched)/i.test(d.text || ''),
+            ),
+          );
+          if (mayGetWet) {
+            tags.push(TagBuilder.mayGetWet());
+          }
+        }
+
         entity.tags = tags.filter(Boolean);
         return entity;
       },
