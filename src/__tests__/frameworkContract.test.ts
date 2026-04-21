@@ -167,6 +167,85 @@ describe('Template method pattern', () => {
     expect(buildCalled).toBe(true);
     expect(liveData.length).toBe(1);
   });
+
+  test('framework strips undefined values from live data, entities, and schedules', async () => {
+    // Guards against the collector's hashObject() which rejects undefined.
+    // Parks sometimes produce undefined via patterns like
+    //   { waitTime: cond ? n : undefined }
+    //   location: { latitude, longitude: maybe }
+    // The framework should scrub these before returning.
+    @destinationController({ category: 'Test' })
+    class TestUndefPark extends Destination {
+      constructor(options?: DestinationConstructor) {
+        super(options);
+      }
+
+      async getDestinations(): Promise<Entity[]> {
+        return [{ id: 'dest', name: 'D', entityType: 'DESTINATION', timezone: 'UTC' } as Entity];
+      }
+
+      protected async buildEntityList(): Promise<Entity[]> {
+        return [
+          {
+            id: 'ride1',
+            name: 'R',
+            entityType: 'ATTRACTION',
+            parentId: 'dest',
+            timezone: 'UTC',
+            location: { latitude: 1, longitude: 2 },
+            tags: undefined,
+          } as any as Entity,
+        ];
+      }
+
+      protected async buildLiveData(): Promise<LiveData[]> {
+        return [
+          {
+            id: 'ride1',
+            status: 'OPERATING',
+            queue: { STANDBY: { waitTime: undefined } },
+            nested: { keep: 'me', drop: undefined, inner: { gone: undefined, stay: 1 } },
+          } as any as LiveData,
+        ];
+      }
+
+      protected async buildSchedules(): Promise<EntitySchedule[]> {
+        return [
+          {
+            id: 'ride1',
+            schedule: [
+              {
+                date: '2026-01-01',
+                openingTime: 'x', closingTime: 'y', type: 'OPERATING',
+                description: undefined,
+              } as any,
+            ],
+          } as EntitySchedule,
+        ];
+      }
+    }
+
+    const park = new TestUndefPark();
+
+    const entities = await park.getEntities();
+    const ride = entities.find(e => e.id === 'ride1')!;
+    expect('tags' in ride).toBe(false);
+
+    const liveData = await park.getLiveData();
+    const entry = liveData[0] as any;
+    expect('drop' in entry.nested).toBe(false);
+    expect('gone' in entry.nested.inner).toBe(false);
+    expect(entry.nested.inner.stay).toBe(1);
+    // waitTime:undefined is removed (not null-coerced) because the existing
+    // waitTime guard treats `undefined == null` as already-valid. Either
+    // outcome is hash-safe; the important thing is the key carries no
+    // undefined value.
+    expect('waitTime' in entry.queue.STANDBY).toBe(false);
+
+    const schedules = await park.getSchedules();
+    const day = schedules[0].schedule[0] as any;
+    expect('description' in day).toBe(false);
+  });
 });
 
 describe('Cache key isolation', () => {

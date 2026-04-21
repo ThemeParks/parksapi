@@ -45,6 +45,34 @@ function sanitizeEntityName(name: string): string {
   return clean.trim();
 }
 
+/**
+ * Remove keys whose value is `undefined` anywhere in the object graph.
+ * Mutates in place. Arrays and nulls pass through unchanged.
+ *
+ * The collector's hashObject() refuses `undefined` values — a parity with
+ * JSON, where `{a: undefined}` serialises to `{}`. Parks occasionally leak
+ * undefined via patterns like `{waitTime: cond ? n : undefined}` or
+ * `location: {lat, lng: maybeNumber}`. Scrubbing at the framework boundary
+ * means every park's output is hash-safe without each one needing to
+ * remember to coerce.
+ */
+function stripUndefinedDeep(value: unknown): void {
+  if (value == null || typeof value !== 'object') return;
+  if (Array.isArray(value)) {
+    for (const item of value) stripUndefinedDeep(item);
+    return;
+  }
+  const obj = value as Record<string, unknown>;
+  for (const key of Object.keys(obj)) {
+    const v = obj[key];
+    if (v === undefined) {
+      delete obj[key];
+    } else if (v !== null && typeof v === 'object') {
+      stripUndefinedDeep(v);
+    }
+  }
+}
+
 export type DestinationConstructor = {
   config?: {[key: string]: string | string[]};
 };
@@ -795,6 +823,7 @@ export abstract class Destination {
       }
     }
 
+    for (const entity of resolved) stripUndefinedDeep(entity);
     return resolved;
   }
 
@@ -844,6 +873,7 @@ export abstract class Destination {
         }
       }
     }
+    for (const entry of data) stripUndefinedDeep(entry);
     return data;
   }
 
@@ -914,7 +944,9 @@ export abstract class Destination {
   @trace()
   async getSchedules(): Promise<EntitySchedule[]> {
     await this.init();
-    return await this.buildSchedules();
+    const schedules = await this.buildSchedules();
+    for (const s of schedules) stripUndefinedDeep(s);
+    return schedules;
   }
 
   /**
