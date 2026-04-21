@@ -17,6 +17,7 @@ import crypto from 'crypto';
 import config from '../../config.js';
 import {http, type HTTPObj} from '../../http.js';
 import {cache} from '../../cache.js';
+import {reusable} from '../../promiseReuse.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {formatInTimezone, addMinutes, constructDateTime} from '../../datetime.js';
@@ -738,6 +739,14 @@ export class SixFlags extends Destination {
   // Live Data
   // ============================================================================
 
+  /**
+   * The collector creates one ResortSync per destination entity (33 of them)
+   * but they all share a single SixFlags instance. Without dedup, each poll
+   * fires 33 concurrent buildLiveData() calls that assemble the same 1446-item
+   * array. @reusable() coalesces the in-flight calls so only one runs per
+   * burst; the next poll starts fresh.
+   */
+  @reusable()
   protected async buildLiveData(): Promise<LiveData[]> {
     const parks = await this.getParkData();
     const liveData: LiveData[] = [];
