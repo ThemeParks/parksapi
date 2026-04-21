@@ -2,6 +2,7 @@ import {Destination, DestinationConstructor} from '../../destination.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
+import {reusable} from '../../promiseReuse.js';
 import config from '../../config.js';
 import {destinationController} from '../../destinationRegistry.js';
 import {
@@ -229,12 +230,17 @@ class EuropaParkBase extends Destination {
 
   // ─── API fetch methods ────────────────────────────────────────────────────
 
-  /** Fetch ALL POI data – large, so cache for 12 hours */
+  /**
+   * Fetch ALL POI data. The endpoint is /api/v2/poi-group (was /api/v2/pois),
+   * returns {pois: [...]}. Response is multi-MB — server sends Cache-Control
+   * max-age=60 s-maxage=120; we cache 12h because the POI catalogue is quasi-
+   * static and we don't need per-minute freshness.
+   */
   @http({cacheSeconds: 60 * 60 * 12} as any)
   async fetchPOIs(): Promise<HTTPObj> {
     return {
       method: 'GET',
-      url: `${this.apiBase}/api/v2/pois?status[]=live`,
+      url: `${this.apiBase}/api/v2/poi-group?status[]=live`,
       options: {json: true},
       tags: [],
     } as any as HTTPObj;
@@ -284,37 +290,44 @@ class EuropaParkBase extends Destination {
     } as any as HTTPObj;
   }
 
-  // ─── Cached data getters ──────────────────────────────────────────────────
+  // ─── Parsed data getters ──────────────────────────────────────────────────
+  //
+  // The @http decorator already caches the serialised response; a second
+  // @cache layer here would re-serialise the parsed array (multi-MB for POIs)
+  // into SQLite on every hit, which dominated buildLiveData latency. @reusable
+  // coalesces concurrent in-flight calls without persisting anything.
 
-  @cache({ttlSeconds: 60 * 60 * 12})
+  @reusable()
   async getPOIs(): Promise<EuropaParkPOI[]> {
     const resp = await this.fetchPOIs();
     const data: any = await resp.json();
-    if (!Array.isArray(data)) {
+    // New endpoint returns {pois: [...]}; older endpoint returned a bare array.
+    const list = Array.isArray(data) ? data : data?.pois;
+    if (!Array.isArray(list)) {
       throw new Error(`Europa-Park: unexpected POI response (type: ${typeof data})`);
     }
-    return data as EuropaParkPOI[];
+    return list as EuropaParkPOI[];
   }
 
-  @cache({ttlSeconds: 60})
+  @reusable()
   async getWaitingTimes(): Promise<EuropaParkWaitTime[]> {
     const resp = await this.fetchWaitingTimes();
     return (await resp.json()) as EuropaParkWaitTime[];
   }
 
-  @cache({ttlSeconds: 60 * 60 * 6})
+  @reusable()
   async getSeasons(): Promise<EuropaParkSeason[]> {
     const resp = await this.fetchSeasons();
     return (await resp.json()) as EuropaParkSeason[];
   }
 
-  @cache({ttlSeconds: 60 * 5})
+  @reusable()
   async getLiveCalendar(): Promise<EuropaParkLiveCalendar> {
     const resp = await this.fetchLiveCalendar();
     return (await resp.json()) as EuropaParkLiveCalendar;
   }
 
-  @cache({ttlSeconds: 60 * 60 * 6})
+  @reusable()
   async getShowTimes(): Promise<EuropaParkShowTime[]> {
     const resp = await this.fetchShowTimes();
     return (await resp.json()) as EuropaParkShowTime[];
@@ -324,10 +337,10 @@ class EuropaParkBase extends Destination {
 
   /**
    * Convert raw POI list into the internal entity format used by both
-   * buildEntityList and buildLiveData.  Mirrors the legacy _getEntities()
+   * buildEntityList and buildLiveData. Mirrors the legacy _getEntities()
    * logic from europaparkdb.js exactly.
    */
-  @cache({ttlSeconds: 60 * 60 * 12})
+  @reusable()
   async getParkEntities(): Promise<EuropaParkEntity[]> {
     const poiData = await this.getPOIs();
     const entities: EuropaParkEntity[] = [];
@@ -419,11 +432,14 @@ class EuropaParkBase extends Destination {
     ];
   }
 
+  @reusable()
   protected async buildEntityList(): Promise<Entity[]> {
     const result: Entity[] = [...(await this.getDestinations())];
 
-    const poiData = await this.getPOIs();
-    const entities = await this.getParkEntities();
+    const [poiData, entities] = await Promise.all([
+      this.getPOIs(),
+      this.getParkEntities(),
+    ]);
 
     // ── Parks ──────────────────────────────────────────────────────────────
     const allowedTypes = new Set(['park', ...PARK_CONFIGS.filter((p) => p.poiType).map((p) => p.poiType!)]);
@@ -580,11 +596,15 @@ class EuropaParkBase extends Destination {
 
   // ─── Template Method: buildLiveData ──────────────────────────────────────
 
+  @reusable()
   protected async buildLiveData(): Promise<LiveData[]> {
-    const entities = await this.getParkEntities();
-    const poiData = await this.getPOIs();
-    const waits = await this.getWaitingTimes();
-    const showTimes = await this.getShowTimes();
+    // Parallelise — these four are independent network calls.
+    const [entities, poiData, waits, showTimes] = await Promise.all([
+      this.getParkEntities(),
+      this.getPOIs(),
+      this.getWaitingTimes(),
+      this.getShowTimes(),
+    ]);
 
     // Build code → entityId map from attraction/show entities
     const codeToEntityId = new Map<string, string>();
@@ -749,6 +769,14 @@ class EuropaParkBase extends Destination {
     const cal = await this.getSeasons();
     const now = new Date();
     const nowDate = formatInTimezone(now, TIMEZONE, 'date');
+    // Cap the emission horizon. Some seasons (e.g. Rulantica) run to 2099 as
+    // a "always open" placeholder. Without a cap the inner loop formats
+    // ~28,000 days per call and dominates the collector's CPU time.
+    const horizonDate = (() => {
+      const raw = formatInTimezone(addDays(now, 180), TIMEZONE, 'date');
+      const [mm, dd, yyyy] = raw.split('/');
+      return `${yyyy}-${mm}-${dd}`;
+    })();
 
     // Filter to open seasons for this park
     const parkSeasons = cal.filter(
@@ -774,24 +802,22 @@ class EuropaParkBase extends Destination {
 
       // Iterate over every day in the season range
       const seasonStart = new Date(season.startAt);
-      const seasonEnd = new Date(season.endAt);
 
       // Extract date-only YYYY-MM-DD strings for the season start/end
-      const seasonStartDate = season.startAt.substring(0, 10);
       const seasonEndDate = season.endAt.substring(0, 10);
 
-      // Walk through dates
-      let current = new Date(seasonStart);
+      // Start from max(seasonStart, today) to skip past entries without walking
+      // year-by-year. Stop at min(seasonEnd, horizon).
+      const effectiveEnd = seasonEndDate < horizonDate ? seasonEndDate : horizonDate;
+      let current = seasonStart.getTime() < now.getTime() ? new Date(now) : seasonStart;
       while (true) {
         const dateStr = formatInTimezone(current, TIMEZONE, 'date');
         // Convert MM/DD/YYYY -> YYYY-MM-DD
         const [mm, dd, yyyy] = dateStr.split('/');
         const isoDate = `${yyyy}-${mm}-${dd}`;
 
-        // Stop if we've gone past season end
-        if (isoDate > seasonEndDate) break;
+        if (isoDate > effectiveEnd) break;
 
-        // Skip dates before today
         if (isoDate < nowDate) {
           current = addDays(current, 1);
           continue;
