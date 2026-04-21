@@ -85,6 +85,27 @@ getCacheKeyPrefix(): string {
 
 Alternatives: `cacheKeyPrefix` property, unique method arguments, or custom `key` function. See Cedar Fair (`src/parks/cedarfair/attractionsio.ts`) for reference.
 
+**Cache versioning (invalidate stale shapes on deploy):** When a method's cached result shape changes — new fields, different grouping, different meaning — bump `cacheVersion` so old entries become unreachable (they still sit in SQLite until TTL but are never looked up). No manual flush needed across machines.
+
+```typescript
+@cache({ttlSeconds: 86400, cacheVersion: 2})  // method-level
+async getParkData() { ... }
+```
+
+Class-level fallback applies to every `@cache` method in the class unless the method sets its own version:
+
+```typescript
+class MyPark extends Destination {
+  protected cacheVersion = 3;                       // property form
+  // or: getCacheVersion(method: string) { return … }  // method form (per-method)
+
+  @cache({ttlSeconds: 60}) async a() { … }          // keyed under :v3
+  @cache({ttlSeconds: 60, cacheVersion: 9}) async b() { … }  // keyed under :v9
+}
+```
+
+Precedence: method option > class `getCacheVersion()` > class `cacheVersion` > unversioned.
+
 #### **@http** (`src/http.ts`)
 Queue-based HTTP with automatic retry, validation, and caching.
 

@@ -678,6 +678,65 @@ describe('Cache', () => {
       expect(matchingKey).not.toMatch(/:v\w/);
     });
 
+    test('class-level cacheVersion property applies to all @cache methods', async () => {
+      class V1Park {
+        @cache({ttlSeconds: 60})
+        async a() { return 'v1-a'; }
+        @cache({ttlSeconds: 60})
+        async b() { return 'v1-b'; }
+      }
+      const v1 = new V1Park();
+      await v1.a(); await v1.b();
+
+      class V2Park {
+        protected cacheVersion = 2;
+        @cache({ttlSeconds: 60})
+        async a() { return 'v2-a'; }
+        @cache({ttlSeconds: 60})
+        async b() { return 'v2-b'; }
+      }
+      const v2 = new V2Park();
+      expect(await v2.a()).toBe('v2-a');
+      expect(await v2.b()).toBe('v2-b');
+
+      const keys = Cache.keys();
+      expect(keys.some(k => k.startsWith('V2Park:a:') && k.endsWith(':v2'))).toBe(true);
+      expect(keys.some(k => k.startsWith('V2Park:b:') && k.endsWith(':v2'))).toBe(true);
+    });
+
+    test('class-level getCacheVersion() overrides property', async () => {
+      class CustomVersionPark {
+        cacheVersion = 1;  // ignored because getCacheVersion is defined
+        getCacheVersion(method: string): string {
+          return method === 'hot' ? '9' : '1';
+        }
+        @cache({ttlSeconds: 60})
+        async hot() { return 'hot-data'; }
+        @cache({ttlSeconds: 60})
+        async cold() { return 'cold-data'; }
+      }
+      const p = new CustomVersionPark();
+      await p.hot(); await p.cold();
+      const keys = Cache.keys();
+      expect(keys.some(k => k.includes('CustomVersionPark:hot') && k.endsWith(':v9'))).toBe(true);
+      expect(keys.some(k => k.includes('CustomVersionPark:cold') && k.endsWith(':v1'))).toBe(true);
+    });
+
+    test('method-level cacheVersion overrides class-level', async () => {
+      class MixedVersionPark {
+        protected cacheVersion = 1;
+        @cache({ttlSeconds: 60})
+        async inherits() { return 'x'; }
+        @cache({ttlSeconds: 60, cacheVersion: 5})
+        async overrides() { return 'y'; }
+      }
+      const p = new MixedVersionPark();
+      await p.inherits(); await p.overrides();
+      const keys = Cache.keys();
+      expect(keys.some(k => k.includes('MixedVersionPark:inherits') && k.endsWith(':v1'))).toBe(true);
+      expect(keys.some(k => k.includes('MixedVersionPark:overrides') && k.endsWith(':v5'))).toBe(true);
+    });
+
     test('should handle default ttlSeconds parameter', async () => {
       let callCount = 0;
 

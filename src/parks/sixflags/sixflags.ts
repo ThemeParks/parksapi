@@ -412,8 +412,12 @@ export class SixFlags extends Destination {
 
   /**
    * Get the fully resolved list of parks with names and water park info (cached 24h).
+   *
+   * Bump `cacheVersion` whenever the shape of this method's result changes
+   * (new fields, new grouping rules like WATERPARK_PARENT_OVERRIDES, …).
+   * Old entries become unreachable and expire on their TTL — no manual flush.
    */
-  @cache({ttlSeconds: 86400})
+  @cache({ttlSeconds: 86400, cacheVersion: 2})
   async getParkData(): Promise<SixFlagsParkData[]> {
     const entries = await this.getFirebaseConfig();
 

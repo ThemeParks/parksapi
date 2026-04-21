@@ -467,9 +467,20 @@ export default function cacheDecorator({ttlSeconds = 60, callback, key, cacheVer
         prefix = this.cacheKeyPrefix;
       }
 
-      // Version suffix: when cacheVersion changes, old cache entries become unreachable
+      // Version suffix: when this changes, old cache entries become unreachable
       // and expire naturally — no manual cache flush needed across machines.
-      const versionSuffix = cacheVersion !== undefined ? `:v${cacheVersion}` : '';
+      // Precedence: method-level option > class getCacheVersion() > class
+      // cacheVersion property > unversioned.
+      let resolvedVersion: number | string | undefined = cacheVersion;
+      if (resolvedVersion === undefined) {
+        if (typeof this.getCacheVersion === 'function') {
+          const v = this.getCacheVersion(propertyKey);
+          resolvedVersion = v instanceof Promise ? await v : v;
+        } else if (this.cacheVersion !== undefined) {
+          resolvedVersion = this.cacheVersion;
+        }
+      }
+      const versionSuffix = resolvedVersion !== undefined && resolvedVersion !== null && resolvedVersion !== '' ? `:v${resolvedVersion}` : '';
 
       let cacheKey: string;
 
