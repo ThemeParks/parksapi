@@ -105,6 +105,27 @@ type DLPPremierAccessEntry = {
   price?: number;
 };
 
+type DLPVQueueWave = {
+  waveId: string;
+  name?: string;
+  openAt?: string | null;
+  closedAt?: string | null;
+  status?: string;
+};
+
+type DLPVQueueEntry = {
+  queueId: string;
+  enabled: boolean;
+  queueContentId: string;
+  activityId: string;
+  nextWaveId?: string;
+  waves?: DLPVQueueWave[];
+};
+
+type DLPVQueueResponse = {
+  queues?: DLPVQueueEntry[];
+};
+
 type DLPScheduleActivityEntry = {
   id: string;
   name?: string;
@@ -133,6 +154,24 @@ export class DisneylandParis extends Destination {
 
   @config
   premierAccessApiKey: string = '';
+
+  /**
+   * Free standby virtual-queue endpoint base.
+   *
+   * The API is scoped per "activity" — a meta-grouping of VQ-enabled
+   * attractions (e.g. meet & greets share one activity). The activity
+   * names are stable but not discoverable programmatically; configure
+   * via DLP_VQUEUEACTIVITIES (comma-separated). When empty, VQ fetching
+   * is a no-op.
+   */
+  @config
+  vqueueApiBase: string = '';
+
+  @config
+  vqueueApiKey: string = '';
+
+  @config
+  vqueueActivities: string = '';
 
   @config
   language: LanguageCode = 'en-gb' as LanguageCode;
@@ -202,6 +241,25 @@ export class DisneylandParis extends Destination {
       ...requestObj.headers,
       'x-api-key': this.premierAccessApiKey,
       'accept': 'application/json',
+    };
+  }
+
+  /**
+   * Inject headers into virtual-queue API requests
+   */
+  @inject({
+    eventName: 'httpRequest',
+    hostname: function () {
+      if (!this.vqueueApiBase) return '__noop__';
+      return new URL(this.vqueueApiBase).hostname;
+    },
+    tags: {$in: ['vqueue']},
+  })
+  async injectVQueueHeaders(requestObj: HTTPObj): Promise<void> {
+    requestObj.headers = {
+      ...requestObj.headers,
+      'x-api-key': this.vqueueApiKey,
+      'accept': 'application/json, text/plain, */*',
     };
   }
 
@@ -396,6 +454,51 @@ export class DisneylandParis extends Destination {
       console.error(`[DLP] Error fetching premier access data: ${e}`);
       return [];
     }
+  }
+
+  /** Fetch a single activity's virtual-queue state. */
+  @http({cacheSeconds: 60})
+  async fetchVQueueActivity(activityId: string): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.vqueueApiBase}/activities/${activityId}/queues`,
+      options: {json: true},
+      tags: ['vqueue'],
+    } as any as HTTPObj;
+  }
+
+  /**
+   * Aggregate VQ data across every configured activity into a flat list.
+   * Activities are listed via `vqueueActivities` (comma-separated). Returns
+   * an empty array if the feature is unconfigured, so callers can always
+   * dereference.
+   */
+  @cache({ttlSeconds: 60})
+  async getVirtualQueueData(): Promise<DLPVQueueEntry[]> {
+    if (!this.vqueueApiBase || !this.vqueueApiKey || !this.vqueueActivities) {
+      return [];
+    }
+    const activities = this.vqueueActivities
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (activities.length === 0) return [];
+
+    const results: DLPVQueueEntry[] = [];
+    await Promise.all(
+      activities.map(async (activity) => {
+        try {
+          const resp = await this.fetchVQueueActivity(activity);
+          const data = (await resp.json()) as DLPVQueueResponse;
+          if (Array.isArray(data?.queues)) {
+            results.push(...data.queues);
+          }
+        } catch (e) {
+          console.error(`[DLP] Error fetching vqueue activity ${activity}: ${e}`);
+        }
+      }),
+    );
+    return results;
   }
 
   // ===== Helper Methods =====
@@ -667,6 +770,42 @@ export class DisneylandParis extends Destination {
         'EUR',
         pa.price != null ? Math.round(pa.price * 100) : null,
       );
+    }
+
+    // === Virtual Queue (free return time) ===
+    // Each queue's waves array is ordered chronologically by openAt; the
+    // next wave that still has capacity is the one to surface. If all
+    // waves have status FINISHED, the queue's done for the day.
+    const vqueueData = await this.getVirtualQueueData();
+    for (const q of vqueueData) {
+      if (!q.queueContentId || q.enabled === false) continue;
+      const waves = q.waves ?? [];
+      if (waves.length === 0) continue;
+
+      const activeWave =
+        (q.nextWaveId && waves.find((w) => w.waveId === q.nextWaveId)) ||
+        waves.find((w) => (w.status || '').toUpperCase() !== 'FINISHED');
+
+      const allFinished = waves.every(
+        (w) => (w.status || '').toUpperCase() === 'FINISHED',
+      );
+
+      const ld = getOrCreate(q.queueContentId);
+      if (!ld.queue) ld.queue = {};
+
+      if (allFinished || !activeWave) {
+        ld.queue.RETURN_TIME = this.buildReturnTimeQueue('FINISHED', null, null);
+      } else {
+        // Wave statuses observed: CLOSED (scheduled, not yet open), FINISHED,
+        // and presumably OPEN/AVAILABLE when actively booking. Anything
+        // non-FINISHED surfaces as AVAILABLE with the wave's window so the
+        // wiki can render the upcoming slot.
+        ld.queue.RETURN_TIME = this.buildReturnTimeQueue(
+          'AVAILABLE',
+          activeWave.openAt || null,
+          activeWave.closedAt || null,
+        );
+      }
     }
 
     // === Show Times (from today's schedule) ===
