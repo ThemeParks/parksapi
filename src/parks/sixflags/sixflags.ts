@@ -234,6 +234,24 @@ function timezoneFromCoords(latitude: number, longitude: number): string {
 }
 
 // ============================================================================
+// Manual water-park grouping overrides
+// ============================================================================
+//
+// Firebase's parkHourSettings lists each water park with showThemePark=true
+// whenever the vendor runs it as its own gated operation, even when the site
+// is physically adjacent to a Six Flags theme park and has always been
+// surfaced on the wiki as a child of that park. Only a handful of water
+// parks are nested under a theme park in Firebase's own otherParks array
+// (currently HHNJ/HHLA/HHCH) — the rest we fold in manually here.
+//
+// Keys are fimsId (= Firebase parkId). Values are the fimsId of the theme
+// park that should become their parent destination.
+const WATERPARK_PARENT_OVERRIDES: Record<number, number> = {
+  913: 901, // Hurricane Harbor Arlington  → Six Flags Over Texas
+  944: 943, // Hurricane Harbor Oklahoma City → Six Flags Frontier City
+};
+
+// ============================================================================
 // Main Class
 // ============================================================================
 
@@ -425,9 +443,38 @@ export class SixFlags extends Destination {
 
     // Filter to theme parks (showThemePark === true)
     // The parkId is the key of the settings object, not a field on the value
-    const mainParks = Object.entries(settings)
+    const allMainCandidates = Object.entries(settings)
       .filter(([, s]) => s.showThemePark === true)
       .map(([id, s]) => ({ ...s, parkId: parseInt(id, 10) }));
+
+    // Resolve the overridden children once, so we can both skip them in the
+    // main-park list and attach them as waterParks on their declared parents.
+    // Names go through the same oneShot → venue-status fallback main parks use.
+    const overriddenChildIds = new Set(Object.keys(WATERPARK_PARENT_OVERRIDES).map(Number));
+    const overrideChildren = new Map<number, {parkId: number; code: string; name: string}>();
+    await Promise.all(
+      allMainCandidates
+        .filter(c => overriddenChildIds.has(c.parkId))
+        .map(async c => {
+          let name = parkNamesMap.get(c.parkId);
+          if (!name) {
+            try {
+              const resp = await this.fetchVenueStatus(c.parkId);
+              const vs: SixFlagsVenueStatus = await resp.json();
+              name = vs?.parkName || undefined;
+            } catch {
+              // fall through to code
+            }
+          }
+          overrideChildren.set(c.parkId, {
+            parkId: c.parkId,
+            code: c.code,
+            name: name || c.code,
+          });
+        }),
+    );
+
+    const mainParks = allMainCandidates.filter(p => !overriddenChildIds.has(p.parkId));
 
     // Resolve names in parallel (fallback to venue-status API)
     const parks = await Promise.all(mainParks.map(async (park) => {
@@ -453,6 +500,20 @@ export class SixFlags extends Destination {
           name: op.subProperty || `Water Park ${op.fimsSiteCode}`,
           label: op.label,
         }));
+
+      // Fold in any water parks we've manually re-parented to this theme park.
+      for (const [childId, parentId] of Object.entries(WATERPARK_PARENT_OVERRIDES)) {
+        if (parentId !== park.parkId) continue;
+        const child = overrideChildren.get(Number(childId));
+        if (!child) continue;
+        if (waterParks.some(wp => wp.parkId === child.parkId)) continue;
+        waterParks.push({
+          parkId: child.parkId,
+          code: child.code,
+          name: child.name,
+          label: 'Water Park',
+        });
+      }
 
       return {
         parkId: park.parkId,
