@@ -19,11 +19,14 @@ const TIMEZONE = 'Asia/Singapore';
 // Categories to fetch for entity building and live data
 const ENTITY_CATEGORIES = [1, 2, 3] as const; // Rides, Shows, Meet & Greets
 
-// Map category ID → entityType
+// Map category ID → entityType. Meet & Greets are emitted as SHOW
+// pending a dedicated entityType upstream — they're not rides, and the
+// OperatingHours feed surfaces them with pipe-delimited showtimes just
+// like regular shows.
 const CATEGORY_ENTITY_TYPE: Record<number, Entity['entityType']> = {
   1: 'ATTRACTION', // Rides
   2: 'SHOW',       // Shows
-  3: 'ATTRACTION', // Meet & Greets
+  3: 'SHOW',       // Meet & Greets
 };
 
 // ─── API types ────────────────────────────────────────────────────────────────
@@ -39,6 +42,8 @@ type USSAttraction = {
   AvgTime: number;
   LatLng: string; // "103.8215,1.2539" — lng,lat order
   ReasonCode: string;
+  /** Pipe-delimited showtime list for shows / meet & greets, e.g. "01:30 PM | 03:30 PM" */
+  OperatingHours?: string;
 };
 
 type USSAttractionListResponse = {
@@ -147,6 +152,31 @@ function parseWaitTime(waitTimeStr: string): number | null {
     return minutes;
   }
   return null;
+}
+
+/**
+ * Parse an OperatingHours string like "01:30 PM | 03:30 PM" into an array
+ * of ISO 8601 datetime strings in the park timezone, anchored to `date`
+ * (YYYY-MM-DD).
+ *
+ * The app shows these as the day's performance slots. Times arrive in
+ * 12-hour clock format with a space before AM/PM.
+ */
+function parseOperatingHours(raw: string | undefined, date: string): string[] {
+  if (!raw) return [];
+  const out: string[] = [];
+  for (const slot of raw.split('|')) {
+    const m = slot.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!m) continue;
+    let hour = parseInt(m[1], 10);
+    const minute = m[2];
+    const meridiem = m[3].toUpperCase();
+    if (meridiem === 'PM' && hour !== 12) hour += 12;
+    if (meridiem === 'AM' && hour === 12) hour = 0;
+    const hh = String(hour).padStart(2, '0');
+    out.push(constructDateTime(date, `${hh}:${minute}:00`, TIMEZONE));
+  }
+  return out;
 }
 
 /**
@@ -483,6 +513,9 @@ export class UniversalSingapore extends Destination {
       (a) => a.isWaitTimeEnable && (parseWaitTime(a.WaitTime) ?? 0) > 0,
     );
 
+    // Today's date in park timezone, anchored once so every showtime aligns
+    const todayDate = formatDate(new Date(), TIMEZONE);
+
     for (const attr of allAttrs) {
       const tempUnavailable = /^\[(?:Temporarily )?unavailable\]/i.test(attr.Title);
       const waitTime = attr.isWaitTimeEnable
@@ -503,6 +536,22 @@ export class UniversalSingapore extends Destination {
 
       if (status === 'OPERATING' && attr.isWaitTimeEnable && waitTime != null) {
         ld.queue = {STANDBY: {waitTime: waitTime ?? undefined}};
+      }
+
+      // Showtimes for categories 2/3 (shows + meet & greets) come from the
+      // pipe-delimited OperatingHours string. Emit even when currently
+      // CLOSED — the wiki shows the day's schedule either way.
+      const isShowCategory =
+        attr.AttractionCategoryId === 2 || attr.AttractionCategoryId === 3;
+      if (isShowCategory && attr.OperatingHours) {
+        const times = parseOperatingHours(attr.OperatingHours, todayDate);
+        if (times.length > 0) {
+          (ld as any).showtimes = times.map((startTime) => ({
+            type: 'Performance Time',
+            startTime,
+            endTime: startTime,
+          }));
+        }
       }
 
       results.push(ld);
