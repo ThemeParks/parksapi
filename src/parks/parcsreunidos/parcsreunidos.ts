@@ -378,22 +378,53 @@ class ParcsReunidosDestination extends Destination {
           const day = parseInt(dayStr, 10);
           if (isNaN(day) || day < 1 || day > 31) continue;
 
-          const timeLabel = labelMap.get(labelKey);
-          if (!timeLabel) continue;
-
-          // Skip "closed" entries
-          if (timeLabel.toLowerCase().includes('closed')) continue;
-
-          const hours = this.parseTimeRange(timeLabel);
-          if (!hours) continue;
-
+          // Some sites encode multiple sessions per day as a comma-separated
+          // list of label keys. Single-key days stay a one-element array.
+          const keys = String(labelKey).split(',').map(k => k.trim()).filter(Boolean);
           const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          scheduleEntries.push({
-            date: dateStr,
-            type: 'OPERATING',
-            openingTime: constructDateTime(dateStr, hours.open, this.timezone),
-            closingTime: constructDateTime(dateStr, hours.close, this.timezone),
-          });
+
+          const emitted: Array<{openingTime: string; closingTime: string; description?: string}> = [];
+          for (const k of keys) {
+            const timeLabel = labelMap.get(k);
+            if (!timeLabel) continue;
+            if (timeLabel.toLowerCase().includes('closed')) continue;
+
+            const hours = this.parseTimeRange(timeLabel);
+            if (!hours) continue;
+
+            emitted.push({
+              openingTime: constructDateTime(dateStr, hours.open, this.timezone),
+              closingTime: constructDateTime(dateStr, hours.close, this.timezone),
+              description: this.extractLabelDescription(timeLabel),
+            });
+          }
+
+          // Legacy rule: if only one session, always mark OPERATING (drop any
+          // description from an event-prefix). With multiple sessions, the
+          // first is OPERATING and the rest are INFO rows so downstream
+          // consumers see the extra windows (parallel venues, evening
+          // extensions, after-hours events).
+          if (emitted.length === 1) {
+            scheduleEntries.push({
+              date: dateStr,
+              type: 'OPERATING',
+              openingTime: emitted[0].openingTime,
+              closingTime: emitted[0].closingTime,
+            });
+          } else {
+            for (let i = 0; i < emitted.length; i++) {
+              const entry: {date: string; type: string; openingTime: string; closingTime: string; description?: string} = {
+                date: dateStr,
+                type: i === 0 ? 'OPERATING' : 'INFO',
+                openingTime: emitted[i].openingTime,
+                closingTime: emitted[i].closingTime,
+              };
+              if (i > 0 && emitted[i].description) {
+                entry.description = emitted[i].description;
+              }
+              scheduleEntries.push(entry);
+            }
+          }
         }
       }
     }
@@ -459,6 +490,25 @@ class ParcsReunidosDestination extends Destination {
     if (!isPm && hour === 12) hour = 0;
 
     return `${String(hour).padStart(2, '0')}:${minutes}`;
+  }
+
+  /**
+   * Strip the parseable time range out of a label and return what remains —
+   * the human-readable session name, e.g. "Halloween Horror Festival" from
+   * "Halloween Horror Festival - 22:00-03:00". Returns undefined when the
+   * label is just a bare time range.
+   */
+  private extractLabelDescription(label: string): string | undefined {
+    // Remove any am/pm time range, 24h time range, or Dutch "tot" range.
+    const stripped = label
+      .replace(/\d{1,2}(?::\d{2})?\s*a\.m\.\s*[–\-]\s*\d{1,2}(?::\d{2})?\s*p\.m\./i, '')
+      .replace(/\d{1,2}(?::\d{2})?\s*(?:am|pm)\s*[–\-]\s*\d{1,2}(?::\d{2})?\s*(?:am|pm)/i, '')
+      .replace(/\d{1,2}(?::\d{2})?\s*(?:tot|t\/m)\s*\d{1,2}(?::\d{2})?u?/i, '')
+      .replace(/\d{1,2}(?::\d{2})?\s*(?:a|al)\s*\d{1,2}(?::\d{2})?/i, '')  // ES "12:00 a 20:00"
+      .replace(/\d{1,2}(?::\d{2})?\s*[–\-]\s*\d{1,2}(?::\d{2})?/, '');
+    // Clean up separators/whitespace left behind.
+    const desc = stripped.replace(/^[\s\-–—:]+|[\s\-–—:]+$/g, '').trim();
+    return desc.length > 0 ? desc : undefined;
   }
 
   /**

@@ -54,6 +54,43 @@ run `npm run migrate -- <parkId>` to update externalIds on api.themeparks.wiki.
 - Silver Dollar City schedules: 500s on large day ranges (fixed with 7-day batching)
 - Six Flags: 155 entities from international/seasonal parks return 404 from POI endpoint
 
+## Legacy → TS parity regressions
+
+Surfaced by a legacy-vs-new audit. Each item represents a feature the JS
+collector emitted that the TS port doesn't — or emits differently. Listed
+roughly by user impact. Legacy source is in git at `abd939ff^:lib/parks/`.
+
+### Resolved
+
+- ~~**Disneyland Paris free virtual queue**~~ — restored via new x-api-key
+  endpoint (`91f0da3a`). Requires collector env: `DLP_VQUEUEAPIBASE`,
+  `DLP_VQUEUEAPIKEY`, `DLP_VQUEUEACTIVITIES=HeroTrainingCenter`.
+- ~~**Paultons operatingHours**~~ — structurally restored; dormant until
+  upstream re-adds `openingTime`/`closingTime` fields (`396487d3`).
+- ~~**Shanghai Disney mayGetWet**~~ — restored; fastPass dropped per
+  product decision (deprecated phrase) (`396487d3`).
+- ~~**Futuroscope DOWN vs CLOSED**~~ — text-inspection fallback added
+  (`396487d3`).
+- ~~**USS showtimes + meet & greets as SHOW**~~ — `OperatingHours` parsed
+  into showtimes for both shows and meet & greets (`06bb339d`).
+
+### Skipped by design
+
+- **Six Flags showtime location** — not in spec.
+- **Tokyo Disney `fastPass` tag** — `fastPass` deprecated; `paidReturnTime`
+  is the current equivalent.
+
+### Still open
+
+- **Parcs Reunidos multi-session schedules collapsed.** Legacy iterated
+  every hour-label key per day and emitted extra sessions as `INFO`
+  rows with the label as description. New code
+  (`src/parks/parcsreunidos/parcsreunidos.ts:377-397`) breaks at the
+  first match and emits a single `OPERATING` row. Affects Mirabilandia,
+  Bobbejaanland, Parque Warner, Movie Park Germany, and other parks
+  sharing this base class. Legacy ref:
+  `lib/parks/parquesreuindos/parquesreunidos.js:577-604`.
+
 ### Universal Studios Singapore (`src/parks/uss/universalsingapore.ts`)
 
 - ~~**Schedule data**~~: Implemented. Per-day hours from embedded Sitecore page HTML (`rwsentosa.com`) combined with `themeParkCalendarList` for availability. ~91 days coverage (current month + 2 more), accurate per-day close times (e.g. 19:00 on some days).
