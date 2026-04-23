@@ -31,6 +31,7 @@
     "health": "tsx --env-file=.env src/harness/health.ts",
     "migrate": "tsx --env-file=.env src/tools/migrate/index.ts",
     "migrate:audit": "tsx --env-file=.env src/tools/migrate/audit.ts",
+    "audit:live": "tsx --env-file=.env src/tools/audit/live.ts",
     "har": "tsx src/tools/har/index.ts",
     "docs": "typedoc",
     "prepare": "tsc"
