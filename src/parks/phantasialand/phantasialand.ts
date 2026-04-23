@@ -131,10 +131,15 @@ export class Phantasialand extends Destination {
   }
 
   /**
-   * Handle 401/403 responses by clearing cached access token and nullifying the
-   * response so the HTTP framework treats it as a retryable network error —
-   * the retry will then obtain a fresh token. Skipped for auth requests
-   * themselves to avoid infinite loops.
+   * Handle 401/403 responses. Both nullify the response so the HTTP framework
+   * retries the request (4xx is otherwise non-retryable). Only 401 invalidates
+   * the cached token — a 403 here is not an auth failure. phlsys returns 403
+   * from /signage-snapshots when the IP is briefly rate-limited while
+   * simultaneously accepting the same token on /park-infos. Re-logging on 403
+   * would roughly double our request rate during a flake window (create-user
+   * + login per retry) and makes the rate limit stick longer; plain retries
+   * without auth churn recover faster. Skipped for auth requests themselves
+   * to avoid infinite loops.
    */
   @inject({
     eventName: 'httpError',
@@ -143,14 +148,18 @@ export class Phantasialand extends Destination {
   } as any)
   async handleUnauthorized(requestObj: HTTPObj): Promise<void> {
     const status = requestObj.response?.status;
-    if (status === 401 || status === 403) {
-      // Clear both token AND user — if the anonymous account was pruned server-side,
-      // re-login will keep succeeding but every issued token will 403. Forcing a
-      // new createUser on retry is the only recovery path.
+    if (status !== 401 && status !== 403) return;
+
+    if (status === 401) {
+      // Invalid token — clear both token AND user. If the anonymous account
+      // was pruned server-side, re-login succeeds but the issued token still
+      // 401s; forcing a new createUser on retry is the only recovery path.
       CacheLib.delete('phantasialand:accessToken');
       CacheLib.delete(`${this.constructor.name}:createUser:[]`);
-      requestObj.response = undefined as any;
     }
+
+    // Nullify the response so the HTTP queue treats it as retryable.
+    requestObj.response = undefined as any;
   }
 
   // ===== Header & Token Injection =====
