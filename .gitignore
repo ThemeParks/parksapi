@@ -26,6 +26,16 @@ entity-map-viewer.html
 
 # Claude Code local settings
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# opencode local config
+opencode.json
+
+# Ad-hoc log captures
+output.log
+
+# Local utility scripts
+scripts/
 
 # Specs/plans (local only, not committed)
 VQUEUE_FRAMEWORK_SPEC.md
