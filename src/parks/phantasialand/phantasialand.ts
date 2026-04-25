@@ -208,9 +208,14 @@ export class Phantasialand extends Destination {
   // ===== HTTP Fetch Methods =====
 
   /**
-   * Fetch POI data (entity list)
+   * Fetch POI data (entity list).
+   *
+   * No cacheSeconds: getPOI's @cache layer is the authoritative cache.
+   * The @http cache key is hashed before request injectors run, so
+   * accept-language wouldn't participate — keeping it would mean a stale
+   * German-titled response could outlive a cacheVersion bump on getPOI.
    */
-  @http({cacheSeconds: 21600, retries: 2}) // 6 hours
+  @http({retries: 2})
   async fetchPOI(): Promise<HTTPObj> {
 
     return {
