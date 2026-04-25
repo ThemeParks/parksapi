@@ -1,7 +1,7 @@
 import {Destination, DestinationConstructor} from '../../destination.js';
 import crypto from 'crypto';
 
-import {cache} from '../../cache.js';
+import {cache, CacheLib} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
 import config from '../../config.js';
@@ -951,6 +951,41 @@ export class DisneylandParis extends Destination {
       }
     } catch (e) {
       console.error(`[DLP] Error fetching today's schedule for show times: ${e}`);
+    }
+
+    // === Baseline STANDBY/SINGLE_RIDER for closed-overnight rides ===
+    // The wait-times feed goes silent shortly after park close. Without a
+    // baseline emission, attractions that only have premier-access data
+    // (next-morning slots) would lose their STANDBY/SINGLE_RIDER fields
+    // until the API wakes back up. Consumers expect these queues to stay
+    // present so they can render `wait: null` rather than disappearing.
+    //
+    // Single-rider eligibility isn't on POI, so remember IDs we've seen
+    // with `singleRider.isAvailable === true` and re-emit SINGLE_RIDER
+    // null for them while the feed is asleep.
+    const srCacheKey = `${this.getCacheKeyPrefix()}:dlp:singleRiderCapable`;
+    const previouslySeenSR = CacheLib.get(srCacheKey) as string[] | null;
+    const seenSR = new Set<string>(Array.isArray(previouslySeenSR) ? previouslySeenSR : []);
+    for (const wt of waitTimes) {
+      if (wt.singleRider?.isAvailable === true && wt.entityId) seenSR.add(wt.entityId);
+    }
+    CacheLib.set(srCacheKey, [...seenSR], 30 * 24 * 60 * 60); // 30 days
+
+    const attractionIds = (await this.getEmittablePOIEntities())
+      .filter((poi) => this.mapEntityType(poi) === 'ATTRACTION')
+      .map((poi) => poi.id);
+    for (const id of attractionIds) {
+      let ld = liveDataMap.get(id);
+      if (!ld) {
+        ld = {id, status: 'CLOSED'} as LiveData;
+        liveDataMap.set(id, ld);
+        liveData.push(ld);
+      }
+      if (!ld.queue) ld.queue = {};
+      if (!ld.queue.STANDBY) ld.queue.STANDBY = {waitTime: null};
+      if (!ld.queue.SINGLE_RIDER && seenSR.has(id)) {
+        ld.queue.SINGLE_RIDER = {waitTime: null};
+      }
     }
 
     return liveData;
