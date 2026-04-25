@@ -6,7 +6,7 @@ These instructions describe project-specific conventions. **Do not flag the patt
 
 ## Project overview
 
-parksapi is a TypeScript ESM library that fetches real-time theme park data (wait times, schedules, entities) from 75+ park implementations. All park integrations live under `src/parks/<park>/`. The core abstraction is the `Destination` base class with a Template Method pattern: subclasses implement `_init()`, `buildEntityList()`, `buildLiveData()`, `buildSchedules()`, **never** the public `get*()` methods.
+parksapi is a TypeScript ESM library that fetches real-time theme park data (wait times, schedules, entities) from 75+ park implementations. All park integrations live under `src/parks/<park>/`. The core abstraction is the `Destination` base class with a Template Method pattern: subclasses implement `_init()`, `buildEntityList()`, `buildLiveData()`, `buildSchedules()`, plus override `getDestinations()` to declare the resort. The other public `get*()` methods (`getEntities`, `getLiveData`, `getSchedules`) must **not** be overridden.
 
 Node 24+, npm 11+, ES2022 modules, decorators enabled.
 
@@ -32,7 +32,13 @@ Five decorators carry most of the framework:
 @config email: string = '';
 ```
 
-`CLAUDE.md` requires that **no URLs, keys, tokens, or app versions ever appear hardcoded in source**. Empty-string defaults force configuration via `.env` and are the documented convention. **Do not suggest providing fallback URLs, default keys, or upfront validation that throws on empty strings.** The HTTP layer's URL-construction error is the documented failure signal when env vars are missing.
+`CLAUDE.md` requires that **no URLs, keys, tokens, or credentials ever appear hardcoded in source**. Empty-string defaults force configuration via `.env` and are the documented convention. **Do not suggest providing fallback URLs, default keys, or upfront validation that throws on empty strings.** The HTTP layer's URL-construction error is the documented failure signal when env vars are missing.
+
+**App version strings are an exception** — they are not secrets and may carry sensible defaults (still overridable via env):
+
+```ts
+@config appVersion: string = '4.1.10';   // OK — versions can default
+```
 
 It is fine — and preferred — to throw a clear error when a credential is needed *for a specific operation* (e.g., `if (!this.email || !this.password) throw new Error('… requires …_EMAIL and …_PASSWORD …')` inside the auth method that needs it). What you should not suggest is gating the whole class on non-empty `apiBase` upfront.
 
@@ -68,9 +74,11 @@ The `HTTPObj`/`Entity`/`LiveData`/`EntitySchedule` types from `@themeparks/typel
 
 Methods decorated with `@cache`, `@reusable`, or that go through `CacheLib.wrap` are expected to throw on auth failures, missing config, or upstream errors. The framework handles propagation. **Do not suggest wrapping these in try/catch unless there is a specific recovery path** that makes sense (e.g. `EMAIL_NOT_FOUND` → fall back to sign-up).
 
-### 7. Public-method overrides are forbidden
+### 7. Most public-method overrides are forbidden — but `getDestinations()` is the supported exception
 
-Subclasses must implement `buildEntityList`, `buildLiveData`, `buildSchedules`, and (rarely) `_init`. Do **not** suggest overriding `getEntities()`, `getLiveData()`, `getSchedules()`, or `getDestinations()` on a `Destination` subclass — those are non-overridable public entry points that the framework wires up.
+Subclasses must implement `buildEntityList`, `buildLiveData`, `buildSchedules`, and (rarely) `_init`. Do **not** suggest overriding `getEntities()`, `getLiveData()`, or `getSchedules()` — those are non-overridable public entry points the framework wires up.
+
+`getDestinations()` **is** the supported public override and every park subclass overrides it to declare the resort entity. Do not flag this.
 
 ## Park-implementation expectations
 
@@ -121,9 +129,9 @@ export class FooPark extends Destination {
 
 ### Cache-TTL conventions
 
-- Live data: ~60s (matches typical app polling cadence)
-- Entity / facility lists: ~6h (`21600`s)
-- Schedules / opening calendars: ~6h
+- Live data: `60`s (matches typical app polling cadence)
+- Entity / facility lists: `43200`s (12h) is the canonical default; 6–12h is acceptable
+- Schedules / opening calendars: `43200`s (12h) is the canonical default; 6–12h is acceptable
 - Auth tokens: as long as the issuer permits, often 30 days+; clear on 401 via an `httpError` injector
 
 ### Status / wait-time mapping
@@ -157,7 +165,7 @@ When the source API uses localised strings (e.g. `"営業準備中"` / `"Prepari
 - Use of `isNaN()` on values from external APIs (use `Number.isFinite` or `parseInt`/`parseFloat`)
 - `waitTime` ever being NaN or non-numeric (must be a finite number or null/undefined)
 - Cache keys that collide across destinations sharing a base class (use `getCacheKeyPrefix()` or unique method args)
-- Direct overrides of `getDestinations` / `getEntities` / `getLiveData` / `getSchedules` (must implement `build*` instead)
+- Direct overrides of `getEntities` / `getLiveData` / `getSchedules` (must implement `build*` instead). Note: overriding `getDestinations()` **is** expected and should not be flagged.
 - Entity IDs that are not strings
 - Adding `@config` to a class that already uses `@destinationController`
 - Caching non-JSON-safe types (Set, Map, Date)
