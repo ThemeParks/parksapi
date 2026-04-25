@@ -33,6 +33,7 @@ const IGNORE_ENTITIES = new Set([
 const VISIBILITY_EXCEPTIONS = new Set([
   'P2EA00', // Frozen Ever After
   'P2DA00', // Tangled Spin
+  'P2EA02', // Entry to World of Frozen
 ]);
 
 /** Hide rules that exclude entities from the POI list */
@@ -90,12 +91,32 @@ type DLPWaitTimeEntry = {
   entityId: string;
   type: string;
   status: string | null;
-  postedWaitMinutes: number | null;
+  // API returns numeric strings ("5", "40"); coerce via parseDLPWait before use.
+  postedWaitMinutes: string | number | null;
   singleRider?: {
     isAvailable: boolean;
-    singleRiderWaitMinutes?: number;
+    singleRiderWaitMinutes?: string | number;
   };
 };
+
+function parseDLPWait(v: unknown): number | undefined {
+  if (v === null || v === undefined || v === '') return undefined;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/**
+ * Parse a DLP API timestamp like `2026-04-25T21:35:00.000+0200` into a Date.
+ * Returns null for empty/invalid input. The non-canonical offset format
+ * (`+0200` without a colon) is accepted by V8 but is not RFC 3339 — guard
+ * against runtimes that reject it by falling back to null rather than
+ * emitting an Invalid Date through the queue helpers.
+ */
+function parseDLPDate(v: string | null | undefined): Date | null {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isFinite(d.getTime()) ? d : null;
+}
 
 type DLPPremierAccessEntry = {
   attractionId: string;
@@ -317,22 +338,40 @@ export class DisneylandParis extends Destination {
           Attraction: activities(market: $market, types: "Attraction") {
             ${this.entityFields}
           }
-          Entertainment: activities(market: $market, types: "Entertainment") {
-            ${this.entityFields}
-          }
-          Restaurant: activities(market: $market, types: "Restaurant") {
-            ${this.entityFields}
-          }
-          ThemePark: activities(market: $market, types: "ThemePark") {
-            ${this.entityFields}
-          }
           DiningEvent: activities(market: $market, types: "DiningEvent") {
             ${this.entityFields}
           }
           DinnerShow: activities(market: $market, types: "DinnerShow") {
             ${this.entityFields}
           }
+          Entertainment: activities(market: $market, types: "Entertainment") {
+            ${this.entityFields}
+          }
+          Event: activities(market: $market, types: "Event") {
+            ${this.entityFields}
+          }
+          GuestService: activities(market: $market, types: "GuestService") {
+            ${this.entityFields}
+          }
+          Recreation: activities(market: $market, types: "Recreation") {
+            ${this.entityFields}
+          }
+          Resort: activities(market: $market, types: "Resort") {
+            ${this.entityFields}
+          }
+          Restaurant: activities(market: $market, types: "Restaurant") {
+            ${this.entityFields}
+          }
           Shop: activities(market: $market, types: "Shop") {
+            ${this.entityFields}
+          }
+          Spa: activities(market: $market, types: "Spa") {
+            ${this.entityFields}
+          }
+          Tour: activities(market: $market, types: "Tour") {
+            ${this.entityFields}
+          }
+          ThemePark: activities(market: $market, types: "ThemePark") {
             ${this.entityFields}
           }
         }`,
@@ -347,7 +386,7 @@ export class DisneylandParis extends Destination {
   /**
    * Get POI data (cached 12h)
    */
-  @cache({ttlSeconds: 43200})
+  @cache({ttlSeconds: 43200, cacheVersion: 2})
   async getPOIData(): Promise<Record<string, DLPPOIEntity[]>> {
     const resp = await this.fetchPOI();
     const data = await resp.json();
@@ -612,6 +651,18 @@ export class DisneylandParis extends Destination {
   }
 
   /**
+   * Resolve POI down to the entities we actually emit. Shared by
+   * buildEntityList and buildLiveData so the wait-times / premier-access /
+   * vqueue / showtimes paths can't surface IDs that fall outside the
+   * published POI set.
+   */
+  private async getEmittablePOIEntities(): Promise<Array<DLPPOIEntity & {category: string}>> {
+    const poiData = await this.getPOIData();
+    const allEntities = this.flattenPOI(poiData);
+    return this.filterPOIEntities(allEntities).filter((poi) => this.mapEntityType(poi) !== undefined);
+  }
+
+  /**
    * Map DLP wait time status to our status
    */
   private mapStatus(status: string | null): string {
@@ -745,7 +796,17 @@ export class DisneylandParis extends Destination {
     const liveData: LiveData[] = [];
     const liveDataMap = new Map<string, LiveData>();
 
-    const getOrCreate = (id: string): LiveData => {
+    // Build the set of entity IDs we actually emit, so live data stays in
+    // lockstep with buildEntityList. Without this, the wait-times feed
+    // (and premier-access / virtual-queue / showtimes) leaks IDs for
+    // characters, hidden POI entries, and codes Disney returns that aren't
+    // in the public POI dataset at all.
+    const validEntityIds = new Set<string>(
+      (await this.getEmittablePOIEntities()).map((poi) => poi.id),
+    );
+
+    const getOrCreate = (id: string): LiveData | undefined => {
+      if (!validEntityIds.has(id)) return undefined;
       let entry = liveDataMap.get(id);
       if (!entry) {
         entry = {id, status: 'CLOSED'} as LiveData;
@@ -763,19 +824,20 @@ export class DisneylandParis extends Destination {
       if (IGNORE_ENTITIES.has(wt.entityId)) continue;
 
       const ld = getOrCreate(wt.entityId);
+      if (!ld) continue;
       ld.status = this.mapStatus(wt.status) as any;
 
       // Standby queue
       if (!ld.queue) ld.queue = {};
       ld.queue.STANDBY = {
-        waitTime: ld.status === 'OPERATING' ? (wt.postedWaitMinutes ?? undefined) : undefined,
+        waitTime: ld.status === 'OPERATING' ? (parseDLPWait(wt.postedWaitMinutes) ?? null) : null,
       };
 
       // Single rider
       if (wt.singleRider?.isAvailable === true) {
         ld.queue.SINGLE_RIDER = {
           waitTime: ld.status === 'OPERATING'
-            ? (wt.singleRider.singleRiderWaitMinutes ?? null)
+            ? (parseDLPWait(wt.singleRider.singleRiderWaitMinutes) ?? null)
             : null,
         };
       }
@@ -788,12 +850,16 @@ export class DisneylandParis extends Destination {
       if (!pa.attractionId) continue;
 
       const ld = getOrCreate(pa.attractionId);
+      if (!ld) continue;
       if (!ld.queue) ld.queue = {};
 
+      // DLP emits `2026-04-25T21:35:00.000+0200` (millis, no offset colon).
+      // Wrap in Date so the framework re-emits the canonical
+      // `2026-04-25T21:35:00+02:00` form rather than passing through verbatim.
       ld.queue.PAID_RETURN_TIME = this.buildPaidReturnTimeQueue(
         pa.available ? 'AVAILABLE' : 'FINISHED',
-        pa.nextTimeSlotStartDateTime || null,
-        pa.nextTimeSlotEndDateTime || null,
+        parseDLPDate(pa.nextTimeSlotStartDateTime),
+        parseDLPDate(pa.nextTimeSlotEndDateTime),
         'EUR',
         pa.price != null ? Math.round(pa.price * 100) : null,
       );
@@ -818,6 +884,7 @@ export class DisneylandParis extends Destination {
       );
 
       const ld = getOrCreate(q.queueContentId);
+      if (!ld) continue;
       if (!ld.queue) ld.queue = {};
 
       if (allFinished || !activeWave) {
@@ -829,8 +896,8 @@ export class DisneylandParis extends Destination {
         // wiki can render the upcoming slot.
         ld.queue.RETURN_TIME = this.buildReturnTimeQueue(
           'AVAILABLE',
-          activeWave.openAt || null,
-          activeWave.closedAt || null,
+          parseDLPDate(activeWave.openAt ?? null),
+          parseDLPDate(activeWave.closedAt ?? null),
         );
       }
     }
@@ -877,6 +944,7 @@ export class DisneylandParis extends Destination {
           }
         } else {
           const ld = getOrCreate(sched.id);
+          if (!ld) continue;
           ld.status = 'OPERATING' as any;
           ld.showtimes = showtimes;
         }
