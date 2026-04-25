@@ -105,6 +105,19 @@ function parseDLPWait(v: unknown): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+/**
+ * Parse a DLP API timestamp like `2026-04-25T21:35:00.000+0200` into a Date.
+ * Returns null for empty/invalid input. The non-canonical offset format
+ * (`+0200` without a colon) is accepted by V8 but is not RFC 3339 — guard
+ * against runtimes that reject it by falling back to null rather than
+ * emitting an Invalid Date through the queue helpers.
+ */
+function parseDLPDate(v: string | null | undefined): Date | null {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isFinite(d.getTime()) ? d : null;
+}
+
 type DLPPremierAccessEntry = {
   attractionId: string;
   available: boolean;
@@ -638,6 +651,18 @@ export class DisneylandParis extends Destination {
   }
 
   /**
+   * Resolve POI down to the entities we actually emit. Shared by
+   * buildEntityList and buildLiveData so the wait-times / premier-access /
+   * vqueue / showtimes paths can't surface IDs that fall outside the
+   * published POI set.
+   */
+  private async getEmittablePOIEntities(): Promise<Array<DLPPOIEntity & {category: string}>> {
+    const poiData = await this.getPOIData();
+    const allEntities = this.flattenPOI(poiData);
+    return this.filterPOIEntities(allEntities).filter((poi) => this.mapEntityType(poi) !== undefined);
+  }
+
+  /**
    * Map DLP wait time status to our status
    */
   private mapStatus(status: string | null): string {
@@ -776,13 +801,9 @@ export class DisneylandParis extends Destination {
     // (and premier-access / virtual-queue / showtimes) leaks IDs for
     // characters, hidden POI entries, and codes Disney returns that aren't
     // in the public POI dataset at all.
-    const poiData = await this.getPOIData();
-    const allEntities = this.flattenPOI(poiData);
-    const filteredEntities = this.filterPOIEntities(allEntities);
-    const validEntityIds = new Set<string>();
-    for (const poi of filteredEntities) {
-      if (this.mapEntityType(poi)) validEntityIds.add(poi.id);
-    }
+    const validEntityIds = new Set<string>(
+      (await this.getEmittablePOIEntities()).map((poi) => poi.id),
+    );
 
     const getOrCreate = (id: string): LiveData | undefined => {
       if (!validEntityIds.has(id)) return undefined;
@@ -837,8 +858,8 @@ export class DisneylandParis extends Destination {
       // `2026-04-25T21:35:00+02:00` form rather than passing through verbatim.
       ld.queue.PAID_RETURN_TIME = this.buildPaidReturnTimeQueue(
         pa.available ? 'AVAILABLE' : 'FINISHED',
-        pa.nextTimeSlotStartDateTime ? new Date(pa.nextTimeSlotStartDateTime) : null,
-        pa.nextTimeSlotEndDateTime ? new Date(pa.nextTimeSlotEndDateTime) : null,
+        parseDLPDate(pa.nextTimeSlotStartDateTime),
+        parseDLPDate(pa.nextTimeSlotEndDateTime),
         'EUR',
         pa.price != null ? Math.round(pa.price * 100) : null,
       );
@@ -875,8 +896,8 @@ export class DisneylandParis extends Destination {
         // wiki can render the upcoming slot.
         ld.queue.RETURN_TIME = this.buildReturnTimeQueue(
           'AVAILABLE',
-          activeWave.openAt ? new Date(activeWave.openAt) : null,
-          activeWave.closedAt ? new Date(activeWave.closedAt) : null,
+          parseDLPDate(activeWave.openAt ?? null),
+          parseDLPDate(activeWave.closedAt ?? null),
         );
       }
     }
