@@ -175,6 +175,11 @@ export class Phantasialand extends Destination {
     requestObj.headers = {
       ...requestObj.headers,
       'user-agent': 'okhttp/3.12.1',
+      // The POI endpoint with compact=true used to default to English-or-
+      // structured titles; in 2026 it switched to localising on
+      // Accept-Language alone, defaulting to German. Force English so we
+      // get e.g. "Dragon Drago" instead of "Drache Drago".
+      'accept-language': 'en',
     };
   }
 
@@ -203,9 +208,14 @@ export class Phantasialand extends Destination {
   // ===== HTTP Fetch Methods =====
 
   /**
-   * Fetch POI data (entity list)
+   * Fetch POI data (entity list).
+   *
+   * No cacheSeconds: getPOI's @cache layer is the authoritative cache.
+   * The @http cache key is hashed before request injectors run, so
+   * accept-language wouldn't participate — keeping it would mean a stale
+   * German-titled response could outlive a cacheVersion bump on getPOI.
    */
-  @http({cacheSeconds: 21600, retries: 2}) // 6 hours
+  @http({retries: 2})
   async fetchPOI(): Promise<HTTPObj> {
 
     return {
@@ -218,7 +228,7 @@ export class Phantasialand extends Destination {
   /**
    * Get POI data (cached 6 hours)
    */
-  @cache({ttlSeconds: 21600})
+  @cache({ttlSeconds: 21600, cacheVersion: 2})
   async getPOI(): Promise<any[]> {
 
     const resp = await this.fetchPOI();
