@@ -46,10 +46,12 @@ interface FqCrawlerEntry {
 @destinationController({category: 'Fuji-Q'})
 export class FujiQHighland extends Destination {
   @config apiBase: string = '';
+  @config websiteBase: string = '';
   @config token: string = '';
   @config userAgent: string = '';
   @config locale: string = 'EN_US';
   @config timezone: string = 'Asia/Tokyo';
+  @config scheduleMonthsAhead: number = 3;
 
   constructor(options?: DestinationConstructor) {
     super(options);
@@ -94,6 +96,20 @@ export class FujiQHighland extends Destination {
     } as any as HTTPObj;
   }
 
+  @http({cacheSeconds: 21600, retries: 1})
+  async fetchScheduleHtml(year: number, month: number): Promise<HTTPObj> {
+    const yyyymm = `${year}${String(month).padStart(2, '0')}`;
+    return {
+      method: 'GET',
+      url: `${this.websiteBase}/schedule/highland/${yyyymm}/index.html`,
+      headers: {
+        'user-agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      tags: ['website'],
+    } as any as HTTPObj;
+  }
+
   @cache({ttlSeconds: 60})
   async getCrawler(): Promise<FqCrawlerEntry[]> {
     const resp = await this.fetchCrawler();
@@ -106,6 +122,13 @@ export class FujiQHighland extends Destination {
     const resp = await this.fetchFacilities();
     const data = await resp.json();
     return Array.isArray(data) ? data : [];
+  }
+
+  @cache({ttlSeconds: 21600})
+  async getMonthSchedule(year: number, month: number): Promise<{date: string; open: string; close: string}[]> {
+    const resp = await this.fetchScheduleHtml(year, month);
+    const html = await resp.text();
+    return this.parseScheduleHtml(html, year, month);
   }
 
   // ===== Helpers =====
@@ -159,6 +182,32 @@ export class FujiQHighland extends Destination {
     const open = `${m[1].padStart(2, '0')}:${m[2]}:00`;
     const close = `${m[3].padStart(2, '0')}:${m[4]}:00`;
     return {open, close};
+  }
+
+  private parseScheduleHtml(
+    html: string,
+    year: number,
+    month: number,
+  ): {date: string; open: string; close: string}[] {
+    // The schedule table on www.fujiq.jp/schedule/highland/{YYYYMM}/index.html lists
+    // one row per day. Open day rows look like: <td>03(金)</td><td>9:00 - 19:00</td><td>...</td>
+    // Closed days are: <td>09(木)</td><td> - </td><td>...休園日...</td>
+    const rowRe = /<tr[^>]*>\s*<td[^>]*>\s*(\d{1,2})\s*\([^)]*\)\s*<\/td>\s*<td[^>]*>\s*([^<]*?)\s*<\/td>/g;
+    const out: {date: string; open: string; close: string}[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = rowRe.exec(html)) !== null) {
+      const day = parseInt(m[1], 10);
+      const hours = m[2].trim();
+      if (!Number.isFinite(day) || day < 1 || day > 31) continue;
+
+      const hm = hours.match(/^(\d{1,2}):(\d{2})\s*[-–—~〜～]\s*(\d{1,2}):(\d{2})$/);
+      if (!hm) continue; // Closed days ("-") or unparseable rows are skipped.
+      const open = `${hm[1].padStart(2, '0')}:${hm[2]}:00`;
+      const close = `${hm[3].padStart(2, '0')}:${hm[4]}:00`;
+      const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      out.push({date, open, close});
+    }
+    return out;
   }
 
   // ===== Entities =====
@@ -261,29 +310,61 @@ export class FujiQHighland extends Destination {
   // ===== Schedules =====
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
-    // Only "scheduleToday" is exposed per facility — covers a single day.
-    // No multi-day schedule endpoint observed yet. Surface today's hours from the
-    // first attraction with a parseable schedule (treat as park-level for v1).
-    const facilities = await this.getFacilities();
-    const todayUtc = new Date();
-    const tokyoFmt = new Intl.DateTimeFormat('en-CA', {timeZone: this.timezone, year: 'numeric', month: '2-digit', day: '2-digit'});
-    const date = tokyoFmt.format(todayUtc); // YYYY-MM-DD in Asia/Tokyo
+    const months = this.scheduleMonthsAhead > 0 ? this.scheduleMonthsAhead : 1;
 
-    for (const f of facilities) {
-      if (f.type !== 'attraction') continue;
-      const parsed = this.parseScheduleToday(f.scheduleToday);
-      if (!parsed) continue;
-      return [{
-        id: PARK_ID,
-        schedule: [{
-          date,
+    // Anchor on Tokyo "today" so month boundaries reflect park-local time.
+    const tokyoParts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: this.timezone,
+      year: 'numeric',
+      month: '2-digit',
+    }).formatToParts(new Date());
+    let year = parseInt(tokyoParts.find((p) => p.type === 'year')?.value ?? '0', 10);
+    let month = parseInt(tokyoParts.find((p) => p.type === 'month')?.value ?? '0', 10);
+
+    const days: NonNullable<EntitySchedule['schedule']> = [];
+    for (let i = 0; i < months; i++) {
+      const monthDays = await this.getMonthSchedule(year, month).catch(() => []);
+      for (const d of monthDays) {
+        days.push({
+          date: d.date,
           type: 'OPERATING',
-          openingTime: constructDateTime(date, parsed.open, this.timezone),
-          closingTime: constructDateTime(date, parsed.close, this.timezone),
-        }],
-      } as EntitySchedule];
+          openingTime: constructDateTime(d.date, d.open, this.timezone),
+          closingTime: constructDateTime(d.date, d.close, this.timezone),
+        } as any);
+      }
+      // Roll forward one month.
+      month += 1;
+      if (month > 12) {
+        month = 1;
+        year += 1;
+      }
     }
 
-    return [{id: PARK_ID, schedule: []} as EntitySchedule];
+    // Fallback: if multi-month scrape returned nothing, fall back to today's
+    // per-facility scheduleToday so we never emit a fully empty schedule when
+    // we know the park is operating.
+    if (days.length === 0) {
+      const facilities = await this.getFacilities();
+      const todayParts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: this.timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
+      for (const f of facilities) {
+        if (f.type !== 'attraction') continue;
+        const parsed = this.parseScheduleToday(f.scheduleToday);
+        if (!parsed) continue;
+        days.push({
+          date: todayParts,
+          type: 'OPERATING',
+          openingTime: constructDateTime(todayParts, parsed.open, this.timezone),
+          closingTime: constructDateTime(todayParts, parsed.close, this.timezone),
+        } as any);
+        break;
+      }
+    }
+
+    return [{id: PARK_ID, schedule: days} as EntitySchedule];
   }
 }
