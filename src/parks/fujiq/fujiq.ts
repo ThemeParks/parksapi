@@ -340,9 +340,10 @@ export class FujiQHighland extends Destination {
       }
     }
 
-    // Fallback: if multi-month scrape returned nothing, fall back to today's
-    // per-facility scheduleToday so we never emit a fully empty schedule when
-    // we know the park is operating.
+    // Fallback: if multi-month scrape returned nothing, derive a stable
+    // park-level window from all attraction `scheduleToday` values (earliest
+    // open, latest close) so we never emit an empty schedule when the park is
+    // operating, and so the result doesn't flap with API ordering.
     if (days.length === 0) {
       const facilities = await this.getFacilities();
       const todayParts = new Intl.DateTimeFormat('en-CA', {
@@ -351,17 +352,22 @@ export class FujiQHighland extends Destination {
         month: '2-digit',
         day: '2-digit',
       }).format(new Date());
+      let earliestOpen: string | null = null;
+      let latestClose: string | null = null;
       for (const f of facilities) {
         if (f.type !== 'attraction') continue;
         const parsed = this.parseScheduleToday(f.scheduleToday);
         if (!parsed) continue;
+        if (!earliestOpen || parsed.open < earliestOpen) earliestOpen = parsed.open;
+        if (!latestClose || parsed.close > latestClose) latestClose = parsed.close;
+      }
+      if (earliestOpen && latestClose) {
         days.push({
           date: todayParts,
           type: 'OPERATING',
-          openingTime: constructDateTime(todayParts, parsed.open, this.timezone),
-          closingTime: constructDateTime(todayParts, parsed.close, this.timezone),
+          openingTime: constructDateTime(todayParts, earliestOpen, this.timezone),
+          closingTime: constructDateTime(todayParts, latestClose, this.timezone),
         } as any);
-        break;
       }
     }
 
