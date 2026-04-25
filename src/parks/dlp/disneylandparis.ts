@@ -187,6 +187,17 @@ export class DisneylandParis extends Destination {
     this.addConfigPrefix('DLP');
   }
 
+  /**
+   * All cache entries are namespaced under the class name so
+   * `CacheLib.clearByClassName('DisneylandParis')` (used by the test
+   * harness `--clear-cache`) sweeps everything for this destination,
+   * including methods that opt into a stable named cache key like the
+   * `dlp:get*` keys below.
+   */
+  getCacheKeyPrefix(): string {
+    return 'DisneylandParis';
+  }
+
   // ===== Header Injection =====
 
   /**
