@@ -402,10 +402,26 @@ export class DisneylandParis extends Destination {
     return data?.data?.activitySchedules || [];
   }
 
+  // ── Live-data cache keys ─────────────────────────────────────────────
+  //
+  // Each parsed live-data getter below has a stable named cache key so a
+  // caller can invalidate it deterministically with `CacheLib.delete(key)`
+  // to force a fresh fetch outside the normal 60s TTL. This is useful for
+  // time-sensitive moments like a Virtual Queue or Premier Access slot
+  // release where the consumer needs sub-TTL latency.
+  //
+  //   dlp:getWaitTimes          — parsed waittimes
+  //   dlp:getPremierAccess      — parsed Premier Access slots
+  //   dlp:getVirtualQueueData   — aggregated VQ data across all activities
+  //
+  // The lower fetch* methods are NOT cached at the HTTP layer; the @cache
+  // wrapper above them is the single source of truth, so invalidating the
+  // key above guarantees the next call hits the network.
+
   /**
    * Fetch wait time data from REST API
    */
-  @http({cacheSeconds: 60})
+  @http()
   async fetchWaitTimes(): Promise<HTTPObj> {
     return {
       method: 'GET',
@@ -417,7 +433,7 @@ export class DisneylandParis extends Destination {
   /**
    * Get wait times (cached 1min)
    */
-  @cache({ttlSeconds: 60})
+  @cache({ttlSeconds: 60, key: 'dlp:getWaitTimes'})
   async getWaitTimes(): Promise<DLPWaitTimeEntry[]> {
     const resp = await this.fetchWaitTimes();
     const data = await resp.json();
@@ -427,7 +443,7 @@ export class DisneylandParis extends Destination {
   /**
    * Fetch premier access data
    */
-  @http({cacheSeconds: 60})
+  @http()
   async fetchPremierAccess(): Promise<HTTPObj> {
     return {
       method: 'GET',
@@ -441,7 +457,7 @@ export class DisneylandParis extends Destination {
    * Get premier access data (cached 1min)
    * Returns empty array if premierAccessApiKey is not configured
    */
-  @cache({ttlSeconds: 60})
+  @cache({ttlSeconds: 60, key: 'dlp:getPremierAccess'})
   async getPremierAccess(): Promise<DLPPremierAccessEntry[]> {
     if (!this.premierAccessApiKey) {
       return [];
@@ -457,7 +473,7 @@ export class DisneylandParis extends Destination {
   }
 
   /** Fetch a single activity's virtual-queue state. */
-  @http({cacheSeconds: 60})
+  @http()
   async fetchVQueueActivity(activityId: string): Promise<HTTPObj> {
     return {
       method: 'GET',
@@ -473,7 +489,7 @@ export class DisneylandParis extends Destination {
    * an empty array if the feature is unconfigured, so callers can always
    * dereference.
    */
-  @cache({ttlSeconds: 60})
+  @cache({ttlSeconds: 60, key: 'dlp:getVirtualQueueData'})
   async getVirtualQueueData(): Promise<DLPVQueueEntry[]> {
     if (!this.vqueueApiBase || !this.vqueueApiKey || !this.vqueueActivities) {
       return [];
