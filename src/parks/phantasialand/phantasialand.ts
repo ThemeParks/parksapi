@@ -175,6 +175,11 @@ export class Phantasialand extends Destination {
     requestObj.headers = {
       ...requestObj.headers,
       'user-agent': 'okhttp/3.12.1',
+      // The POI endpoint with compact=true used to default to English-or-
+      // structured titles; in 2026 it switched to localising on
+      // Accept-Language alone, defaulting to German. Force English so we
+      // get e.g. "Dragon Drago" instead of "Drache Drago".
+      'accept-language': 'en',
     };
   }
 
@@ -218,7 +223,7 @@ export class Phantasialand extends Destination {
   /**
    * Get POI data (cached 6 hours)
    */
-  @cache({ttlSeconds: 21600})
+  @cache({ttlSeconds: 21600, cacheVersion: 2})
   async getPOI(): Promise<any[]> {
 
     const resp = await this.fetchPOI();
