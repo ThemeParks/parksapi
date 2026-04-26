@@ -156,7 +156,6 @@ Run `npm run dev -- --list` for the full list with IDs and categories, or see be
 | Walibi Rhone-Alpes | `walibirhonealpes` |
 | Warner Bros. Movie World | `warnerbrosmovieworld` |
 | Wet'n'Wild Gold Coast | `wetnwildgoldcoast` |
-| Wild Adventures | `wildadventures` |
 | Worlds of Fun | `worldsoffun` |
 
 </details>
