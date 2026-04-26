@@ -122,6 +122,22 @@ type SixFlagsOperatingHours = {
         operatingTimeTo: string;
       }>;
     }>;
+    /**
+     * Park-level operating windows. The vendor publishes per-park hours
+     * (e.g. operatingTypeName="Park", id 24) here independently of the
+     * per-ride detailHours array, which is sometimes empty even for days
+     * the park is open. La Ronde publishes hours exclusively via this
+     * field. Always prefer this over detailHours when populated.
+     */
+    operatings?: Array<{
+      operatingTypeId: number;
+      operatingTypeName: string;
+      items: Array<{
+        assignmentDisplayName?: string;
+        timeFrom: string;
+        timeTo: string;
+      }>;
+    }>;
     shows?: Array<{
       fimsId: string;
       items: Array<{
@@ -1079,19 +1095,36 @@ export class SixFlags extends Destination {
       for (const dateObj of hoursData.dates) {
         if (dateObj.isParkClosed) continue;
 
-        // Find rides venue (venueId: 1) for park hours
-        const ridesVenue = dateObj.venues?.find(v => v.venueId === 1);
-        if (!ridesVenue?.detailHours || ridesVenue.detailHours.length === 0) continue;
+        // Prefer the canonical `operatings` array — vendors increasingly
+        // publish per-park hours here while leaving per-ride detailHours
+        // empty (La Ronde does this for its entire operating season).
+        const parkOperatings = (dateObj.operatings || []).flatMap(op =>
+          (op.operatingTypeName === 'Park' || op.operatingTypeId === 24)
+            ? (op.items || []).filter(i => i.timeFrom && i.timeTo)
+            : [],
+        );
 
-        // Get valid hours entries
-        const validHours = ridesVenue.detailHours.filter(h => h.operatingTimeFrom && h.operatingTimeTo);
-        if (validHours.length === 0) continue;
+        let earliestOpen: string;
+        let latestClose: string;
 
-        // Earliest open, latest close
-        const openingTimes = validHours.map(h => h.operatingTimeFrom).sort();
-        const closingTimes = validHours.map(h => h.operatingTimeTo).sort();
-        const earliestOpen = openingTimes[0];
-        const latestClose = closingTimes[closingTimes.length - 1];
+        if (parkOperatings.length > 0) {
+          const opens = parkOperatings.map(i => i.timeFrom).sort();
+          const closes = parkOperatings.map(i => i.timeTo).sort();
+          earliestOpen = opens[0];
+          latestClose = closes[closes.length - 1];
+        } else {
+          // Fall back to per-ride detailHours.
+          const ridesVenue = dateObj.venues?.find(v => v.venueId === 1);
+          if (!ridesVenue?.detailHours || ridesVenue.detailHours.length === 0) continue;
+
+          const validHours = ridesVenue.detailHours.filter(h => h.operatingTimeFrom && h.operatingTimeTo);
+          if (validHours.length === 0) continue;
+
+          const opens = validHours.map(h => h.operatingTimeFrom).sort();
+          const closes = validHours.map(h => h.operatingTimeTo).sort();
+          earliestOpen = opens[0];
+          latestClose = closes[closes.length - 1];
+        }
 
         // Parse date from MM/DD/YYYY format
         const dateParts = dateObj.date.split('/');
