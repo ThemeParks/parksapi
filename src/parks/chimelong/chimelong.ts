@@ -169,7 +169,9 @@ export class Chimelong extends Destination {
 
   // ── HTTP Methods ─────────────────────────────────────────────
 
-  @http({cacheSeconds: 60})
+  // The Chimelong upstream returns 504 GATEWAY_TIMEOUT intermittently;
+  // the framework retries 5xx with exponential backoff when retries > 0.
+  @http({cacheSeconds: 60, retries: 3})
   async fetchWaitTimes(parkId: string): Promise<HTTPObj> {
     return {
       method: 'POST',
@@ -180,7 +182,7 @@ export class Chimelong extends Destination {
     } as any as HTTPObj;
   }
 
-  @http({cacheSeconds: 3600})
+  @http({cacheSeconds: 3600, retries: 3})
   async fetchCalendarPage(calendarURL: string): Promise<HTTPObj> {
     return {
       method: 'GET',
