@@ -25,12 +25,16 @@ const LAT = 37.511360;
 const LNG = 127.099768;
 
 // ── Status mapping ─────────────────────────────────────────────
+// Lotte World runs a two-part reservation system; "Part 2 reservations
+// available" means the ride is operating and accepting timed bookings for
+// the afternoon session. "Reservation Complete" means all slots for the
+// day are taken — guests without a reservation can no longer ride.
 const mapStatus = createStatusMap(
   {
-    OPERATING: ['정상운영', 'operating', 'open', 'normal', 'normal operation'],
+    OPERATING: ['정상운영', 'operating', 'open', 'normal', 'normal operation', 'part 2 reservations available'],
     DOWN: ['일시중단', 'temp closed', 'temporarily closed', 'weather', 'waiting list is closed'],
     REFURBISHMENT: ['정기점검', 'maintenance', 'refurbishment', 'daily check', 'regular inspection'],
-    CLOSED: ['운영종료', 'closed', '', 'end of operation', 'regular closing day'],
+    CLOSED: ['운영종료', 'closed', '', 'end of operation', 'regular closing day', 'reservation complete'],
   },
   {parkName: 'LotteWorld', defaultStatus: 'CLOSED'},
 );
