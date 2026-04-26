@@ -51,6 +51,50 @@ const SHOW_SUBTYPES = new Set([
   'Parade',
 ]);
 
+/**
+ * DLP’s mobile app lists some map walkthroughs / placemarks as
+ * `Attraction` in GraphQL, but they are not in the wait-time product; the
+ * REST wait feed has no (or null) rows for them. We exclude their IDs from
+ * queue live data and the attraction STANDBY baseline so ParksAPI does not
+ * synthesize a misleading `CLOSED` with `STANDBY: null` for a non-queue POI.
+ */
+const dlpMapOnlyNonQueueAttractionIdSet = new Set(
+  [
+    '7d90d4e6-8c15-44ee-9e94-feb07788f02f', // Discovery Arcade
+    'a61aeee6-bed5-4890-8209-5249e689b1a1', // Liberty Arcade
+    '38bafc85-cb48-488e-aa68-3e2d01ae6a10', // La Galerie de la Belle au Bois
+    '6bb88973-80d0-45cf-bffe-433f1c551362', // Horsedrawn Streetcars
+    'a620015d-091d-4f82-b8b2-a97bc8641f07', // Sleeping Beauty Castle
+  ].map((id) => id.toLowerCase()),
+);
+
+/** IDs of map-only DLP “attractions” with no queue product (for tests / enumeration). */
+export const DLP_NON_QUEUE_STANDALONE_ATTRACTION_IDS: ReadonlySet<string> =
+  dlpMapOnlyNonQueueAttractionIdSet;
+
+/**
+ * @returns `false` for the {@link DLP_NON_QUEUE_STANDALONE_ATTRACTION_IDS}
+ *   when the POI is an `Attraction` (so those rows do not receive queue
+ *   live data). All other categories are unchanged.
+ */
+export function dlpPoiEmitsQueueLiveData(poi: {category: string; id: string}): boolean {
+  if (poi.category !== 'Attraction') return true;
+  return !dlpMapOnlyNonQueueAttractionIdSet.has(poi.id.toLowerCase());
+}
+
+function dlpPoiIdIsMapOnlyNonQueueAttractionId(entityId: string): boolean {
+  return dlpMapOnlyNonQueueAttractionIdSet.has(entityId.toLowerCase());
+}
+
+/**
+ * Internal key for DLP `LiveData` maps and cross-feed joins: REST, PA, and
+ * schedule rows sometimes use different casing for the same UUID as GraphQL
+ * `activities.id` — this prevents duplicate rows or `getOrCreate` misses.
+ */
+function dlpLiveDataEntityIdKey(id: string): string {
+  return id.toLowerCase();
+}
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -794,23 +838,39 @@ export class DisneylandParis extends Destination {
 
   protected async buildLiveData(): Promise<LiveData[]> {
     const liveData: LiveData[] = [];
+    /** Map keys are {@link dlpLiveDataEntityIdKey} (lowercased), matching entity id from `buildEntityList`. */
     const liveDataMap = new Map<string, LiveData>();
 
-    // Build the set of entity IDs we actually emit, so live data stays in
-    // lockstep with buildEntityList. Without this, the wait-times feed
-    // (and premier-access / virtual-queue / showtimes) leaks IDs for
-    // characters, hidden POI entries, and codes Disney returns that aren't
-    // in the public POI dataset at all.
-    const validEntityIds = new Set<string>(
-      (await this.getEmittablePOIEntities()).map((poi) => poi.id),
-    );
+    const emittablePois = await this.getEmittablePOIEntities();
+    const queueLiveDataPois = emittablePois.filter((poi) => dlpPoiEmitsQueueLiveData(poi));
+    // One canonical `LiveData.id` per entity (GraphQL/POI casing). Wait/PA/schedule
+    // feeds may use different casing; we key maps by lowercase to merge correctly.
+    const canonicalEntityIdByKey = new Map<string, string>();
+    for (const poi of queueLiveDataPois) {
+      const key = dlpLiveDataEntityIdKey(poi.id);
+      if (!canonicalEntityIdByKey.has(key)) {
+        canonicalEntityIdByKey.set(key, poi.id);
+      }
+    }
 
-    const getOrCreate = (id: string): LiveData | undefined => {
-      if (!validEntityIds.has(id)) return undefined;
-      let entry = liveDataMap.get(id);
+    // Same issue as `LiveData` ids: show duration is keyed in `showDurationMap`
+    // by `buildEntityList`’s `poi.id` — look up with a case-insensitive key
+    // so schedule `sched.id` still finds duration if casing differs.
+    const showDurationByKey = new Map<string, number>();
+    for (const [entityId, minutes] of this.showDurationMap) {
+      const key = dlpLiveDataEntityIdKey(entityId);
+      if (!showDurationByKey.has(key)) showDurationByKey.set(key, minutes);
+    }
+
+    const getOrCreate = (rawId: string | null | undefined): LiveData | undefined => {
+      if (rawId == null || rawId === '') return undefined;
+      const key = dlpLiveDataEntityIdKey(rawId);
+      const canonicalId = canonicalEntityIdByKey.get(key);
+      if (canonicalId === undefined) return undefined;
+      let entry = liveDataMap.get(key);
       if (!entry) {
-        entry = {id, status: 'CLOSED'} as LiveData;
-        liveDataMap.set(id, entry);
+        entry = {id: canonicalId, status: 'CLOSED'} as LiveData;
+        liveDataMap.set(key, entry);
         liveData.push(entry);
       }
       return entry;
@@ -917,7 +977,7 @@ export class DisneylandParis extends Destination {
         const performances = sched.schedules.filter((s) => s.status === 'PERFORMANCE_TIME');
         if (performances.length === 0) continue;
 
-        const showDuration = this.showDurationMap.get(sched.id) || 0;
+        const showDuration = showDurationByKey.get(dlpLiveDataEntityIdKey(sched.id)) || 0;
 
         const showtimes = performances.map((p) => {
           const startTime = constructDateTime(todayStr, p.startTime, this.timezone);
@@ -936,7 +996,7 @@ export class DisneylandParis extends Destination {
           };
         });
 
-        const existing = liveDataMap.get(sched.id);
+        const existing = liveDataMap.get(dlpLiveDataEntityIdKey(sched.id));
         if (existing) {
           existing.showtimes = showtimes;
           if (showtimes.length > 0) {
@@ -960,30 +1020,45 @@ export class DisneylandParis extends Destination {
     // until the API wakes back up. Consumers expect these queues to stay
     // present so they can render `wait: null` rather than disappearing.
     //
+    // Map-only "attractions" (no wait product) are excluded here so we do
+    // not add a synthetic CLOSED/STANDBY for POIs the app never tracks as a queue.
+    //
     // Single-rider eligibility isn't on POI, so remember IDs we've seen
     // with `singleRider.isAvailable === true` and re-emit SINGLE_RIDER
-    // null for them while the feed is asleep.
+    // null for them while the feed is asleep. Keys are normalized to
+    // lowercase; map-only IDs are skipped to avoid spurious cache entries.
     const srCacheKey = `${this.getCacheKeyPrefix()}:dlp:singleRiderCapable`;
     const previouslySeenSR = CacheLib.get(srCacheKey) as string[] | null;
-    const seenSR = new Set<string>(Array.isArray(previouslySeenSR) ? previouslySeenSR : []);
+    const seenSR = new Set<string>(
+      Array.isArray(previouslySeenSR)
+        ? previouslySeenSR.map((id) => String(id).toLowerCase())
+        : [],
+    );
     for (const wt of waitTimes) {
-      if (wt.singleRider?.isAvailable === true && wt.entityId) seenSR.add(wt.entityId);
+      if (wt.singleRider?.isAvailable === true && wt.entityId) {
+        if (dlpPoiIdIsMapOnlyNonQueueAttractionId(wt.entityId)) continue;
+        seenSR.add(wt.entityId.toLowerCase());
+      }
     }
     CacheLib.set(srCacheKey, [...seenSR], 30 * 24 * 60 * 60); // 30 days
 
-    const attractionIds = (await this.getEmittablePOIEntities())
-      .filter((poi) => this.mapEntityType(poi) === 'ATTRACTION')
+    const attractionIds = emittablePois
+      .filter(
+        (poi) =>
+          this.mapEntityType(poi) === 'ATTRACTION' && dlpPoiEmitsQueueLiveData(poi),
+      )
       .map((poi) => poi.id);
     for (const id of attractionIds) {
-      let ld = liveDataMap.get(id);
+      const key = dlpLiveDataEntityIdKey(id);
+      let ld = liveDataMap.get(key);
       if (!ld) {
         ld = {id, status: 'CLOSED'} as LiveData;
-        liveDataMap.set(id, ld);
+        liveDataMap.set(key, ld);
         liveData.push(ld);
       }
       if (!ld.queue) ld.queue = {};
       if (!ld.queue.STANDBY) ld.queue.STANDBY = {waitTime: null};
-      if (!ld.queue.SINGLE_RIDER && seenSR.has(id)) {
+      if (!ld.queue.SINGLE_RIDER && seenSR.has(id.toLowerCase())) {
         ld.queue.SINGLE_RIDER = {waitTime: null};
       }
     }
