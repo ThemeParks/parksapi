@@ -796,14 +796,19 @@ export class DisneylandParis extends Destination {
     const liveData: LiveData[] = [];
     const liveDataMap = new Map<string, LiveData>();
 
+    // Today (YYYY-MM-DD) in the park's timezone. Used by the show-time
+    // path and by the walkthrough status derivation at the bottom of this
+    // method.
+    const [tMM, tDD, tYYYY] = formatInTimezone(new Date(), this.timezone, 'date').split('/');
+    const todayStr = `${tYYYY}-${tMM}-${tDD}`;
+
     // Build the set of entity IDs we actually emit, so live data stays in
     // lockstep with buildEntityList. Without this, the wait-times feed
     // (and premier-access / virtual-queue / showtimes) leaks IDs for
     // characters, hidden POI entries, and codes Disney returns that aren't
     // in the public POI dataset at all.
-    const validEntityIds = new Set<string>(
-      (await this.getEmittablePOIEntities()).map((poi) => poi.id),
-    );
+    const emittablePois = await this.getEmittablePOIEntities();
+    const validEntityIds = new Set<string>(emittablePois.map((poi) => poi.id));
 
     const getOrCreate = (id: string): LiveData | undefined => {
       if (!validEntityIds.has(id)) return undefined;
@@ -903,11 +908,7 @@ export class DisneylandParis extends Destination {
     }
 
     // === Show Times (from today's schedule) ===
-    const today = formatInTimezone(new Date(), this.timezone, 'date');
-    // formatInTimezone 'date' returns MM/DD/YYYY, convert to YYYY-MM-DD
-    const [mm, dd, yyyy] = today.split('/');
-    const todayStr = `${yyyy}-${mm}-${dd}`;
-
+    // `todayStr` (YYYY-MM-DD in park tz) is computed at the top of this method.
     try {
       const scheduleData = await this.getScheduleForDate(todayStr);
 
@@ -953,12 +954,22 @@ export class DisneylandParis extends Destination {
       console.error(`[DLP] Error fetching today's schedule for show times: ${e}`);
     }
 
-    // === Baseline STANDBY/SINGLE_RIDER for closed-overnight rides ===
+    // === Baseline live-data for attractions ===
     // The wait-times feed goes silent shortly after park close. Without a
-    // baseline emission, attractions that only have premier-access data
-    // (next-morning slots) would lose their STANDBY/SINGLE_RIDER fields
-    // until the API wakes back up. Consumers expect these queues to stay
-    // present so they can render `wait: null` rather than disappearing.
+    // baseline emission, queue-bearing attractions that only have premier-
+    // access data (next-morning slots) would lose their STANDBY/SINGLE_RIDER
+    // fields until the API wakes back up. Consumers expect these queues to
+    // stay present so they can render `wait: null` rather than disappearing.
+    //
+    // Walkthrough/non-queue attractions (Discovery Arcade, Liberty Arcade,
+    // La Galerie de la Belle au Bois, Horse-Drawn Streetcars, Sleeping
+    // Beauty Castle, World Premiere, …) are POI entries Disney never
+    // publishes in the wait feed. They'd otherwise inherit a misleading
+    // synthetic CLOSED + STANDBY:null all day. Instead we emit
+    // OPERATING/CLOSED derived from today's POI schedule (or park-hours
+    // fallback) and no queue. Detection is data-driven: persist a 30-day
+    // cache of IDs that have ever appeared in the wait feed, mirroring the
+    // singleRiderCapable pattern below.
     //
     // Single-rider eligibility isn't on POI, so remember IDs we've seen
     // with `singleRider.isAvailable === true` and re-emit SINGLE_RIDER
@@ -971,21 +982,82 @@ export class DisneylandParis extends Destination {
     }
     CacheLib.set(srCacheKey, [...seenSR], 30 * 24 * 60 * 60); // 30 days
 
-    const attractionIds = (await this.getEmittablePOIEntities())
-      .filter((poi) => this.mapEntityType(poi) === 'ATTRACTION')
-      .map((poi) => poi.id);
-    for (const id of attractionIds) {
+    // Wait-feed history: which attractions are queue-bearing? Walkthroughs
+    // never appear here. 30-day TTL covers normal refurb cycles.
+    const queueHistoryKey = `${this.getCacheKeyPrefix()}:dlp:queueBearingHistory`;
+    const previousHistory = CacheLib.get(queueHistoryKey) as string[] | null;
+    const queueBearingIds = new Set<string>(
+      Array.isArray(previousHistory) ? previousHistory : [],
+    );
+    for (const wt of waitTimes) {
+      if (wt.entityId) queueBearingIds.add(wt.entityId);
+    }
+    CacheLib.set(queueHistoryKey, [...queueBearingIds], 30 * 24 * 60 * 60); // 30 days
+
+    const attractionPois = emittablePois.filter(
+      (poi) => this.mapEntityType(poi) === 'ATTRACTION',
+    );
+
+    // Today's park-open window — fallback for walkthroughs whose POI
+    // entry doesn't carry its own schedule (Discovery Arcade etc.).
+    // Derived from queue-bearing rides' POI schedules.
+    const parkScheduleEntries = attractionPois
+      .filter((p) => queueBearingIds.has(p.id))
+      .flatMap((p) => p.schedules || [])
+      .filter((s) => s.date === todayStr && s.status === 'OPERATING' && !s.closed);
+    const parkOpenStr = parkScheduleEntries.length
+      ? parkScheduleEntries.map((s) => s.startTime).sort()[0]
+      : null;
+    const parkCloseStr = parkScheduleEntries.length
+      ? parkScheduleEntries.map((s) => s.endTime).sort().reverse()[0]
+      : null;
+
+    const nowMs = Date.now();
+    const isWithinWindow = (open: string, close: string): boolean => {
+      const o = new Date(constructDateTime(todayStr, open.slice(0, 5), this.timezone)).getTime();
+      const c = new Date(constructDateTime(todayStr, close.slice(0, 5), this.timezone)).getTime();
+      return nowMs >= o && nowMs <= c;
+    };
+
+    const deriveWalkthroughStatus = (
+      poi: DLPPOIEntity & {category: string},
+    ): 'OPERATING' | 'CLOSED' => {
+      const own = (poi.schedules || []).find((s) => s.date === todayStr);
+      if (own?.closed === true) return 'CLOSED';
+      if (own?.status === 'OPERATING' && own.startTime && own.endTime) {
+        return isWithinWindow(own.startTime, own.endTime) ? 'OPERATING' : 'CLOSED';
+      }
+      if (parkOpenStr && parkCloseStr) {
+        return isWithinWindow(parkOpenStr, parkCloseStr) ? 'OPERATING' : 'CLOSED';
+      }
+      return 'CLOSED';
+    };
+
+    for (const poi of attractionPois) {
+      const id = poi.id;
       let ld = liveDataMap.get(id);
-      if (!ld) {
-        ld = {id, status: 'CLOSED'} as LiveData;
-        liveDataMap.set(id, ld);
-        liveData.push(ld);
+
+      if (queueBearingIds.has(id)) {
+        // Queue-bearing ride — STANDBY:null baseline so consumers can
+        // render `wait: null` while the feed is silent.
+        if (!ld) {
+          ld = {id, status: 'CLOSED'} as LiveData;
+          liveDataMap.set(id, ld);
+          liveData.push(ld);
+        }
+        if (!ld.queue) ld.queue = {};
+        if (!ld.queue.STANDBY) ld.queue.STANDBY = {waitTime: null};
+        if (!ld.queue.SINGLE_RIDER && seenSR.has(id)) {
+          ld.queue.SINGLE_RIDER = {waitTime: null};
+        }
+      } else if (!ld) {
+        // Walkthrough — status from schedule, no queue.
+        const walkthrough = {id, status: deriveWalkthroughStatus(poi)} as LiveData;
+        liveDataMap.set(id, walkthrough);
+        liveData.push(walkthrough);
       }
-      if (!ld.queue) ld.queue = {};
-      if (!ld.queue.STANDBY) ld.queue.STANDBY = {waitTime: null};
-      if (!ld.queue.SINGLE_RIDER && seenSR.has(id)) {
-        ld.queue.SINGLE_RIDER = {waitTime: null};
-      }
+      // If a walkthrough already has a row from upstream feeds (PA / VQ /
+      // showtimes), leave it — those feeds are authoritative.
     }
 
     return liveData;
