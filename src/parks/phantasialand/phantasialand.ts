@@ -97,10 +97,12 @@ export class Phantasialand extends Destination {
 
   /**
    * Login with credentials to get an access token.
-   * Cached for 11 months.
+   * Cached for 24 hours. The server returns `ttl: 31556926` (~365 days)
+   * but empirically prunes anonymous accounts well before then, with no
+   * advance signal — so we re-auth daily rather than trust the nominal TTL.
    */
   @cache({
-    ttlSeconds: 28908060,
+    ttlSeconds: 86400,
     key: 'phantasialand:accessToken',
   })
   async getAccessToken(): Promise<string> {
@@ -132,14 +134,19 @@ export class Phantasialand extends Destination {
 
   /**
    * Handle 401/403 responses. Both nullify the response so the HTTP framework
-   * retries the request (4xx is otherwise non-retryable). Only 401 invalidates
-   * the cached token — a 403 here is not an auth failure. phlsys returns 403
-   * from /signage-snapshots when the IP is briefly rate-limited while
-   * simultaneously accepting the same token on /park-infos. Re-logging on 403
-   * would roughly double our request rate during a flake window (create-user
-   * + login per retry) and makes the rate limit stick longer; plain retries
-   * without auth churn recover faster. Skipped for auth requests themselves
-   * to avoid infinite loops.
+   * retries the request (4xx is otherwise non-retryable). Skipped for auth
+   * requests themselves to avoid infinite loops.
+   *
+   * 401 — unambiguous: token is invalid. Invalidate immediately.
+   *
+   * 403 — ambiguous: phlsys returns the same body for brief per-IP rate
+   * limits AND for revoked/expired tokens. Eager re-login on every 403
+   * doubles our request rate in rate-limit windows and makes the limit
+   * stick longer. So we only invalidate on the *final* retry — by which
+   * point any transient rate limit has had its full ~31s exponential-
+   * backoff window to clear. If the request is still 403 after all
+   * retries, the cause is much more likely a stale token, and the next
+   * polling cycle will pick up a fresh one.
    */
   @inject({
     eventName: 'httpError',
@@ -156,6 +163,11 @@ export class Phantasialand extends Destination {
       // 401s; forcing a new createUser on retry is the only recovery path.
       CacheLib.delete('phantasialand:accessToken');
       CacheLib.delete(`${this.constructor.name}:createUser:[]`);
+    } else if (status === 403 && (requestObj as any).retries === 0) {
+      // Last retry exhausted with 403 — likely a stale token. Internal
+      // `retries` counter on HTTPRequestImpl isn't exposed on HTTPObj, so
+      // we read it via an `any` cast.
+      CacheLib.delete('phantasialand:accessToken');
     }
 
     // Nullify the response so the HTTP queue treats it as retryable.
@@ -239,8 +251,13 @@ export class Phantasialand extends Destination {
   /**
    * Fetch signage/wait time data.
    * Requires random coordinates within park bounds.
+   *
+   * `retries: 5` gives an exponential-backoff window of ~31s
+   * (1+2+4+8+16). phlsys rate-limits this endpoint per IP and the
+   * window typically clears within a few seconds, but a shorter retry
+   * budget (e.g. 2 → 3s) gives up too early during sustained bursts.
    */
-  @http({cacheSeconds: 60, retries: 2}) // 1 minute
+  @http({cacheSeconds: 60, retries: 5}) // 1 minute
   async fetchSignage(): Promise<HTTPObj> {
     // Generate random coordinates within park bounds
     const lat = 50.799683077 + (Math.random() * (50.800659529 - 50.799683077));
@@ -253,7 +270,7 @@ export class Phantasialand extends Destination {
   }
 
   /**
-   * Get signage data (cached 1 minute)
+   * Get signage data (cached 1 minute).
    */
   @cache({ttlSeconds: 60})
   async getSignage(): Promise<any[]> {
