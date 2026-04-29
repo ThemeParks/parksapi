@@ -4,6 +4,15 @@ on:
   push:
     branches: [main]
 
+# Serialize gh-pages pushes. Without this, multiple merges in quick
+# succession race on `git push origin gh-pages` and one run fails with
+# `! [rejected] (fetch first)`. Letting in-flight runs finish (rather
+# than cancelling them) means the newest commit's docs always end up
+# published.
+concurrency:
+  group: api-docs
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
