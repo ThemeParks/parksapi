@@ -144,7 +144,7 @@ interface AffineCoeffs {
  * Solves lat = a*x + b*y + c and lng = d*x + e*y + f using least-squares
  * normal equations (Cramer's rule on the 3×3 system).
  */
-function computeAffineTransform(refPoints: OceanParkReferencePoint[]): AffineCoeffs {
+function computeAffineTransform(refPoints: OceanParkReferencePoint[]): AffineCoeffs | null {
   let sumX = 0, sumY = 0, sumXX = 0, sumXY = 0, sumYY = 0;
   let sumLat = 0, sumXLat = 0, sumYLat = 0;
   let sumLng = 0, sumXLng = 0, sumYLng = 0;
@@ -170,6 +170,7 @@ function computeAffineTransform(refPoints: OceanParkReferencePoint[]): AffineCoe
     m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
 
   const D = det(M);
+  if (!Number.isFinite(D) || Math.abs(D) < 1e-10) return null;
 
   const cramer = (rhs: number[]): [number, number, number] => {
     const M0: [number, number, number][] = [[rhs[0], M[0][1], M[0][2]], [rhs[1], M[1][1], M[1][2]], [rhs[2], M[2][1], M[2][2]]];
@@ -207,7 +208,6 @@ function parseHeightTag(conditionList: Array<string | OceanParkCondition>): {min
 // ── Implementation ──────────────────────────────────────────────────────────
 
 @destinationController({category: 'Ocean Park'})
-@config
 export class OceanParkHongKong extends Destination {
   @config baseURL: string = 'https://sop.oceanpark.com.hk';
   @config mapURL: string = 'https://map.oceanpark.com.hk';
@@ -402,10 +402,13 @@ export class OceanParkHongKong extends Destination {
     if (!Array.isArray(refPoints) || refPoints.length < 3) return [];
 
     const coeffs = computeAffineTransform(refPoints);
+    if (!coeffs) return [];
     const entries: [string, {latitude: number; longitude: number}][] = [];
 
-    for (const category of MAP_CATEGORIES) {
-      const resp = await this.fetchMapCategoryData(category);
+    const categoryResponses = await Promise.all(
+      MAP_CATEGORIES.map((category) => this.fetchMapCategoryData(category)),
+    );
+    for (const resp of categoryResponses) {
       const entities: OceanParkMapEntity[] = await resp.json();
       if (!Array.isArray(entities)) continue;
 
