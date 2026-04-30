@@ -209,8 +209,8 @@ function parseHeightTag(conditionList: Array<string | OceanParkCondition>): {min
 
 @destinationController({category: 'Ocean Park'})
 export class OceanParkHongKong extends Destination {
-  @config baseURL: string = 'https://sop.oceanpark.com.hk';
-  @config mapURL: string = 'https://map.oceanpark.com.hk';
+  @config baseURL: string = '';
+  @config mapURL: string = '';
   @config parkId: number = 1;
 
   timezone = TIMEZONE;
@@ -619,39 +619,52 @@ export class OceanParkHongKong extends Destination {
     const parkDays = await this.getParkSchedule();
     const scheduleEntries: object[] = [];
 
+    /** Parse a Unix-ms timestamp string to a Date, rejecting non-finite values. */
+    const parseTs = (v: string | number | undefined | null): Date | null => {
+      if (v === null || v === undefined || v === '') return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? new Date(n) : null;
+    };
+
     for (const day of parkDays) {
       if (day.parkStatus !== 'open') continue;
-      if (!day.parkOpenTime || !day.parkCloseTime) continue;
+
+      const open = parseTs(day.parkOpenTime);
+      const close = parseTs(day.parkCloseTime);
+      if (!open || !close) continue;
 
       scheduleEntries.push({
         date: day.openDate,
         type: 'OPERATING',
-        openingTime: formatInTimezone(new Date(Number(day.parkOpenTime)), TIMEZONE, 'iso'),
-        closingTime: formatInTimezone(new Date(Number(day.parkCloseTime)), TIMEZONE, 'iso'),
+        openingTime: formatInTimezone(open, TIMEZONE, 'iso'),
+        closingTime: formatInTimezone(close, TIMEZONE, 'iso'),
       });
 
-      if (day.parkingOpenTime && day.parkingCloseTime) {
+      const parkingOpen = parseTs(day.parkingOpenTime);
+      const parkingClose = parseTs(day.parkingCloseTime);
+      if (parkingOpen && parkingClose) {
         scheduleEntries.push({
           date: day.openDate,
           type: 'INFORMATIONAL',
           description: 'Parking',
-          openingTime: formatInTimezone(new Date(Number(day.parkingOpenTime)), TIMEZONE, 'iso'),
-          closingTime: formatInTimezone(new Date(Number(day.parkingCloseTime)), TIMEZONE, 'iso'),
+          openingTime: formatInTimezone(parkingOpen, TIMEZONE, 'iso'),
+          closingTime: formatInTimezone(parkingClose, TIMEZONE, 'iso'),
         });
       }
 
       // The Summit zone closes earlier than the main park on some days
+      const summitClose = parseTs(day.summitCloseTime);
       if (
         day.summitStaus === 'open' &&
-        day.summitCloseTime &&
-        Number(day.summitCloseTime) < Number(day.parkCloseTime)
+        summitClose &&
+        summitClose.getTime() < close.getTime()
       ) {
         scheduleEntries.push({
           date: day.openDate,
           type: 'INFORMATIONAL',
           description: 'The Summit',
-          openingTime: formatInTimezone(new Date(Number(day.parkOpenTime)), TIMEZONE, 'iso'),
-          closingTime: formatInTimezone(new Date(Number(day.summitCloseTime)), TIMEZONE, 'iso'),
+          openingTime: formatInTimezone(open, TIMEZONE, 'iso'),
+          closingTime: formatInTimezone(summitClose, TIMEZONE, 'iso'),
         });
       }
     }
