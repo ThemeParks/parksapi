@@ -230,7 +230,8 @@ class PlopsaBase extends Destination {
    * always pin a date.
    *
    * `retries: 5` gives a ~31s exponential-backoff window
-   * (1+2+4+8+16). Without retries (and especially when running multiple
+   * (1+2+4+8+16, ±10% jitter — see `calculateBackoffDelay` in
+   * src/http.ts). Without retries (and especially when running multiple
    * collector instances), a single transient failure here causes
    * `parkOpenNow` to evaluate false in `buildLiveData`, which marks
    * every ride as CLOSED for that poll — exactly the kind of lockstep
