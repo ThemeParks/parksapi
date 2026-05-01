@@ -17,6 +17,7 @@
 import {Destination, DestinationConstructor} from '../../destination.js';
 import config from '../../config.js';
 import {http, HTTPObj} from '../../http.js';
+import {CacheLib} from '../../cache.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {formatDate, addDays, formatInTimezone} from '../../datetime.js';
@@ -227,8 +228,16 @@ class PlopsaBase extends Destination {
   /**
    * Today's park hours. The API endpoint without `openOn` returns 500;
    * always pin a date.
+   *
+   * `retries: 5` gives a ~31s exponential-backoff window
+   * (1+2+4+8+16, ±10% jitter — see `calculateBackoffDelay` in
+   * src/http.ts). Without retries (and especially when running multiple
+   * collector instances), a single transient failure here causes
+   * `parkOpenNow` to evaluate false in `buildLiveData`, which marks
+   * every ride as CLOSED for that poll — exactly the kind of lockstep
+   * flapping that previously surfaced in wiki history.
    */
-  @http({cacheSeconds: 60 * 30})
+  @http({cacheSeconds: 60 * 30, retries: 5})
   async fetchTodayHours(date: string): Promise<HTTPObj> {
     return {
       method: 'GET',
@@ -387,7 +396,23 @@ class PlopsaBase extends Destination {
     // returning per-ride numbers (mostly 0/1 noise) outside park hours, so
     // we explicitly mark everything CLOSED in that window — the alternative
     // is "Closed. Wait time: 1 minute" inconsistency in the wiki.
-    const parkOpenNow = isParkOpenNow(hoursData, this.timezone);
+    //
+    // `parkOpenNow` MUST NOT flicker on transient failures of
+    // `fetchTodayHours`: a single false reading flips every ride to CLOSED
+    // for that poll, which manifests as park-wide lockstep flapping in the
+    // wiki history. Persist the last successful value in CacheLib for an
+    // hour and only fall back to it if today's fetch came back empty/null.
+    // Park hours rarely change intra-day, so a stale boolean here is
+    // strictly better than mass CLOSED emissions.
+    const openCacheKey = `${this.getCacheKeyPrefix()}:parkOpenNow:${today}`;
+    let parkOpenNow: boolean;
+    if (hoursData) {
+      parkOpenNow = isParkOpenNow(hoursData, this.timezone);
+      CacheLib.set(openCacheKey, parkOpenNow, 60 * 60); // 1h
+    } else {
+      const cached = CacheLib.get(openCacheKey);
+      parkOpenNow = typeof cached === 'boolean' ? cached : false;
+    }
 
     const lastUpdated = new Date().toISOString();
     return Object.entries(waitTimes).map(([attractionId, waitTime]) => {
