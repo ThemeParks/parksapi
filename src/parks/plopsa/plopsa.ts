@@ -400,18 +400,33 @@ class PlopsaBase extends Destination {
     // `parkOpenNow` MUST NOT flicker on transient failures of
     // `fetchTodayHours`: a single false reading flips every ride to CLOSED
     // for that poll, which manifests as park-wide lockstep flapping in the
-    // wiki history. Persist the last successful value in CacheLib for an
-    // hour and only fall back to it if today's fetch came back empty/null.
-    // Park hours rarely change intra-day, so a stale boolean here is
-    // strictly better than mass CLOSED emissions.
-    const openCacheKey = `${this.getCacheKeyPrefix()}:parkOpenNow:${today}`;
+    // wiki history.
+    //
+    // We only trust the upstream response if it carries a non-empty
+    // `timeslots` array — anything else (network failure, truthy-but-empty
+    // body like `{}`, or `{timeslots: []}`) is treated as "no fresh
+    // signal" and we fall back to the last-known-TRUE in cache. Parks
+    // rarely shut mid-day, so once we've seen "open" today we trust it
+    // for the rest of the hour; otherwise we re-attempt every poll.
+    //
+    // Caching is one-way: we persist TRUE for an hour but never FALSE. A
+    // previous code revision cached both, which let one quirky upstream
+    // response lock a sibling collector into CLOSED for an hour and
+    // produce lockstep flapping when paired with a sibling that had cached
+    // TRUE. The cache key carries a `:v2` suffix so any cached FALSE from
+    // that revision is unreachable on first deploy.
+    const openCacheKey = `${this.getCacheKeyPrefix()}:parkOpenNow:v2:${today}`;
+    const hasValidHours =
+      Array.isArray(hoursData?.timeslots) && hoursData.timeslots.length > 0;
     let parkOpenNow: boolean;
-    if (hoursData) {
+    if (hasValidHours) {
       parkOpenNow = isParkOpenNow(hoursData, this.timezone);
-      CacheLib.set(openCacheKey, parkOpenNow, 60 * 60); // 1h
+      if (parkOpenNow) {
+        CacheLib.set(openCacheKey, true, 60 * 60); // 1h, only cache TRUE
+      }
     } else {
       const cached = CacheLib.get(openCacheKey);
-      parkOpenNow = typeof cached === 'boolean' ? cached : false;
+      parkOpenNow = cached === true; // only fall back to a known-TRUE
     }
 
     const lastUpdated = new Date().toISOString();
