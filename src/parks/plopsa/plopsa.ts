@@ -400,18 +400,30 @@ class PlopsaBase extends Destination {
     // `parkOpenNow` MUST NOT flicker on transient failures of
     // `fetchTodayHours`: a single false reading flips every ride to CLOSED
     // for that poll, which manifests as park-wide lockstep flapping in the
-    // wiki history. Persist the last successful value in CacheLib for an
-    // hour and only fall back to it if today's fetch came back empty/null.
-    // Park hours rarely change intra-day, so a stale boolean here is
-    // strictly better than mass CLOSED emissions.
-    const openCacheKey = `${this.getCacheKeyPrefix()}:parkOpenNow:${today}`;
+    // wiki history.
+    //
+    // Caching is *one-way*: we persist a TRUE reading for the rest of the
+    // hour, but never cache FALSE. A previous version of this code cached
+    // both, which meant any single quirky upstream response (or a
+    // misbehaving collector instance whose first fetch returned an empty
+    // body) locked in CLOSED for an hour and produced lockstep flapping
+    // when paired with a sibling instance whose cache held TRUE. Parks
+    // rarely shut mid-day, so once we've seen "open" today we trust it;
+    // if we haven't, we re-attempt every poll.
+    //
+    // The cache key carries a `:v2` suffix so any cached `false` from the
+    // previous code revision is ignored on first deploy. Bump again if the
+    // shape ever changes.
+    const openCacheKey = `${this.getCacheKeyPrefix()}:parkOpenNow:v2:${today}`;
     let parkOpenNow: boolean;
     if (hoursData) {
       parkOpenNow = isParkOpenNow(hoursData, this.timezone);
-      CacheLib.set(openCacheKey, parkOpenNow, 60 * 60); // 1h
+      if (parkOpenNow) {
+        CacheLib.set(openCacheKey, true, 60 * 60); // 1h, only cache TRUE
+      }
     } else {
       const cached = CacheLib.get(openCacheKey);
-      parkOpenNow = typeof cached === 'boolean' ? cached : false;
+      parkOpenNow = cached === true; // only fall back to a known-TRUE
     }
 
     const lastUpdated = new Date().toISOString();
