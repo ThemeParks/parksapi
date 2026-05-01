@@ -402,21 +402,24 @@ class PlopsaBase extends Destination {
     // for that poll, which manifests as park-wide lockstep flapping in the
     // wiki history.
     //
-    // Caching is *one-way*: we persist a TRUE reading for the rest of the
-    // hour, but never cache FALSE. A previous version of this code cached
-    // both, which meant any single quirky upstream response (or a
-    // misbehaving collector instance whose first fetch returned an empty
-    // body) locked in CLOSED for an hour and produced lockstep flapping
-    // when paired with a sibling instance whose cache held TRUE. Parks
-    // rarely shut mid-day, so once we've seen "open" today we trust it;
-    // if we haven't, we re-attempt every poll.
+    // We only trust the upstream response if it carries a non-empty
+    // `timeslots` array — anything else (network failure, truthy-but-empty
+    // body like `{}`, or `{timeslots: []}`) is treated as "no fresh
+    // signal" and we fall back to the last-known-TRUE in cache. Parks
+    // rarely shut mid-day, so once we've seen "open" today we trust it
+    // for the rest of the hour; otherwise we re-attempt every poll.
     //
-    // The cache key carries a `:v2` suffix so any cached `false` from the
-    // previous code revision is ignored on first deploy. Bump again if the
-    // shape ever changes.
+    // Caching is one-way: we persist TRUE for an hour but never FALSE. A
+    // previous code revision cached both, which let one quirky upstream
+    // response lock a sibling collector into CLOSED for an hour and
+    // produce lockstep flapping when paired with a sibling that had cached
+    // TRUE. The cache key carries a `:v2` suffix so any cached FALSE from
+    // that revision is unreachable on first deploy.
     const openCacheKey = `${this.getCacheKeyPrefix()}:parkOpenNow:v2:${today}`;
+    const hasValidHours =
+      Array.isArray(hoursData?.timeslots) && hoursData.timeslots.length > 0;
     let parkOpenNow: boolean;
-    if (hoursData) {
+    if (hasValidHours) {
       parkOpenNow = isParkOpenNow(hoursData, this.timezone);
       if (parkOpenNow) {
         CacheLib.set(openCacheKey, true, 60 * 60); // 1h, only cache TRUE
