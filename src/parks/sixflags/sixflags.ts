@@ -641,8 +641,20 @@ export class SixFlags extends Destination {
       p.parkId === parkId || p.waterParks.some((wp) => wp.parkId === parkId),
     );
     const sourceParkId = owner?.parkId ?? parkId;
-    const poi = await this.getPOI(sourceParkId);
-    const coords = parkCentroidFromPOI(poi, parkId);
+
+    // Try the owner's POI first — bundled-pattern waterparks (HHLA/HHNJ)
+    // expose their coordinates here.
+    const ownerPoi = await this.getPOI(sourceParkId);
+    let coords = parkCentroidFromPOI(ownerPoi, parkId);
+
+    // Standalone-pattern waterparks (HHA/HHOKC) aren't included in their
+    // parent's POI response — fall back to their own /poi/park/{wpId}
+    // endpoint, which returns POIs keyed by their own parkId.
+    if (!coords && sourceParkId !== parkId) {
+      const standalonePoi = await this.getPOI(parkId);
+      coords = parkCentroidFromPOI(standalonePoi, parkId);
+    }
+
     if (coords) return timezoneFromCoords(coords.latitude, coords.longitude);
     return this.timezone;
   }
@@ -758,20 +770,37 @@ export class SixFlags extends Destination {
         const restaurants = poiData.filter(poi => poi.venueId === 4 && poi.parkId === park.parkId);
         entities.push(...this.mapPOIEntities(restaurants, mainParkId, destinationId, tz, 'RESTAURANT', parkLocation));
 
-        // Water-park children — filter the same POI response by the water
-        // park's parkId. /poi/park/{wpId} doesn't work.
+        // Water-park children. Two upstream patterns exist:
+        //   (a) BUNDLED — POIs appear in the parent's /poi/park/{parentId}
+        //       response keyed by the waterpark's parkId. Standalone
+        //       /poi/park/{wpId} 404s. Examples: HHLA (925) under SFMM (905),
+        //       HHNJ (911) under SFGADV (906).
+        //   (b) STANDALONE — /poi/park/{wpId} returns the waterpark's POIs
+        //       directly with HTTP 200, and the parent's response does NOT
+        //       include them. Examples: HHA (913) under SFOT (901), HHOKC
+        //       (944) under SFFC (943).
+        // Check the parent's response first (already in memory) and only
+        // call the standalone endpoint when the parent has no entries —
+        // avoids a guaranteed-404 HTTP request per bundled waterpark per
+        // cache cycle.
         for (const wp of park.waterParks) {
           const wpParkEntityId = `sixflags_park_${wp.code}`;
           const wpTz = await this.getTimezoneForPark(wp.parkId);
-          const wpLocation = parkCentroidFromPOI(poiData, wp.parkId) ?? parkLocation;
 
-          const wpRides = poiData.filter(poi => poi.venueId === 1 && poi.parkId === wp.parkId);
+          const bundledWpPoi = poiData.filter(poi => poi.parkId === wp.parkId);
+          const wpPoi = bundledWpPoi.length > 0
+            ? bundledWpPoi
+            : await this.getPOI(wp.parkId);
+
+          const wpLocation = parkCentroidFromPOI(wpPoi, wp.parkId) ?? parkLocation;
+
+          const wpRides = wpPoi.filter(poi => poi.venueId === 1);
           entities.push(...this.mapPOIEntities(wpRides, wpParkEntityId, destinationId, wpTz, 'ATTRACTION', wpLocation));
 
-          const wpShows = poiData.filter(poi => poi.venueId === 2 && poi.parkId === wp.parkId);
+          const wpShows = wpPoi.filter(poi => poi.venueId === 2);
           entities.push(...this.mapPOIEntities(wpShows, wpParkEntityId, destinationId, wpTz, 'SHOW', wpLocation));
 
-          const wpRestaurants = poiData.filter(poi => poi.venueId === 4 && poi.parkId === wp.parkId);
+          const wpRestaurants = wpPoi.filter(poi => poi.venueId === 4);
           entities.push(...this.mapPOIEntities(wpRestaurants, wpParkEntityId, destinationId, wpTz, 'RESTAURANT', wpLocation));
         }
       }
