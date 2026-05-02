@@ -758,20 +758,35 @@ export class SixFlags extends Destination {
         const restaurants = poiData.filter(poi => poi.venueId === 4 && poi.parkId === park.parkId);
         entities.push(...this.mapPOIEntities(restaurants, mainParkId, destinationId, tz, 'RESTAURANT', parkLocation));
 
-        // Water-park children — filter the same POI response by the water
-        // park's parkId. /poi/park/{wpId} doesn't work.
+        // Water-park children. Two upstream patterns exist:
+        //   (a) BUNDLED — POIs appear in the parent's /poi/park/{parentId}
+        //       response keyed by the waterpark's parkId. Standalone
+        //       /poi/park/{wpId} 404s. Examples: HHLA (925) under SFMM (905),
+        //       HHNJ (911) under SFGADV (906).
+        //   (b) STANDALONE — /poi/park/{wpId} returns the waterpark's POIs
+        //       directly with HTTP 200, and the parent's response does NOT
+        //       include them. Examples: HHA (913) under SFOT (901), HHOKC
+        //       (944) under SFFC (943).
+        // Try standalone first (returns [] on 404 thanks to getPOI's
+        // try/catch); fall back to filtering parent's response when empty.
         for (const wp of park.waterParks) {
           const wpParkEntityId = `sixflags_park_${wp.code}`;
           const wpTz = await this.getTimezoneForPark(wp.parkId);
-          const wpLocation = parkCentroidFromPOI(poiData, wp.parkId) ?? parkLocation;
 
-          const wpRides = poiData.filter(poi => poi.venueId === 1 && poi.parkId === wp.parkId);
+          const standaloneWpPoi = await this.getPOI(wp.parkId);
+          const wpPoi = standaloneWpPoi.length > 0
+            ? standaloneWpPoi
+            : poiData.filter(poi => poi.parkId === wp.parkId);
+
+          const wpLocation = parkCentroidFromPOI(wpPoi, wp.parkId) ?? parkLocation;
+
+          const wpRides = wpPoi.filter(poi => poi.venueId === 1);
           entities.push(...this.mapPOIEntities(wpRides, wpParkEntityId, destinationId, wpTz, 'ATTRACTION', wpLocation));
 
-          const wpShows = poiData.filter(poi => poi.venueId === 2 && poi.parkId === wp.parkId);
+          const wpShows = wpPoi.filter(poi => poi.venueId === 2);
           entities.push(...this.mapPOIEntities(wpShows, wpParkEntityId, destinationId, wpTz, 'SHOW', wpLocation));
 
-          const wpRestaurants = poiData.filter(poi => poi.venueId === 4 && poi.parkId === wp.parkId);
+          const wpRestaurants = wpPoi.filter(poi => poi.venueId === 4);
           entities.push(...this.mapPOIEntities(wpRestaurants, wpParkEntityId, destinationId, wpTz, 'RESTAURANT', wpLocation));
         }
       }
