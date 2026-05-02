@@ -641,8 +641,20 @@ export class SixFlags extends Destination {
       p.parkId === parkId || p.waterParks.some((wp) => wp.parkId === parkId),
     );
     const sourceParkId = owner?.parkId ?? parkId;
-    const poi = await this.getPOI(sourceParkId);
-    const coords = parkCentroidFromPOI(poi, parkId);
+
+    // Try the owner's POI first — bundled-pattern waterparks (HHLA/HHNJ)
+    // expose their coordinates here.
+    const ownerPoi = await this.getPOI(sourceParkId);
+    let coords = parkCentroidFromPOI(ownerPoi, parkId);
+
+    // Standalone-pattern waterparks (HHA/HHOKC) aren't included in their
+    // parent's POI response — fall back to their own /poi/park/{wpId}
+    // endpoint, which returns POIs keyed by their own parkId.
+    if (!coords && sourceParkId !== parkId) {
+      const standalonePoi = await this.getPOI(parkId);
+      coords = parkCentroidFromPOI(standalonePoi, parkId);
+    }
+
     if (coords) return timezoneFromCoords(coords.latitude, coords.longitude);
     return this.timezone;
   }
@@ -767,16 +779,18 @@ export class SixFlags extends Destination {
         //       directly with HTTP 200, and the parent's response does NOT
         //       include them. Examples: HHA (913) under SFOT (901), HHOKC
         //       (944) under SFFC (943).
-        // Try standalone first (returns [] on 404 thanks to getPOI's
-        // try/catch); fall back to filtering parent's response when empty.
+        // Check the parent's response first (already in memory) and only
+        // call the standalone endpoint when the parent has no entries —
+        // avoids a guaranteed-404 HTTP request per bundled waterpark per
+        // cache cycle.
         for (const wp of park.waterParks) {
           const wpParkEntityId = `sixflags_park_${wp.code}`;
           const wpTz = await this.getTimezoneForPark(wp.parkId);
 
-          const standaloneWpPoi = await this.getPOI(wp.parkId);
-          const wpPoi = standaloneWpPoi.length > 0
-            ? standaloneWpPoi
-            : poiData.filter(poi => poi.parkId === wp.parkId);
+          const bundledWpPoi = poiData.filter(poi => poi.parkId === wp.parkId);
+          const wpPoi = bundledWpPoi.length > 0
+            ? bundledWpPoi
+            : await this.getPOI(wp.parkId);
 
           const wpLocation = parkCentroidFromPOI(wpPoi, wp.parkId) ?? parkLocation;
 
