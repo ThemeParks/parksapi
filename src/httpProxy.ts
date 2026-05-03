@@ -14,7 +14,14 @@
 // between the bundled and installed versions. Pairing both halves through
 // the npm-installed module keeps the contract consistent regardless of
 // which Node release is in use.
-import {Agent, ProxyAgent, Socks5ProxyAgent, fetch as undiciFetch, type Dispatcher} from 'undici';
+import {
+  Agent,
+  ProxyAgent,
+  Socks5ProxyAgent,
+  fetch as undiciFetch,
+  type Dispatcher,
+  type RequestInit as UndiciRequestInit,
+} from 'undici';
 
 /**
  * Make an HTTP request via fetch() with optional proxy / mutual-TLS support.
@@ -62,10 +69,13 @@ export async function makeHttpRequest(options: {
 
   const dispatcher = buildDispatcher(proxyUrl, cert, key);
 
-  const init: RequestInit & {dispatcher?: Dispatcher} = {
+  // Type the init object against undici's own RequestInit so the
+  // dispatcher field is recognised and there's no global-vs-undici
+  // BodyInit incompatibility at the call site below.
+  const init: UndiciRequestInit & {dispatcher?: Dispatcher} = {
     method,
     headers: hdrs,
-    body: fetchBody,
+    body: fetchBody as UndiciRequestInit['body'],
     signal: AbortSignal.timeout(timeoutMs),
     // Attractions.io uses 303 to signal new ZIP data — callers need the raw
     // status + Location header, not the redirected body.
@@ -76,9 +86,10 @@ export async function makeHttpRequest(options: {
   }
 
   try {
-    // Node's built-in `RequestInit` and undici 8's diverge slightly on
-    // BodyInit; the runtime contract is the same so cast through `unknown`.
-    return await undiciFetch(url, init as any) as unknown as Response;
+    // undici's `Response` type is structurally compatible with the
+    // global `Response`; cast through `unknown` to satisfy TS without
+    // disabling type-checking on the call itself.
+    return await undiciFetch(url, init) as unknown as Response;
   } catch (err: any) {
     // Surface timeouts with the same message shape we used before so callers
     // (and log greps) don't need to change.

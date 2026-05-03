@@ -67,9 +67,13 @@ describe('makeHttpRequest mTLS plumbing', () => {
       caught = err;
     }
 
-    // We expect *some* error (connect timeout) — but specifically NOT
-    // an interceptor-contract mismatch. Walk both .message and any
-    // chained `cause` for the regression marker.
+    // We expect *some* error (connect timeout). If the request somehow
+    // resolves (e.g. a network where 192.0.2.1 happens to be reachable),
+    // the regression assertion below would be vacuous, so assert first
+    // that an error was actually caught.
+    expect(caught, 'expected makeHttpRequest to fail against an unroutable host').toBeTruthy();
+
+    // Walk .message and any chained `cause` for the regression marker.
     const messages: string[] = [];
     let e: any = caught;
     while (e) {
@@ -77,6 +81,8 @@ describe('makeHttpRequest mTLS plumbing', () => {
       if (e.cause && e.cause !== e) e = e.cause;
       else break;
     }
+    expect(messages.length, 'expected the caught error to carry at least one message').toBeGreaterThan(0);
+
     const joined = messages.join(' | ').toLowerCase();
     expect(joined, `Saw the dispatcher version-mismatch regression: ${messages.join(' / ')}`)
       .not.toMatch(/invalid onrequeststart method/);
