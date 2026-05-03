@@ -1,9 +1,20 @@
-// HTTP client built on Node's global fetch (undici).
+// HTTP client built on undici's own fetch (NOT Node's global `fetch`).
+//
 // Undici handles the socket/parse work on its own thread pool, so the main
 // event loop stays free for scheduling and timer callbacks. The previous
 // node:http/https implementation did everything on the main thread, which
 // starved setTimeout callbacks when 50+ destinations were pulling data at once.
-import {Agent, ProxyAgent, Socks5ProxyAgent, type Dispatcher} from 'undici';
+//
+// We must import `fetch` from `undici` rather than using Node's global
+// `fetch` because Node bundles its own (older) undici. When we pass an
+// `Agent` constructed from the npm-installed undici to the global fetch,
+// the version mismatch surfaces as
+//   "invalid onRequestStart method"
+// at request time — undici's `Dispatcher` interceptor contract evolved
+// between the bundled and installed versions. Pairing both halves through
+// the npm-installed module keeps the contract consistent regardless of
+// which Node release is in use.
+import {Agent, ProxyAgent, Socks5ProxyAgent, fetch as undiciFetch, type Dispatcher} from 'undici';
 
 /**
  * Make an HTTP request via fetch() with optional proxy / mutual-TLS support.
@@ -65,7 +76,9 @@ export async function makeHttpRequest(options: {
   }
 
   try {
-    return await fetch(url, init);
+    // Node's built-in `RequestInit` and undici 8's diverge slightly on
+    // BodyInit; the runtime contract is the same so cast through `unknown`.
+    return await undiciFetch(url, init as any) as unknown as Response;
   } catch (err: any) {
     // Surface timeouts with the same message shape we used before so callers
     // (and log greps) don't need to change.
