@@ -97,6 +97,27 @@ function formatTodayInTimezone(tz: string): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+/**
+ * Decide whether a Plopsa ride should emit as OPERATING right now.
+ *
+ * Inputs are intentionally flat booleans + a primitive — pure function so
+ * the matrix is easy to unit-test (see `__tests__/plopsa.test.ts`).
+ *
+ * The wait-times feed is treated as the ground truth: a numeric wait
+ * means the ride is taking guests right now. POI's `temporarily_closed`
+ * is a hint we use only when the wait-times feed has no number for the
+ * ride. Without that priority, a stale 12h-cached POI snapshot on one
+ * collector instance disagreeing with another instance's cached snapshot
+ * causes lockstep OPERATING ↔ CLOSED flapping for the affected rides.
+ */
+export function plopsaDecideOperating(
+  parkOpenNow: boolean,
+  tempClosed: boolean,
+  hasWait: boolean,
+): boolean {
+  return parkOpenNow && (hasWait || !tempClosed);
+}
+
 /** Is the park currently within an "open" timeslot from today's hours? */
 function isParkOpenNow(hours: PlopsaTodayHours | null, tz: string): boolean {
   if (!hours?.timeslots?.length) return false;
@@ -432,7 +453,9 @@ class PlopsaBase extends Destination {
     const lastUpdated = new Date().toISOString();
     return Object.entries(waitTimes).map(([attractionId, waitTime]) => {
       const id = String(attractionId);
-      const operating = parkOpenNow && closedById.get(id) !== true;
+      const tempClosed = closedById.get(id) === true;
+      const hasWait = typeof waitTime === 'number';
+      const operating = plopsaDecideOperating(parkOpenNow, tempClosed, hasWait);
 
       if (!operating) {
         return {id, status: 'CLOSED', lastUpdated} as unknown as LiveData;
@@ -441,7 +464,7 @@ class PlopsaBase extends Destination {
         id,
         status: 'OPERATING',
         queue: {
-          STANDBY: {waitTime: typeof waitTime === 'number' ? waitTime : null},
+          STANDBY: {waitTime: hasWait ? waitTime : null},
         },
         lastUpdated,
       } as unknown as LiveData;
