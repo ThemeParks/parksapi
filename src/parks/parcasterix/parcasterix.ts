@@ -129,10 +129,6 @@ interface ScheduleEntry {
   closingTime: string;
 }
 
-// ── Persisted query hashes ──────────────────────────────────────
-
-const POLLING_HASH = '3ceb23ec91c92568f084a99388dbfe442aae7bfc22c3271a474d27155c89c56d';
-
 // ── Implementation ─────────────────────────────────────────────
 
 @destinationController({category: 'Parc Asterix'})
@@ -164,20 +160,35 @@ export class ParcAsterix extends Destination {
     };
   }
 
-  // ── GraphQL: paxPolling (persisted query, GET) ───────────────
+  // ── GraphQL: paxPolling (POST, full query) ───────────────────
 
   @http({cacheSeconds: 60})
   async fetchPolling(): Promise<HTTPObj> {
-    const params = new URLSearchParams({
-      operationName: 'paxPolling',
-      variables: '{}',
-      extensions: JSON.stringify({
-        persistedQuery: {version: 1, sha256Hash: POLLING_HASH},
-      }),
-    });
     return {
-      method: 'GET',
-      url: `${this.apiBase}graphql?${params.toString()}`,
+      method: 'POST',
+      url: `${this.apiBase}graphql`,
+      body: {
+        operationName: 'paxPolling',
+        query: `query paxPolling {
+  paxLatencies {
+    drupalId
+    latency
+    isOpen
+    message
+    openingTime
+    closingTime
+  }
+  paxSchedules {
+    drupalId
+    times {
+      at
+      startAt
+      endAt
+    }
+  }
+}`,
+        variables: {},
+      },
       options: {json: true},
     } as any as HTTPObj;
   }
