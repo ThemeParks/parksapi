@@ -151,13 +151,20 @@ export type ExpressNowOffer = {
  * sample that came back from the live endpoint (Spider-Man, Mardi Gras
  * late-close window).
  */
+// Required `inventory_time_slot` format. Must be enforced at parse time —
+// downstream emission feeds the value into `parseTimeInTimezone` and `new
+// Date()`, both of which would silently produce an Invalid Date for
+// anything else, then `formatInTimezone` would throw mid-buildLiveData.
+const SLOT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
+
 export function parseExpressNowResponse(data: unknown): Record<string, ExpressNowOffer> {
   const predictions: any[] = Array.isArray((data as any)?.predictions) ? (data as any).predictions : [];
   const grouped: Record<string, ExpressNowOffer> = {};
 
   for (const raw of predictions) {
     const placeId = raw?.place_id;
-    if (!placeId) continue;
+    if (typeof placeId !== 'string' || !placeId) continue;
+    if (typeof raw?.inventory_time_slot !== 'string' || !SLOT_RE.test(raw.inventory_time_slot)) continue;
 
     const parsed: ExpressNowOffer = {
       offer_id: raw.offer_id,
@@ -173,9 +180,10 @@ export function parseExpressNowResponse(data: unknown): Record<string, ExpressNo
         || !Number.isFinite(parsed.vl_inventory)) continue;
 
     const existing = grouped[placeId];
-    // The slot format is `YYYY-MM-DDTHH:mm:ss` — lexicographic compare is
-    // equivalent to chronological compare and avoids assuming the runtime
-    // and park timezone agree (`new Date()` parses naive ISO as local).
+    // The slot format is fixed `YYYY-MM-DDTHH:mm:ss` (validated above) —
+    // lexicographic compare is chronologically equivalent and avoids
+    // assuming the runtime and park timezone agree (`new Date()` parses
+    // naive ISO as local).
     if (!existing || parsed.inventory_time_slot < existing.inventory_time_slot) {
       grouped[placeId] = parsed;
     }
@@ -429,12 +437,14 @@ class Universal extends Destination {
       resp = await this.fetchExpressNowOffers();
     } catch (err: any) {
       const msg = String(err?.message ?? err);
-      // 404 / OFFERS_NOT_FOUND is the steady state when Express Now isn't
-      // selling — cache as empty (long TTL via callback above).
-      if (msg.includes('404') || msg.includes('OFFERS_NOT_FOUND')) return {};
-      // Anything else (network / 5xx / parse) is transient — let it bubble
-      // so @cache doesn't store an empty result that masks the outage. The
-      // caller (buildLiveData) catches and degrades gracefully.
+      // The 404 response always carries `"problem":"OFFERS_NOT_FOUND"` in
+      // the body — match on that specifically. A bare `404` substring would
+      // also swallow misconfiguration / wrong path / auth-rejection-as-404,
+      // masking real bugs behind the long empty-result TTL.
+      if (msg.includes('OFFERS_NOT_FOUND')) return {};
+      // Anything else (network / 5xx / parse / unexpected 404) is transient
+      // or a real bug — let it bubble so @cache doesn't poison the result.
+      // buildLiveData catches and degrades gracefully.
       throw err;
     }
 
@@ -1051,15 +1061,27 @@ class Universal extends Destination {
 
       const entry = liveDataMap.get(poiId);
       if (!entry) continue;
+
+      // Defensive: parseExpressNowResponse already validates the slot
+      // format, so this should never throw — but if `parseTimeInTimezone`
+      // or `formatInTimezone` ever surprises us on a future format change,
+      // skip just this one offer rather than bringing down buildLiveData
+      // for the whole destination.
+      let startIso: string;
+      let endIso: string;
+      try {
+        startIso = parseTimeInTimezone(offer.inventory_time_slot, this.timezone);
+        const endDate = addMinutes(new Date(startIso), offer.inventory_time_minutes);
+        if (Number.isNaN(endDate.getTime())) throw new Error('invalid end date');
+        endIso = formatInTimezone(endDate, this.timezone, 'iso');
+      } catch (err: any) {
+        console.warn(
+          `Universal: skipping Express Now offer for ${placeId} — bad time slot ${offer.inventory_time_slot}: ${err?.message ?? err}`,
+        );
+        continue;
+      }
+
       if (!entry.queue) entry.queue = {};
-
-      const startIso = parseTimeInTimezone(offer.inventory_time_slot, this.timezone);
-      const endIso = formatInTimezone(
-        addMinutes(new Date(startIso), offer.inventory_time_minutes),
-        this.timezone,
-        'iso',
-      );
-
       entry.queue.PAID_RETURN_TIME = {
         returnStart: startIso,
         returnEnd: endIso,

@@ -69,9 +69,30 @@ describe('parseExpressNowResponse', () => {
       predictions: [
         {place_id: 'uor.bad.price', inventory_time_slot: '2026-05-07T10:00:00', inventory_time_minutes: '5', product_price: 'not-a-number', vl_inventory: '1'},
         {place_id: 'uor.bad.mins', inventory_time_slot: '2026-05-07T10:00:00', inventory_time_minutes: '', product_price: '5.00', vl_inventory: '1'},
+        {place_id: 'uor.bad.inv', inventory_time_slot: '2026-05-07T10:00:00', inventory_time_minutes: '5', product_price: '5.00', vl_inventory: 'NaN'},
       ],
     });
     expect(out).toEqual({});
+  });
+
+  test('skips entries with missing or malformed inventory_time_slot', () => {
+    const base = {
+      offer_id: 'x',
+      inventory_time_minutes: '5',
+      product_price: '5.00',
+      vl_inventory: '1',
+    };
+    const out = parseExpressNowResponse({
+      predictions: [
+        {...base, place_id: 'uor.no.slot'},
+        {...base, place_id: 'uor.null.slot', inventory_time_slot: null},
+        {...base, place_id: 'uor.empty.slot', inventory_time_slot: ''},
+        {...base, place_id: 'uor.garbage.slot', inventory_time_slot: 'not-a-timestamp'},
+        {...base, place_id: 'uor.with.tz', inventory_time_slot: '2026-05-07T10:00:00Z'}, // we want naive form only
+        {...base, place_id: 'uor.ok', inventory_time_slot: '2026-05-07T10:00:00'},
+      ],
+    });
+    expect(Object.keys(out)).toEqual(['uor.ok']);
   });
 
   test('keeps earliest slot when multiple offers share a place_id', () => {
