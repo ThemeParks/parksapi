@@ -13,8 +13,9 @@ import {
   AttractionTypeEnum,
   QueueTypeEnum,
 } from '@themeparks/typelib';
-import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore, constructDateTime} from '../../datetime.js';
+import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore, constructDateTime, addMinutes, hostnameFromUrl} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
+import {randomPointInRadius} from '../../geo.js';
 
 // Only return restaurants using these dining types
 const WANTED_DINING_TYPES = ['CasualDining', 'FineDining'];
@@ -126,6 +127,22 @@ type UniversalVirtualQueueDetails = {
 };
 
 /**
+ * One Express Now offer, post-parsing.
+ *
+ * Numeric fields arrive as strings on the wire (Flutter parser uses
+ * `int.parse` / `double.parse` on every numeric field) — we coerce them
+ * once here so downstream code never has to.
+ */
+type ExpressNowOffer = {
+  offer_id: string;
+  place_id: string;
+  inventory_time_slot: string;   // ISO datetime — return window start (park-local, no offset)
+  inventory_time_minutes: number; // window length
+  product_price: number;          // USD, decimal
+  vl_inventory: number;           // remaining inventory
+};
+
+/**
  * Universal schedule API response
  */
 type UniversalScheduleResponse = Array<{
@@ -153,6 +170,38 @@ class Universal extends Destination {
 
   @config
   assetsBase: string = "";
+
+  /** UDX platform API base — used by Express Now (new Flutter app API). */
+  @config
+  udxBase: string = "";
+
+  /** UDX OAuth2 client ID. */
+  @config
+  udxClientId: string = "";
+
+  /** UDX OAuth2 client secret. */
+  @config
+  udxClientSecret: string = "";
+
+  /**
+   * Flutter app API key for UDX calls (e.g. `UORFlutterAndroidApp`). The
+   * legacy Android key (`AndroidMobileApp`) is rejected by the Express Now
+   * endpoint — a resort-specific Flutter key is required.
+   */
+  @config
+  flutterAppKey: string = "";
+
+  /** Flutter app version sent on UDX requests. Rotates with app updates. */
+  @config
+  flutterAppVersion: string = "";
+
+  /** Park centre latitude — used to jitter Express Now offers requests. */
+  @config
+  parkLatitude: number = 0;
+
+  /** Park centre longitude. */
+  @config
+  parkLongitude: number = 0;
 
   @config
   city: string = "orlando";
@@ -196,6 +245,180 @@ class Universal extends Destination {
       'X-UNIWebService-Token': apiKeyData.apiKey,
     };
   }
+
+  // ─── UDX platform API (Express Now, new Flutter app) ────────────────────
+
+  /**
+   * Inject Bearer token + Flutter-app fingerprint headers on UDX requests.
+   * Skipped for the OAuth call itself (tagged `udxAuth`).
+   */
+  @inject({
+    eventName: 'httpRequest',
+    hostname: function() {
+      if (!this.udxBase) return null;
+      return hostnameFromUrl(this.udxBase);
+    },
+    tags: {$nin: ['udxAuth']},
+  })
+  async injectUdxToken(requestObj: HTTPObj): Promise<void> {
+    if (!this.udxBase) return;
+    const {token} = await this.getUdxToken();
+    const headers: Record<string, string> = {
+      ...requestObj.headers,
+      'user-agent': 'Dart/3.6 (dart:io)',
+      'accept-language': 'en-US',
+      'x-uniwebservice-platform': 'Android',
+      'x-uniwebservice-platformversion': '14',
+      'x-uniwebservice-device': 'ONEPLUS A5000',
+      'Authorization': `Bearer ${token}`,
+    };
+    if (this.flutterAppVersion) {
+      headers['x-uniwebservice-appversion'] = this.flutterAppVersion;
+    }
+    requestObj.headers = headers;
+  }
+
+  /** Fetch UDX OAuth2 token via client credentials. */
+  @http({tags: ['udxAuth']} as any)
+  async fetchUdxToken(): Promise<HTTPObj> {
+    const credentials = Buffer.from(`${this.udxClientId}:${this.udxClientSecret}`).toString('base64');
+    return {
+      method: 'POST',
+      url: `${this.udxBase}/oidc/connect/token`,
+      body: 'scope=default&grant_type=client_credentials',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
+        'user-agent': 'Dart/3.6 (dart:io)',
+      },
+      tags: ['udxAuth'],
+    } as any as HTTPObj;
+  }
+
+  /** Cached UDX access token. */
+  @cache({callback: (resp: {token: string; expiresIn: number}) => resp?.expiresIn || 3600})
+  async getUdxToken(): Promise<{token: string; expiresIn: number}> {
+    const resp = await this.fetchUdxToken();
+    const data: any = await resp.json();
+    if (!data?.access_token) {
+      throw new Error('Universal UDX: no access_token in response');
+    }
+    return {
+      token: data.access_token,
+      expiresIn: (data.expires_in as number) || 3600,
+    };
+  }
+
+  /**
+   * Inject Express Now headers (resort code + Flutter app key). The legacy
+   * `X-UNIWebService-ApiKey: AndroidMobileApp` is rejected here — UDX wants
+   * the resort-specific Flutter key.
+   */
+  @inject({
+    eventName: 'httpRequest',
+    hostname: function() {
+      if (!this.udxBase) return null;
+      return hostnameFromUrl(this.udxBase);
+    },
+    tags: 'expressNowOffers',
+  })
+  async injectExpressNowHeaders(requestObj: HTTPObj): Promise<void> {
+    const flutterKey = this.flutterAppKey || `${this.resortKey.toUpperCase()}FlutterAndroidApp`;
+    requestObj.headers = {
+      ...requestObj.headers,
+      'x-resort-area-code': this.resortKey.toUpperCase(),
+      'X-UNIWebService-ApiKey': flutterKey,
+    };
+  }
+
+  /**
+   * Stable instance UUID for unauthenticated Express Now calls. The Flutter
+   * app generates one v4 UUID per install and reuses it as the long-lived
+   * guest identifier — we cache for 30 days to mirror that behaviour.
+   */
+  @cache({ttlSeconds: 60 * 60 * 24 * 30})
+  async getExpressNowInstanceId(): Promise<string> {
+    return crypto.randomUUID();
+  }
+
+  /**
+   * POST UDX `/instances/{instanceId}/get-offers`. The lat/lon are jittered
+   * within 150m of the park centre per request so successive polls don't
+   * fingerprint as identical.
+   */
+  @http({tags: ['expressNowOffers'], retries: 0} as any)
+  async fetchExpressNowOffers(): Promise<HTTPObj> {
+    const instanceId = await this.getExpressNowInstanceId();
+    const point = randomPointInRadius(
+      {latitude: this.parkLatitude, longitude: this.parkLongitude},
+      150,
+    );
+    return {
+      method: 'POST',
+      url: `${this.udxBase}/instances/${instanceId}/get-offers`,
+      body: {
+        location_lat: String(point.latitude),
+        location_long: String(point.longitude),
+        device_id: instanceId,
+      },
+      options: {json: true},
+      tags: ['expressNowOffers'],
+    } as any as HTTPObj;
+  }
+
+  /**
+   * Get parsed Express Now offers, grouped by `place_id`.
+   * Empty object when Express Now isn't selling (404 / `OFFERS_NOT_FOUND`).
+   *
+   * TTL is dynamic: 60s when there are live offers (we want fresh inventory),
+   * 10min when the endpoint reports OFFERS_NOT_FOUND (Express Now isn't
+   * selling, so we don't need to re-poll often — and re-polling generates
+   * a 404 console.error each time the http layer rejects).
+   */
+  @cache({callback: (offers: Record<string, ExpressNowOffer>) => Object.keys(offers).length === 0 ? 600 : 60})
+  async getExpressNowOffers(): Promise<Record<string, ExpressNowOffer>> {
+    if (!this.udxBase || !this.parkLatitude || !this.parkLongitude) return {};
+
+    let resp: HTTPObj | undefined;
+    try {
+      resp = await this.fetchExpressNowOffers();
+    } catch (err: any) {
+      const msg = String(err?.message ?? err);
+      // 404 / OFFERS_NOT_FOUND is the normal state when nothing is for sale.
+      if (msg.includes('404') || msg.includes('OFFERS_NOT_FOUND')) return {};
+      console.warn('Universal: Express Now offers fetch failed:', msg.split('\n')[0]);
+      return {};
+    }
+
+    const data: any = await resp.json();
+    const offers: any[] = Array.isArray(data?.predictions) ? data.predictions : [];
+    const grouped: Record<string, ExpressNowOffer> = {};
+
+    for (const raw of offers) {
+      const placeId = raw?.place_id;
+      if (!placeId) continue;
+
+      const parsed: ExpressNowOffer = {
+        offer_id: raw.offer_id,
+        place_id: placeId,
+        inventory_time_slot: raw.inventory_time_slot,
+        inventory_time_minutes: parseInt(raw.inventory_time_minutes, 10),
+        product_price: parseFloat(raw.product_price),
+        vl_inventory: parseInt(raw.vl_inventory, 10),
+      };
+
+      if (!Number.isFinite(parsed.product_price) || !Number.isFinite(parsed.inventory_time_minutes)) continue;
+
+      const existing = grouped[placeId];
+      // Pick the earliest available slot per place
+      if (!existing || new Date(parsed.inventory_time_slot) < new Date(existing.inventory_time_slot)) {
+        grouped[placeId] = parsed;
+      }
+    }
+    return grouped;
+  }
+
+  // ─── Legacy API (services.universalorlando.com) ─────────────────────────
 
   /**
    * Handle 401 responses by clearing cached API key
@@ -788,6 +1011,34 @@ class Universal extends Destination {
       }
     }
 
+    // Layer Express Now (paid return time) offers from the UDX API. Only
+    // attached to attractions that already appear in the live-data map —
+    // a paid return-time without a known ride is not actionable downstream.
+    const expressNowOffers = await this.getExpressNowOffers();
+    for (const [placeId, offer] of Object.entries(expressNowOffers)) {
+      if (offer.vl_inventory <= 0) continue;
+
+      const poiId = this.getRideIDFromWaitTimeId(poi, placeId);
+      if (!poiId) continue;
+
+      const entry = liveDataMap.get(poiId);
+      if (!entry) continue;
+      if (!entry.queue) entry.queue = {};
+
+      const startIso = parseTimeInTimezone(offer.inventory_time_slot, this.timezone);
+      const endIso = addMinutes(new Date(startIso), offer.inventory_time_minutes).toISOString();
+
+      entry.queue.PAID_RETURN_TIME = {
+        returnStart: startIso,
+        returnEnd: endIso,
+        state: 'AVAILABLE',
+        price: {
+          amount: Math.round(offer.product_price * 100), // dollars → cents
+          currency: 'USD',
+        },
+      };
+    }
+
     return liveData;
   }
 
@@ -850,6 +1101,8 @@ export class UniversalOrlando extends Universal {
         resortSlug: 'universalorlando',
         resortKey: 'uor',
         timezone: 'America/New_York',
+        parkLatitude: '28.4747',
+        parkLongitude: '-81.4682',
         ...options?.config,
       },
     });
@@ -872,6 +1125,8 @@ export class UniversalStudios extends Universal {
         resortSlug: 'universalstudios',
         resortKey: 'ush',
         timezone: 'America/Los_Angeles',
+        parkLatitude: '34.1381',
+        parkLongitude: '-118.3534',
         ...options?.config,
       },
     });
