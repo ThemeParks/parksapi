@@ -247,8 +247,9 @@ class Universal extends Destination {
 
   /**
    * Park centre latitude — used to jitter Express Now offers requests.
-   * NaN by default so the truthy-check in `getExpressNowOffers` doesn't
-   * misclassify a configured `0` (equator) as "unset".
+   * NaN by default so the `Number.isFinite` guard in `getExpressNowOffers`
+   * fails until the value is actually configured. (A literal `0` for a
+   * park sited at the equator is a valid finite value and would pass.)
    */
   @config
   parkLatitude: number = NaN;
@@ -332,8 +333,10 @@ class Universal extends Destination {
     requestObj.headers = headers;
   }
 
-  /** Fetch UDX OAuth2 token via client credentials. */
-  @http({tags: ['udxAuth']} as any)
+  /** Fetch UDX OAuth2 token via client credentials. The request-level
+   * `tags: ['udxAuth']` (on the returned HTTPObj) is what `injectUdxToken`
+   * matches against to skip itself for this call. */
+  @http()
   async fetchUdxToken(): Promise<HTTPObj> {
     if (!this.udxBase || !this.udxClientId || !this.udxClientSecret) {
       throw new Error(
@@ -409,7 +412,7 @@ class Universal extends Destination {
    * within 150m of the park centre per request so successive polls don't
    * fingerprint as identical.
    */
-  @http({tags: ['expressNowOffers'], retries: 0} as any)
+  @http({retries: 0})
   async fetchExpressNowOffers(): Promise<HTTPObj> {
     const instanceId = await this.getExpressNowInstanceId();
     const point = randomPointInRadius(
