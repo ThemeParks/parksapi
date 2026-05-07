@@ -133,7 +133,7 @@ type UniversalVirtualQueueDetails = {
  * `int.parse` / `double.parse` on every numeric field) — we coerce them
  * once here so downstream code never has to.
  */
-type ExpressNowOffer = {
+export type ExpressNowOffer = {
   offer_id: string;
   place_id: string;
   inventory_time_slot: string;   // ISO datetime — return window start (park-local, no offset)
@@ -141,6 +141,42 @@ type ExpressNowOffer = {
   product_price: number;          // USD, decimal
   vl_inventory: number;           // remaining inventory
 };
+
+/**
+ * Pure parser for the Express Now `/get-offers` response body. Coerces the
+ * string-typed numeric fields, drops malformed entries, and groups by
+ * `place_id` keeping the earliest-starting offer per place.
+ *
+ * Exported for unit testing — the reference payload is the first real
+ * sample that came back from the live endpoint (Spider-Man, Mardi Gras
+ * late-close window).
+ */
+export function parseExpressNowResponse(data: unknown): Record<string, ExpressNowOffer> {
+  const predictions: any[] = Array.isArray((data as any)?.predictions) ? (data as any).predictions : [];
+  const grouped: Record<string, ExpressNowOffer> = {};
+
+  for (const raw of predictions) {
+    const placeId = raw?.place_id;
+    if (!placeId) continue;
+
+    const parsed: ExpressNowOffer = {
+      offer_id: raw.offer_id,
+      place_id: placeId,
+      inventory_time_slot: raw.inventory_time_slot,
+      inventory_time_minutes: parseInt(raw.inventory_time_minutes, 10),
+      product_price: parseFloat(raw.product_price),
+      vl_inventory: parseInt(raw.vl_inventory, 10),
+    };
+
+    if (!Number.isFinite(parsed.product_price) || !Number.isFinite(parsed.inventory_time_minutes)) continue;
+
+    const existing = grouped[placeId];
+    if (!existing || new Date(parsed.inventory_time_slot) < new Date(existing.inventory_time_slot)) {
+      grouped[placeId] = parsed;
+    }
+  }
+  return grouped;
+}
 
 /**
  * Universal schedule API response
@@ -390,32 +426,7 @@ class Universal extends Destination {
       return {};
     }
 
-    const data: any = await resp.json();
-    const offers: any[] = Array.isArray(data?.predictions) ? data.predictions : [];
-    const grouped: Record<string, ExpressNowOffer> = {};
-
-    for (const raw of offers) {
-      const placeId = raw?.place_id;
-      if (!placeId) continue;
-
-      const parsed: ExpressNowOffer = {
-        offer_id: raw.offer_id,
-        place_id: placeId,
-        inventory_time_slot: raw.inventory_time_slot,
-        inventory_time_minutes: parseInt(raw.inventory_time_minutes, 10),
-        product_price: parseFloat(raw.product_price),
-        vl_inventory: parseInt(raw.vl_inventory, 10),
-      };
-
-      if (!Number.isFinite(parsed.product_price) || !Number.isFinite(parsed.inventory_time_minutes)) continue;
-
-      const existing = grouped[placeId];
-      // Pick the earliest available slot per place
-      if (!existing || new Date(parsed.inventory_time_slot) < new Date(existing.inventory_time_slot)) {
-        grouped[placeId] = parsed;
-      }
-    }
-    return grouped;
+    return parseExpressNowResponse(await resp.json());
   }
 
   // ─── Legacy API (services.universalorlando.com) ─────────────────────────
