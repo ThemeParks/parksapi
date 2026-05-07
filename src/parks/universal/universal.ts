@@ -164,6 +164,7 @@ export function parseExpressNowResponse(data: unknown): Record<string, ExpressNo
   for (const raw of predictions) {
     const placeId = raw?.place_id;
     if (typeof placeId !== 'string' || !placeId) continue;
+    if (typeof raw?.offer_id !== 'string' || !raw.offer_id) continue;
     if (typeof raw?.inventory_time_slot !== 'string' || !SLOT_RE.test(raw.inventory_time_slot)) continue;
 
     const parsed: ExpressNowOffer = {
@@ -244,13 +245,17 @@ class Universal extends Destination {
   @config
   flutterAppVersion: string = "";
 
-  /** Park centre latitude — used to jitter Express Now offers requests. */
+  /**
+   * Park centre latitude — used to jitter Express Now offers requests.
+   * NaN by default so the truthy-check in `getExpressNowOffers` doesn't
+   * misclassify a configured `0` (equator) as "unset".
+   */
   @config
-  parkLatitude: number = 0;
+  parkLatitude: number = NaN;
 
-  /** Park centre longitude. */
+  /** Park centre longitude. NaN by default — see `parkLatitude`. */
   @config
-  parkLongitude: number = 0;
+  parkLongitude: number = NaN;
 
   @config
   city: string = "orlando";
@@ -330,6 +335,12 @@ class Universal extends Destination {
   /** Fetch UDX OAuth2 token via client credentials. */
   @http({tags: ['udxAuth']} as any)
   async fetchUdxToken(): Promise<HTTPObj> {
+    if (!this.udxBase || !this.udxClientId || !this.udxClientSecret) {
+      throw new Error(
+        `Universal UDX: missing config (udxBase=${!!this.udxBase}, udxClientId=${!!this.udxClientId}, udxClientSecret=${!!this.udxClientSecret}). ` +
+        `Set UNIVERSALSTUDIOS_UDXBASE / UNIVERSALSTUDIOS_UDXCLIENTID / UNIVERSALSTUDIOS_UDXCLIENTSECRET in .env.`,
+      );
+    }
     const credentials = Buffer.from(`${this.udxClientId}:${this.udxClientSecret}`).toString('base64');
     return {
       method: 'POST',
@@ -430,7 +441,7 @@ class Universal extends Destination {
    */
   @cache({callback: (offers: Record<string, ExpressNowOffer>) => Object.keys(offers).length === 0 ? 600 : 60})
   async getExpressNowOffers(): Promise<Record<string, ExpressNowOffer>> {
-    if (!this.udxBase || !this.parkLatitude || !this.parkLongitude) return {};
+    if (!this.udxBase || !Number.isFinite(this.parkLatitude) || !Number.isFinite(this.parkLongitude)) return {};
 
     let resp: HTTPObj;
     try {
@@ -1064,16 +1075,16 @@ class Universal extends Destination {
 
       // Defensive: parseExpressNowResponse already validates the slot
       // format, so this should never throw — but if `parseTimeInTimezone`
-      // or `formatInTimezone` ever surprises us on a future format change,
-      // skip just this one offer rather than bringing down buildLiveData
-      // for the whole destination.
-      let startIso: string;
-      let endIso: string;
+      // ever surprises us on a future format change, skip just this offer
+      // rather than bringing down buildLiveData for the whole destination.
+      let startDate: Date;
+      let endDate: Date;
       try {
-        startIso = parseTimeInTimezone(offer.inventory_time_slot, this.timezone);
-        const endDate = addMinutes(new Date(startIso), offer.inventory_time_minutes);
-        if (Number.isNaN(endDate.getTime())) throw new Error('invalid end date');
-        endIso = formatInTimezone(endDate, this.timezone, 'iso');
+        startDate = new Date(parseTimeInTimezone(offer.inventory_time_slot, this.timezone));
+        endDate = addMinutes(startDate, offer.inventory_time_minutes);
+        if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+          throw new Error('invalid date');
+        }
       } catch (err: any) {
         console.warn(
           `Universal: skipping Express Now offer for ${placeId} — bad time slot ${offer.inventory_time_slot}: ${err?.message ?? err}`,
@@ -1082,15 +1093,13 @@ class Universal extends Destination {
       }
 
       if (!entry.queue) entry.queue = {};
-      entry.queue.PAID_RETURN_TIME = {
-        returnStart: startIso,
-        returnEnd: endIso,
-        state: 'AVAILABLE',
-        price: {
-          amount: Math.round(offer.product_price * 100), // dollars → cents
-          currency: 'USD',
-        },
-      };
+      entry.queue.PAID_RETURN_TIME = this.buildPaidReturnTimeQueue(
+        'AVAILABLE',
+        startDate,
+        endDate,
+        'USD',
+        Math.round(offer.product_price * 100), // dollars → cents
+      );
     }
 
     return liveData;

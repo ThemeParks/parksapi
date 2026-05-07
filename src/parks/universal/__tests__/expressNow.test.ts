@@ -53,23 +53,27 @@ describe('parseExpressNowResponse', () => {
     expect(parseExpressNowResponse(null)).toEqual({});
   });
 
-  test('skips entries without place_id', () => {
+  test('skips entries without place_id or offer_id', () => {
+    const ok = {offer_id: 'ok', inventory_time_slot: '2026-05-07T10:00:00', inventory_time_minutes: '5', product_price: '1.00', vl_inventory: '1'};
     const out = parseExpressNowResponse({
       predictions: [
-        {place_id: null, inventory_time_minutes: '5', product_price: '1.00', vl_inventory: '1'},
-        {inventory_time_minutes: '5', product_price: '1.00', vl_inventory: '1'},
-        {place_id: 'uor.ride.one', inventory_time_slot: '2026-05-07T10:00:00', inventory_time_minutes: '5', product_price: '1.00', vl_inventory: '1'},
+        {...ok, place_id: null},
+        {...ok}, // no place_id
+        {...ok, place_id: 'uor.no.offer', offer_id: undefined},
+        {...ok, place_id: 'uor.empty.offer', offer_id: ''},
+        {...ok, place_id: 'uor.ride.one'},
       ],
     });
     expect(Object.keys(out)).toEqual(['uor.ride.one']);
   });
 
   test('skips entries with NaN price or minutes (malformed strings)', () => {
+    const base = {offer_id: 'x', inventory_time_slot: '2026-05-07T10:00:00'};
     const out = parseExpressNowResponse({
       predictions: [
-        {place_id: 'uor.bad.price', inventory_time_slot: '2026-05-07T10:00:00', inventory_time_minutes: '5', product_price: 'not-a-number', vl_inventory: '1'},
-        {place_id: 'uor.bad.mins', inventory_time_slot: '2026-05-07T10:00:00', inventory_time_minutes: '', product_price: '5.00', vl_inventory: '1'},
-        {place_id: 'uor.bad.inv', inventory_time_slot: '2026-05-07T10:00:00', inventory_time_minutes: '5', product_price: '5.00', vl_inventory: 'NaN'},
+        {...base, place_id: 'uor.bad.price', inventory_time_minutes: '5', product_price: 'not-a-number', vl_inventory: '1'},
+        {...base, place_id: 'uor.bad.mins', inventory_time_minutes: '', product_price: '5.00', vl_inventory: '1'},
+        {...base, place_id: 'uor.bad.inv', inventory_time_minutes: '5', product_price: '5.00', vl_inventory: 'NaN'},
       ],
     });
     expect(out).toEqual({});
