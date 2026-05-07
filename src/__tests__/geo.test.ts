@@ -24,11 +24,13 @@ describe('randomPointInRadius', () => {
     }
   });
 
-  it('produces different points on successive calls', () => {
+  it('produces a non-degenerate spread across many calls', () => {
+    // Avoid asserting "two consecutive calls differ" — that's probabilistic.
+    // Instead: across 200 samples, we should see meaningful variance.
     const centre = {latitude: 0, longitude: 0};
-    const a = randomPointInRadius(centre, 100);
-    const b = randomPointInRadius(centre, 100);
-    expect(a).not.toEqual(b);
+    const samples = Array.from({length: 200}, () => randomPointInRadius(centre, 100));
+    const distinct = new Set(samples.map((p) => `${p.latitude},${p.longitude}`));
+    expect(distinct.size).toBeGreaterThan(150);
   });
 });
 

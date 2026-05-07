@@ -168,10 +168,15 @@ export function parseExpressNowResponse(data: unknown): Record<string, ExpressNo
       vl_inventory: parseInt(raw.vl_inventory, 10),
     };
 
-    if (!Number.isFinite(parsed.product_price) || !Number.isFinite(parsed.inventory_time_minutes)) continue;
+    if (!Number.isFinite(parsed.product_price)
+        || !Number.isFinite(parsed.inventory_time_minutes)
+        || !Number.isFinite(parsed.vl_inventory)) continue;
 
     const existing = grouped[placeId];
-    if (!existing || new Date(parsed.inventory_time_slot) < new Date(existing.inventory_time_slot)) {
+    // The slot format is `YYYY-MM-DDTHH:mm:ss` — lexicographic compare is
+    // equivalent to chronological compare and avoids assuming the runtime
+    // and park timezone agree (`new Date()` parses naive ISO as local).
+    if (!existing || parsed.inventory_time_slot < existing.inventory_time_slot) {
       grouped[placeId] = parsed;
     }
   }
@@ -339,9 +344,12 @@ class Universal extends Destination {
     if (!data?.access_token) {
       throw new Error('Universal UDX: no access_token in response');
     }
+    // expires_in is normally a number, but some OAuth servers stringify it —
+    // coerce so the @cache TTL callback always sees a finite number.
+    const expiresIn = Number(data.expires_in);
     return {
       token: data.access_token,
-      expiresIn: (data.expires_in as number) || 3600,
+      expiresIn: Number.isFinite(expiresIn) && expiresIn > 0 ? expiresIn : 3600,
     };
   }
 
@@ -405,25 +413,29 @@ class Universal extends Destination {
   /**
    * Get parsed Express Now offers, grouped by `place_id`.
    * Empty object when Express Now isn't selling (404 / `OFFERS_NOT_FOUND`).
+   * Throws on any other error so transient failures aren't cached as empty.
    *
    * TTL is dynamic: 60s when there are live offers (we want fresh inventory),
-   * 10min when the endpoint reports OFFERS_NOT_FOUND (Express Now isn't
-   * selling, so we don't need to re-poll often — and re-polling generates
-   * a 404 console.error each time the http layer rejects).
+   * 10min when the endpoint confirms OFFERS_NOT_FOUND (no point re-polling
+   * a stable "nothing for sale" — and re-polling generates a 404 log entry
+   * from the http layer each time).
    */
   @cache({callback: (offers: Record<string, ExpressNowOffer>) => Object.keys(offers).length === 0 ? 600 : 60})
   async getExpressNowOffers(): Promise<Record<string, ExpressNowOffer>> {
     if (!this.udxBase || !this.parkLatitude || !this.parkLongitude) return {};
 
-    let resp: HTTPObj | undefined;
+    let resp: HTTPObj;
     try {
       resp = await this.fetchExpressNowOffers();
     } catch (err: any) {
       const msg = String(err?.message ?? err);
-      // 404 / OFFERS_NOT_FOUND is the normal state when nothing is for sale.
+      // 404 / OFFERS_NOT_FOUND is the steady state when Express Now isn't
+      // selling — cache as empty (long TTL via callback above).
       if (msg.includes('404') || msg.includes('OFFERS_NOT_FOUND')) return {};
-      console.warn('Universal: Express Now offers fetch failed:', msg.split('\n')[0]);
-      return {};
+      // Anything else (network / 5xx / parse) is transient — let it bubble
+      // so @cache doesn't store an empty result that masks the outage. The
+      // caller (buildLiveData) catches and degrades gracefully.
+      throw err;
     }
 
     return parseExpressNowResponse(await resp.json());
@@ -1025,7 +1037,12 @@ class Universal extends Destination {
     // Layer Express Now (paid return time) offers from the UDX API. Only
     // attached to attractions that already appear in the live-data map —
     // a paid return-time without a known ride is not actionable downstream.
-    const expressNowOffers = await this.getExpressNowOffers();
+    let expressNowOffers: Record<string, ExpressNowOffer> = {};
+    try {
+      expressNowOffers = await this.getExpressNowOffers();
+    } catch (err: any) {
+      console.warn('Universal: Express Now offers fetch failed:', String(err?.message ?? err).split('\n')[0]);
+    }
     for (const [placeId, offer] of Object.entries(expressNowOffers)) {
       if (offer.vl_inventory <= 0) continue;
 
@@ -1037,7 +1054,11 @@ class Universal extends Destination {
       if (!entry.queue) entry.queue = {};
 
       const startIso = parseTimeInTimezone(offer.inventory_time_slot, this.timezone);
-      const endIso = addMinutes(new Date(startIso), offer.inventory_time_minutes).toISOString();
+      const endIso = formatInTimezone(
+        addMinutes(new Date(startIso), offer.inventory_time_minutes),
+        this.timezone,
+        'iso',
+      );
 
       entry.queue.PAID_RETURN_TIME = {
         returnStart: startIso,
