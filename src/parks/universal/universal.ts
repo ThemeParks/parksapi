@@ -13,8 +13,9 @@ import {
   AttractionTypeEnum,
   QueueTypeEnum,
 } from '@themeparks/typelib';
-import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore, constructDateTime} from '../../datetime.js';
+import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore, constructDateTime, addMinutes, hostnameFromUrl} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
+import {randomPointInRadius} from '../../geo.js';
 
 // Only return restaurants using these dining types
 const WANTED_DINING_TYPES = ['CasualDining', 'FineDining'];
@@ -126,6 +127,72 @@ type UniversalVirtualQueueDetails = {
 };
 
 /**
+ * One Express Now offer, post-parsing.
+ *
+ * Numeric fields arrive as strings on the wire (Flutter parser uses
+ * `int.parse` / `double.parse` on every numeric field) — we coerce them
+ * once here so downstream code never has to.
+ */
+export type ExpressNowOffer = {
+  offer_id: string;
+  place_id: string;
+  inventory_time_slot: string;   // ISO datetime — return window start (park-local, no offset)
+  inventory_time_minutes: number; // window length
+  product_price: number;          // USD, decimal
+  vl_inventory: number;           // remaining inventory
+};
+
+/**
+ * Pure parser for the Express Now `/get-offers` response body. Coerces the
+ * string-typed numeric fields, drops malformed entries, and groups by
+ * `place_id` keeping the earliest-starting offer per place.
+ *
+ * Exported for unit testing — the reference payload is the first real
+ * sample that came back from the live endpoint (Spider-Man, Mardi Gras
+ * late-close window).
+ */
+// Required `inventory_time_slot` format. Must be enforced at parse time —
+// downstream emission feeds the value into `parseTimeInTimezone` and `new
+// Date()`, both of which would silently produce an Invalid Date for
+// anything else, then `formatInTimezone` would throw mid-buildLiveData.
+const SLOT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
+
+export function parseExpressNowResponse(data: unknown): Record<string, ExpressNowOffer> {
+  const predictions: any[] = Array.isArray((data as any)?.predictions) ? (data as any).predictions : [];
+  const grouped: Record<string, ExpressNowOffer> = {};
+
+  for (const raw of predictions) {
+    const placeId = raw?.place_id;
+    if (typeof placeId !== 'string' || !placeId) continue;
+    if (typeof raw?.offer_id !== 'string' || !raw.offer_id) continue;
+    if (typeof raw?.inventory_time_slot !== 'string' || !SLOT_RE.test(raw.inventory_time_slot)) continue;
+
+    const parsed: ExpressNowOffer = {
+      offer_id: raw.offer_id,
+      place_id: placeId,
+      inventory_time_slot: raw.inventory_time_slot,
+      inventory_time_minutes: parseInt(raw.inventory_time_minutes, 10),
+      product_price: parseFloat(raw.product_price),
+      vl_inventory: parseInt(raw.vl_inventory, 10),
+    };
+
+    if (!Number.isFinite(parsed.product_price)
+        || !Number.isFinite(parsed.inventory_time_minutes)
+        || !Number.isFinite(parsed.vl_inventory)) continue;
+
+    const existing = grouped[placeId];
+    // The slot format is fixed `YYYY-MM-DDTHH:mm:ss` (validated above) —
+    // lexicographic compare is chronologically equivalent and avoids
+    // assuming the runtime and park timezone agree (`new Date()` parses
+    // naive ISO as local).
+    if (!existing || parsed.inventory_time_slot < existing.inventory_time_slot) {
+      grouped[placeId] = parsed;
+    }
+  }
+  return grouped;
+}
+
+/**
  * Universal schedule API response
  */
 type UniversalScheduleResponse = Array<{
@@ -153,6 +220,43 @@ class Universal extends Destination {
 
   @config
   assetsBase: string = "";
+
+  /** UDX platform API base — used by Express Now (new Flutter app API). */
+  @config
+  udxBase: string = "";
+
+  /** UDX OAuth2 client ID. */
+  @config
+  udxClientId: string = "";
+
+  /** UDX OAuth2 client secret. */
+  @config
+  udxClientSecret: string = "";
+
+  /**
+   * Flutter app API key for UDX calls (e.g. `UORFlutterAndroidApp`). The
+   * legacy Android key (`AndroidMobileApp`) is rejected by the Express Now
+   * endpoint — a resort-specific Flutter key is required.
+   */
+  @config
+  flutterAppKey: string = "";
+
+  /** Flutter app version sent on UDX requests. Rotates with app updates. */
+  @config
+  flutterAppVersion: string = "";
+
+  /**
+   * Park centre latitude — used to jitter Express Now offers requests.
+   * NaN by default so the `Number.isFinite` guard in `getExpressNowOffers`
+   * fails until the value is actually configured. (A literal `0` for a
+   * park sited at the equator is a valid finite value and would pass.)
+   */
+  @config
+  parkLatitude: number = NaN;
+
+  /** Park centre longitude. NaN by default — see `parkLatitude`. */
+  @config
+  parkLongitude: number = NaN;
 
   @config
   city: string = "orlando";
@@ -196,6 +300,172 @@ class Universal extends Destination {
       'X-UNIWebService-Token': apiKeyData.apiKey,
     };
   }
+
+  // ─── UDX platform API (Express Now, new Flutter app) ────────────────────
+
+  /**
+   * Inject Bearer token + Flutter-app fingerprint headers on UDX requests.
+   * Skipped for the OAuth call itself (tagged `udxAuth`).
+   */
+  @inject({
+    eventName: 'httpRequest',
+    hostname: function() {
+      if (!this.udxBase) return null;
+      return hostnameFromUrl(this.udxBase);
+    },
+    tags: {$nin: ['udxAuth']},
+  })
+  async injectUdxToken(requestObj: HTTPObj): Promise<void> {
+    if (!this.udxBase) return;
+    const {token} = await this.getUdxToken();
+    const headers: Record<string, string> = {
+      ...requestObj.headers,
+      'user-agent': 'Dart/3.6 (dart:io)',
+      'accept-language': 'en-US',
+      'x-uniwebservice-platform': 'Android',
+      'x-uniwebservice-platformversion': '14',
+      'x-uniwebservice-device': 'ONEPLUS A5000',
+      'Authorization': `Bearer ${token}`,
+    };
+    if (this.flutterAppVersion) {
+      headers['x-uniwebservice-appversion'] = this.flutterAppVersion;
+    }
+    requestObj.headers = headers;
+  }
+
+  /** Fetch UDX OAuth2 token via client credentials. The request-level
+   * `tags: ['udxAuth']` (on the returned HTTPObj) is what `injectUdxToken`
+   * matches against to skip itself for this call. */
+  @http()
+  async fetchUdxToken(): Promise<HTTPObj> {
+    if (!this.udxBase || !this.udxClientId || !this.udxClientSecret) {
+      throw new Error(
+        `Universal UDX: missing config (udxBase=${!!this.udxBase}, udxClientId=${!!this.udxClientId}, udxClientSecret=${!!this.udxClientSecret}). ` +
+        `Set UNIVERSALSTUDIOS_UDXBASE / UNIVERSALSTUDIOS_UDXCLIENTID / UNIVERSALSTUDIOS_UDXCLIENTSECRET in .env.`,
+      );
+    }
+    const credentials = Buffer.from(`${this.udxClientId}:${this.udxClientSecret}`).toString('base64');
+    return {
+      method: 'POST',
+      url: `${this.udxBase}/oidc/connect/token`,
+      body: 'scope=default&grant_type=client_credentials',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
+        'user-agent': 'Dart/3.6 (dart:io)',
+      },
+      tags: ['udxAuth'],
+    } as any as HTTPObj;
+  }
+
+  /** Cached UDX access token. */
+  @cache({callback: (resp: {token: string; expiresIn: number}) => resp?.expiresIn || 3600})
+  async getUdxToken(): Promise<{token: string; expiresIn: number}> {
+    const resp = await this.fetchUdxToken();
+    const data: any = await resp.json();
+    if (!data?.access_token) {
+      throw new Error('Universal UDX: no access_token in response');
+    }
+    // expires_in is normally a number, but some OAuth servers stringify it —
+    // coerce so the @cache TTL callback always sees a finite number.
+    const expiresIn = Number(data.expires_in);
+    return {
+      token: data.access_token,
+      expiresIn: Number.isFinite(expiresIn) && expiresIn > 0 ? expiresIn : 3600,
+    };
+  }
+
+  /**
+   * Inject Express Now headers (resort code + Flutter app key). The legacy
+   * `X-UNIWebService-ApiKey: AndroidMobileApp` is rejected here — UDX wants
+   * the resort-specific Flutter key.
+   */
+  @inject({
+    eventName: 'httpRequest',
+    hostname: function() {
+      if (!this.udxBase) return null;
+      return hostnameFromUrl(this.udxBase);
+    },
+    tags: 'expressNowOffers',
+  })
+  async injectExpressNowHeaders(requestObj: HTTPObj): Promise<void> {
+    const flutterKey = this.flutterAppKey || `${this.resortKey.toUpperCase()}FlutterAndroidApp`;
+    requestObj.headers = {
+      ...requestObj.headers,
+      'x-resort-area-code': this.resortKey.toUpperCase(),
+      'X-UNIWebService-ApiKey': flutterKey,
+    };
+  }
+
+  /**
+   * Stable instance UUID for unauthenticated Express Now calls. The Flutter
+   * app generates one v4 UUID per install and reuses it as the long-lived
+   * guest identifier — we cache for 30 days to mirror that behaviour.
+   */
+  @cache({ttlSeconds: 60 * 60 * 24 * 30})
+  async getExpressNowInstanceId(): Promise<string> {
+    return crypto.randomUUID();
+  }
+
+  /**
+   * POST UDX `/instances/{instanceId}/get-offers`. The lat/lon are jittered
+   * within 150m of the park centre per request so successive polls don't
+   * fingerprint as identical.
+   */
+  @http({retries: 0})
+  async fetchExpressNowOffers(): Promise<HTTPObj> {
+    const instanceId = await this.getExpressNowInstanceId();
+    const point = randomPointInRadius(
+      {latitude: this.parkLatitude, longitude: this.parkLongitude},
+      150,
+    );
+    return {
+      method: 'POST',
+      url: `${this.udxBase}/instances/${instanceId}/get-offers`,
+      body: {
+        location_lat: String(point.latitude),
+        location_long: String(point.longitude),
+        device_id: instanceId,
+      },
+      options: {json: true},
+      tags: ['expressNowOffers'],
+    } as any as HTTPObj;
+  }
+
+  /**
+   * Get parsed Express Now offers, grouped by `place_id`.
+   * Empty object when Express Now isn't selling (404 / `OFFERS_NOT_FOUND`).
+   * Throws on any other error so transient failures aren't cached as empty.
+   *
+   * TTL is dynamic: 60s when there are live offers (we want fresh inventory),
+   * 10min when the endpoint confirms OFFERS_NOT_FOUND (no point re-polling
+   * a stable "nothing for sale" — and re-polling generates a 404 log entry
+   * from the http layer each time).
+   */
+  @cache({callback: (offers: Record<string, ExpressNowOffer>) => Object.keys(offers).length === 0 ? 600 : 60})
+  async getExpressNowOffers(): Promise<Record<string, ExpressNowOffer>> {
+    if (!this.udxBase || !Number.isFinite(this.parkLatitude) || !Number.isFinite(this.parkLongitude)) return {};
+
+    let resp: HTTPObj;
+    try {
+      resp = await this.fetchExpressNowOffers();
+    } catch (err: any) {
+      const msg = String(err?.message ?? err);
+      // The 404 response always carries `"problem":"OFFERS_NOT_FOUND"` in
+      // the body — match on that specifically. A bare `404` substring would
+      // also swallow misconfiguration / wrong path / auth-rejection-as-404,
+      // masking real bugs behind the long empty-result TTL.
+      if (msg.includes('OFFERS_NOT_FOUND')) return {};
+      // Anything else (network / 5xx / parse / unexpected 404) is transient
+      // or a real bug — let it bubble so @cache doesn't poison the result.
+      // buildLiveData catches and degrades gracefully.
+      throw err;
+    }
+
+    return parseExpressNowResponse(await resp.json());
+  }
+
+  // ─── Legacy API (services.universalorlando.com) ─────────────────────────
 
   /**
    * Handle 401 responses by clearing cached API key
@@ -788,6 +1058,53 @@ class Universal extends Destination {
       }
     }
 
+    // Layer Express Now (paid return time) offers from the UDX API. Only
+    // attached to attractions that already appear in the live-data map —
+    // a paid return-time without a known ride is not actionable downstream.
+    let expressNowOffers: Record<string, ExpressNowOffer> = {};
+    try {
+      expressNowOffers = await this.getExpressNowOffers();
+    } catch (err: any) {
+      console.warn('Universal: Express Now offers fetch failed:', String(err?.message ?? err).split('\n')[0]);
+    }
+    for (const [placeId, offer] of Object.entries(expressNowOffers)) {
+      if (offer.vl_inventory <= 0) continue;
+
+      const poiId = this.getRideIDFromWaitTimeId(poi, placeId);
+      if (!poiId) continue;
+
+      const entry = liveDataMap.get(poiId);
+      if (!entry) continue;
+
+      // Defensive: parseExpressNowResponse already validates the slot
+      // format, so this should never throw — but if `parseTimeInTimezone`
+      // ever surprises us on a future format change, skip just this offer
+      // rather than bringing down buildLiveData for the whole destination.
+      let startDate: Date;
+      let endDate: Date;
+      try {
+        startDate = new Date(parseTimeInTimezone(offer.inventory_time_slot, this.timezone));
+        endDate = addMinutes(startDate, offer.inventory_time_minutes);
+        if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+          throw new Error('invalid date');
+        }
+      } catch (err: any) {
+        console.warn(
+          `Universal: skipping Express Now offer for ${placeId} — bad time slot ${offer.inventory_time_slot}: ${err?.message ?? err}`,
+        );
+        continue;
+      }
+
+      if (!entry.queue) entry.queue = {};
+      entry.queue.PAID_RETURN_TIME = this.buildPaidReturnTimeQueue(
+        'AVAILABLE',
+        startDate,
+        endDate,
+        'USD',
+        Math.round(offer.product_price * 100), // dollars → cents
+      );
+    }
+
     return liveData;
   }
 
@@ -850,6 +1167,8 @@ export class UniversalOrlando extends Universal {
         resortSlug: 'universalorlando',
         resortKey: 'uor',
         timezone: 'America/New_York',
+        parkLatitude: '28.4747',
+        parkLongitude: '-81.4682',
         ...options?.config,
       },
     });
@@ -872,6 +1191,8 @@ export class UniversalStudios extends Universal {
         resortSlug: 'universalstudios',
         resortKey: 'ush',
         timezone: 'America/Los_Angeles',
+        parkLatitude: '34.1381',
+        parkLongitude: '-118.3534',
         ...options?.config,
       },
     });
