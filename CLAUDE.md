@@ -147,7 +147,10 @@ Promise reuse to prevent duplicate async execution. `@reusable({forever: true})`
 
 All parks extend `Destination` using the **Template Method Pattern**.
 
-**Public API (DO NOT OVERRIDE):** `getDestinations()`, `getEntities()`, `getLiveData()`, `getSchedules()`
+**Public API (DO NOT OVERRIDE — marked `@final` in base class):** `getEntities()`, `getLiveData()`, `getSchedules()`. These call `init()`, then delegate to the corresponding `build*()` method, then run hierarchy resolution / sanitisation / validation.
+
+**Public API (OVERRIDE TO PROVIDE):**
+- `getDestinations()` — Return the top-level `DESTINATION` entity (or entities). Default returns `[]`. Common pattern across parks.
 
 **Protected API (IMPLEMENT IN SUBCLASSES):**
 - `_init()` — Optional one-time initialization
