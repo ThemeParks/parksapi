@@ -42,14 +42,14 @@ type HFEActivity = {
 
 /** Show performance event from the daily schedule activities array */
 type HFEShowEvent = {
-  from: string;
+  from?: string;
   to: string | null;
 };
 
 /** Show entry in the daily schedule activities array */
 type HFEScheduleActivity = {
-  cmsKey: string;
-  events: HFEShowEvent[];
+  cmsKey?: string;
+  events?: HFEShowEvent[];
   isAllDayEvent?: boolean;
 };
 
@@ -68,7 +68,7 @@ type HFEScheduleDay = {
     isAllDay?: boolean;
     cmsKey?: string;
   }>;
-  activities: HFEScheduleActivity[];
+  activities?: HFEScheduleActivity[];
 };
 
 /** Wait time entry from the Pulse API */
