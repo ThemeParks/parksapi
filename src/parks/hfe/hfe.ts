@@ -271,11 +271,15 @@ class HFEBase extends Destination {
   /**
    * Get schedule data for ~60 days (cached 12 hours).
    * Batches in 7-day chunks to avoid API timeouts.
+   * Throws if every batch fails so callers can distinguish a total outage
+   * from a genuinely empty schedule.
    */
   @cache({ttlSeconds: 43200})
   async getSchedule(): Promise<HFEScheduleDay[]> {
     const allDays: HFEScheduleDay[] = [];
     const now = new Date();
+    let succeededAny = false;
+    let lastError: unknown;
 
     for (let i = 0; i < 9; i++) { // 9 x 7 = 63 days
       const startDate = addDays(now, i * 7);
@@ -286,9 +290,14 @@ class HFEBase extends Destination {
         if (Array.isArray(data)) {
           allDays.push(...data);
         }
-      } catch {
-        // Skip failed batches gracefully
+        succeededAny = true;
+      } catch (err) {
+        lastError = err;
       }
+    }
+
+    if (!succeededAny) {
+      throw lastError ?? new Error('all HFE schedule batches failed');
     }
 
     return allDays;
@@ -391,12 +400,19 @@ class HFEBase extends Destination {
     // indefinitely without setting end dates, so a categorised seasonal show OR a currently
     // scheduled performance is required to keep the entity. This preserves off-season
     // seasonal shows (Christmas, Spring, etc.) while dropping the uncategorised ghosts.
+    // If the schedule API is unreachable, fall back to category-only — we'd rather lose
+    // a few uncategorised real shows for one cache cycle than readmit 100+ ghosts.
     const shows: Entity[] = [];
     if (this.showCategoryListId) {
-      const scheduleDays = await this.getSchedule();
-      const scheduledIds = new Set(
-        scheduleDays.flatMap(day => (day.activities ?? []).map(a => a.cmsKey)),
-      );
+      let scheduledIds: Set<string | undefined> = new Set();
+      try {
+        const scheduleDays = await this.getSchedule();
+        scheduledIds = new Set(
+          scheduleDays.flatMap(day => (day.activities ?? []).map(a => a.cmsKey)),
+        );
+      } catch {
+        // Schedule API totally unavailable — proceed with category-only filter
+      }
 
       const showActivities = activities.filter(
         a => a.activityListId === this.showCategoryListId &&
