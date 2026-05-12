@@ -31,11 +31,26 @@ type HFEActivity = {
   id: string;
   title: string;
   activityCategories: string[];
+  activityListId?: string;
+  duration?: string | null;
   latitudeForDirections?: string | number;
   longitudeForDirections?: string | number;
   type?: string[];
   heightRequirement?: string | number | null;
   rideWaitTimeRideId?: string | number | null;
+};
+
+/** Show performance event from the daily schedule activities array */
+type HFEShowEvent = {
+  from: string;
+  to: string | null;
+};
+
+/** Show entry in the daily schedule activities array */
+type HFEScheduleActivity = {
+  cmsKey: string;
+  events: HFEShowEvent[];
+  isAllDayEvent?: boolean;
 };
 
 /** Activities API response */
@@ -53,7 +68,7 @@ type HFEScheduleDay = {
     isAllDay?: boolean;
     cmsKey?: string;
   }>;
-  activities: unknown[];
+  activities: HFEScheduleActivity[];
 };
 
 /** Wait time entry from the Pulse API */
@@ -106,6 +121,14 @@ class HFEBase extends Destination {
   /** Activity category string used to filter dining (differs per park) */
   @config
   diningCategory: string = 'All Dining';
+
+  /** activityListId UUID for the attractions list — used as fallback for rides with empty activityCategories */
+  @config
+  attractionsListId: string = '';
+
+  /** activityListId UUID used to filter shows (differs per park; empty = no shows) */
+  @config
+  showCategoryListId: string = '';
 
   /** Destination entity ID (set by subclass) */
   protected destinationSlug: string = '';
@@ -192,14 +215,14 @@ class HFEBase extends Destination {
   // ============================================================================
 
   /**
-   * Fetch activities (POI data) for the park site.
+   * Fetch activities (POI data) for the park.
    * Cached for 12 hours at HTTP level.
    */
   @http({cacheSeconds: 43200, retries: 3})
   async fetchActivities(): Promise<HTTPObj> {
     return {
       method: 'GET',
-      url: `${this.crmBaseUrl}/api/destination/activitiesbysite/${this.siteId}`,
+      url: `${this.crmBaseUrl}/api/park/activitiesbypark/${this.parkId}`,
       options: {json: true},
     } as any as HTTPObj;
   }
@@ -309,7 +332,10 @@ class HFEBase extends Destination {
     } as Entity;
 
     const attractions = this.mapEntities(
-      activities.filter(a => a.activityCategories?.includes(this.attractionCategory)),
+      activities.filter(a =>
+        a.activityCategories?.includes(this.attractionCategory) ||
+        (!!this.attractionsListId && a.activityListId === this.attractionsListId && a.rideWaitTimeRideId != null),
+      ),
       {
         idField: 'id',
         nameField: 'title',
@@ -361,7 +387,38 @@ class HFEBase extends Destination {
       },
     );
 
-    return [parkEntity, ...attractions, ...restaurants];
+    // Shows: filtered by activityListId (shows lack activityCategories in the CRM).
+    // Only return shows that appear in the upcoming schedule — the CRM retains historical
+    // one-time performers indefinitely without setting end dates.
+    const shows: Entity[] = [];
+    if (this.showCategoryListId) {
+      const scheduleDays = await this.getSchedule();
+      const scheduledIds = new Set(
+        scheduleDays.flatMap(day => (day.activities ?? []).map(a => a.cmsKey)),
+      );
+
+      // If the schedule fetch returned nothing (transient CRM outage), fall back to
+      // returning all shows for this category rather than emitting zero shows.
+      const showActivities = activities.filter(
+        a => a.activityListId === this.showCategoryListId &&
+          (scheduledIds.size === 0 || scheduledIds.has(a.id)),
+      );
+
+      shows.push(...this.mapEntities(showActivities, {
+        idField: 'id',
+        nameField: 'title',
+        entityType: 'SHOW',
+        parentIdField: () => this.parkSlug,
+        destinationId: this.destinationSlug,
+        timezone: this.timezone,
+        locationFields: {
+          lat: (item: HFEActivity) => this.parseCoord(item.latitudeForDirections),
+          lng: (item: HFEActivity) => this.parseCoord(item.longitudeForDirections),
+        },
+      }));
+    }
+
+    return [parkEntity, ...attractions, ...restaurants, ...shows];
   }
 
   // ============================================================================
@@ -371,7 +428,8 @@ class HFEBase extends Destination {
   protected async buildLiveData(): Promise<LiveData[]> {
     const activities = await this.getActivities();
     const attractionActivities = activities.filter(a =>
-      a.activityCategories?.includes(this.attractionCategory),
+      a.activityCategories?.includes(this.attractionCategory) ||
+      (!!this.attractionsListId && a.activityListId === this.attractionsListId && a.rideWaitTimeRideId != null),
     );
 
     let waitTimes: HFEWaitTime[];
@@ -532,10 +590,78 @@ class HFEBase extends Destination {
       }
     }
 
-    return [{
+    const result: EntitySchedule[] = [{
       id: this.parkSlug,
       schedule: scheduleEntries,
     } as EntitySchedule];
+
+    // Show performance schedules
+    if (this.showCategoryListId) {
+      let activities: HFEActivity[];
+      try {
+        activities = await this.getActivities();
+      } catch {
+        return result;
+      }
+      // Index shows by id for duration lookup (cmsKey in schedule == id in activities)
+      const showById = new Map(
+        activities
+          .filter(a => a.activityListId === this.showCategoryListId)
+          .map(a => [a.id, a]),
+      );
+
+      const showSchedules = new Map<string, Array<{date: string; type: string; openingTime: string; closingTime: string}>>();
+
+      for (const day of scheduleDays) {
+        if (!Array.isArray(day.activities)) continue;
+        const dateStr = day.date.split('T')[0];
+
+        for (const activity of day.activities) {
+          if (!activity.cmsKey || !activity.events?.length) continue;
+
+          const show = showById.get(activity.cmsKey);
+          if (!show) continue;
+
+          for (const event of activity.events) {
+            if (!event.from) continue;
+
+            const fromTime = event.from.split('T')[1] || '00:00:00';
+            const openingTime = constructDateTime(dateStr, fromTime, this.timezone);
+
+            let closingTime: string | undefined;
+            if (event.to) {
+              const toTime = event.to.split('T')[1] || '00:00:00';
+              closingTime = constructDateTime(dateStr, toTime, this.timezone);
+            } else if (show.duration) {
+              // Duration formats: "35 Minutes", "15 minutes", "n/a", null
+              const match = show.duration.match(/(\d+)/);
+              if (match) {
+                const durationMs = parseInt(match[1], 10) * 60 * 1000;
+                closingTime = formatInTimezone(new Date(new Date(openingTime).getTime() + durationMs), this.timezone, 'iso');
+              }
+            }
+
+            if (!closingTime) continue; // closingTime required by schema
+
+            if (!showSchedules.has(show.id)) {
+              showSchedules.set(show.id, []);
+            }
+            showSchedules.get(show.id)!.push({
+              date: dateStr,
+              type: 'OPERATING',
+              openingTime,
+              closingTime,
+            });
+          }
+        }
+      }
+
+      for (const [id, schedule] of showSchedules) {
+        result.push({id, schedule} as EntitySchedule);
+      }
+    }
+
+    return result;
   }
 
 }
@@ -561,7 +687,9 @@ export class Dollywood extends HFEBase {
     this.parkLatitude = 35.794496;
     this.parkLongitude = -83.530368;
     this.attractionCategory = 'Theme Park Rides';
+    this.attractionsListId = '96822fdb-77e5-4054-9f37-70f379f997d8';
     this.diningCategory = 'Theme Park Dining';
+    this.showCategoryListId = 'b9acfd27-0545-4bb2-a6e8-072fda3b06dd';
   }
 }
 
@@ -583,7 +711,9 @@ export class SilverDollarCity extends HFEBase {
     this.parkLongitude = -93.29991;
     this.timezone = 'America/Chicago';
     this.attractionCategory = 'Rides & Attractions';
+    this.attractionsListId = '6cbebd47-facc-4c26-b1b2-4e0da4de0e6e';
     this.diningCategory = 'Dining';
+    this.showCategoryListId = '9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d';
   }
 }
 
