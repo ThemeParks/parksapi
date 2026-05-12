@@ -387,9 +387,10 @@ class HFEBase extends Destination {
       },
     );
 
-    // Shows: filtered by activityListId (shows lack activityCategories in the CRM).
-    // Only return shows that appear in the upcoming schedule — the CRM retains historical
-    // one-time performers indefinitely without setting end dates.
+    // Shows: filtered by activityListId. The CRM retains historical one-time performers
+    // indefinitely without setting end dates, so a categorised seasonal show OR a currently
+    // scheduled performance is required to keep the entity. This preserves off-season
+    // seasonal shows (Christmas, Spring, etc.) while dropping the uncategorised ghosts.
     const shows: Entity[] = [];
     if (this.showCategoryListId) {
       const scheduleDays = await this.getSchedule();
@@ -397,11 +398,9 @@ class HFEBase extends Destination {
         scheduleDays.flatMap(day => (day.activities ?? []).map(a => a.cmsKey)),
       );
 
-      // If the schedule fetch returned nothing (transient CRM outage), fall back to
-      // returning all shows for this category rather than emitting zero shows.
       const showActivities = activities.filter(
         a => a.activityListId === this.showCategoryListId &&
-          (scheduledIds.size === 0 || scheduledIds.has(a.id)),
+          ((a.activityCategories?.length ?? 0) > 0 || scheduledIds.has(a.id)),
       );
 
       shows.push(...this.mapEntities(showActivities, {
