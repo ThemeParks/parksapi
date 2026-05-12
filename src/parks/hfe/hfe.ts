@@ -31,11 +31,26 @@ type HFEActivity = {
   id: string;
   title: string;
   activityCategories: string[];
+  activityListId?: string;
+  duration?: string | null;
   latitudeForDirections?: string | number;
   longitudeForDirections?: string | number;
   type?: string[];
   heightRequirement?: string | number | null;
   rideWaitTimeRideId?: string | number | null;
+};
+
+/** Show performance event from the daily schedule activities array */
+type HFEShowEvent = {
+  from?: string;
+  to: string | null;
+};
+
+/** Show entry in the daily schedule activities array */
+type HFEScheduleActivity = {
+  cmsKey?: string;
+  events?: HFEShowEvent[];
+  isAllDayEvent?: boolean;
 };
 
 /** Activities API response */
@@ -53,7 +68,7 @@ type HFEScheduleDay = {
     isAllDay?: boolean;
     cmsKey?: string;
   }>;
-  activities: unknown[];
+  activities?: HFEScheduleActivity[];
 };
 
 /** Wait time entry from the Pulse API */
@@ -106,6 +121,14 @@ class HFEBase extends Destination {
   /** Activity category string used to filter dining (differs per park) */
   @config
   diningCategory: string = 'All Dining';
+
+  /** activityListId UUID for the attractions list — used as fallback for rides with empty activityCategories */
+  @config
+  attractionsListId: string = '';
+
+  /** activityListId UUID used to filter shows (differs per park; empty = no shows) */
+  @config
+  showCategoryListId: string = '';
 
   /** Destination entity ID (set by subclass) */
   protected destinationSlug: string = '';
@@ -192,14 +215,14 @@ class HFEBase extends Destination {
   // ============================================================================
 
   /**
-   * Fetch activities (POI data) for the park site.
+   * Fetch activities (POI data) for the park.
    * Cached for 12 hours at HTTP level.
    */
   @http({cacheSeconds: 43200, retries: 3})
   async fetchActivities(): Promise<HTTPObj> {
     return {
       method: 'GET',
-      url: `${this.crmBaseUrl}/api/destination/activitiesbysite/${this.siteId}`,
+      url: `${this.crmBaseUrl}/api/park/activitiesbypark/${this.parkId}`,
       options: {json: true},
     } as any as HTTPObj;
   }
@@ -248,11 +271,15 @@ class HFEBase extends Destination {
   /**
    * Get schedule data for ~60 days (cached 12 hours).
    * Batches in 7-day chunks to avoid API timeouts.
+   * Throws if every batch fails so callers can distinguish a total outage
+   * from a genuinely empty schedule.
    */
   @cache({ttlSeconds: 43200})
   async getSchedule(): Promise<HFEScheduleDay[]> {
     const allDays: HFEScheduleDay[] = [];
     const now = new Date();
+    let succeededAny = false;
+    let lastError: unknown;
 
     for (let i = 0; i < 9; i++) { // 9 x 7 = 63 days
       const startDate = addDays(now, i * 7);
@@ -263,9 +290,14 @@ class HFEBase extends Destination {
         if (Array.isArray(data)) {
           allDays.push(...data);
         }
-      } catch {
-        // Skip failed batches gracefully
+        succeededAny = true;
+      } catch (err) {
+        lastError = err;
       }
+    }
+
+    if (!succeededAny) {
+      throw lastError ?? new Error('all HFE schedule batches failed');
     }
 
     return allDays;
@@ -309,7 +341,10 @@ class HFEBase extends Destination {
     } as Entity;
 
     const attractions = this.mapEntities(
-      activities.filter(a => a.activityCategories?.includes(this.attractionCategory)),
+      activities.filter(a =>
+        a.activityCategories?.includes(this.attractionCategory) ||
+        (!!this.attractionsListId && a.activityListId === this.attractionsListId && a.rideWaitTimeRideId != null),
+      ),
       {
         idField: 'id',
         nameField: 'title',
@@ -361,7 +396,44 @@ class HFEBase extends Destination {
       },
     );
 
-    return [parkEntity, ...attractions, ...restaurants];
+    // Shows: filtered by activityListId. The CRM retains historical one-time performers
+    // indefinitely without setting end dates, so a categorised seasonal show OR a currently
+    // scheduled performance is required to keep the entity. This preserves off-season
+    // seasonal shows (Christmas, Spring, etc.) while dropping the uncategorised ghosts.
+    // If the schedule API is unreachable, fall back to category-only — we'd rather lose
+    // a few uncategorised real shows for one cache cycle than readmit 100+ ghosts.
+    const shows: Entity[] = [];
+    if (this.showCategoryListId) {
+      let scheduledIds: Set<string | undefined> = new Set();
+      try {
+        const scheduleDays = await this.getSchedule();
+        scheduledIds = new Set(
+          scheduleDays.flatMap(day => (day.activities ?? []).map(a => a.cmsKey)),
+        );
+      } catch {
+        // Schedule API totally unavailable — proceed with category-only filter
+      }
+
+      const showActivities = activities.filter(
+        a => a.activityListId === this.showCategoryListId &&
+          ((a.activityCategories?.length ?? 0) > 0 || scheduledIds.has(a.id)),
+      );
+
+      shows.push(...this.mapEntities(showActivities, {
+        idField: 'id',
+        nameField: 'title',
+        entityType: 'SHOW',
+        parentIdField: () => this.parkSlug,
+        destinationId: this.destinationSlug,
+        timezone: this.timezone,
+        locationFields: {
+          lat: (item: HFEActivity) => this.parseCoord(item.latitudeForDirections),
+          lng: (item: HFEActivity) => this.parseCoord(item.longitudeForDirections),
+        },
+      }));
+    }
+
+    return [parkEntity, ...attractions, ...restaurants, ...shows];
   }
 
   // ============================================================================
@@ -371,7 +443,8 @@ class HFEBase extends Destination {
   protected async buildLiveData(): Promise<LiveData[]> {
     const activities = await this.getActivities();
     const attractionActivities = activities.filter(a =>
-      a.activityCategories?.includes(this.attractionCategory),
+      a.activityCategories?.includes(this.attractionCategory) ||
+      (!!this.attractionsListId && a.activityListId === this.attractionsListId && a.rideWaitTimeRideId != null),
     );
 
     let waitTimes: HFEWaitTime[];
@@ -383,6 +456,11 @@ class HFEBase extends Destination {
     }
 
     if (!waitTimes.length) return [];
+
+    // Pre-opening rides return "Temporarily Closed" — without context we can't tell
+    // that apart from a genuine in-operation breakdown. The schedule-derived flag
+    // disambiguates: DOWN only during operating hours, CLOSED otherwise.
+    const parkIsOpen = await this.isParkCurrentlyOpen();
 
     // Build lookup maps for joining wait times to entities
     // 1. rideWaitTimeRideId -> activity ID (primary, more reliable)
@@ -415,10 +493,8 @@ class HFEBase extends Destination {
 
       if (statusUpper === 'CLOSED' || statusUpper === 'CLOSED FOR THE DAY' || statusUpper === 'UNKNOWN') {
         ld.status = 'CLOSED' as any;
-      } else if (statusUpper === 'TEMPORARILY CLOSED') {
-        ld.status = 'DOWN' as any;
-      } else if (statusUpper === 'TEMPORARILY DELAYED') {
-        ld.status = 'DOWN' as any;
+      } else if (statusUpper === 'TEMPORARILY CLOSED' || statusUpper === 'TEMPORARILY DELAYED') {
+        ld.status = (parkIsOpen ? 'DOWN' : 'CLOSED') as any;
       } else if (displayUpper.includes('UNDER')) {
         // "Under XX minutes" pattern
         ld.status = 'OPERATING' as any;
@@ -439,6 +515,41 @@ class HFEBase extends Destination {
     }
 
     return liveData;
+  }
+
+  /**
+   * Check whether the park is currently within its scheduled operating hours.
+   * Used by buildLiveData to map "Temporarily Closed/Delayed" — DOWN during
+   * operating hours (genuine breakdown), CLOSED outside them (pre-opening or
+   * post-closing pseudo-state the API reports for every ride).
+   * Returns false when schedule data is unavailable, biasing toward CLOSED.
+   */
+  private async isParkCurrentlyOpen(): Promise<boolean> {
+    let schedule: HFEScheduleDay[];
+    try {
+      schedule = await this.getSchedule();
+    } catch {
+      return false;
+    }
+
+    const now = new Date();
+    const todayStr = formatInTimezone(now, this.timezone, 'iso').split('T')[0];
+    const today = schedule.find(d => (d.date || '').startsWith(todayStr));
+    if (!today) return false;
+
+    for (const hours of (today.parkHours || [])) {
+      if (hours.closedToPublic || hours.isAllDay) continue;
+      if (!hours.from || !hours.to) continue;
+      if (hours.cmsKey && hours.cmsKey !== this.parkId) continue;
+
+      const fromTime = hours.from.split('T')[1] || '00:00:00';
+      const toTime = hours.to.split('T')[1] || '00:00:00';
+      const opening = new Date(constructDateTime(todayStr, fromTime, this.timezone));
+      const closing = new Date(constructDateTime(todayStr, toTime, this.timezone));
+
+      if (now >= opening && now <= closing) return true;
+    }
+    return false;
   }
 
   /**
@@ -532,10 +643,78 @@ class HFEBase extends Destination {
       }
     }
 
-    return [{
+    const result: EntitySchedule[] = [{
       id: this.parkSlug,
       schedule: scheduleEntries,
     } as EntitySchedule];
+
+    // Show performance schedules
+    if (this.showCategoryListId) {
+      let activities: HFEActivity[];
+      try {
+        activities = await this.getActivities();
+      } catch {
+        return result;
+      }
+      // Index shows by id for duration lookup (cmsKey in schedule == id in activities)
+      const showById = new Map(
+        activities
+          .filter(a => a.activityListId === this.showCategoryListId)
+          .map(a => [a.id, a]),
+      );
+
+      const showSchedules = new Map<string, Array<{date: string; type: string; openingTime: string; closingTime: string}>>();
+
+      for (const day of scheduleDays) {
+        if (!Array.isArray(day.activities)) continue;
+        const dateStr = day.date.split('T')[0];
+
+        for (const activity of day.activities) {
+          if (!activity.cmsKey || !activity.events?.length) continue;
+
+          const show = showById.get(activity.cmsKey);
+          if (!show) continue;
+
+          for (const event of activity.events) {
+            if (!event.from) continue;
+
+            const fromTime = event.from.split('T')[1] || '00:00:00';
+            const openingTime = constructDateTime(dateStr, fromTime, this.timezone);
+
+            let closingTime: string | undefined;
+            if (event.to) {
+              const toTime = event.to.split('T')[1] || '00:00:00';
+              closingTime = constructDateTime(dateStr, toTime, this.timezone);
+            } else if (show.duration) {
+              // Duration formats: "35 Minutes", "15 minutes", "n/a", null
+              const match = show.duration.match(/(\d+)/);
+              if (match) {
+                const durationMs = parseInt(match[1], 10) * 60 * 1000;
+                closingTime = formatInTimezone(new Date(new Date(openingTime).getTime() + durationMs), this.timezone, 'iso');
+              }
+            }
+
+            if (!closingTime) continue; // closingTime required by schema
+
+            if (!showSchedules.has(show.id)) {
+              showSchedules.set(show.id, []);
+            }
+            showSchedules.get(show.id)!.push({
+              date: dateStr,
+              type: 'OPERATING',
+              openingTime,
+              closingTime,
+            });
+          }
+        }
+      }
+
+      for (const [id, schedule] of showSchedules) {
+        result.push({id, schedule} as EntitySchedule);
+      }
+    }
+
+    return result;
   }
 
 }
@@ -561,7 +740,9 @@ export class Dollywood extends HFEBase {
     this.parkLatitude = 35.794496;
     this.parkLongitude = -83.530368;
     this.attractionCategory = 'Theme Park Rides';
+    this.attractionsListId = '96822fdb-77e5-4054-9f37-70f379f997d8';
     this.diningCategory = 'Theme Park Dining';
+    this.showCategoryListId = 'b9acfd27-0545-4bb2-a6e8-072fda3b06dd';
   }
 }
 
@@ -583,7 +764,9 @@ export class SilverDollarCity extends HFEBase {
     this.parkLongitude = -93.29991;
     this.timezone = 'America/Chicago';
     this.attractionCategory = 'Rides & Attractions';
+    this.attractionsListId = '6cbebd47-facc-4c26-b1b2-4e0da4de0e6e';
     this.diningCategory = 'Dining';
+    this.showCategoryListId = '9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d';
   }
 }
 
