@@ -2,7 +2,46 @@ import {Destination, type DestinationConstructor} from '../../destination.js';
 import {http, type HTTPObj} from '../../http.js';
 import {cache} from '../../cache.js';
 import config from '../../config.js';
-import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
+import type {Entity, LiveData, EntitySchedule, ScheduleEntry} from '@themeparks/typelib';
+import {constructDateTime} from '../../datetime.js';
+
+export type TribeEvent = {
+  start_date: string;       // "YYYY-MM-DD HH:MM:SS"
+  end_date: string;         // "YYYY-MM-DD HH:MM:SS"
+  all_day: boolean;
+  categories?: Array<{name: string}>;
+};
+export type TribeEventsResponse = {events: TribeEvent[]};
+
+
+/**
+ * Filter Tribe events to those tagged with `categoryName` and convert to
+ * operating-hours schedule entries. Skips all-day events (those are
+ * marketing/group events, not operating hours).
+ */
+export function parseTribeEvents(
+  json: TribeEventsResponse,
+  categoryName: string,
+  timezone: string,
+): ScheduleEntry[] {
+  const out: ScheduleEntry[] = [];
+  for (const ev of json.events ?? []) {
+    if (ev.all_day) continue;
+    if (!ev.categories?.some(c => c.name === categoryName)) continue;
+    // start_date / end_date are "YYYY-MM-DD HH:MM:SS" wall-clock in `timezone`.
+    const [date, startTime] = ev.start_date.split(' ');
+    if (!date || !startTime) continue;
+    const endTime = ev.end_date.split(' ')[1];
+    if (!endTime) continue;
+    out.push({
+      date,
+      type: 'OPERATING' as const,
+      openingTime: constructDateTime(date, startTime.slice(0, 5), timezone),
+      closingTime: constructDateTime(date, endTime.slice(0, 5), timezone),
+    });
+  }
+  return out;
+}
 
 export type ParkConfig = {
   /** Entity id, e.g. `enchantedparks_park_VF` */
