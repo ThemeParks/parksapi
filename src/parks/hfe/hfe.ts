@@ -457,6 +457,11 @@ class HFEBase extends Destination {
 
     if (!waitTimes.length) return [];
 
+    // Pre-opening rides return "Temporarily Closed" — without context we can't tell
+    // that apart from a genuine in-operation breakdown. The schedule-derived flag
+    // disambiguates: DOWN only during operating hours, CLOSED otherwise.
+    const parkIsOpen = await this.isParkCurrentlyOpen();
+
     // Build lookup maps for joining wait times to entities
     // 1. rideWaitTimeRideId -> activity ID (primary, more reliable)
     const rideIdLookup = new Map<number, string>();
@@ -488,10 +493,8 @@ class HFEBase extends Destination {
 
       if (statusUpper === 'CLOSED' || statusUpper === 'CLOSED FOR THE DAY' || statusUpper === 'UNKNOWN') {
         ld.status = 'CLOSED' as any;
-      } else if (statusUpper === 'TEMPORARILY CLOSED') {
-        ld.status = 'DOWN' as any;
-      } else if (statusUpper === 'TEMPORARILY DELAYED') {
-        ld.status = 'DOWN' as any;
+      } else if (statusUpper === 'TEMPORARILY CLOSED' || statusUpper === 'TEMPORARILY DELAYED') {
+        ld.status = (parkIsOpen ? 'DOWN' : 'CLOSED') as any;
       } else if (displayUpper.includes('UNDER')) {
         // "Under XX minutes" pattern
         ld.status = 'OPERATING' as any;
@@ -512,6 +515,41 @@ class HFEBase extends Destination {
     }
 
     return liveData;
+  }
+
+  /**
+   * Check whether the park is currently within its scheduled operating hours.
+   * Used by buildLiveData to map "Temporarily Closed/Delayed" — DOWN during
+   * operating hours (genuine breakdown), CLOSED outside them (pre-opening or
+   * post-closing pseudo-state the API reports for every ride).
+   * Returns false when schedule data is unavailable, biasing toward CLOSED.
+   */
+  private async isParkCurrentlyOpen(): Promise<boolean> {
+    let schedule: HFEScheduleDay[];
+    try {
+      schedule = await this.getSchedule();
+    } catch {
+      return false;
+    }
+
+    const now = new Date();
+    const todayStr = formatInTimezone(now, this.timezone, 'iso').split('T')[0];
+    const today = schedule.find(d => (d.date || '').startsWith(todayStr));
+    if (!today) return false;
+
+    for (const hours of (today.parkHours || [])) {
+      if (hours.closedToPublic || hours.isAllDay) continue;
+      if (!hours.from || !hours.to) continue;
+      if (hours.cmsKey && hours.cmsKey !== this.parkId) continue;
+
+      const fromTime = hours.from.split('T')[1] || '00:00:00';
+      const toTime = hours.to.split('T')[1] || '00:00:00';
+      const opening = new Date(constructDateTime(todayStr, fromTime, this.timezone));
+      const closing = new Date(constructDateTime(todayStr, toTime, this.timezone));
+
+      if (now >= opening && now <= closing) return true;
+    }
+    return false;
   }
 
   /**
