@@ -1,5 +1,6 @@
 import {describe, test, expect} from 'vitest';
 import {parseTribeEvents, type TribeEventsResponse} from '../enchantedparks.js';
+import {parseICalFeed} from '../enchantedparks.js';
 
 describe('parseTribeEvents', () => {
   const fixture: TribeEventsResponse = {
@@ -102,5 +103,71 @@ describe('parseTribeEvents', () => {
     // Only the well-formed event survives.
     expect(out).toHaveLength(1);
     expect(out[0].date).toBe('2026-05-11');
+  });
+});
+
+describe('parseICalFeed', () => {
+  const fixture = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Valleyfair//EN
+BEGIN:VEVENT
+UID:1@vf
+DTSTART;TZID=America/Chicago:20260510T110000
+DTEND;TZID=America/Chicago:20260510T170000
+SUMMARY:Park Hours
+CATEGORIES:Park Hours
+END:VEVENT
+BEGIN:VEVENT
+UID:2@vf
+DTSTART;TZID=America/Chicago:20260520T120000
+DTEND;TZID=America/Chicago:20260520T190000
+SUMMARY:Waterpark Hours
+CATEGORIES:Waterpark Hours
+END:VEVENT
+BEGIN:VEVENT
+UID:3@vf
+DTSTART;VALUE=DATE:20260510
+DTEND;VALUE=DATE:20260511
+SUMMARY:Group Event
+CATEGORIES:Group Event
+END:VEVENT
+END:VCALENDAR`;
+
+  test('returns only events whose CATEGORIES line includes the requested name', () => {
+    const out = parseICalFeed(fixture, 'Park Hours', 'America/Chicago');
+    expect(out).toHaveLength(1);
+    expect(out[0].date).toBe('2026-05-10');
+  });
+
+  test('Waterpark Hours routes separately', () => {
+    const out = parseICalFeed(fixture, 'Waterpark Hours', 'America/Chicago');
+    expect(out).toHaveLength(1);
+    expect(out[0].date).toBe('2026-05-20');
+  });
+
+  test('skips all-day VEVENTs (DTSTART;VALUE=DATE:…)', () => {
+    const out = parseICalFeed(fixture, 'Group Event', 'America/Chicago');
+    expect(out).toEqual([]);
+  });
+
+  test('produces correctly-offset ISO times', () => {
+    const out = parseICalFeed(fixture, 'Park Hours', 'America/Chicago');
+    expect(out[0].openingTime).toMatch(/^2026-05-10T11:00:00-0[56]:00$/);
+    expect(out[0].closingTime).toMatch(/^2026-05-10T17:00:00-0[56]:00$/);
+  });
+
+  test('returns empty for an empty calendar', () => {
+    expect(parseICalFeed('BEGIN:VCALENDAR\nEND:VCALENDAR', 'Park Hours', 'America/Chicago')).toEqual([]);
+  });
+
+  test('handles multiple CATEGORIES on one line', () => {
+    const multi = `BEGIN:VCALENDAR
+BEGIN:VEVENT
+DTSTART;TZID=America/Chicago:20260512T093000
+DTEND;TZID=America/Chicago:20260512T170000
+CATEGORIES:Park Hours,Special Events
+END:VEVENT
+END:VCALENDAR`;
+    expect(parseICalFeed(multi, 'Park Hours', 'America/Chicago')).toHaveLength(1);
   });
 });

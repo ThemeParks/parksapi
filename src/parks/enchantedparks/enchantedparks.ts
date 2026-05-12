@@ -43,6 +43,40 @@ export function parseTribeEvents(
   return out;
 }
 
+/**
+ * Fallback parser for the iCal/.ics feed. Extracts VEVENT blocks whose
+ * CATEGORIES line includes `categoryName` and converts to operating hours.
+ */
+export function parseICalFeed(
+  text: string,
+  categoryName: string,
+  timezone: string,
+): ScheduleEntry[] {
+  const out: ScheduleEntry[] = [];
+  // Split into VEVENT blocks. The text uses CRLF or LF; normalise to LF first.
+  const blocks = text.replace(/\r\n/g, '\n').split('BEGIN:VEVENT').slice(1);
+  for (const block of blocks) {
+    const body = block.split('END:VEVENT')[0];
+    // Drop all-day events — they use VALUE=DATE: rather than a TZID:… form.
+    if (/DTSTART;VALUE=DATE:/.test(body)) continue;
+    const cats = body.match(/^CATEGORIES:(.+)$/m)?.[1] ?? '';
+    if (!cats.split(',').map(s => s.trim()).includes(categoryName)) continue;
+    const start = body.match(/DTSTART(?:;[^:]+)?:(\d{8})T(\d{6})/);
+    const end   = body.match(/DTEND(?:;[^:]+)?:(\d{8})T(\d{6})/);
+    if (!start) continue;
+    const dateStr = `${start[1].slice(0,4)}-${start[1].slice(4,6)}-${start[1].slice(6,8)}`;
+    const startHm = `${start[2].slice(0,2)}:${start[2].slice(2,4)}`;
+    const endHm = end ? `${end[2].slice(0,2)}:${end[2].slice(2,4)}` : startHm;
+    out.push({
+      date: dateStr,
+      type: 'OPERATING' as const,
+      openingTime: constructDateTime(dateStr, startHm, timezone),
+      closingTime: constructDateTime(dateStr, endHm, timezone),
+    });
+  }
+  return out;
+}
+
 export type ParkConfig = {
   /** Entity id, e.g. `enchantedparks_park_VF` */
   id: string;
