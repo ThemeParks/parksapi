@@ -375,7 +375,16 @@ class EnchantedParks extends Destination {
   }
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
-    return [];
+    const out: EntitySchedule[] = [];
+    if (this.themePark) {
+      const schedule = await this.scrapeSchedule(this.themePark.scheduleCategory);
+      out.push({id: this.themePark.id, schedule} as EntitySchedule);
+    }
+    if (this.waterPark) {
+      const schedule = await this.scrapeSchedule(this.waterPark.scheduleCategory);
+      out.push({id: this.waterPark.id, schedule} as EntitySchedule);
+    }
+    return out;
   }
 }
 
