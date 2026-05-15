@@ -12,7 +12,11 @@ export type TribeEvent = {
   all_day: boolean;
   categories?: Array<{name: string}>;
 };
-export type TribeEventsResponse = {events: TribeEvent[]};
+export type TribeEventsResponse = {
+  events: TribeEvent[];
+  total_pages?: number;
+  next_rest_url?: string;
+};
 
 
 /**
@@ -171,6 +175,41 @@ class EnchantedParks extends Destination {
   /** Cache-key prefix so multiple Enchanted Parks don't collide on shared cache keys. */
   getCacheKeyPrefix(): string {
     return `enchantedparks:${this.destinationId}`;
+  }
+
+  // ===== HTTP =====
+
+  /**
+   * Fetch one page of Tribe Events for a date range. The WP plugin silently
+   * caps page size at 50 regardless of `per_page`, so callers must paginate
+   * (`page=1, 2, …`) using the `total_pages` field in the response. We
+   * request `per_page=50` to make the cap explicit at the call site.
+   */
+  @http({cacheSeconds: 60 * 60, retries: 2})
+  async fetchTribeEvents(startDate: string, endDate: string, page: number = 1): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.subdomain}/wp-json/tribe/events/v1/events?per_page=50&page=${page}&start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`,
+      options: {json: true},
+    } as any as HTTPObj;
+  }
+
+  @http({cacheSeconds: 60 * 60, retries: 2})
+  async fetchICalFeed(): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.subdomain}/?post_type=tribe_events&ical=1&eventDisplay=list`,
+      options: {json: false},
+    } as any as HTTPObj;
+  }
+
+  @http({cacheSeconds: 60 * 60 * 24, retries: 2})
+  async fetchAttractionsPage(ridesPath: string): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.subdomain}/rides-and-experiences/${ridesPath}/`,
+      options: {json: false},
+    } as any as HTTPObj;
   }
 
   // ===== Public-API overrides =====
