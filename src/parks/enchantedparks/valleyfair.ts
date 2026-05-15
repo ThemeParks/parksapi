@@ -8,7 +8,6 @@ export class Valleyfair extends EnchantedParks {
     super({
       ...options,
       config: {
-        subdomain: 'https://valleyfair.enchantedparks.com',
         destinationId: 'enchantedparks_valleyfair',
         destinationName: 'Valleyfair',
         timezone: 'America/Chicago',

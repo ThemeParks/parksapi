@@ -152,7 +152,6 @@ export type ParkConfig = {
   location?: {latitude: number; longitude: number};
 };
 
-@config
 class EnchantedParks extends Destination {
   /** Subdomain root, e.g. `https://valleyfair.enchantedparks.com` (no trailing slash) */
   @config subdomain: string = '';
@@ -182,6 +181,15 @@ class EnchantedParks extends Destination {
   /** Cache-key prefix so multiple Enchanted Parks don't collide on shared cache keys. */
   getCacheKeyPrefix(): string {
     return `enchantedparks:${this.destinationId}`;
+  }
+
+  protected async _init(): Promise<void> {
+    if (!this.subdomain) {
+      throw new Error(
+        `${this.constructor.name} requires a subdomain to be configured ` +
+        `(set ${this.constructor.name.toUpperCase()}_SUBDOMAIN or ENCHANTEDPARKS_SUBDOMAIN in .env)`,
+      );
+    }
   }
 
   // ===== HTTP =====
