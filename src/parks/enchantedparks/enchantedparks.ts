@@ -262,6 +262,24 @@ class EnchantedParks extends Destination {
     }
   }
 
+  // ===== Attraction scraping =====
+
+  /**
+   * Fetch and parse the rides listing for one PARK. Returns [] if the
+   * fetch fails so a missing waterpark page doesn't take out the whole
+   * destination.
+   */
+  @cache({ttlSeconds: 60 * 60 * 24})
+  async scrapeAttractions(ridesPath: string): Promise<AttractionStub[]> {
+    try {
+      const resp = await this.fetchAttractionsPage(ridesPath);
+      const html = await resp.text();
+      return parseAttractionsPage(html);
+    } catch {
+      return [];
+    }
+  }
+
   // ===== Public-API overrides =====
 
   async getDestinations(): Promise<Entity[]> {
