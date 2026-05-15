@@ -19,17 +19,20 @@ export class Valleyfair extends EnchantedParks {
     // assign them directly here. The base class also reads options.config for
     // these if a caller wants to supply different ones — only set defaults
     // when the caller hasn't.
+    this.destinationLocation ??= {latitude: 44.7977, longitude: -93.4399};
     this.themePark ??= {
       id: 'enchantedparks_park_VF',
       name: 'Valleyfair',
       ridesPath: 'attractions',
       scheduleCategory: 'Park Hours',
+      location: {latitude: 44.7977, longitude: -93.4399},
     };
     this.waterPark ??= {
       id: 'enchantedparks_park_VFW',
       name: 'Superior Shores Waterpark',
       ridesPath: 'superior-shores-waterpark',
       scheduleCategory: 'Waterpark Hours',
+      location: {latitude: 44.7977, longitude: -93.4378},
     };
   }
 }

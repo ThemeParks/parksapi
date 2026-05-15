@@ -146,6 +146,8 @@ export type ParkConfig = {
   ridesPath: string;
   /** Tribe Events category name that flags this park's operating-hours events (e.g. `Park Hours`, `Waterpark Hours`) */
   scheduleCategory: string;
+  /** Park-level geographic location (lat/lng). Required for the harness's anchor-entity check. */
+  location?: {latitude: number; longitude: number};
 };
 
 @config
@@ -160,16 +162,19 @@ class EnchantedParks extends Destination {
   themePark?: ParkConfig;
   /** Optional water-park child PARK */
   waterPark?: ParkConfig;
+  /** Destination-level geographic location (lat/lng) */
+  destinationLocation?: {latitude: number; longitude: number};
   /** IANA timezone for the destination */
   @config timezone: string = 'America/Chicago';
 
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('ENCHANTEDPARKS');
-    // Apply themePark/waterPark from options.config since they aren't @config primitives.
+    // Apply themePark/waterPark/destinationLocation from options.config since they aren't @config primitives.
     const cfg = (options?.config ?? {}) as Partial<EnchantedParks>;
     if (cfg.themePark) this.themePark = cfg.themePark;
     if (cfg.waterPark) this.waterPark = cfg.waterPark;
+    if (cfg.destinationLocation) this.destinationLocation = cfg.destinationLocation;
   }
 
   /** Cache-key prefix so multiple Enchanted Parks don't collide on shared cache keys. */
@@ -284,16 +289,84 @@ class EnchantedParks extends Destination {
 
   async getDestinations(): Promise<Entity[]> {
     if (!this.destinationId) return [];
-    return [{
+    const dest: Entity = {
       id: this.destinationId,
       name: this.destinationName,
       entityType: 'DESTINATION',
       timezone: this.timezone,
-    } as Entity];
+    } as Entity;
+    if (this.destinationLocation) {
+      (dest as any).location = this.destinationLocation;
+    }
+    return [dest];
   }
 
   protected async buildEntityList(): Promise<Entity[]> {
-    return [];
+    const parks: Entity[] = [];
+    const attractions: Entity[] = [];
+
+    // Resolve waterpark first so we know which slugs belong to it.
+    let waterParkSlugs = new Set<string>();
+    if (this.waterPark) {
+      const wpRides = await this.scrapeAttractions(this.waterPark.ridesPath);
+      waterParkSlugs = new Set(wpRides.map(r => r.slug));
+      const wpEntity: Entity = {
+        id: this.waterPark.id,
+        name: this.waterPark.name,
+        entityType: 'PARK',
+        parentId: this.destinationId,
+        destinationId: this.destinationId,
+        timezone: this.timezone,
+      } as Entity;
+      if (this.waterPark.location) {
+        (wpEntity as any).location = this.waterPark.location;
+      }
+      parks.push(wpEntity);
+      for (const r of wpRides) {
+        attractions.push({
+          id: `enchantedparks_attraction_${r.slug}`,
+          name: r.name,
+          entityType: 'ATTRACTION',
+          parentId: this.waterPark.id,
+          parkId: this.waterPark.id,
+          destinationId: this.destinationId,
+          timezone: this.timezone,
+        } as Entity);
+      }
+    }
+
+    if (this.themePark) {
+      const tpRides = await this.scrapeAttractions(this.themePark.ridesPath);
+      const tpEntity: Entity = {
+        id: this.themePark.id,
+        name: this.themePark.name,
+        entityType: 'PARK',
+        parentId: this.destinationId,
+        destinationId: this.destinationId,
+        timezone: this.timezone,
+      } as Entity;
+      if (this.themePark.location) {
+        (tpEntity as any).location = this.themePark.location;
+      }
+      parks.push(tpEntity);
+      for (const r of tpRides) {
+        // The master attractions page lists every ride including the waterpark
+        // ones. Skip slugs already claimed by the waterpark page so they don't
+        // double-emit.
+        if (waterParkSlugs.has(r.slug)) continue;
+        attractions.push({
+          id: `enchantedparks_attraction_${r.slug}`,
+          name: r.name,
+          entityType: 'ATTRACTION',
+          parentId: this.themePark.id,
+          parkId: this.themePark.id,
+          destinationId: this.destinationId,
+          timezone: this.timezone,
+        } as Entity);
+      }
+    }
+
+    return [...parks, ...attractions];
   }
 
   protected async buildLiveData(): Promise<LiveData[]> {
