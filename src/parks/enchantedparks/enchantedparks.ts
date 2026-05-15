@@ -212,6 +212,56 @@ class EnchantedParks extends Destination {
     } as any as HTTPObj;
   }
 
+  // ===== Schedule scraping =====
+
+  /**
+   * Schedule for the next 90 days for one specific category. Tries the
+   * Tribe REST endpoint first (paginating through all pages, since the
+   * server caps each at 50 events); on any failure or empty result, falls
+   * back to the iCal feed. Returns [] when both sources fail.
+   *
+   * Cached 1h.
+   */
+  @cache({ttlSeconds: 60 * 60})
+  async scrapeSchedule(category: string): Promise<ScheduleEntry[]> {
+    const today = new Date();
+    const end = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    const startStr = fmt(today);
+    const endStr = fmt(end);
+
+    try {
+      const all: ScheduleEntry[] = [];
+      let page = 1;
+      // Safety cap so a malformed response (total_pages: huge) can't loop
+      // indefinitely. 30 pages × 50 events = 1500 events — well above any
+      // realistic season.
+      const MAX_PAGES = 30;
+      while (page <= MAX_PAGES) {
+        const resp = await this.fetchTribeEvents(startStr, endStr, page);
+        const json = await resp.json() as TribeEventsResponse;
+        const pageEntries = parseTribeEvents(json, category, this.timezone);
+        all.push(...pageEntries);
+        const totalPages = json.total_pages ?? 1;
+        if (page >= totalPages) break;
+        page += 1;
+      }
+      if (all.length > 0) return all;
+      // Fall through to iCal if Tribe returned no matches — possible if WP
+      // changes the REST contract or temporarily strips categories.
+    } catch {
+      // Fall through to iCal on any Tribe REST failure.
+    }
+
+    try {
+      const resp = await this.fetchICalFeed();
+      const text = await resp.text();
+      return parseICalFeed(text, category, this.timezone);
+    } catch {
+      return [];
+    }
+  }
+
   // ===== Public-API overrides =====
 
   async getDestinations(): Promise<Entity[]> {
