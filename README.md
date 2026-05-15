@@ -26,6 +26,15 @@ This library powers the free API at [ThemeParks.wiki](https://themeparks.wiki).
   </span>
 </div>
 
+<div style="display: flex; align-items: center;">
+  <a href="https://pocketpark.fr/">
+    <img src="https://themeparks.wiki/sponsors/pocketpark.png" alt="Pocket'Park" width="40" style="margin-right: 10px;"/>
+  </a>
+  <span>
+    <a href="https://pocketpark.fr/">Pocket'Park</a>
+  </span>
+</div>
+
 ## Quick Start
 
 **Requirements:** Node.js 24+, npm 11+
