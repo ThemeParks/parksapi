@@ -140,6 +140,8 @@ export function parseAttractionsPage(html: string): AttractionStub[] {
 export type ParkConfig = {
   /** Entity id, e.g. `enchantedparks_park_VF` */
   id: string;
+  /** Short code used in attraction ids (e.g. `VF`, `VFW`). Must be unique across parks in this destination. */
+  code: string;
   /** Display name */
   name: string;
   /** Path under `/rides-and-experiences/` whose page lists this park's attractions */
@@ -324,7 +326,7 @@ class EnchantedParks extends Destination {
       parks.push(wpEntity);
       for (const r of wpRides) {
         attractions.push({
-          id: `enchantedparks_attraction_${r.slug}`,
+          id: `enchantedparks_attraction_${this.waterPark.code}_${r.slug}`,
           name: r.name,
           entityType: 'ATTRACTION',
           parentId: this.waterPark.id,
@@ -355,7 +357,7 @@ class EnchantedParks extends Destination {
         // double-emit.
         if (waterParkSlugs.has(r.slug)) continue;
         attractions.push({
-          id: `enchantedparks_attraction_${r.slug}`,
+          id: `enchantedparks_attraction_${this.themePark.code}_${r.slug}`,
           name: r.name,
           entityType: 'ATTRACTION',
           parentId: this.themePark.id,

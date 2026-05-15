@@ -22,6 +22,7 @@ export class Valleyfair extends EnchantedParks {
     this.destinationLocation ??= {latitude: 44.7977, longitude: -93.4399};
     this.themePark ??= {
       id: 'enchantedparks_park_VF',
+      code: 'VF',
       name: 'Valleyfair',
       ridesPath: 'attractions',
       scheduleCategory: 'Park Hours',
@@ -29,6 +30,7 @@ export class Valleyfair extends EnchantedParks {
     };
     this.waterPark ??= {
       id: 'enchantedparks_park_VFW',
+      code: 'VFW',
       name: 'Superior Shores Waterpark',
       ridesPath: 'superior-shores-waterpark',
       scheduleCategory: 'Waterpark Hours',

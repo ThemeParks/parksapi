@@ -143,6 +143,7 @@ describe('Destination ID patterns', () => {
     const dest = new Valleyfair({});
     const destinations = await dest.getDestinations();
     expect(destinations[0]?.id).toBe('enchantedparks_valleyfair');
+    expect(destinations[0]?.id).not.toBe('valleyfair');
   });
 
   test('Attractions.io v1 Merlin parks are registered individually', async () => {
