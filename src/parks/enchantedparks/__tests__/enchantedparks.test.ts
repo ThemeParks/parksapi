@@ -1,6 +1,7 @@
 import {describe, test, expect} from 'vitest';
 import {parseTribeEvents, type TribeEventsResponse} from '../enchantedparks.js';
 import {parseICalFeed} from '../enchantedparks.js';
+import {parseAttractionsPage} from '../enchantedparks.js';
 
 describe('parseTribeEvents', () => {
   const fixture: TribeEventsResponse = {
@@ -169,5 +170,62 @@ CATEGORIES:Park Hours,Special Events
 END:VEVENT
 END:VCALENDAR`;
     expect(parseICalFeed(multi, 'Park Hours', 'America/Chicago')).toHaveLength(1);
+  });
+});
+
+describe('parseAttractionsPage', () => {
+  const fixture = `<!doctype html><html><body>
+<div class="ride-card">
+  <a href="https://valleyfair.enchantedparks.com/rides-and-experiences/attractions/wild-thing/">
+    <h3>Wild Thing</h3>
+  </a>
+</div>
+<div class="ride-card">
+  <a href="https://valleyfair.enchantedparks.com/rides-and-experiences/attractions/bumper-cars/">
+    <img />
+  </a>
+  <h3>Bumper Cars</h3>
+</div>
+<div class="ride-card">
+  <a href="/rides-and-experiences/attractions/charlie-brown-s-wind-up/">
+    <h3>Charlie Brown&#8217;s Wind-Up</h3>
+  </a>
+</div>
+<a href="/rides-and-experiences/dining/snack-shack/">Snack Shack</a>
+</body></html>`;
+
+  test('returns one entry per unique attraction slug', () => {
+    const out = parseAttractionsPage(fixture);
+    expect(out.map(a => a.slug)).toEqual(['wild-thing', 'bumper-cars', 'charlie-brown-s-wind-up']);
+  });
+
+  test('skips non-attractions/ links (e.g. dining)', () => {
+    const out = parseAttractionsPage(fixture);
+    expect(out.map(a => a.slug)).not.toContain('snack-shack');
+  });
+
+  test('decodes HTML entities in the name', () => {
+    const out = parseAttractionsPage(fixture);
+    const cb = out.find(a => a.slug === 'charlie-brown-s-wind-up');
+    expect(cb?.name).toBe('Charlie Brown’s Wind-Up');
+  });
+
+  test('deduplicates if the same slug appears multiple times', () => {
+    const dup = fixture + fixture;
+    const out = parseAttractionsPage(dup);
+    expect(new Set(out.map(a => a.slug)).size).toBe(out.length);
+  });
+
+  test('returns empty for HTML with no ride links', () => {
+    expect(parseAttractionsPage('<html><body>nothing here</body></html>')).toEqual([]);
+  });
+
+  test('handles h3 that precedes its link (before-path)', () => {
+    const beforeHtml = `<div class="ride-card">
+  <h3>Renegade</h3>
+  <a href="/rides-and-experiences/attractions/renegade/">More info</a>
+</div>`;
+    const out = parseAttractionsPage(beforeHtml);
+    expect(out).toEqual([{slug: 'renegade', name: 'Renegade'}]);
   });
 });

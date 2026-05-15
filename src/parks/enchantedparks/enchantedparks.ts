@@ -4,6 +4,7 @@ import {cache} from '../../cache.js';
 import config from '../../config.js';
 import type {Entity, LiveData, EntitySchedule, ScheduleEntry} from '@themeparks/typelib';
 import {constructDateTime} from '../../datetime.js';
+import {decodeHtmlEntities} from '../../htmlUtils.js';
 
 export type TribeEvent = {
   start_date: string;       // "YYYY-MM-DD HH:MM:SS"
@@ -73,6 +74,61 @@ export function parseICalFeed(
       openingTime: constructDateTime(dateStr, startHm, timezone),
       closingTime: constructDateTime(dateStr, endHm, timezone),
     });
+  }
+  return out;
+}
+
+export type AttractionStub = {slug: string; name: string};
+
+/**
+ * Extract attraction stubs from a `/rides-and-experiences/<path>/` page.
+ * Each entry has a slug (URL fragment) and a name (h3 heading text).
+ *
+ * The pages embed each ride as a card with a link
+ *   <a href="…/rides-and-experiences/attractions/{slug}/">…</a>
+ * and a heading `<h3>{name}</h3>`. Both appear inside the same card markup,
+ * so we collect distinct slug→name pairs by walking the HTML in order.
+ */
+export function parseAttractionsPage(html: string): AttractionStub[] {
+  const seen = new Set<string>();
+  const out: AttractionStub[] = [];
+  // Two-phase h3 search: first look for the next <h3> within ~2KB after the
+  // link (the common case — h3 inside or immediately after the card's <a>).
+  // If none is found, fall back to the most-recent <h3> in the 2KB before the
+  // link (for cards that put the heading above the anchor).
+  const linkRe = /href=["'][^"']*\/rides-and-experiences\/attractions\/([a-z0-9][a-z0-9-]*)\/?["'][^>]*>/gi;
+  const h3Re = /<h3[^>]*>([\s\S]*?)<\/h3>/gi;
+  for (const m of html.matchAll(linkRe)) {
+    const slug = m[1];
+    if (seen.has(slug)) continue;
+    const linkPos = m.index!;
+    // Search a window of ~2KB after the link first, then before, for the nearest h3.
+    const afterStart = linkPos;
+    const afterEnd = Math.min(html.length, linkPos + 2000);
+    const afterWindow = html.slice(afterStart, afterEnd);
+    let h3: RegExpMatchArray | null = null;
+    // Try after the link
+    h3Re.lastIndex = 0;
+    const afterMatch = h3Re.exec(afterWindow);
+    if (afterMatch) {
+      h3 = afterMatch;
+    } else {
+      // Try before the link
+      const beforeStart = Math.max(0, linkPos - 2000);
+      const beforeWindow = html.slice(beforeStart, linkPos);
+      h3Re.lastIndex = 0;
+      let candidate: RegExpMatchArray | null = null;
+      let cur: RegExpMatchArray | null;
+      while ((cur = h3Re.exec(beforeWindow)) !== null) {
+        candidate = cur;
+      }
+      h3 = candidate;
+    }
+    if (!h3) continue;
+    const name = decodeHtmlEntities(h3[1].replace(/<[^>]+>/g, '').trim());
+    if (!name) continue;
+    seen.add(slug);
+    out.push({slug, name});
   }
   return out;
 }
