@@ -1122,20 +1122,24 @@ class Universal extends Destination {
       for (const daySchedule of venueSchedule) {
         if (daySchedule.VenueStatus === 'Closed') continue;
 
-        // Main operating hours
+        // The API server lives in Orlando and stamps every entry with the
+        // Eastern offset — including Hollywood venues. Re-project into the
+        // destination's own timezone so the wall clock matches the park.
+        const open = formatInTimezone(new Date(daySchedule.OpenTimeString), this.timezone, 'iso');
+        const close = formatInTimezone(new Date(daySchedule.CloseTimeString), this.timezone, 'iso');
+
         schedule.push({
           date: daySchedule.Date,
-          openingTime: parseTimeInTimezone(daySchedule.OpenTimeString, this.timezone),
-          closingTime: parseTimeInTimezone(daySchedule.CloseTimeString, this.timezone),
+          openingTime: open,
+          closingTime: close,
           type: 'OPERATING' as const,
         });
 
-        // Early entry hours
         if (daySchedule.EarlyEntryString) {
           schedule.push({
             date: daySchedule.Date,
-            openingTime: parseTimeInTimezone(daySchedule.EarlyEntryString, this.timezone),
-            closingTime: parseTimeInTimezone(daySchedule.OpenTimeString, this.timezone),
+            openingTime: formatInTimezone(new Date(daySchedule.EarlyEntryString), this.timezone, 'iso'),
+            closingTime: open,
             type: 'EXTRA_HOURS' as const,
           });
         }
