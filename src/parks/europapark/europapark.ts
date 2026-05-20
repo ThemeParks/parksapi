@@ -607,12 +607,17 @@ class EuropaParkBase extends Destination {
     ]);
 
     // Upstream occasionally injects a literal PHP cURL error string as the
-    // first array element when its internal /waittimes/ proxy fails. Drop any
-    // entry that isn't a proper {code, time, ...} object so a missing `code`
-    // doesn't accidentally match `e.vQueue?.code === undefined`.
+    // first array element when its internal /waittimes/ proxy fails. Require a
+    // string `code` (so a missing code can't match `e.vQueue?.code === undefined`)
+    // AND a finite numeric `time` (downstream uses strict-equality switches and
+    // `<= 91` comparisons that silently misbehave on non-numbers).
     const waits = (Array.isArray(waitsRaw) ? waitsRaw : []).filter(
-      (w): w is EuropaParkWaitTime =>
-        !!w && typeof w === 'object' && typeof (w as any).code === 'string',
+      (w): w is EuropaParkWaitTime => {
+        if (!w || typeof w !== 'object') return false;
+        const code = (w as any).code;
+        const time = (w as any).time;
+        return typeof code === 'string' && typeof time === 'number' && Number.isFinite(time);
+      },
     );
 
     // Build code → entityId map from attraction/show entities
