@@ -599,12 +599,21 @@ class EuropaParkBase extends Destination {
   @reusable()
   protected async buildLiveData(): Promise<LiveData[]> {
     // Parallelise — these four are independent network calls.
-    const [entities, poiData, waits, showTimes] = await Promise.all([
+    const [entities, poiData, waitsRaw, showTimes] = await Promise.all([
       this.getParkEntities(),
       this.getPOIs(),
       this.getWaitingTimes(),
       this.getShowTimes(),
     ]);
+
+    // Upstream occasionally injects a literal PHP cURL error string as the
+    // first array element when its internal /waittimes/ proxy fails. Drop any
+    // entry that isn't a proper {code, time, ...} object so a missing `code`
+    // doesn't accidentally match `e.vQueue?.code === undefined`.
+    const waits = (Array.isArray(waitsRaw) ? waitsRaw : []).filter(
+      (w): w is EuropaParkWaitTime =>
+        !!w && typeof w === 'object' && typeof (w as any).code === 'string',
+    );
 
     // Build code → entityId map from attraction/show entities
     const codeToEntityId = new Map<string, string>();
