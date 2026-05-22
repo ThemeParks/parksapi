@@ -309,10 +309,15 @@ class EuropaParkBase extends Destination {
     return list as EuropaParkPOI[];
   }
 
+  // Return the raw array unparsed — upstream occasionally injects non-object
+  // poison entries (a PHP cURL error string as the first element when the
+  // internal /waittimes/ proxy fails), so callers must narrow to
+  // `EuropaParkWaitTime` via runtime validation.
   @reusable()
-  async getWaitingTimes(): Promise<EuropaParkWaitTime[]> {
+  async getWaitingTimes(): Promise<unknown[]> {
     const resp = await this.fetchWaitingTimes();
-    return (await resp.json()) as EuropaParkWaitTime[];
+    const data = await resp.json();
+    return Array.isArray(data) ? data : [];
   }
 
   @reusable()
@@ -606,12 +611,12 @@ class EuropaParkBase extends Destination {
       this.getShowTimes(),
     ]);
 
-    // Upstream occasionally injects a literal PHP cURL error string as the
-    // first array element when its internal /waittimes/ proxy fails. Require a
-    // numeric `code` (so a missing code can't match `e.vQueue?.code === undefined`)
-    // AND a finite numeric `time` (downstream uses strict-equality switches and
-    // `<= 91` comparisons that silently misbehave on non-numbers).
-    const waits = (Array.isArray(waitsRaw) ? waitsRaw : []).filter(
+    // Narrow the raw wait-times array. Upstream occasionally injects a literal
+    // PHP cURL error string as the first element when its internal /waittimes/
+    // proxy fails; downstream also uses strict-equality switches and `<= 91`
+    // comparisons that silently misbehave on non-numbers — so require both a
+    // finite numeric `code` and a finite numeric `time`.
+    const waits = waitsRaw.filter(
       (w): w is EuropaParkWaitTime => {
         if (!w || typeof w !== 'object') return false;
         const code = (w as any).code;
