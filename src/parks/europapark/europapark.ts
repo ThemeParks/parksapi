@@ -27,7 +27,7 @@ type EuropaParkPOI = {
   longitude?: number;
   minHeight?: number;
   maxHeight?: number;
-  code?: string;
+  code?: number;
   // showlocation sub-entities
   shows?: EuropaParkShow[];
   // virtual-queue companion data (injected during entity build)
@@ -39,14 +39,14 @@ type EuropaParkShow = {
   id: number;
   name: string;
   duration?: number;
-  code?: string;
+  code?: number;
   latitude?: number;
   longitude?: number;
 };
 
 /** Waiting-times API response item */
 type EuropaParkWaitTime = {
-  code: string;
+  code: number;
   time: number;
   startAt?: string | null;
   endAt?: string | null;
@@ -92,7 +92,7 @@ type EuropaParkEntity = {
   name: string;
   entityType: 'ATTRACTION' | 'SHOW';
   scopes: string[];
-  code?: string;
+  code?: number;
   vQueue?: EuropaParkPOI;
   duration?: number;
   latitude?: number;
@@ -608,7 +608,7 @@ class EuropaParkBase extends Destination {
 
     // Upstream occasionally injects a literal PHP cURL error string as the
     // first array element when its internal /waittimes/ proxy fails. Require a
-    // string `code` (so a missing code can't match `e.vQueue?.code === undefined`)
+    // numeric `code` (so a missing code can't match `e.vQueue?.code === undefined`)
     // AND a finite numeric `time` (downstream uses strict-equality switches and
     // `<= 91` comparisons that silently misbehave on non-numbers).
     const waits = (Array.isArray(waitsRaw) ? waitsRaw : []).filter(
@@ -616,12 +616,13 @@ class EuropaParkBase extends Destination {
         if (!w || typeof w !== 'object') return false;
         const code = (w as any).code;
         const time = (w as any).time;
-        return typeof code === 'string' && typeof time === 'number' && Number.isFinite(time);
+        return typeof code === 'number' && Number.isFinite(code)
+            && typeof time === 'number' && Number.isFinite(time);
       },
     );
 
     // Build code → entityId map from attraction/show entities
-    const codeToEntityId = new Map<string, string>();
+    const codeToEntityId = new Map<number, string>();
     for (const entity of entities) {
       if (entity.code) {
         codeToEntityId.set(entity.code, entity.id);
@@ -647,7 +648,7 @@ class EuropaParkBase extends Destination {
     // ── First pass: extract virtual-queue data ─────────────────────────────
     type VQueueEntry = {
       entityId: string;
-      ignoreCode: string;
+      ignoreCode: number;
       returnStart: string | null;
       returnEnd: string | null;
       state: 'AVAILABLE' | 'TEMP_FULL' | 'FINISHED';
