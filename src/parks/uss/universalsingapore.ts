@@ -171,8 +171,15 @@ function parseOperatingHours(raw: string | undefined, date: string): string[] {
     let hour = parseInt(m[1], 10);
     const minute = m[2];
     const meridiem = m[3].toUpperCase();
-    if (meridiem === 'PM' && hour !== 12) hour += 12;
-    if (meridiem === 'AM' && hour === 12) hour = 0;
+    // The API occasionally emits entries like "17:30 PM" — a 24-hour value
+    // with a redundant meridiem. Treat hours 13–23 as already-24h and ignore
+    // the meridiem rather than crashing the whole live-data fetch on the
+    // resulting invalid clock time.
+    if (hour < 0 || hour > 23) continue;
+    if (hour <= 12) {
+      if (meridiem === 'PM' && hour !== 12) hour += 12;
+      if (meridiem === 'AM' && hour === 12) hour = 0;
+    }
     const hh = String(hour).padStart(2, '0');
     out.push(constructDateTime(date, `${hh}:${minute}:00`, TIMEZONE));
   }
