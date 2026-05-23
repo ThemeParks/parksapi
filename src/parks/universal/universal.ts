@@ -688,6 +688,42 @@ class Universal extends Destination {
     return await resp.json();
   }
 
+  /** Fetch /resort-areas/{resortKey}/places via UDX (Bearer auth + Flutter headers). */
+  @http({cacheSeconds: 60 * 60 * 12})
+  async fetchPlaces(): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.udxBase}/resort-areas/${this.resortKey.toUpperCase()}/places`,
+      options: {json: true},
+    } as any as HTTPObj;
+  }
+
+  /** Parsed places list — long TTL since place definitions move slowly. */
+  @cache({ttlSeconds: 60 * 60 * 12})
+  async getPlaces(): Promise<UniversalPlace[]> {
+    const resp = await this.fetchPlaces();
+    const data: UniversalPlacesResponse = await resp.json();
+    return (data?.results ?? []).map((r) => r.place);
+  }
+
+  /** Fetch /shows/show-list.json from the public CDN (no auth needed). */
+  @http({cacheSeconds: 60})
+  async fetchShowList(): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.assetsBase}/${this.resortKey}/shows/show-list.json`,
+      options: {json: true},
+    } as any as HTTPObj;
+  }
+
+  /** Parsed show-list — short TTL since show times update through the day. */
+  @cache({ttlSeconds: 60})
+  async getShowList(): Promise<UniversalShowListEntry[]> {
+    const resp = await this.fetchShowList();
+    const data = await resp.json();
+    return Array.isArray(data) ? (data as UniversalShowListEntry[]) : [];
+  }
+
   /**
    * Fetch wait time data
    */
