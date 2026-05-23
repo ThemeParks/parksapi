@@ -175,6 +175,35 @@ const PLACE_TYPE_TO_ENTITY: Record<string, Entity['entityType']> = {
   Dining: 'RESTAURANT',
 };
 
+/**
+ * Map of new park place_id → legacy numeric VenueId used by the legacy
+ * schedule endpoint (/api/services/parks/{venueId}/schedule).
+ *
+ * The schedule endpoint hasn't been migrated to /places yet, so we still
+ * fetch it by numeric id and just relabel the resulting EntitySchedule
+ * with the new place_id.
+ *
+ * Doubles as the allow-list for which Park-type place records emit as
+ * PARK entities — the new feed marks CityWalk and Hollywood's Upper/Lower
+ * Lots as `Park`, but we don't surface those today (they aren't theme
+ * parks). Filter Park-type places against this table's keys in
+ * buildEntityList (Task 8).
+ *
+ * Confirmed via Task 1 probe: UOR has 5 Parks (cw + usf + ioa + eu + vb);
+ * USH has 4 Parks (cw + lower_lot + upper_lot + ush). Only the entries
+ * listed below are emitted.
+ */
+const PARK_PLACE_ID_TO_LEGACY_VENUE_ID: Record<string, string> = {
+  // UOR — `uor.cw` (CityWalk) intentionally excluded
+  'uor.usf': '10010',
+  'uor.ioa': '10000',
+  'uor.eu':  '24000',
+  'uor.vb':  '13801',
+  // USH — Lower/Upper Lot are sub-areas of `ush.ush`, not separate parks;
+  // CityWalk excluded for the same reason as UOR
+  'ush.ush': '13825',
+};
+
 // ─── shows/show-list.json (CDN) types ────────────────────────────────────────
 
 export type UniversalShowTime = {
