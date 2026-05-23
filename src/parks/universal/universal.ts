@@ -975,9 +975,15 @@ class Universal extends Destination {
         destinationId,
         timezone: this.timezone,
       } as Entity;
-      const mapLoc = place.geometry?.locations?.find((l) => l.location_type === 'map');
-      if (mapLoc?.lat_lng) {
-        park.location = {latitude: mapLoc.lat_lng.lat, longitude: mapLoc.lat_lng.lng};
+      // Park location: prefer `map`, fall back to any geometry entry (USH's
+      // `ush.ush` umbrella has only a GEOFENCE entry — base class validation
+      // requires the PARK to carry a location, so prefer-map-else-first beats
+      // dropping coords entirely).
+      const parkLoc =
+        place.geometry?.locations?.find((l) => l.location_type === 'map') ??
+        place.geometry?.locations?.find((l) => !!l.lat_lng);
+      if (parkLoc?.lat_lng) {
+        park.location = {latitude: parkLoc.lat_lng.lat, longitude: parkLoc.lat_lng.lng};
       }
       out.push(park);
     }
