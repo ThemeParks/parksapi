@@ -204,6 +204,39 @@ const PARK_PLACE_ID_TO_LEGACY_VENUE_ID: Record<string, string> = {
   'ush.ush': '13825',
 };
 
+/**
+ * Map a UniversalPlace to a wiki Entity. Returns null for place types we
+ * don't expose (Park is emitted separately by buildEntityList; Shop /
+ * Amenity / Hotel / etc. are out of scope for this migration).
+ */
+export function placeToEntity(
+  place: UniversalPlace,
+  destinationId: string,
+  timezone: string,
+): Entity | null {
+  const entityType = PLACE_TYPE_TO_ENTITY[place.place_type.type];
+  if (!entityType) return null;
+
+  const entity: Entity = {
+    id: sanitizeId(place.place_id),
+    name: place.name,
+    entityType,
+    destinationId,
+    timezone,
+  } as Entity;
+
+  if (place.venue_id) {
+    (entity as any).parentId = sanitizeId(place.venue_id);
+  }
+
+  const mapLoc = place.geometry?.locations?.find((l) => l.location_type === 'map');
+  if (mapLoc?.lat_lng) {
+    entity.location = {latitude: mapLoc.lat_lng.lat, longitude: mapLoc.lat_lng.lng};
+  }
+
+  return entity;
+}
+
 // ─── shows/show-list.json (CDN) types ────────────────────────────────────────
 
 export type UniversalShowTime = {
