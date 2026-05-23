@@ -945,74 +945,50 @@ class Universal extends Destination {
   }
 
   /**
-   * Build all entities (destination, parks, attractions, shows, restaurants)
-   * Note: parkId and destinationId are automatically resolved by the base class
+   * Build entities (destination, parks, attractions/shows/restaurants) from
+   * the UDX /resort-areas/{resortKey}/places endpoint. CityWalk and the
+   * Hollywood Upper/Lower Lot Park-type entries are filtered via the
+   * PARK_PLACE_ID_TO_LEGACY_VENUE_ID allow-list. Non-park entities are
+   * mapped through placeToEntity which drops anything outside Ride / Show /
+   * Dining (Shop / Amenity / Hotel / etc. are out of scope for this
+   * migration).
+   *
+   * Note: parkId and destinationId are automatically resolved by the base class.
    */
   protected async buildEntityList(): Promise<Entity[]> {
     const destinationId = `universalresort_${this.city}`;
-    const poi = await this.getPOI(this.city);
-    const parks = await this.getParks(this.city);
-    const shows = await this.getFilteredShows();
+    const places = await this.getPlaces();
+    const out: Entity[] = [...await this.getDestinations()];
 
-    return [
-      // Destination
-      ...await this.getDestinations(),
-
-      // Parks
-      ...this.mapEntities(parks, {
-        idField: 'Id',
-        nameField: 'MblDisplayName',
+    // Parks first — they need to exist before non-park entities reference
+    // them via parentId. The new feed marks CityWalk and Hollywood's
+    // Upper/Lower Lots as `Park`, but we only surface "real" theme parks —
+    // filter against PARK_PLACE_ID_TO_LEGACY_VENUE_ID's keys.
+    for (const place of places) {
+      if (place.place_type.type !== 'Park') continue;
+      if (!(place.place_id in PARK_PLACE_ID_TO_LEGACY_VENUE_ID)) continue;
+      const park: Entity = {
+        id: sanitizeId(place.place_id),
+        name: place.name,
         entityType: 'PARK',
-        parentIdField: () => destinationId,
+        parentId: destinationId,
         destinationId,
         timezone: this.timezone,
-        locationFields: {lat: 'Latitude', lng: 'Longitude'},
-      }),
+      } as Entity;
+      const mapLoc = place.geometry?.locations?.find((l) => l.location_type === 'map');
+      if (mapLoc?.lat_lng) {
+        park.location = {latitude: mapLoc.lat_lng.lat, longitude: mapLoc.lat_lng.lng};
+      }
+      out.push(park);
+    }
 
-      // Attractions
-      ...this.mapEntities(poi.Rides, {
-        idField: 'Id',
-        nameField: 'MblDisplayName',
-        entityType: 'ATTRACTION',
-        parentIdField: 'VenueId',
-        locationFields: {lat: 'Latitude', lng: 'Longitude'},
-        destinationId,
-        timezone: this.timezone,
-        filter: (ride) => shouldIncludeUniversalAttraction(ride.MblDisplayName || ''),
-        transform: (entity, ride) => {
-          // Add tags from Universal API data
-          entity.tags = [
-            ride.HasChildSwap ? TagBuilder.childSwap() : undefined,
-            ride.MinHeightInInches ? TagBuilder.minimumHeight(ride.MinHeightInInches, 'in') : undefined,
-          ].filter((tag): tag is NonNullable<typeof tag> => tag !== undefined);
-          return entity;
-        },
-      }),
+    // Non-park entities (rides, shows, restaurants).
+    for (const place of places) {
+      const entity = placeToEntity(place, destinationId, this.timezone);
+      if (entity) out.push(entity);
+    }
 
-      // Shows
-      ...this.mapEntities(shows, {
-        idField: 'Id',
-        nameField: 'MblDisplayName',
-        entityType: 'SHOW',
-        parentIdField: 'VenueId',
-        locationFields: {lat: 'Latitude', lng: 'Longitude'},
-        destinationId,
-        timezone: this.timezone,
-      }),
-
-      // Restaurants
-      ...this.mapEntities(poi.DiningLocations, {
-        idField: 'Id',
-        nameField: 'MblDisplayName',
-        entityType: 'RESTAURANT',
-        parentIdField: 'VenueId',
-        locationFields: {lat: 'Latitude', lng: 'Longitude'},
-        destinationId,
-        timezone: this.timezone,
-        filter: (dining) =>
-          dining.DiningTypes?.some((type) => WANTED_DINING_TYPES.includes(type)) ?? false,
-      }),
-    ];
+    return out;
   }
 
   /**
