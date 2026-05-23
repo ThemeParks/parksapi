@@ -10,86 +10,12 @@ import {
   Entity,
   LiveData,
   EntitySchedule,
-  AttractionTypeEnum,
   QueueTypeEnum,
 } from '@themeparks/typelib';
 import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore, constructDateTime, addMinutes, hostnameFromUrl} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 import {randomPointInRadius} from '../../geo.js';
 
-// Only return restaurants using these dining types
-const WANTED_DINING_TYPES = ['CasualDining', 'FineDining'];
-
-// Ignore show types (meet & greets, street entertainment)
-const IGNORE_SHOW_TYPES = ['Music'];
-
-/**
- * Universal API POI data structure
- */
-type UniversalPOIData = {
-  Id: number;
-  MblDisplayName?: string;
-  Longitude?: number;
-  Latitude?: number;
-  HasChildSwap?: boolean;
-  MinHeightInInches?: number;
-  VenueId?: number;
-  Tags?: string[];
-  ExternalIds?: {
-    ContentId?: string;
-    PlaceId?: string;
-  };
-  ShowTypes?: string[];
-  DiningTypes?: string[];
-  StartDateTimes?: string[];
-  WaitTime?: number;
-};
-
-/**
- * Universal POI API response structure
- */
-type UniversalPOIResponse = {
-  Rides: UniversalPOIData[];
-  Shows: UniversalPOIData[];
-  DiningLocations: UniversalPOIData[];
-};
-
-/**
- * Determine attraction type from Universal API data
- */
-function getUniversalAttractionType(data: UniversalPOIData): AttractionTypeEnum {
-  // Check for trains (Hogwarts Express)
-  if (data.Tags?.includes('train')) {
-    return AttractionTypeEnum.TRANSPORT;
-  }
-  return AttractionTypeEnum.RIDE;
-}
-
-/**
- * Filter Universal attractions by name patterns
- */
-function shouldIncludeUniversalAttraction(name: string): boolean {
-  const lowerName = name.toLowerCase();
-  if (lowerName.includes(' - last train')) return false;
-  if (lowerName.includes(' - first show')) return false;
-  return true;
-}
-
-/**
- * Universal Venues API response
- */
-type UniversalVenuesResponse = {
-  Results: Array<{
-    Id: number;
-    MblDisplayName: string;
-    AdmissionRequired: boolean;
-    Latitude?: number;
-    Longitude?: number;
-    ExternalIds: {
-      ContentId: string;
-    };
-  }>;
-};
 
 /**
  * Universal wait time API response
@@ -692,83 +618,6 @@ class Universal extends Destination {
     } as any as HTTPObj;
   }
 
-  /**
-   * Fetch parks/venues for this resort
-   */
-  @http({
-    validateResponse: {
-      type: 'object',
-      properties: {
-        Results: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              Id: {type: 'number'},
-              ExternalIds: {
-                type: 'object',
-                properties: {
-                  ContentId: {type: 'string'},
-                },
-                required: ['ContentId'],
-              },
-              MblDisplayName: {type: 'string'},
-              AdmissionRequired: {type: 'boolean'},
-            },
-            required: ['Id', 'ExternalIds', 'MblDisplayName', 'AdmissionRequired'],
-          },
-        },
-      },
-      required: ['Results'],
-    },
-    cacheSeconds: 180 * 60, // 3 hours
-    parameters: [
-      {name: 'city', type: 'string', description: 'City to fetch parks for (orlando/hollywood)'}
-    ]
-  })
-  async fetchParks(city: string): Promise<HTTPObj> {
-    return {
-      method: 'GET',
-      url: `${this.baseURL}/venues?city=${city}`,
-      options: {json: true},
-    } as any as HTTPObj;
-  }
-
-  /**
-   * Get parks (filtered for admission required)
-   */
-  @cache({ttlSeconds: 60 * 60 * 3})
-  async getParks(city: string) {
-    const resp = await this.fetchParks(city);
-    const data: UniversalVenuesResponse = await resp.json();
-    return data.Results.filter((x) => x.AdmissionRequired);
-  }
-
-  /**
-   * Fetch POI (Points of Interest) data
-   */
-  @http({
-    cacheSeconds: 60, parameters: [
-      {name: 'city', type: 'string', description: 'City to fetch POI data for (orlando/hollywood)'}
-    ]
-  })
-  async fetchPOI(city: string): Promise<HTTPObj> {
-    return {
-      method: 'GET',
-      url: `${this.baseURL}/pointsofinterest?city=${city}`,
-      options: {json: true},
-    } as any as HTTPObj;
-  }
-
-  /**
-   * Get POI data (cached)
-   */
-  @cache({ttlSeconds: 60})
-  async getPOI(city: string): Promise<UniversalPOIResponse> {
-    const resp = await this.fetchPOI(city);
-    return await resp.json();
-  }
-
   /** Fetch /resort-areas/{resortKey}/places via UDX (Bearer auth + Flutter headers). */
   @http({cacheSeconds: 60 * 60 * 12})
   async fetchPlaces(): Promise<HTTPObj> {
@@ -914,38 +763,6 @@ class Universal extends Destination {
   async getVenueSchedule(venueId: string): Promise<UniversalScheduleResponse> {
     const resp = await this.fetchVenueSchedule(venueId);
     return await resp.json();
-  }
-
-  /**
-   * Helper: Find ride ID from wait time ID
-   */
-  private getRideIDFromWaitTimeId(poiData: UniversalPOIResponse, waitTimeId: string): string | null {
-    try {
-      const allPOIs = [
-        ...poiData.Rides,
-        ...poiData.Shows,
-        ...poiData.DiningLocations,
-      ];
-
-      const ride = allPOIs.find((x) =>
-        x.ExternalIds?.PlaceId === waitTimeId || x.ExternalIds?.ContentId === waitTimeId
-      );
-
-      return ride ? ride.Id.toString() : null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /**
-   * Get filtered shows (exclude music/street entertainment)
-   */
-  private async getFilteredShows(): Promise<UniversalPOIData[]> {
-    const poi = await this.getPOI(this.city);
-    return poi.Shows.filter((show) => {
-      const hasIgnoredType = show.ShowTypes?.some((type) => IGNORE_SHOW_TYPES.includes(type));
-      return !hasIgnoredType;
-    });
   }
 
   /**

@@ -10,8 +10,7 @@
 import {describe, test, expect, beforeEach} from 'vitest';
 import {UniversalStudios, UniversalOrlando} from '../universal.js';
 
-const HOLLYWOOD_VENUE_ID = '13825';
-const HOLLYWOOD_PARK = {Id: 13825, MblDisplayName: 'Universal Studios', AdmissionRequired: true};
+const HOLLYWOOD_PLACE_ID = 'ush.ush';
 
 // Real shape returned by services.universalorlando.com on 2026-05-16 for
 // Hollywood venue 13825. All offsets are -04:00 (the API server is in
@@ -34,7 +33,6 @@ const HOLLYWOOD_SCHEDULE_FIXTURE = [
   },
 ];
 
-const ORLANDO_PARK = {Id: 10010, MblDisplayName: 'Universal Studios Florida', AdmissionRequired: true};
 const ORLANDO_SCHEDULE_FIXTURE = [
   {
     Date: '2026-05-18',
@@ -47,10 +45,8 @@ const ORLANDO_SCHEDULE_FIXTURE = [
 
 function stubPark<T extends UniversalStudios | UniversalOrlando>(
   park: T,
-  parksFixture: any[],
   scheduleFixture: any[],
 ): T {
-  (park as any).getParks = async () => parksFixture;
   (park as any).getVenueSchedule = async () => scheduleFixture;
   (park as any)._init = async () => undefined;
   return park;
@@ -58,10 +54,10 @@ function stubPark<T extends UniversalStudios | UniversalOrlando>(
 
 describe('Universal buildSchedules', () => {
   test('Hollywood: Eastern-stamped API times re-projected to Pacific', async () => {
-    const park = stubPark(new UniversalStudios(), [HOLLYWOOD_PARK], HOLLYWOOD_SCHEDULE_FIXTURE);
+    const park = stubPark(new UniversalStudios(), HOLLYWOOD_SCHEDULE_FIXTURE);
 
     const schedules = await park.getSchedules();
-    const main = schedules.find((s) => s.id === HOLLYWOOD_VENUE_ID);
+    const main = schedules.find((s) => s.id === HOLLYWOOD_PLACE_ID);
     expect(main, 'schedule for Hollywood venue').toBeDefined();
 
     const may18Op = main!.schedule.find((d: any) => d.date === '2026-05-18' && d.type === 'OPERATING');
@@ -76,10 +72,10 @@ describe('Universal buildSchedules', () => {
   });
 
   test('Orlando: Eastern-stamped API times preserved as Eastern', async () => {
-    const park = stubPark(new UniversalOrlando(), [ORLANDO_PARK], ORLANDO_SCHEDULE_FIXTURE);
+    const park = stubPark(new UniversalOrlando(), ORLANDO_SCHEDULE_FIXTURE);
 
     const schedules = await park.getSchedules();
-    const main = schedules.find((s) => s.id === String(ORLANDO_PARK.Id));
+    const main = schedules.find((s) => s.id === 'uor.usf');
     const may18Op = main!.schedule.find((d: any) => d.date === '2026-05-18' && d.type === 'OPERATING');
     expect(may18Op!.openingTime).toBe('2026-05-18T09:00:00-04:00');
     expect(may18Op!.closingTime).toBe('2026-05-18T21:00:00-04:00');
