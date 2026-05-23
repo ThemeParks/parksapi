@@ -320,11 +320,12 @@ class Universal extends Destination {
     const {token} = await this.getUdxToken();
     const headers: Record<string, string> = {
       ...requestObj.headers,
-      'user-agent': 'Dart/3.6 (dart:io)',
+      'user-agent': 'Dart/3.11 (dart:io)',
       'accept-language': 'en-US',
       'x-uniwebservice-platform': 'Android',
       'x-uniwebservice-platformversion': '14',
       'x-uniwebservice-device': 'ONEPLUS A5000',
+      'x-channel-type': 'Mobile',
       'Authorization': `Bearer ${token}`,
     };
     if (this.flutterAppVersion) {
@@ -352,7 +353,7 @@ class Universal extends Destination {
       headers: {
         'Authorization': `Basic ${credentials}`,
         'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
-        'user-agent': 'Dart/3.6 (dart:io)',
+        'user-agent': 'Dart/3.11 (dart:io)',
       },
       tags: ['udxAuth'],
     } as any as HTTPObj;
