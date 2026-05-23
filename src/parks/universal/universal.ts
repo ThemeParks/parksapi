@@ -1235,11 +1235,18 @@ class Universal extends Destination {
    * Build schedules for all parks
    */
   protected async buildSchedules(): Promise<EntitySchedule[]> {
-    const parks = await this.getParks(this.city);
     const schedules: EntitySchedule[] = [];
 
-    for (const park of parks) {
-      const venueSchedule = await this.getVenueSchedule(park.Id.toString());
+    // Iterate the place_id ↔ legacy VenueId map filtered to this resort.
+    // The legacy schedule endpoint still wants the numeric VenueId; we only
+    // relabel the emitted EntitySchedule with the new place_id so it joins
+    // up with the park entities from buildEntityList.
+    const parkEntries = Object.entries(PARK_PLACE_ID_TO_LEGACY_VENUE_ID).filter(
+      ([placeId]) => placeId.startsWith(`${this.resortKey}.`),
+    );
+
+    for (const [placeId, legacyVenueId] of parkEntries) {
+      const venueSchedule = await this.getVenueSchedule(legacyVenueId);
       const schedule = [];
 
       for (const daySchedule of venueSchedule) {
@@ -1269,7 +1276,7 @@ class Universal extends Destination {
       }
 
       schedules.push({
-        id: park.Id.toString(),
+        id: placeId,
         schedule,
       });
     }
