@@ -126,6 +126,76 @@ type UniversalVirtualQueueDetails = {
   }>;
 };
 
+// ─── /resort-areas/{resortKey}/places types ──────────────────────────────────
+
+/**
+ * Sanitize a UDX place_id for use as a wiki entity id.
+ * The wiki allows [\w.-]; the raw place_id is usually clean but defensively
+ * normalise anything else (colons, zero-width spaces, non-ASCII). Idempotent.
+ * Mirrors the helper in src/parks/usj/universalstudiosjapan.ts.
+ */
+export function sanitizeId(id: string): string {
+  return id.replace(/[^\w.-]/g, '_');
+}
+
+/** A single place record from /resort-areas/{resortKey}/places. */
+export type UniversalPlace = {
+  place_id: string;
+  name: string;
+  short_description?: string;
+  long_description?: string;
+  resort_area_code: string;   // 'uor' | 'ush'
+  venue_id?: string;          // e.g. 'uor.usf' — parent park / hotel
+  land_id?: string;           // sub-area within a park (unused for now)
+  is_routable?: boolean;
+  geometry?: {
+    locations?: Array<{
+      location_type: string;  // 'map' | …
+      lat_lng?: {lat: number; lng: number};
+    }>;
+  };
+  place_type: {
+    type: string;             // 'Ride' | 'Show' | 'Dining' | 'Park' | 'Shop' | 'Amenity' | …
+    categories?: string[];
+    attributes?: Array<{name: string; value?: string}>;
+  };
+};
+
+export type UniversalPlacesResponse = {
+  results: Array<{
+    place: UniversalPlace;
+    open_now?: boolean;
+  }>;
+};
+
+/** Place types we map to entities; everything else is silently dropped. */
+const PLACE_TYPE_TO_ENTITY: Record<string, Entity['entityType']> = {
+  Ride: 'ATTRACTION',
+  Show: 'SHOW',
+  Dining: 'RESTAURANT',
+};
+
+// ─── shows/show-list.json (CDN) types ────────────────────────────────────────
+
+export type UniversalShowTime = {
+  show_time_id: string;
+  status: string;             // 'ENABLED' | …
+  start_time: string;         // ISO UTC e.g. '2026-05-22T14:00:00.000Z'
+  asl?: boolean;
+};
+
+export type UniversalShowListEntry = {
+  show_id: string;
+  resort_area_code: string;
+  venue_id?: string;
+  land_id?: string;
+  name: string;
+  show_type?: string;
+  status: string;             // 'OPEN' | …
+  show_externally: boolean;
+  show_times?: UniversalShowTime[];
+};
+
 /**
  * One Express Now offer, post-parsing.
  *
