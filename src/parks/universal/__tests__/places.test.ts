@@ -2,7 +2,7 @@
  * Unit tests for the pure helpers backing the /places migration.
  */
 import {describe, test, expect} from 'vitest';
-import {placeToEntity, type UniversalPlace} from '../universal.js';
+import {placeToEntity, parseShowTimes, type UniversalPlace, type UniversalShowListEntry} from '../universal.js';
 
 const DESTINATION = 'universalresort_orlando';
 const TZ = 'America/New_York';
@@ -99,5 +99,53 @@ describe('placeToEntity', () => {
   test('place_id with disallowed characters is sanitized', () => {
     const weird: UniversalPlace = {...ridePlace, place_id: 'uor.usf.rides:weird*name'};
     expect(placeToEntity(weird, DESTINATION, TZ)?.id).toBe('uor.usf.rides_weird_name');
+  });
+});
+
+describe('parseShowTimes', () => {
+  const baseShow: UniversalShowListEntry = {
+    show_id: 'uor.ioa.shows.frog_choir',
+    resort_area_code: 'UOR',
+    venue_id: 'uor.ioa',
+    name: 'Frog Choir',
+    show_type: 'SHOW',
+    status: 'OPEN',
+    show_externally: true,
+    show_times: [],
+  };
+
+  test('emits one Performance Time per ENABLED show_time, future-only', () => {
+    const now = new Date('2026-05-22T17:00:00Z');
+    const show: UniversalShowListEntry = {
+      ...baseShow,
+      show_times: [
+        {show_time_id: 'a', status: 'ENABLED', start_time: '2026-05-22T16:00:00.000Z'}, // past
+        {show_time_id: 'b', status: 'ENABLED', start_time: '2026-05-22T18:00:00.000Z'},
+        {show_time_id: 'c', status: 'ENABLED', start_time: '2026-05-22T19:00:00.000Z'},
+      ],
+    };
+    expect(parseShowTimes(show, now)).toEqual([
+      {type: 'Performance Time', startTime: '2026-05-22T18:00:00.000Z', endTime: '2026-05-22T18:00:00.000Z'},
+      {type: 'Performance Time', startTime: '2026-05-22T19:00:00.000Z', endTime: '2026-05-22T19:00:00.000Z'},
+    ]);
+  });
+
+  test('drops non-ENABLED times', () => {
+    const now = new Date('2026-05-22T10:00:00Z');
+    const show: UniversalShowListEntry = {
+      ...baseShow,
+      show_times: [
+        {show_time_id: 'a', status: 'DISABLED', start_time: '2026-05-22T14:00:00.000Z'},
+        {show_time_id: 'b', status: 'ENABLED',  start_time: '2026-05-22T15:00:00.000Z'},
+      ],
+    };
+    expect(parseShowTimes(show, now).map((t) => t.startTime)).toEqual([
+      '2026-05-22T15:00:00.000Z',
+    ]);
+  });
+
+  test('empty / missing show_times → []', () => {
+    expect(parseShowTimes({...baseShow, show_times: []}, new Date())).toEqual([]);
+    expect(parseShowTimes({...baseShow, show_times: undefined}, new Date())).toEqual([]);
   });
 });

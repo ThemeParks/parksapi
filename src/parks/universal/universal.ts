@@ -237,6 +237,25 @@ export function placeToEntity(
   return entity;
 }
 
+/**
+ * Convert a show-list entry's show_times[] to wiki LiveData showtimes.
+ * Filters to ENABLED slots in the future. Uses startTime === endTime
+ * because the feed doesn't carry a duration — match USJ's convention.
+ */
+export function parseShowTimes(
+  show: UniversalShowListEntry,
+  now: Date = new Date(),
+): Array<{type: string; startTime: string; endTime: string}> {
+  const out: Array<{type: string; startTime: string; endTime: string}> = [];
+  for (const slot of show.show_times ?? []) {
+    if (slot.status !== 'ENABLED') continue;
+    const t = new Date(slot.start_time);
+    if (!Number.isFinite(t.getTime()) || t < now) continue;
+    out.push({type: 'Performance Time', startTime: slot.start_time, endTime: slot.start_time});
+  }
+  return out;
+}
+
 // ─── shows/show-list.json (CDN) types ────────────────────────────────────────
 
 export type UniversalShowTime = {
