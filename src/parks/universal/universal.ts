@@ -1036,9 +1036,9 @@ class Universal extends Destination {
       return data;
     };
 
-    const poi = await this.getPOI(this.city);
     const waitTimes = await this.getWaitTimes();
     const vQueueStates = await this.getVirtualQueueStates();
+    const showList = await this.getShowList();
 
     // Process virtual queues
     for (const vQueue of vQueueStates) {
@@ -1084,11 +1084,8 @@ class Universal extends Destination {
       for (const queue of attraction.queues) {
         let rideId: string | null = null;
 
-        const poiId = queue.alternate_ids.find((x) => x.system_name === 'POI');
-        if (poiId) {
-          rideId = poiId.system_id;
-        } else if (attraction.wait_time_attraction_id) {
-          rideId = this.getRideIDFromWaitTimeId(poi, attraction.wait_time_attraction_id);
+        if (attraction.wait_time_attraction_id) {
+          rideId = sanitizeId(attraction.wait_time_attraction_id);
         }
 
         if (!rideId) continue;
@@ -1172,59 +1169,17 @@ class Universal extends Destination {
       }
     }
 
-    // Process show times
-    const shows = await this.getFilteredShows();
+    // Process show times from the CDN show-list.json (place_id-keyed).
     const now = new Date();
+    for (const show of showList) {
+      if (!show.show_externally) continue;
+      const showId = sanitizeId(show.show_id);
+      const showEntry = getOrCreateLiveData(showId);
+      showEntry.status = show.status === 'OPEN' ? 'OPERATING' : 'CLOSED';
 
-    for (const show of shows) {
-      const showEntry = getOrCreateLiveData(show.Id.toString());
-      showEntry.status = 'OPERATING';
-
-      if (show.StartDateTimes?.length) {
-        // The API returns naive "YYYY-MM-DD HH:mm:ss" strings in the park's
-        // local time. The previous code did `new Date(str)` which V8 parses
-        // as UTC for the space-separated form, then re-projected through the
-        // timezone — leaving every show shifted by the park's UTC offset and
-        // most of the day's slots wrongly "in the past".
-        showEntry.showtimes = show.StartDateTimes
-          .map((timeStr) => {
-            const [datePart, timePart] = timeStr.split(' ');
-            if (!datePart || !timePart) return null;
-            const startIso = constructDateTime(datePart, timePart, this.timezone);
-            if (isBefore(new Date(startIso), now)) return null;
-            return {
-              type: 'Performance Time',
-              startTime: startIso,
-              endTime: startIso,
-            };
-          })
-          .filter((x): x is NonNullable<typeof x> => x !== null);
-      }
-    }
-
-    // Add POI wait times as fallback
-    for (const ride of [...poi.Rides, ...poi.Shows]) {
-      if (ride.WaitTime === undefined || ride.WaitTime === null) continue;
-
-      const rideId = ride.Id.toString();
-      const existingData = liveDataMap.get(rideId);
-      if (existingData?.queue?.STANDBY) continue;
-
-      const rideEntry = getOrCreateLiveData(rideId);
-
-      if (ride.WaitTime >= 0) {
-        rideEntry.status = 'OPERATING';
-        if (!rideEntry.queue) {
-          rideEntry.queue = {};
-        }
-        rideEntry.queue.STANDBY = {waitTime: ride.WaitTime};
-      } else {
-        // Negative wait times indicate special states
-        if (ride.WaitTime === -4 || ride.WaitTime === -2) {
-          rideEntry.status = 'DOWN';
-        } else if (ride.WaitTime === -6) {
-          rideEntry.status = 'CLOSED';
-        }
+      const times = parseShowTimes(show, now);
+      if (times.length > 0) {
+        showEntry.showtimes = times;
       }
     }
 
@@ -1240,10 +1195,8 @@ class Universal extends Destination {
     for (const [placeId, offer] of Object.entries(expressNowOffers)) {
       if (offer.vl_inventory <= 0) continue;
 
-      const poiId = this.getRideIDFromWaitTimeId(poi, placeId);
-      if (!poiId) continue;
-
-      const entry = liveDataMap.get(poiId);
+      const sanitizedPlaceId = sanitizeId(placeId);
+      const entry = liveDataMap.get(sanitizedPlaceId);
       if (!entry) continue;
 
       // Defensive: parseExpressNowResponse already validates the slot
