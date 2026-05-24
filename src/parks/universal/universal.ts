@@ -43,6 +43,8 @@ type UniversalVirtualQueueState = {
   Id: string;
   IsEnabled: boolean;
   QueueEntityId: string;
+  /** Sanitized place_id of the host attraction (matches the new entity scheme). */
+  PlaceId?: string;
 };
 
 type UniversalVirtualQueueDetails = {
@@ -860,6 +862,14 @@ class Universal extends Destination {
     // Process virtual queues
     for (const vQueue of vQueueStates) {
       if (vQueue.IsEnabled) {
+        // Post-migration, entity IDs are sanitized place_ids. The VQ feed
+        // carries a PlaceId that matches that scheme; the legacy numeric
+        // QueueEntityId no longer maps to any emitted entity, so attaching
+        // RETURN_TIME by QueueEntityId would silently orphan the data.
+        // Skip VQ states without a PlaceId rather than attaching to a
+        // phantom id.
+        if (!vQueue.PlaceId) continue;
+
         const vQueueDetails = await this.getVirtualQueueDetails(vQueue.Id);
 
         // Find earliest appointment time
@@ -877,7 +887,7 @@ class Universal extends Destination {
           return prev;
         }, undefined);
 
-        const liveDataEntry = getOrCreateLiveData(vQueue.QueueEntityId);
+        const liveDataEntry = getOrCreateLiveData(sanitizeId(vQueue.PlaceId));
         if (!liveDataEntry.queue) {
           liveDataEntry.queue = {} as Record<QueueTypeEnum, any>;
         }
