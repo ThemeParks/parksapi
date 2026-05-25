@@ -7,7 +7,7 @@
  * the schedule for Hollywood goes out the door as wall-clock Eastern times
  * (e.g. 13:00-21:00) when the actual Pacific-local hours are 10:00-18:00.
  */
-import {describe, test, expect, beforeEach} from 'vitest';
+import {describe, test, expect} from 'vitest';
 import {UniversalStudios, UniversalOrlando} from '../universal.js';
 
 const HOLLYWOOD_PLACE_ID = 'ush.ush';

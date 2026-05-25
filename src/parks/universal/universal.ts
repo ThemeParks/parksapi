@@ -814,9 +814,9 @@ class Universal extends Destination {
         timezone: this.timezone,
       } as Entity;
       // Park location: prefer `map`, fall back to any geometry entry (USH's
-      // `ush.ush` umbrella has only a GEOFENCE entry — base class validation
-      // requires the PARK to carry a location, so prefer-map-else-first beats
-      // dropping coords entirely).
+      // `ush.ush` umbrella has only a GEOFENCE entry — the test harness
+      // (src/testRunner.ts) treats anchor entities without a location as a
+      // failure, so prefer-map-else-first beats dropping coords entirely).
       const parkLoc =
         place.geometry?.locations?.find((l) => l.location_type === 'map') ??
         place.geometry?.locations?.find((l) => !!l.lat_lng);
@@ -1103,7 +1103,11 @@ class Universal extends Destination {
       }
 
       schedules.push({
-        id: placeId,
+        // sanitizeId for symmetry with the PARK entity emission in
+        // buildEntityList — today's allow-list keys are clean (`uor.usf`
+        // etc.), but if a future key needs sanitisation the schedule
+        // still has to join up with the matching PARK entity.
+        id: sanitizeId(placeId),
         schedule,
       });
     }

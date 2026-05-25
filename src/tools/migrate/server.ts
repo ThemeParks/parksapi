@@ -253,7 +253,12 @@ export function startMigrationServer(config: ServerConfig): void {
   // ── Start ────────────────────────────────────────────────────
 
   app.listen(config.port, '0.0.0.0', () => {
-    const host = process.env.MIGRATE_HOST || os.hostname();
+    const rawHost = process.env.MIGRATE_HOST || os.hostname();
+    // Bracket IPv6 literals (`::1`, `fe80::1`) for the printed URL — `http://::1:9900/`
+    // isn't a valid URL, but `http://[::1]:9900/` is.
+    const isBracketedIPv6 = /^\[.+\]$/.test(rawHost);
+    const looksIPv6 = !isBracketedIPv6 && rawHost.includes(':');
+    const host = looksIPv6 ? `[${rawHost}]` : rawHost;
     console.log(`\nMigration review server running on :${config.port} (bound 0.0.0.0)`);
     console.log(`  ${config.parkName}`);
     console.log(`  ${mappings.length} mappings to review`);
