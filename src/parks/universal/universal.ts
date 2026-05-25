@@ -132,6 +132,11 @@ const PARK_PLACE_ID_TO_LEGACY_VENUE_ID: Record<string, string> = {
   'ush.ush': '13825',
 };
 
+/** Read a single attribute value from a place's place_type.attributes[]. */
+function attr(place: UniversalPlace, name: string): string | undefined {
+  return place.place_type.attributes?.find((a) => a.name === name)?.value;
+}
+
 /**
  * Map a UniversalPlace to a wiki Entity. Returns null for place types we
  * don't expose (Park is emitted separately by buildEntityList; Shop /
@@ -160,6 +165,25 @@ export function placeToEntity(
   const mapLoc = place.geometry?.locations?.find((l) => l.location_type === 'map');
   if (mapLoc?.lat_lng) {
     entity.location = {latitude: mapLoc.lat_lng.lat, longitude: mapLoc.lat_lng.lng};
+  }
+
+  // Attraction-only attribute tags. Matches the surface the legacy
+  // POI-based build emitted: HasChildSwap → CHILD_SWAP, MinHeightInInches
+  // → MINIMUM_HEIGHT. The new feed exposes these under
+  // place_type.attributes[].
+  if (entityType === 'ATTRACTION') {
+    const tags: NonNullable<Entity['tags']> = [];
+    if (attr(place, 'has_child_swap') === 'true') {
+      tags.push(TagBuilder.childSwap());
+    }
+    const heightStr = attr(place, 'minimum_rider_height_inches');
+    if (heightStr) {
+      const inches = Number(heightStr);
+      if (Number.isFinite(inches) && inches > 0) {
+        tags.push(TagBuilder.minimumHeight(inches, 'in'));
+      }
+    }
+    if (tags.length > 0) entity.tags = tags;
   }
 
   return entity;
