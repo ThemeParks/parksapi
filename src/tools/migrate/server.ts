@@ -8,6 +8,7 @@
 import express from 'express';
 import {readFileSync} from 'fs';
 import {join} from 'path';
+import os from 'node:os';
 import type {Mapping, NewEntity} from './matcher.js';
 
 interface ServerConfig {
@@ -252,9 +253,15 @@ export function startMigrationServer(config: ServerConfig): void {
   // ── Start ────────────────────────────────────────────────────
 
   app.listen(config.port, '0.0.0.0', () => {
-    console.log(`\nMigration review server running at http://localhost:${config.port}`);
-    console.log(`Park: ${config.parkName}`);
-    console.log(`Mappings: ${mappings.length} (${mappings.filter(m => m.confidence === 'exact').length} exact, ${mappings.filter(m => m.confidence === 'fuzzy').length} fuzzy, ${mappings.filter(m => m.confidence === 'unmatched').length} unmatched)`);
-    console.log(`\nOpen http://localhost:${config.port} in your browser to review.\n`);
+    const rawHost = process.env.MIGRATE_HOST || os.hostname();
+    // Bracket IPv6 literals (`::1`, `fe80::1`) for the printed URL — `http://::1:9900/`
+    // isn't a valid URL, but `http://[::1]:9900/` is.
+    const isBracketedIPv6 = /^\[.+\]$/.test(rawHost);
+    const looksIPv6 = !isBracketedIPv6 && rawHost.includes(':');
+    const host = looksIPv6 ? `[${rawHost}]` : rawHost;
+    console.log(`\nMigration review server running on :${config.port} (bound 0.0.0.0)`);
+    console.log(`  ${config.parkName}`);
+    console.log(`  ${mappings.length} mappings to review`);
+    console.log(`\nOpen http://${host}:${config.port}/ in your browser to review (or http://localhost:${config.port}/ when running on the same machine).\n`);
   });
 }

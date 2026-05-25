@@ -10,86 +10,12 @@ import {
   Entity,
   LiveData,
   EntitySchedule,
-  AttractionTypeEnum,
   QueueTypeEnum,
 } from '@themeparks/typelib';
 import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore, constructDateTime, addMinutes, hostnameFromUrl} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 import {randomPointInRadius} from '../../geo.js';
 
-// Only return restaurants using these dining types
-const WANTED_DINING_TYPES = ['CasualDining', 'FineDining'];
-
-// Ignore show types (meet & greets, street entertainment)
-const IGNORE_SHOW_TYPES = ['Music'];
-
-/**
- * Universal API POI data structure
- */
-type UniversalPOIData = {
-  Id: number;
-  MblDisplayName?: string;
-  Longitude?: number;
-  Latitude?: number;
-  HasChildSwap?: boolean;
-  MinHeightInInches?: number;
-  VenueId?: number;
-  Tags?: string[];
-  ExternalIds?: {
-    ContentId?: string;
-    PlaceId?: string;
-  };
-  ShowTypes?: string[];
-  DiningTypes?: string[];
-  StartDateTimes?: string[];
-  WaitTime?: number;
-};
-
-/**
- * Universal POI API response structure
- */
-type UniversalPOIResponse = {
-  Rides: UniversalPOIData[];
-  Shows: UniversalPOIData[];
-  DiningLocations: UniversalPOIData[];
-};
-
-/**
- * Determine attraction type from Universal API data
- */
-function getUniversalAttractionType(data: UniversalPOIData): AttractionTypeEnum {
-  // Check for trains (Hogwarts Express)
-  if (data.Tags?.includes('train')) {
-    return AttractionTypeEnum.TRANSPORT;
-  }
-  return AttractionTypeEnum.RIDE;
-}
-
-/**
- * Filter Universal attractions by name patterns
- */
-function shouldIncludeUniversalAttraction(name: string): boolean {
-  const lowerName = name.toLowerCase();
-  if (lowerName.includes(' - last train')) return false;
-  if (lowerName.includes(' - first show')) return false;
-  return true;
-}
-
-/**
- * Universal Venues API response
- */
-type UniversalVenuesResponse = {
-  Results: Array<{
-    Id: number;
-    MblDisplayName: string;
-    AdmissionRequired: boolean;
-    Latitude?: number;
-    Longitude?: number;
-    ExternalIds: {
-      ContentId: string;
-    };
-  }>;
-};
 
 /**
  * Universal wait time API response
@@ -117,6 +43,8 @@ type UniversalVirtualQueueState = {
   Id: string;
   IsEnabled: boolean;
   QueueEntityId: string;
+  /** Sanitized place_id of the host attraction (matches the new entity scheme). */
+  PlaceId?: string;
 };
 
 type UniversalVirtualQueueDetails = {
@@ -124,6 +52,157 @@ type UniversalVirtualQueueDetails = {
     StartTime: string;
     EndTime: string;
   }>;
+};
+
+// ─── /resort-areas/{resortKey}/places types ──────────────────────────────────
+
+/**
+ * Sanitize a UDX place_id for use as a wiki entity id.
+ * The wiki allows [\w.-]; the raw place_id is usually clean but defensively
+ * normalise anything else (colons, zero-width spaces, non-ASCII). Idempotent.
+ * Mirrors the helper in src/parks/usj/universalstudiosjapan.ts.
+ */
+export function sanitizeId(id: string): string {
+  return id.replace(/[^\w.-]/g, '_');
+}
+
+/** A single place record from /resort-areas/{resortKey}/places. */
+export type UniversalPlace = {
+  place_id: string;
+  name: string;
+  short_description?: string;
+  long_description?: string;
+  resort_area_code: string;   // 'uor' | 'ush'
+  venue_id?: string;          // e.g. 'uor.usf' — parent park / hotel
+  land_id?: string;           // sub-area within a park (unused for now)
+  is_routable?: boolean;
+  geometry?: {
+    locations?: Array<{
+      location_type: string;  // 'map' | …
+      lat_lng?: {lat: number; lng: number};
+    }>;
+  };
+  place_type: {
+    type: string;             // 'Ride' | 'Show' | 'Dining' | 'Park' | 'Shop' | 'Amenity' | …
+    categories?: string[];
+    attributes?: Array<{name: string; value?: string}>;
+  };
+};
+
+export type UniversalPlacesResponse = {
+  results: Array<{
+    place: UniversalPlace;
+    open_now?: boolean;
+  }>;
+};
+
+/** Place types we map to entities; everything else is silently dropped. */
+const PLACE_TYPE_TO_ENTITY: Record<string, Entity['entityType']> = {
+  Ride: 'ATTRACTION',
+  Show: 'SHOW',
+  Dining: 'RESTAURANT',
+};
+
+/**
+ * Map of new park place_id → legacy numeric VenueId used by the legacy
+ * schedule endpoint (/api/services/parks/{venueId}/schedule).
+ *
+ * The schedule endpoint hasn't been migrated to /places yet, so we still
+ * fetch it by numeric id and just relabel the resulting EntitySchedule
+ * with the new place_id.
+ *
+ * Doubles as the allow-list for which Park-type place records emit as
+ * PARK entities — the new feed marks CityWalk and Hollywood's Upper/Lower
+ * Lots as `Park`, but we don't surface those today (they aren't theme
+ * parks). Filter Park-type places against this table's keys in
+ * buildEntityList (Task 8).
+ *
+ * Confirmed via Task 1 probe: UOR has 5 Parks (cw + usf + ioa + eu + vb);
+ * USH has 4 Parks (cw + lower_lot + upper_lot + ush). Only the entries
+ * listed below are emitted.
+ */
+const PARK_PLACE_ID_TO_LEGACY_VENUE_ID: Record<string, string> = {
+  // UOR — `uor.cw` (CityWalk) intentionally excluded
+  'uor.usf': '10010',
+  'uor.ioa': '10000',
+  'uor.eu':  '24000',
+  'uor.vb':  '13801',
+  // USH — Lower/Upper Lot are sub-areas of `ush.ush`, not separate parks;
+  // CityWalk excluded for the same reason as UOR
+  'ush.ush': '13825',
+};
+
+/**
+ * Map a UniversalPlace to a wiki Entity. Returns null for place types we
+ * don't expose (Park is emitted separately by buildEntityList; Shop /
+ * Amenity / Hotel / etc. are out of scope for this migration).
+ */
+export function placeToEntity(
+  place: UniversalPlace,
+  destinationId: string,
+  timezone: string,
+): Entity | null {
+  const entityType = PLACE_TYPE_TO_ENTITY[place.place_type.type];
+  if (!entityType) return null;
+
+  const entity: Entity = {
+    id: sanitizeId(place.place_id),
+    name: place.name,
+    entityType,
+    destinationId,
+    timezone,
+  } as Entity;
+
+  if (place.venue_id) {
+    (entity as any).parentId = sanitizeId(place.venue_id);
+  }
+
+  const mapLoc = place.geometry?.locations?.find((l) => l.location_type === 'map');
+  if (mapLoc?.lat_lng) {
+    entity.location = {latitude: mapLoc.lat_lng.lat, longitude: mapLoc.lat_lng.lng};
+  }
+
+  return entity;
+}
+
+/**
+ * Convert a show-list entry's show_times[] to wiki LiveData showtimes.
+ * Filters to ENABLED slots in the future. Uses startTime === endTime
+ * because the feed doesn't carry a duration — match USJ's convention.
+ */
+export function parseShowTimes(
+  show: UniversalShowListEntry,
+  now: Date = new Date(),
+): Array<{type: string; startTime: string; endTime: string}> {
+  const out: Array<{type: string; startTime: string; endTime: string}> = [];
+  for (const slot of show.show_times ?? []) {
+    if (slot.status !== 'ENABLED') continue;
+    const t = new Date(slot.start_time);
+    if (!Number.isFinite(t.getTime()) || t < now) continue;
+    out.push({type: 'Performance Time', startTime: slot.start_time, endTime: slot.start_time});
+  }
+  return out;
+}
+
+// ─── shows/show-list.json (CDN) types ────────────────────────────────────────
+
+export type UniversalShowTime = {
+  show_time_id: string;
+  status: string;             // 'ENABLED' | …
+  start_time: string;         // ISO UTC e.g. '2026-05-22T14:00:00.000Z'
+  asl?: boolean;
+};
+
+export type UniversalShowListEntry = {
+  show_id: string;
+  resort_area_code: string;
+  venue_id?: string;
+  land_id?: string;
+  name: string;
+  show_type?: string;
+  status: string;             // 'OPEN' | …
+  show_externally: boolean;
+  show_times?: UniversalShowTime[];
 };
 
 /**
@@ -320,11 +399,12 @@ class Universal extends Destination {
     const {token} = await this.getUdxToken();
     const headers: Record<string, string> = {
       ...requestObj.headers,
-      'user-agent': 'Dart/3.6 (dart:io)',
+      'user-agent': 'Dart/3.11 (dart:io)',
       'accept-language': 'en-US',
       'x-uniwebservice-platform': 'Android',
       'x-uniwebservice-platformversion': '14',
       'x-uniwebservice-device': 'ONEPLUS A5000',
+      'x-channel-type': 'Mobile',
       'Authorization': `Bearer ${token}`,
     };
     if (this.flutterAppVersion) {
@@ -352,7 +432,7 @@ class Universal extends Destination {
       headers: {
         'Authorization': `Basic ${credentials}`,
         'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
-        'user-agent': 'Dart/3.6 (dart:io)',
+        'user-agent': 'Dart/3.11 (dart:io)',
       },
       tags: ['udxAuth'],
     } as any as HTTPObj;
@@ -540,81 +620,40 @@ class Universal extends Destination {
     } as any as HTTPObj;
   }
 
-  /**
-   * Fetch parks/venues for this resort
-   */
-  @http({
-    validateResponse: {
-      type: 'object',
-      properties: {
-        Results: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              Id: {type: 'number'},
-              ExternalIds: {
-                type: 'object',
-                properties: {
-                  ContentId: {type: 'string'},
-                },
-                required: ['ContentId'],
-              },
-              MblDisplayName: {type: 'string'},
-              AdmissionRequired: {type: 'boolean'},
-            },
-            required: ['Id', 'ExternalIds', 'MblDisplayName', 'AdmissionRequired'],
-          },
-        },
-      },
-      required: ['Results'],
-    },
-    cacheSeconds: 180 * 60, // 3 hours
-    parameters: [
-      {name: 'city', type: 'string', description: 'City to fetch parks for (orlando/hollywood)'}
-    ]
-  })
-  async fetchParks(city: string): Promise<HTTPObj> {
+  /** Fetch /resort-areas/{resortKey}/places via UDX (Bearer auth + Flutter headers). */
+  @http({cacheSeconds: 60 * 60 * 12})
+  async fetchPlaces(): Promise<HTTPObj> {
     return {
       method: 'GET',
-      url: `${this.baseURL}/venues?city=${city}`,
+      url: `${this.udxBase}/resort-areas/${this.resortKey.toUpperCase()}/places`,
       options: {json: true},
     } as any as HTTPObj;
   }
 
-  /**
-   * Get parks (filtered for admission required)
-   */
-  @cache({ttlSeconds: 60 * 60 * 3})
-  async getParks(city: string) {
-    const resp = await this.fetchParks(city);
-    const data: UniversalVenuesResponse = await resp.json();
-    return data.Results.filter((x) => x.AdmissionRequired);
+  /** Parsed places list — long TTL since place definitions move slowly. */
+  @cache({ttlSeconds: 60 * 60 * 12})
+  async getPlaces(): Promise<UniversalPlace[]> {
+    const resp = await this.fetchPlaces();
+    const data: UniversalPlacesResponse = await resp.json();
+    return (data?.results ?? []).map((r) => r.place);
   }
 
-  /**
-   * Fetch POI (Points of Interest) data
-   */
-  @http({
-    cacheSeconds: 60, parameters: [
-      {name: 'city', type: 'string', description: 'City to fetch POI data for (orlando/hollywood)'}
-    ]
-  })
-  async fetchPOI(city: string): Promise<HTTPObj> {
+  /** Fetch /shows/show-list.json from the public CDN (no auth needed). */
+  @http({cacheSeconds: 60})
+  async fetchShowList(): Promise<HTTPObj> {
     return {
       method: 'GET',
-      url: `${this.baseURL}/pointsofinterest?city=${city}`,
+      url: `${this.assetsBase}/${this.resortKey}/shows/show-list.json`,
       options: {json: true},
     } as any as HTTPObj;
   }
 
-  /**
-   * Get POI data (cached)
-   */
+  /** Parsed show-list — short TTL since show times update through the day. */
   @cache({ttlSeconds: 60})
-  async getPOI(city: string): Promise<UniversalPOIResponse> {
-    const resp = await this.fetchPOI(city);
-    return await resp.json();
+  async getShowList(): Promise<UniversalShowListEntry[]> {
+    const resp = await this.fetchShowList();
+    const data = await resp.json();
+    return Array.isArray(data) ? (data as UniversalShowListEntry[]) : [];
   }
 
   /**
@@ -729,38 +768,6 @@ class Universal extends Destination {
   }
 
   /**
-   * Helper: Find ride ID from wait time ID
-   */
-  private getRideIDFromWaitTimeId(poiData: UniversalPOIResponse, waitTimeId: string): string | null {
-    try {
-      const allPOIs = [
-        ...poiData.Rides,
-        ...poiData.Shows,
-        ...poiData.DiningLocations,
-      ];
-
-      const ride = allPOIs.find((x) =>
-        x.ExternalIds?.PlaceId === waitTimeId || x.ExternalIds?.ContentId === waitTimeId
-      );
-
-      return ride ? ride.Id.toString() : null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /**
-   * Get filtered shows (exclude music/street entertainment)
-   */
-  private async getFilteredShows(): Promise<UniversalPOIData[]> {
-    const poi = await this.getPOI(this.city);
-    return poi.Shows.filter((show) => {
-      const hasIgnoredType = show.ShowTypes?.some((type) => IGNORE_SHOW_TYPES.includes(type));
-      return !hasIgnoredType;
-    });
-  }
-
-  /**
    * Get destination entity
    */
   async getDestinations(): Promise<Entity[]> {
@@ -776,74 +783,56 @@ class Universal extends Destination {
   }
 
   /**
-   * Build all entities (destination, parks, attractions, shows, restaurants)
-   * Note: parkId and destinationId are automatically resolved by the base class
+   * Build entities (destination, parks, attractions/shows/restaurants) from
+   * the UDX /resort-areas/{resortKey}/places endpoint. CityWalk and the
+   * Hollywood Upper/Lower Lot Park-type entries are filtered via the
+   * PARK_PLACE_ID_TO_LEGACY_VENUE_ID allow-list. Non-park entities are
+   * mapped through placeToEntity which drops anything outside Ride / Show /
+   * Dining (Shop / Amenity / Hotel / etc. are out of scope for this
+   * migration).
+   *
+   * Note: parkId and destinationId are automatically resolved by the base class.
    */
   protected async buildEntityList(): Promise<Entity[]> {
     const destinationId = `universalresort_${this.city}`;
-    const poi = await this.getPOI(this.city);
-    const parks = await this.getParks(this.city);
-    const shows = await this.getFilteredShows();
+    const places = await this.getPlaces();
+    const out: Entity[] = [...await this.getDestinations()];
 
-    return [
-      // Destination
-      ...await this.getDestinations(),
-
-      // Parks
-      ...this.mapEntities(parks, {
-        idField: 'Id',
-        nameField: 'MblDisplayName',
+    // Parks first — they need to exist before non-park entities reference
+    // them via parentId. The new feed marks CityWalk and Hollywood's
+    // Upper/Lower Lots as `Park`, but we only surface "real" theme parks —
+    // filter against PARK_PLACE_ID_TO_LEGACY_VENUE_ID's keys.
+    for (const place of places) {
+      if (place.place_type.type !== 'Park') continue;
+      if (!(place.place_id in PARK_PLACE_ID_TO_LEGACY_VENUE_ID)) continue;
+      const park: Entity = {
+        id: sanitizeId(place.place_id),
+        name: place.name,
         entityType: 'PARK',
-        parentIdField: () => destinationId,
+        parentId: destinationId,
         destinationId,
         timezone: this.timezone,
-        locationFields: {lat: 'Latitude', lng: 'Longitude'},
-      }),
+      } as Entity;
+      // Park location: prefer `map`, fall back to any geometry entry (USH's
+      // `ush.ush` umbrella has only a GEOFENCE entry — the test harness
+      // (src/testRunner.ts) treats anchor entities without a location as a
+      // failure, so prefer-map-else-first beats dropping coords entirely).
+      const parkLoc =
+        place.geometry?.locations?.find((l) => l.location_type === 'map') ??
+        place.geometry?.locations?.find((l) => !!l.lat_lng);
+      if (parkLoc?.lat_lng) {
+        park.location = {latitude: parkLoc.lat_lng.lat, longitude: parkLoc.lat_lng.lng};
+      }
+      out.push(park);
+    }
 
-      // Attractions
-      ...this.mapEntities(poi.Rides, {
-        idField: 'Id',
-        nameField: 'MblDisplayName',
-        entityType: 'ATTRACTION',
-        parentIdField: 'VenueId',
-        locationFields: {lat: 'Latitude', lng: 'Longitude'},
-        destinationId,
-        timezone: this.timezone,
-        filter: (ride) => shouldIncludeUniversalAttraction(ride.MblDisplayName || ''),
-        transform: (entity, ride) => {
-          // Add tags from Universal API data
-          entity.tags = [
-            ride.HasChildSwap ? TagBuilder.childSwap() : undefined,
-            ride.MinHeightInInches ? TagBuilder.minimumHeight(ride.MinHeightInInches, 'in') : undefined,
-          ].filter((tag): tag is NonNullable<typeof tag> => tag !== undefined);
-          return entity;
-        },
-      }),
+    // Non-park entities (rides, shows, restaurants).
+    for (const place of places) {
+      const entity = placeToEntity(place, destinationId, this.timezone);
+      if (entity) out.push(entity);
+    }
 
-      // Shows
-      ...this.mapEntities(shows, {
-        idField: 'Id',
-        nameField: 'MblDisplayName',
-        entityType: 'SHOW',
-        parentIdField: 'VenueId',
-        locationFields: {lat: 'Latitude', lng: 'Longitude'},
-        destinationId,
-        timezone: this.timezone,
-      }),
-
-      // Restaurants
-      ...this.mapEntities(poi.DiningLocations, {
-        idField: 'Id',
-        nameField: 'MblDisplayName',
-        entityType: 'RESTAURANT',
-        parentIdField: 'VenueId',
-        locationFields: {lat: 'Latitude', lng: 'Longitude'},
-        destinationId,
-        timezone: this.timezone,
-        filter: (dining) =>
-          dining.DiningTypes?.some((type) => WANTED_DINING_TYPES.includes(type)) ?? false,
-      }),
-    ];
+    return out;
   }
 
   /**
@@ -866,13 +855,21 @@ class Universal extends Destination {
       return data;
     };
 
-    const poi = await this.getPOI(this.city);
     const waitTimes = await this.getWaitTimes();
     const vQueueStates = await this.getVirtualQueueStates();
+    const showList = await this.getShowList();
 
     // Process virtual queues
     for (const vQueue of vQueueStates) {
       if (vQueue.IsEnabled) {
+        // Post-migration, entity IDs are sanitized place_ids. The VQ feed
+        // carries a PlaceId that matches that scheme; the legacy numeric
+        // QueueEntityId no longer maps to any emitted entity, so attaching
+        // RETURN_TIME by QueueEntityId would silently orphan the data.
+        // Skip VQ states without a PlaceId rather than attaching to a
+        // phantom id.
+        if (!vQueue.PlaceId) continue;
+
         const vQueueDetails = await this.getVirtualQueueDetails(vQueue.Id);
 
         // Find earliest appointment time
@@ -890,7 +887,7 @@ class Universal extends Destination {
           return prev;
         }, undefined);
 
-        const liveDataEntry = getOrCreateLiveData(vQueue.QueueEntityId);
+        const liveDataEntry = getOrCreateLiveData(sanitizeId(vQueue.PlaceId));
         if (!liveDataEntry.queue) {
           liveDataEntry.queue = {} as Record<QueueTypeEnum, any>;
         }
@@ -914,11 +911,8 @@ class Universal extends Destination {
       for (const queue of attraction.queues) {
         let rideId: string | null = null;
 
-        const poiId = queue.alternate_ids.find((x) => x.system_name === 'POI');
-        if (poiId) {
-          rideId = poiId.system_id;
-        } else if (attraction.wait_time_attraction_id) {
-          rideId = this.getRideIDFromWaitTimeId(poi, attraction.wait_time_attraction_id);
+        if (attraction.wait_time_attraction_id) {
+          rideId = sanitizeId(attraction.wait_time_attraction_id);
         }
 
         if (!rideId) continue;
@@ -1002,59 +996,17 @@ class Universal extends Destination {
       }
     }
 
-    // Process show times
-    const shows = await this.getFilteredShows();
+    // Process show times from the CDN show-list.json (place_id-keyed).
     const now = new Date();
+    for (const show of showList) {
+      if (!show.show_externally) continue;
+      const showId = sanitizeId(show.show_id);
+      const showEntry = getOrCreateLiveData(showId);
+      showEntry.status = show.status === 'OPEN' ? 'OPERATING' : 'CLOSED';
 
-    for (const show of shows) {
-      const showEntry = getOrCreateLiveData(show.Id.toString());
-      showEntry.status = 'OPERATING';
-
-      if (show.StartDateTimes?.length) {
-        // The API returns naive "YYYY-MM-DD HH:mm:ss" strings in the park's
-        // local time. The previous code did `new Date(str)` which V8 parses
-        // as UTC for the space-separated form, then re-projected through the
-        // timezone — leaving every show shifted by the park's UTC offset and
-        // most of the day's slots wrongly "in the past".
-        showEntry.showtimes = show.StartDateTimes
-          .map((timeStr) => {
-            const [datePart, timePart] = timeStr.split(' ');
-            if (!datePart || !timePart) return null;
-            const startIso = constructDateTime(datePart, timePart, this.timezone);
-            if (isBefore(new Date(startIso), now)) return null;
-            return {
-              type: 'Performance Time',
-              startTime: startIso,
-              endTime: startIso,
-            };
-          })
-          .filter((x): x is NonNullable<typeof x> => x !== null);
-      }
-    }
-
-    // Add POI wait times as fallback
-    for (const ride of [...poi.Rides, ...poi.Shows]) {
-      if (ride.WaitTime === undefined || ride.WaitTime === null) continue;
-
-      const rideId = ride.Id.toString();
-      const existingData = liveDataMap.get(rideId);
-      if (existingData?.queue?.STANDBY) continue;
-
-      const rideEntry = getOrCreateLiveData(rideId);
-
-      if (ride.WaitTime >= 0) {
-        rideEntry.status = 'OPERATING';
-        if (!rideEntry.queue) {
-          rideEntry.queue = {};
-        }
-        rideEntry.queue.STANDBY = {waitTime: ride.WaitTime};
-      } else {
-        // Negative wait times indicate special states
-        if (ride.WaitTime === -4 || ride.WaitTime === -2) {
-          rideEntry.status = 'DOWN';
-        } else if (ride.WaitTime === -6) {
-          rideEntry.status = 'CLOSED';
-        }
+      const times = parseShowTimes(show, now);
+      if (times.length > 0) {
+        showEntry.showtimes = times;
       }
     }
 
@@ -1070,10 +1022,8 @@ class Universal extends Destination {
     for (const [placeId, offer] of Object.entries(expressNowOffers)) {
       if (offer.vl_inventory <= 0) continue;
 
-      const poiId = this.getRideIDFromWaitTimeId(poi, placeId);
-      if (!poiId) continue;
-
-      const entry = liveDataMap.get(poiId);
+      const sanitizedPlaceId = sanitizeId(placeId);
+      const entry = liveDataMap.get(sanitizedPlaceId);
       if (!entry) continue;
 
       // Defensive: parseExpressNowResponse already validates the slot
@@ -1112,11 +1062,18 @@ class Universal extends Destination {
    * Build schedules for all parks
    */
   protected async buildSchedules(): Promise<EntitySchedule[]> {
-    const parks = await this.getParks(this.city);
     const schedules: EntitySchedule[] = [];
 
-    for (const park of parks) {
-      const venueSchedule = await this.getVenueSchedule(park.Id.toString());
+    // Iterate the place_id ↔ legacy VenueId map filtered to this resort.
+    // The legacy schedule endpoint still wants the numeric VenueId; we only
+    // relabel the emitted EntitySchedule with the new place_id so it joins
+    // up with the park entities from buildEntityList.
+    const parkEntries = Object.entries(PARK_PLACE_ID_TO_LEGACY_VENUE_ID).filter(
+      ([placeId]) => placeId.startsWith(`${this.resortKey}.`),
+    );
+
+    for (const [placeId, legacyVenueId] of parkEntries) {
+      const venueSchedule = await this.getVenueSchedule(legacyVenueId);
       const schedule = [];
 
       for (const daySchedule of venueSchedule) {
@@ -1146,7 +1103,11 @@ class Universal extends Destination {
       }
 
       schedules.push({
-        id: park.Id.toString(),
+        // sanitizeId for symmetry with the PARK entity emission in
+        // buildEntityList — today's allow-list keys are clean (`uor.usf`
+        // etc.), but if a future key needs sanitisation the schedule
+        // still has to join up with the matching PARK entity.
+        id: sanitizeId(placeId),
         schedule,
       });
     }
