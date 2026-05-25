@@ -127,7 +127,7 @@ describe('placeToEntity', () => {
     expect(e?.tags).toEqual([expect.objectContaining({tag: 'CHILD_SWAP'})]);
   });
 
-  test('Ride with both attributes → emits both tags', () => {
+  test('Ride with both attributes → emits both tags; unrelated attributes ignored', () => {
     const both: UniversalPlace = {
       ...ridePlace,
       place_type: {
@@ -135,12 +135,21 @@ describe('placeToEntity', () => {
         attributes: [
           {name: 'has_child_swap', value: 'true'},
           {name: 'minimum_rider_height_inches', value: '48'},
-          {name: 'express_pass', value: 'true'}, // ignored — not in legacy surface
+          {name: 'express_pass', value: 'true'},        // not in legacy surface — must NOT emit a tag
+          {name: 'mfdo_enabled', value: 'true'},        // ditto
         ],
       },
     };
     const tags = placeToEntity(both, DESTINATION, TZ)?.tags ?? [];
-    expect(tags.length).toBe(2);
+    expect(tags).toHaveLength(2);
+    expect(tags).toEqual(expect.arrayContaining([
+      expect.objectContaining({tag: 'CHILD_SWAP'}),
+      expect.objectContaining({tag: 'MINIMUM_HEIGHT', value: expect.objectContaining({height: 48, unit: 'in'})}),
+    ]));
+    // Defensive: ensure neither express_pass nor mfdo_enabled snuck in.
+    const tagNames = tags.map((t: any) => t.tag);
+    expect(tagNames).not.toContain('EXPRESS_PASS');
+    expect(tagNames).not.toContain('MFDO_ENABLED');
   });
 
   test('has_child_swap="false" or missing → no childSwap tag', () => {
@@ -168,9 +177,26 @@ describe('placeToEntity', () => {
   test('Non-Ride entities (Show / Dining) do NOT receive height/child-swap tags', () => {
     const showWithAttrs: UniversalPlace = {
       ...showPlace,
-      place_type: {type: 'Show', attributes: [{name: 'minimum_rider_height_inches', value: '36'}]},
+      place_type: {
+        type: 'Show',
+        attributes: [
+          {name: 'minimum_rider_height_inches', value: '36'},
+          {name: 'has_child_swap', value: 'true'},
+        ],
+      },
+    };
+    const diningWithAttrs: UniversalPlace = {
+      ...diningPlace,
+      place_type: {
+        type: 'Dining',
+        attributes: [
+          {name: 'minimum_rider_height_inches', value: '36'},
+          {name: 'has_child_swap', value: 'true'},
+        ],
+      },
     };
     expect(placeToEntity(showWithAttrs, DESTINATION, TZ)?.tags ?? []).toEqual([]);
+    expect(placeToEntity(diningWithAttrs, DESTINATION, TZ)?.tags ?? []).toEqual([]);
   });
 });
 
