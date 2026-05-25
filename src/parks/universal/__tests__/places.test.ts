@@ -100,6 +100,78 @@ describe('placeToEntity', () => {
     const weird: UniversalPlace = {...ridePlace, place_id: 'uor.usf.rides:weird*name'};
     expect(placeToEntity(weird, DESTINATION, TZ)?.id).toBe('uor.usf.rides_weird_name');
   });
+
+  test('Ride with minimum_rider_height_inches attribute → emits minimumHeight tag', () => {
+    const withHeight: UniversalPlace = {
+      ...ridePlace,
+      place_type: {
+        type: 'Ride',
+        attributes: [{name: 'minimum_rider_height_inches', value: '40'}],
+      },
+    };
+    const e = placeToEntity(withHeight, DESTINATION, TZ);
+    expect(e?.tags).toEqual([
+      expect.objectContaining({tag: 'MINIMUM_HEIGHT', value: expect.objectContaining({height: 40, unit: 'in'})}),
+    ]);
+  });
+
+  test('Ride with has_child_swap="true" attribute → emits childSwap tag', () => {
+    const withSwap: UniversalPlace = {
+      ...ridePlace,
+      place_type: {
+        type: 'Ride',
+        attributes: [{name: 'has_child_swap', value: 'true'}],
+      },
+    };
+    const e = placeToEntity(withSwap, DESTINATION, TZ);
+    expect(e?.tags).toEqual([expect.objectContaining({tag: 'CHILD_SWAP'})]);
+  });
+
+  test('Ride with both attributes → emits both tags', () => {
+    const both: UniversalPlace = {
+      ...ridePlace,
+      place_type: {
+        type: 'Ride',
+        attributes: [
+          {name: 'has_child_swap', value: 'true'},
+          {name: 'minimum_rider_height_inches', value: '48'},
+          {name: 'express_pass', value: 'true'}, // ignored — not in legacy surface
+        ],
+      },
+    };
+    const tags = placeToEntity(both, DESTINATION, TZ)?.tags ?? [];
+    expect(tags.length).toBe(2);
+  });
+
+  test('has_child_swap="false" or missing → no childSwap tag', () => {
+    const falsy: UniversalPlace = {
+      ...ridePlace,
+      place_type: {type: 'Ride', attributes: [{name: 'has_child_swap', value: 'false'}]},
+    };
+    const e = placeToEntity(falsy, DESTINATION, TZ);
+    expect((e?.tags ?? []).some(t => (t as any).tag === 'CHILD_SWAP')).toBe(false);
+  });
+
+  test('minimum_rider_height_inches="0" or non-finite → no minimumHeight tag', () => {
+    const zero: UniversalPlace = {
+      ...ridePlace,
+      place_type: {type: 'Ride', attributes: [{name: 'minimum_rider_height_inches', value: '0'}]},
+    };
+    const garbage: UniversalPlace = {
+      ...ridePlace,
+      place_type: {type: 'Ride', attributes: [{name: 'minimum_rider_height_inches', value: 'tall'}]},
+    };
+    expect(placeToEntity(zero, DESTINATION, TZ)?.tags ?? []).toEqual([]);
+    expect(placeToEntity(garbage, DESTINATION, TZ)?.tags ?? []).toEqual([]);
+  });
+
+  test('Non-Ride entities (Show / Dining) do NOT receive height/child-swap tags', () => {
+    const showWithAttrs: UniversalPlace = {
+      ...showPlace,
+      place_type: {type: 'Show', attributes: [{name: 'minimum_rider_height_inches', value: '36'}]},
+    };
+    expect(placeToEntity(showWithAttrs, DESTINATION, TZ)?.tags ?? []).toEqual([]);
+  });
 });
 
 describe('parseShowTimes', () => {
