@@ -193,9 +193,17 @@ export function placeToEntity(
  * Convert a show-list entry's show_times[] to wiki LiveData showtimes.
  * Filters to ENABLED slots in the future. Uses startTime === endTime
  * because the feed doesn't carry a duration — match USJ's convention.
+ *
+ * The CDN feed gives UTC ISO strings (e.g. `2026-05-25T20:30:00.000Z`).
+ * We re-project each into the park-local timezone so the emitted
+ * startTime / endTime carries the proper `+HH:MM` offset — matches the
+ * legacy emission behaviour from the pre-/places code path. Bare UTC was
+ * being misinterpreted as "after-park-close" by downstream displays that
+ * naively rendered the Z string in local time.
  */
 export function parseShowTimes(
   show: UniversalShowListEntry,
+  timezone: string,
   now: Date = new Date(),
 ): Array<{type: string; startTime: string; endTime: string}> {
   const out: Array<{type: string; startTime: string; endTime: string}> = [];
@@ -203,7 +211,8 @@ export function parseShowTimes(
     if (slot.status !== 'ENABLED') continue;
     const t = new Date(slot.start_time);
     if (!Number.isFinite(t.getTime()) || t < now) continue;
-    out.push({type: 'Performance Time', startTime: slot.start_time, endTime: slot.start_time});
+    const startIso = formatInTimezone(t, timezone, 'iso');
+    out.push({type: 'Performance Time', startTime: startIso, endTime: startIso});
   }
   return out;
 }
@@ -1028,7 +1037,7 @@ class Universal extends Destination {
       const showEntry = getOrCreateLiveData(showId);
       showEntry.status = show.status === 'OPEN' ? 'OPERATING' : 'CLOSED';
 
-      const times = parseShowTimes(show, now);
+      const times = parseShowTimes(show, this.timezone, now);
       if (times.length > 0) {
         showEntry.showtimes = times;
       }

@@ -201,6 +201,7 @@ describe('placeToEntity', () => {
 });
 
 describe('parseShowTimes', () => {
+  const UOR_TZ = 'America/New_York';
   const baseShow: UniversalShowListEntry = {
     show_id: 'uor.ioa.shows.frog_choir',
     resort_area_code: 'UOR',
@@ -212,7 +213,7 @@ describe('parseShowTimes', () => {
     show_times: [],
   };
 
-  test('emits one Performance Time per ENABLED show_time, future-only', () => {
+  test('emits one Performance Time per ENABLED show_time, future-only, in park-local timezone with offset', () => {
     const now = new Date('2026-05-22T17:00:00Z');
     const show: UniversalShowListEntry = {
       ...baseShow,
@@ -222,9 +223,10 @@ describe('parseShowTimes', () => {
         {show_time_id: 'c', status: 'ENABLED', start_time: '2026-05-22T19:00:00.000Z'},
       ],
     };
-    expect(parseShowTimes(show, now)).toEqual([
-      {type: 'Performance Time', startTime: '2026-05-22T18:00:00.000Z', endTime: '2026-05-22T18:00:00.000Z'},
-      {type: 'Performance Time', startTime: '2026-05-22T19:00:00.000Z', endTime: '2026-05-22T19:00:00.000Z'},
+    // 18:00 UTC + EDT (-04:00 in May) = 14:00 local. 19:00 UTC = 15:00 local.
+    expect(parseShowTimes(show, UOR_TZ, now)).toEqual([
+      {type: 'Performance Time', startTime: '2026-05-22T14:00:00-04:00', endTime: '2026-05-22T14:00:00-04:00'},
+      {type: 'Performance Time', startTime: '2026-05-22T15:00:00-04:00', endTime: '2026-05-22T15:00:00-04:00'},
     ]);
   });
 
@@ -237,13 +239,28 @@ describe('parseShowTimes', () => {
         {show_time_id: 'b', status: 'ENABLED',  start_time: '2026-05-22T15:00:00.000Z'},
       ],
     };
-    expect(parseShowTimes(show, now).map((t) => t.startTime)).toEqual([
-      '2026-05-22T15:00:00.000Z',
+    // 15:00 UTC + EDT (-04:00) = 11:00 local
+    expect(parseShowTimes(show, UOR_TZ, now).map((t) => t.startTime)).toEqual([
+      '2026-05-22T11:00:00-04:00',
+    ]);
+  });
+
+  test('Hollywood timezone (Pacific) projection', () => {
+    const now = new Date('2026-05-22T10:00:00Z');
+    const show: UniversalShowListEntry = {
+      ...baseShow,
+      show_times: [
+        {show_time_id: 'a', status: 'ENABLED', start_time: '2026-05-22T23:30:00.000Z'},
+      ],
+    };
+    // 23:30 UTC + PDT (-07:00 in May) = 16:30 Pacific local
+    expect(parseShowTimes(show, 'America/Los_Angeles', now).map((t) => t.startTime)).toEqual([
+      '2026-05-22T16:30:00-07:00',
     ]);
   });
 
   test('empty / missing show_times → []', () => {
-    expect(parseShowTimes({...baseShow, show_times: []}, new Date())).toEqual([]);
-    expect(parseShowTimes({...baseShow, show_times: undefined}, new Date())).toEqual([]);
+    expect(parseShowTimes({...baseShow, show_times: []}, UOR_TZ, new Date())).toEqual([]);
+    expect(parseShowTimes({...baseShow, show_times: undefined}, UOR_TZ, new Date())).toEqual([]);
   });
 });
