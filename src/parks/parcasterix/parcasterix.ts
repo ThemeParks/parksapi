@@ -10,6 +10,7 @@ import {
   LiveData,
   EntitySchedule,
   LanguageCode,
+  LiveTimeSlot,
 } from '@themeparks/typelib';
 import {constructDateTime, hostnameFromUrl, formatDate} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
@@ -522,6 +523,8 @@ export class ParcAsterix extends Destination {
       for (const range of hours) {
         if (!range.start || !range.end) continue;
 
+        let openingType = 'OPERATING';
+
         const openTime = `${String(range.start.hour).padStart(2, '0')}:${String(range.start.minute).padStart(2, '0')}`;
         const closeTime = `${String(range.end.hour).padStart(2, '0')}:${String(range.end.minute).padStart(2, '0')}`;
 
@@ -535,11 +538,12 @@ export class ParcAsterix extends Destination {
           );
           const nextDayStr = formatDate(nextDay);
           closingTime = constructDateTime(nextDayStr, closeTime, this.timezone);
+          openingType = "TICKETED_EVENT"; // If park is open until next day, it's 99% probably a Halloween night
         }
 
         entries.push({
           date: dateStr,
-          type: 'OPERATING',
+          type: openingType,
           openingTime,
           closingTime,
         });
@@ -626,15 +630,29 @@ export class ParcAsterix extends Destination {
       },
     );
 
-    return [parkEntity, ...attractions, ...restaurants];
+    const shows = this.mapEntities(
+      poi.filter((p) => p._type === "show"),
+      {
+        idField: (item) => String(item.drupal_id),
+        nameField: 'title',
+        entityType: "SHOW",
+        parentIdField: () => 'parcasterixpark',
+        destinationId: 'parcasterix',
+        timezone: this.timezone,
+        locationFields: {lat: 'latitude', lng: 'longitude'},
+        filter: (item) => !!item.drupal_id,
+      },
+    );
+
+    return [parkEntity, ...attractions, ...restaurants, ...shows];
   }
 
   // ── Live data ────────────────────────────────────────────────
 
   protected async buildLiveData(): Promise<LiveData[]> {
-    const {latencies} = await this.getPolling();
+    const {latencies, schedules} = await this.getPolling();
 
-    return latencies.map((entry) => {
+    const liveWaitTimes = latencies.map((entry) => {
       const ld: LiveData = {
         id: String(entry.drupalId),
         status: 'OPERATING',
@@ -667,6 +685,55 @@ export class ParcAsterix extends Destination {
 
       return ld;
     });
+
+    const liveShowtimes = schedules.map((entry) => {
+      const ld: LiveData = {
+        id: String(entry.drupalId),
+        status: 'OPERATING',
+      } as LiveData;
+      const dateStr = new Date().toISOString().split("T")[0];
+      const tommorowStr = new Date(
+            new Date(dateStr + 'T12:00:00Z').getTime() + 86400000,
+          ).toISOString().split("T")[0];
+
+      if (!entry.times || entry.times.length === 0) {
+        ld.status = "CLOSED";
+      } else {
+        ld.showtimes = entry.times.map((time) => {
+          if (!!time.at) { // If showtime is at a precise hour, it's a show or parade
+
+            let dayStr = dateStr
+            if (time.at.slice(0,3).localeCompare("05:") <= 0) { // if showtime is before 6am it's next day
+              dayStr = tommorowStr
+            }
+
+            return {
+              type: 'Performance' as const, // Don't know what to put here
+              startTime: constructDateTime(dayStr, time.at, this.timezone),
+              endTime: constructDateTime(dayStr, time.at, this.timezone),
+            }
+          } else if (!!time.startAt && !! time.endAt) { // else it's maybe a meet&greet or maybe a terror zone for Halloween or can be anything
+            
+            let dayStr = dateStr
+            if (time.startAt.localeCompare(time.endAt) >= 0) { // if end if before start it's next day
+              dayStr = tommorowStr
+            }
+
+            return {
+              type: 'Performance' as const, // Don't know what to put here
+              startTime: constructDateTime(dateStr, time.startAt, this.timezone),
+              endTime: constructDateTime(dayStr, time.endAt, this.timezone),
+            }
+          } else {
+            return null;
+          }
+        }).filter((entry) => !!entry);
+      }
+
+      return ld;
+    })
+
+    return [...liveWaitTimes, ...liveShowtimes]
   }
 
   // ── Schedules ────────────────────────────────────────────────
