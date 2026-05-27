@@ -691,49 +691,58 @@ export class ParcAsterix extends Destination {
         id: String(entry.drupalId),
         status: 'OPERATING',
       } as LiveData;
-      const dateStr = new Date().toISOString().split("T")[0];
-      const tommorowStr = new Date(
-            new Date(dateStr + 'T12:00:00Z').getTime() + 86400000,
-          ).toISOString().split("T")[0];
+      const todayStr = formatDate(new Date(), this.timezone);
+      const tomorrow = new Date(
+        new Date(`${todayStr}T12:00:00Z`).getTime() + 86400000,
+      );
+      const tomorrowStr = formatDate(tomorrow, this.timezone);
 
-      if (!entry.times || entry.times.length === 0) {
-        ld.status = "CLOSED";
-      } else {
-        ld.showtimes = entry.times.map((time) => {
-          if (!!time.at) { // If showtime is at a precise hour, it's a show or parade
-
-            let dayStr = dateStr
-            if (time.at.slice(0,3).localeCompare("05:") <= 0) { // if showtime is before 6am it's next day
-              dayStr = tommorowStr
+      const showtimes: LiveTimeSlot[] = (entry.times ?? [])
+        .map((time): LiveTimeSlot | null => {
+          if (time.at) {
+            let dayStr = todayStr;
+            const hour = parseInt(time.at.split(':')[0], 10);
+            // If showtime is before 06:00, it belongs to the next calendar day
+            if (Number.isFinite(hour) && hour < 6) {
+              dayStr = tomorrowStr;
             }
 
+            const t = constructDateTime(dayStr, time.at, this.timezone);
             return {
-              type: 'Performance' as const, // Don't know what to put here
-              startTime: constructDateTime(dayStr, time.at, this.timezone),
-              endTime: constructDateTime(dayStr, time.at, this.timezone),
-            }
-          } else if (!!time.startAt && !! time.endAt) { // else it's maybe a meet&greet or maybe a terror zone for Halloween or can be anything
-            
-            let dayStr = dateStr
-            if (time.startAt.localeCompare(time.endAt) >= 0) { // if end if before start it's next day
-              dayStr = tommorowStr
-            }
-
-            return {
-              type: 'Performance' as const, // Don't know what to put here
-              startTime: constructDateTime(dateStr, time.startAt, this.timezone),
-              endTime: constructDateTime(dayStr, time.endAt, this.timezone),
-            }
-          } else {
-            return null;
+              type: 'Performance Time',
+              startTime: t,
+              endTime: t,
+            };
           }
-        }).filter((entry) => !!entry);
+
+          if (time.startAt && time.endAt) {
+            const startHour = parseInt(time.startAt.split(':')[0], 10);
+            const startDayStr =
+              Number.isFinite(startHour) && startHour < 6 ? tomorrowStr : todayStr;
+            const endDayStr =
+              time.startAt.localeCompare(time.endAt) >= 0 ? tomorrowStr : startDayStr;
+
+            return {
+              type: 'Performance Time',
+              startTime: constructDateTime(startDayStr, time.startAt, this.timezone),
+              endTime: constructDateTime(endDayStr, time.endAt, this.timezone),
+            };
+          }
+
+          return null;
+        })
+        .filter((slot): slot is LiveTimeSlot => slot !== null);
+
+      if (showtimes.length === 0) {
+        ld.status = 'CLOSED';
+      } else {
+        ld.showtimes = showtimes;
       }
 
       return ld;
-    })
+    });
 
-    return [...liveWaitTimes, ...liveShowtimes]
+    return [...liveWaitTimes, ...liveShowtimes];
   }
 
   // ── Schedules ────────────────────────────────────────────────
