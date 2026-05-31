@@ -72,4 +72,39 @@ describe('stripHtmlTags', () => {
   test('handles self-closing tags', () => {
     expect(stripHtmlTags('Hello<br/>World')).toBe('HelloWorld');
   });
+
+  test('nested-bracket adversarial input is fully sanitized', () => {
+    // The depth-counting walker treats every '<' as opening a tag region,
+    // so `<scrip<script>t>alert(1)</script>` reduces to just `alert(1)`.
+    expect(stripHtmlTags('<scrip<script>t>alert(1)</script>')).toBe('alert(1)');
+    expect(stripHtmlTags('<<script>script>alert(1)<</script>/script>')).toBe('alert(1)');
+    expect(stripHtmlTags('<<>>')).toBe('');
+  });
+
+  test('a stray `>` outside a tag region survives (matches old regex behaviour)', () => {
+    expect(stripHtmlTags('>oops')).toBe('>oops');
+    expect(stripHtmlTags('<p>hi</p> > there')).toBe('hi > there');
+  });
+
+  test('an unmatched `<` is preserved with everything after it (no truncation)', () => {
+    // The old regex required a closing `>` to match, so `2 < 3` and
+    // `<unclosed` were left intact. The walker must do the same — if it
+    // reaches EOF mid-tag, the outermost `<` was never a tag, so we
+    // emit the buffered region verbatim.
+    expect(stripHtmlTags('2 < 3')).toBe('2 < 3');
+    expect(stripHtmlTags('<unclosed')).toBe('<unclosed');
+    expect(stripHtmlTags('<p>start</p> 2 < 3')).toBe('start 2 < 3');
+  });
+
+  test('idempotent — running the strip again never changes the result', () => {
+    const samples = [
+      '<<>>',
+      '<scr<p></p>ipt>x<scr<p></p>ipt>',
+      'plain text with no tags',
+      '<p>well-formed</p>',
+    ];
+    for (const input of samples) {
+      expect(stripHtmlTags(stripHtmlTags(input))).toBe(stripHtmlTags(input));
+    }
+  });
 });

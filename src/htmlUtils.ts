@@ -45,10 +45,43 @@ export function decodeHtmlEntities(str: string): string {
  * Strip HTML tags from a string.
  * Removes all HTML tags and trims whitespace.
  *
+ * Implemented as a single-pass character walker that tracks `<` / `>`
+ * nesting depth rather than a regex. This avoids two CodeQL issues that
+ * the old `/<[^>]*>/g` pattern had:
+ *   - `js/incomplete-multi-character-sanitization` — adversarial inputs
+ *     like `<scrip<script>t>` would leak through a single regex pass.
+ *   - `js/polynomial-redos` — `<[^>]*` could backtrack on long runs of `<`.
+ *
+ * The walker counts every `<` as opening a tag region and every `>`
+ * (while depth > 0) as closing one; characters are only emitted at
+ * depth 0. Linear time, no backtracking, idempotent.
+ *
  * @param str String with HTML tags
  * @returns Clean string without tags
  */
 export function stripHtmlTags(str: string): string {
   if (!str) return '';
-  return str.replace(/<[^>]*>/g, '').trim();
+  // Collect characters into an array and join once at the end. Per-iteration
+  // `out += ch` can degrade to O(n²) in engines that don't optimise small-
+  // string concat, and this helper sits on the hot entity-name path.
+  const parts: string[] = [];
+  let depth = 0;
+  let outerTagStart = -1;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (ch === '<') {
+      if (depth === 0) outerTagStart = i;
+      depth++;
+    } else if (ch === '>' && depth > 0) {
+      depth--;
+    } else if (depth === 0) {
+      parts.push(ch);
+    }
+  }
+  // If we hit EOF mid-tag, the outermost `<` was unmatched — preserve
+  // everything from that point so legitimate text like `2 < 3` survives.
+  if (depth > 0 && outerTagStart >= 0) {
+    parts.push(str.slice(outerTagStart));
+  }
+  return parts.join('').trim();
 }

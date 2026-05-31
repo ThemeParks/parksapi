@@ -123,6 +123,29 @@ describe('Destination ID patterns', () => {
     expect(ids).toContain('sixflags');
   });
 
+  test('Valleyfair park class is registered under the Enchanted Parks umbrella', async () => {
+    // Registry id: `@destinationController` derives this from the class name.
+    // `class Valleyfair` registers as `valleyfair` — same as the dropped cedarfair
+    // class did, so consumers that look up parks by registry id stay compatible.
+    const destinations = await getAllDestinations();
+    const ids = destinations.map(d => d.id);
+    expect(ids).toContain('valleyfair');
+    const vf = destinations.find(d => d.id === 'valleyfair');
+    expect(vf?.category).toEqual(['Enchanted Parks', 'Valleyfair']);
+  });
+
+  test('Valleyfair emits enchantedparks-namespaced DESTINATION entity id', async () => {
+    // Entity id (distinct from registry id): the actual id on the DESTINATION
+    // entity returned by getDestinations(). The old cedarfair class emitted
+    // `valleyfair`; the new class emits `enchantedparks_valleyfair` so the
+    // umbrella's namespace is used consistently.
+    const {Valleyfair} = await import('../parks/enchantedparks/valleyfair.js');
+    const dest = new Valleyfair({});
+    const destinations = await dest.getDestinations();
+    expect(destinations[0]?.id).toBe('enchantedparks_valleyfair');
+    expect(destinations[0]?.id).not.toBe('valleyfair');
+  });
+
   test('Attractions.io v1 Merlin parks are registered individually', async () => {
     const destinations = await getAllDestinations();
     const merlin = destinations.filter(d =>
