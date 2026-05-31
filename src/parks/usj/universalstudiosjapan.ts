@@ -388,9 +388,14 @@ export class UniversalStudiosJapan extends Destination {
 
     // If both fetches failed, throw so the collector logs and skips this cycle
     // rather than emitting an empty live-data set (which would mark every
-    // attraction CLOSED via the wiki's implicit-closed semantics).
+    // attraction CLOSED via the wiki's implicit-closed semantics). Wrap both
+    // reasons in an AggregateError so neither is lost and stack traces stay
+    // useful even if a reason isn't an Error instance.
     if (waitTimeResult.status === 'rejected' && showListResult.status === 'rejected') {
-      throw waitTimeResult.reason;
+      throw new AggregateError(
+        [waitTimeResult.reason, showListResult.reason],
+        'USJ buildLiveData: both fetchWaitTimes and fetchShowList rejected',
+      );
     }
 
     const results: LiveData[] = [];
