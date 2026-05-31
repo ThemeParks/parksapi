@@ -1,10 +1,10 @@
 import {Destination, DestinationConstructor} from '../../destination.js';
 import config from '../../config.js';
-import {cache} from '../../cache.js';
+import {cache, CacheLib} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
-import {hostnameFromUrl, constructDateTime, formatDate, addDays} from '../../datetime.js';
+import {hostnameFromUrl, constructDateTime, formatDate, formatInTimezone, addDays} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 import {VQueueBuilder} from '../../virtualQueue/index.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
@@ -168,20 +168,27 @@ export class GentingSkyworlds extends Destination {
 
   /**
    * Fetch the current VQ bearer from the configured token service.
-   * Cached for 3 hours — the token service is expected to keep the
-   * `accessToken` field rolling well ahead of its 7-day expiry, so we
-   * never need to do expiry math here.
+   * Successful results cache for 3 hours via CacheLib.wrap — the token
+   * service is expected to keep `accessToken` rolling well ahead of its
+   * 7-day expiry. Failures are NOT cached (CacheLib.wrap rethrows on
+   * inner-fn throw and skips the set step), so a transient token-service
+   * blip only suppresses VQ for one HTTP round-trip, not 3 hours.
+   * Returns '' when no `tokenUrl` is configured or when the call fails —
+   * the injector tolerates the empty string and ships everything else.
    */
-  @cache({ttlSeconds: 60 * 60 * 3})
   async getAccessToken(): Promise<string> {
     if (!this.tokenUrl) return '';
-    const headers: Record<string, string> = {'Accept': 'application/json'};
-    if (this.tokenAuth) headers['Authorization'] = this.tokenAuth;
+    const cacheKey = `${this.constructor.name}:accessToken:${this.tokenUrl}`;
     try {
-      const resp = await fetch(this.tokenUrl, {headers});
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const doc = await resp.json() as GentingTokenDoc;
-      return doc?.accessToken ?? '';
+      return await CacheLib.wrap(cacheKey, async () => {
+        const headers: Record<string, string> = {'Accept': 'application/json'};
+        if (this.tokenAuth) headers['Authorization'] = this.tokenAuth;
+        const resp = await fetch(this.tokenUrl, {headers});
+        if (!resp.ok) throw new Error(`token service HTTP ${resp.status}`);
+        const doc = await resp.json() as GentingTokenDoc;
+        if (!doc?.accessToken) throw new Error('token service returned no accessToken');
+        return doc.accessToken;
+      }, 60 * 60 * 3);
     } catch (err: any) {
       console.warn(`[GentingSkyworlds] token fetch failed: ${err?.message ?? err}`);
       return '';
@@ -425,18 +432,31 @@ export class GentingSkyworlds extends Destination {
     }
 
     // Overlay live operationHour for today (whatever the API currently says wins).
+    // Parse upstream timestamps strictly: if either fails to produce a finite
+    // Date, skip the overlay rather than emit an entry with a malformed date.
+    // Project times into Malaysia-local via formatInTimezone + constructDateTime
+    // so the emitted ISO strings match the format of the synthesised entries
+    // around them (and the operating-day key matches the local calendar day,
+    // not the timestamp's own day).
     const live = wait.operationHour;
     if (live?.startTime && live?.endTime) {
-      const liveDate = live.startTime.slice(0, 10);
-      const idx = schedule.findIndex(s => s.date === liveDate);
-      const entry = {
-        date: liveDate,
-        type: 'OPERATING',
-        openingTime: live.startTime,
-        closingTime: live.endTime,
-      };
-      if (idx >= 0) schedule[idx] = entry;
-      else schedule.unshift(entry);
+      const startDate = new Date(live.startTime);
+      const endDate = new Date(live.endTime);
+      if (Number.isFinite(startDate.getTime()) && Number.isFinite(endDate.getTime())) {
+        const startLocalDate = formatDate(startDate, this.timezone);
+        const endLocalDate = formatDate(endDate, this.timezone);
+        const localHHmm = (d: Date) =>
+          formatInTimezone(d, this.timezone, 'iso').slice(11, 16);
+        const entry = {
+          date: startLocalDate,
+          type: 'OPERATING',
+          openingTime: constructDateTime(startLocalDate, localHHmm(startDate), this.timezone),
+          closingTime: constructDateTime(endLocalDate, localHHmm(endDate), this.timezone),
+        };
+        const idx = schedule.findIndex(s => s.date === startLocalDate);
+        if (idx >= 0) schedule[idx] = entry;
+        else schedule.unshift(entry);
+      }
     }
 
     return [{id: PARK_ID, schedule} as EntitySchedule];
