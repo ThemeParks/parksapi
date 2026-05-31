@@ -491,7 +491,11 @@ export class OceanParkHongKong extends Destination {
     );
 
     const attractionEntities: Entity[] = attractions.map((entity, i) => {
-      const isTransport = entity.typeId === SORT_ID.TRANSPORT;
+      // Source of truth for transport-vs-ride is the list this entity came
+      // from, not `entity.typeId` (which is optional and uses a different
+      // ID space than SORT_ID). Everything past `rides.length` came from
+      // the transport list.
+      const isTransport = i >= rides.length;
       const coords = coordMap.get(String(entity.extEntityCode));
       const detail = details[i];
       const tags = [];
