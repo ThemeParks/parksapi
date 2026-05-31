@@ -245,7 +245,7 @@ class EnchantedParks extends Destination {
    *
    * Cached 1h.
    */
-  @cache({ttlSeconds: 60 * 60})
+  @cache({ttlSeconds: 60 * 60 * 12})
   async scrapeSchedule(category: string): Promise<ScheduleEntry[]> {
     const today = new Date();
     const end = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);

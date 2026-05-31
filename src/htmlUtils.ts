@@ -61,7 +61,10 @@ export function decodeHtmlEntities(str: string): string {
  */
 export function stripHtmlTags(str: string): string {
   if (!str) return '';
-  let out = '';
+  // Collect characters into an array and join once at the end. Per-iteration
+  // `out += ch` can degrade to O(n²) in engines that don't optimise small-
+  // string concat, and this helper sits on the hot entity-name path.
+  const parts: string[] = [];
   let depth = 0;
   let outerTagStart = -1;
   for (let i = 0; i < str.length; i++) {
@@ -72,13 +75,13 @@ export function stripHtmlTags(str: string): string {
     } else if (ch === '>' && depth > 0) {
       depth--;
     } else if (depth === 0) {
-      out += ch;
+      parts.push(ch);
     }
   }
   // If we hit EOF mid-tag, the outermost `<` was unmatched — preserve
   // everything from that point so legitimate text like `2 < 3` survives.
   if (depth > 0 && outerTagStart >= 0) {
-    out += str.slice(outerTagStart);
+    parts.push(str.slice(outerTagStart));
   }
-  return out.trim();
+  return parts.join('').trim();
 }
