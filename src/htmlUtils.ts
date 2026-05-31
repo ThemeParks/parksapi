@@ -45,22 +45,33 @@ export function decodeHtmlEntities(str: string): string {
  * Strip HTML tags from a string.
  * Removes all HTML tags and trims whitespace.
  *
- * Applies the strip repeatedly until the result is stable so adversarial
- * input like `<<script>script>` cannot survive a single pass (CodeQL
- * `js/incomplete-multi-character-sanitization`). Well-formed input
- * terminates after one iteration — the extra check is free in the
- * common case.
+ * Implemented as a single-pass character walker that tracks `<` / `>`
+ * nesting depth rather than a regex. This avoids two CodeQL issues that
+ * the old `/<[^>]*>/g` pattern had:
+ *   - `js/incomplete-multi-character-sanitization` — adversarial inputs
+ *     like `<scrip<script>t>` would leak through a single regex pass.
+ *   - `js/polynomial-redos` — `<[^>]*` could backtrack on long runs of `<`.
+ *
+ * The walker counts every `<` as opening a tag region and every `>`
+ * (while depth > 0) as closing one; characters are only emitted at
+ * depth 0. Linear time, no backtracking, idempotent.
  *
  * @param str String with HTML tags
  * @returns Clean string without tags
  */
 export function stripHtmlTags(str: string): string {
   if (!str) return '';
-  let prev = str;
-  let stripped = prev.replace(/<[^>]*>/g, '');
-  while (stripped !== prev) {
-    prev = stripped;
-    stripped = prev.replace(/<[^>]*>/g, '');
+  let out = '';
+  let depth = 0;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (ch === '<') {
+      depth++;
+    } else if (ch === '>' && depth > 0) {
+      depth--;
+    } else if (depth === 0) {
+      out += ch;
+    }
   }
-  return stripped.trim();
+  return out.trim();
 }

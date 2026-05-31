@@ -73,23 +73,28 @@ describe('stripHtmlTags', () => {
     expect(stripHtmlTags('Hello<br/>World')).toBe('HelloWorld');
   });
 
-  test('output is idempotent — a second strip never changes anything', () => {
-    // The loop guarantees stability (CodeQL js/incomplete-multi-character-
-    // sanitization). Don't assert specific outputs for adversarial inputs —
-    // `<[^>]*>` is greedy across inner `<`, so the post-loop residue is
-    // implementation-defined — only assert that running the strip again
-    // is a no-op.
-    const adversarial = [
+  test('nested-bracket adversarial input is fully sanitized', () => {
+    // The depth-counting walker treats every '<' as opening a tag region,
+    // so `<scrip<script>t>alert(1)</script>` reduces to just `alert(1)`.
+    expect(stripHtmlTags('<scrip<script>t>alert(1)</script>')).toBe('alert(1)');
+    expect(stripHtmlTags('<<script>script>alert(1)<</script>/script>')).toBe('alert(1)');
+    expect(stripHtmlTags('<<>>')).toBe('');
+  });
+
+  test('a stray `>` outside a tag region survives (matches old regex behaviour)', () => {
+    expect(stripHtmlTags('>oops')).toBe('>oops');
+    expect(stripHtmlTags('<p>hi</p> > there')).toBe('hi > there');
+  });
+
+  test('idempotent — running the strip again never changes the result', () => {
+    const samples = [
       '<<>>',
-      '<<script>script>alert(1)<</script>/script>',
       '<scr<p></p>ipt>x<scr<p></p>ipt>',
       'plain text with no tags',
       '<p>well-formed</p>',
     ];
-    for (const input of adversarial) {
-      const once = stripHtmlTags(input);
-      const twice = stripHtmlTags(once);
-      expect(twice).toBe(once);
+    for (const input of samples) {
+      expect(stripHtmlTags(stripHtmlTags(input))).toBe(stripHtmlTags(input));
     }
   });
 });
