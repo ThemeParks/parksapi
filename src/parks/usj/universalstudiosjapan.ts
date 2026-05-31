@@ -366,10 +366,37 @@ export class UniversalStudiosJapan extends Destination {
   // ─── Live data ────────────────────────────────────────────────────────────
 
   protected async buildLiveData(): Promise<LiveData[]> {
-    const [waitTimeData, showListData] = await Promise.all([
+    // Fetch independently so one CDN endpoint failing doesn't suppress the other.
+    // Previously a single Promise.all rejection killed the whole emission and the
+    // collector skipped the write, producing a multi-hour staleness gap.
+    const [waitTimeResult, showListResult] = await Promise.allSettled([
       this.getWaitTimeData(),
       this.getShowListData(),
     ]);
+
+    const waitTimeData: USJWaitTimeEntry[] =
+      waitTimeResult.status === 'fulfilled' ? waitTimeResult.value : [];
+    const showListData: USJShowEntry[] =
+      showListResult.status === 'fulfilled' ? showListResult.value : [];
+
+    if (waitTimeResult.status === 'rejected') {
+      console.error('USJ: fetchWaitTimes failed', waitTimeResult.reason);
+    }
+    if (showListResult.status === 'rejected') {
+      console.error('USJ: fetchShowList failed', showListResult.reason);
+    }
+
+    // If both fetches failed, throw so the collector logs and skips this cycle
+    // rather than emitting an empty live-data set (which would mark every
+    // attraction CLOSED via the wiki's implicit-closed semantics). Wrap both
+    // reasons in an AggregateError so neither is lost and stack traces stay
+    // useful even if a reason isn't an Error instance.
+    if (waitTimeResult.status === 'rejected' && showListResult.status === 'rejected') {
+      throw new AggregateError(
+        [waitTimeResult.reason, showListResult.reason],
+        'USJ buildLiveData: both fetchWaitTimes and fetchShowList rejected',
+      );
+    }
 
     const results: LiveData[] = [];
 
