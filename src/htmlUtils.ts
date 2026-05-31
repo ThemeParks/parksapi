@@ -45,10 +45,22 @@ export function decodeHtmlEntities(str: string): string {
  * Strip HTML tags from a string.
  * Removes all HTML tags and trims whitespace.
  *
+ * Applies the strip repeatedly until the result is stable so adversarial
+ * input like `<<script>script>` cannot survive a single pass (CodeQL
+ * `js/incomplete-multi-character-sanitization`). Well-formed input
+ * terminates after one iteration — the extra check is free in the
+ * common case.
+ *
  * @param str String with HTML tags
  * @returns Clean string without tags
  */
 export function stripHtmlTags(str: string): string {
   if (!str) return '';
-  return str.replace(/<[^>]*>/g, '').trim();
+  let prev = str;
+  let stripped = prev.replace(/<[^>]*>/g, '');
+  while (stripped !== prev) {
+    prev = stripped;
+    stripped = prev.replace(/<[^>]*>/g, '');
+  }
+  return stripped.trim();
 }

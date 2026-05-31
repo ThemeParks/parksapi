@@ -4,7 +4,7 @@ import {cache} from '../../cache.js';
 import config from '../../config.js';
 import type {Entity, LiveData, EntitySchedule, ScheduleEntry} from '@themeparks/typelib';
 import {constructDateTime} from '../../datetime.js';
-import {decodeHtmlEntities} from '../../htmlUtils.js';
+import {decodeHtmlEntities, stripHtmlTags} from '../../htmlUtils.js';
 
 export type TribeEvent = {
   start_date: string;       // "YYYY-MM-DD HH:MM:SS"
@@ -129,7 +129,7 @@ export function parseAttractionsPage(html: string): AttractionStub[] {
       h3 = candidate;
     }
     if (!h3) continue;
-    const name = decodeHtmlEntities(h3[1].replace(/<[^>]+>/g, '').trim());
+    const name = decodeHtmlEntities(stripHtmlTags(h3[1]));
     if (!name) continue;
     seen.add(slug);
     out.push({slug, name});

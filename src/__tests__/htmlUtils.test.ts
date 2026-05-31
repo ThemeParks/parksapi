@@ -72,4 +72,24 @@ describe('stripHtmlTags', () => {
   test('handles self-closing tags', () => {
     expect(stripHtmlTags('Hello<br/>World')).toBe('HelloWorld');
   });
+
+  test('output is idempotent — a second strip never changes anything', () => {
+    // The loop guarantees stability (CodeQL js/incomplete-multi-character-
+    // sanitization). Don't assert specific outputs for adversarial inputs —
+    // `<[^>]*>` is greedy across inner `<`, so the post-loop residue is
+    // implementation-defined — only assert that running the strip again
+    // is a no-op.
+    const adversarial = [
+      '<<>>',
+      '<<script>script>alert(1)<</script>/script>',
+      '<scr<p></p>ipt>x<scr<p></p>ipt>',
+      'plain text with no tags',
+      '<p>well-formed</p>',
+    ];
+    for (const input of adversarial) {
+      const once = stripHtmlTags(input);
+      const twice = stripHtmlTags(once);
+      expect(twice).toBe(once);
+    }
+  });
 });
