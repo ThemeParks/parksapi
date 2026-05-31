@@ -586,7 +586,10 @@ export class OceanParkHongKong extends Destination {
       // Coerce + finite-check before emitting. The interface declares
       // `number | null` but upstream APIs sometimes send strings; CLAUDE.md
       // requires Number.isFinite over isNaN to handle empty-string coercion.
-      const wt = Number(pflow.entityWaitTime);
+      // Reject null/undefined/empty BEFORE coercing — Number(null) is 0,
+      // which would silently emit "0 min wait" for unknown waits.
+      const raw = pflow.entityWaitTime as number | string | null | undefined;
+      const wt = raw == null || raw === '' ? NaN : Number(raw);
       if (isOpen && Number.isFinite(wt) && wt >= 0) {
         ld.queue = {STANDBY: {waitTime: wt}};
       }
