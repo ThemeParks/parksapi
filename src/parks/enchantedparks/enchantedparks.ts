@@ -3,7 +3,7 @@ import {http, type HTTPObj} from '../../http.js';
 import {cache} from '../../cache.js';
 import config from '../../config.js';
 import type {Entity, LiveData, EntitySchedule, ScheduleEntry} from '@themeparks/typelib';
-import {constructDateTime} from '../../datetime.js';
+import {constructDateTime, formatDate} from '../../datetime.js';
 import {decodeHtmlEntities, stripHtmlTags} from '../../htmlUtils.js';
 
 export type TribeEvent = {
@@ -36,13 +36,16 @@ export function parseTribeEvents(
     // start_date / end_date are "YYYY-MM-DD HH:MM:SS" wall-clock in `timezone`.
     const [date, startTime] = ev.start_date.split(' ');
     if (!date || !startTime) continue;
-    const endTime = ev.end_date.split(' ')[1];
-    if (!endTime) continue;
+    const [endDate, endTime] = ev.end_date.split(' ');
+    if (!endDate || !endTime) continue;
     out.push({
       date,
       type: 'OPERATING' as const,
       openingTime: constructDateTime(date, startTime.slice(0, 5), timezone),
-      closingTime: constructDateTime(date, endTime.slice(0, 5), timezone),
+      // Use end_date's own date so a cross-midnight close (e.g. evening event
+      // ending after 00:00 the next day) doesn't fold the closing time back
+      // before opening.
+      closingTime: constructDateTime(endDate, endTime.slice(0, 5), timezone),
     });
   }
   return out;
@@ -69,14 +72,19 @@ export function parseICalFeed(
     const start = body.match(/DTSTART(?:;[^:]+)?:(\d{8})T(\d{6})/);
     const end   = body.match(/DTEND(?:;[^:]+)?:(\d{8})T(\d{6})/);
     if (!start) continue;
-    const dateStr = `${start[1].slice(0,4)}-${start[1].slice(4,6)}-${start[1].slice(6,8)}`;
+    const startDateStr = `${start[1].slice(0,4)}-${start[1].slice(4,6)}-${start[1].slice(6,8)}`;
     const startHm = `${start[2].slice(0,2)}:${start[2].slice(2,4)}`;
+    // Use DTEND's own date for closingTime so cross-midnight events (DTEND
+    // on the next day) don't fold the closing time back before opening.
+    const endDateStr = end
+      ? `${end[1].slice(0,4)}-${end[1].slice(4,6)}-${end[1].slice(6,8)}`
+      : startDateStr;
     const endHm = end ? `${end[2].slice(0,2)}:${end[2].slice(2,4)}` : startHm;
     out.push({
-      date: dateStr,
+      date: startDateStr,
       type: 'OPERATING' as const,
-      openingTime: constructDateTime(dateStr, startHm, timezone),
-      closingTime: constructDateTime(dateStr, endHm, timezone),
+      openingTime: constructDateTime(startDateStr, startHm, timezone),
+      closingTime: constructDateTime(endDateStr, endHm, timezone),
     });
   }
   return out;
@@ -241,9 +249,13 @@ class EnchantedParks extends Destination {
   async scrapeSchedule(category: string): Promise<ScheduleEntry[]> {
     const today = new Date();
     const end = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
-    const fmt = (d: Date) => d.toISOString().slice(0, 10);
-    const startStr = fmt(today);
-    const endStr = fmt(end);
+    // Anchor the date-range window on the destination's local calendar day
+    // rather than UTC. `toISOString().slice(0,10)` was off by ±1 day across
+    // the local-midnight boundary, which could drop a day from the query
+    // range (e.g. at 11pm UTC for an America/Chicago park, the local date
+    // is already the next day but UTC is still on the current day).
+    const startStr = formatDate(today, this.timezone);
+    const endStr = formatDate(end, this.timezone);
 
     try {
       const all: ScheduleEntry[] = [];

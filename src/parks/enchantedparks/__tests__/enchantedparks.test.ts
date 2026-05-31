@@ -105,6 +105,24 @@ describe('parseTribeEvents', () => {
     expect(out).toHaveLength(1);
     expect(out[0].date).toBe('2026-05-11');
   });
+
+  test('cross-midnight event keeps closing time after opening (uses end_date\'s own day)', () => {
+    const fixture: TribeEventsResponse = {
+      events: [
+        {
+          start_date: '2026-10-31 19:00:00',
+          end_date:   '2026-11-01 01:00:00',
+          all_day: false,
+          categories: [{name: 'Halloween Hours'}],
+        },
+      ],
+    };
+    const out = parseTribeEvents(fixture, 'Halloween Hours', 'America/Chicago');
+    expect(out).toHaveLength(1);
+    expect(out[0].date).toBe('2026-10-31');
+    expect(out[0].openingTime).toBe('2026-10-31T19:00:00-05:00');
+    expect(out[0].closingTime).toBe('2026-11-01T01:00:00-05:00');
+  });
 });
 
 describe('parseICalFeed', () => {
@@ -170,6 +188,21 @@ CATEGORIES:Park Hours,Special Events
 END:VEVENT
 END:VCALENDAR`;
     expect(parseICalFeed(multi, 'Park Hours', 'America/Chicago')).toHaveLength(1);
+  });
+
+  test('cross-midnight event keeps closing time after opening (uses DTEND\'s own day)', () => {
+    const crossMidnight = `BEGIN:VCALENDAR
+BEGIN:VEVENT
+DTSTART;TZID=America/Chicago:20261031T190000
+DTEND;TZID=America/Chicago:20261101T010000
+CATEGORIES:Halloween Hours
+END:VEVENT
+END:VCALENDAR`;
+    const out = parseICalFeed(crossMidnight, 'Halloween Hours', 'America/Chicago');
+    expect(out).toHaveLength(1);
+    expect(out[0].date).toBe('2026-10-31');
+    expect(out[0].openingTime).toBe('2026-10-31T19:00:00-05:00');
+    expect(out[0].closingTime).toBe('2026-11-01T01:00:00-05:00');
   });
 });
 

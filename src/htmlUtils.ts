@@ -63,15 +63,22 @@ export function stripHtmlTags(str: string): string {
   if (!str) return '';
   let out = '';
   let depth = 0;
+  let outerTagStart = -1;
   for (let i = 0; i < str.length; i++) {
     const ch = str[i];
     if (ch === '<') {
+      if (depth === 0) outerTagStart = i;
       depth++;
     } else if (ch === '>' && depth > 0) {
       depth--;
     } else if (depth === 0) {
       out += ch;
     }
+  }
+  // If we hit EOF mid-tag, the outermost `<` was unmatched — preserve
+  // everything from that point so legitimate text like `2 < 3` survives.
+  if (depth > 0 && outerTagStart >= 0) {
+    out += str.slice(outerTagStart);
   }
   return out.trim();
 }

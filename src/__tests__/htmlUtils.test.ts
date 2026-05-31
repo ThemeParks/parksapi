@@ -86,6 +86,16 @@ describe('stripHtmlTags', () => {
     expect(stripHtmlTags('<p>hi</p> > there')).toBe('hi > there');
   });
 
+  test('an unmatched `<` is preserved with everything after it (no truncation)', () => {
+    // The old regex required a closing `>` to match, so `2 < 3` and
+    // `<unclosed` were left intact. The walker must do the same — if it
+    // reaches EOF mid-tag, the outermost `<` was never a tag, so we
+    // emit the buffered region verbatim.
+    expect(stripHtmlTags('2 < 3')).toBe('2 < 3');
+    expect(stripHtmlTags('<unclosed')).toBe('<unclosed');
+    expect(stripHtmlTags('<p>start</p> 2 < 3')).toBe('start 2 < 3');
+  });
+
   test('idempotent — running the strip again never changes the result', () => {
     const samples = [
       '<<>>',
