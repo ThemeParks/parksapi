@@ -342,6 +342,13 @@ export class GentingSkyworlds extends Destination {
     const vqByRide = new Map<string, GentingDesireItineraryEntry>();
     for (const v of desire) vqByRide.set(String(v.id), v);
 
+    // The upstream API freezes the last wait-time snapshot when the park
+    // closes — so polling at 2am gets yesterday's 6pm state back. Gate every
+    // live-data emission on the operationHour window: when `now` falls outside
+    // the window, force CLOSED and suppress queue + VQ data. When we don't
+    // have operationHour, fall through to upstream-as-truth.
+    const parkOpenNow = this.isParkCurrentlyOpen(wait.operationHour);
+
     const out: LiveData[] = [];
 
     for (const ride of data.rides ?? []) {
@@ -350,6 +357,12 @@ export class GentingSkyworlds extends Destination {
         id: String(ride.id),
         status: 'CLOSED',
       } as LiveData;
+
+      if (parkOpenNow === false) {
+        // Outside hours — closed, no queue. Don't trust the frozen snapshot.
+        out.push(ld);
+        continue;
+      }
 
       const queue: Record<string, any> = {};
 
@@ -386,9 +399,10 @@ export class GentingSkyworlds extends Destination {
     }
 
     // Shows — emit OPERATING / CLOSED based on operationStatus; showtimes not
-    // currently populated by the API (showTimes is always []).
+    // currently populated by the API (showTimes is always []). When the park
+    // is closed, the upstream show status is also frozen, so force CLOSED.
     for (const show of data.shows ?? []) {
-      const open = show.operationStatus?.title === 'OPEN';
+      const open = parkOpenNow !== false && show.operationStatus?.title === 'OPEN';
       out.push({
         id: String(show.id),
         status: open ? 'OPERATING' : 'CLOSED',
@@ -396,6 +410,24 @@ export class GentingSkyworlds extends Destination {
     }
 
     return out;
+  }
+
+  /**
+   * Decide whether the park is currently within its operating hours.
+   * Returns `true`/`false` when we have an upstream operationHour window
+   * to compare against, or `null` when we don't — callers should treat
+   * `null` as "no data, fall through to upstream-as-truth" rather than
+   * blanket-closing the park.
+   */
+  private isParkCurrentlyOpen(
+    operationHour: GentingWaitTimeResponse['result']['operationHour'],
+  ): boolean | null {
+    if (!operationHour?.startTime || !operationHour?.endTime) return null;
+    const start = new Date(operationHour.startTime).getTime();
+    const end = new Date(operationHour.endTime).getTime();
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+    const now = Date.now();
+    return now >= start && now < end;
   }
 
   // ── Schedules ────────────────────────────────────────────────
