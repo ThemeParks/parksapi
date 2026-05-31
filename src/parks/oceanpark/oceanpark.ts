@@ -243,6 +243,8 @@ export class OceanParkHongKong extends Destination {
   }
 
   /** Raw HTTP call to the token endpoint — tagged 'auth' to exclude from injection. */
+  // `tags` isn't in the @http decorator's option type yet but flows through
+  // to the request object — cast is the localised escape.
   @http({tags: ['auth']} as any)
   async fetchToken(): Promise<HTTPObj> {
     const deviceId = await this.getDeviceId();
@@ -290,7 +292,7 @@ export class OceanParkHongKong extends Destination {
     eventName: 'httpRequest',
     hostname: function(this: OceanParkHongKong) { return hostnameFromUrl(this.baseURL); },
     tags: {$nin: ['auth']},
-  } as any)
+  })
   async injectToken(req: HTTPObj): Promise<void> {
     const token = await this.getToken();
     req.headers = {
@@ -307,7 +309,7 @@ export class OceanParkHongKong extends Destination {
    * sortId 7 = transport, 8 = rides, 15 = shows, 17 = dining.
    * Short cache (60s) since this also carries live wait-time data.
    */
-  @http({cacheSeconds: 60} as any)
+  @http({cacheSeconds: 60})
   async fetchEntityList(sortId: number): Promise<HTTPObj> {
     return {
       method: 'POST',
@@ -321,7 +323,7 @@ export class OceanParkHongKong extends Destination {
    * Fetch detailed info for a single entity (FastPass links, show schedule).
    * Long cache (1h) since this data changes infrequently.
    */
-  @http({cacheSeconds: 3600} as any)
+  @http({cacheSeconds: 3600})
   async fetchEntityDetail(entityId: number): Promise<HTTPObj> {
     return {
       method: 'POST',
@@ -332,7 +334,7 @@ export class OceanParkHongKong extends Destination {
   }
 
   /** Fetch 30-day park operating schedule. Refreshed every hour. */
-  @http({cacheSeconds: 3600} as any)
+  @http({cacheSeconds: 3600})
   async fetchParkSchedule(): Promise<HTTPObj> {
     const today = formatDate(new Date(), TIMEZONE);
     const end = formatDate(new Date(Date.now() + 30 * 24 * 3600 * 1000), TIMEZONE);
@@ -345,7 +347,7 @@ export class OceanParkHongKong extends Destination {
   }
 
   /** Fetch reference points (pixel → lat/lng anchors) from the map subdomain. */
-  @http({cacheSeconds: 86400} as any)
+  @http({cacheSeconds: 86400})
   async fetchReferencePoints(): Promise<HTTPObj> {
     return {
       method: 'GET',
@@ -355,7 +357,7 @@ export class OceanParkHongKong extends Destination {
   }
 
   /** Fetch entity pixel positions for a given map category. */
-  @http({cacheSeconds: 86400} as any)
+  @http({cacheSeconds: 86400})
   async fetchMapCategoryData(category: string): Promise<HTTPObj> {
     return {
       method: 'GET',
@@ -364,23 +366,26 @@ export class OceanParkHongKong extends Destination {
     } as any as HTTPObj;
   }
 
-  // ── Cached Accessors ──────────────────────────────────────────────────────
+  // ── Parsed Accessors ──────────────────────────────────────────────────────
+  //
+  // No @cache wrapper here — the underlying @http fetcher already caches the
+  // raw response at the same TTL. Adding @cache on top would just double-write
+  // the parsed payload to SQLite. Failures still propagate from the fetch
+  // layer, so a transient bad upstream doesn't poison a parsed-empty result
+  // into the cache for a full TTL.
 
-  @cache({ttlSeconds: 60})
   async getEntityList(sortId: number): Promise<OceanParkEntity[]> {
     const resp = await this.fetchEntityList(sortId);
     const body: OceanParkEntityListResponse = await resp.json();
     return body?.data?.data ?? [];
   }
 
-  @cache({ttlSeconds: 3600})
   async getEntityDetail(entityId: number): Promise<OceanParkEntityDetail> {
     const resp = await this.fetchEntityDetail(entityId);
     const body: OceanParkEntityDetailResponse = await resp.json();
     return body?.data ?? {};
   }
 
-  @cache({ttlSeconds: 3600})
   async getParkSchedule(): Promise<OceanParkParkDay[]> {
     const resp = await this.fetchParkSchedule();
     const body: OceanParkScheduleResponse = await resp.json();
@@ -392,17 +397,26 @@ export class OceanParkHongKong extends Destination {
    * 1. Fetching reference points and computing an affine pixel→geo transform.
    * 2. Fetching each map category and projecting each entity's pixel position.
    *
-   * Returned as an array of [key, value] pairs so @cache can serialise it.
-   * Cached for 24 hours — map data is essentially static.
+   * Returned as an array of [key, value] pairs.
+   *
+   * No @cache here — degenerate input must throw so the underlying @http
+   * fetchers (24h TTL each) keep retrying instead of pinning every entity
+   * to its default location for a day. Callers are expected to catch and
+   * fall back to no-coords on transient failure.
    */
-  @cache({ttlSeconds: 86400})
   async getCoordinateMapEntries(): Promise<[string, {latitude: number; longitude: number}][]> {
     const refResp = await this.fetchReferencePoints();
     const refPoints: OceanParkReferencePoint[] = await refResp.json();
-    if (!Array.isArray(refPoints) || refPoints.length < 3) return [];
+    if (!Array.isArray(refPoints) || refPoints.length < 3) {
+      throw new Error(
+        `OceanPark: reference points payload invalid (got ${Array.isArray(refPoints) ? `${refPoints.length} entries` : typeof refPoints})`,
+      );
+    }
 
     const coeffs = computeAffineTransform(refPoints);
-    if (!coeffs) return [];
+    if (!coeffs) {
+      throw new Error('OceanPark: affine transform degenerate (collinear or duplicate reference points)');
+    }
     const entries: [string, {latitude: number; longitude: number}][] = [];
 
     const categoryResponses = await Promise.all(
@@ -448,7 +462,14 @@ export class OceanParkHongKong extends Destination {
       this.getEntityList(SORT_ID.TRANSPORT),
       this.getEntityList(SORT_ID.SHOWS),
       this.getEntityList(SORT_ID.DINING),
-      this.getCoordinateMapEntries(),
+      // Coordinates are best-effort — a degenerate transform or unreachable
+      // map subdomain shouldn't take the whole entity list with it. Entities
+      // fall back to the destination's default lat/lng when this is empty.
+      this.getCoordinateMapEntries().catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[OceanPark] coordinate map unavailable (${msg}); entities will use default location`);
+        return [] as [string, {latitude: number; longitude: number}][];
+      }),
     ]);
 
     const coordMap = new Map(coordEntries);
@@ -475,10 +496,9 @@ export class OceanParkHongKong extends Destination {
       const detail = details[i];
       const tags = [];
 
-      if (coords) {
-        tags.push(TagBuilder.location(coords.latitude, coords.longitude, 'Attraction Location'));
-      }
-
+      // Coordinates already live on `entity.location` below — don't also
+      // push a TagBuilder.location() tag (per TagBuilder docs, that helper
+      // is for sub-locations distinct from the entity's own location).
       const conditionList = entity.conditionList ?? [];
       const {min, max} = parseHeightTag(conditionList);
       if (min !== null) tags.push(TagBuilder.minimumHeight(min, 'cm'));
@@ -557,15 +577,18 @@ export class OceanParkHongKong extends Destination {
     for (const entity of [...rides, ...transport]) {
       const pflow = entity.pflowInfo ?? {};
       const isOpen = pflow.entityStatus === 'open';
-      const waitTime = pflow.entityWaitTime;
 
       const ld: LiveData = {
         id: `attraction_${entity.id}`,
         status: isOpen ? 'OPERATING' : 'CLOSED',
       } as LiveData;
 
-      if (isOpen && waitTime != null && waitTime >= 0) {
-        ld.queue = {STANDBY: {waitTime}};
+      // Coerce + finite-check before emitting. The interface declares
+      // `number | null` but upstream APIs sometimes send strings; CLAUDE.md
+      // requires Number.isFinite over isNaN to handle empty-string coercion.
+      const wt = Number(pflow.entityWaitTime);
+      if (isOpen && Number.isFinite(wt) && wt >= 0) {
+        ld.queue = {STANDBY: {waitTime: wt}};
       }
 
       const todayHours = (pflow.operatingHourList ?? []).find(
@@ -573,9 +596,12 @@ export class OceanParkHongKong extends Destination {
       );
       if (todayHours) {
         ld.operatingHours = [{
-          type: 'Operating',
-          startTime: new Date(todayHours.openTime!).toISOString(),
-          endTime: new Date(todayHours.closeTime!).toISOString(),
+          // 'OPERATING' (uppercase) matches every other park's emission and
+          // any downstream string matchers. 'iso' format keeps the +08:00
+          // offset consistent with buildSchedules below.
+          type: 'OPERATING',
+          startTime: formatInTimezone(new Date(todayHours.openTime!), TIMEZONE, 'iso'),
+          endTime: formatInTimezone(new Date(todayHours.closeTime!), TIMEZONE, 'iso'),
         }];
       }
 
@@ -587,17 +613,24 @@ export class OceanParkHongKong extends Destination {
       shows.map(e => this.getEntityDetail(e.id).catch(() => ({} as OceanParkEntityDetail))),
     );
 
+    const now = Date.now();
     for (let i = 0; i < shows.length; i++) {
       const entity = shows[i];
       const isOpen = entity.pflowInfo?.entityStatus === 'open';
       const detail = showDetails[i];
 
+      // Filter out performances that have already ended today — a guest at
+      // 3pm shouldn't see this morning's 11am show listed as upcoming.
+      // Project timestamps via formatInTimezone so the emitted ISO strings
+      // carry the +08:00 offset (matches buildSchedules).
       const showtimes = (detail.activityList ?? []).flatMap(activity =>
-        (activity.timeList ?? []).map(t => ({
-          type: 'Performance Time',
-          startTime: new Date(t.startTime).toISOString(),
-          endTime: new Date(t.endTime).toISOString(),
-        })),
+        (activity.timeList ?? [])
+          .filter(t => Number.isFinite(t.startTime) && Number.isFinite(t.endTime) && t.endTime >= now)
+          .map(t => ({
+            type: 'Performance Time',
+            startTime: formatInTimezone(new Date(t.startTime), TIMEZONE, 'iso'),
+            endTime: formatInTimezone(new Date(t.endTime), TIMEZONE, 'iso'),
+          })),
       );
 
       const ld: LiveData = {
@@ -652,17 +685,22 @@ export class OceanParkHongKong extends Destination {
         });
       }
 
-      // The Summit zone closes earlier than the main park on some days
+      // The Summit zone closes earlier than the main park on some days.
+      // API has `summitStaus` (sic — upstream typo); also accept `summitStatus`
+      // defensively in case it's ever corrected. There's no `summitOpenTime`
+      // in the payload, so we assume Summit opens with the main park —
+      // documented as part of the description so downstream consumers know.
+      const summitStatus = day.summitStaus ?? (day as {summitStatus?: string}).summitStatus;
       const summitClose = parseTs(day.summitCloseTime);
       if (
-        day.summitStaus === 'open' &&
+        summitStatus === 'open' &&
         summitClose &&
         summitClose.getTime() < close.getTime()
       ) {
         scheduleEntries.push({
           date: day.openDate,
           type: 'INFORMATIONAL',
-          description: 'The Summit',
+          description: 'The Summit (closes earlier than the rest of the park)',
           openingTime: formatInTimezone(open, TIMEZONE, 'iso'),
           closingTime: formatInTimezone(summitClose, TIMEZONE, 'iso'),
         });
