@@ -616,7 +616,7 @@ class EuropaParkBase extends Destination {
     // proxy fails; downstream also uses strict-equality switches and `<= 91`
     // comparisons that silently misbehave on non-numbers — so require both a
     // finite numeric `code` and a finite numeric `time`.
-    const waits = waitsRaw.filter(
+    let waits = waitsRaw.filter(
       (w): w is EuropaParkWaitTime => {
         if (!w || typeof w !== 'object') return false;
         const code = (w as any).code;
@@ -625,6 +625,19 @@ class EuropaParkBase extends Destination {
             && typeof time === 'number' && Number.isFinite(time);
       },
     );
+
+    // Defensive: detect the upstream glitch first observed at 2026-04-20T20:11:59Z,
+    // which briefly returned wait entries for ~94% of the attraction catalogue
+    // (vs ~45% on a normal day). The fingerprint is purely "implausibly large
+    // fraction of attractions reporting", agnostic to time-value shape, so it
+    // also catches future glitches with different time signatures.
+    if (this._isWaitsGlitch(waits, entities)) {
+      console.warn(
+        `Europa-Park waits sanity-check: suspected upstream glitch, skipping ` +
+        `wait-time emission this tick`,
+      );
+      waits = [];
+    }
 
     // Build code → entityId map from attraction/show entities
     const codeToEntityId = new Map<number, string>();
@@ -911,6 +924,39 @@ class EuropaParkBase extends Destination {
       id: `park_${parkConfig.id}`,
       schedule: times,
     } as EntitySchedule;
+  }
+
+  /**
+   * Returns true when waits is reporting an implausibly large fraction of the
+   * attraction catalogue. Normal Europa-Park days see roughly 45% of coded
+   * attractions in the waits response; the 2026-04-20 glitch jumped that to
+   * ~94%. Threshold of >85% sits comfortably in the gap.
+   *
+   * The denominator is derived from the already-built entity list rather than
+   * raw POI data: getParkEntities owns the skip rules (nameless, VQ dummies,
+   * "Queue - …" map pointers, etc.) and we want the detector to track those
+   * rules automatically instead of duplicating them.
+   */
+  protected _isWaitsGlitch(waits: EuropaParkWaitTime[], entities: EuropaParkEntity[]): boolean {
+    const attractionCodes = new Set<number>();
+    for (const e of entities) {
+      if (e.entityType !== 'ATTRACTION') continue;
+      // Mirror the Number.isFinite gate used for waits — a NaN/Infinity code
+      // (possible from malformed upstream JSON) would inflate the denominator
+      // without ever matching a wait.
+      if (typeof e.code === 'number' && Number.isFinite(e.code)) {
+        attractionCodes.add(e.code);
+      }
+    }
+    if (attractionCodes.size === 0) return false;
+
+    const waitCodes = new Set<number>(waits.map((w) => w.code));
+    let inWaitsCount = 0;
+    for (const code of attractionCodes) {
+      if (waitCodes.has(code)) inWaitsCount++;
+    }
+
+    return inWaitsCount / attractionCodes.size > 0.85;
   }
 
   /**
