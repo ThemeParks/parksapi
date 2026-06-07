@@ -11,6 +11,8 @@ import {TagBuilder} from '../../tags/index.js';
 
 const DESTINATION_ID = 'niglolandresort';
 const PARK_ID = 'nigloland';
+/** Indéterminé rides only count as live when upstream updatedAt is recent. */
+const FRESHNESS_WINDOW_MS = 30 * 60 * 1000;
 
 const mapStatus = createStatusMap({
   OPERATING: ['Ouvert', 'Indéterminé'],
@@ -34,6 +36,7 @@ interface NiglolandRide {
   waitingTime?: number | null;
   openingHour?: string;
   closureHour?: string;
+  updatedAt?: string;
   sizeReference?: NiglolandSizeReference | null;
   disabledAccessibility?: boolean;
   isRecoToPregnantWomen?: boolean;
@@ -151,6 +154,27 @@ export class Nigloland extends Destination {
     return `${match[1].padStart(2, '0')}:${match[2]}`;
   }
 
+  private isRideDataFresh(ride: NiglolandRide): boolean {
+    if (!ride.updatedAt) return false;
+    const ts = Date.parse(ride.updatedAt);
+    if (!Number.isFinite(ts)) return false;
+    return Date.now() - ts < FRESHNESS_WINDOW_MS;
+  }
+
+  /**
+   * Indéterminé never flips to Fermé after close — gate on updatedAt freshness
+   * so extended weather/crowd sessions stay OPERATING while retired catalog rides
+   * (years-old updatedAt) do not emit stale waits.
+   */
+  private rideLiveStatus(ride: NiglolandRide): string {
+    const name = ride.statusName;
+    if (name === 'Fermé') return 'CLOSED';
+    if (name === 'En maintenance') return 'REFURBISHMENT';
+    if (name === 'Indéterminé') return this.isRideDataFresh(ride) ? 'OPERATING' : 'CLOSED';
+    if (name === 'Ouvert') return 'OPERATING';
+    return 'CLOSED';
+  }
+
   private buildRideTags(ride: NiglolandRide): TagData[] {
     const tags: TagData[] = [];
     const size = ride.sizeReference;
@@ -263,11 +287,10 @@ export class Nigloland extends Destination {
       const id = this.entityId(ride.idNiglo);
       if (!id) continue;
 
-      const status = mapStatus(ride.statusName ?? '');
+      const status = this.rideLiveStatus(ride);
       const ld: LiveData = {id, status} as LiveData;
 
-      // Fermé rides may still carry stale waitingTime values — only emit queue
-      // data when status is OPERATING (Ouvert / Indéterminé).
+      // Fermé and stale Indéterminé rides may still carry frozen waitingTime values.
       if (status === 'OPERATING') {
         const waitTime = Number(ride.waitingTime);
         if (Number.isFinite(waitTime)) {
@@ -329,7 +352,7 @@ export class Nigloland extends Destination {
         }],
       } as EntitySchedule);
 
-      if (mapStatus(ride.statusName ?? '') === 'OPERATING') {
+      if (this.rideLiveStatus(ride) === 'OPERATING') {
         if (!earliestOpen || open < earliestOpen) earliestOpen = open;
         if (!latestClose || close > latestClose) latestClose = close;
       }
