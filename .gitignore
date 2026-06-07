@@ -3,6 +3,7 @@ docs
 .env
 .vscode
 .idea
+.cursor
 dist/
 coverage/
 datacache/
