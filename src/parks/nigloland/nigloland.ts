@@ -12,12 +12,9 @@ import {TagBuilder} from '../../tags/index.js';
 const DESTINATION_ID = 'niglolandresort';
 const PARK_ID = 'nigloland';
 
-const DEFAULT_USER_AGENT =
-  'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36';
-
 const mapStatus = createStatusMap({
-  OPERATING: ['Ouvert'],
-  CLOSED: ['Fermé', 'Indéterminé'],
+  OPERATING: ['Ouvert', 'Indéterminé'],
+  CLOSED: ['Fermé'],
   REFURBISHMENT: ['En maintenance'],
 }, {parkName: 'Nigloland', defaultStatus: 'CLOSED'});
 
@@ -95,9 +92,14 @@ export class Nigloland extends Destination {
     },
   })
   async injectAppHeaders(req: HTTPObj): Promise<void> {
+    if (!this.userAgent) {
+      throw new Error(
+        'Nigloland requires NIGLOLAND_USERAGENT to be set (browser-like UA for CrowdSec WAF)',
+      );
+    }
     req.headers = {
       ...req.headers,
-      'user-agent': this.userAgent || DEFAULT_USER_AGENT,
+      'user-agent': this.userAgent,
       'accept': 'application/json',
       'accept-language': 'fr-FR,fr;q=0.9',
     };
@@ -264,8 +266,8 @@ export class Nigloland extends Destination {
       const status = mapStatus(ride.statusName ?? '');
       const ld: LiveData = {id, status} as LiveData;
 
-      // Fermé / Indéterminé rides may still carry stale waitingTime values — only
-      // emit queue data for Ouvert (OPERATING) attractions.
+      // Fermé rides may still carry stale waitingTime values — only emit queue
+      // data when status is OPERATING (Ouvert / Indéterminé).
       if (status === 'OPERATING') {
         const waitTime = Number(ride.waitingTime);
         if (Number.isFinite(waitTime)) {
@@ -327,7 +329,7 @@ export class Nigloland extends Destination {
         }],
       } as EntitySchedule);
 
-      if (ride.statusName === 'Ouvert') {
+      if (mapStatus(ride.statusName ?? '') === 'OPERATING') {
         if (!earliestOpen || open < earliestOpen) earliestOpen = open;
         if (!latestClose || close > latestClose) latestClose = close;
       }
