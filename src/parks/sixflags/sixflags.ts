@@ -155,6 +155,13 @@ type SixFlagsOperatingHours = {
 /** Park IDs where wait-times endpoint is unavailable (water parks, etc.) */
 const PARKS_WITHOUT_WAIT_TIMES = new Set([942, 944, 947, 948, 959]);
 
+/**
+ * Park IDs to drop entirely — the destination is served by another module so
+ * including it here would emit the destination twice.
+ * - 14 / VF: Valleyfair (now under enchantedparks)
+ */
+const EXCLUDED_PARK_IDS = new Set<number>([14]);
+
 /** Default show duration in minutes when not otherwise specified */
 const DEFAULT_SHOW_DURATION_MINUTES = 30;
 
@@ -433,7 +440,7 @@ export class SixFlags extends Destination {
    * (new fields, new grouping rules like WATERPARK_PARENT_OVERRIDES, …).
    * Old entries become unreachable and expire on their TTL — no manual flush.
    */
-  @cache({ttlSeconds: 86400, cacheVersion: 2})
+  @cache({ttlSeconds: 86400, cacheVersion: 3})
   async getParkData(): Promise<SixFlagsParkData[]> {
     const entries = await this.getFirebaseConfig();
 
@@ -465,7 +472,8 @@ export class SixFlags extends Destination {
     // The parkId is the key of the settings object, not a field on the value
     const allMainCandidates = Object.entries(settings)
       .filter(([, s]) => s.showThemePark === true)
-      .map(([id, s]) => ({ ...s, parkId: parseInt(id, 10) }));
+      .map(([id, s]) => ({ ...s, parkId: parseInt(id, 10) }))
+      .filter(p => !EXCLUDED_PARK_IDS.has(p.parkId));
 
     // Resolve the overridden children once, so we can both skip them in the
     // main-park list and attach them as waterParks on their declared parents.
