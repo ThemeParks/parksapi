@@ -4,7 +4,7 @@ import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
 import config from '../../config.js';
 import {destinationController} from '../../destinationRegistry.js';
-import type {Entity, LiveData, EntitySchedule, TagData} from '@themeparks/typelib';
+import type {Entity, LiveData, EntitySchedule, ScheduleEntry, TagData} from '@themeparks/typelib';
 import {constructDateTime, formatDate, hostnameFromUrl} from '../../datetime.js';
 import {createStatusMap} from '../../statusMap.js';
 import {TagBuilder} from '../../tags/index.js';
@@ -13,6 +13,10 @@ const DESTINATION_ID = 'niglolandresort';
 const PARK_ID = 'nigloland';
 /** Indéterminé rides only count as live when upstream updatedAt is recent. */
 const FRESHNESS_WINDOW_MS = 30 * 60 * 1000;
+/** Months of forward calendar to pull. Mirrors what the mobile app fetches. */
+const SCHEDULE_MONTHS_AHEAD = 4;
+/** Safety stop for /calendar_dates pagination. App responses fit in <=3 pages. */
+const CALENDAR_PAGE_LIMIT = 10;
 
 const mapStatus = createStatusMap({
   OPERATING: ['Ouvert', 'Indéterminé'],
@@ -66,6 +70,18 @@ interface PointsOfInterestResponse {
   foodServices: NiglolandFoodService[];
   shows: NiglolandShow[];
   shops: NiglolandShop[];
+}
+
+interface NiglolandCalendarType {
+  hoursPark?: string;
+  hoursCashDesk?: string;
+  hoursRides?: string;
+}
+
+interface NiglolandCalendarDate {
+  id?: number;
+  date?: string;
+  calendarType?: NiglolandCalendarType;
 }
 
 /**
@@ -131,6 +147,60 @@ export class Nigloland extends Destination {
     };
   }
 
+  @http({cacheSeconds: 60 * 60 * 6})
+  async fetchCalendarDates(dateAfter: string, dateBefore: string, page: number): Promise<HTTPObj> {
+    const params = new URLSearchParams({
+      page: String(page),
+      'date[before]': dateBefore,
+      'date[after]': dateAfter,
+    });
+    return {
+      method: 'GET',
+      url: `${this.apiBase}calendar_dates?${params.toString()}`,
+      options: {json: true},
+    } as HTTPObj;
+  }
+
+  /**
+   * Fetch the next N months of operating calendar (mirrors the app's behaviour).
+   * Each month is paginated until the upstream returns an empty page; results are
+   * merged into a single date-keyed map so duplicate entries collapse cleanly.
+   */
+  @cache({ttlSeconds: 60 * 60 * 6})
+  async getCalendarDates(): Promise<NiglolandCalendarDate[]> {
+    const now = new Date();
+    const entries = new Map<string, NiglolandCalendarDate>();
+
+    for (let monthOffset = 0; monthOffset < SCHEDULE_MONTHS_AHEAD; monthOffset++) {
+      const monthStart = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth() + monthOffset,
+        1,
+      ));
+      const monthEnd = new Date(Date.UTC(
+        monthStart.getUTCFullYear(),
+        monthStart.getUTCMonth() + 1,
+        0,
+      ));
+      const dateAfter = formatDate(monthStart, 'UTC');
+      const dateBefore = formatDate(monthEnd, 'UTC');
+
+      for (let page = 1; page <= CALENDAR_PAGE_LIMIT; page++) {
+        const resp = await this.fetchCalendarDates(dateAfter, dateBefore, page);
+        const data = await resp.json();
+        if (!Array.isArray(data) || data.length === 0) break;
+        for (const entry of data) {
+          const date = typeof entry?.date === 'string'
+            ? entry.date.slice(0, 10)
+            : null;
+          if (date) entries.set(date, entry);
+        }
+      }
+    }
+
+    return Array.from(entries.values());
+  }
+
   // ── Helpers ────────────────────────────────────────────────────
 
   private entityId(idNiglo: number | undefined | null): string | null {
@@ -138,20 +208,30 @@ export class Nigloland extends Destination {
     return String(idNiglo);
   }
 
-  private parseHour(hour: string | undefined | null): string | null {
-    if (!hour) return null;
-    const trimmed = hour.trim();
-    if (!trimmed) return null;
+  /**
+   * Calendar hours strings come in a few shapes:
+   *   "10h30 à 17h30"                                    → {open: '10:30', close: '17:30'}
+   *   "Fermé"                                            → 'closed'
+   *   "10h00 jusqu'au feu d'artifice"                    → {open: '10:00', close: '23:00'}  (fallback close)
+   *   "10h00 et fermeture progressive dès 17h30 ..."    → {open: '10:00', close: '17:30'}
+   * Time tokens are matched generically (Xh, XhYY, X:YY) and the first/last are
+   * treated as open/close. Single-token strings get a 23:00 fallback because
+   * upstream uses this format only for late-night fireworks days where the park
+   * stays open well past advertised closing.
+   */
+  private parseCalendarHours(
+    hoursStr: string | undefined | null,
+  ): {open: string; close: string} | 'closed' | null {
+    if (!hoursStr) return null;
+    const s = hoursStr.trim();
+    if (!s) return null;
+    if (/^Ferm[éeE]/i.test(s)) return 'closed';
 
-    // "10h" → "10:00", "10h30" → "10:30", "10:30" → "10:30"
-    const normalized = trimmed
-      .replace(/h$/i, ':00')
-      .replace(/h(\d)/i, ':$1');
-
-    const match = normalized.match(/^(\d{1,2}):(\d{2})$/);
-    if (!match) return null;
-
-    return `${match[1].padStart(2, '0')}:${match[2]}`;
+    const tokens = Array.from(s.matchAll(/(\d{1,2})\s*[h:]\s*(\d{0,2})/g))
+      .map((m) => `${m[1].padStart(2, '0')}:${(m[2] || '00').padEnd(2, '0')}`);
+    if (tokens.length === 0) return null;
+    if (tokens.length === 1) return {open: tokens[0], close: '23:00'};
+    return {open: tokens[0], close: tokens[tokens.length - 1]};
   }
 
   private isRideDataFresh(ride: NiglolandRide): boolean {
@@ -329,47 +409,50 @@ export class Nigloland extends Destination {
   // ── Schedules ──────────────────────────────────────────────────
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
-    const {rides} = await this.getPointsOfInterest();
-    const today = formatDate(new Date(), this.timezone);
-    const schedules: EntitySchedule[] = [];
+    const [{rides}, calendar] = await Promise.all([
+      this.getPointsOfInterest(),
+      this.getCalendarDates(),
+    ]);
 
-    let earliestOpen: string | null = null;
-    let latestClose: string | null = null;
+    // hoursPark drives the destination/park schedule; hoursRides may differ on
+    // fireworks/special days (rides wind down before the late-night programme).
+    const parkSchedule: ScheduleEntry[] = [];
+    const rideSchedule: ScheduleEntry[] = [];
 
-    for (const ride of rides) {
-      const id = this.entityId(ride.idNiglo);
-      const open = this.parseHour(ride.openingHour);
-      const close = this.parseHour(ride.closureHour);
-      if (!id || !open || !close) continue;
-
-      schedules.push({
-        id,
-        schedule: [{
-          date: today,
+    for (const entry of calendar) {
+      const date = typeof entry.date === 'string' ? entry.date.slice(0, 10) : null;
+      if (!date) continue;
+      const park = this.parseCalendarHours(entry.calendarType?.hoursPark);
+      const ride = this.parseCalendarHours(entry.calendarType?.hoursRides);
+      if (park && park !== 'closed') {
+        parkSchedule.push({
+          date,
           type: 'OPERATING',
-          openingTime: constructDateTime(today, open, this.timezone),
-          closingTime: constructDateTime(today, close, this.timezone),
-        }],
-      } as EntitySchedule);
-
-      if (this.rideLiveStatus(ride) === 'OPERATING') {
-        if (!earliestOpen || open < earliestOpen) earliestOpen = open;
-        if (!latestClose || close > latestClose) latestClose = close;
+          openingTime: constructDateTime(date, park.open, this.timezone),
+          closingTime: constructDateTime(date, park.close, this.timezone),
+        });
+      }
+      if (ride && ride !== 'closed') {
+        rideSchedule.push({
+          date,
+          type: 'OPERATING',
+          openingTime: constructDateTime(date, ride.open, this.timezone),
+          closingTime: constructDateTime(date, ride.close, this.timezone),
+        });
       }
     }
 
-    if (earliestOpen && latestClose) {
-      schedules.unshift({
-        id: PARK_ID,
-        schedule: [{
-          date: today,
-          type: 'OPERATING',
-          openingTime: constructDateTime(today, earliestOpen, this.timezone),
-          closingTime: constructDateTime(today, latestClose, this.timezone),
-        }],
-      } as EntitySchedule);
-    } else {
-      schedules.unshift({id: PARK_ID, schedule: []} as EntitySchedule);
+    parkSchedule.sort((a, b) => a.date.localeCompare(b.date));
+    rideSchedule.sort((a, b) => a.date.localeCompare(b.date));
+
+    const schedules: EntitySchedule[] = [
+      {id: PARK_ID, schedule: parkSchedule} as EntitySchedule,
+    ];
+
+    for (const r of rides) {
+      const id = this.entityId(r.idNiglo);
+      if (!id || !r.title) continue;
+      schedules.push({id, schedule: rideSchedule} as EntitySchedule);
     }
 
     return schedules;
