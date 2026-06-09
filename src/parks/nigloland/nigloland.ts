@@ -5,24 +5,26 @@ import {inject} from '../../injector.js';
 import config from '../../config.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule, ScheduleEntry, TagData} from '@themeparks/typelib';
-import {constructDateTime, formatDate, hostnameFromUrl} from '../../datetime.js';
-import {createStatusMap} from '../../statusMap.js';
+import {constructDateTime, formatDate, formatInTimezone, hostnameFromUrl} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 const DESTINATION_ID = 'niglolandresort';
 const PARK_ID = 'nigloland';
-/** Indéterminé rides only count as live when upstream updatedAt is recent. */
-const FRESHNESS_WINDOW_MS = 30 * 60 * 1000;
+/** Live waitTime values older than this are considered stale and dropped. */
+const WAITTIME_FRESHNESS_MS = 30 * 60 * 1000;
+/**
+ * Indéterminé rides with `updatedAt` older than this are treated as retired
+ * catalogue entries and forced to CLOSED. The window is wide because
+ * Nigloland operates on a weekends-only schedule for chunks of the year, so
+ * an active ride can legitimately sit untouched for several days between
+ * operating days. Observed retired entries sit at 2024 timestamps — 14+
+ * months stale, well past the threshold.
+ */
+const RIDE_RETIREMENT_MS = 30 * 24 * 60 * 60 * 1000;
 /** Months of forward calendar to pull. Mirrors what the mobile app fetches. */
 const SCHEDULE_MONTHS_AHEAD = 4;
 /** Safety stop for /calendar_dates pagination. App responses fit in <=3 pages. */
 const CALENDAR_PAGE_LIMIT = 10;
-
-const mapStatus = createStatusMap({
-  OPERATING: ['Ouvert', 'Indéterminé'],
-  CLOSED: ['Fermé'],
-  REFURBISHMENT: ['En maintenance'],
-}, {parkName: 'Nigloland', defaultStatus: 'CLOSED'});
 
 interface NiglolandSizeReference {
   minSize?: number | null;
@@ -234,24 +236,79 @@ export class Nigloland extends Destination {
     return {open: tokens[0], close: tokens[tokens.length - 1]};
   }
 
-  private isRideDataFresh(ride: NiglolandRide): boolean {
-    if (!ride.updatedAt) return false;
+  private rideAgeMs(ride: NiglolandRide): number {
+    if (!ride.updatedAt) return Infinity;
     const ts = Date.parse(ride.updatedAt);
-    if (!Number.isFinite(ts)) return false;
-    return Date.now() - ts < FRESHNESS_WINDOW_MS;
+    if (!Number.isFinite(ts)) return Infinity;
+    return Date.now() - ts;
+  }
+
+  private hasFreshWaitTime(ride: NiglolandRide): boolean {
+    return this.rideAgeMs(ride) < WAITTIME_FRESHNESS_MS;
+  }
+
+  private isRideRetired(ride: NiglolandRide): boolean {
+    return this.rideAgeMs(ride) > RIDE_RETIREMENT_MS;
   }
 
   /**
-   * Indéterminé never flips to Fermé after close — gate on updatedAt freshness
-   * so extended weather/crowd sessions stay OPERATING while retired catalog rides
-   * (years-old updatedAt) do not emit stale waits.
+   * True iff the park calendar says today is operating AND the current
+   * Paris-time clock is within today's open/close window for the given
+   * hours field. Used as the primary OPERATING signal — `Indéterminé` is
+   * the upstream's idle state and never flips after hours, so `statusName`
+   * alone always over-emits.
+   *
+   * `hoursPark` and `hoursRides` can differ on fireworks/special days: the
+   * park can stay open for a late programme while rides progressively wind
+   * down. Callers pass the field that matches what they're gating —
+   * `hoursPark` for shows (which run during the late programme), `hoursRides`
+   * for attractions. Missing/unparseable `hoursRides` falls back to
+   * `hoursPark` so normal days (where the two are identical) behave the
+   * same regardless of which field the upstream populates.
    */
-  private rideLiveStatus(ride: NiglolandRide): string {
+  private isOpenNow(
+    calendar: NiglolandCalendarDate[],
+    hoursField: 'hoursPark' | 'hoursRides',
+    now: Date,
+  ): boolean {
+    // Caller passes `now` so the parkOpenNow / ridesOpenNow pair in
+    // buildLiveData() can't straddle a Paris-time midnight rollover.
+    const todayParis = formatDate(now, this.timezone);
+    const entry = calendar.find(
+      (e) => typeof e.date === 'string' && e.date.slice(0, 10) === todayParis,
+    );
+    if (!entry) return false;
+    const primary = this.parseCalendarHours(entry.calendarType?.[hoursField]);
+    const fallback =
+      hoursField === 'hoursRides'
+        ? this.parseCalendarHours(entry.calendarType?.hoursPark)
+        : null;
+    const hours = primary ?? fallback;
+    if (!hours || hours === 'closed') return false;
+    // formatInTimezone iso = "YYYY-MM-DDTHH:mm:ss+ZZ:ZZ"; slice 11..16 = "HH:mm"
+    const nowHHMM = formatInTimezone(now, this.timezone, 'iso').slice(11, 16);
+    return nowHHMM >= hours.open && nowHHMM <= hours.close;
+  }
+
+  /**
+   * Indéterminé inside the gated open window → OPERATING. Outside the
+   * window we still grant OPERATING when upstream is actively polling the
+   * ride (fresh waitTime), so weather/crowd extensions past the advertised
+   * close don't get prematurely closed. Retired catalogue entries are
+   * filtered out separately via `isRideRetired`.
+   *
+   * `openNow` is the boolean for whichever window is relevant to the
+   * caller — `ridesOpenNow` for attractions, `parkOpenNow` for shows.
+   */
+  private rideLiveStatus(ride: NiglolandRide, openNow: boolean): string {
     const name = ride.statusName;
     if (name === 'Fermé') return 'CLOSED';
     if (name === 'En maintenance') return 'REFURBISHMENT';
-    if (name === 'Indéterminé') return this.isRideDataFresh(ride) ? 'OPERATING' : 'CLOSED';
     if (name === 'Ouvert') return 'OPERATING';
+    if (name === 'Indéterminé') {
+      if (this.isRideRetired(ride)) return 'CLOSED';
+      return openNow || this.hasFreshWaitTime(ride) ? 'OPERATING' : 'CLOSED';
+    }
     return 'CLOSED';
   }
 
@@ -360,18 +417,47 @@ export class Nigloland extends Destination {
   // ── Live data ──────────────────────────────────────────────────
 
   protected async buildLiveData(): Promise<LiveData[]> {
-    const {rides, shows} = await this.getPointsOfInterest();
+    // Live data must not be held up by a calendar outage. If /calendar_dates
+    // fails (WAF glitch, transient 5xx, etc.) we fall back to an empty
+    // calendar — rides keep the `hasFreshWaitTime` extension fallback, shows
+    // emit CLOSED until the calendar recovers. The @cache layer makes this
+    // path rare in practice (6h TTL).
+    const [{rides, shows}, calendar] = await Promise.all([
+      this.getPointsOfInterest(),
+      this.getCalendarDates().catch((err) => {
+        console.warn(
+          'Nigloland: /calendar_dates fetch failed, status gate degraded for this tick',
+          err,
+        );
+        return [] as NiglolandCalendarDate[];
+      }),
+    ]);
+    // Rides and shows have different end-of-day windows on fireworks/special
+    // days — rides wind down before the late programme. Gate them separately
+    // against a single `now` snapshot so the two checks can't disagree on
+    // which day it is.
+    const now = new Date();
+    const parkOpenNow = this.isOpenNow(calendar, 'hoursPark', now);
+    const ridesOpenNow = this.isOpenNow(calendar, 'hoursRides', now);
     const liveData: LiveData[] = [];
 
     for (const ride of rides) {
       const id = this.entityId(ride.idNiglo);
       if (!id) continue;
 
-      const status = this.rideLiveStatus(ride);
+      const status = this.rideLiveStatus(ride, ridesOpenNow);
       const ld: LiveData = {id, status} as LiveData;
 
-      // Fermé and stale Indéterminé rides may still carry frozen waitingTime values.
-      if (status === 'OPERATING') {
+      // waitTime emission is independently gated on freshness — never push a
+      // value the upstream hasn't touched in the last WAITTIME_FRESHNESS_MS,
+      // even if we believe the ride is OPERATING per the calendar. Guard on
+      // `!= null` first so a null upstream value doesn't get coerced to a
+      // bogus 0-minute standby via `Number(null)`.
+      if (
+        status === 'OPERATING' &&
+        this.hasFreshWaitTime(ride) &&
+        ride.waitingTime != null
+      ) {
         const waitTime = Number(ride.waitingTime);
         if (Number.isFinite(waitTime)) {
           ld.queue = {STANDBY: {waitTime}};
@@ -387,12 +473,16 @@ export class Nigloland extends Destination {
       if (!id) continue;
 
       const times = Array.isArray(show.showTimes) ? show.showTimes : [];
-      const ld: LiveData = {
-        id,
-        status: mapStatus(show.statusName ?? ''),
-      } as LiveData;
+      // Drive show status directly from the calendar+showtimes gate, not
+      // `statusName`. The upstream uses `Indéterminé` as its idle state for
+      // shows regardless of whether they're running, and we have not observed
+      // any other value carry useful information here. CLOSED entries drop
+      // the showtimes array so the wiki doesn't echo cancelled performances.
+      const status: 'OPERATING' | 'CLOSED' =
+        parkOpenNow && times.length > 0 ? 'OPERATING' : 'CLOSED';
+      const ld: LiveData = {id, status} as LiveData;
 
-      if (times.length > 0) {
+      if (status === 'OPERATING') {
         ld.showtimes = times.map((startTime) => ({
           type: 'PERFORMANCE_TIME',
           startTime,
