@@ -6,7 +6,6 @@ import config from '../../config.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule, ScheduleEntry, TagData} from '@themeparks/typelib';
 import {constructDateTime, formatDate, formatInTimezone, hostnameFromUrl} from '../../datetime.js';
-import {createStatusMap} from '../../statusMap.js';
 import {TagBuilder} from '../../tags/index.js';
 
 const DESTINATION_ID = 'niglolandresort';
@@ -26,12 +25,6 @@ const RIDE_RETIREMENT_MS = 30 * 24 * 60 * 60 * 1000;
 const SCHEDULE_MONTHS_AHEAD = 4;
 /** Safety stop for /calendar_dates pagination. App responses fit in <=3 pages. */
 const CALENDAR_PAGE_LIMIT = 10;
-
-const mapStatus = createStatusMap({
-  OPERATING: ['Ouvert', 'Indéterminé'],
-  CLOSED: ['Fermé'],
-  REFURBISHMENT: ['En maintenance'],
-}, {parkName: 'Nigloland', defaultStatus: 'CLOSED'});
 
 interface NiglolandSizeReference {
   minSize?: number | null;
@@ -277,7 +270,10 @@ export class Nigloland extends Destination {
     calendar: NiglolandCalendarDate[],
     hoursField: 'hoursPark' | 'hoursRides',
   ): boolean {
-    const todayParis = formatDate(new Date(), this.timezone);
+    // Single `now` snapshot so the date lookup and the time comparison can
+    // never straddle a Paris-time midnight rollover.
+    const now = new Date();
+    const todayParis = formatDate(now, this.timezone);
     const entry = calendar.find(
       (e) => typeof e.date === 'string' && e.date.slice(0, 10) === todayParis,
     );
@@ -290,7 +286,7 @@ export class Nigloland extends Destination {
     const hours = primary ?? fallback;
     if (!hours || hours === 'closed') return false;
     // formatInTimezone iso = "YYYY-MM-DDTHH:mm:ss+ZZ:ZZ"; slice 11..16 = "HH:mm"
-    const nowHHMM = formatInTimezone(new Date(), this.timezone, 'iso').slice(11, 16);
+    const nowHHMM = formatInTimezone(now, this.timezone, 'iso').slice(11, 16);
     return nowHHMM >= hours.open && nowHHMM <= hours.close;
   }
 
@@ -437,8 +433,14 @@ export class Nigloland extends Destination {
 
       // waitTime emission is independently gated on freshness — never push a
       // value the upstream hasn't touched in the last WAITTIME_FRESHNESS_MS,
-      // even if we believe the ride is OPERATING per the calendar.
-      if (status === 'OPERATING' && this.hasFreshWaitTime(ride)) {
+      // even if we believe the ride is OPERATING per the calendar. Guard on
+      // `!= null` first so a null upstream value doesn't get coerced to a
+      // bogus 0-minute standby via `Number(null)`.
+      if (
+        status === 'OPERATING' &&
+        this.hasFreshWaitTime(ride) &&
+        ride.waitingTime != null
+      ) {
         const waitTime = Number(ride.waitingTime);
         if (Number.isFinite(waitTime)) {
           ld.queue = {STANDBY: {waitTime}};
@@ -454,13 +456,13 @@ export class Nigloland extends Destination {
       if (!id) continue;
 
       const times = Array.isArray(show.showTimes) ? show.showTimes : [];
-      // Two-tier gate: a show is OPERATING only when the park is open right
-      // now (calendar + clock) AND the upstream still lists showtimes.
-      // Either signal failing emits CLOSED — and CLOSED entries drop the
-      // showtimes array so the wiki doesn't echo cancelled performances.
-      const status = parkOpenNow && times.length > 0
-        ? mapStatus(show.statusName ?? '')
-        : 'CLOSED';
+      // Drive show status directly from the calendar+showtimes gate, not
+      // `statusName`. The upstream uses `Indéterminé` as its idle state for
+      // shows regardless of whether they're running, and we have not observed
+      // any other value carry useful information here. CLOSED entries drop
+      // the showtimes array so the wiki doesn't echo cancelled performances.
+      const status: 'OPERATING' | 'CLOSED' =
+        parkOpenNow && times.length > 0 ? 'OPERATING' : 'CLOSED';
       const ld: LiveData = {id, status} as LiveData;
 
       if (status === 'OPERATING') {
