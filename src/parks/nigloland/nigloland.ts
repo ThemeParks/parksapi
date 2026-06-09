@@ -269,10 +269,10 @@ export class Nigloland extends Destination {
   private isOpenNow(
     calendar: NiglolandCalendarDate[],
     hoursField: 'hoursPark' | 'hoursRides',
+    now: Date,
   ): boolean {
-    // Single `now` snapshot so the date lookup and the time comparison can
-    // never straddle a Paris-time midnight rollover.
-    const now = new Date();
+    // Caller passes `now` so the parkOpenNow / ridesOpenNow pair in
+    // buildLiveData() can't straddle a Paris-time midnight rollover.
     const todayParis = formatDate(now, this.timezone);
     const entry = calendar.find(
       (e) => typeof e.date === 'string' && e.date.slice(0, 10) === todayParis,
@@ -419,9 +419,12 @@ export class Nigloland extends Destination {
       this.getCalendarDates(),
     ]);
     // Rides and shows have different end-of-day windows on fireworks/special
-    // days — rides wind down before the late programme. Gate them separately.
-    const parkOpenNow = this.isOpenNow(calendar, 'hoursPark');
-    const ridesOpenNow = this.isOpenNow(calendar, 'hoursRides');
+    // days — rides wind down before the late programme. Gate them separately
+    // against a single `now` snapshot so the two checks can't disagree on
+    // which day it is.
+    const now = new Date();
+    const parkOpenNow = this.isOpenNow(calendar, 'hoursPark', now);
+    const ridesOpenNow = this.isOpenNow(calendar, 'hoursRides', now);
     const liveData: LiveData[] = [];
 
     for (const ride of rides) {
