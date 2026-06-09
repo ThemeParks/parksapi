@@ -173,6 +173,47 @@ class EnchantedParks extends Destination {
   waterPark?: ParkConfig;
   /** Destination-level geographic location (lat/lng) */
   destinationLocation?: {latitude: number; longitude: number};
+
+  /**
+   * Optional snapshot of per-attraction coordinates, keyed by attraction
+   * name. The EP WordPress source does not expose ride-level lat/lng, so
+   * without this every collector tick proposes deleting the existing
+   * location data on each attraction. Subclasses load a static JSON
+   * snapshot from `locations/<slug>.json` taken when the park was migrated.
+   * Attractions added by EP later will land without coordinates and need
+   * the moderation queue.
+   */
+  protected attractionLocations?: Record<string, {latitude: number; longitude: number}>;
+
+  /**
+   * Lookup table for attractionLocations, keyed by normalized name. Lazily
+   * built on first use so subclasses can assign `attractionLocations` in
+   * the constructor without ordering concerns.
+   */
+  private normalizedLocations?: Map<string, {latitude: number; longitude: number}>;
+
+  /**
+   * Normalize ride names for cross-source matching. The WP source uses
+   * curly apostrophes (’ U+2019) while the wiki snapshot stores straight
+   * ones — without folding both to the same form we lose ~20% of matches.
+   */
+  private normalizeName(name: string): string {
+    return name.replace(/[‘’]/g, "'").toLowerCase();
+  }
+
+  protected lookupAttractionLocation(
+    rideName: string,
+  ): {latitude: number; longitude: number} | undefined {
+    if (!this.attractionLocations) return undefined;
+    if (!this.normalizedLocations) {
+      this.normalizedLocations = new Map(
+        Object.entries(this.attractionLocations).map(
+          ([k, v]) => [this.normalizeName(k), v] as const,
+        ),
+      );
+    }
+    return this.normalizedLocations.get(this.normalizeName(rideName));
+  }
   /** IANA timezone for the destination */
   @config timezone: string = 'America/Chicago';
 
@@ -345,7 +386,7 @@ class EnchantedParks extends Destination {
       }
       parks.push(wpEntity);
       for (const r of wpRides) {
-        attractions.push({
+        const entity: Entity = {
           id: `enchantedparks_attraction_${this.waterPark.code}_${r.slug}`,
           name: r.name,
           entityType: 'ATTRACTION',
@@ -353,7 +394,10 @@ class EnchantedParks extends Destination {
           parkId: this.waterPark.id,
           destinationId: this.destinationId,
           timezone: this.timezone,
-        } as Entity);
+        } as Entity;
+        const loc = this.lookupAttractionLocation(r.name);
+        if (loc) (entity as any).location = loc;
+        attractions.push(entity);
       }
     }
 
@@ -376,7 +420,7 @@ class EnchantedParks extends Destination {
         // ones. Skip slugs already claimed by the waterpark page so they don't
         // double-emit.
         if (waterParkSlugs.has(r.slug)) continue;
-        attractions.push({
+        const entity: Entity = {
           id: `enchantedparks_attraction_${this.themePark.code}_${r.slug}`,
           name: r.name,
           entityType: 'ATTRACTION',
@@ -384,7 +428,10 @@ class EnchantedParks extends Destination {
           parkId: this.themePark.id,
           destinationId: this.destinationId,
           timezone: this.timezone,
-        } as Entity);
+        } as Entity;
+        const loc = this.lookupAttractionLocation(r.name);
+        if (loc) (entity as any).location = loc;
+        attractions.push(entity);
       }
     }
 

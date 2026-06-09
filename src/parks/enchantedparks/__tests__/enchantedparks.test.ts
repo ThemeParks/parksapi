@@ -1,5 +1,5 @@
 import {describe, test, expect} from 'vitest';
-import {parseTribeEvents, type TribeEventsResponse} from '../enchantedparks.js';
+import {parseTribeEvents, type TribeEventsResponse, EnchantedParks} from '../enchantedparks.js';
 import {parseICalFeed} from '../enchantedparks.js';
 import {parseAttractionsPage} from '../enchantedparks.js';
 
@@ -260,5 +260,57 @@ describe('parseAttractionsPage', () => {
 </div>`;
     const out = parseAttractionsPage(beforeHtml);
     expect(out).toEqual([{slug: 'renegade', name: 'Renegade'}]);
+  });
+});
+
+describe('attraction location lookup', () => {
+  // Expose protected `lookupAttractionLocation` for direct testing without
+  // requiring a full destination lifecycle.
+  class Probe extends EnchantedParks {
+    public withLocations(
+      m: Record<string, {latitude: number; longitude: number}>,
+    ): this {
+      this.attractionLocations = m;
+      return this;
+    }
+    public lookup(name: string) {
+      return this.lookupAttractionLocation(name);
+    }
+  }
+
+  const sample = {
+    "Snoopy's Junction":   {latitude: 39.172367, longitude: -94.488782},
+    'Timber Wolf':         {latitude: 39.173334, longitude: -94.488856},
+    'TIMBERTOWN RAILWAY':  {latitude: 43.342000, longitude: -86.275000},
+  };
+
+  test('matches when WP source uses curly apostrophe and snapshot uses straight', () => {
+    const p = new Probe({}).withLocations(sample);
+    // Wiki snapshot has "Snoopy's Junction" (straight ').
+    // WP source emits "Snoopy’s Junction" (curly ’).
+    expect(p.lookup('Snoopy’s Junction')).toEqual({
+      latitude: 39.172367, longitude: -94.488782,
+    });
+  });
+
+  test('matches case-insensitively', () => {
+    const p = new Probe({}).withLocations(sample);
+    expect(p.lookup('timber wolf')).toEqual({
+      latitude: 39.173334, longitude: -94.488856,
+    });
+    // Lookup name uppercase, snapshot key uppercase — still matches.
+    expect(p.lookup('Timbertown Railway')).toEqual({
+      latitude: 43.342000, longitude: -86.275000,
+    });
+  });
+
+  test('returns undefined when the name is not in the snapshot', () => {
+    const p = new Probe({}).withLocations(sample);
+    expect(p.lookup('Definitely Not A Real Ride')).toBeUndefined();
+  });
+
+  test('returns undefined when no snapshot is configured', () => {
+    const p = new Probe({});
+    expect(p.lookup('Timber Wolf')).toBeUndefined();
   });
 });

@@ -1,0 +1,230 @@
+{
+  "Timber Wolf": {
+    "latitude": 39.173334,
+    "longitude": -94.488856
+  },
+  "Snoopy's Junction": {
+    "latitude": 39.172367,
+    "longitude": -94.488782
+  },
+  "Woodstock Gliders": {
+    "latitude": 39.172541,
+    "longitude": -94.487753
+  },
+  "Snoopy's Space Buggies": {
+    "latitude": 39.172441,
+    "longitude": -94.488954
+  },
+  "Bamboozler": {
+    "latitude": 39.174918,
+    "longitude": -94.487801
+  },
+  "Zulu": {
+    "latitude": 39.174225,
+    "longitude": -94.48502
+  },
+  "Linus' Launcher": {
+    "latitude": 39.172388,
+    "longitude": -94.489037
+  },
+  "Flying Dutchman": {
+    "latitude": 39.173635,
+    "longitude": -94.487022
+  },
+  "Sea Dragon": {
+    "latitude": 39.174626,
+    "longitude": -94.48608
+  },
+  "Grand Carrousel": {
+    "latitude": 39.17565,
+    "longitude": -94.48697
+  },
+  "Skyliner": {
+    "latitude": 39.175061,
+    "longitude": -94.488587
+  },
+  "Mustang Runner": {
+    "latitude": 39.173046,
+    "longitude": -94.488022
+  },
+  "Woodstock Whirlybirds": {
+    "latitude": 39.172304,
+    "longitude": -94.487652
+  },
+  "Beagle Brigade Airfield": {
+    "latitude": 39.172572,
+    "longitude": -94.487629
+  },
+  "Detonator": {
+    "latitude": 39.17296,
+    "longitude": -94.487896
+  },
+  "SteelHawk": {
+    "latitude": 39.174111,
+    "longitude": -94.489239
+  },
+  "Prowler": {
+    "latitude": 39.17422,
+    "longitude": -94.48415
+  },
+  "Fjord Fjarlane": {
+    "latitude": 39.175453,
+    "longitude": -94.486041
+  },
+  "Cosmic Coaster": {
+    "latitude": 39.172682,
+    "longitude": -94.488525
+  },
+  "RipCord": {
+    "latitude": 39.174729,
+    "longitude": -94.488271
+  },
+  "Zambezi Zinger": {
+    "latitude": 39.173625,
+    "longitude": -94.485335
+  },
+  "Lucy's Tugboat": {
+    "latitude": 39.171911,
+    "longitude": -94.487507
+  },
+  "Camp Bus": {
+    "latitude": 39.17208,
+    "longitude": -94.48739
+  },
+  "Sally's Swing Set": {
+    "latitude": 39.172099,
+    "longitude": -94.48756
+  },
+  "Nordic Chaser": {
+    "latitude": 39.175028,
+    "longitude": -94.485269
+  },
+  "Boomerang": {
+    "latitude": 39.17328,
+    "longitude": -94.48525
+  },
+  "Flying Ace Balloon Race": {
+    "latitude": 39.171871,
+    "longitude": -94.487975
+  },
+  "Snoopy's Rocket Express": {
+    "latitude": 39.172244,
+    "longitude": -94.488072
+  },
+  "Patriot": {
+    "latitude": 39.174962,
+    "longitude": -94.48898
+  },
+  "Autobahn": {
+    "latitude": 39.174079,
+    "longitude": -94.487485
+  },
+  "Viking Voyager": {
+    "latitude": 39.17505,
+    "longitude": -94.48577
+  },
+  "Crocodile Isle": {
+    "latitude": 39.17127,
+    "longitude": -94.4832
+  },
+  "Snoopy vs. Red Baron": {
+    "latitude": 39.172694,
+    "longitude": -94.488388
+  },
+  "Cyclone Sam's": {
+    "latitude": 39.17317,
+    "longitude": -94.48855
+  },
+  "Worlds of Fun Railroad": {
+    "latitude": 39.173626,
+    "longitude": -94.487705
+  },
+  "Mamba®": {
+    "latitude": 39.171635,
+    "longitude": -94.485313
+  },
+  "Scrambler": {
+    "latitude": 39.174754,
+    "longitude": -94.485133
+  },
+  "Kite Eating Tree": {
+    "latitude": 39.17217,
+    "longitude": -94.487413
+  },
+  "Spinning Dragons": {
+    "latitude": 39.175149,
+    "longitude": -94.488121
+  },
+  "Splash Island": {
+    "latitude": 39.171628,
+    "longitude": -94.481979
+  },
+  "Riptide Raceway": {
+    "latitude": 39.16983,
+    "longitude": -94.481736
+  },
+  "Fury of the Nile": {
+    "latitude": 39.172605,
+    "longitude": -94.485188
+  },
+  "Surf City Wave Pool": {
+    "latitude": 39.169989,
+    "longitude": -94.483588
+  },
+  "Hurricane Falls": {
+    "latitude": 39.16972,
+    "longitude": -94.482959
+  },
+  "Coconut Cove": {
+    "latitude": 39.170937,
+    "longitude": -94.482137
+  },
+  "Captain Kidd's": {
+    "latitude": 39.17104,
+    "longitude": -94.48326
+  },
+  "Predators' Plunge": {
+    "latitude": 39.16981,
+    "longitude": -94.484193
+  },
+  "Sharks' Revenge": {
+    "latitude": 39.16981,
+    "longitude": -94.484193
+  },
+  "Aruba Tuba": {
+    "latitude": 39.171209,
+    "longitude": -94.481564
+  },
+  "Caribbean Cooler": {
+    "latitude": 39.170167,
+    "longitude": -94.482877
+  },
+  "Typhoon": {
+    "latitude": 39.169806,
+    "longitude": -94.481343
+  },
+  "Paradise Falls": {
+    "latitude": 39.170387,
+    "longitude": -94.483705
+  },
+  "Castaway Cove": {
+    "latitude": 39.171461,
+    "longitude": -94.482723
+  },
+  "PEANUTS™ Road Rally": {
+    "latitude": 39.171991,
+    "longitude": -94.487778
+  },
+  "Le TaxiTour": {
+    "latitude": 39.17351,
+    "longitude": -94.48663
+  },
+  "PEANUTS™ 500": {
+    "latitude": 39.171996,
+    "longitude": -94.488005
+  },
+  "Charlie Brown's Windup": {
+    "latitude": 39.172224,
+    "longitude": -94.487678
+  }
+}
