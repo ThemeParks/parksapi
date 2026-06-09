@@ -291,20 +291,23 @@ export class Nigloland extends Destination {
   }
 
   /**
-   * Indéterminé inside the calendar's open window → OPERATING. Outside the
+   * Indéterminé inside the gated open window → OPERATING. Outside the
    * window we still grant OPERATING when upstream is actively polling the
    * ride (fresh waitTime), so weather/crowd extensions past the advertised
    * close don't get prematurely closed. Retired catalogue entries are
    * filtered out separately via `isRideRetired`.
+   *
+   * `openNow` is the boolean for whichever window is relevant to the
+   * caller — `ridesOpenNow` for attractions, `parkOpenNow` for shows.
    */
-  private rideLiveStatus(ride: NiglolandRide, parkOpenNow: boolean): string {
+  private rideLiveStatus(ride: NiglolandRide, openNow: boolean): string {
     const name = ride.statusName;
     if (name === 'Fermé') return 'CLOSED';
     if (name === 'En maintenance') return 'REFURBISHMENT';
     if (name === 'Ouvert') return 'OPERATING';
     if (name === 'Indéterminé') {
       if (this.isRideRetired(ride)) return 'CLOSED';
-      return parkOpenNow || this.hasFreshWaitTime(ride) ? 'OPERATING' : 'CLOSED';
+      return openNow || this.hasFreshWaitTime(ride) ? 'OPERATING' : 'CLOSED';
     }
     return 'CLOSED';
   }
@@ -414,9 +417,20 @@ export class Nigloland extends Destination {
   // ── Live data ──────────────────────────────────────────────────
 
   protected async buildLiveData(): Promise<LiveData[]> {
+    // Live data must not be held up by a calendar outage. If /calendar_dates
+    // fails (WAF glitch, transient 5xx, etc.) we fall back to an empty
+    // calendar — rides keep the `hasFreshWaitTime` extension fallback, shows
+    // emit CLOSED until the calendar recovers. The @cache layer makes this
+    // path rare in practice (6h TTL).
     const [{rides, shows}, calendar] = await Promise.all([
       this.getPointsOfInterest(),
-      this.getCalendarDates(),
+      this.getCalendarDates().catch((err) => {
+        console.warn(
+          'Nigloland: /calendar_dates fetch failed, status gate degraded for this tick',
+          err,
+        );
+        return [] as NiglolandCalendarDate[];
+      }),
     ]);
     // Rides and shows have different end-of-day windows on fireworks/special
     // days — rides wind down before the late programme. Gate them separately
