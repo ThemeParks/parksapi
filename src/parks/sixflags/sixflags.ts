@@ -156,11 +156,26 @@ type SixFlagsOperatingHours = {
 const PARKS_WITHOUT_WAIT_TIMES = new Set([942, 944, 947, 948, 959]);
 
 /**
- * Park IDs to drop entirely — the destination is served by another module so
- * including it here would emit the destination twice.
- * - 14 / VF: Valleyfair (now under enchantedparks)
+ * Park IDs to drop entirely — the destination is served by another module
+ * or has been divested from Six Flags so its venue-status / wait-times
+ * feeds are no longer maintained, leaving the SixFlags class emitting all-
+ * CLOSED garbage.
+ *
+ * On 2026-04-06 Six Flags sold a portfolio of six parks plus Valleyfair to
+ * EPR Properties under 40-year operating leases. Five are operated by
+ * Enchanted Parks; La Ronde is operated by La Ronde Operations under
+ * Premier Parks LLC. The Enchanted Parks parks live under
+ * `src/parks/enchantedparks/`. La Ronde currently has no replacement source.
+ *
+ * - 6   / WF:   Worlds of Fun         → enchantedparks/worldsoffun
+ * - 12  / MA:   Michigan's Adventure  → enchantedparks/michigansadventure
+ * - 14  / VF:   Valleyfair            → enchantedparks/valleyfair
+ * - 27  / GV:   Schlitterbahn Galv.   → no source yet (subdomain not live)
+ * - 903 / SFSL: Six Flags St. Louis   → no source yet (subdomain not live)
+ * - 924 / SFGE: Six Flags Great Esc.  → no source yet (subdomain not live)
+ * - 969 / SFLR: La Ronde              → divested to La Ronde Operations
  */
-const EXCLUDED_PARK_IDS = new Set<number>([14]);
+const EXCLUDED_PARK_IDS = new Set<number>([6, 12, 14, 27, 903, 924, 969]);
 
 /** Default show duration in minutes when not otherwise specified */
 const DEFAULT_SHOW_DURATION_MINUTES = 30;
@@ -440,7 +455,7 @@ export class SixFlags extends Destination {
    * (new fields, new grouping rules like WATERPARK_PARENT_OVERRIDES, …).
    * Old entries become unreachable and expire on their TTL — no manual flush.
    */
-  @cache({ttlSeconds: 86400, cacheVersion: 3})
+  @cache({ttlSeconds: 86400, cacheVersion: 4})
   async getParkData(): Promise<SixFlagsParkData[]> {
     const entries = await this.getFirebaseConfig();
 
