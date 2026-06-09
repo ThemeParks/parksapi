@@ -15,11 +15,11 @@ const PARK_ID = 'nigloland';
 const WAITTIME_FRESHNESS_MS = 30 * 60 * 1000;
 /**
  * Indéterminé rides with `updatedAt` older than this are treated as retired
- * catalogue entries (real ones still point at 2024) and forced to CLOSED.
- * The window is wide because Nigloland operates on a weekends-only schedule
- * for chunks of the year, so an active ride can legitimately sit untouched
- * for several days between operating days. The actual retired entries we've
- * observed are 14+ months stale, well past the threshold.
+ * catalogue entries and forced to CLOSED. The window is wide because
+ * Nigloland operates on a weekends-only schedule for chunks of the year, so
+ * an active ride can legitimately sit untouched for several days between
+ * operating days. Observed retired entries sit at 2024 timestamps — 14+
+ * months stale, well past the threshold.
  */
 const RIDE_RETIREMENT_MS = 30 * 24 * 60 * 60 * 1000;
 /** Months of forward calendar to pull. Mirrors what the mobile app fetches. */
@@ -260,16 +260,34 @@ export class Nigloland extends Destination {
 
   /**
    * True iff the park calendar says today is operating AND the current
-   * Paris-time clock is within today's open/close window. Used as the
-   * primary OPERATING signal — `Indéterminé` is the upstream's idle state
-   * and never flips after hours, so `statusName` alone always over-emits.
+   * Paris-time clock is within today's open/close window for the given
+   * hours field. Used as the primary OPERATING signal — `Indéterminé` is
+   * the upstream's idle state and never flips after hours, so `statusName`
+   * alone always over-emits.
+   *
+   * `hoursPark` and `hoursRides` can differ on fireworks/special days: the
+   * park can stay open for a late programme while rides progressively wind
+   * down. Callers pass the field that matches what they're gating —
+   * `hoursPark` for shows (which run during the late programme), `hoursRides`
+   * for attractions. Missing/unparseable `hoursRides` falls back to
+   * `hoursPark` so normal days (where the two are identical) behave the
+   * same regardless of which field the upstream populates.
    */
-  private isParkOpenNow(calendar: NiglolandCalendarDate[]): boolean {
+  private isOpenNow(
+    calendar: NiglolandCalendarDate[],
+    hoursField: 'hoursPark' | 'hoursRides',
+  ): boolean {
     const todayParis = formatDate(new Date(), this.timezone);
     const entry = calendar.find(
       (e) => typeof e.date === 'string' && e.date.slice(0, 10) === todayParis,
     );
-    const hours = this.parseCalendarHours(entry?.calendarType?.hoursPark);
+    if (!entry) return false;
+    const primary = this.parseCalendarHours(entry.calendarType?.[hoursField]);
+    const fallback =
+      hoursField === 'hoursRides'
+        ? this.parseCalendarHours(entry.calendarType?.hoursPark)
+        : null;
+    const hours = primary ?? fallback;
     if (!hours || hours === 'closed') return false;
     // formatInTimezone iso = "YYYY-MM-DDTHH:mm:ss+ZZ:ZZ"; slice 11..16 = "HH:mm"
     const nowHHMM = formatInTimezone(new Date(), this.timezone, 'iso').slice(11, 16);
@@ -404,14 +422,17 @@ export class Nigloland extends Destination {
       this.getPointsOfInterest(),
       this.getCalendarDates(),
     ]);
-    const parkOpenNow = this.isParkOpenNow(calendar);
+    // Rides and shows have different end-of-day windows on fireworks/special
+    // days — rides wind down before the late programme. Gate them separately.
+    const parkOpenNow = this.isOpenNow(calendar, 'hoursPark');
+    const ridesOpenNow = this.isOpenNow(calendar, 'hoursRides');
     const liveData: LiveData[] = [];
 
     for (const ride of rides) {
       const id = this.entityId(ride.idNiglo);
       if (!id) continue;
 
-      const status = this.rideLiveStatus(ride, parkOpenNow);
+      const status = this.rideLiveStatus(ride, ridesOpenNow);
       const ld: LiveData = {id, status} as LiveData;
 
       // waitTime emission is independently gated on freshness — never push a
