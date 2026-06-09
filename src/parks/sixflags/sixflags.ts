@@ -161,11 +161,12 @@ const PARKS_WITHOUT_WAIT_TIMES = new Set([942, 944, 947, 948, 959]);
  * feeds are no longer maintained, leaving the SixFlags class emitting all-
  * CLOSED garbage.
  *
- * On 2026-04-06 Six Flags sold a portfolio of six parks plus Valleyfair to
- * EPR Properties under 40-year operating leases. Five are operated by
- * Enchanted Parks; La Ronde is operated by La Ronde Operations under
- * Premier Parks LLC. The Enchanted Parks parks live under
- * `src/parks/enchantedparks/`. La Ronde currently has no replacement source.
+ * Between 2026-04-06 and 2026-05-14, Six Flags divested seven parks
+ * (including Valleyfair) to EPR Properties under 40-year operating
+ * leases. Six are operated by Enchanted Parks (WF, MA, VF, GV, SFSL,
+ * SFGE) and live under `src/parks/enchantedparks/`. La Ronde is operated
+ * by La Ronde Operations under Premier Parks LLC and currently has no
+ * replacement source.
  *
  * - 6   / WF:   Worlds of Fun         → enchantedparks/worldsoffun
  * - 12  / MA:   Michigan's Adventure  → enchantedparks/michigansadventure

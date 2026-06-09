@@ -2,14 +2,14 @@ import {EnchantedParks} from './enchantedparks.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {DestinationConstructor} from '../../destination.js';
 
-@destinationController({category: ['Enchanted Parks', "Michigan's Adventure"]})
+@destinationController({category: ['Enchanted Parks', 'Michigan\'s Adventure']})
 export class MichigansAdventure extends EnchantedParks {
   constructor(options?: DestinationConstructor) {
     super({
       ...options,
       config: {
         destinationId: 'enchantedparks_michigansadventure',
-        destinationName: "Michigan's Adventure",
+        destinationName: 'Michigan\'s Adventure',
         timezone: 'America/Detroit',
         ...(options?.config ?? {}),
       },
@@ -18,7 +18,7 @@ export class MichigansAdventure extends EnchantedParks {
     this.themePark ??= {
       id: 'enchantedparks_park_MA',
       code: 'MA',
-      name: "Michigan's Adventure",
+      name: 'Michigan\'s Adventure',
       ridesPath: 'attractions',
       scheduleCategory: 'Park Hours',
       location: {latitude: 43.3411, longitude: -86.2625},
