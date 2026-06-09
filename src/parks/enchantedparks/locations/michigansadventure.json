@@ -1,0 +1,218 @@
+{
+  "Winky the Whale": {
+    "latitude": 43.342773,
+    "longitude": -86.280718
+  },
+  "Thunderbolt": {
+    "latitude": 43.341675,
+    "longitude": -86.277131
+  },
+  "Sea Dragon": {
+    "latitude": 43.342564,
+    "longitude": -86.27798
+  },
+  "Beagle Scout Lookout": {
+    "latitude": 43.343597,
+    "longitude": -86.280306
+  },
+  "Shivering Timbers": {
+    "latitude": 43.342224,
+    "longitude": -86.277034
+  },
+  "Drummer Boy": {
+    "latitude": 43.342201,
+    "longitude": -86.279457
+  },
+  "Airplanes": {
+    "latitude": 43.342281,
+    "longitude": -86.279455
+  },
+  "Carousel": {
+    "latitude": 43.343565,
+    "longitude": -86.279765
+  },
+  "Corkscrew": {
+    "latitude": 43.34301,
+    "longitude": -86.279631
+  },
+  "Speed Splashers": {
+    "latitude": 43.342513,
+    "longitude": -86.280644
+  },
+  "Zach's Zoomer": {
+    "latitude": 43.342938,
+    "longitude": -86.280651
+  },
+  "Ripcord": {
+    "latitude": 43.345541,
+    "longitude": -86.278429
+  },
+  "Trabant": {
+    "latitude": 43.341882,
+    "longitude": -86.277996
+  },
+  "Mad Mouse": {
+    "latitude": 43.341757,
+    "longitude": -86.279171
+  },
+  "Thunderhawk": {
+    "latitude": 43.345384,
+    "longitude": -86.27728
+  },
+  "Tilt-A-Whirl": {
+    "latitude": 43.341822,
+    "longitude": -86.27771
+  },
+  "Timbertown Railway": {
+    "latitude": 43.342706,
+    "longitude": -86.276606
+  },
+  "Pigpen's Mud Buggies": {
+    "latitude": 43.343341,
+    "longitude": -86.280302
+  },
+  "Motorcycles": {
+    "latitude": 43.342732,
+    "longitude": -86.280518
+  },
+  "Scrambler": {
+    "latitude": 43.341889,
+    "longitude": -86.277053
+  },
+  "Elephants": {
+    "latitude": 43.342436,
+    "longitude": -86.279371
+  },
+  "Giant Gondola Wheel": {
+    "latitude": 43.342019,
+    "longitude": -86.279445
+  },
+  "Woodstock Express": {
+    "latitude": 43.343539,
+    "longitude": -86.2804
+  },
+  "Dodgem": {
+    "latitude": 43.342396,
+    "longitude": -86.279114
+  },
+  "Frog Hopper": {
+    "latitude": 43.341773,
+    "longitude": -86.27933
+  },
+  "Wolverine Wildcat": {
+    "latitude": 43.342652,
+    "longitude": -86.277388
+  },
+  "Kiddie Cars": {
+    "latitude": 43.3428,
+    "longitude": -86.280488
+  },
+  "Lakeside Gliders": {
+    "latitude": 43.342605,
+    "longitude": -86.278948
+  },
+  "Flying Trapeze": {
+    "latitude": 43.341704,
+    "longitude": -86.277788
+  },
+  "Camp Bus": {
+    "latitude": 43.343789,
+    "longitude": -86.280262
+  },
+  "Boogie Beach": {
+    "latitude": 43.345329,
+    "longitude": -86.281135
+  },
+  "HydroBlaster": {
+    "latitude": 43.345608,
+    "longitude": -86.278838
+  },
+  "Funnel of Fear": {
+    "latitude": 43.345487,
+    "longitude": -86.279475
+  },
+  "PEANUTS™ Trailblazers": {
+    "latitude": 43.343129,
+    "longitude": -86.280398
+  },
+  "Timbertown Railway Station #2": {
+    "latitude": 43.34488,
+    "longitude": -86.27638
+  },
+  "Ridge Rider & Wild Slide": {
+    "latitude": 43.346557,
+    "longitude": -86.278725
+  },
+  "Slidewinders": {
+    "latitude": 43.345435,
+    "longitude": -86.280595
+  },
+  "Tidal Wave": {
+    "latitude": 43.345972,
+    "longitude": -86.279747
+  },
+  "Adventure Falls": {
+    "latitude": 43.345524,
+    "longitude": -86.277304
+  },
+  "Grand Rapids": {
+    "latitude": 43.34553,
+    "longitude": -86.276354
+  },
+  "Logger's Run": {
+    "latitude": 43.342433,
+    "longitude": -86.277639
+  },
+  "Swan Boats": {
+    "latitude": 43.345437,
+    "longitude": -86.278775
+  },
+  "Commotion Ocean": {
+    "latitude": 43.344728,
+    "longitude": -86.280463
+  },
+  "Half-Pint Paradise": {
+    "latitude": 43.345403,
+    "longitude": -86.280094
+  },
+  "Paradise Plunge & Tropical Twist": {
+    "latitude": 43.344842,
+    "longitude": -86.2799
+  },
+  "Beach Party": {
+    "latitude": 43.344748,
+    "longitude": -86.280298
+  },
+  "Cyclone Zone": {
+    "latitude": 43.346623,
+    "longitude": -86.278735
+  },
+  "Lazy River": {
+    "latitude": 43.346108,
+    "longitude": -86.27945
+  },
+  "Mammoth River": {
+    "latitude": 43.346014,
+    "longitude": -86.280555
+  },
+  "Mine Shaft": {
+    "latitude": 43.345956,
+    "longitude": -86.28073
+  },
+  "Snake Pit": {
+    "latitude": 43.344853,
+    "longitude": -86.281038
+  },
+  "Rocky Point Mini-Golf": {
+    "latitude": 43.343669,
+    "longitude": -86.279123
+  },
+  "Lagoon": {
+    "latitude": 43.34521,
+    "longitude": -86.280811
+  },
+  "Beagle Scout Acres": {
+    "latitude": 43.343195,
+    "longitude": -86.279981
+  }
+}
