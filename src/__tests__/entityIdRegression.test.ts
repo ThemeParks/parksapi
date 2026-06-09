@@ -146,6 +146,38 @@ describe('Destination ID patterns', () => {
     expect(destinations[0]?.id).not.toBe('valleyfair');
   });
 
+  test('Worlds of Fun park class is registered under the Enchanted Parks umbrella', async () => {
+    const destinations = await getAllDestinations();
+    const ids = destinations.map(d => d.id);
+    expect(ids).toContain('worldsoffun');
+    const wof = destinations.find(d => d.id === 'worldsoffun');
+    expect(wof?.category).toEqual(['Enchanted Parks', 'Worlds of Fun']);
+  });
+
+  test('Worlds of Fun emits enchantedparks-namespaced DESTINATION entity id', async () => {
+    const {WorldsOfFun} = await import('../parks/enchantedparks/worldsoffun.js');
+    const dest = new WorldsOfFun({});
+    const destinations = await dest.getDestinations();
+    expect(destinations[0]?.id).toBe('enchantedparks_worldsoffun');
+    expect(destinations[0]?.id).not.toBe('worldsoffun');
+  });
+
+  test('Michigan\'s Adventure park class is registered under the Enchanted Parks umbrella', async () => {
+    const destinations = await getAllDestinations();
+    const ids = destinations.map(d => d.id);
+    expect(ids).toContain('michigansadventure');
+    const ma = destinations.find(d => d.id === 'michigansadventure');
+    expect(ma?.category).toEqual(['Enchanted Parks', 'Michigan\'s Adventure']);
+  });
+
+  test('Michigan\'s Adventure emits enchantedparks-namespaced DESTINATION entity id', async () => {
+    const {MichigansAdventure} = await import('../parks/enchantedparks/michigansadventure.js');
+    const dest = new MichigansAdventure({});
+    const destinations = await dest.getDestinations();
+    expect(destinations[0]?.id).toBe('enchantedparks_michigansadventure');
+    expect(destinations[0]?.id).not.toBe('michigansadventure');
+  });
+
   test('Attractions.io v1 Merlin parks are registered individually', async () => {
     const destinations = await getAllDestinations();
     const merlin = destinations.filter(d =>
