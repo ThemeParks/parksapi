@@ -37,12 +37,28 @@ type TDRFacility = {
   longitude?: number;
 };
 
+type TDRAttractionConditionOperating = {
+  startAt: string;
+  endAt: string;
+  /** PREPARATION | OPEN_NOTICE | CLOSE_NOTICE */
+  operatingStatus?: string;
+  operatingStatusMessage?: string;
+  isSunset?: boolean;
+  /** e.g. "SUSPEND" */
+  passAcceptanceType?: string;
+};
+
 type TDRAttractionCondition = {
   facilityCode: string;
+  /** v7: CANCEL | CONFIRM_STATUS | CONFIRM_SCHEDULE — absent when operatings[] drives the state */
   facilityStatus?: string;
+  facilityStatusMessage?: string;
   standbyTime?: number;
+  /** NORMAL | FIXED | HIDE — HIDE means do not surface the wait time even when operating */
+  standbyTimeDisplayType?: string;
   premierAccessStatus?: string;
   priorityPassStatus?: string;
+  operatings?: TDRAttractionConditionOperating[];
 };
 
 type TDRCalendarEntry = {
@@ -67,6 +83,56 @@ type TDRFacilitiesResponse = {
   restaurants: TDRFacility[];
   [key: string]: TDRFacility[];
 };
+
+// ============================================================================
+// Pure helpers (exported for unit tests)
+// ============================================================================
+
+/**
+ * Map a v7 attraction condition to our standard status.
+ *
+ * Decoding order matters — a top-level `facilityStatus` overrides the per-window state:
+ *   CANCEL           → CLOSED (whole day cancelled)
+ *   CONFIRM_STATUS   → DOWN   (issue, status to be confirmed)
+ *   CONFIRM_SCHEDULE → CLOSED (schedule not yet announced)
+ * Otherwise pick the `operatings[]` window containing `now`:
+ *   OPEN_NOTICE  → OPERATING
+ *   CLOSE_NOTICE → DOWN
+ *   PREPARATION  → CLOSED (about to open, not yet operating)
+ * Outside every window or no operatings at all → CLOSED.
+ */
+export function mapAttractionStatus(
+  condition: TDRAttractionCondition,
+  now: Date,
+): string {
+  switch (condition.facilityStatus) {
+    case 'CANCEL':
+    case 'CONFIRM_SCHEDULE':
+      return 'CLOSED';
+    case 'CONFIRM_STATUS':
+      return 'DOWN';
+  }
+
+  const nowMs = now.getTime();
+  const currentWindow = (condition.operatings || []).find((op) => {
+    const startMs = Date.parse(op.startAt);
+    const endMs = Date.parse(op.endAt);
+    if (Number.isNaN(startMs) || Number.isNaN(endMs)) return false;
+    return nowMs >= startMs && nowMs <= endMs;
+  });
+
+  if (!currentWindow) return 'CLOSED';
+
+  switch (currentWindow.operatingStatus) {
+    case 'OPEN_NOTICE':
+      return 'OPERATING';
+    case 'CLOSE_NOTICE':
+      return 'DOWN';
+    case 'PREPARATION':
+    default:
+      return 'CLOSED';
+  }
+}
 
 // ============================================================================
 // Destination Implementation
@@ -215,9 +281,9 @@ export class TokyoDisneyResort extends Destination {
     try {
       const resp = await this.fetchAppVersion();
       const data = await resp.json();
-      return data?.version || this.apiVersion || '3.0.16';
+      return data?.version || this.apiVersion || '3.11.7';
     } catch {
-      return this.apiVersion || '3.0.16';
+      return this.apiVersion || '3.11.7';
     }
   }
 
@@ -293,13 +359,18 @@ export class TokyoDisneyResort extends Destination {
   }
 
   /**
-   * Fetch live conditions (wait times + statuses)
+   * Fetch live conditions (wait times + statuses).
+   *
+   * Bumped v6 → v7 in app 3.11.7 (2026-06-12). v6 now returns 404. The v7 response shape:
+   *  - `facilityStatus` enum shrunk to CANCEL / CONFIRM_STATUS / CONFIRM_SCHEDULE — "OPEN" is gone
+   *  - operating-vs-down lives in `operatings[]` windows with `operatingStatus`: OPEN_NOTICE | CLOSE_NOTICE | PREPARATION
+   *  - `standbyTimeDisplayType` (NORMAL | FIXED | HIDE) gates whether `standbyTime` should be surfaced
    */
   @http({cacheSeconds: 60})
   async fetchConditions(): Promise<HTTPObj> {
     return {
       method: 'GET',
-      url: `${this.apiBase}/rest/v6/facilities/conditions`,
+      url: `${this.apiBase}/rest/v7/facilities/conditions`,
       options: {json: true},
     } as HTTPObj;
   }
@@ -358,24 +429,8 @@ export class TokyoDisneyResort extends Destination {
     });
   }
 
-  /**
-   * Map TDR facility status to our standard status
-   */
-  private mapStatus(condition: TDRAttractionCondition): string {
-    switch (condition.facilityStatus) {
-      case 'OPEN':
-        return 'OPERATING';
-      case 'CANCEL':
-        return 'CLOSED';
-      case 'CLOSE_NOTICE':
-        return 'DOWN';
-      default:
-        // If there's a standby time, it's operating; otherwise closed
-        if (condition.standbyTime != null && condition.standbyTime > 0) {
-          return 'OPERATING';
-        }
-        return 'CLOSED';
-    }
+  private mapStatus(condition: TDRAttractionCondition, now: Date = new Date()): string {
+    return mapAttractionStatus(condition, now);
   }
 
   // ===== Data Builder Methods =====
@@ -504,19 +559,29 @@ export class TokyoDisneyResort extends Destination {
       return liveData;
     }
 
+    // Hoist once so all attractions agree on "now" across this build.
+    const now = new Date();
+
     for (const attr of conditions.attractions) {
       if (!attr.facilityCode) continue;
 
-      const status = this.mapStatus(attr);
+      const status = this.mapStatus(attr, now);
       const ld: LiveData = {
         id: String(attr.facilityCode),
         status,
       } as LiveData;
 
+      // Suppress wait time when the upstream UI is set to HIDE (e.g. continuous-flow
+      // attractions, walkthroughs, paid-only experiences) even if status is OPERATING.
+      const showStandby = attr.standbyTimeDisplayType !== 'HIDE';
+
       // Standby queue
       ld.queue = {
         STANDBY: {
-          waitTime: status === 'OPERATING' ? (attr.standbyTime ?? undefined) : undefined,
+          waitTime:
+            status === 'OPERATING' && showStandby
+              ? (attr.standbyTime ?? undefined)
+              : undefined,
         },
       };
 
