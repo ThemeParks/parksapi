@@ -1,5 +1,5 @@
-import {describe, test, expect} from 'vitest';
-import {mapAttractionStatus} from '../tokyodisneyresort.js';
+import {describe, test, expect, vi, beforeEach, afterEach} from 'vitest';
+import {mapAttractionStatus, TokyoDisneyResort} from '../tokyodisneyresort.js';
 
 const NOON_JST_UTC = '2026-06-17T03:00:00.000Z'; // 12:00 JST = parks open
 
@@ -99,5 +99,89 @@ describe('mapAttractionStatus (v7)', () => {
       facilityCode: '101',
       operatings: [{...windowAround('OPEN_NOTICE'), operatingStatus: 'SOMETHING_NEW'}],
     }, now)).toBe('CLOSED');
+  });
+});
+
+describe('buildLiveData — standbyTimeDisplayType handling', () => {
+  let probe: TokyoDisneyResort;
+
+  beforeEach(() => {
+    // Pin "now" to a moment inside the standard test window so the operatings[]
+    // entries below all match deterministically.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(NOON_JST_UTC));
+    probe = new TokyoDisneyResort({});
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const openWindow = () => [{
+    startAt: '2026-06-17T00:00:00.000Z',
+    endAt:   '2026-06-17T12:00:00.000Z',
+    operatingStatus: 'OPEN_NOTICE',
+  }];
+
+  test('standbyTimeDisplayType=NORMAL surfaces the wait time', async () => {
+    vi.spyOn(probe, 'getConditions').mockResolvedValue({
+      attractions: [{
+        facilityCode: 'A1',
+        standbyTime: 25,
+        standbyTimeDisplayType: 'NORMAL',
+        operatings: openWindow(),
+      }],
+    } as any);
+
+    const ld = await (probe as any).buildLiveData();
+    expect(ld).toHaveLength(1);
+    expect(ld[0].status).toBe('OPERATING');
+    expect(ld[0].queue.STANDBY.waitTime).toBe(25);
+  });
+
+  test('standbyTimeDisplayType=HIDE suppresses waitTime even when OPERATING', async () => {
+    vi.spyOn(probe, 'getConditions').mockResolvedValue({
+      attractions: [{
+        facilityCode: 'A2',
+        standbyTime: 25,
+        standbyTimeDisplayType: 'HIDE',
+        operatings: openWindow(),
+      }],
+    } as any);
+
+    const ld = await (probe as any).buildLiveData();
+    expect(ld).toHaveLength(1);
+    expect(ld[0].status).toBe('OPERATING');
+    expect(ld[0].queue.STANDBY.waitTime).toBeUndefined();
+  });
+
+  test('standbyTimeDisplayType=FIXED still surfaces the wait time', async () => {
+    vi.spyOn(probe, 'getConditions').mockResolvedValue({
+      attractions: [{
+        facilityCode: 'A3',
+        standbyTime: 10,
+        standbyTimeDisplayType: 'FIXED',
+        operatings: openWindow(),
+      }],
+    } as any);
+
+    const ld = await (probe as any).buildLiveData();
+    expect(ld[0].queue.STANDBY.waitTime).toBe(10);
+  });
+
+  test('CLOSED attractions never emit waitTime regardless of displayType', async () => {
+    vi.spyOn(probe, 'getConditions').mockResolvedValue({
+      attractions: [{
+        facilityCode: 'A4',
+        facilityStatus: 'CANCEL',
+        standbyTime: 25,
+        standbyTimeDisplayType: 'NORMAL',
+        operatings: [],
+      }],
+    } as any);
+
+    const ld = await (probe as any).buildLiveData();
+    expect(ld[0].status).toBe('CLOSED');
+    expect(ld[0].queue.STANDBY.waitTime).toBeUndefined();
   });
 });
