@@ -133,7 +133,10 @@ describe('Per-Destination Proxy Injection', () => {
     const req = createMockRequest();
     await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
 
-    expect(req.url).toBe('https://api.scrapfly.io/scrape?url=https%3A%2F%2Fexample.com%2Fapi%2Fdata&key=test-key');
+    // Scrapfly params live in queryParams (merged into the URL only at
+    // buildUrl() time) — req.url stays the bare endpoint so logs don't leak.
+    expect(req.url).toBe('https://api.scrapfly.io/scrape');
+    expect(req.queryParams).toMatchObject({url: 'https://example.com/api/data', key: 'test-key'});
   });
 
   it('should forward request headers to Scrapfly as headers[] params', async () => {
@@ -148,8 +151,12 @@ describe('Per-Destination Proxy Injection', () => {
     req.headers = {'x-api-key': 'fake-key-123', 'X-Custom-Auth': 'fake-token'};
     await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
 
-    expect(req.url).toContain('headers%5Bx-api-key%5D=fake-key-123');
-    expect(req.url).toContain('headers%5BX-Custom-Auth%5D=fake-token');
+    expect(req.queryParams!['headers[x-api-key]']).toBe('fake-key-123');
+    expect(req.queryParams!['headers[X-Custom-Auth]']).toBe('fake-token');
+    // Secrets must NOT be baked into req.url (logged verbatim on retry/trace),
+    // and the original request headers are cleared after forwarding.
+    expect(req.url).toBe('https://api.scrapfly.io/scrape');
+    expect(req.headers).toEqual({});
   });
 
   it('should not forward hop-by-hop headers to Scrapfly', async () => {
@@ -168,12 +175,12 @@ describe('Per-Destination Proxy Injection', () => {
     };
     await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
 
-    expect(req.url).not.toContain('headers%5Bhost%5D');
-    expect(req.url).not.toContain('headers%5Bcontent-length%5D');
-    expect(req.url).not.toContain('headers%5Bconnection%5D');
-    expect(req.url).not.toContain('headers%5Baccept-encoding%5D');
+    expect(req.queryParams).not.toHaveProperty('headers[host]');
+    expect(req.queryParams).not.toHaveProperty('headers[content-length]');
+    expect(req.queryParams).not.toHaveProperty('headers[connection]');
+    expect(req.queryParams).not.toHaveProperty('headers[accept-encoding]');
     // Non-hop-by-hop headers still forwarded
-    expect(req.url).toContain('headers%5Bx-api-key%5D=keep-me');
+    expect(req.queryParams!['headers[x-api-key]']).toBe('keep-me');
   });
 
   it('should forward method and body for non-GET requests and call Scrapfly via GET', async () => {
@@ -187,8 +194,8 @@ describe('Per-Destination Proxy Injection', () => {
     req.body = '{"foo":"bar"}';
     await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
 
-    expect(req.url).toContain('method=POST');
-    expect(req.url).toContain('body=%7B%22foo%22%3A%22bar%22%7D');
+    expect(req.queryParams!.method).toBe('POST');
+    expect(req.queryParams!.body).toBe('{"foo":"bar"}');
     // The request TO Scrapfly is itself a GET (Scrapfly performs the POST to the target)
     expect(req.method).toBe('GET');
     expect(req.body).toBeUndefined();
@@ -205,7 +212,7 @@ describe('Per-Destination Proxy Injection', () => {
     req.body = {foo: 'bar'};
     await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
 
-    expect(req.url).toContain('body=%7B%22foo%22%3A%22bar%22%7D');
+    expect(req.queryParams!.body).toBe('{"foo":"bar"}');
   });
 
   it('should leave GET requests without a method/body param', async () => {
@@ -217,8 +224,26 @@ describe('Per-Destination Proxy Injection', () => {
     const req = createMockRequest();
     await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
 
-    expect(req.url).not.toContain('method=');
-    expect(req.url).not.toContain('body=');
+    expect(req.queryParams).not.toHaveProperty('method');
+    expect(req.queryParams).not.toHaveProperty('body');
+  });
+
+  it('should fold the request queryParams into the Scrapfly target url param', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest('https://example.com/api/data');
+    // Target's own query params must survive proxying (Scrapfly fetches `url` verbatim).
+    req.queryParams = {region: 'jp', limit: '10'};
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(req.queryParams!.url).toBe('https://example.com/api/data?region=jp&limit=10');
+    // The target params are NOT left as top-level params on the Scrapfly call.
+    expect(req.queryParams).not.toHaveProperty('region');
+    expect(req.queryParams).not.toHaveProperty('limit');
+    expect(req.url).toBe('https://api.scrapfly.io/scrape');
   });
 
   it('should set proxyUrl for basic proxy', async () => {

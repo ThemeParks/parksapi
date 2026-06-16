@@ -272,10 +272,18 @@ export abstract class Destination {
 
     if (this.proxyConfig.scrapfly) {
       const sf = this.proxyConfig.scrapfly;
-      const params = new URLSearchParams({url: req.url, key: sf.apikey});
-      if (sf.params) {
-        for (const [k, v] of Object.entries(sf.params)) params.set(k, v);
+
+      // Fold the request's own query params into the target URL so they survive
+      // proxying — Scrapfly fetches the `url` param verbatim and would otherwise
+      // drop them (and they'd leak onto the Scrapfly call via buildUrl()).
+      const targetUrl = new URL(req.url);
+      if (req.queryParams) {
+        for (const [k, v] of Object.entries(req.queryParams)) targetUrl.searchParams.append(k, v);
       }
+
+      const sfParams: Record<string, string> = {url: targetUrl.toString(), key: sf.apikey};
+      if (sf.params) Object.assign(sfParams, sf.params);
+
       // Scrapfly's REST endpoint only sends headers/method/body to the TARGET
       // when passed as explicit params — it does not forward the inbound
       // request's own headers or body. Without this, APIs that authenticate via
@@ -286,22 +294,29 @@ export abstract class Destination {
         for (const [name, value] of Object.entries(req.headers)) {
           if (value == null) continue;
           if (SCRAPFLY_SKIP_HEADERS.has(name.toLowerCase())) continue;
-          params.set(`headers[${name}]`, String(value));
+          sfParams[`headers[${name}]`] = String(value);
         }
       }
       const method = (req.method || 'GET').toUpperCase();
       if (method !== 'GET') {
-        params.set('method', method);
+        sfParams.method = method;
         if (req.body != null) {
-          params.set('body', typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
+          sfParams.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
         }
         // The call TO Scrapfly is itself a GET; Scrapfly performs the
-        // method/body against the target. Clear them so the body isn't also
-        // sent to api.scrapfly.io.
+        // method/body against the target.
         req.method = 'GET';
         req.body = undefined;
       }
-      req.url = `https://api.scrapfly.io/scrape?${params.toString()}`;
+
+      // Keep the Scrapfly key, forwarded auth headers and body in queryParams
+      // (merged into the final URL only at buildUrl() time) rather than baking
+      // them into req.url — trace/retry logging prints req.url verbatim, so this
+      // keeps secrets out of the logs. Auth now travels as params, so clear the
+      // request headers too (they'd otherwise be sent to api.scrapfly.io).
+      req.headers = {};
+      req.url = 'https://api.scrapfly.io/scrape';
+      req.queryParams = sfParams;
       return;
     }
 
