@@ -113,6 +113,18 @@ export type EntityMapperConfig<T> = {
 };
 
 // Base class for all destinations
+// Hop-by-hop / transport-managed headers that must not be forwarded to a
+// target through Scrapfly — they describe the connection to the proxy, not the
+// target request, and forwarding them corrupts it.
+const SCRAPFLY_SKIP_HEADERS = new Set([
+  'host',
+  'content-length',
+  'connection',
+  'keep-alive',
+  'transfer-encoding',
+  'accept-encoding',
+]);
+
 export abstract class Destination {
   // Global proxy config — loaded once from GLOBAL_* env vars, shared across all destinations
   private static globalProxyConfig: ProxyConfig | null = null;
@@ -260,11 +272,61 @@ export abstract class Destination {
 
     if (this.proxyConfig.scrapfly) {
       const sf = this.proxyConfig.scrapfly;
-      const params = new URLSearchParams({url: req.url, key: sf.apikey});
-      if (sf.params) {
-        for (const [k, v] of Object.entries(sf.params)) params.set(k, v);
+
+      // Fold the request's own query params into the target URL so they survive
+      // proxying — Scrapfly fetches the `url` param verbatim and would otherwise
+      // drop them (and they'd leak onto the Scrapfly call via buildUrl()).
+      const targetUrl = new URL(req.url);
+      if (req.queryParams) {
+        for (const [k, v] of Object.entries(req.queryParams)) targetUrl.searchParams.append(k, v);
       }
-      req.url = `https://api.scrapfly.io/scrape?${params.toString()}`;
+
+      const sfParams: Record<string, string> = {url: targetUrl.toString(), key: sf.apikey};
+      if (sf.params) Object.assign(sfParams, sf.params);
+
+      // Scrapfly's REST endpoint only sends headers/method/body to the TARGET
+      // when passed as explicit params — it does not forward the inbound
+      // request's own headers or body. Without this, APIs that authenticate via
+      // custom headers (e.g. an x-api-key header) fail with 401 through
+      // Scrapfly. Forward the request's headers (minus hop-by-hop), method, and
+      // body so authenticated requests behave the same as direct.
+      if (req.headers) {
+        for (const [name, value] of Object.entries(req.headers)) {
+          if (value == null) continue;
+          if (SCRAPFLY_SKIP_HEADERS.has(name.toLowerCase())) continue;
+          sfParams[`headers[${name}]`] = String(value);
+        }
+      }
+      // buildHeaders() adds Content-Type/Accept for options.json requests; those
+      // are applied at send time and aren't in req.headers, so forward them too
+      // — otherwise a proxied JSON POST reaches the target without Content-Type.
+      // Skip if the request already set them explicitly (case-insensitive).
+      if (req.options?.json) {
+        const hasHeader = (h: string) =>
+          Object.keys(req.headers ?? {}).some((k) => k.toLowerCase() === h);
+        if (!hasHeader('content-type')) sfParams['headers[Content-Type]'] = 'application/json';
+        if (!hasHeader('accept')) sfParams['headers[Accept]'] = 'application/json';
+      }
+      const method = (req.method || 'GET').toUpperCase();
+      if (method !== 'GET') {
+        sfParams.method = method;
+        if (req.body != null) {
+          sfParams.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+        }
+        // The call TO Scrapfly is itself a GET; Scrapfly performs the
+        // method/body against the target.
+        req.method = 'GET';
+        req.body = undefined;
+      }
+
+      // Keep the Scrapfly key, forwarded auth headers and body in queryParams
+      // (merged into the final URL only at buildUrl() time) rather than baking
+      // them into req.url — trace/retry logging prints req.url verbatim, so this
+      // keeps secrets out of the logs. Auth now travels as params, so clear the
+      // request headers too (they'd otherwise be sent to api.scrapfly.io).
+      req.headers = {};
+      req.url = 'https://api.scrapfly.io/scrape';
+      req.queryParams = sfParams;
       return;
     }
 

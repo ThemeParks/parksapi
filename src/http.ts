@@ -7,7 +7,8 @@ import {broadcast} from "./injector.js";
 import {tracing} from "./tracing.js";
 import Ajv, {type DefinedError} from "ajv";
 // Note: basic proxy URL is now set per-request via proxyUrl property (injected by Destination._injectProxy)
-import {makeHttpRequest} from "./httpProxy.js";
+import {makeHttpRequest, redactProxyUrlSecrets} from "./httpProxy.js";
+export {redactProxyUrlSecrets};
 const ajv = new Ajv.default();
 
 // OpenAPI-like parameter definition
@@ -487,7 +488,7 @@ class HTTPRequestImpl implements HTTPObj {
       } catch { /* ignore */ }
       throw new Error(
         `HTTP request not OK: ${response.status} ${response.statusText}\n` +
-        `  URL: ${this.method} ${urlToFetch}\n` +
+        `  URL: ${this.method} ${redactProxyUrlSecrets(urlToFetch)}\n` +
         (bodySnippet ? `  Body: ${bodySnippet}\n` : '')
       );
     }

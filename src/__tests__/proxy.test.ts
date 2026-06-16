@@ -1,7 +1,7 @@
 // Tests for proxy injection system
 import {loadProxyConfig, hasProxyConfig, type ProxyConfig} from '../proxy';
 import {Destination} from '../destination';
-import {HTTPObj} from '../http';
+import {HTTPObj, redactProxyUrlSecrets} from '../http';
 import {broadcast} from '../injector';
 import {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import config from '../config';
@@ -133,7 +133,149 @@ describe('Per-Destination Proxy Injection', () => {
     const req = createMockRequest();
     await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
 
-    expect(req.url).toBe('https://api.scrapfly.io/scrape?url=https%3A%2F%2Fexample.com%2Fapi%2Fdata&key=test-key');
+    // Scrapfly params live in queryParams (merged into the URL only at
+    // buildUrl() time) — req.url stays the bare endpoint so logs don't leak.
+    expect(req.url).toBe('https://api.scrapfly.io/scrape');
+    expect(req.queryParams).toMatchObject({url: 'https://example.com/api/data', key: 'test-key'});
+  });
+
+  it('should forward request headers to Scrapfly as headers[] params', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest();
+    // Custom auth headers (fake values) — these must reach the target, or
+    // header-authenticated APIs (e.g. x-api-key) 401 through Scrapfly.
+    req.headers = {'x-api-key': 'fake-key-123', 'X-Custom-Auth': 'fake-token'};
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(req.queryParams!['headers[x-api-key]']).toBe('fake-key-123');
+    expect(req.queryParams!['headers[X-Custom-Auth]']).toBe('fake-token');
+    // Secrets must NOT be baked into req.url (logged verbatim on retry/trace),
+    // and the original request headers are cleared after forwarding.
+    expect(req.url).toBe('https://api.scrapfly.io/scrape');
+    expect(req.headers).toEqual({});
+  });
+
+  it('should not forward hop-by-hop headers to Scrapfly', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest();
+    req.headers = {
+      host: 'example.com',
+      'content-length': '5',
+      connection: 'keep-alive',
+      'accept-encoding': 'gzip',
+      'x-api-key': 'keep-me',
+    };
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(req.queryParams).not.toHaveProperty('headers[host]');
+    expect(req.queryParams).not.toHaveProperty('headers[content-length]');
+    expect(req.queryParams).not.toHaveProperty('headers[connection]');
+    expect(req.queryParams).not.toHaveProperty('headers[accept-encoding]');
+    // Non-hop-by-hop headers still forwarded
+    expect(req.queryParams!['headers[x-api-key]']).toBe('keep-me');
+  });
+
+  it('should forward method and body for non-GET requests and call Scrapfly via GET', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest();
+    req.method = 'POST';
+    req.body = '{"foo":"bar"}';
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(req.queryParams!.method).toBe('POST');
+    expect(req.queryParams!.body).toBe('{"foo":"bar"}');
+    // The request TO Scrapfly is itself a GET (Scrapfly performs the POST to the target)
+    expect(req.method).toBe('GET');
+    expect(req.body).toBeUndefined();
+  });
+
+  it('should JSON-encode object bodies when forwarding to Scrapfly', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest();
+    req.method = 'POST';
+    req.body = {foo: 'bar'};
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(req.queryParams!.body).toBe('{"foo":"bar"}');
+  });
+
+  it('should leave GET requests without a method/body param', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest();
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(req.queryParams).not.toHaveProperty('method');
+    expect(req.queryParams).not.toHaveProperty('body');
+  });
+
+  it('should fold the request queryParams into the Scrapfly target url param', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest('https://example.com/api/data');
+    // Target's own query params must survive proxying (Scrapfly fetches `url` verbatim).
+    req.queryParams = {region: 'jp', limit: '10'};
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(req.queryParams!.url).toBe('https://example.com/api/data?region=jp&limit=10');
+    // The target params are NOT left as top-level params on the Scrapfly call.
+    expect(req.queryParams).not.toHaveProperty('region');
+    expect(req.queryParams).not.toHaveProperty('limit');
+    expect(req.url).toBe('https://api.scrapfly.io/scrape');
+  });
+
+  it('should forward Content-Type/Accept for options.json requests', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest();
+    req.method = 'POST';
+    req.options = {json: true};
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(req.queryParams!['headers[Content-Type]']).toBe('application/json');
+    expect(req.queryParams!['headers[Accept]']).toBe('application/json');
+  });
+
+  it('should not duplicate Content-Type already set in request headers', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest();
+    req.method = 'POST';
+    req.options = {json: true};
+    req.headers = {'content-type': 'application/json'}; // lowercase, explicitly set
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    // The explicit lowercase header is forwarded; the capitalized json default is NOT added on top.
+    expect(req.queryParams!['headers[content-type]']).toBe('application/json');
+    expect(req.queryParams).not.toHaveProperty('headers[Content-Type]');
   });
 
   it('should set proxyUrl for basic proxy', async () => {
@@ -226,5 +368,35 @@ describe('Per-Destination Proxy Injection', () => {
 
     // Response should remain unchanged
     expect(req.response).toBe(originalResponse);
+  });
+});
+
+describe('redactProxyUrlSecrets', () => {
+  it('masks the Scrapfly key, forwarded headers and body', () => {
+    const url =
+      'https://api.scrapfly.io/scrape?url=https%3A%2F%2Fexample.com&key=fake-key&headers%5Bx-api-key%5D=fake-auth&body=secret-payload';
+    const redacted = redactProxyUrlSecrets(url);
+    expect(redacted).not.toContain('fake-key');
+    expect(redacted).not.toContain('fake-auth');
+    expect(redacted).not.toContain('secret-payload');
+    // The target url stays visible (not a secret, useful for debugging)
+    expect(redacted).toContain('url=https%3A%2F%2Fexample.com');
+    expect(redacted).toContain('key=***');
+  });
+
+  it('masks the CrawlBase token', () => {
+    const url = 'https://api.crawlbase.com/?url=https%3A%2F%2Fexample.com&token=fake-token';
+    const redacted = redactProxyUrlSecrets(url);
+    expect(redacted).not.toContain('fake-token');
+    expect(redacted).toContain('token=***');
+  });
+
+  it('leaves non-proxy URLs unchanged', () => {
+    const url = 'https://example.com/api/data?key=should-stay&foo=bar';
+    expect(redactProxyUrlSecrets(url)).toBe(url);
+  });
+
+  it('returns the input unchanged when not a valid URL', () => {
+    expect(redactProxyUrlSecrets('not a url')).toBe('not a url');
   });
 });
