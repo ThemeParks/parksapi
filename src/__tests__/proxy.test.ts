@@ -136,6 +136,91 @@ describe('Per-Destination Proxy Injection', () => {
     expect(req.url).toBe('https://api.scrapfly.io/scrape?url=https%3A%2F%2Fexample.com%2Fapi%2Fdata&key=test-key');
   });
 
+  it('should forward request headers to Scrapfly as headers[] params', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest();
+    // Custom auth headers (fake values) — these must reach the target, or
+    // header-authenticated APIs (e.g. x-api-key) 401 through Scrapfly.
+    req.headers = {'x-api-key': 'fake-key-123', 'X-Custom-Auth': 'fake-token'};
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(req.url).toContain('headers%5Bx-api-key%5D=fake-key-123');
+    expect(req.url).toContain('headers%5BX-Custom-Auth%5D=fake-token');
+  });
+
+  it('should not forward hop-by-hop headers to Scrapfly', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest();
+    req.headers = {
+      host: 'example.com',
+      'content-length': '5',
+      connection: 'keep-alive',
+      'accept-encoding': 'gzip',
+      'x-api-key': 'keep-me',
+    };
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(req.url).not.toContain('headers%5Bhost%5D');
+    expect(req.url).not.toContain('headers%5Bcontent-length%5D');
+    expect(req.url).not.toContain('headers%5Bconnection%5D');
+    expect(req.url).not.toContain('headers%5Baccept-encoding%5D');
+    // Non-hop-by-hop headers still forwarded
+    expect(req.url).toContain('headers%5Bx-api-key%5D=keep-me');
+  });
+
+  it('should forward method and body for non-GET requests and call Scrapfly via GET', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest();
+    req.method = 'POST';
+    req.body = '{"foo":"bar"}';
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(req.url).toContain('method=POST');
+    expect(req.url).toContain('body=%7B%22foo%22%3A%22bar%22%7D');
+    // The request TO Scrapfly is itself a GET (Scrapfly performs the POST to the target)
+    expect(req.method).toBe('GET');
+    expect(req.body).toBeUndefined();
+  });
+
+  it('should JSON-encode object bodies when forwarding to Scrapfly', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest();
+    req.method = 'POST';
+    req.body = {foo: 'bar'};
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(req.url).toContain('body=%7B%22foo%22%3A%22bar%22%7D');
+  });
+
+  it('should leave GET requests without a method/body param', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest();
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(req.url).not.toContain('method=');
+    expect(req.url).not.toContain('body=');
+  });
+
   it('should set proxyUrl for basic proxy', async () => {
     process.env.PROXYTESTDESTINATION_BASICPROXY = JSON.stringify({proxy: 'http://myproxy.com:8080'});
 

@@ -113,6 +113,18 @@ export type EntityMapperConfig<T> = {
 };
 
 // Base class for all destinations
+// Hop-by-hop / transport-managed headers that must not be forwarded to a
+// target through Scrapfly — they describe the connection to the proxy, not the
+// target request, and forwarding them corrupts it.
+const SCRAPFLY_SKIP_HEADERS = new Set([
+  'host',
+  'content-length',
+  'connection',
+  'keep-alive',
+  'transfer-encoding',
+  'accept-encoding',
+]);
+
 export abstract class Destination {
   // Global proxy config — loaded once from GLOBAL_* env vars, shared across all destinations
   private static globalProxyConfig: ProxyConfig | null = null;
@@ -263,6 +275,31 @@ export abstract class Destination {
       const params = new URLSearchParams({url: req.url, key: sf.apikey});
       if (sf.params) {
         for (const [k, v] of Object.entries(sf.params)) params.set(k, v);
+      }
+      // Scrapfly's REST endpoint only sends headers/method/body to the TARGET
+      // when passed as explicit params — it does not forward the inbound
+      // request's own headers or body. Without this, APIs that authenticate via
+      // custom headers (e.g. an x-api-key header) fail with 401 through
+      // Scrapfly. Forward the request's headers (minus hop-by-hop), method, and
+      // body so authenticated requests behave the same as direct.
+      if (req.headers) {
+        for (const [name, value] of Object.entries(req.headers)) {
+          if (value == null) continue;
+          if (SCRAPFLY_SKIP_HEADERS.has(name.toLowerCase())) continue;
+          params.set(`headers[${name}]`, String(value));
+        }
+      }
+      const method = (req.method || 'GET').toUpperCase();
+      if (method !== 'GET') {
+        params.set('method', method);
+        if (req.body != null) {
+          params.set('body', typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
+        }
+        // The call TO Scrapfly is itself a GET; Scrapfly performs the
+        // method/body against the target. Clear them so the body isn't also
+        // sent to api.scrapfly.io.
+        req.method = 'GET';
+        req.body = undefined;
       }
       req.url = `https://api.scrapfly.io/scrape?${params.toString()}`;
       return;
