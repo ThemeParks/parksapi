@@ -73,6 +73,36 @@ export type HTTPOptions = {
 };
 
 // Full HTTP object with response methods (for runtime use)
+/**
+ * Redact secret query params from a proxy URL before it appears in logs or
+ * error messages. Proxy services (Scrapfly/CrawlBase) carry the API key — and,
+ * for Scrapfly, forwarded auth headers and request bodies — in the URL's query
+ * string, which would otherwise leak into error/retry logs on failure. Only the
+ * known proxy hosts and their sensitive params are touched; all other URLs are
+ * returned unchanged.
+ */
+export function redactProxyUrlSecrets(rawUrl: string): string {
+  try {
+    const u = new URL(rawUrl);
+    if (u.hostname === 'api.scrapfly.io') {
+      for (const name of [...u.searchParams.keys()]) {
+        const lower = name.toLowerCase();
+        if (lower === 'key' || lower === 'body' || lower.startsWith('headers[')) {
+          u.searchParams.set(name, '***');
+        }
+      }
+      return u.toString();
+    }
+    if (u.hostname === 'api.crawlbase.com' && u.searchParams.has('token')) {
+      u.searchParams.set('token', '***');
+      return u.toString();
+    }
+    return rawUrl;
+  } catch {
+    return rawUrl;
+  }
+}
+
 export interface HTTPObj {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
   url: string;
@@ -487,7 +517,7 @@ class HTTPRequestImpl implements HTTPObj {
       } catch { /* ignore */ }
       throw new Error(
         `HTTP request not OK: ${response.status} ${response.statusText}\n` +
-        `  URL: ${this.method} ${urlToFetch}\n` +
+        `  URL: ${this.method} ${redactProxyUrlSecrets(urlToFetch)}\n` +
         (bodySnippet ? `  Body: ${bodySnippet}\n` : '')
       );
     }

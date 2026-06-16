@@ -1,7 +1,7 @@
 // Tests for proxy injection system
 import {loadProxyConfig, hasProxyConfig, type ProxyConfig} from '../proxy';
 import {Destination} from '../destination';
-import {HTTPObj} from '../http';
+import {HTTPObj, redactProxyUrlSecrets} from '../http';
 import {broadcast} from '../injector';
 import {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import config from '../config';
@@ -246,6 +246,38 @@ describe('Per-Destination Proxy Injection', () => {
     expect(req.url).toBe('https://api.scrapfly.io/scrape');
   });
 
+  it('should forward Content-Type/Accept for options.json requests', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest();
+    req.method = 'POST';
+    req.options = {json: true};
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(req.queryParams!['headers[Content-Type]']).toBe('application/json');
+    expect(req.queryParams!['headers[Accept]']).toBe('application/json');
+  });
+
+  it('should not duplicate Content-Type already set in request headers', async () => {
+    process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest();
+    req.method = 'POST';
+    req.options = {json: true};
+    req.headers = {'content-type': 'application/json'}; // lowercase, explicitly set
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    // The explicit lowercase header is forwarded; the capitalized json default is NOT added on top.
+    expect(req.queryParams!['headers[content-type]']).toBe('application/json');
+    expect(req.queryParams).not.toHaveProperty('headers[Content-Type]');
+  });
+
   it('should set proxyUrl for basic proxy', async () => {
     process.env.PROXYTESTDESTINATION_BASICPROXY = JSON.stringify({proxy: 'http://myproxy.com:8080'});
 
@@ -336,5 +368,35 @@ describe('Per-Destination Proxy Injection', () => {
 
     // Response should remain unchanged
     expect(req.response).toBe(originalResponse);
+  });
+});
+
+describe('redactProxyUrlSecrets', () => {
+  it('masks the Scrapfly key, forwarded headers and body', () => {
+    const url =
+      'https://api.scrapfly.io/scrape?url=https%3A%2F%2Fexample.com&key=fake-key&headers%5Bx-api-key%5D=fake-auth&body=secret-payload';
+    const redacted = redactProxyUrlSecrets(url);
+    expect(redacted).not.toContain('fake-key');
+    expect(redacted).not.toContain('fake-auth');
+    expect(redacted).not.toContain('secret-payload');
+    // The target url stays visible (not a secret, useful for debugging)
+    expect(redacted).toContain('url=https%3A%2F%2Fexample.com');
+    expect(redacted).toContain('key=***');
+  });
+
+  it('masks the CrawlBase token', () => {
+    const url = 'https://api.crawlbase.com/?url=https%3A%2F%2Fexample.com&token=fake-token';
+    const redacted = redactProxyUrlSecrets(url);
+    expect(redacted).not.toContain('fake-token');
+    expect(redacted).toContain('token=***');
+  });
+
+  it('leaves non-proxy URLs unchanged', () => {
+    const url = 'https://example.com/api/data?key=should-stay&foo=bar';
+    expect(redactProxyUrlSecrets(url)).toBe(url);
+  });
+
+  it('returns the input unchanged when not a valid URL', () => {
+    expect(redactProxyUrlSecrets('not a url')).toBe('not a url');
   });
 });

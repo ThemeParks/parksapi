@@ -297,6 +297,16 @@ export abstract class Destination {
           sfParams[`headers[${name}]`] = String(value);
         }
       }
+      // buildHeaders() adds Content-Type/Accept for options.json requests; those
+      // are applied at send time and aren't in req.headers, so forward them too
+      // — otherwise a proxied JSON POST reaches the target without Content-Type.
+      // Skip if the request already set them explicitly (case-insensitive).
+      if (req.options?.json) {
+        const hasHeader = (h: string) =>
+          Object.keys(req.headers ?? {}).some((k) => k.toLowerCase() === h);
+        if (!hasHeader('content-type')) sfParams['headers[Content-Type]'] = 'application/json';
+        if (!hasHeader('accept')) sfParams['headers[Accept]'] = 'application/json';
+      }
       const method = (req.method || 'GET').toUpperCase();
       if (method !== 'GET') {
         sfParams.method = method;
