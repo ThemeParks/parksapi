@@ -178,6 +178,25 @@ describe('Destination ID patterns', () => {
     expect(destinations[0]?.id).not.toBe('michigansadventure');
   });
 
+  test('Mid-America Parks class is registered under the Enchanted Parks umbrella', async () => {
+    const destinations = await getAllDestinations();
+    const ids = destinations.map(d => d.id);
+    expect(ids).toContain('midamericaparks');
+    const map = destinations.find(d => d.id === 'midamericaparks');
+    expect(map?.category).toEqual(['Enchanted Parks', 'Mid-America Parks']);
+  });
+
+  test('Mid-America Parks emits enchantedparks-namespaced DESTINATION entity id', async () => {
+    // Migrated from sixflags_destination_SFSL → enchantedparks_midamericaparks
+    // when EPR/Enchanted Parks took over for the 2026 season. Wiki externalId
+    // will be renamed to match.
+    const {MidAmericaParks} = await import('../parks/enchantedparks/midamericaparks.js');
+    const dest = new MidAmericaParks({});
+    const destinations = await dest.getDestinations();
+    expect(destinations[0]?.id).toBe('enchantedparks_midamericaparks');
+    expect(destinations[0]?.id).not.toBe('midamericaparks');
+  });
+
   test('Attractions.io v1 Merlin parks are registered individually', async () => {
     const destinations = await getAllDestinations();
     const merlin = destinations.filter(d =>
