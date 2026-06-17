@@ -1,6 +1,7 @@
 import {EnchantedParks} from './enchantedparks.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {DestinationConstructor} from '../../destination.js';
+import locations from './locations/midamericaparks.json' with {type: 'json'};
 
 @destinationController({category: ['Enchanted Parks', 'Mid-America Parks']})
 export class MidAmericaParks extends EnchantedParks {
@@ -14,6 +15,7 @@ export class MidAmericaParks extends EnchantedParks {
         ...(options?.config ?? {}),
       },
     });
+    this.attractionLocations = locations;
     this.destinationLocation ??= {latitude: 38.5128, longitude: -90.6724};
     this.themePark ??= {
       id: 'enchantedparks_park_MAP',
