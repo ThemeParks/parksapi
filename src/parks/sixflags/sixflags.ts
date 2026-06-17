@@ -161,23 +161,23 @@ const PARKS_WITHOUT_WAIT_TIMES = new Set([942, 944, 947, 948, 959]);
  * feeds are no longer maintained, leaving the SixFlags class emitting all-
  * CLOSED garbage.
  *
- * Between 2026-04-06 and 2026-05-14, Six Flags divested seven parks
- * (including Valleyfair) to EPR Properties under 40-year operating
- * leases. Six are operated by Enchanted Parks (WF, MA, VF, GV, SFSL,
- * SFGE); La Ronde is operated by La Ronde Operations under Premier Parks
- * LLC. Replacement destination classes live under
- * `src/parks/enchantedparks/` but only the three parks whose
- * enchantedparks.com subdomains are live (WF, MA, VF) have subclasses
- * today — the remaining three plus La Ronde are excluded with no source
- * until their subdomains / a replacement become available.
+ * Between 2026-04-06 and 2026-05-14, Six Flags divested seven parks to
+ * EPR Properties under 40-year operating leases. Six are operated by
+ * Enchanted Parks (WF, MA, VF, GV, SFSL, SFGE); La Ronde is operated by
+ * La Ronde Operations Inc., a Premier Parks LLC subsidiary that also
+ * runs Calypso and Valcartier. Replacement destination classes live
+ * under `src/parks/enchantedparks/`.
  *
  * - 6   / WF:   Worlds of Fun         → enchantedparks/worldsoffun
  * - 12  / MA:   Michigan's Adventure  → enchantedparks/michigansadventure
  * - 14  / VF:   Valleyfair            → enchantedparks/valleyfair
  * - 27  / GV:   Schlitterbahn Galv.   → no source yet (subdomain not live)
- * - 903 / SFSL: Six Flags St. Louis   → no source yet (subdomain not live)
+ * - 903 / SFSL: Six Flags St. Louis   → enchantedparks/midamericaparks
  * - 924 / SFGE: Six Flags Great Esc.  → no source yet (subdomain not live)
- * - 969 / SFLR: La Ronde              → divested to La Ronde Operations
+ * - 969 / SFLR: La Ronde              → no primary source distinct from
+ *                                       the Six Flags app; Premier Parks
+ *                                       has no shared guest-experience
+ *                                       platform with wait times
  */
 const EXCLUDED_PARK_IDS = new Set<number>([6, 12, 14, 27, 903, 924, 969]);
 
