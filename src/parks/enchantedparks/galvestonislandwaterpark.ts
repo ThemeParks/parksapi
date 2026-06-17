@@ -1,6 +1,7 @@
 import {EnchantedParks} from './enchantedparks.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {DestinationConstructor} from '../../destination.js';
+import locations from './locations/galvestonislandwaterpark.json' with {type: 'json'};
 
 @destinationController({category: ['Enchanted Parks', 'Galveston Island Waterpark']})
 export class GalvestonIslandWaterpark extends EnchantedParks {
@@ -14,6 +15,7 @@ export class GalvestonIslandWaterpark extends EnchantedParks {
         ...(options?.config ?? {}),
       },
     });
+    this.attractionLocations = locations;
     this.destinationLocation ??= {latitude: 29.2767, longitude: -94.8231};
     // Water-park-only destination: the upstream site exposes a single
     // `/rides-and-experiences/attractions/` list under the "Waterpark Hours"
