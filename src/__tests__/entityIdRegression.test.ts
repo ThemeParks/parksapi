@@ -197,6 +197,42 @@ describe('Destination ID patterns', () => {
     expect(destinations[0]?.id).not.toBe('midamericaparks');
   });
 
+  test('Great Escape Parks class is registered under the Enchanted Parks umbrella', async () => {
+    const destinations = await getAllDestinations();
+    const ids = destinations.map(d => d.id);
+    expect(ids).toContain('greatescapeparks');
+    const ge = destinations.find(d => d.id === 'greatescapeparks');
+    expect(ge?.category).toEqual(['Enchanted Parks', 'Great Escape Parks']);
+  });
+
+  test('Great Escape Parks emits enchantedparks-namespaced DESTINATION entity id', async () => {
+    // Migrated from sixflags_destination_SFGE → enchantedparks_greatescapeparks
+    // when EPR/Enchanted Parks took over for the 2026 season.
+    const {GreatEscapeParks} = await import('../parks/enchantedparks/greatescapeparks.js');
+    const dest = new GreatEscapeParks({});
+    const destinations = await dest.getDestinations();
+    expect(destinations[0]?.id).toBe('enchantedparks_greatescapeparks');
+    expect(destinations[0]?.id).not.toBe('greatescapeparks');
+  });
+
+  test('Galveston Island Waterpark class is registered under the Enchanted Parks umbrella', async () => {
+    const destinations = await getAllDestinations();
+    const ids = destinations.map(d => d.id);
+    expect(ids).toContain('galvestonislandwaterpark');
+    const giwp = destinations.find(d => d.id === 'galvestonislandwaterpark');
+    expect(giwp?.category).toEqual(['Enchanted Parks', 'Galveston Island Waterpark']);
+  });
+
+  test('Galveston Island Waterpark emits enchantedparks-namespaced DESTINATION entity id', async () => {
+    // Migrated from sixflags_destination_GV → enchantedparks_galvestonislandwaterpark
+    // when EPR/Enchanted Parks took over for the 2026 season.
+    const {GalvestonIslandWaterpark} = await import('../parks/enchantedparks/galvestonislandwaterpark.js');
+    const dest = new GalvestonIslandWaterpark({});
+    const destinations = await dest.getDestinations();
+    expect(destinations[0]?.id).toBe('enchantedparks_galvestonislandwaterpark');
+    expect(destinations[0]?.id).not.toBe('galvestonislandwaterpark');
+  });
+
   test('Attractions.io v1 Merlin parks are registered individually', async () => {
     const destinations = await getAllDestinations();
     const merlin = destinations.filter(d =>

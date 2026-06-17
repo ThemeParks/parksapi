@@ -171,9 +171,9 @@ const PARKS_WITHOUT_WAIT_TIMES = new Set([942, 944, 947, 948, 959]);
  * - 6   / WF:   Worlds of Fun         → enchantedparks/worldsoffun
  * - 12  / MA:   Michigan's Adventure  → enchantedparks/michigansadventure
  * - 14  / VF:   Valleyfair            → enchantedparks/valleyfair
- * - 27  / GV:   Schlitterbahn Galv.   → no source yet (subdomain not live)
+ * - 27  / GV:   Schlitterbahn Galv.   → enchantedparks/galvestonislandwaterpark
  * - 903 / SFSL: Six Flags St. Louis   → enchantedparks/midamericaparks
- * - 924 / SFGE: Six Flags Great Esc.  → no source yet (subdomain not live)
+ * - 924 / SFGE: Six Flags Great Esc.  → enchantedparks/greatescapeparks
  * - 969 / SFLR: La Ronde              → no primary source distinct from
  *                                       the Six Flags app; Premier Parks
  *                                       has no shared guest-experience
