@@ -20,7 +20,7 @@ import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import {hostnameFromUrl, formatInTimezone, formatDate} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
-import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
+import type {Entity, LiveData, EntitySchedule, ScheduleEntry} from '@themeparks/typelib';
 import {AttractionTypeEnum} from '@themeparks/typelib';
 
 // ── Constants ───────────────────────────────────────────────────────────────
@@ -582,19 +582,25 @@ export class OceanParkHongKong extends Destination {
       const pflow = entity.pflowInfo ?? {};
       const isOpen = pflow.entityStatus === 'open';
 
-      const ld: LiveData = {
-        id: `attraction_${entity.id}`,
-        status: isOpen ? 'OPERATING' : 'CLOSED',
-      } as LiveData;
-
-      // Coerce + finite-check before emitting. The interface declares
-      // `number | null` but upstream APIs sometimes send strings; CLAUDE.md
-      // requires Number.isFinite over isNaN to handle empty-string coercion.
-      // Reject null/undefined/empty BEFORE coercing — Number(null) is 0,
-      // which would silently emit "0 min wait" for unknown waits.
+      // The Ocean Park API uses entityWaitTime = -1 as a sentinel for
+      // "no live measurement available" (observed for the whole roster at
+      // park-closed hours, even with entityStatus = "open"). Without a
+      // live signal we can't credibly claim the ride is operating, so gate
+      // OPERATING on a finite, non-negative wait. Missing/null entries get
+      // the same treatment — same downstream impact.
+      //
+      // Coerce explicitly: Number(null) is 0, which would silently emit a
+      // "0 min wait" rather than falling through to CLOSED.
       const raw = pflow.entityWaitTime as number | string | null | undefined;
       const wt = raw == null || raw === '' ? NaN : Number(raw);
-      if (isOpen && Number.isFinite(wt) && wt >= 0) {
+      const hasLiveWait = Number.isFinite(wt) && wt >= 0;
+
+      const ld: LiveData = {
+        id: `attraction_${entity.id}`,
+        status: isOpen && hasLiveWait ? 'OPERATING' : 'CLOSED',
+      } as LiveData;
+
+      if (ld.status === 'OPERATING') {
         ld.queue = {STANDBY: {waitTime: wt}};
       }
 
@@ -657,7 +663,7 @@ export class OceanParkHongKong extends Destination {
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const parkDays = await this.getParkSchedule();
-    const scheduleEntries: object[] = [];
+    const scheduleEntries: ScheduleEntry[] = [];
 
     /** Parse a Unix-ms timestamp string to a Date, rejecting non-finite values. */
     const parseTs = (v: string | number | undefined | null): Date | null => {
@@ -685,7 +691,7 @@ export class OceanParkHongKong extends Destination {
       if (parkingOpen && parkingClose) {
         scheduleEntries.push({
           date: day.openDate,
-          type: 'INFORMATIONAL',
+          type: 'INFO',
           description: 'Parking',
           openingTime: formatInTimezone(parkingOpen, TIMEZONE, 'iso'),
           closingTime: formatInTimezone(parkingClose, TIMEZONE, 'iso'),
@@ -706,7 +712,7 @@ export class OceanParkHongKong extends Destination {
       ) {
         scheduleEntries.push({
           date: day.openDate,
-          type: 'INFORMATIONAL',
+          type: 'INFO',
           description: 'The Summit (closes earlier than the rest of the park)',
           openingTime: formatInTimezone(open, TIMEZONE, 'iso'),
           closingTime: formatInTimezone(summitClose, TIMEZONE, 'iso'),
@@ -717,6 +723,6 @@ export class OceanParkHongKong extends Destination {
     return [{
       id: PARK_ID,
       schedule: scheduleEntries,
-    } as unknown as EntitySchedule];
+    }];
   }
 }
