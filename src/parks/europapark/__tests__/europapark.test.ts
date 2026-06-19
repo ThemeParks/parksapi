@@ -269,3 +269,56 @@ describe('_isWaitsGlitch', () => {
     expect(probe.probe(waits, entities)).toBe(true);
   });
 });
+
+// ── Show name resolution ────────────────────────────────────────────────────
+// Some upstream shows (e.g. Rulantica show 133 "TALENT ACADEMY on Stage")
+// arrive with an empty public `name` while the title sits in `analyticsName`.
+// Without a fallback they are dropped by the `if (!name) return` guard and
+// never reach the entity list / moderation queue.
+class EntityProbe extends EuropaPark {
+  private readonly _pois: any[];
+  constructor(pois: any[]) {
+    super();
+    this._pois = pois;
+  }
+  override async getPOIs(): Promise<any> {
+    return this._pois;
+  }
+}
+
+describe('getParkEntities show name fallback', () => {
+  const pois = [
+    {
+      id: 747,
+      type: 'showlocation',
+      name: 'Stage at Skip Strand',
+      scopes: ['rulantica'],
+      latitude: 48.26,
+      longitude: 7.74,
+      shows: [
+        {id: 133, name: '', analyticsName: 'TALENT ACADEMY on Stage'},
+        {id: 134, name: 'The secret of the vikings', analyticsName: 'internal label'},
+        {id: 135, name: '', analyticsName: ''},
+      ],
+    },
+  ];
+
+  test('falls back to analyticsName when a show has an empty name', async () => {
+    const entities = await new EntityProbe(pois).getParkEntities();
+    const show133 = entities.find((e) => e.id === 'shows_133');
+    expect(show133).toBeDefined();
+    expect(show133!.name).toBe('TALENT ACADEMY on Stage');
+    expect(show133!.entityType).toBe('SHOW');
+  });
+
+  test('keeps the public name when one is present', async () => {
+    const entities = await new EntityProbe(pois).getParkEntities();
+    const show134 = entities.find((e) => e.id === 'shows_134');
+    expect(show134!.name).toBe('The secret of the vikings');
+  });
+
+  test('still skips a show with neither name nor analyticsName', async () => {
+    const entities = await new EntityProbe(pois).getParkEntities();
+    expect(entities.find((e) => e.id === 'shows_135')).toBeUndefined();
+  });
+});

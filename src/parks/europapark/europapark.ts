@@ -19,6 +19,9 @@ import {TagBuilder} from '../../tags/index.js';
 type EuropaParkPOI = {
   id: number;
   name: string;
+  // Internal label; sometimes the only place a not-yet-published show's title
+  // lives while its public `name` is still empty (e.g. Rulantica show 133).
+  analyticsName?: string;
   type: string;
   subtype?: string;
   queueing?: boolean;
@@ -38,6 +41,7 @@ type EuropaParkPOI = {
 type EuropaParkShow = {
   id: number;
   name: string;
+  analyticsName?: string;
   duration?: number;
   code?: number;
   latitude?: number;
@@ -351,7 +355,11 @@ class EuropaParkBase extends Destination {
     const entities: EuropaParkEntity[] = [];
 
     const addPoiData = (poi: EuropaParkPOI & {entityType?: string}): void => {
-      if (!poi.name) return;
+      // Some shows (e.g. Rulantica 133 "TALENT ACADEMY on Stage") publish an
+      // empty public `name` with the title only in `analyticsName`. Fall back
+      // to it so the entity still surfaces; skip only when both are empty.
+      const name = poi.name || poi.analyticsName;
+      if (!name) return;
 
       const poiEntityTypes = ['attraction', 'showlocation', 'shows', 'pois'];
       const entityType = poi.entityType ?? poi.type;
@@ -380,7 +388,7 @@ class EuropaParkBase extends Destination {
       if (poi.queueing) return;
 
       // Skip queue map pointers
-      if (poi.name.indexOf('Queue - ') === 0) return;
+      if (name.indexOf('Queue - ') === 0) return;
 
       // Map old vs new entity type strings to id prefix
       let idPrefix: string;
@@ -396,14 +404,14 @@ class EuropaParkBase extends Destination {
         (entityType === 'shows' || entityType === 'showlocation') ? 'SHOW' : 'ATTRACTION';
 
       // Look for a virtual-queue companion (queueing:true, name contains this ride's name)
-      const nameLower = poi.name.toLowerCase();
+      const nameLower = name.toLowerCase();
       const vQueueData = poiData.find((x) => {
         return x.queueing === true && x.name.toLowerCase().indexOf(nameLower) > 0;
       });
 
       entities.push({
         id: `${idPrefix}_${poi.id}`,
-        name: poi.name,
+        name,
         entityType: finalEntityType,
         scopes: poi.scopes || [],
         code: poi.code,
