@@ -682,7 +682,9 @@ class EuropaParkBase extends Destination {
       let state: 'AVAILABLE' | 'TEMP_FULL' | 'FINISHED' = 'AVAILABLE';
       if (wait.time === 666) {
         state = 'TEMP_FULL';
-      } else if (wait.time === 777) {
+      } else if (wait.time === 777 || wait.time === 888) {
+        // 777 = Virtual Line ended; 888 = queueing stopped (no longer admitting
+        // guests). Both mean the Virtual Line no longer hands out return times.
         state = 'FINISHED';
       }
 
