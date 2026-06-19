@@ -6,6 +6,174 @@
  */
 import {describe, test, expect} from 'vitest';
 import {EuropaPark} from '../europapark.js';
+import {addDays, formatInTimezone} from '../../../datetime.js';
+
+const TZ = 'Europe/Berlin';
+
+/** Date offset from now as a YYYY-MM-DD string in the park timezone. */
+const isoDay = (offsetDays: number): string => {
+  const [mm, dd, yyyy] = formatInTimezone(addDays(new Date(), offsetDays), TZ, 'date').split('/');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+/**
+ * Subclass that stubs the two network-backed getters so buildSchedules() can be
+ * exercised offline. buildSchedules() is protected; expose it for assertions.
+ */
+class ScheduleProbe extends EuropaPark {
+  private readonly _seasons: any[];
+  private readonly _live: any;
+  constructor(seasons: any[], live: any = {}) {
+    super();
+    this._seasons = seasons;
+    this._live = live;
+  }
+  override async getSeasons(): Promise<any> {
+    return this._seasons;
+  }
+  override async getLiveCalendar(): Promise<any> {
+    return this._live;
+  }
+  public schedules(): Promise<any[]> {
+    return this.buildSchedules();
+  }
+  /** Find the OPERATING entry for a given date in the main Europa-Park schedule. */
+  async operatingEntry(date: string): Promise<any> {
+    const scheds = await this.schedules();
+    const main = scheds.find((s) => s.id === 'park_493');
+    return main?.schedule.find((e: any) => e.date === date && e.type === 'OPERATING');
+  }
+}
+
+describe('Europa-Park schedule: post-midnight closing time', () => {
+  test('special-day 00:00 close (Sommernächte) rolls to the next calendar day', async () => {
+    const special = isoDay(30);
+    const next = isoDay(31);
+    const probe = new ScheduleProbe([
+      {
+        startAt: `${isoDay(-10)}T09:00:00+02:00`,
+        endAt: `${isoDay(60)}T18:00:00+02:00`,
+        scopes: ['europapark'],
+        status: 'live',
+        closed: false,
+        specialOpenTimes: [
+          {
+            dateAt: `${special}T00:00:00+02:00`,
+            startAt: `${special}T09:00:00+02:00`,
+            endAt: `${special}T00:00:00+02:00`, // closing BEFORE opening in upstream feed
+          },
+        ],
+      },
+    ]);
+
+    const entry = await probe.operatingEntry(special);
+    expect(entry).toBeDefined();
+    expect(entry.openingTime.startsWith(`${special}T09:00`)).toBe(true);
+    // Closing rolled forward to 00:00 of the following day.
+    expect(entry.closingTime.startsWith(`${next}T00:00`)).toBe(true);
+    // Core invariant: the operating window is positive.
+    expect(new Date(entry.closingTime).getTime()).toBeGreaterThan(
+      new Date(entry.openingTime).getTime(),
+    );
+  });
+
+  test('regular-day 00:00 close also rolls forward (both branches covered)', async () => {
+    const regular = isoDay(5);
+    const next = isoDay(6);
+    const probe = new ScheduleProbe([
+      {
+        startAt: `${isoDay(-10)}T10:00:00+02:00`,
+        endAt: `${isoDay(60)}T00:00:00+02:00`, // daily close component = midnight
+        scopes: ['europapark'],
+        status: 'live',
+        closed: false,
+      },
+    ]);
+
+    const entry = await probe.operatingEntry(regular);
+    expect(entry).toBeDefined();
+    expect(entry.closingTime.startsWith(`${next}T00:00`)).toBe(true);
+    expect(new Date(entry.closingTime).getTime()).toBeGreaterThan(
+      new Date(entry.openingTime).getTime(),
+    );
+  });
+
+  test('normal 18:00 close is left unchanged (no regression)', async () => {
+    const regular = isoDay(5);
+    const probe = new ScheduleProbe([
+      {
+        startAt: `${isoDay(-10)}T09:00:00+02:00`,
+        endAt: `${isoDay(60)}T18:00:00+02:00`,
+        scopes: ['europapark'],
+        status: 'live',
+        closed: false,
+      },
+    ]);
+
+    const entry = await probe.operatingEntry(regular);
+    expect(entry).toBeDefined();
+    expect(entry.closingTime.startsWith(`${regular}T18:00`)).toBe(true);
+    expect(entry.closingTime.substring(0, 10)).toBe(regular); // not rolled
+  });
+
+  test('special day with startAt set but endAt null does not crash (regression)', async () => {
+    // The seasons type allows endAt === null independently of startAt. Such an
+    // entry reaches the roll helper with a null closingTime; it must pass through
+    // untouched rather than throw on substring().
+    const special = isoDay(20);
+    const probe = new ScheduleProbe([
+      {
+        startAt: `${isoDay(-10)}T09:00:00+02:00`,
+        endAt: `${isoDay(60)}T18:00:00+02:00`,
+        scopes: ['europapark'],
+        status: 'live',
+        closed: false,
+        specialOpenTimes: [
+          {
+            dateAt: `${special}T00:00:00+02:00`,
+            startAt: `${special}T09:00:00+02:00`,
+            endAt: null,
+          },
+        ],
+      },
+    ]);
+
+    await expect(probe.schedules()).resolves.toBeDefined();
+    const entry = await probe.operatingEntry(special);
+    expect(entry).toBeDefined();
+    expect(entry.closingTime).toBeNull(); // preserved, not rolled, not crashed
+  });
+
+  test('live "today" overlay with a 00:00 end rolls forward too', async () => {
+    const today = isoDay(0);
+    const next = isoDay(1);
+    const probe = new ScheduleProbe(
+      [
+        {
+          startAt: `${isoDay(-10)}T09:00:00+02:00`,
+          endAt: `${isoDay(60)}T18:00:00+02:00`,
+          scopes: ['europapark'],
+          status: 'live',
+          closed: false,
+        },
+      ],
+      {
+        today: {
+          date: `${today}T00:00:00+02:00`,
+          start: `${today}T09:00:00+02:00`,
+          end: `${today}T00:00:00+02:00`, // live feed reports midnight close
+        },
+      },
+    );
+
+    const entry = await probe.operatingEntry(today);
+    expect(entry).toBeDefined();
+    expect(entry.closingTime.startsWith(`${next}T00:00`)).toBe(true);
+    expect(new Date(entry.closingTime).getTime()).toBeGreaterThan(
+      new Date(entry.openingTime).getTime(),
+    );
+  });
+});
 
 const mkWait = (code: number, time = 0) => ({code, time});
 const mkAttraction = (id: number, code: number) =>
