@@ -880,6 +880,11 @@ class EuropaParkBase extends Destination {
           closingTime = this._applyDateToTime(season.endAt, isoDate);
         }
 
+        // A closing time at/before the opening (typically a 00:00 close on a
+        // past-midnight event day) belongs to the following calendar day.
+        // Covers both the special-day and the regular branch above.
+        closingTime = this._rollClosingPastMidnight(openingTime, closingTime);
+
         times.push({date: isoDate, openingTime, closingTime, type: 'OPERATING'});
 
         // Hotel extra hours
@@ -916,7 +921,12 @@ class EuropaParkBase extends Destination {
           const entry = times.find((t) => t.date === date && t.type === 'OPERATING');
           if (entry) {
             entry.openingTime = liveData.today.start;
-            entry.closingTime = liveData.today.end;
+            // Live "today" overlay can also report a 00:00 close on past-midnight
+            // event days — apply the same next-day roll as the seasons branch.
+            entry.closingTime = this._rollClosingPastMidnight(
+              liveData.today.start,
+              liveData.today.end,
+            );
           }
         }
       }
@@ -974,6 +984,39 @@ class EuropaParkBase extends Destination {
     const match = datetimeStr.match(/T(\d{2}:\d{2}(?::\d{2})?)/);
     const timePart = match ? match[1] : '00:00:00';
     return constructDateTime(targetDate, timePart, TIMEZONE);
+  }
+
+  /**
+   * Europa-Park reports a 00:00 closing time on the SAME calendar day for days
+   * that run past midnight (the "Sommernächte" summer-night events): the
+   * upstream seasons feed carries `endAt` at 00:00 of the opening day, which is
+   * *before* `startAt` and yields a negative operating window. A midnight close
+   * belongs to the END of the operating day, so when the resolved closing time
+   * is not strictly after the opening time we roll it onto the following
+   * calendar day. Invalid/unparseable inputs are returned unchanged so this is
+   * a safe no-op for the normal same-day case.
+   */
+  private _rollClosingPastMidnight(openingTime: string, closingTime: string): string {
+    // A special day may carry endAt === null (startAt set, endAt null) — the `!`
+    // at the call site is compile-time only, so closingTime can be null here.
+    // Pass non-string values through untouched (new Date(null) is epoch 0, which
+    // is finite, so the check below would not catch it and the substring would
+    // throw). This preserves the original behaviour of emitting a null close.
+    if (typeof openingTime !== 'string' || typeof closingTime !== 'string') {
+      return closingTime;
+    }
+    const close = new Date(closingTime).getTime();
+    const open = new Date(openingTime).getTime();
+    if (!Number.isFinite(close) || !Number.isFinite(open) || close > open) {
+      return closingTime;
+    }
+    // Re-stamp the closing wall-clock time on the day after its current date.
+    // Date-only arithmetic in UTC keeps a DST transition from shifting the day
+    // boundary; _applyDateToTime re-derives the correct offset for the new day.
+    const closingDate = new Date(`${closingTime.substring(0, 10)}T00:00:00Z`);
+    closingDate.setUTCDate(closingDate.getUTCDate() + 1);
+    const nextDay = closingDate.toISOString().substring(0, 10);
+    return this._applyDateToTime(closingTime, nextDay);
   }
 }
 
