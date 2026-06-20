@@ -233,6 +233,21 @@ describe('Destination ID patterns', () => {
     expect(destinations[0]?.id).not.toBe('galvestonislandwaterpark');
   });
 
+  test('Wuhu Dreamland (Fantawild) is registered under the Fantawild umbrella', async () => {
+    const destinations = await getAllDestinations();
+    const ids = destinations.map(d => d.id);
+    expect(ids).toContain('wuhudreamland');
+    const wd = destinations.find(d => d.id === 'wuhudreamland');
+    expect(wd?.category).toEqual(['Fantawild']);
+  });
+
+  test('Wuhu Dreamland emits fantawild-namespaced DESTINATION entity id', async () => {
+    const {WuhuDreamland} = await import('../parks/fantawild/wuhudreamland.js');
+    const dest = new WuhuDreamland({});
+    const destinations = await dest.getDestinations();
+    expect(destinations[0]?.id).toBe('fantawild_wuhudreamland');
+  });
+
   test('Attractions.io v1 Merlin parks are registered individually', async () => {
     const destinations = await getAllDestinations();
     const merlin = destinations.filter(d =>
