@@ -213,10 +213,17 @@ export function stripFantawildStars(name: string): string {
   return name.replace(STAR_RE, '').trim();
 }
 
-/** Classify an item as SHOW vs RIDE based on showTimeList shape + feature tags. */
+/**
+ * Classify an item as SHOW vs RIDE based on showTimeList shape + feature tags.
+ *
+ * Precedence: explicit `真人表演` (live performance) / `巡游` (parade) tags
+ * win unconditionally — even if showTimeList contains an `HH:MM-HH:MM` range
+ * (operating-hours pattern for attractions), an item carrying one of those
+ * tags is a SHOW. Falls back to showTimeList shape inspection otherwise.
+ */
 export function isFantawildShow(item: FantawildItem): boolean {
   const features = item.featureList ?? [];
-  // Explicit live-performance / parade feature flags.
+  // Explicit live-performance / parade feature flags (highest priority).
   if (features.includes('真人表演') || features.includes('巡游')) return true;
   const times = item.showTimeList ?? [];
   if (times.length === 0) return false;
@@ -498,14 +505,15 @@ export class Fantawild extends Destination {
    * closed for the night. Cross-checking against BusinessTime turns that
    * into the correct CLOSED status.
    */
-  protected parkIsOpenNow(schedule: readonly ScheduleEntry[], timezone: string): boolean {
-    const now = new Date();
-    const today = formatDate(now, timezone);
-    const nowMs = now.getTime();
-    // Pick today's OPERATING window. The schedule may also contain
-    // EXTRA_HOURS (night events); both qualify as "park open."
+  protected parkIsOpenNow(schedule: readonly ScheduleEntry[], _timezone?: string): boolean {
+    const nowMs = Date.now();
+    // No date filter — the schedule entries' openingTime/closingTime are
+    // absolute moments (full ISO with offset). Filtering by `entry.date`
+    // would skip a window that opened yesterday and closes after midnight
+    // (e.g. a 22:00 → 01:00 night event): `parseBusinessTime` tags those
+    // with yesterday's `date` even though the close has rolled into today.
+    // Comparing absolute ms covers every variation without bookkeeping.
     for (const entry of schedule) {
-      if (entry.date !== today) continue;
       if (entry.type !== 'OPERATING' && entry.type !== 'EXTRA_HOURS') continue;
       const open = Date.parse(entry.openingTime);
       const close = Date.parse(entry.closingTime);

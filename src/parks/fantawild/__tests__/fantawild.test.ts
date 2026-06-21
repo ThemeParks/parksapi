@@ -1,4 +1,4 @@
-import {describe, test, expect} from 'vitest';
+import {describe, test, expect, beforeAll} from 'vitest';
 import {
   parseBusinessTime,
   stripFantawildStars,
@@ -324,6 +324,143 @@ describe('isFantawildShow', () => {
     expect(isFantawildShow(baseItem({
       showTimeList: ['09:45-12:15', '13:45', '14:15'],
     }))).toBe(false);
+  });
+});
+
+describe('Fantawild.parkIsOpenNow', () => {
+  // We test the protected helper directly via casting — it has subtle edge cases
+  // (the post-midnight tail in particular) that need explicit coverage.
+  let dest: import('../fantawild.js').Fantawild;
+
+  // ScheduleEntry openingTime/closingTime are absolute ISO strings with offset,
+  // so parkIsOpenNow can be tested against any current Date.now() — we craft
+  // entries whose windows straddle / surround / miss "now" relative to the
+  // real clock at test time, with no need for fake timers.
+  const nowIso = (offsetMinutes: number): string => {
+    const ms = Date.now() + offsetMinutes * 60_000;
+    // emit as +08:00 since `parkIsOpenNow` ignores the offset and parses
+    // absolute moments — any well-formed offset works.
+    const d = new Date(ms);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:00Z`;
+  };
+
+  beforeAll(async () => {
+    const {Fantawild} = await import('../fantawild.js');
+    dest = new Fantawild({config: {
+      baseUrl: 'https://image.fangte.com',
+      apiBaseUrl: 'https://leyou.fangte.com',
+    }});
+  });
+
+  test('returns false when no schedule covers now', () => {
+    const sched = [{
+      date: '2020-01-01', type: 'OPERATING' as const,
+      openingTime: nowIso(-120 * 24 * 60), closingTime: nowIso(-119 * 24 * 60),
+    }];
+    expect((dest as any).parkIsOpenNow(sched)).toBe(false);
+  });
+
+  test('returns true when an OPERATING window contains now', () => {
+    const sched = [{
+      date: '2026-06-21', type: 'OPERATING' as const,
+      openingTime: nowIso(-60), closingTime: nowIso(+60),
+    }];
+    expect((dest as any).parkIsOpenNow(sched)).toBe(true);
+  });
+
+  test('returns false when now falls in the gap between two windows', () => {
+    const sched = [
+      {date: '2026-06-21', type: 'OPERATING' as const,
+       openingTime: nowIso(-180), closingTime: nowIso(-60)},
+      {date: '2026-06-21', type: 'EXTRA_HOURS' as const,
+       openingTime: nowIso(+60), closingTime: nowIso(+180)},
+    ];
+    expect((dest as any).parkIsOpenNow(sched)).toBe(false);
+  });
+
+  test('returns true when EXTRA_HOURS night event contains now', () => {
+    const sched = [
+      {date: '2026-06-21', type: 'OPERATING' as const,
+       openingTime: nowIso(-9 * 60), closingTime: nowIso(-3 * 60)},
+      {date: '2026-06-21', type: 'EXTRA_HOURS' as const,
+       openingTime: nowIso(-30), closingTime: nowIso(+30)},
+    ];
+    expect((dest as any).parkIsOpenNow(sched)).toBe(true);
+  });
+
+  test('honours post-midnight tail: window opened yesterday, closes today', () => {
+    // The schedule entry's date is YESTERDAY (when the window opened),
+    // but its closingTime is on TODAY's calendar date because the window
+    // crosses midnight (e.g. 22:00 → 01:00). Earlier versions filtered by
+    // `entry.date === today` and missed the tail; this test pins the fix.
+    const sched = [{
+      date: '2026-06-20', // a fixed past date — value doesn't matter
+      type: 'OPERATING' as const,
+      openingTime: nowIso(-90),
+      closingTime: nowIso(+30),
+    }];
+    expect((dest as any).parkIsOpenNow(sched)).toBe(true);
+  });
+
+  test('treats malformed openingTime/closingTime as a non-match instead of throwing', () => {
+    const sched = [{
+      date: '2026-06-21', type: 'OPERATING' as const,
+      openingTime: 'not a date', closingTime: 'also not',
+    }] as readonly any[];
+    expect((dest as any).parkIsOpenNow(sched)).toBe(false);
+  });
+});
+
+describe('Fantawild.recordLiveWaitObservation', () => {
+  // Verify the "Cache only TRUE, never FALSE" invariant (per the
+  // feedback_cache_only_true.md memory).
+  let dest: import('../fantawild.js').Fantawild;
+
+  beforeAll(async () => {
+    const {Fantawild} = await import('../fantawild.js');
+    dest = new Fantawild({config: {
+      baseUrl: 'https://image.fangte.com',
+      apiBaseUrl: 'https://leyou.fangte.com',
+    }});
+  });
+
+  // Use a unique parkId per test so we don't see leakage from other tests
+  // (the cache is process-global). Sequential within this describe.
+  const PARK_A = 9_000_001;
+  const PARK_B = 9_000_002;
+  const PARK_C = 9_000_003;
+
+  test('returns false when no item has waitTime > 0 and writes nothing', async () => {
+    const items = [{waitTime: 0}, {waitTime: 0}] as any;
+    const result = await (dest as any).recordLiveWaitObservation(PARK_A, items);
+    expect(result).toBe(false);
+    // Re-running with no positive observation must still return false (no
+    // sticky cached FALSE).
+    expect(await (dest as any).recordLiveWaitObservation(PARK_A, items)).toBe(false);
+  });
+
+  test('returns true when an item has waitTime > 0 and remembers permanently', async () => {
+    const observed = [{waitTime: 0}, {waitTime: 25}] as any;
+    expect(await (dest as any).recordLiveWaitObservation(PARK_B, observed)).toBe(true);
+    // Subsequent zero-only sweep must still return true — once observed,
+    // the park stays marked as live-broadcasting.
+    const zeros = [{waitTime: 0}, {waitTime: 0}] as any;
+    expect(await (dest as any).recordLiveWaitObservation(PARK_B, zeros)).toBe(true);
+  });
+
+  test('caches per parkId — one park observing live waits does not affect another', async () => {
+    const observed = [{waitTime: 15}] as any;
+    expect(await (dest as any).recordLiveWaitObservation(PARK_C, observed)).toBe(true);
+    // A different parkId starts fresh
+    const freshPark = 9_000_004;
+    expect(await (dest as any).recordLiveWaitObservation(freshPark, [{waitTime: 0}] as any)).toBe(false);
+  });
+
+  test('ignores non-finite waitTime values', async () => {
+    const garbage = [{waitTime: NaN}, {waitTime: undefined}] as any;
+    const fresh = 9_000_005;
+    expect(await (dest as any).recordLiveWaitObservation(fresh, garbage)).toBe(false);
   });
 });
 
