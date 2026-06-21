@@ -233,19 +233,56 @@ describe('Destination ID patterns', () => {
     expect(destinations[0]?.id).not.toBe('galvestonislandwaterpark');
   });
 
-  test('Wuhu Dreamland (Fantawild) is registered under the Fantawild umbrella', async () => {
+  test('Fantawild uber-class is registered under the Fantawild category', async () => {
     const destinations = await getAllDestinations();
-    const ids = destinations.map(d => d.id);
-    expect(ids).toContain('wuhudreamland');
-    const wd = destinations.find(d => d.id === 'wuhudreamland');
-    expect(wd?.category).toEqual(['Fantawild']);
+    const fantawild = destinations.find(d => d.id === 'fantawild');
+    expect(fantawild).toBeDefined();
+    expect(fantawild?.category).toBe('Fantawild');
   });
 
-  test('Wuhu Dreamland emits fantawild-namespaced DESTINATION entity id', async () => {
-    const {WuhuDreamland} = await import('../parks/fantawild/wuhudreamland.js');
-    const dest = new WuhuDreamland({});
+  test('Fantawild emits one DESTINATION entity per park in FANTAWILD_PARKS', async () => {
+    const {Fantawild, FANTAWILD_PARKS} = await import('../parks/fantawild/fantawild.js');
+    const dest = new Fantawild({config: {
+      baseUrl: 'https://image.fangte.com',
+      apiBaseUrl: 'https://leyou.fangte.com',
+    }});
     const destinations = await dest.getDestinations();
-    expect(destinations[0]?.id).toBe('fantawild_wuhudreamland');
+    expect(destinations.length).toBe(FANTAWILD_PARKS.length);
+    // All ids follow the `fantawild_destination_<parkId>` scheme
+    for (const e of destinations) {
+      expect(e.id).toMatch(/^fantawild_destination_\d+$/);
+      expect(e.entityType).toBe('DESTINATION');
+    }
+    // Spot-check a known park (Wuhu Dreamland, parkId 19)
+    const wuhu = destinations.find(d => d.id === 'fantawild_destination_19');
+    expect(wuhu).toBeDefined();
+    expect(wuhu?.name).toBe('Fantawild Dreamland Wuhu');
+  });
+
+  test('Fantawild destination IDs are unique across the park list', async () => {
+    const {FANTAWILD_PARKS} = await import('../parks/fantawild/fantawild.js');
+    const ids = FANTAWILD_PARKS.map(p => p.parkId);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test('Fantawild getDestinations and buildEntityList emit the SAME destination IDs', async () => {
+    // Drift between these two surfaces silently corrupts the wiki: the
+    // registry would advertise one set of destination IDs while the entity
+    // sweep emits another. Lock them together.
+    const {Fantawild} = await import('../parks/fantawild/fantawild.js');
+    const dest = new Fantawild({config: {
+      baseUrl: 'https://image.fangte.com',
+      apiBaseUrl: 'https://leyou.fangte.com',
+    }});
+    // Stub the live HTTP layer so buildEntityList doesn't network during the test.
+    (dest as unknown as {getItems: () => Promise<unknown[]>}).getItems = async () => [];
+    const [destinations, entities] = await Promise.all([
+      dest.getDestinations(),
+      dest.getEntities(),
+    ]);
+    const destIds = new Set(destinations.map(d => d.id));
+    const entityDestIds = new Set(entities.filter(e => e.entityType === 'DESTINATION').map(e => e.id));
+    expect(entityDestIds).toEqual(destIds);
   });
 
   test('Attractions.io v1 Merlin parks are registered individually', async () => {

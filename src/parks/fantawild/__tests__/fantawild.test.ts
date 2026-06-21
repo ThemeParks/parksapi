@@ -307,6 +307,18 @@ describe('isFantawildShow', () => {
     expect(isFantawildShow(baseItem({showTimeList: [], featureList: ['亲子']}))).toBe(false);
   });
 
+  test('parade feature with empty showTimeList still flags as SHOW', () => {
+    // Some parades have no fixed times listed but should still classify as SHOW.
+    expect(isFantawildShow(baseItem({showTimeList: [], featureList: ['巡游']}))).toBe(true);
+  });
+
+  test('parade feature with discrete showtimes flags as SHOW', () => {
+    expect(isFantawildShow(baseItem({
+      showTimeList: ['15:00', '16:30'],
+      featureList: ['巡游', '亲子'],
+    }))).toBe(true);
+  });
+
   test('handles mixed list (range + discrete) by treating it as RIDE', () => {
     // If ANY entry is a range, lean toward attraction hours rather than show times.
     expect(isFantawildShow(baseItem({
