@@ -189,15 +189,20 @@ describe('parseBusinessTime', () => {
       key: 'k', value: [
         // Bad: non-HH:MM startTime
         {currentDate: '2026-06-21 00:00:00', startTime: 'morning', endTime: '18:00', isNight: false, isMorrow: false, nightStartTime: '', nightEndTime: '', activated: true, statusTips: '', parkCloseDesc: null, closeRemarkUrl: null, remarkUrl: null, stopIntoPark: ''},
-        // Bad: out-of-range hour
+        // Bad: out-of-range hour (25)
         {currentDate: '2026-06-22 00:00:00', startTime: '25:00', endTime: '18:00', isNight: false, isMorrow: false, nightStartTime: '', nightEndTime: '', activated: true, statusTips: '', parkCloseDesc: null, closeRemarkUrl: null, remarkUrl: null, stopIntoPark: ''},
+        // Bad: 24:30 — 24 is not a valid wall-clock hour; the carve-out for 24:00 is
+        // out of scope for Fantawild's API and would just complicate constructDateTime.
+        {currentDate: '2026-06-23 00:00:00', startTime: '09:00', endTime: '24:30', isNight: false, isMorrow: false, nightStartTime: '', nightEndTime: '', activated: true, statusTips: '', parkCloseDesc: null, closeRemarkUrl: null, remarkUrl: null, stopIntoPark: ''},
+        // Bad: out-of-range minute
+        {currentDate: '2026-06-24 00:00:00', startTime: '09:60', endTime: '18:00', isNight: false, isMorrow: false, nightStartTime: '', nightEndTime: '', activated: true, statusTips: '', parkCloseDesc: null, closeRemarkUrl: null, remarkUrl: null, stopIntoPark: ''},
         // Good: should still parse
-        {currentDate: '2026-06-23 00:00:00', startTime: '09:30', endTime: '18:00', isNight: false, isMorrow: false, nightStartTime: '', nightEndTime: '', activated: true, statusTips: '', parkCloseDesc: null, closeRemarkUrl: null, remarkUrl: null, stopIntoPark: ''},
+        {currentDate: '2026-06-25 00:00:00', startTime: '09:30', endTime: '18:00', isNight: false, isMorrow: false, nightStartTime: '', nightEndTime: '', activated: true, statusTips: '', parkCloseDesc: null, closeRemarkUrl: null, remarkUrl: null, stopIntoPark: ''},
       ],
     };
     const out = parseBusinessTime(json, TZ);
     expect(out).toHaveLength(1);
-    expect(out[0].date).toBe('2026-06-23');
+    expect(out[0].date).toBe('2026-06-25');
   });
 
   test('skips night event with malformed nightStartTime but keeps the OPERATING entry', () => {

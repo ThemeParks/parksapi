@@ -147,12 +147,18 @@ export function isFantawildShow(item: FantawildItem): boolean {
 
 // ── Schedule parser ─────────────────────────────────────────────────────────
 
-/** Parse "HH:MM" to minutes-from-midnight. Returns NaN if malformed. */
+/**
+ * Parse "HH:MM" to minutes-from-midnight. Returns NaN if malformed.
+ *
+ * Strict hour range 0-23 — `24:30` would slip past a `>24` check, then
+ * `constructDateTime` would emit NaN-of-Date and produce garbage. Use
+ * `00:00` next-day instead if you need the end-of-day boundary.
+ */
 function hhmmToMinutes(t: string): number {
   const m = /^(\d{1,2}):(\d{2})$/.exec(t);
   if (!m) return NaN;
   const h = Number(m[1]); const min = Number(m[2]);
-  if (h > 24 || min > 59) return NaN;
+  if (h > 23 || min > 59) return NaN;
   return h * 60 + min;
 }
 
