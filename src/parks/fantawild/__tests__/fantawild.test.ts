@@ -181,6 +181,41 @@ describe('parseBusinessTime', () => {
     expect(out[0].closingTime).toBe('2026-07-01T02:00:00+08:00');
   });
 
+  test('skips entries with malformed startTime/endTime instead of throwing', () => {
+    // A garbage time string would otherwise blow up constructDateTime and abort
+    // the entire sweep. Make sure only the bad entry is dropped, the good one
+    // is still parsed.
+    const json: FantawildBusinessTimeResponse = {
+      key: 'k', value: [
+        // Bad: non-HH:MM startTime
+        {currentDate: '2026-06-21 00:00:00', startTime: 'morning', endTime: '18:00', isNight: false, isMorrow: false, nightStartTime: '', nightEndTime: '', activated: true, statusTips: '', parkCloseDesc: null, closeRemarkUrl: null, remarkUrl: null, stopIntoPark: ''},
+        // Bad: out-of-range hour
+        {currentDate: '2026-06-22 00:00:00', startTime: '25:00', endTime: '18:00', isNight: false, isMorrow: false, nightStartTime: '', nightEndTime: '', activated: true, statusTips: '', parkCloseDesc: null, closeRemarkUrl: null, remarkUrl: null, stopIntoPark: ''},
+        // Good: should still parse
+        {currentDate: '2026-06-23 00:00:00', startTime: '09:30', endTime: '18:00', isNight: false, isMorrow: false, nightStartTime: '', nightEndTime: '', activated: true, statusTips: '', parkCloseDesc: null, closeRemarkUrl: null, remarkUrl: null, stopIntoPark: ''},
+      ],
+    };
+    const out = parseBusinessTime(json, TZ);
+    expect(out).toHaveLength(1);
+    expect(out[0].date).toBe('2026-06-23');
+  });
+
+  test('skips night event with malformed nightStartTime but keeps the OPERATING entry', () => {
+    const json: FantawildBusinessTimeResponse = {
+      key: 'k', value: [{
+        currentDate: '2026-06-21 00:00:00',
+        startTime: '09:30', endTime: '21:00',
+        isNight: true, isMorrow: false,
+        nightStartTime: 'evening', nightEndTime: '23:00',
+        activated: true, statusTips: '',
+        parkCloseDesc: null, closeRemarkUrl: null, remarkUrl: null, stopIntoPark: '',
+      }],
+    };
+    const out = parseBusinessTime(json, TZ);
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe('OPERATING');
+  });
+
   test('does NOT roll when closing time is strictly after opening', () => {
     const json: FantawildBusinessTimeResponse = {
       key: 'k', value: [{

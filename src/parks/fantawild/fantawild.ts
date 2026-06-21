@@ -151,7 +151,14 @@ export function isFantawildShow(item: FantawildItem): boolean {
 function hhmmToMinutes(t: string): number {
   const m = /^(\d{1,2}):(\d{2})$/.exec(t);
   if (!m) return NaN;
-  return Number(m[1]) * 60 + Number(m[2]);
+  const h = Number(m[1]); const min = Number(m[2]);
+  if (h > 24 || min > 59) return NaN;
+  return h * 60 + min;
+}
+
+/** Time string is parseable as "HH:MM". Avoids feeding garbage to constructDateTime. */
+function isValidHHMM(t: string): boolean {
+  return Number.isFinite(hhmmToMinutes(t));
 }
 
 /**
@@ -195,7 +202,9 @@ export function parseBusinessTime(
     // Date arrives as "YYYY-MM-DD HH:MM:SS" — take the YYYY-MM-DD prefix.
     const date = ev.currentDate?.split(' ')[0];
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
-    if (ev.startTime && ev.endTime) {
+    // Validate time strings BEFORE handing them to constructDateTime — a single
+    // malformed entry would otherwise throw and abort the whole sweep.
+    if (ev.startTime && ev.endTime && isValidHHMM(ev.startTime) && isValidHHMM(ev.endTime)) {
       const closeDate = closeDateAcrossMidnight(date, ev.startTime, ev.endTime);
       out.push({
         date,
@@ -204,7 +213,8 @@ export function parseBusinessTime(
         closingTime: constructDateTime(closeDate, ev.endTime, timezone),
       });
     }
-    if (ev.isNight && ev.nightStartTime && ev.nightEndTime) {
+    if (ev.isNight && ev.nightStartTime && ev.nightEndTime
+        && isValidHHMM(ev.nightStartTime) && isValidHHMM(ev.nightEndTime)) {
       const nightCloseDate = closeDateAcrossMidnight(date, ev.nightStartTime, ev.nightEndTime);
       out.push({
         date,
@@ -353,13 +363,13 @@ class Fantawild extends Destination {
    * fetch/parse failure so an outage on one park doesn't take out a multi-
    * park sweep.
    *
-   * Cached 6h — BusinessTime is a forward-looking calendar that almost
-   * never changes intra-day, so the short TTL was wasted parse work and
-   * extra CDN traffic across a 50-park sweep. `fetchBusinessTime()`'s own
-   * `@http` cache still gives a 15-min upstream-update floor for the rare
-   * case (closure pushed at short notice).
+   * Dynamic cache TTL: 6h for a populated result (BusinessTime is a
+   * forward-looking calendar that rarely changes intra-day, so a long TTL
+   * cuts wasted parse work and CDN traffic across a 50-park sweep);
+   * 60s if the result is empty — a transient CDN/parse failure shouldn't
+   * stick around as a fabricated zero-day schedule for hours.
    */
-  @cache({ttlSeconds: 60 * 60 * 6})
+  @cache({callback: (result: ScheduleEntry[]) => result.length === 0 ? 60 : 60 * 60 * 6})
   async scrapeSchedule(): Promise<ScheduleEntry[]> {
     try {
       const resp = await this.fetchBusinessTime();
