@@ -127,6 +127,75 @@ describe('parseBusinessTime', () => {
     expect(parseBusinessTime({key: 'k', value: []}, TZ)).toEqual([]);
   });
 
+  test('rolls closing time onto the next day when it crosses midnight', () => {
+    const json: FantawildBusinessTimeResponse = {
+      key: 'k', value: [{
+        currentDate: '2026-06-21 00:00:00',
+        startTime: '18:00', endTime: '00:30',
+        isNight: false, isMorrow: false,
+        nightStartTime: '', nightEndTime: '',
+        activated: true, statusTips: '',
+        parkCloseDesc: null, closeRemarkUrl: null, remarkUrl: null, stopIntoPark: '',
+      }],
+    };
+    const out = parseBusinessTime(json, TZ);
+    expect(out).toHaveLength(1);
+    expect(out[0].openingTime).toBe('2026-06-21T18:00:00+08:00');
+    // close should be 2026-06-22, NOT 2026-06-21 (which would be before opening).
+    expect(out[0].closingTime).toBe('2026-06-22T00:30:00+08:00');
+  });
+
+  test('rolls EXTRA_HOURS closing onto the next day when night event crosses midnight', () => {
+    const json: FantawildBusinessTimeResponse = {
+      key: 'k', value: [{
+        currentDate: '2026-06-21 00:00:00',
+        startTime: '09:30', endTime: '21:00',
+        isNight: true, isMorrow: false,
+        nightStartTime: '22:00', nightEndTime: '01:00',
+        activated: true, statusTips: '',
+        parkCloseDesc: null, closeRemarkUrl: null, remarkUrl: null, stopIntoPark: '',
+      }],
+    };
+    const out = parseBusinessTime(json, TZ);
+    expect(out).toHaveLength(2);
+    expect(out[0].type).toBe('OPERATING');
+    expect(out[0].closingTime).toBe('2026-06-21T21:00:00+08:00');
+    expect(out[1].type).toBe('EXTRA_HOURS');
+    expect(out[1].openingTime).toBe('2026-06-21T22:00:00+08:00');
+    expect(out[1].closingTime).toBe('2026-06-22T01:00:00+08:00');
+  });
+
+  test('rolls past month boundary correctly', () => {
+    // 2026-06-30 → 2026-07-01 (month rollover).
+    const json: FantawildBusinessTimeResponse = {
+      key: 'k', value: [{
+        currentDate: '2026-06-30 00:00:00',
+        startTime: '20:00', endTime: '02:00',
+        isNight: false, isMorrow: false,
+        nightStartTime: '', nightEndTime: '',
+        activated: true, statusTips: '',
+        parkCloseDesc: null, closeRemarkUrl: null, remarkUrl: null, stopIntoPark: '',
+      }],
+    };
+    const out = parseBusinessTime(json, TZ);
+    expect(out[0].closingTime).toBe('2026-07-01T02:00:00+08:00');
+  });
+
+  test('does NOT roll when closing time is strictly after opening', () => {
+    const json: FantawildBusinessTimeResponse = {
+      key: 'k', value: [{
+        currentDate: '2026-06-21 00:00:00',
+        startTime: '09:30', endTime: '23:59',
+        isNight: false, isMorrow: false,
+        nightStartTime: '', nightEndTime: '',
+        activated: true, statusTips: '',
+        parkCloseDesc: null, closeRemarkUrl: null, remarkUrl: null, stopIntoPark: '',
+      }],
+    };
+    const out = parseBusinessTime(json, TZ);
+    expect(out[0].closingTime).toBe('2026-06-21T23:59:00+08:00');
+  });
+
   test('processes a multi-day fixture in the order the API returns it', () => {
     // The API doesn't sort by date — entries arrive in app-storage order.
     // The parser should NOT re-sort; the destination's schedule renderer

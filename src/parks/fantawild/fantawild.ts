@@ -42,6 +42,13 @@ export interface FantawildBusinessTimeEntry {
   /** "HH:MM" — empty string when closed */
   endTime: string;
   isNight: boolean;
+  /**
+   * Field name suggests "is the next day," but its exact semantics have not
+   * been confirmed against a real cross-midnight fixture — every observed
+   * entry has `isMorrow: false`. We detect midnight-crossing closing times
+   * directly from the wall-clock values (close < open → roll) rather than
+   * trusting this flag, which is strictly safer either way.
+   */
   isMorrow: boolean;
   nightStartTime: string;
   nightEndTime: string;
@@ -140,6 +147,33 @@ export function isFantawildShow(item: FantawildItem): boolean {
 
 // ── Schedule parser ─────────────────────────────────────────────────────────
 
+/** Parse "HH:MM" to minutes-from-midnight. Returns NaN if malformed. */
+function hhmmToMinutes(t: string): number {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t);
+  if (!m) return NaN;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/**
+ * If a window's closing time is at or before its opening time, the window
+ * crosses midnight — return tomorrow's date for use as the close date. Else
+ * return the same date. Times are wall-clock "HH:MM" in the park's timezone.
+ *
+ * Mirrors the post-midnight fix Europa-Park needed for Sommernächte (PR #224).
+ * We don't trust the upstream `isMorrow` flag — its semantics aren't pinned
+ * down by a real fixture — but wall-clock ordering is unambiguous.
+ */
+function closeDateAcrossMidnight(date: string, openTime: string, closeTime: string): string {
+  const opens = hhmmToMinutes(openTime);
+  const closes = hhmmToMinutes(closeTime);
+  if (!Number.isFinite(opens) || !Number.isFinite(closes)) return date;
+  if (closes > opens) return date;
+  // YYYY-MM-DD → next day. Date.UTC handles month/year rollover correctly.
+  const [y, m, d] = date.split('-').map(Number);
+  const next = new Date(Date.UTC(y, (m - 1), d + 1));
+  return next.toISOString().slice(0, 10);
+}
+
 /**
  * Convert a Fantawild BusinessTime response to ScheduleEntry[].
  *
@@ -148,7 +182,8 @@ export function isFantawildShow(item: FantawildItem): boolean {
  * or whose date can't be parsed. Adds an EXTRA_HOURS entry when `isNight`
  * is true and night times are populated — the park's day session has its
  * own startTime/endTime, and the night session (e.g. fireworks/dark-ride
- * event) is layered on top.
+ * event) is layered on top. Closing times at or before opening (e.g.
+ * 18:00–00:30 or 22:00–01:00) roll the close date to the next day.
  */
 export function parseBusinessTime(
   json: FantawildBusinessTimeResponse | null | undefined,
@@ -161,19 +196,21 @@ export function parseBusinessTime(
     const date = ev.currentDate?.split(' ')[0];
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
     if (ev.startTime && ev.endTime) {
+      const closeDate = closeDateAcrossMidnight(date, ev.startTime, ev.endTime);
       out.push({
         date,
         type: 'OPERATING' as const,
         openingTime: constructDateTime(date, ev.startTime, timezone),
-        closingTime: constructDateTime(date, ev.endTime, timezone),
+        closingTime: constructDateTime(closeDate, ev.endTime, timezone),
       });
     }
     if (ev.isNight && ev.nightStartTime && ev.nightEndTime) {
+      const nightCloseDate = closeDateAcrossMidnight(date, ev.nightStartTime, ev.nightEndTime);
       out.push({
         date,
         type: 'EXTRA_HOURS' as const,
         openingTime: constructDateTime(date, ev.nightStartTime, timezone),
-        closingTime: constructDateTime(date, ev.nightEndTime, timezone),
+        closingTime: constructDateTime(nightCloseDate, ev.nightEndTime, timezone),
       });
     }
   }
@@ -311,11 +348,17 @@ class Fantawild extends Destination {
   // ===== Schedule scraping =====
 
   /**
-   * Fetch + parse the next ~7 days of opening hours. Returns [] on any
+   * Fetch + parse the next ~7-10 days of opening hours. Returns [] on any
    * fetch/parse failure so an outage on one park doesn't take out a multi-
    * park sweep.
+   *
+   * Cached 6h — BusinessTime is a forward-looking calendar that almost
+   * never changes intra-day, so the short TTL was wasted parse work and
+   * extra CDN traffic across a 50-park sweep. `fetchBusinessTime()`'s own
+   * `@http` cache still gives a 15-min upstream-update floor for the rare
+   * case (closure pushed at short notice).
    */
-  @cache({ttlSeconds: 60 * 10})
+  @cache({ttlSeconds: 60 * 60 * 6})
   async scrapeSchedule(): Promise<ScheduleEntry[]> {
     try {
       const resp = await this.fetchBusinessTime();
