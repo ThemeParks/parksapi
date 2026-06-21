@@ -4,25 +4,25 @@
  * The Fantawild chain operates ~50 parks across China under several brand
  * lines (Dreamland 梦幻王国, Oriental Heritage 东方神画, Adventure 欢乐世界,
  * Boonie Bears 熊出没, Water Park 水上乐园, etc.). All parks share a common
- * mobile app (`方特旅游`, package `com.hytch.ftthemepark`) which fetches
- * static metadata from a shared CDN at `image.fangte.com`.
+ * mobile app (`方特旅游`, package `com.hytch.ftthemepark`).
  *
- * Phase 1 (this file): destination + park entity + operating-hours schedule,
- * sourced entirely from the unauthenticated CDN. No per-ride data.
+ * Two backends, both anonymous-callable in practice (the app sends bearer +
+ * HMAC headers, but neither is enforced server-side):
  *
- * Phase 2 (future): ride list + live wait times require a bearer token from
- * `leyou.fangte.com`; the REST path is not recoverable statically because the
- * Dart binary (Flutter) didn't yield to blutter. Needs a runtime device
- * capture to discover the endpoint.
+ *   - Static CDN: `image.fangte.com`
+ *       /UploadFiles/Launch/CityPark/{cityParkVersion}.json
+ *         Master park list. {version} is a release pointer, not a parkId.
+ *       /UploadFiles/Launch/BusinessTime/{businessTimeVersion}/{parkId}.json
+ *         Per-park daily opening hours, keyed by the small parkId.
+ *       /UploadFiles/Launch/Announcement/{businessTimeVersion}/{parkId}.json
+ *         Per-park announcements.
  *
- * CDN routes used (all GET, no auth):
- *   /UploadFiles/Launch/CityPark/{cityParkVersion}.json
- *     - Master park list. The numeric `{version}` is a release pointer, not
- *       a parkId. Same content is served from multiple version numbers.
- *   /UploadFiles/Launch/BusinessTime/{businessTimeVersion}/{parkId}.json
- *     - Per-park daily opening hours, keyed by the small parkId (17, 19, …).
- *   /UploadFiles/Launch/Announcement/{businessTimeVersion}/{parkId}.json
- *     - Per-park announcements (rich-text URLs).
+ *   - JSON API: `leyou.fangte.com`
+ *       /project/api/ParkItem/GetItemBusinessList?parkId=…&selectedDate=…
+ *         Full ride + show list with live `waitTime`, `itemOpened` flag,
+ *         `statusStr` (e.g. `项目维护` = under maintenance), per-ride
+ *         lat/lng, and `showTimeList` of operating-hours range or discrete
+ *         show times.
  */
 
 import {Destination, type DestinationConstructor} from '../../destination.js';
@@ -326,7 +326,17 @@ class Fantawild extends Destination {
     }
   }
 
-  /** Fetch + return the raw item list. Returns [] on any failure. */
+  /**
+   * Fetch + return the raw item list. Returns [] on any failure.
+   *
+   * Cached 60s. `fetchItemBusinessList()` bakes the wall-clock into the
+   * `selectedDate` query string, so its underlying `@http` cache key
+   * changes every second and wouldn't dedupe the calls fired by
+   * `buildEntityList()` and `buildLiveData()` in the same tick. The
+   * argless `@cache` here keys on class + method only, so both builders
+   * share one payload per parkId per 60s window.
+   */
+  @cache({ttlSeconds: 60})
   async fetchItems(): Promise<FantawildItem[]> {
     try {
       const resp = await this.fetchItemBusinessList();
