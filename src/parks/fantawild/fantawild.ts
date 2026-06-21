@@ -258,16 +258,17 @@ class Fantawild extends Destination {
   }
 
   protected async _init(): Promise<void> {
+    const cls = this.constructor.name.toUpperCase();
     if (!this.baseUrl) {
       throw new Error(
         `${this.constructor.name} requires baseUrl to be configured ` +
-        `(set FANTAWILD_BASEURL in .env, e.g. https://image.fangte.com)`,
+        `(set ${cls}_BASEURL or FANTAWILD_BASEURL in .env, e.g. https://image.fangte.com)`,
       );
     }
     if (!this.apiBaseUrl) {
       throw new Error(
         `${this.constructor.name} requires apiBaseUrl to be configured ` +
-        `(set FANTAWILD_APIBASEURL in .env, e.g. https://leyou.fangte.com)`,
+        `(set ${cls}_APIBASEURL or FANTAWILD_APIBASEURL in .env, e.g. https://leyou.fangte.com)`,
       );
     }
     if (!this.parkId) {
