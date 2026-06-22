@@ -9,6 +9,7 @@ import {
   Entity,
   LiveData,
   EntitySchedule,
+  AttractionTypeEnum,
 } from '@themeparks/typelib';
 import {formatInTimezone, addDays, isBefore, addMinutes, constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
@@ -60,6 +61,17 @@ type EuropaParkWaitTime = {
 type EuropaParkShowTime = {
   showId: number;
   today: string[];
+};
+
+/**
+ * EP-Express shuttle wait-time entry (hotelapp feed). One row per
+ * (station, vehicle) pair, present only for the trains currently circulating.
+ * `waitingMinutes` is the ETA of that train to that station.
+ */
+type EuropaParkExpressWait = {
+  station: number;
+  vehicle: number;
+  waitingMinutes: number;
 };
 
 /** Season schedule item */
@@ -123,6 +135,32 @@ const PARK_CONFIGS: EuropaParkConfig[] = [
 const DESTINATION_ID = 'europapark';
 const TIMEZONE = 'Europe/Berlin';
 
+// ─── EP-Express shuttle ────────────────────────────────────────────────────────
+//
+// The EP-Express is the shuttle train that loops between the resort hotels and
+// the park (one-way: Alexanderplatz → Hotels → Spain → Greece → …). Its
+// four stations exist in the regular POI catalogue as `attraction` POIs (so the
+// entity builder already emits them as `pois_<id>` under Europa-Park), but they
+// carry no entry in the regular waiting-times feed — their only live source is a
+// separate public hotelapp feed (`/nu/?content_id=751`), which reports an ETA
+// per (station, vehicle). Station numbering in that feed differs from the POI id,
+// hence the explicit map below. (A companion live-GPS feed, content_id 648, is
+// used only for offline verification and is not consumed at runtime.)
+const EP_EXPRESS_WAITTIMES_CONTENT_ID = 751;
+
+/** hotelapp feed `station` id → Europa-Park POI numeric id. */
+const EP_EXPRESS_STATION_TO_POI: Record<number, number> = {
+  1: 60,  // Alexanderplatz
+  2: 62,  // Spain
+  3: 61,  // Greece
+  4: 395, // Hotels
+};
+
+/** Entity ids (`pois_<id>`) of the four EP-Express stations. */
+const EP_EXPRESS_ENTITY_IDS = new Set(
+  Object.values(EP_EXPRESS_STATION_TO_POI).map((poiId) => `pois_${poiId}`),
+);
+
 // ─── Main class ───────────────────────────────────────────────────────────────
 
 @config
@@ -141,6 +179,10 @@ class EuropaParkBase extends Destination {
 
   @config
   appVersion: string = '16.0.0';
+
+  /** Base URL of the public hotelapp host that serves the EP-Express feeds. */
+  @config
+  hotelAppBase: string = '';
 
   timezone: string = TIMEZONE;
 
@@ -294,6 +336,23 @@ class EuropaParkBase extends Destination {
     } as any as HTTPObj;
   }
 
+  /**
+   * EP-Express shuttle wait times, sourced from the public backend of the
+   * Europa-Park Hotels app. Public GET on the hotelapp host — no auth or app
+   * headers required (the Bearer injector is scoped to the apiBase host and
+   * never touches this domain). The upstream refreshes only every ~3 minutes, so
+   * a 60 s cache is a comfortable floor.
+   */
+  @http({cacheSeconds: 60} as any)
+  async fetchExpressWaitTimes(): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.hotelAppBase}/nu/?content_id=${EP_EXPRESS_WAITTIMES_CONTENT_ID}`,
+      options: {json: true},
+      tags: [],
+    } as any as HTTPObj;
+  }
+
   // ─── Parsed data getters ──────────────────────────────────────────────────
   //
   // The @http decorator already caches the serialised response; a second
@@ -340,6 +399,26 @@ class EuropaParkBase extends Destination {
   async getShowTimes(): Promise<EuropaParkShowTime[]> {
     const resp = await this.fetchShowTimes();
     return (await resp.json()) as EuropaParkShowTime[];
+  }
+
+  /**
+   * Parse the EP-Express feed into a flat list of wait entries. The feed is an
+   * object keyed by numeric strings plus a trailing `success` flag, e.g.
+   * `{"0": {station, vehicle, waitingMinutes, updated_at}, …, "success": true}`,
+   * so we keep only the numerically-keyed object values.
+   */
+  @reusable()
+  async getExpressWaitTimes(): Promise<EuropaParkExpressWait[]> {
+    const resp = await this.fetchExpressWaitTimes();
+    const data: any = await resp.json();
+    if (!data || typeof data !== 'object') return [];
+    return Object.entries(data)
+      .filter(([key]) => /^\d+$/.test(key))
+      .map(([, value]) => value as EuropaParkExpressWait)
+      .filter(
+        (v): v is EuropaParkExpressWait =>
+          !!v && typeof v === 'object' && typeof v.station === 'number',
+      );
   }
 
   // ─── Entity builder helpers ───────────────────────────────────────────────
@@ -500,6 +579,11 @@ class EuropaParkBase extends Destination {
           timezone: TIMEZONE,
         } as Entity;
 
+        // EP-Express stations are shuttle stops, not rides.
+        if (EP_EXPRESS_ENTITY_IDS.has(entity.id)) {
+          attraction.attractionType = AttractionTypeEnum.TRANSPORT;
+        }
+
         // Location
         if (entity.latitude && entity.longitude) {
           attraction.location = {latitude: entity.latitude, longitude: entity.longitude};
@@ -611,12 +695,25 @@ class EuropaParkBase extends Destination {
 
   @reusable()
   protected async buildLiveData(): Promise<LiveData[]> {
-    // Parallelise — these four are independent network calls.
-    const [entities, poiData, waitsRaw, showTimes] = await Promise.all([
+    // Parallelise — these are independent network calls.
+    const [entities, poiData, waitsRaw, showTimes, expressWaits] = await Promise.all([
       this.getParkEntities(),
       this.getPOIs(),
       this.getWaitingTimes(),
       this.getShowTimes(),
+      // EP-Express lives on a separate host; a hotelapp outage shouldn't take
+      // the rest of Europa-Park's live data down with it. On failure we skip
+      // shuttle emission entirely (the stations get no live data) rather than
+      // falsely reporting them closed. When the host isn't configured at all
+      // (deployments that haven't set the new env var), skip silently — no
+      // fetch, no warning.
+      this.hotelAppBase
+        ? this.getExpressWaitTimes().catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.warn(`Europa-Park EP-Express feed unavailable (${msg}); skipping shuttle live data`);
+          return null;
+        })
+        : Promise.resolve(null),
     ]);
 
     // Narrow the raw wait-times array. Upstream occasionally injects a literal
@@ -791,7 +888,56 @@ class EuropaParkBase extends Destination {
       }
     }
 
+    // ── EP-Express shuttle ─────────────────────────────────────────────────
+    // The four station POIs are owned exclusively by this feed (they never
+    // appear in the regular waiting-times feed), so we set their live records
+    // directly rather than merging into anything from the passes above.
+    if (expressWaits) {
+      for (const ld of this._buildExpressLiveData(expressWaits)) {
+        liveDataMap.set(ld.id, ld);
+      }
+    }
+
     return Array.from(liveDataMap.values());
+  }
+
+  /**
+   * Build live data for the four EP-Express stations from the hotelapp feed.
+   *
+   * The "wait time" for a station is the ETA of the nearest train, i.e. the
+   * minimum `waitingMinutes` across the trains currently serving it. In
+   * practice only two of the three trains circulate (the third sits parked on
+   * a siding and is simply absent from the feed), so we make no assumption
+   * about how many vehicles report.
+   *
+   * A station with at least one finite, non-negative ETA is OPERATING. A
+   * station with no ETA is CLOSED — this also covers after-hours behaviour:
+   * when no train circulates the feed omits the (station, vehicle) rows, so
+   * every station falls through to CLOSED. Called only when the feed fetch
+   * succeeded, so an empty result genuinely means "no trains running" rather
+   * than "feed unreachable".
+   */
+  protected _buildExpressLiveData(expressWaits: EuropaParkExpressWait[]): LiveData[] {
+    const etasByStation = new Map<number, number[]>();
+    for (const wait of expressWaits) {
+      const minutes = Number(wait.waitingMinutes);
+      if (!Number.isFinite(minutes) || minutes < 0) continue;
+      const list = etasByStation.get(wait.station);
+      if (list) list.push(minutes);
+      else etasByStation.set(wait.station, [minutes]);
+    }
+
+    const result: LiveData[] = [];
+    for (const [stationId, poiId] of Object.entries(EP_EXPRESS_STATION_TO_POI)) {
+      const etas = etasByStation.get(Number(stationId));
+      const ld: LiveData = {id: `pois_${poiId}`, status: 'CLOSED'} as LiveData;
+      if (etas && etas.length > 0) {
+        ld.status = 'OPERATING';
+        ld.queue = {STANDBY: {waitTime: Math.min(...etas)}};
+      }
+      result.push(ld);
+    }
+    return result;
   }
 
   // ─── Template Method: buildSchedules ─────────────────────────────────────

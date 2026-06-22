@@ -179,10 +179,14 @@ const mkWait = (code: number, time = 0) => ({code, time});
 const mkAttraction = (id: number, code: number) =>
   ({id: `pois_${id}`, name: `Attraction ${id}`, entityType: 'ATTRACTION', scopes: ['europapark'], code} as any);
 
-// Sub-class to expose the protected glitch detector for testing.
+// Sub-class to expose the protected helpers for testing.
 class Probe extends EuropaPark {
   public probe(waits: any[], entities: any[]): boolean {
     return this._isWaitsGlitch(waits, entities);
+  }
+
+  public expressLive(waits: any[]): any[] {
+    return this._buildExpressLiveData(waits);
   }
 }
 
@@ -320,5 +324,100 @@ describe('getParkEntities show name fallback', () => {
   test('still skips a show with neither name nor analyticsName', async () => {
     const entities = await new EntityProbe(pois).getParkEntities();
     expect(entities.find((e) => e.id === 'shows_135')).toBeUndefined();
+  });
+});
+
+// ── EP-Express shuttle live data ─────────────────────────────────────────────
+// The hotelapp feed reports an ETA per (station, vehicle); a station's wait time
+// is the nearest train's ETA (min over vehicles), and a station with no ETA is
+// CLOSED. Station ids in the feed differ from the POI ids, so the mapping is the
+// load-bearing part to pin down.
+const mkExpress = (station: number, vehicle: number, waitingMinutes: number) =>
+  ({station, vehicle, waitingMinutes});
+
+describe('_buildExpressLiveData', () => {
+  const probe = new Probe();
+  const byId = (live: any[], id: string) => live.find((l) => l.id === id);
+
+  test('maps each feed station id to the correct POI entity id', () => {
+    const live = probe.expressLive([
+      mkExpress(1, 1, 5),
+      mkExpress(2, 1, 5),
+      mkExpress(3, 1, 5),
+      mkExpress(4, 1, 5),
+    ]);
+    // 1→Alexanderplatz, 2→Spain, 3→Greece, 4→Hotels
+    expect(byId(live, 'pois_60')).toBeDefined();
+    expect(byId(live, 'pois_62')).toBeDefined();
+    expect(byId(live, 'pois_61')).toBeDefined();
+    expect(byId(live, 'pois_395')).toBeDefined();
+  });
+
+  test('always emits exactly the four known stations', () => {
+    const live = probe.expressLive([mkExpress(1, 1, 3)]);
+    expect(live).toHaveLength(4);
+    expect(new Set(live.map((l) => l.id))).toEqual(
+      new Set(['pois_60', 'pois_62', 'pois_61', 'pois_395']),
+    );
+  });
+
+  test('uses the minimum ETA across the trains serving a station', () => {
+    // Two trains report ETAs for station 1; the nearest (smaller) wins.
+    const live = probe.expressLive([
+      mkExpress(1, 1, 13),
+      mkExpress(1, 3, 2),
+    ]);
+    const station = byId(live, 'pois_60');
+    expect(station.status).toBe('OPERATING');
+    expect(station.queue.STANDBY.waitTime).toBe(2);
+  });
+
+  test('a station with an ETA is OPERATING with that wait', () => {
+    const live = probe.expressLive([mkExpress(4, 3, 7)]);
+    const station = byId(live, 'pois_395');
+    expect(station.status).toBe('OPERATING');
+    expect(station.queue.STANDBY.waitTime).toBe(7);
+  });
+
+  test('a waitTime of 0 (train at platform) is a valid OPERATING wait', () => {
+    const live = probe.expressLive([mkExpress(3, 1, 0)]);
+    const station = byId(live, 'pois_61');
+    expect(station.status).toBe('OPERATING');
+    expect(station.queue.STANDBY.waitTime).toBe(0);
+  });
+
+  test('a station with no ETA is CLOSED with no queue', () => {
+    // Only station 1 reports — the other three are absent (e.g. a parked train).
+    const live = probe.expressLive([mkExpress(1, 1, 4)]);
+    const station2 = byId(live, 'pois_62');
+    expect(station2.status).toBe('CLOSED');
+    expect(station2.queue).toBeUndefined();
+  });
+
+  test('an empty feed (after close / no trains) marks all four CLOSED', () => {
+    const live = probe.expressLive([]);
+    expect(live).toHaveLength(4);
+    for (const l of live) {
+      expect(l.status).toBe('CLOSED');
+      expect(l.queue).toBeUndefined();
+    }
+  });
+
+  test('ignores non-finite and negative waitingMinutes', () => {
+    // A station whose only readings are unusable falls through to CLOSED;
+    // mixed-in junk for a served station is dropped without poisoning the min.
+    const live = probe.expressLive([
+      mkExpress(1, 1, NaN as any),
+      mkExpress(1, 3, -1),
+      mkExpress(2, 1, Infinity as any),
+      mkExpress(2, 3, 'oops' as any),
+      mkExpress(3, 1, -5),
+      mkExpress(3, 3, 9),
+    ]);
+    expect(byId(live, 'pois_60').status).toBe('CLOSED'); // station 1: NaN + negative → none
+    expect(byId(live, 'pois_62').status).toBe('CLOSED'); // station 2: Infinity + string → none
+    const station3 = byId(live, 'pois_61');
+    expect(station3.status).toBe('OPERATING'); // station 3: -5 dropped, 9 kept
+    expect(station3.queue.STANDBY.waitTime).toBe(9);
   });
 });
