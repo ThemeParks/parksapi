@@ -455,6 +455,56 @@ export class Fantawild extends Destination {
    * 60s if the result is empty — a transient CDN/parse failure shouldn't
    * stick around as a fabricated zero-day schedule for hours.
    */
+  /**
+   * Stable per-park roster — the entity list that survives upstream roster
+   * shrinkage. Merges fresh + cached by `id`; persists the merged result
+   * for 7 days, but only when the merged size is at least as large as the
+   * previously-cached size. The "never shrink within TTL" guarantee
+   * defends against three real failure modes observed over a 25-hour
+   * probe campaign:
+   *
+   *   1. Fantawild's overnight CMS prune (00:00-09:00 China time) where
+   *      ~20 parks lose between 1 ride and their entire roster.
+   *   2. Slow-API timeouts that fabricate empty rosters from
+   *      `getItems` returning `[]` on catch.
+   *   3. Scheduled day-closures (`activated:false` in BusinessTime) where
+   *      a park returns 0 items for the whole day.
+   *
+   * 7-day TTL chosen so multi-day weekly closures (Chinese parks
+   * commonly close Mon-Wed during low season) stay protected — a 24h
+   * TTL would expire and let the empty roster win on day 2.
+   *
+   * After 7 days of sustained shrinkage the cache entry expires and the
+   * smaller roster becomes the new baseline — so legitimately deleted
+   * rides eventually clear from the wiki. New rides surface immediately
+   * via the merge-on-id (no need to wait for cache expiry).
+   *
+   * Per `feedback_cache_only_true.md`: only ever writes the at-least-
+   * as-large value, never the shrunken one.
+   */
+  async getStableRoster(parkId: number, timezone: string): Promise<FantawildItem[]> {
+    const fresh = await this.getItems(parkId, timezone);
+    const cacheKey = `${this.getCacheKeyPrefix()}:roster:v1:${parkId}`;
+    const cached = (CacheLib.get(cacheKey) ?? []) as FantawildItem[];
+
+    // Merge by id: new items in fresh are always added; cached items kept
+    // even when fresh omits them. Fresh values overwrite cached on
+    // matching id so name / coordinate updates surface immediately.
+    const byId = new Map<number, FantawildItem>();
+    for (const c of cached) byId.set(c.id, c);
+    for (const f of fresh) byId.set(f.id, f);
+    const merged = [...byId.values()];
+
+    // "Never shrink": persist only when merged >= cached. A sustained
+    // reduction past the 7-day TTL eventually lets the empty cache
+    // expire and the next call establishes the smaller roster as the
+    // new baseline.
+    if (merged.length >= cached.length) {
+      CacheLib.set(cacheKey, merged, 60 * 60 * 24 * 7);
+    }
+    return merged;
+  }
+
   @cache({
     callback: (result: ScheduleEntry[]) => result.length === 0 ? 60 : 60 * 60 * 6,
     cacheVersion: 1,
@@ -575,7 +625,10 @@ export class Fantawild extends Destination {
         location: park.location,
       } as Entity);
 
-      const items = await this.getItems(park.parkId, park.timezone);
+      // Use the stable roster, not the raw fresh items. This protects the
+      // entity list from upstream roster shrinkage (overnight CMS prune,
+      // slow-API timeouts, scheduled day-closures) — see getStableRoster.
+      const items = await this.getStableRoster(park.parkId, park.timezone);
       for (const item of items) {
         if (!item.id) continue;
         const cleanName = stripFantawildStars(item.itemName || '');
@@ -611,19 +664,39 @@ export class Fantawild extends Destination {
   @reusable()
   protected async buildLiveData(): Promise<LiveData[]> {
     const perPark = await Promise.all(FANTAWILD_PARKS.map(async park => {
-      // Fetch items + schedule in parallel for this park, then cross-check.
-      const [items, schedule] = await Promise.all([
+      // Fetch fresh items + stable roster + schedule in parallel.
+      //   - fresh: drives status mapping for rides the API knows about
+      //     right now (waitTime, itemOpened, statusStr).
+      //   - stable roster: the entity list `buildEntityList` emits; rides
+      //     in here but missing from `fresh` get CLOSED so the wiki sees
+      //     a consistent ride count + statuses even during overnight
+      //     pruning.
+      const [fresh, roster, schedule] = await Promise.all([
         this.getItems(park.parkId, park.timezone),
+        this.getStableRoster(park.parkId, park.timezone),
         this.getSchedule(park.parkId, park.timezone),
       ]);
       const parkOpen = this.parkIsOpenNow(schedule, park.timezone);
       // Pick up runtime evidence that this park does broadcast live waits,
       // OR'd with the curated static flag. New parks light up automatically.
       const liveWaitsOn = park.hasLiveWaitTimes
-        || await this.recordLiveWaitObservation(park.parkId, items);
+        || await this.recordLiveWaitObservation(park.parkId, fresh);
+      const freshById = new Map(fresh.filter(f => f.id).map(f => [f.id, f]));
       const out: LiveData[] = [];
-      for (const item of items) {
-        if (!item.id) continue;
+      for (const rosterItem of roster) {
+        if (!rosterItem.id) continue;
+        const item = freshById.get(rosterItem.id);
+        // Ride is in the stable roster but missing from this tick's fresh
+        // response → upstream is pruning it (overnight / closed-today /
+        // timeout). Emit CLOSED so the wiki keeps the entity but reflects
+        // that it's not running right now.
+        if (!item) {
+          out.push({
+            id: this.attractionIdFor(park.parkId, rosterItem.id),
+            status: 'CLOSED',
+          } as LiveData);
+          continue;
+        }
         const isOpen = item.itemOpened === true;
         // `项目维护` ("under maintenance") explicitly flags a planned closure
         // distinct from "closed because the park's closed" — surface as REFURBISHMENT.

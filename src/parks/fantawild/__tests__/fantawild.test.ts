@@ -464,3 +464,73 @@ describe('Fantawild.recordLiveWaitObservation', () => {
   });
 });
 
+describe('Fantawild.getStableRoster', () => {
+  // Verify the never-shrink-within-TTL roster cache, including merge-by-id,
+  // fresh-overwriting-cached, and the sustained-shrinkage TTL-expiry path.
+  let Fantawild: typeof import('../fantawild.js').Fantawild;
+  // Use parkIds well outside the real chain to avoid colliding with any
+  // residual cache entries from earlier integration runs.
+  const PA = 9_100_001, PB = 9_100_002, PC = 9_100_003, PD = 9_100_004, PE = 9_100_005;
+
+  beforeAll(async () => {
+    const mod = await import('../fantawild.js');
+    Fantawild = mod.Fantawild;
+  });
+
+  // Build a Fantawild instance with `getItems` stubbed to return a fixed
+  // payload, so we can control "fresh" without touching the network.
+  function makeDest(freshItems: any[]): import('../fantawild.js').Fantawild {
+    const d = new Fantawild({config: {
+      baseUrl: 'https://image.fangte.com',
+      apiBaseUrl: 'https://leyou.fangte.com',
+    }});
+    (d as unknown as {getItems: () => Promise<any[]>}).getItems = async () => freshItems;
+    return d;
+  }
+
+  test('returns fresh items when cache is empty (first call)', async () => {
+    const d = makeDest([{id: 1, itemName: 'A'}, {id: 2, itemName: 'B'}]);
+    const r = await (d as any).getStableRoster(PA, 'Asia/Shanghai');
+    expect(r.map((i: any) => i.id).sort()).toEqual([1, 2]);
+  });
+
+  test('NEVER SHRINKS within TTL — fresh=[2 items], cached=[30 items] returns 30', async () => {
+    // Seed with a 4-item roster
+    const seed = makeDest([{id: 1}, {id: 2}, {id: 3}, {id: 4}]);
+    await (seed as any).getStableRoster(PB, 'Asia/Shanghai');
+    // Now simulate the API returning only 1 of those (overnight prune)
+    const pruned = makeDest([{id: 1, itemName: 'pruned'}]);
+    const r = await (pruned as any).getStableRoster(PB, 'Asia/Shanghai');
+    expect(r.map((i: any) => i.id).sort()).toEqual([1, 2, 3, 4]);
+  });
+
+  test('GROWS — fresh adds new id not in cache, surface immediately', async () => {
+    const seed = makeDest([{id: 10}, {id: 11}]);
+    await (seed as any).getStableRoster(PC, 'Asia/Shanghai');
+    const grown = makeDest([{id: 10}, {id: 11}, {id: 12, itemName: 'new ride'}]);
+    const r = await (grown as any).getStableRoster(PC, 'Asia/Shanghai');
+    expect(r.map((i: any) => i.id).sort()).toEqual([10, 11, 12]);
+    // Confirm the new entry is the fresh one (with itemName).
+    expect(r.find((i: any) => i.id === 12)?.itemName).toBe('new ride');
+  });
+
+  test('FRESH OVERWRITES CACHED on matching id (name/coord updates surface)', async () => {
+    const seed = makeDest([{id: 20, itemName: 'Old Name', waitTime: 0}]);
+    await (seed as any).getStableRoster(PD, 'Asia/Shanghai');
+    const renamed = makeDest([{id: 20, itemName: 'New Name', waitTime: 5}]);
+    const r = await (renamed as any).getStableRoster(PD, 'Asia/Shanghai');
+    expect(r).toHaveLength(1);
+    expect(r[0].itemName).toBe('New Name');
+    expect(r[0].waitTime).toBe(5);
+  });
+
+  test('EMPTY FRESH preserves cache — handles slow-API timeouts and closed-today parks', async () => {
+    const seed = makeDest([{id: 30}, {id: 31}, {id: 32}]);
+    await (seed as any).getStableRoster(PE, 'Asia/Shanghai');
+    // Simulate getItems catching a timeout and returning []
+    const dropped = makeDest([]);
+    const r = await (dropped as any).getStableRoster(PE, 'Asia/Shanghai');
+    expect(r.map((i: any) => i.id).sort()).toEqual([30, 31, 32]);
+  });
+});
+
