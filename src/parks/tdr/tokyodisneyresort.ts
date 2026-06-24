@@ -181,7 +181,7 @@ export class TokyoDisneyResort extends Destination {
     tags: {$nin: ['deviceRegistration']},
   })
   async injectAPIHeaders(requestObj: HTTPObj): Promise<void> {
-    const appVersion = await this.getAppVersion();
+    const appVersion = await this.getAppwatchVersion('jp.tokyodisneyresort.portalapp', this.apiVersion);
     const deviceId = await this.getDeviceId();
 
     requestObj.headers = {
@@ -212,7 +212,7 @@ export class TokyoDisneyResort extends Destination {
     tags: {$in: ['deviceRegistration']},
   })
   async injectDeviceRegistrationHeaders(requestObj: HTTPObj): Promise<void> {
-    const appVersion = await this.getAppVersion();
+    const appVersion = await this.getAppwatchVersion('jp.tokyodisneyresort.portalapp', this.apiVersion);
 
     requestObj.headers = {
       ...requestObj.headers,
@@ -243,7 +243,7 @@ export class TokyoDisneyResort extends Destination {
   async handleAPIResponse(requestObj: HTTPObj): Promise<void> {
     if (requestObj.status === 400) {
       console.log('[TDR] API returned 400, clearing cached app version...');
-      CacheLib.delete('TokyoDisneyResort:getAppVersion:[]');
+      CacheLib.delete('TokyoDisneyResort:getAppwatchVersion:["jp.tokyodisneyresort.portalapp"]');
     }
 
     if (requestObj.status === 503) {
@@ -260,32 +260,6 @@ export class TokyoDisneyResort extends Destination {
   }
 
   // ===== HTTP Fetch Methods =====
-
-  /**
-   * Fetch the latest app version from appwatch API
-   */
-  @http({cacheSeconds: 60 * 60 * 12})
-  async fetchAppVersion(): Promise<HTTPObj> {
-    return {
-      method: 'GET',
-      url: 'https://api.themeparks.wiki/appwatch/latest/jp.tokyodisneyresort.portalapp',
-      options: {json: true},
-    } as HTTPObj;
-  }
-
-  /**
-   * Get the current app version (cached 12h, falls back to apiVersion config)
-   */
-  @cache({ttlSeconds: 60 * 60 * 12})
-  async getAppVersion(): Promise<string> {
-    try {
-      const resp = await this.fetchAppVersion();
-      const data = await resp.json();
-      return data?.version || this.apiVersion || '3.11.7';
-    } catch {
-      return this.apiVersion || '3.11.7';
-    }
-  }
 
   /**
    * Register a device with the TDR API
