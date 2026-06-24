@@ -102,6 +102,10 @@ export class ShanghaiDisneylandResort extends Destination {
   @config
   timezone: string = 'Asia/Shanghai';
 
+  /** Fallback App-Version header. The live value is fetched from appwatch and overrides this. */
+  @config
+  appVersion: string = '';
+
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('SHDR');
@@ -120,11 +124,12 @@ export class ShanghaiDisneylandResort extends Destination {
     },
   })
   async injectAPIHeaders(requestObj: HTTPObj): Promise<void> {
+    const appVersion = await this.getAppwatchVersion('com.disney.shanghaidisneyland_goo', this.appVersion);
     requestObj.headers = {
       ...requestObj.headers,
       'Accept-Language': 'en',
       'Accept': 'application/json',
-      'App-Version': '13.5.0',
+      'App-Version': appVersion,
       'Content-Type': 'application/json',
       'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 16; FP4 Build/BP4A.251205.006)',
     };

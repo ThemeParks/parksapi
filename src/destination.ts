@@ -3,7 +3,8 @@ import {trace} from "./tracing.js";
 import {reusable} from "./promiseReuse.js";
 import {loadProxyConfig, hasProxyConfig, type ProxyConfig} from "./proxy.js";
 import {inject} from "./injector.js";
-import {type HTTPObj, HttpQueue} from "./http.js";
+import {type HTTPObj, HttpQueue, http} from "./http.js";
+import {cache} from "./cache.js";
 import {VQueueBuilder} from "./virtualQueue/builder.js";
 import {calculateReturnWindow} from "./virtualQueue/timeWindows.js";
 import {formatInTimezone} from "./datetime.js";
@@ -787,6 +788,44 @@ export abstract class Destination {
       return formatInTimezone(new Date(date), this.timezone, 'iso');
     }
     return formatInTimezone(date, this.timezone, 'iso');
+  }
+
+  /**
+   * Fetch the latest version of an app from the themeparks.wiki appwatch
+   * mirror (Play Store metadata). Used by `getAppwatchVersion()`; subclasses
+   * shouldn't call this directly.
+   */
+  @http({cacheSeconds: 60 * 60 * 12})
+  protected async fetchAppwatchVersion(packageId: string): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `https://api.themeparks.wiki/appwatch/latest/${encodeURIComponent(packageId)}`,
+      options: {json: true},
+    } as HTTPObj;
+  }
+
+  /**
+   * Get the latest published version string of a mobile app, via appwatch.
+   * Returns `fallback` when appwatch is unreachable or doesn't have the
+   * version field. Cached 12h per (subclass, packageId) — invalidate the
+   * cache entry from a response-error handler if the upstream API ever
+   * starts gating on version.
+   *
+   * @example
+   * ```typescript
+   * const v = await this.getAppwatchVersion('com.example.app', this.appVersion);
+   * headers['App-Version'] = v;
+   * ```
+   */
+  @cache({ttlSeconds: 60 * 60 * 12})
+  async getAppwatchVersion(packageId: string, fallback: string = ''): Promise<string> {
+    try {
+      const resp = await this.fetchAppwatchVersion(packageId);
+      const data = await resp.json();
+      return data?.version || fallback;
+    } catch {
+      return fallback;
+    }
   }
 
   /**
