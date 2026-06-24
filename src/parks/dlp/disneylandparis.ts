@@ -27,13 +27,13 @@ const IGNORE_ENTITIES = new Set([
   'P2AC00-REMOVED',
   'P2AC00',
   'armageddon',
+  'P2EA02', // Entry to World of Frozen (land-entry pass, not a ride)
 ]);
 
 /** Entities that bypass visibility/hide rules */
 const VISIBILITY_EXCEPTIONS = new Set([
   'P2EA00', // Frozen Ever After
   'P2DA00', // Tangled Spin
-  'P2EA02', // Entry to World of Frozen
 ]);
 
 /** Hide rules that exclude entities from the POI list */
