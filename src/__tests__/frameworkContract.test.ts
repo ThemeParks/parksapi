@@ -168,6 +168,38 @@ describe('Template method pattern', () => {
     expect(liveData.length).toBe(1);
   });
 
+  test('getLiveData threads its scope argument through to buildLiveData', async () => {
+    let received: ReadonlySet<string> | undefined | 'unset' = 'unset';
+
+    @destinationController({ category: 'Test' })
+    class TestScopedPark extends Destination {
+      constructor(options?: DestinationConstructor) {
+        super(options);
+      }
+
+      protected async buildEntityList(): Promise<Entity[]> { return []; }
+
+      protected async buildLiveData(scope?: ReadonlySet<string>): Promise<LiveData[]> {
+        received = scope;
+        return [];
+      }
+
+      protected async buildSchedules(): Promise<EntitySchedule[]> { return []; }
+      async getDestinations(): Promise<Entity[]> { return []; }
+    }
+
+    const park = new TestScopedPark();
+
+    // Scoped call (streaming push) — buildLiveData must receive the same set.
+    const scope = new Set(['ride1', 'ride2']);
+    await park.getLiveData(scope);
+    expect(received).toBe(scope);
+
+    // No-arg call (poll/REST) — buildLiveData receives undefined (full snapshot).
+    await park.getLiveData();
+    expect(received).toBeUndefined();
+  });
+
   test('framework strips undefined values from live data, entities, and schedules', async () => {
     // Guards against the collector's hashObject() which rejects undefined.
     // Parks sometimes produce undefined via patterns like

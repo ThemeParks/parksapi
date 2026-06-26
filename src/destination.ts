@@ -953,12 +953,17 @@ export abstract class Destination {
    * **To provide live data, implement buildLiveData() instead.**
    *
    * @final This method is final and should not be overridden.
+   * @param scope Optional set of published entity ids to limit the build to.
+   *   Streaming (push) destinations pass the ids whose source docs changed this
+   *   fire so the build is emit-per-changed-entity rather than a full snapshot.
+   *   Undefined (the default, and all poll/REST destinations) builds everything.
+   *   Passed through to buildLiveData(); subclasses that ignore it stay full-snapshot.
    * @returns {LiveData[]} List of live data for entities
    */
   @trace()
-  async getLiveData(): Promise<LiveData[]> {
+  async getLiveData(scope?: ReadonlySet<string>): Promise<LiveData[]> {
     await this.init();
-    const data = await this.buildLiveData();
+    const data = await this.buildLiveData(scope);
     // Sanitise waitTime values — must be a finite number or null/undefined.
     // Catches bugs like waitTime:"" which crash downstream integer columns.
     for (const entry of data) {
@@ -1005,9 +1010,13 @@ export abstract class Destination {
    * Subclasses should override this method to return live data (wait times,
    * operating status, showtimes, etc.) for their entities.
    *
+   * @param scope Optional set of published entity ids to limit the build to
+   *   (see getLiveData). Streaming destinations may honour it to build only the
+   *   changed entities; an override that ignores it returns the full snapshot.
    * @returns {LiveData[]} List of live data for entities
    */
-  protected async buildLiveData(): Promise<LiveData[]> {
+  protected async buildLiveData(scope?: ReadonlySet<string>): Promise<LiveData[]> {
+    void scope;
     throw new Error("buildLiveData not implemented.");
   }
 
