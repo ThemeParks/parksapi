@@ -34,6 +34,7 @@ const IGNORE_ENTITIES = new Set([
 const VISIBILITY_EXCEPTIONS = new Set([
   'P2EA00', // Frozen Ever After
   'P2DA00', // Tangled Spin
+  'P1GS93', // Live Your Story – a Disney Princess Celebration (Castle Stage; Disney flags it "Hide from the Service")
 ]);
 
 /** Hide rules that exclude entities from the POI list */
