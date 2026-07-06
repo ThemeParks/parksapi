@@ -8,7 +8,7 @@
  * disagrees between instances.
  */
 import {describe, test, expect} from 'vitest';
-import {plopsaDecideOperating} from '../plopsa.js';
+import {plopsaDecideOperating, Plopsaland} from '../plopsa.js';
 
 describe('plopsaDecideOperating', () => {
   test('park closed → ride always CLOSED regardless of other inputs', () => {
@@ -34,5 +34,46 @@ describe('plopsaDecideOperating', () => {
 
   test('park open + POI says temp-closed + no wait → CLOSED (the hint is authoritative when no live signal)', () => {
     expect(plopsaDecideOperating(true, true, false)).toBe(false);
+  });
+});
+
+describe('De Panne POI location lookup', () => {
+  // Expose the protected lookup + allow overriding the snapshot for the
+  // normalization tests, without a full destination lifecycle.
+  class Probe extends Plopsaland {
+    public withLocations(
+      m: Record<string, {latitude: number; longitude: number}>,
+    ): this {
+      (this as any).poiLocations = m;
+      (this as any).normalizedPoiLocations = undefined; // force lazy rebuild
+      return this;
+    }
+    public lookup(title: string) {
+      return (this as any).lookupPoiLocation(title) as
+        | {latitude: number; longitude: number}
+        | undefined;
+    }
+  }
+
+  test('resolves a known ride from the bundled snapshot', () => {
+    // The real snapshot is assigned in the constructor; Anubis is hand-pinned.
+    const loc = new Probe().lookup('Anubis The Ride');
+    expect(loc).toBeDefined();
+    expect(typeof loc!.latitude).toBe('number');
+    expect(typeof loc!.longitude).toBe('number');
+  });
+
+  test('folds curly/straight apostrophes and is case-insensitive', () => {
+    const p = new Probe().withLocations({
+      "Vic's Whirlwind": {latitude: 51.08, longitude: 2.59},
+    });
+    // Feed emits a curly apostrophe; snapshot key uses a straight one.
+    expect(p.lookup('Vic’s Whirlwind')).toEqual({latitude: 51.08, longitude: 2.59});
+    // Case differences still match.
+    expect(p.lookup("vic's whirlwind")).toEqual({latitude: 51.08, longitude: 2.59});
+  });
+
+  test('returns undefined for an unknown title', () => {
+    expect(new Probe().lookup('Nonexistent Ride')).toBeUndefined();
   });
 });
