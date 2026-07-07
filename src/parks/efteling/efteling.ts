@@ -452,7 +452,7 @@ export class Efteling extends Destination {
         if (!ld.queue) ld.queue = {};
         const waitTime = entry.WaitingTime !== undefined ? parseInt(String(entry.WaitingTime), 10) : NaN;
         ld.queue.STANDBY = {
-          waitTime: (status === 'OPERATING' && !isNaN(waitTime)) ? waitTime : undefined,
+          waitTime: (status === 'OPERATING' && Number.isFinite(waitTime)) ? waitTime : undefined,
         };
 
         // Single rider queue - driven by the single rider entry's OWN state,
