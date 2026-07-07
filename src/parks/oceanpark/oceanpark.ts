@@ -23,13 +23,21 @@
  * and per-attraction "Summit closes early" special hours. Shopping and food
  * kiosk locations are also left out — no entity-type precedent for them and
  * the site gives them no numeric ID or UUID, only a title.
+ *
+ * Scraping resilience: this is a screen-scrape of a third-party site that can
+ * change structure without notice, so every extraction point is defensive —
+ * malformed individual items are dropped (and logged) rather than crashing
+ * the whole build, and independent upstream sources (attractions, dining,
+ * shows, schedule, coordinates) each fail in isolation so one flaky endpoint
+ * degrades rather than zeroes out the destination's output.
  */
 
 import {Destination, DestinationConstructor} from '../../destination.js';
 import config from '../../config.js';
+import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {destinationController} from '../../destinationRegistry.js';
-import {formatInTimezone, formatDate, addDays, constructDateTime} from '../../datetime.js';
+import {formatInTimezone, formatDate, constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 import type {Entity, LiveData, EntitySchedule, ScheduleEntry} from '@themeparks/typelib';
 import {AttractionTypeEnum} from '@themeparks/typelib';
@@ -50,6 +58,22 @@ const MAP_CATEGORIES = ['attractions', 'animals', 'dining', 'transportations', '
 
 /** How many days ahead to probe for published park hours. */
 const SCHEDULE_DAYS = 60;
+
+/**
+ * Real RSC payloads for these pages run a few hundred KB. Anything wildly
+ * larger is either a bug upstream, a WAF/CDN interstitial swapped in for the
+ * real page, or a truncated response — bail out before attempting to scan it
+ * rather than risk pathological scan cost on adversarial/corrupted input.
+ */
+const MAX_SCRAPE_HTML_LENGTH = 2_000_000;
+
+/**
+ * A normal page has a few dozen flight-payload chunks. Far more
+ * self.__next_f.push() occurrences than that means the document is
+ * malformed — cap the number of candidates tried so a document packed with
+ * unterminated push() tokens can't force many full-document rescans.
+ */
+const MAX_PUSH_ATTEMPTS = 100;
 
 // ── Website JSON shapes (embedded RSC payloads / Next.js API routes) ────────
 
@@ -117,7 +141,18 @@ interface AffineCoeffs {
   d: number; e: number; f: number; // lng = d*x + e*y + f
 }
 
+/** A group of same-slug schedule entries collapsed to one show identity. */
+interface ShowGroup {
+  title: string;
+  items: OceanParkScheduleItem[];
+}
+
 // ── Pure Functions ──────────────────────────────────────────────────────────
+
+/** Stringify `err` for a log line without throwing on non-Error values. */
+function errMsg(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
 
 /**
  * Find the balanced closing bracket matching `str[openIdx]`, honouring JSON
@@ -172,12 +207,32 @@ export function findJsonArray(text: string, marker: string): unknown[] | null {
  * unicode, etc. all handled by JSON.parse) rather than hand-rolled backslash
  * stripping. `marker` (e.g. `"items":`) then locates the target array within
  * that unescaped string.
+ *
+ * `validate` optionally rejects a marker match whose array doesn't look like
+ * the expected shape (e.g. a same-named `"items"` array from an unrelated nav
+ * widget earlier in the document) and keeps scanning for another push() chunk
+ * instead of returning the wrong data.
+ *
+ * Bounded by MAX_SCRAPE_HTML_LENGTH / MAX_PUSH_ATTEMPTS: an unbounded scan
+ * over a malformed or adversarially truncated document (every
+ * findMatchingBracket failure re-scans to end-of-string) is quadratic in the
+ * number of unterminated push() occurrences — these caps keep worst case
+ * bounded instead of blocking the process for tens of seconds on a mangled
+ * upstream response.
  */
-export function extractRscArray(html: string, marker: string): unknown[] | null {
+export function extractRscArray(
+  html: string,
+  marker: string,
+  validate?: (arr: unknown[]) => boolean,
+): unknown[] | null {
+  if (html.length > MAX_SCRAPE_HTML_LENGTH) return null;
+
   const pushToken = 'self.__next_f.push(';
   let searchFrom = 0;
+  let attempts = 0;
 
   for (;;) {
+    if (++attempts > MAX_PUSH_ATTEMPTS) return null;
     const pushIdx = html.indexOf(pushToken, searchFrom);
     if (pushIdx === -1) return null;
     const argStart = pushIdx + pushToken.length;
@@ -196,13 +251,32 @@ export function extractRscArray(html: string, marker: string): unknown[] | null 
     if (!Array.isArray(payload) || typeof payload[1] !== 'string') continue;
 
     const arr = findJsonArray(payload[1], marker);
-    if (arr) return arr;
+    if (arr && (!validate || validate(arr))) return arr;
   }
 }
 
-/** Last non-empty path segment of a URL — Ocean Park's canonical entity slug. */
+/** First element looks like an object with `key` — a cheap shape check to reject a same-named array from the wrong widget. */
+function firstItemHasKey(key: string): (arr: unknown[]) => boolean {
+  return (arr) => arr.length === 0 || (typeof arr[0] === 'object' && arr[0] !== null && key in (arr[0] as object));
+}
+
+/**
+ * An attraction item needs a stable identity (nodeId) and a name/slug source
+ * (nodeUrl) to be usable — both are dereferenced unguarded downstream, so a
+ * card missing either must be dropped here rather than crash the whole
+ * entity list or live-data build, or collide with another item on the
+ * fallback id "attraction_undefined".
+ */
+function isValidAttractionItem(item: OceanParkAttractionItem): boolean {
+  const ok = !!item?.nodeId && !!item?.nodeUrl?.url && !!item?.nodeUrl?.label;
+  if (!ok) console.warn(`[OceanPark] skipping malformed attraction item: ${JSON.stringify(item).slice(0, 200)}`);
+  return ok;
+}
+
+/** Last non-empty path segment of a URL (query string/fragment stripped) — Ocean Park's canonical entity slug. */
 export function slugFromUrl(url: string): string {
-  const parts = url.split('/').filter(Boolean);
+  const clean = url.split('?')[0].split('#')[0];
+  const parts = clean.split('/').filter(Boolean);
   return parts[parts.length - 1] ?? '';
 }
 
@@ -217,7 +291,48 @@ export function slugify(text: string): string {
 }
 
 /**
- * Parse "10 mins" / " 0  mins" style queue text into minutes.
+ * Group schedule items by slug rather than by raw title. slugify() collapses
+ * differently-punctuated titles (e.g. "Whiskers & Friends" / "Whiskers,
+ * Friends") onto the same id, so grouping by title alone would let two
+ * distinct shows silently share one entity/live-data id and clobber each
+ * other. The first title seen for a slug wins; a different title landing on
+ * an already-claimed slug is dropped (logged) rather than silently merged.
+ * A title that normalizes to an empty slug is dropped the same way.
+ *
+ * Used by both buildEntityList and buildLiveData so the two always agree on
+ * exactly which id each show maps to.
+ */
+export function groupShowsBySlug(scheduleItems: OceanParkScheduleItem[]): Map<string, ShowGroup> {
+  const bySlug = new Map<string, ShowGroup>();
+
+  for (const item of scheduleItems) {
+    const slug = slugify(item.title);
+    if (!slug) {
+      console.warn(`[OceanPark] skipping show with empty slug after normalisation: "${item.title}"`);
+      continue;
+    }
+
+    const existing = bySlug.get(slug);
+    if (!existing) {
+      bySlug.set(slug, {title: item.title, items: [item]});
+    } else if (existing.title === item.title) {
+      existing.items.push(item);
+    } else {
+      console.warn(
+        `[OceanPark] show "${item.title}" collides on slug "${slug}" with already-seen "${existing.title}"; dropping the later one to avoid a duplicate entity id`,
+      );
+    }
+  }
+
+  return bySlug;
+}
+
+/**
+ * Parse "10 mins" / " 0  mins" style queue text into minutes. Requires the
+ * number to actually be adjacent to "min" so incidental digits elsewhere in
+ * a status string (e.g. a future "Reopens at 5pm") can't be misread as a
+ * wait time.
+ *
  * Returns null for missing/unparseable text — the website uses an explicit
  * `null` queueTime for attractions with no queue mechanic (walkthroughs,
  * animal exhibits), which we can't distinguish from "currently closed"
@@ -225,9 +340,9 @@ export function slugify(text: string): string {
  */
 export function parseQueueMinutes(text: string | null | undefined): number | null {
   if (text == null) return null;
-  const m = text.match(/\d+/);
+  const m = text.match(/(\d+)\s*min/i);
   if (!m) return null;
-  const n = Number(m[0]);
+  const n = Number(m[1]);
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
@@ -246,6 +361,21 @@ export function parseHourRange(text: string): {open: string; close: string} | nu
     open: `${to24h(m[1], m[3])}:${m[2]}`,
     close: `${to24h(m[4], m[6])}:${m[5]}`,
   };
+}
+
+/**
+ * Add `days` to a YYYY-MM-DD calendar date string via pure calendar
+ * arithmetic (Date.UTC normalises month/day overflow), with no dependency on
+ * the host process's local timezone. Deliberately not the shared
+ * addDays()+formatDate(tz) pattern used elsewhere in the codebase — that
+ * pattern steps the day-of-month in the *host's* local timezone before
+ * converting to the target timezone, which can misfire by a day around a
+ * host-timezone DST transition. Building 60 schedule dates makes that a much
+ * bigger surface here than a single-date adjustment.
+ */
+export function addDaysToDateString(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
 
 /**
@@ -375,16 +505,39 @@ export class OceanParkHongKong extends Destination {
 
   // ── Parsed Accessors ──────────────────────────────────────────────────────
 
+  /**
+   * @cache here (matching fetchAttractionsPage's 60s TTL) avoids redoing the
+   * RSC bracket-scan + JSON.parse on every buildLiveData() poll when the
+   * underlying HTML is already an HTTP-layer cache hit.
+   *
+   * Returns the raw parsed list, not yet validated per-item — buildEntityList
+   * and buildLiveData each filter with isValidAttractionItem() at their own
+   * consumption point (matching the restaurant-item pattern below) so a
+   * malformed card can't crash either builder's .map()/loop.
+   */
+  @cache({ttlSeconds: 60})
   async getAttractionItems(): Promise<OceanParkAttractionItem[]> {
     const resp = await this.fetchAttractionsPage();
     const html = await resp.text();
-    return (extractRscArray(html, '"items":') as OceanParkAttractionItem[] | null) ?? [];
+    const items = extractRscArray(html, '"items":', firstItemHasKey('nodeId')) as OceanParkAttractionItem[] | null;
+    if (!items) {
+      console.warn('[OceanPark] attractions page RSC data not found; entity list and wait times will be empty this cycle');
+      return [];
+    }
+    return items;
   }
 
+  /** See getAttractionItems() — same caching/dropped-item rationale, restaurant items validated where they're flattened out of tabs in buildEntityList. */
+  @cache({ttlSeconds: 3600})
   async getDiningTabs(): Promise<OceanParkDiningTab[]> {
     const resp = await this.fetchDiningPage();
     const html = await resp.text();
-    return (extractRscArray(html, '"items":') as OceanParkDiningTab[] | null) ?? [];
+    const tabs = extractRscArray(html, '"items":', firstItemHasKey('tab')) as OceanParkDiningTab[] | null;
+    if (!tabs) {
+      console.warn('[OceanPark] dining page RSC data not found; restaurant list will be empty this cycle');
+      return [];
+    }
+    return tabs;
   }
 
   async getDailyScheduleItems(date: string): Promise<OceanParkScheduleItem[]> {
@@ -466,16 +619,25 @@ export class OceanParkHongKong extends Destination {
   protected async buildEntityList(): Promise<Entity[]> {
     const today = formatDate(new Date(), TIMEZONE);
 
+    // Four independent upstream sources (SSR attractions page, SSR dining
+    // page, the daily-schedule API route, and the map subdomain) — each
+    // isolated with its own .catch() so one flaky source degrades that
+    // category to empty rather than throwing away the whole entity list.
     const [attractionItems, diningTabs, scheduleItems, coordEntries] = await Promise.all([
-      this.getAttractionItems(),
-      this.getDiningTabs(),
-      this.getDailyScheduleItems(today),
-      // Coordinates are best-effort — a degenerate transform or unreachable
-      // map subdomain shouldn't take the whole entity list with it. Entities
-      // fall back to the destination's default lat/lng when this is empty.
+      this.getAttractionItems().catch((err: unknown) => {
+        console.warn(`[OceanPark] attractions fetch failed (${errMsg(err)}); no attractions this cycle`);
+        return [] as OceanParkAttractionItem[];
+      }),
+      this.getDiningTabs().catch((err: unknown) => {
+        console.warn(`[OceanPark] dining fetch failed (${errMsg(err)}); no restaurants this cycle`);
+        return [] as OceanParkDiningTab[];
+      }),
+      this.getDailyScheduleItems(today).catch((err: unknown) => {
+        console.warn(`[OceanPark] daily schedule fetch failed (${errMsg(err)}); no shows this cycle`);
+        return [] as OceanParkScheduleItem[];
+      }),
       this.getCoordinateMapEntries().catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.warn(`[OceanPark] coordinate map unavailable (${msg}); entities will use default location`);
+        console.warn(`[OceanPark] coordinate map unavailable (${errMsg(err)}); entities will use default location`);
         return [] as [string, {latitude: number; longitude: number}][];
       }),
     ]);
@@ -492,7 +654,7 @@ export class OceanParkHongKong extends Destination {
       location: {latitude: DEFAULT_LAT, longitude: DEFAULT_LNG},
     } as Entity;
 
-    const attractionEntities: Entity[] = attractionItems.map(item => {
+    const attractionEntities: Entity[] = attractionItems.filter(isValidAttractionItem).map(item => {
       const isTransport = (item.attractionTypes ?? []).some(t => t.id === 'in-park-transportation');
       const coords = coordMap.get(slugFromUrl(item.nodeUrl.url));
 
@@ -520,6 +682,11 @@ export class OceanParkHongKong extends Destination {
     const restaurantEntities: Entity[] = diningTabs
       .filter(tab => tab.tab?.id === 'restaurants')
       .flatMap(tab => tab.pageItems ?? [])
+      .filter(item => {
+        const ok = !!item?.nodeUrl?.url && !!item?.nodeUrl?.label;
+        if (!ok) console.warn(`[OceanPark] skipping malformed restaurant item: ${JSON.stringify(item).slice(0, 200)}`);
+        return ok;
+      })
       .map(item => {
         const slug = slugFromUrl(item.nodeUrl.url);
         const coords = coordMap.get(slug);
@@ -535,15 +702,15 @@ export class OceanParkHongKong extends Destination {
       });
 
     // Shows have no id/URL from the website at all — only a title, via the
-    // daily-schedule endpoint. Slugify for a stable, deterministic id and
-    // best-effort match it against the map's show slugs for coordinates.
-    const showTitles = [...new Set(scheduleItems.map(item => item.title))];
-    const showEntities: Entity[] = showTitles.map(title => {
-      const slug = slugify(title);
+    // daily-schedule endpoint. groupShowsBySlug() resolves slug collisions
+    // once, consistently with buildLiveData, and best-effort matches each
+    // slug against the map's show slugs for coordinates.
+    const showGroups = groupShowsBySlug(scheduleItems);
+    const showEntities: Entity[] = [...showGroups.entries()].map(([slug, group]) => {
       const coords = coordMap.get(slug);
       return {
         id: `show_${slug}`,
-        name: title,
+        name: group.title,
         entityType: 'SHOW',
         parentId: PARK_ID,
         destinationId: DESTINATION_ID,
@@ -560,14 +727,23 @@ export class OceanParkHongKong extends Destination {
   protected async buildLiveData(): Promise<LiveData[]> {
     const today = formatDate(new Date(), TIMEZONE);
 
+    // Two independent sources (SSR attractions page vs. the daily-schedule
+    // API route) — isolated so one going down doesn't wipe out live data
+    // that came from the other, healthy one.
     const [attractionItems, scheduleItems] = await Promise.all([
-      this.getAttractionItems(),
-      this.getDailyScheduleItems(today),
+      this.getAttractionItems().catch((err: unknown) => {
+        console.warn(`[OceanPark] attractions fetch failed (${errMsg(err)}); no attraction wait times this cycle`);
+        return [] as OceanParkAttractionItem[];
+      }),
+      this.getDailyScheduleItems(today).catch((err: unknown) => {
+        console.warn(`[OceanPark] daily schedule fetch failed (${errMsg(err)}); no show live data this cycle`);
+        return [] as OceanParkScheduleItem[];
+      }),
     ]);
 
     const liveData: LiveData[] = [];
 
-    for (const item of attractionItems) {
+    for (const item of attractionItems.filter(isValidAttractionItem)) {
       const wt = parseQueueMinutes(item.queueTime?.text);
 
       const ld: LiveData = {
@@ -584,24 +760,20 @@ export class OceanParkHongKong extends Destination {
       liveData.push(ld);
     }
 
-    // Shows — group today's programme entries by title and emit remaining
+    // Shows — group today's programme entries by slug (same grouping
+    // buildEntityList uses, so ids always agree) and emit remaining
     // showtimes. No explicit end time is published, only a start.
-    const byTitle = new Map<string, OceanParkScheduleItem[]>();
-    for (const item of scheduleItems) {
-      if (!byTitle.has(item.title)) byTitle.set(item.title, []);
-      byTitle.get(item.title)!.push(item);
-    }
-
+    const showGroups = groupShowsBySlug(scheduleItems);
     const now = Date.now();
-    for (const [title, entries] of byTitle) {
-      const showtimes = entries
+    for (const [slug, group] of showGroups) {
+      const showtimes = group.items
         .flatMap(entry => entry.timeSlot ?? [])
         .map(t => formatInTimezone(new Date(constructDateTime(today, t, TIMEZONE)), TIMEZONE, 'iso'))
         .filter(iso => new Date(iso).getTime() >= now)
         .map(iso => ({type: 'Performance Time', startTime: iso}));
 
       const ld: LiveData = {
-        id: `show_${slugify(title)}`,
+        id: `show_${slug}`,
         status: showtimes.length > 0 ? 'OPERATING' : 'CLOSED',
       } as LiveData;
       if (showtimes.length > 0) ld.showtimes = showtimes;
@@ -615,20 +787,53 @@ export class OceanParkHongKong extends Destination {
   // ── Schedules ─────────────────────────────────────────────────────────────
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
-    const dates = Array.from({length: SCHEDULE_DAYS}, (_, i) => formatDate(addDays(new Date(), i), TIMEZONE));
-    const hoursTexts = await Promise.all(dates.map(d => this.getParkOpeningHoursValue(d)));
+    const today = formatDate(new Date(), TIMEZONE);
+    const dates = Array.from({length: SCHEDULE_DAYS}, (_, i) => addDaysToDateString(today, i));
+
+    // Promise.allSettled, not Promise.all — 60 independent per-date
+    // requests means one transient failure (a single 5xx, a malformed
+    // response) must degrade to "one fewer day" rather than reject the
+    // entire schedule down to zero days.
+    const results = await Promise.allSettled(dates.map(d => this.getParkOpeningHoursValue(d)));
 
     const scheduleEntries: ScheduleEntry[] = [];
+    let failedCount = 0;
+
     for (let i = 0; i < dates.length; i++) {
-      const range = parseHourRange(hoursTexts[i] ?? '');
-      if (!range) continue; // no hours published for this date (closed, or beyond the published window)
+      const result = results[i];
+      if (result.status === 'rejected') {
+        failedCount++;
+        continue;
+      }
+
+      const hoursText = result.value;
+      const range = parseHourRange(hoursText ?? '');
+      if (!range) {
+        // Empty text means "closed / beyond the published window" — expected
+        // and not logged. Non-empty-but-unparseable means the site's hours
+        // format changed underneath us; that's worth a log line so it's not
+        // silently indistinguishable from a real closure.
+        if (hoursText) {
+          console.warn(`[OceanPark] unrecognised opening-hours text for ${dates[i]}: "${hoursText}"`);
+        }
+        continue;
+      }
+
+      // A close time numerically "before" the open time on a 24h clock (e.g.
+      // "6:00 pm - 12:30 am") means the park closes after midnight the
+      // following calendar day, not before it opened the same day.
+      const closeDate = range.close <= range.open ? addDaysToDateString(dates[i], 1) : dates[i];
 
       scheduleEntries.push({
         date: dates[i],
         type: 'OPERATING',
         openingTime: constructDateTime(dates[i], range.open, TIMEZONE),
-        closingTime: constructDateTime(dates[i], range.close, TIMEZONE),
+        closingTime: constructDateTime(closeDate, range.close, TIMEZONE),
       });
+    }
+
+    if (failedCount > 0) {
+      console.warn(`[OceanPark] ${failedCount}/${dates.length} schedule date requests failed; schedule may have gaps`);
     }
 
     return [{
