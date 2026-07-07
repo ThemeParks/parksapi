@@ -407,15 +407,20 @@ export class Efteling extends Destination {
     const waitTimes = await this.getWaitTimes();
 
     // First pass: collect single rider data
-    // WIS returns separate entries for single rider queues using the alternate ID
-    const singleRiderData = new Map<string, number | null>();
+    // WIS returns separate entries for single rider queues using the alternate ID.
+    // Each single rider entry carries its OWN State (open/gesloten), independent of
+    // the parent attraction, so capture it alongside the wait time.
+    const singleRiderData = new Map<string, {status: string; waitTime: number | null}>();
     for (const entry of waitTimes) {
       if (!entry.Id) continue;
       // If this ID is NOT a known POI but IS a single rider alternate ID
       if (!poiData.has(entry.Id) && singleRiderMap.has(entry.Id)) {
         const parentId = singleRiderMap.get(entry.Id)!;
-        const waitTime = entry.WaitingTime !== undefined ? parseInt(String(entry.WaitingTime), 10) : null;
-        singleRiderData.set(parentId, isNaN(waitTime as number) ? null : waitTime);
+        const waitTime = entry.WaitingTime !== undefined ? parseInt(String(entry.WaitingTime), 10) : NaN;
+        singleRiderData.set(parentId, {
+          status: this.mapState(entry.State),
+          waitTime: Number.isFinite(waitTime) ? waitTime : null,
+        });
       }
     }
 
@@ -450,12 +455,13 @@ export class Efteling extends Destination {
           waitTime: (status === 'OPERATING' && !isNaN(waitTime)) ? waitTime : undefined,
         };
 
-        // Single rider queue with actual wait time
-        if (singleRiderData.has(entityId)) {
-          const srTime = singleRiderData.get(entityId)!;
-          ld.queue.SINGLE_RIDER = {
-            waitTime: (status === 'OPERATING' && srTime !== null && srTime !== undefined) ? srTime : null,
-          };
+        // Single rider queue - driven by the single rider entry's OWN state,
+        // not the parent attraction's. Omit the queue entirely when the single
+        // rider isn't operating so consumers can distinguish a closed single
+        // rider from one that's open with no posted wait (waitTime: null).
+        const sr = singleRiderData.get(entityId);
+        if (sr && sr.status === 'OPERATING') {
+          ld.queue.SINGLE_RIDER = { waitTime: sr.waitTime };
         }
 
         // Virtual queue
