@@ -12,7 +12,7 @@ import {
   EntitySchedule,
   LanguageCode,
 } from '@themeparks/typelib';
-import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore, constructDateTime} from '../../datetime.js';
+import {addDays, constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 @destinationController({ category: 'Efteling' })
