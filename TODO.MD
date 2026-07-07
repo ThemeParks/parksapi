@@ -27,7 +27,7 @@
 - Universal Studios Singapore (USS)
 - Lotte World
 - Chimelong: Guangzhou + Zhuhai (2 destinations)
-- Ocean Park Hong Kong: Auth token, coordinate affine transform, showtimes, park schedule
+- Ocean Park Hong Kong: Website RSC-JSON scraping (mobile app API was suspended), coordinate affine transform, showtimes, park schedule
 
 **Totals: ~119 destinations, 1068 tests, 45 test files**
 
