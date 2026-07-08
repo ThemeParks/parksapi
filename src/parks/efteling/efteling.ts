@@ -404,6 +404,9 @@ export class Efteling extends Destination {
     }
 
     const singleRiderMap = this.buildSingleRiderMap(poiHits);
+    // Parents with a single-rider alternate, so the SINGLE_RIDER key can stay
+    // present across polls even while that rider is closed.
+    const singleRiderCapable = new Set(singleRiderMap.values());
     const waitTimes = await this.getWaitTimes();
 
     // First pass: collect single rider data
@@ -455,13 +458,15 @@ export class Efteling extends Destination {
           waitTime: (status === 'OPERATING' && Number.isFinite(waitTime)) ? waitTime : undefined,
         };
 
-        // Single rider queue - driven by the single rider entry's OWN state,
-        // not the parent attraction's. Omit the queue entirely when the single
-        // rider isn't operating so consumers can distinguish a closed single
-        // rider from one that's open with no posted wait (waitTime: null).
-        const sr = singleRiderData.get(entityId);
-        if (sr && sr.status === 'OPERATING') {
-          ld.queue.SINGLE_RIDER = { waitTime: sr.waitTime };
+        // Single rider queue: keep the key present for every capable ride so it
+        // never flaps in and out across polls. Capability comes from the POI
+        // feed, stable across polls, so no persistence is needed. The rider's
+        // own state drives the wait value.
+        if (singleRiderCapable.has(entityId)) {
+          const sr = singleRiderData.get(entityId);
+          ld.queue.SINGLE_RIDER = {
+            waitTime: (sr && sr.status === 'OPERATING') ? sr.waitTime : null,
+          };
         }
 
         // Virtual queue
