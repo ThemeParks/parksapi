@@ -464,7 +464,8 @@ export class Efteling extends Destination {
         // the key stays put and waitTime holds a number only when the rider's
         // own state is OPERATING; down, refurbishment, closed and open-with-no-
         // wait all collapse to null (waitTime is required here, so null — not
-        // undefined — is the "present, no wait" value).
+        // undefined — is the "present, no wait" value). The key is never
+        // dropped, so consumers never have to read anything into an absent one.
         if (singleRiderCapable.has(entityId)) {
           const sr = singleRiderData.get(entityId);
           ld.queue.SINGLE_RIDER = {
