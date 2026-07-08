@@ -75,16 +75,29 @@ const ATTRACTION_CATEGORIES = [
   'Rides & Attractions',
 ];
 
-const SHOW_CATEGORIES = ['Shows', 'Show', 'Live Shows'];
+const SHOW_CATEGORIES = ['Shows', 'Show', 'Live Shows', 'Entertainment', 'Shows & 4D Movies', '4D Movies'];
 
 const RESTAURANT_CATEGORIES = [
   'Restaurants',
+  'Restaurant',
   'Fast Food',
+  'Fast food',
   'Snacks',
+  'Snacks & Sweets',
   'Healthy Food',
   'Food',
   'Dining',
   'Food & Drink',
+  'Food & Drinks',
+  'Food & drinks',
+  'Food on to go',
+  'Café & Snacks',
+  'Beverages',
+  'Buffet',
+  'Restaurants & buffets',
+  'Slush ice',
+  'Ice cream, coffee & treats',
+  'Barbecue & food from home',
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1555,14 +1568,6 @@ type HeideParkScheduleResponse = {
 
 @config
 class HeideParkBase extends AttractionsIOV1 {
-  /**
-   * HeidePark labels its shows/animations "Entertainment" rather than the
-   * default "Shows"/"Show"/"Live Shows", so extend the show category list.
-   */
-  protected getShowCategories(): string[] {
-    return [...SHOW_CATEGORIES, 'Entertainment'];
-  }
-
   /**
    * Fetch the v2 resort-opening-times endpoint (specific to HeidePark).
    * Cached for 2 hours.
