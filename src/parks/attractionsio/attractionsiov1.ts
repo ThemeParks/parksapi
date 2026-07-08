@@ -365,6 +365,11 @@ const SHOWTIME_MAX_ITERATIONS = 100_000;
  * it as UTC so UTC getters reproduce the wall clock. NaN for bad input.
  */
 function parseNaiveMs(raw: string): number {
+  // Records data is external and only loosely typed, so a node's start/end/
+  // offset_date can arrive null, missing or non-string. Guard before .trim()
+  // so bad input yields NaN (which the callers already treat as "drop") rather
+  // than throwing.
+  if (typeof raw !== 'string') return NaN;
   return Date.parse(raw.trim().replace(' ', 'T') + 'Z');
 }
 
@@ -1249,7 +1254,15 @@ class AttractionsIOV1 extends Destination {
         // live-data entry — keep the earlier classification.
         if (attractionIds.has(id) || restaurantIds.has(id)) continue;
 
-        const showtimes = showTimesForDate(item.ShowTimes, today, this.timezone);
+        // A single malformed ShowTimes record must not take down live data for
+        // the whole park (attraction/restaurant/park entries are already on the
+        // array). Contain the failure to this one show and keep the rest.
+        let showtimes: LiveTimeSlot[];
+        try {
+          showtimes = showTimesForDate(item.ShowTimes, today, this.timezone);
+        } catch {
+          continue;
+        }
 
         // Status derives from the schedule (there is no live "running now" feed):
         // OPERATING only while a performance is still upcoming or ongoing, then

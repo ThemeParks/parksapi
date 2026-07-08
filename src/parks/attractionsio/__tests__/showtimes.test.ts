@@ -105,6 +105,14 @@ describe('showTimesForDate — real fixtures', () => {
     expect(showTimesForDate('nonsense', '2026-07-08', TZ)).toEqual([]);
   });
 
+  test('a range with null/non-string bounds yields [] instead of throwing', () => {
+    // parseNaiveMs must not call .trim() on a non-string, or one malformed
+    // record would crash the whole park's live-data build.
+    expect(() => showTimesForDate('{"type":"range","start":null,"end":null}', '2026-07-08', TZ)).not.toThrow();
+    expect(showTimesForDate('{"type":"range","start":null,"end":null}', '2026-07-08', TZ)).toEqual([]);
+    expect(showTimesForDate('{"type":"range"}', '2026-07-08', TZ)).toEqual([]);
+  });
+
   test('applies the correct offset across DST (winter → +01:00)', () => {
     const winter = '{"type":"range","start":"2026-01-10 10:00:00","end":"2026-01-10 12:00:00"}';
     expect(showTimesForDate(winter, '2026-01-10', TZ)).toEqual([
