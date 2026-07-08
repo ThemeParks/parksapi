@@ -300,6 +300,19 @@ function parseLiveOpeningTimes(raw: string | null | undefined, timezone: string)
   return slots;
 }
 
+/**
+ * Whether `nowMs` sits inside any of the given opening-hour slots, under
+ * half-open [start, end) containment. Slots whose bounds are missing or
+ * unparseable are ignored. Shared by the restaurant and park live-status logic.
+ */
+function isOpenNow(hours: LiveTimeSlot[], nowMs: number): boolean {
+  return hours.some(h => {
+    const s = h.startTime ? Date.parse(h.startTime) : NaN;
+    const e = h.endTime ? Date.parse(h.endTime) : NaN;
+    return Number.isFinite(s) && Number.isFinite(e) && s <= nowMs && nowMs < e;
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Show schedules (`ShowTimes` recurring-schedule algebra)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1198,13 +1211,7 @@ class AttractionsIOV1 extends Destination {
         if (typeof record.IsOpen === 'boolean') {
           status = record.IsOpen ? 'OPERATING' : 'CLOSED';
         } else {
-          const nowMs = Date.now();
-          const openNow = hours.some(h => {
-            const s = h.startTime ? Date.parse(h.startTime) : NaN;
-            const e = h.endTime ? Date.parse(h.endTime) : NaN;
-            return Number.isFinite(s) && Number.isFinite(e) && s <= nowMs && nowMs < e;
-          });
-          status = openNow ? 'OPERATING' : 'CLOSED';
+          status = isOpenNow(hours, Date.now()) ? 'OPERATING' : 'CLOSED';
         }
 
         const entry: LiveData = {id, status};
@@ -1215,13 +1222,16 @@ class AttractionsIOV1 extends Destination {
       }
     }
 
-    // Park: today's actual opening window (from the Resort record)
+    // Park: today's actual opening window (from the Resort record). Status is
+    // derived from whether "now" sits inside that window — the Resort record
+    // carries the same hours every day, so a fixed OPERATING would report the
+    // park open all night, every night, after close and before open.
     const resort = raw?.entities?.Resort?.records?.[0];
     const parkHours = parseLiveOpeningTimes(resort?.OpeningTimes, this.timezone);
     if (parkHours.length > 0) {
       liveData.push({
         id: this.parkId,
-        status: 'OPERATING',
+        status: isOpenNow(parkHours, Date.now()) ? 'OPERATING' : 'CLOSED',
         operatingHours: parkHours,
       });
     }
