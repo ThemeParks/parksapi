@@ -254,6 +254,31 @@ describe('evaluateShowTimeNode — set algebra', () => {
     expect(evaluateShowTimeNode(node, day, dayEnd)).toEqual([]);
   });
 
+  test('a period with a non-numeric period_length yields [] (NaN fails the guard, no 100k spin)', () => {
+    // A NaN duration slips past `<= 0` / `< 0` (both false for NaN); without an
+    // explicit finite check the loop would run SHOWTIME_MAX_ITERATIONS doing
+    // nothing on every poll cycle.
+    const node: ShowTimeNode = {
+      type: 'period',
+      offset_date: '2020-01-01 12:00:00',
+      period_length: {day: 'x' as unknown as number},
+      range_length: {minute: 30},
+    };
+    const started = Date.now();
+    expect(evaluateShowTimeNode(node, day, dayEnd)).toEqual([]);
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
+  test('a period with a non-numeric range_length yields [] (NaN fails the guard)', () => {
+    const node: ShowTimeNode = {
+      type: 'period',
+      offset_date: '2020-01-01 12:00:00',
+      period_length: {day: 1},
+      range_length: {minute: {} as unknown as number},
+    };
+    expect(evaluateShowTimeNode(node, day, dayEnd)).toEqual([]);
+  });
+
   test('difference drops a point on the subtracted span start, keeps one outside', () => {
     const node: ShowTimeNode = {
       type: 'difference',

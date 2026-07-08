@@ -480,7 +480,14 @@ export function evaluateShowTimeNode(
       const offset = parseNaiveMs(node.offset_date);
       const periodMs = showTimeDurationMs(node.period_length);
       const rangeMs = showTimeDurationMs(node.range_length);
-      if (!Number.isFinite(offset) || periodMs <= 0 || rangeMs < 0) return [];
+      // periodMs/rangeMs come from unvalidated external duration fields. A NaN
+      // slips past `<= 0` / `< 0` (both false for NaN) and would then spin the
+      // loop the full SHOWTIME_MAX_ITERATIONS doing nothing — guard explicitly.
+      if (
+        !Number.isFinite(offset) ||
+        !Number.isFinite(periodMs) || periodMs <= 0 ||
+        !Number.isFinite(rangeMs) || rangeMs < 0
+      ) return [];
 
       // A period without a range_length marks point-in-time occurrences: a show
       // start time with no encoded duration. Emit those as zero-length
