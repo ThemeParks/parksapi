@@ -265,7 +265,7 @@ function splitLiveDateTime(raw: string): {date: string; time: string} | null {
  * wall-clock times without an offset, so they are normalised to ISO+offset via
  * constructDateTime. Returns [] for null/blank/unparseable/non-range values.
  */
-function parseLiveOpeningTimes(raw: string | null | undefined, timezone: string): LiveTimeSlot[] {
+export function parseLiveOpeningTimes(raw: string | null | undefined, timezone: string): LiveTimeSlot[] {
   if (typeof raw !== 'string' || raw.trim() === '') return [];
 
   let parsed: unknown;
