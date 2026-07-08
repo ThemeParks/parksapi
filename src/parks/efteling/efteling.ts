@@ -490,7 +490,10 @@ export class Efteling extends Destination {
         ld.status = (state === 'open' ? 'OPERATING' : 'CLOSED') as any;
 
         if (entry.OpeningTimes && entry.OpeningTimes.length > 0) {
-          (ld as any).operatinghours = entry.OpeningTimes.map((ot: any) => ({
+          // Schema field is `operatingHours` (camelCase). It was previously
+          // written as `operatinghours`, which the base class never normalises,
+          // so the hours never reached schema-compliant consumers.
+          ld.operatingHours = entry.OpeningTimes.map((ot: any) => ({
             startTime: ot.HourFrom,
             endTime: ot.HourTo,
             type: 'OPERATING',
