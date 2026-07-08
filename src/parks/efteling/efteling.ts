@@ -460,12 +460,15 @@ export class Efteling extends Destination {
 
         // Single rider queue: keep the key present for every capable ride so it
         // never flaps in and out across polls. Capability comes from the POI
-        // feed, stable across polls, so no persistence is needed. The rider's
-        // own state drives the wait value.
+        // feed, stable across polls, so no persistence is needed. Like STANDBY,
+        // the key stays put and waitTime holds a number only when the rider's
+        // own state is OPERATING; down, refurbishment, closed and open-with-no-
+        // wait all collapse to null (waitTime is required here, so null — not
+        // undefined — is the "present, no wait" value).
         if (singleRiderCapable.has(entityId)) {
           const sr = singleRiderData.get(entityId);
           ld.queue.SINGLE_RIDER = {
-            waitTime: (sr && sr.status === 'OPERATING') ? sr.waitTime : null,
+            waitTime: (sr && sr.status === 'OPERATING' && sr.waitTime !== null) ? sr.waitTime : null,
           };
         }
 
