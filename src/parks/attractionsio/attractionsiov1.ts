@@ -355,7 +355,8 @@ function showTimeDurationMs(d: ShowTimeDuration | undefined): number {
 
 /** Sort and merge overlapping/adjacent intervals into a normalised set. */
 function normaliseIntervals(list: ShowTimeInterval[]): ShowTimeInterval[] {
-  const sorted = list.filter(([s, e]) => s < e).sort((a, b) => a[0] - b[0]);
+  // Keep zero-length points (s === e); drop only malformed s > e intervals.
+  const sorted = list.filter(([s, e]) => s <= e).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   const out: ShowTimeInterval[] = [];
   for (const [s, e] of sorted) {
     const last = out[out.length - 1];
@@ -371,7 +372,9 @@ function intersectIntervals(a: ShowTimeInterval[], b: ShowTimeInterval[]): ShowT
     for (const [bs, be] of b) {
       const s = Math.max(as, bs);
       const e = Math.min(ae, be);
-      if (s < e) out.push([s, e]);
+      // Keep the overlap; also keep a point (s === e) when it sits on one of the
+      // operands — a point occurrence contained by a season/weekday span.
+      if (s < e || (s === e && (as === ae || bs === be))) out.push([s, e]);
     }
   }
   return normaliseIntervals(out);
@@ -431,13 +434,23 @@ export function evaluateShowTimeNode(
       const offset = parseNaiveMs(node.offset_date);
       const periodMs = showTimeDurationMs(node.period_length);
       const rangeMs = showTimeDurationMs(node.range_length);
-      if (!Number.isFinite(offset) || periodMs <= 0 || rangeMs <= 0) return [];
+      if (!Number.isFinite(offset) || periodMs <= 0 || rangeMs < 0) return [];
+
+      // A period without a range_length marks point-in-time occurrences: a show
+      // start time with no encoded duration. Emit those as zero-length
+      // intervals [s, s] so they survive intersection with the season/weekday
+      // windows and surface as start-only slots.
+      const isPoint = rangeMs === 0;
 
       const out: ShowTimeInterval[] = [];
       let n = Math.floor((winStart - offset - rangeMs) / periodMs);
       for (let i = 0; i < SHOWTIME_MAX_ITERATIONS; i++, n++) {
         const s = offset + n * periodMs;
         if (s >= winEnd) break;
+        if (isPoint) {
+          if (s >= winStart) out.push([s, s]);
+          continue;
+        }
         const cs = Math.max(s, winStart);
         const ce = Math.min(s + rangeMs, winEnd);
         if (cs < ce) out.push([cs, ce]);
@@ -500,12 +513,17 @@ export function showTimesForDate(
   return evaluateShowTimeNode(node, winStart, winEnd).map(([s, e]) => {
     // s/e are naive-local ms; read back the wall clock via UTC getters.
     const startIso = new Date(s).toISOString();
-    const endIso = new Date(e).toISOString();
-    return {
+    const slot: LiveTimeSlot = {
       type,
       startTime: constructDateTime(startIso.slice(0, 10), startIso.slice(11, 19), timezone),
-      endTime: constructDateTime(endIso.slice(0, 10), endIso.slice(11, 19), timezone),
     };
+    // A point occurrence (s === e) is a start time with no encoded duration —
+    // leave endTime unset. Otherwise attach the concrete end.
+    if (e > s) {
+      const endIso = new Date(e).toISOString();
+      slot.endTime = constructDateTime(endIso.slice(0, 10), endIso.slice(11, 19), timezone);
+    }
+    return slot;
   });
 }
 
