@@ -127,12 +127,27 @@ type LiveDataRecord = {
   IsOperational?: boolean;
   IsOpen?: boolean;
   QueueTime?: number | null;
+  /**
+   * Present on venue records (restaurants/shops); rides leave it null. A
+   * stringified {"type":"range",start,end} blob of today's opening window.
+   * `IsOperational` flags *running rides*, so it is always false for dining/
+   * retail venues — `IsOpen` is the correct open/closed signal there.
+   */
+  OpeningTimes?: string | null;
+};
+
+type LiveDataResortRecord = {
+  _id: number;
+  OpeningTimes?: string | null;
 };
 
 type LiveDataResponse = {
   entities: {
     Item: {
       records: LiveDataRecord[];
+    };
+    Resort?: {
+      records?: LiveDataResortRecord[];
     };
   };
 };
@@ -215,6 +230,283 @@ function parseOpeningHours(raw: string): TimeParseResult {
   }
 
   return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Live-data opening-hours parsing
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Split "YYYY-MM-DD HH:MM[:SS]" into {date, time}; null if malformed. */
+function splitLiveDateTime(raw: string): {date: string; time: string} | null {
+  const m = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}(?::\d{2})?)/.exec(raw.trim());
+  return m ? {date: m[1], time: m[2]} : null;
+}
+
+/**
+ * Parse an Attractions.io live-data `OpeningTimes` value into schema
+ * LiveTimeSlot entries.
+ *
+ * The field is a *stringified* JSON blob, e.g.
+ *   `{"type":"range","start":"2026-07-08 10:00:00","end":"2026-07-08 18:00:00"}`
+ * (a single object, or defensively an array of them). Start/end are park-local
+ * wall-clock times without an offset, so they are normalised to ISO+offset via
+ * constructDateTime. Returns [] for null/blank/unparseable/non-range values.
+ */
+function parseLiveOpeningTimes(raw: string | null | undefined, timezone: string): LiveTimeSlot[] {
+  if (typeof raw !== 'string' || raw.trim() === '') return [];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+
+  const ranges = Array.isArray(parsed) ? parsed : [parsed];
+  const slots: LiveTimeSlot[] = [];
+
+  for (const r of ranges) {
+    if (
+      !r || typeof r !== 'object' ||
+      (r as any).type !== 'range' ||
+      typeof (r as any).start !== 'string' ||
+      typeof (r as any).end !== 'string'
+    ) continue;
+
+    const start = splitLiveDateTime((r as any).start);
+    const end = splitLiveDateTime((r as any).end);
+    if (!start || !end) continue;
+
+    slots.push({
+      type: 'OPERATING',
+      startTime: constructDateTime(start.date, start.time, timezone),
+      endTime: constructDateTime(end.date, end.time, timezone),
+    });
+  }
+
+  return slots;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Show schedules (`ShowTimes` recurring-schedule algebra)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Attractions.io encodes a show/animation's recurring schedule in the records
+ * `ShowTimes` field as a nested set-algebra tree. Evaluating that tree against a
+ * single day yields the concrete performance windows for that day.
+ *
+ * Node grammar (each node is a set of instants):
+ *   • range         — a continuous span [start, end)
+ *   • period        — a repeating window: from `offset_date`, every
+ *                     `period_length`, a window `range_length` long is "on".
+ *                     Daily period (offset 12:00 / range 30min) → "every day
+ *                     12:00–12:30". Weekly period (period_length 7 days) with
+ *                     range_length N days selects N consecutive weekdays;
+ *                     offset_date's weekday picks the start day.
+ *   • union         — set union of children
+ *   • intersection  — set intersection of children
+ *   • difference    — children[0] minus the union of the rest
+ *   • complement    — the evaluation window minus its child
+ *
+ * Timestamps are naive park-local wall-clock; evaluation happens in that naive
+ * space (so daily periods stay fixed across DST), then concrete date + time are
+ * handed to constructDateTime for correctly-offset ISO output.
+ */
+type ShowTimeDuration = {
+  week?: number;
+  day?: number;
+  hour?: number;
+  minute?: number;
+  second?: number;
+};
+
+export type ShowTimeNode =
+  | {type: 'range'; start: string; end: string}
+  | {type: 'period'; offset_date: string; period_length: ShowTimeDuration; range_length: ShowTimeDuration}
+  | {type: 'union' | 'intersection' | 'difference' | 'complement'; children: ShowTimeNode[]};
+
+/** A half-open interval [start, end) in naive-local milliseconds. */
+type ShowTimeInterval = [number, number];
+
+const SHOWTIME_DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Guard against pathological period definitions producing unbounded loops. */
+const SHOWTIME_MAX_ITERATIONS = 100_000;
+
+/**
+ * Parse a naive "YYYY-MM-DD HH:MM:SS" (or ISO) wall-clock string to ms, treating
+ * it as UTC so UTC getters reproduce the wall clock. NaN for bad input.
+ */
+function parseNaiveMs(raw: string): number {
+  return Date.parse(raw.trim().replace(' ', 'T') + 'Z');
+}
+
+function showTimeDurationMs(d: ShowTimeDuration | undefined): number {
+  if (!d || typeof d !== 'object') return 0;
+  return (
+    (d.week || 0) * 7 * SHOWTIME_DAY_MS +
+    (d.day || 0) * SHOWTIME_DAY_MS +
+    (d.hour || 0) * 60 * 60 * 1000 +
+    (d.minute || 0) * 60 * 1000 +
+    (d.second || 0) * 1000
+  );
+}
+
+/** Sort and merge overlapping/adjacent intervals into a normalised set. */
+function normaliseIntervals(list: ShowTimeInterval[]): ShowTimeInterval[] {
+  const sorted = list.filter(([s, e]) => s < e).sort((a, b) => a[0] - b[0]);
+  const out: ShowTimeInterval[] = [];
+  for (const [s, e] of sorted) {
+    const last = out[out.length - 1];
+    if (last && s <= last[1]) last[1] = Math.max(last[1], e);
+    else out.push([s, e]);
+  }
+  return out;
+}
+
+function intersectIntervals(a: ShowTimeInterval[], b: ShowTimeInterval[]): ShowTimeInterval[] {
+  const out: ShowTimeInterval[] = [];
+  for (const [as, ae] of a) {
+    for (const [bs, be] of b) {
+      const s = Math.max(as, bs);
+      const e = Math.min(ae, be);
+      if (s < e) out.push([s, e]);
+    }
+  }
+  return normaliseIntervals(out);
+}
+
+/** Remove every part of `b` from `a`. */
+function subtractIntervals(a: ShowTimeInterval[], b: ShowTimeInterval[]): ShowTimeInterval[] {
+  let current = normaliseIntervals(a);
+  for (const [bs, be] of normaliseIntervals(b)) {
+    const next: ShowTimeInterval[] = [];
+    for (const [as, ae] of current) {
+      if (be <= as || bs >= ae) {
+        next.push([as, ae]); // no overlap
+        continue;
+      }
+      if (as < bs) next.push([as, bs]); // left remainder
+      if (be < ae) next.push([be, ae]); // right remainder
+    }
+    current = next;
+  }
+  return normaliseIntervals(current);
+}
+
+/**
+ * Safely parse a raw `ShowTimes` field value into a node, or null when
+ * absent/blank/unparseable.
+ */
+export function parseShowTimes(raw: string | null | undefined): ShowTimeNode | null {
+  if (typeof raw !== 'string' || raw.trim() === '') return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && typeof parsed.type === 'string'
+      ? (parsed as ShowTimeNode)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Evaluate a ShowTimes node against the window [winStart, winEnd) and return the
+ * normalised set of active intervals within that window (naive-local ms).
+ */
+export function evaluateShowTimeNode(
+  node: ShowTimeNode,
+  winStart: number,
+  winEnd: number,
+): ShowTimeInterval[] {
+  switch (node.type) {
+    case 'range': {
+      const s = Math.max(parseNaiveMs(node.start), winStart);
+      const e = Math.min(parseNaiveMs(node.end), winEnd);
+      return Number.isFinite(s) && Number.isFinite(e) && s < e ? [[s, e]] : [];
+    }
+
+    case 'period': {
+      const offset = parseNaiveMs(node.offset_date);
+      const periodMs = showTimeDurationMs(node.period_length);
+      const rangeMs = showTimeDurationMs(node.range_length);
+      if (!Number.isFinite(offset) || periodMs <= 0 || rangeMs <= 0) return [];
+
+      const out: ShowTimeInterval[] = [];
+      let n = Math.floor((winStart - offset - rangeMs) / periodMs);
+      for (let i = 0; i < SHOWTIME_MAX_ITERATIONS; i++, n++) {
+        const s = offset + n * periodMs;
+        if (s >= winEnd) break;
+        const cs = Math.max(s, winStart);
+        const ce = Math.min(s + rangeMs, winEnd);
+        if (cs < ce) out.push([cs, ce]);
+      }
+      return normaliseIntervals(out);
+    }
+
+    case 'union':
+      return normaliseIntervals((node.children || []).flatMap(c => evaluateShowTimeNode(c, winStart, winEnd)));
+
+    case 'intersection': {
+      const children = node.children || [];
+      if (children.length === 0) return [];
+      return children
+        .map(c => evaluateShowTimeNode(c, winStart, winEnd))
+        .reduce((acc, cur) => intersectIntervals(acc, cur));
+    }
+
+    case 'difference': {
+      const children = node.children || [];
+      if (children.length === 0) return [];
+      const [first, ...rest] = children.map(c => evaluateShowTimeNode(c, winStart, winEnd));
+      return rest.reduce((acc, cur) => subtractIntervals(acc, cur), first);
+    }
+
+    case 'complement': {
+      const inner = normaliseIntervals(
+        (node.children || []).flatMap(c => evaluateShowTimeNode(c, winStart, winEnd)),
+      );
+      return subtractIntervals([[winStart, winEnd]], inner);
+    }
+
+    default:
+      return [];
+  }
+}
+
+/**
+ * Evaluate a raw `ShowTimes` value for a single calendar day and return
+ * schema-ready LiveTimeSlot entries with timezone-correct ISO times.
+ *
+ * @param raw   Stringified ShowTimes JSON (or null/undefined).
+ * @param date  Target day "YYYY-MM-DD" in the park's local timezone.
+ * @param timezone  IANA timezone (e.g. "Europe/Berlin").
+ * @param type  Value for each slot's `type` field (defaults to "Showtime").
+ */
+export function showTimesForDate(
+  raw: string | null | undefined,
+  date: string,
+  timezone: string,
+  type: string = 'Showtime',
+): LiveTimeSlot[] {
+  const node = parseShowTimes(raw);
+  if (!node) return [];
+
+  const winStart = parseNaiveMs(`${date} 00:00:00`);
+  if (!Number.isFinite(winStart)) return [];
+  const winEnd = winStart + SHOWTIME_DAY_MS;
+
+  return evaluateShowTimeNode(node, winStart, winEnd).map(([s, e]) => {
+    // s/e are naive-local ms; read back the wall clock via UTC getters.
+    const startIso = new Date(s).toISOString();
+    const endIso = new Date(e).toISOString();
+    return {
+      type,
+      startTime: constructDateTime(startIso.slice(0, 10), startIso.slice(11, 19), timezone),
+      endTime: constructDateTime(endIso.slice(0, 10), endIso.slice(11, 19), timezone),
+    };
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -782,13 +1074,28 @@ class AttractionsIOV1 extends Destination {
     ];
   }
 
+  /**
+   * Build live data for every entity type the API exposes:
+   *   • attractions — operating status + standby wait time (live feed)
+   *   • restaurants — open/closed status + today's opening hours (live feed)
+   *   • the park itself — today's opening window (live Resort record)
+   *   • shows — today's performance times, evaluated from each show's recurring
+   *     ShowTimes schedule in the records data (there is no live show feed)
+   *
+   * Each block is driven by the entity IDs that actually exist for the park, so
+   * a park that has no restaurants/shows (or whose live feed omits the venue
+   * fields) simply contributes nothing for those blocks.
+   */
   protected async buildLiveData(): Promise<LiveData[]> {
-    // Get known attraction entity IDs
     const entities = await this.getEntities();
     const attractionIds = new Set(
-      entities
-        .filter(e => e.entityType === 'ATTRACTION')
-        .map(e => e.id)
+      entities.filter(e => e.entityType === 'ATTRACTION').map(e => e.id),
+    );
+    const restaurantIds = new Set(
+      entities.filter(e => e.entityType === 'RESTAURANT').map(e => e.id),
+    );
+    const showIds = new Set(
+      entities.filter(e => e.entityType === 'SHOW').map(e => e.id),
     );
 
     const resp = await this.fetchLiveData();
@@ -800,33 +1107,93 @@ class AttractionsIOV1 extends Destination {
 
     for (const record of records) {
       const id = String(record._id);
-      if (!attractionIds.has(id)) continue;
 
-      // Determine status
-      let status: 'OPERATING' | 'CLOSED' | 'DOWN' = record.IsOperational ? 'OPERATING' : 'CLOSED';
-      if (record.IsOpen === false) {
-        status = 'CLOSED';
-      }
+      // Attractions: operating status + standby wait time
+      if (attractionIds.has(id)) {
+        // Determine status
+        let status: 'OPERATING' | 'CLOSED' | 'DOWN' = record.IsOperational ? 'OPERATING' : 'CLOSED';
+        if (record.IsOpen === false) {
+          status = 'CLOSED';
+        }
 
-      const entry: LiveData = {
-        id,
-        status,
-      };
+        const entry: LiveData = {
+          id,
+          status,
+        };
 
-      // Wait time (in seconds from API – convert to minutes)
-      if (record.QueueTime !== undefined && record.QueueTime !== null) {
-        if (typeof record.QueueTime === 'number' && Number.isFinite(record.QueueTime)) {
+        // Wait time (in seconds from API – convert to minutes)
+        if (record.QueueTime !== undefined && record.QueueTime !== null) {
+          if (typeof record.QueueTime === 'number' && Number.isFinite(record.QueueTime)) {
+            entry.queue = {
+              STANDBY: {waitTime: Math.floor(record.QueueTime / 60)},
+            };
+          }
+        } else if (record.QueueTime === null) {
           entry.queue = {
-            STANDBY: {waitTime: Math.floor(record.QueueTime / 60)},
+            STANDBY: {waitTime: undefined},
           };
         }
-      } else if (record.QueueTime === null) {
-        entry.queue = {
-          STANDBY: {waitTime: undefined},
-        };
+
+        liveData.push(entry);
+        continue;
       }
 
-      liveData.push(entry);
+      // Restaurants: open/closed status + today's opening hours. Dining venues
+      // report IsOperational:false unconditionally (it flags running rides), so
+      // IsOpen is the real signal here.
+      if (restaurantIds.has(id)) {
+        const entry: LiveData = {
+          id,
+          status: record.IsOpen ? 'OPERATING' : 'CLOSED',
+        };
+
+        const hours = parseLiveOpeningTimes(record.OpeningTimes, this.timezone);
+        if (hours.length > 0) entry.operatingHours = hours;
+
+        liveData.push(entry);
+        continue;
+      }
+    }
+
+    // Park: today's actual opening window (from the Resort record)
+    const resort = raw?.entities?.Resort?.records?.[0];
+    const parkHours = parseLiveOpeningTimes(resort?.OpeningTimes, this.timezone);
+    if (parkHours.length > 0) {
+      liveData.push({
+        id: this.parkId,
+        status: 'OPERATING',
+        operatingHours: parkHours,
+      });
+    }
+
+    // Shows: today's performance times, evaluated from each show's recurring
+    // ShowTimes schedule in the records data (not the live feed)
+    if (showIds.size > 0) {
+      const today = formatDate(new Date(), this.timezone);
+      const poi = await this.getPOIData();
+      for (const item of poi.Item) {
+        const id = String(item._id);
+        if (!showIds.has(id)) continue;
+
+        const showtimes = showTimesForDate(item.ShowTimes, today, this.timezone);
+
+        // Status derives from the schedule (there is no live "running now" feed):
+        // OPERATING only while a performance is still upcoming or ongoing, then
+        // CLOSED once the day's last performance has ended. The full day's
+        // schedule stays published in `showtimes`.
+        const nowMs = Date.now();
+        const hasUpcoming = showtimes.some(s => {
+          const end = s.endTime ?? s.startTime;
+          return end != null && Date.parse(end) > nowMs;
+        });
+
+        const entry: LiveData = {
+          id,
+          status: hasUpcoming ? 'OPERATING' : 'CLOSED',
+        };
+        if (showtimes.length > 0) entry.showtimes = showtimes;
+        liveData.push(entry);
+      }
     }
 
     return liveData;
@@ -1152,308 +1519,6 @@ export class Gardaland extends AttractionsIOV1 {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HeidePark — live-data opening hours
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * A live-data `Item` record as returned for HeidePark. Extends the base shape
- * with the venue fields (restaurants/shops carry these; rides leave them null).
- * `IsOperational` flags *rides that are running* — it is always false for
- * dining/retail venues, so `IsOpen` is the correct open/closed signal there.
- */
-type HeideLiveItemRecord = {
-  _id: number;
-  IsOpen?: boolean;
-  IsOperational?: boolean;
-  OpeningTimes?: string | null;
-};
-
-type HeideLiveResortRecord = {
-  _id: number;
-  OpeningTimes?: string | null;
-};
-
-type HeideLiveResponse = {
-  entities?: {
-    Item?: {records?: HeideLiveItemRecord[]};
-    Resort?: {records?: HeideLiveResortRecord[]};
-  };
-};
-
-/** Split "YYYY-MM-DD HH:MM[:SS]" into {date, time}; null if malformed. */
-function splitLiveDateTime(raw: string): {date: string; time: string} | null {
-  const m = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}(?::\d{2})?)/.exec(raw.trim());
-  return m ? {date: m[1], time: m[2]} : null;
-}
-
-/**
- * Parse an Attractions.io live-data `OpeningTimes` value into schema
- * LiveTimeSlot entries.
- *
- * The field is a *stringified* JSON blob, e.g.
- *   `{"type":"range","start":"2026-07-08 10:00:00","end":"2026-07-08 18:00:00"}`
- * (a single object, or defensively an array of them). Start/end are park-local
- * wall-clock times without an offset, so they are normalised to ISO+offset via
- * constructDateTime. Returns [] for null/blank/unparseable/non-range values.
- */
-function parseLiveOpeningTimes(raw: string | null | undefined, timezone: string): LiveTimeSlot[] {
-  if (typeof raw !== 'string' || raw.trim() === '') return [];
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return [];
-  }
-
-  const ranges = Array.isArray(parsed) ? parsed : [parsed];
-  const slots: LiveTimeSlot[] = [];
-
-  for (const r of ranges) {
-    if (
-      !r || typeof r !== 'object' ||
-      (r as any).type !== 'range' ||
-      typeof (r as any).start !== 'string' ||
-      typeof (r as any).end !== 'string'
-    ) continue;
-
-    const start = splitLiveDateTime((r as any).start);
-    const end = splitLiveDateTime((r as any).end);
-    if (!start || !end) continue;
-
-    slots.push({
-      type: 'OPERATING',
-      startTime: constructDateTime(start.date, start.time, timezone),
-      endTime: constructDateTime(end.date, end.time, timezone),
-    });
-  }
-
-  return slots;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// HeidePark — show schedules (`ShowTimes` recurring-schedule algebra)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Attractions.io encodes a show/animation's recurring schedule in the records
- * `ShowTimes` field as a nested set-algebra tree. Evaluating that tree against a
- * single day yields the concrete performance windows for that day.
- *
- * Node grammar (each node is a set of instants):
- *   • range         — a continuous span [start, end)
- *   • period        — a repeating window: from `offset_date`, every
- *                     `period_length`, a window `range_length` long is "on".
- *                     Daily period (offset 12:00 / range 30min) → "every day
- *                     12:00–12:30". Weekly period (period_length 7 days) with
- *                     range_length N days selects N consecutive weekdays;
- *                     offset_date's weekday picks the start day.
- *   • union         — set union of children
- *   • intersection  — set intersection of children
- *   • difference    — children[0] minus the union of the rest
- *   • complement    — the evaluation window minus its child
- *
- * Timestamps are naive park-local wall-clock; evaluation happens in that naive
- * space (so daily periods stay fixed across DST), then concrete date + time are
- * handed to constructDateTime for correctly-offset ISO output.
- */
-type ShowTimeDuration = {
-  week?: number;
-  day?: number;
-  hour?: number;
-  minute?: number;
-  second?: number;
-};
-
-export type ShowTimeNode =
-  | {type: 'range'; start: string; end: string}
-  | {type: 'period'; offset_date: string; period_length: ShowTimeDuration; range_length: ShowTimeDuration}
-  | {type: 'union' | 'intersection' | 'difference' | 'complement'; children: ShowTimeNode[]};
-
-/** A half-open interval [start, end) in naive-local milliseconds. */
-type ShowTimeInterval = [number, number];
-
-const SHOWTIME_DAY_MS = 24 * 60 * 60 * 1000;
-
-/** Guard against pathological period definitions producing unbounded loops. */
-const SHOWTIME_MAX_ITERATIONS = 100_000;
-
-/**
- * Parse a naive "YYYY-MM-DD HH:MM:SS" (or ISO) wall-clock string to ms, treating
- * it as UTC so UTC getters reproduce the wall clock. NaN for bad input.
- */
-function parseNaiveMs(raw: string): number {
-  return Date.parse(raw.trim().replace(' ', 'T') + 'Z');
-}
-
-function showTimeDurationMs(d: ShowTimeDuration | undefined): number {
-  if (!d || typeof d !== 'object') return 0;
-  return (
-    (d.week || 0) * 7 * SHOWTIME_DAY_MS +
-    (d.day || 0) * SHOWTIME_DAY_MS +
-    (d.hour || 0) * 60 * 60 * 1000 +
-    (d.minute || 0) * 60 * 1000 +
-    (d.second || 0) * 1000
-  );
-}
-
-/** Sort and merge overlapping/adjacent intervals into a normalised set. */
-function normaliseIntervals(list: ShowTimeInterval[]): ShowTimeInterval[] {
-  const sorted = list.filter(([s, e]) => s < e).sort((a, b) => a[0] - b[0]);
-  const out: ShowTimeInterval[] = [];
-  for (const [s, e] of sorted) {
-    const last = out[out.length - 1];
-    if (last && s <= last[1]) last[1] = Math.max(last[1], e);
-    else out.push([s, e]);
-  }
-  return out;
-}
-
-function intersectIntervals(a: ShowTimeInterval[], b: ShowTimeInterval[]): ShowTimeInterval[] {
-  const out: ShowTimeInterval[] = [];
-  for (const [as, ae] of a) {
-    for (const [bs, be] of b) {
-      const s = Math.max(as, bs);
-      const e = Math.min(ae, be);
-      if (s < e) out.push([s, e]);
-    }
-  }
-  return normaliseIntervals(out);
-}
-
-/** Remove every part of `b` from `a`. */
-function subtractIntervals(a: ShowTimeInterval[], b: ShowTimeInterval[]): ShowTimeInterval[] {
-  let current = normaliseIntervals(a);
-  for (const [bs, be] of normaliseIntervals(b)) {
-    const next: ShowTimeInterval[] = [];
-    for (const [as, ae] of current) {
-      if (be <= as || bs >= ae) {
-        next.push([as, ae]); // no overlap
-        continue;
-      }
-      if (as < bs) next.push([as, bs]); // left remainder
-      if (be < ae) next.push([be, ae]); // right remainder
-    }
-    current = next;
-  }
-  return normaliseIntervals(current);
-}
-
-/**
- * Safely parse a raw `ShowTimes` field value into a node, or null when
- * absent/blank/unparseable.
- */
-export function parseShowTimes(raw: string | null | undefined): ShowTimeNode | null {
-  if (typeof raw !== 'string' || raw.trim() === '') return null;
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' && typeof parsed.type === 'string'
-      ? (parsed as ShowTimeNode)
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Evaluate a ShowTimes node against the window [winStart, winEnd) and return the
- * normalised set of active intervals within that window (naive-local ms).
- */
-export function evaluateShowTimeNode(
-  node: ShowTimeNode,
-  winStart: number,
-  winEnd: number,
-): ShowTimeInterval[] {
-  switch (node.type) {
-    case 'range': {
-      const s = Math.max(parseNaiveMs(node.start), winStart);
-      const e = Math.min(parseNaiveMs(node.end), winEnd);
-      return Number.isFinite(s) && Number.isFinite(e) && s < e ? [[s, e]] : [];
-    }
-
-    case 'period': {
-      const offset = parseNaiveMs(node.offset_date);
-      const periodMs = showTimeDurationMs(node.period_length);
-      const rangeMs = showTimeDurationMs(node.range_length);
-      if (!Number.isFinite(offset) || periodMs <= 0 || rangeMs <= 0) return [];
-
-      const out: ShowTimeInterval[] = [];
-      let n = Math.floor((winStart - offset - rangeMs) / periodMs);
-      for (let i = 0; i < SHOWTIME_MAX_ITERATIONS; i++, n++) {
-        const s = offset + n * periodMs;
-        if (s >= winEnd) break;
-        const cs = Math.max(s, winStart);
-        const ce = Math.min(s + rangeMs, winEnd);
-        if (cs < ce) out.push([cs, ce]);
-      }
-      return normaliseIntervals(out);
-    }
-
-    case 'union':
-      return normaliseIntervals((node.children || []).flatMap(c => evaluateShowTimeNode(c, winStart, winEnd)));
-
-    case 'intersection': {
-      const children = node.children || [];
-      if (children.length === 0) return [];
-      return children
-        .map(c => evaluateShowTimeNode(c, winStart, winEnd))
-        .reduce((acc, cur) => intersectIntervals(acc, cur));
-    }
-
-    case 'difference': {
-      const children = node.children || [];
-      if (children.length === 0) return [];
-      const [first, ...rest] = children.map(c => evaluateShowTimeNode(c, winStart, winEnd));
-      return rest.reduce((acc, cur) => subtractIntervals(acc, cur), first);
-    }
-
-    case 'complement': {
-      const inner = normaliseIntervals(
-        (node.children || []).flatMap(c => evaluateShowTimeNode(c, winStart, winEnd)),
-      );
-      return subtractIntervals([[winStart, winEnd]], inner);
-    }
-
-    default:
-      return [];
-  }
-}
-
-/**
- * Evaluate a raw `ShowTimes` value for a single calendar day and return
- * schema-ready LiveTimeSlot entries with timezone-correct ISO times.
- *
- * @param raw   Stringified ShowTimes JSON (or null/undefined).
- * @param date  Target day "YYYY-MM-DD" in the park's local timezone.
- * @param timezone  IANA timezone (e.g. "Europe/Berlin").
- * @param type  Value for each slot's `type` field (defaults to "Showtime").
- */
-export function showTimesForDate(
-  raw: string | null | undefined,
-  date: string,
-  timezone: string,
-  type: string = 'Showtime',
-): LiveTimeSlot[] {
-  const node = parseShowTimes(raw);
-  if (!node) return [];
-
-  const winStart = parseNaiveMs(`${date} 00:00:00`);
-  if (!Number.isFinite(winStart)) return [];
-  const winEnd = winStart + SHOWTIME_DAY_MS;
-
-  return evaluateShowTimeNode(node, winStart, winEnd).map(([s, e]) => {
-    // s/e are naive-local ms; read back the wall clock via UTC getters.
-    const startIso = new Date(s).toISOString();
-    const endIso = new Date(e).toISOString();
-    return {
-      type,
-      startTime: constructDateTime(startIso.slice(0, 10), startIso.slice(11, 19), timezone),
-      endTime: constructDateTime(endIso.slice(0, 10), endIso.slice(11, 19), timezone),
-    };
-  });
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // HeidePark — destination (custom v2 opening-times API)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1492,98 +1557,6 @@ class HeideParkBase extends AttractionsIOV1 {
       options: {json: true},
       tags: ['calendar'],
     } as any as HTTPObj;
-  }
-
-  /**
-   * HeidePark live data.
-   *
-   * Reuses the base implementation for attraction wait times, then augments it
-   * with what the base drops on the floor:
-   *   • restaurant open/closed status + today's opening hours (from the venue
-   *     `OpeningTimes` field, which the base never reads)
-   *   • the park's actual opening window for today (from the Resort record)
-   *   • show performance times for today, evaluated from each show's recurring
-   *     `ShowTimes` schedule in the records data (not the live feed)
-   */
-  protected async buildLiveData(): Promise<LiveData[]> {
-    // Base handles attraction wait times & status.
-    const liveData = await super.buildLiveData();
-
-    let raw: HeideLiveResponse;
-    try {
-      const resp = await this.fetchLiveData();
-      raw = await resp.json();
-    } catch {
-      return liveData;
-    }
-
-    // Restaurants: open/closed status + today's opening hours
-    const entities = await this.getEntities();
-    const restaurantIds = new Set(
-      entities.filter(e => e.entityType === 'RESTAURANT').map(e => e.id),
-    );
-
-    const records = raw?.entities?.Item?.records ?? [];
-    for (const record of records) {
-      const id = String(record._id);
-      if (!restaurantIds.has(id)) continue;
-
-      // Dining venues report IsOperational:false unconditionally (it flags
-      // running rides), so IsOpen is the real signal.
-      const entry: LiveData = {
-        id,
-        status: record.IsOpen ? 'OPERATING' : 'CLOSED',
-      };
-
-      const hours = parseLiveOpeningTimes(record.OpeningTimes, this.timezone);
-      if (hours.length > 0) entry.operatingHours = hours;
-
-      liveData.push(entry);
-    }
-
-    // Park: today's actual opening window (from the Resort record)
-    const resort = raw?.entities?.Resort?.records?.[0];
-    const parkHours = parseLiveOpeningTimes(resort?.OpeningTimes, this.timezone);
-    if (parkHours.length > 0) {
-      liveData.push({
-        id: this.parkId,
-        status: 'OPERATING',
-        operatingHours: parkHours,
-      });
-    }
-
-    // Shows: today's performance times, evaluated from each show's recurring
-    // ShowTimes schedule in the records data (not the live feed)
-    const showIds = new Set(entities.filter(e => e.entityType === 'SHOW').map(e => e.id));
-    if (showIds.size > 0) {
-      const today = formatDate(new Date(), this.timezone);
-      const poi = await this.getPOIData();
-      for (const item of poi.Item) {
-        const id = String(item._id);
-        if (!showIds.has(id)) continue;
-
-        const showtimes = showTimesForDate(item.ShowTimes, today, this.timezone);
-
-        // Status derives from the schedule (there is no live "running now" feed):
-        // OPERATING only while a performance is still upcoming or ongoing, then
-        // CLOSED once the day's last performance has ended. The full day's
-        // schedule stays published in `showtimes`.
-        const nowMs = Date.now();
-        const hasUpcoming = showtimes.some(s => {
-          const end = s.endTime ?? s.startTime;
-          return end != null && Date.parse(end) > nowMs;
-        });
-
-        const entry: LiveData = {
-          id,
-          status: hasUpcoming ? 'OPERATING' : 'CLOSED',
-        };
-        if (showtimes.length > 0) entry.showtimes = showtimes;
-        liveData.push(entry);
-      }
-    }
-
-    return liveData;
   }
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
