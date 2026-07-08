@@ -221,4 +221,48 @@ describe('evaluateShowTimeNode — set algebra', () => {
       ['15:30', '15:30'],
     ]);
   });
+
+  test('two abutting spans intersect to nothing, not a boundary point', () => {
+    const node: ShowTimeNode = {
+      type: 'intersection',
+      children: [
+        range('2026-07-08 10:00:00', '2026-07-08 12:00:00'),
+        range('2026-07-08 12:00:00', '2026-07-08 14:00:00'),
+      ],
+    };
+    // Half-open [10:00,12:00) and [12:00,14:00) only touch at 12:00 — no overlap.
+    expect(evaluateShowTimeNode(node, day, dayEnd)).toEqual([]);
+  });
+
+  test('a point on a span exclusive end is excluded by intersection (half-open)', () => {
+    const node: ShowTimeNode = {
+      type: 'intersection',
+      children: [
+        range('2026-07-08 10:00:00', '2026-07-08 13:30:00'),
+        {type: 'period', offset_date: '2020-01-01 13:30:00', period_length: {day: 1}, range_length: {}},
+      ],
+    };
+    // 13:30 is the exclusive end of [10:00,13:30), so the point is not contained.
+    expect(evaluateShowTimeNode(node, day, dayEnd)).toEqual([]);
+  });
+
+  test('difference drops a point on the subtracted span start, keeps one outside', () => {
+    const node: ShowTimeNode = {
+      type: 'difference',
+      children: [
+        {
+          type: 'union',
+          children: [
+            {type: 'period', offset_date: '2020-01-01 09:00:00', period_length: {day: 1}, range_length: {}},
+            {type: 'period', offset_date: '2020-01-01 13:30:00', period_length: {day: 1}, range_length: {}},
+          ],
+        },
+        range('2026-07-08 13:30:00', '2026-07-08 18:00:00'),
+      ],
+    };
+    // 13:30 sits on the inclusive start of [13:30,18:00) so it is removed; 09:00 survives.
+    expect(evaluateShowTimeNode(node, day, dayEnd).map(([s, e]) => [hhmm(s), hhmm(e)])).toEqual([
+      ['09:00', '09:00'],
+    ]);
+  });
 });

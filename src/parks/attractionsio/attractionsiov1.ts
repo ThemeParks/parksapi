@@ -310,17 +310,17 @@ function parseLiveOpeningTimes(raw: string | null | undefined, timezone: string)
  * single day yields the concrete performance windows for that day.
  *
  * Node grammar (each node is a set of instants):
- *   • range         — a continuous span [start, end)
- *   • period        — a repeating window: from `offset_date`, every
+ *   - range         — a continuous span [start, end)
+ *   - period        — a repeating window: from `offset_date`, every
  *                     `period_length`, a window `range_length` long is "on".
  *                     Daily period (offset 12:00 / range 30min) → "every day
  *                     12:00–12:30". Weekly period (period_length 7 days) with
  *                     range_length N days selects N consecutive weekdays;
  *                     offset_date's weekday picks the start day.
- *   • union         — set union of children
- *   • intersection  — set intersection of children
- *   • difference    — children[0] minus the union of the rest
- *   • complement    — the evaluation window minus its child
+ *   - union         — set union of children
+ *   - intersection  — set intersection of children
+ *   - difference    — children[0] minus the union of the rest
+ *   - complement    — the evaluation window minus its child
  *
  * Timestamps are naive park-local wall-clock; evaluation happens in that naive
  * space (so daily periods stay fixed across DST), then concrete date + time are
@@ -385,9 +385,17 @@ function intersectIntervals(a: ShowTimeInterval[], b: ShowTimeInterval[]): ShowT
     for (const [bs, be] of b) {
       const s = Math.max(as, bs);
       const e = Math.min(ae, be);
-      // Keep the overlap; also keep a point (s === e) when it sits on one of the
-      // operands — a point occurrence contained by a season/weekday span.
-      if (s < e || (s === e && (as === ae || bs === be))) out.push([s, e]);
+      if (s < e) {
+        out.push([s, e]);
+      } else if (s === e) {
+        // A zero-length point [p, p] survives only when it lies within BOTH
+        // operands under half-open [start, end) containment, so a point on a
+        // span's exclusive end is dropped while an interior one is kept.
+        const p = s;
+        const inA = as === ae ? as === p : as <= p && p < ae;
+        const inB = bs === be ? bs === p : bs <= p && p < be;
+        if (inA && inB) out.push([p, p]);
+      }
     }
   }
   return normaliseIntervals(out);
@@ -399,6 +407,13 @@ function subtractIntervals(a: ShowTimeInterval[], b: ShowTimeInterval[]): ShowTi
   for (const [bs, be] of normaliseIntervals(b)) {
     const next: ShowTimeInterval[] = [];
     for (const [as, ae] of current) {
+      // A zero-length point is removed only when [bs, be) covers it under
+      // half-open containment (bs <= p < be); the generic overlap test below
+      // assumes a positive-width interval.
+      if (as === ae) {
+        if (!(bs <= as && as < be)) next.push([as, ae]);
+        continue;
+      }
       if (be <= as || bs >= ae) {
         next.push([as, ae]); // no overlap
         continue;
@@ -985,7 +1000,7 @@ class AttractionsIOV1 extends Destination {
 
   /**
    * Category names treated as SHOW entities. Overridable by subclasses whose
-   * park labels its shows differently (e.g. HeidePark uses "Entertainment").
+   * park files its shows under a different category name.
    */
   protected getShowCategories(): string[] {
     return SHOW_CATEGORIES;
@@ -1107,10 +1122,10 @@ class AttractionsIOV1 extends Destination {
 
   /**
    * Build live data for every entity type the API exposes:
-   *   • attractions — operating status + standby wait time (live feed)
-   *   • restaurants — open/closed status + today's opening hours (live feed)
-   *   • the park itself — today's opening window (live Resort record)
-   *   • shows — today's performance times, evaluated from each show's recurring
+   *   - attractions — operating status + standby wait time (live feed)
+   *   - restaurants — open/closed status + today's opening hours (live feed)
+   *   - the park itself — today's opening window (live Resort record)
+   *   - shows — today's performance times, evaluated from each show's recurring
    *     ShowTimes schedule in the records data (there is no live show feed)
    *
    * Each block is driven by the entity IDs that actually exist for the park, so
@@ -1173,12 +1188,26 @@ class AttractionsIOV1 extends Destination {
       // report IsOperational:false unconditionally (it flags running rides), so
       // IsOpen is the real signal here.
       if (restaurantIds.has(id)) {
-        const entry: LiveData = {
-          id,
-          status: record.IsOpen ? 'OPERATING' : 'CLOSED',
-        };
-
         const hours = parseLiveOpeningTimes(record.OpeningTimes, this.timezone);
+
+        // IsOpen is the live open/closed signal for dining venues. Some feeds
+        // omit it for a subset of venues; there, fall back to whether "now"
+        // sits inside today's opening window rather than asserting CLOSED with
+        // no evidence.
+        let status: 'OPERATING' | 'CLOSED';
+        if (typeof record.IsOpen === 'boolean') {
+          status = record.IsOpen ? 'OPERATING' : 'CLOSED';
+        } else {
+          const nowMs = Date.now();
+          const openNow = hours.some(h => {
+            const s = h.startTime ? Date.parse(h.startTime) : NaN;
+            const e = h.endTime ? Date.parse(h.endTime) : NaN;
+            return Number.isFinite(s) && Number.isFinite(e) && s <= nowMs && nowMs < e;
+          });
+          status = openNow ? 'OPERATING' : 'CLOSED';
+        }
+
+        const entry: LiveData = {id, status};
         if (hours.length > 0) entry.operatingHours = hours;
 
         liveData.push(entry);
@@ -1205,6 +1234,10 @@ class AttractionsIOV1 extends Destination {
       for (const item of poi.Item) {
         const id = String(item._id);
         if (!showIds.has(id)) continue;
+        // An item classified into more than one type (e.g. a show-named category
+        // nested under an attraction one) must not emit a second, conflicting
+        // live-data entry — keep the earlier classification.
+        if (attractionIds.has(id) || restaurantIds.has(id)) continue;
 
         const showtimes = showTimesForDate(item.ShowTimes, today, this.timezone);
 
