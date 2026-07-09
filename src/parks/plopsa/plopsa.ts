@@ -21,13 +21,14 @@ import {CacheLib} from '../../cache.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {formatDate, addDays, formatInTimezone} from '../../datetime.js';
+import dePanneLocations from './locations/plopsaland-de-panne.json' with {type: 'json'};
 
 // ── API response types ──────────────────────────────────────────
 
 interface PlopsaContainsItem {
   id: string;
   plopsa_id?: string;
-  title: string;
+  title?: string | null;
   type: 'attraction' | 'foods_and_drinks' | 'shop' | string;
   height_specs?: {
     min_height?: number;
@@ -286,6 +287,43 @@ class PlopsaBase extends Destination {
     return undefined;
   }
 
+  /**
+   * Optional snapshot of per-POI coordinates, keyed by POI title. The
+   * middleware feed only exposes map-image pixel coordinates (`map_coordinates`),
+   * not lat/lng, and De Panne has no pixel→geo transform (see `mapCoordinates`).
+   * De Panne therefore loads a static JSON snapshot of hand-verified ride and
+   * restaurant coordinates (see `locations/plopsaland-de-panne.json`), assigned
+   * in the subclass constructor. POIs added by Plopsa later land without
+   * coordinates until the snapshot is refreshed.
+   */
+  protected poiLocations?: Record<string, {latitude: number; longitude: number}>;
+
+  /** Lazily-built lookup for poiLocations, keyed by normalized title. */
+  private normalizedPoiLocations?: Map<string, {latitude: number; longitude: number}>;
+
+  /**
+   * Normalize POI titles for matching. The feed and the snapshot can differ in
+   * apostrophe style (’ U+2019 vs ') and case; fold both to one form.
+   */
+  private normalizePoiTitle(title: string): string {
+    return title.replace(/[‘’]/g, "'").toLowerCase();
+  }
+
+  /** Look up a hand-verified coordinate for a POI by its title, if any. */
+  protected lookupPoiLocation(
+    title: string | null | undefined,
+  ): {latitude: number; longitude: number} | undefined {
+    if (!this.poiLocations || !title) return undefined;
+    if (!this.normalizedPoiLocations) {
+      this.normalizedPoiLocations = new Map(
+        Object.entries(this.poiLocations).map(
+          ([k, v]) => [this.normalizePoiTitle(k), v] as const,
+        ),
+      );
+    }
+    return this.normalizedPoiLocations.get(this.normalizePoiTitle(title));
+  }
+
   // ── Destination ───────────────────────────────────────────────
 
   async getDestinations(): Promise<Entity[]> {
@@ -327,18 +365,24 @@ class PlopsaBase extends Destination {
 
     // Attractions and restaurants from POI
     for (const poi of poiData?.items ?? []) {
-      const coords = this.mapCoordinates(poi.map_coordinates);
+      // Fallback pixel→geo coords for the whole POI (Deutschland only).
+      const poiCoords = this.mapCoordinates(poi.map_coordinates);
 
       for (const item of poi.contains ?? []) {
+        const title = typeof item.title === 'string' ? item.title : '';
+        if (!title) continue;
+
         if (item.type === 'attraction') {
           const entity: Entity = {
             id: this.entityId(item),
-            name: item.title,
+            name: title,
             entityType: 'ATTRACTION',
             parentId: this.parkId,
             destinationId: this.destinationId,
             timezone: this.timezone,
           } as Entity;
+          // Prefer the hand-verified per-title snapshot, then the pixel transform.
+          const coords = this.lookupPoiLocation(title) ?? poiCoords;
           if (coords) {
             (entity as any).location = coords;
           }
@@ -346,12 +390,13 @@ class PlopsaBase extends Destination {
         } else if (item.type === 'foods_and_drinks') {
           const entity: Entity = {
             id: this.entityId(item),
-            name: item.title,
+            name: title,
             entityType: 'RESTAURANT',
             parentId: this.parkId,
             destinationId: this.destinationId,
             timezone: this.timezone,
           } as Entity;
+          const coords = this.lookupPoiLocation(title) ?? poiCoords;
           if (coords) {
             (entity as any).location = coords;
           }
@@ -566,6 +611,9 @@ export class Plopsaland extends PlopsaBase {
     this.timezone = 'Europe/Brussels';
     this.parkLat = 51.0808363;
     this.parkLng = 2.5957221;
+    // Hand-verified per-POI coordinates: the middleware feed has no ride-level
+    // lat/lng and De Panne has no pixel→geo transform. See locations/README.
+    this.poiLocations = dePanneLocations as Record<string, {latitude: number; longitude: number}>;
     // calendarUrl: the /en/plopsaland-de-panne/ slug redirects to /en/plopsaland-belgium/
     // so use the redirect target. Set via PLOPSALAND_CALENDARURL env var.
   }
