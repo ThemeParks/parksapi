@@ -468,6 +468,9 @@ export class Efteling extends Destination {
         // dropped, so consumers never have to read anything into an absent one.
         if (singleRiderCapable.has(entityId)) {
           const sr = singleRiderData.get(entityId);
+          // v2 hook: sr.status already carries the OPERATING/CLOSED/DOWN/
+          // REFURBISHMENT signal a per-queue `state` field would need — wire it
+          // in here once typelib's SINGLE_RIDER type gains one.
           ld.queue.SINGLE_RIDER = {
             waitTime: (sr && sr.status === 'OPERATING' && sr.waitTime !== null) ? sr.waitTime : null,
           };
