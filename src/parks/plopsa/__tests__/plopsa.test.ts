@@ -8,6 +8,7 @@
  * disagrees between instances.
  */
 import {describe, test, expect} from 'vitest';
+import type {Entity} from '@themeparks/typelib';
 import {plopsaDecideOperating, Plopsaland} from '../plopsa.js';
 
 describe('plopsaDecideOperating', () => {
@@ -37,43 +38,99 @@ describe('plopsaDecideOperating', () => {
   });
 });
 
-describe('De Panne POI location lookup', () => {
-  // Expose the protected lookup + allow overriding the snapshot for the
-  // normalization tests, without a full destination lifecycle.
+describe('De Panne POI location wiring', () => {
+  const fallbackLocation = {latitude: 1, longitude: 2};
+
   class Probe extends Plopsaland {
-    public withLocations(
-      m: Record<string, {latitude: number; longitude: number}>,
-    ): this {
-      (this as any).poiLocations = m;
-      (this as any).normalizedPoiLocations = undefined; // force lazy rebuild
-      return this;
+    protected override mapCoordinates(
+      coords: {x: number; y: number} | undefined,
+    ): {latitude: number; longitude: number} | undefined {
+      return coords ? fallbackLocation : undefined;
     }
-    public lookup(title: string) {
-      return (this as any).lookupPoiLocation(title) as
-        | {latitude: number; longitude: number}
-        | undefined;
+
+    public buildEntitiesForTest(): Promise<Entity[]> {
+      return this.buildEntityList();
     }
   }
 
-  test('resolves a known ride from the bundled snapshot', () => {
-    // The real snapshot is assigned in the constructor; Anubis is hand-pinned.
-    const loc = new Probe().lookup('Anubis The Ride');
-    expect(loc).toBeDefined();
-    expect(typeof loc!.latitude).toBe('number');
-    expect(typeof loc!.longitude).toBe('number');
+  function jsonResponse(payload: unknown) {
+    return {json: async () => payload};
+  }
+
+  function createProbe(poiItems: unknown[]): Probe {
+    const park = new Probe();
+    park.fetchPOI = async () => jsonResponse({items: poiItems}) as any;
+    park.fetchEntertainments = async () => jsonResponse({items: []}) as any;
+    return park;
+  }
+
+  test('populates attraction location from the bundled snapshot', async () => {
+    const entities = await createProbe([{
+      id: 'poi-1',
+      title: 'Attractions',
+      type: {label: 'Attractions'},
+      map_coordinates: {x: 10, y: 20},
+      contains: [{
+        id: 'anubis',
+        title: 'Anubis The Ride',
+        type: 'attraction',
+      }],
+    }]).buildEntitiesForTest();
+
+    const anubis = entities.find((e) => e.id === 'anubis');
+    expect(anubis?.location).toEqual({latitude: 51.081837, longitude: 2.597878});
   });
 
-  test('folds curly/straight apostrophes and is case-insensitive', () => {
-    const p = new Probe().withLocations({
-      "Vic's Whirlwind": {latitude: 51.08, longitude: 2.59},
-    });
-    // Feed emits a curly apostrophe; snapshot key uses a straight one.
-    expect(p.lookup('Vic’s Whirlwind')).toEqual({latitude: 51.08, longitude: 2.59});
-    // Case differences still match.
-    expect(p.lookup("vic's whirlwind")).toEqual({latitude: 51.08, longitude: 2.59});
+  test('prefers snapshot coordinates over mapped POI coordinates', async () => {
+    const entities = await createProbe([{
+      id: 'poi-1',
+      title: 'Attractions',
+      type: {label: 'Attractions'},
+      map_coordinates: {x: 10, y: 20},
+      contains: [{
+        id: 'anubis',
+        title: 'Anubis The Ride',
+        type: 'attraction',
+      }],
+    }]).buildEntitiesForTest();
+
+    const anubis = entities.find((e) => e.id === 'anubis');
+    expect(anubis?.location).toEqual({latitude: 51.081837, longitude: 2.597878});
+    expect(anubis?.location).not.toEqual(fallbackLocation);
   });
 
-  test('returns undefined for an unknown title', () => {
-    expect(new Probe().lookup('Nonexistent Ride')).toBeUndefined();
+  test('matches snapshot titles with curly apostrophes through buildEntityList', async () => {
+    const entities = await createProbe([{
+      id: 'poi-1',
+      title: 'Attractions',
+      type: {label: 'Attractions'},
+      map_coordinates: {x: 10, y: 20},
+      contains: [{
+        id: 'vics',
+        title: 'Vic’s Whirlwind',
+        type: 'attraction',
+      }],
+    }]).buildEntitiesForTest();
+
+    const vics = entities.find((e) => e.id === 'vics');
+    expect(vics?.location).toEqual({latitude: 51.082082, longitude: 2.5958043});
+  });
+
+  test('skips POI children without a usable title', async () => {
+    const entities = await createProbe([{
+      id: 'poi-1',
+      title: 'Attractions',
+      type: {label: 'Attractions'},
+      map_coordinates: {x: 10, y: 20},
+      contains: [
+        {id: 'missing-title', type: 'attraction'},
+        {id: 'null-title', title: null, type: 'foods_and_drinks'},
+        {id: 'anubis', title: 'Anubis The Ride', type: 'attraction'},
+      ],
+    }]).buildEntitiesForTest();
+
+    expect(entities.find((e) => e.id === 'missing-title')).toBeUndefined();
+    expect(entities.find((e) => e.id === 'null-title')).toBeUndefined();
+    expect(entities.find((e) => e.id === 'anubis')).toBeDefined();
   });
 });

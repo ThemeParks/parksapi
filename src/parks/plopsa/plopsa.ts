@@ -28,7 +28,7 @@ import dePanneLocations from './locations/plopsaland-de-panne.json' with {type: 
 interface PlopsaContainsItem {
   id: string;
   plopsa_id?: string;
-  title: string;
+  title?: string | null;
   type: 'attraction' | 'foods_and_drinks' | 'shop' | string;
   height_specs?: {
     min_height?: number;
@@ -311,9 +311,9 @@ class PlopsaBase extends Destination {
 
   /** Look up a hand-verified coordinate for a POI by its title, if any. */
   protected lookupPoiLocation(
-    title: string,
+    title: string | null | undefined,
   ): {latitude: number; longitude: number} | undefined {
-    if (!this.poiLocations) return undefined;
+    if (!this.poiLocations || !title) return undefined;
     if (!this.normalizedPoiLocations) {
       this.normalizedPoiLocations = new Map(
         Object.entries(this.poiLocations).map(
@@ -369,17 +369,20 @@ class PlopsaBase extends Destination {
       const poiCoords = this.mapCoordinates(poi.map_coordinates);
 
       for (const item of poi.contains ?? []) {
+        const title = typeof item.title === 'string' ? item.title : '';
+        if (!title) continue;
+
         if (item.type === 'attraction') {
           const entity: Entity = {
             id: this.entityId(item),
-            name: item.title,
+            name: title,
             entityType: 'ATTRACTION',
             parentId: this.parkId,
             destinationId: this.destinationId,
             timezone: this.timezone,
           } as Entity;
           // Prefer the hand-verified per-title snapshot, then the pixel transform.
-          const coords = this.lookupPoiLocation(item.title) ?? poiCoords;
+          const coords = this.lookupPoiLocation(title) ?? poiCoords;
           if (coords) {
             (entity as any).location = coords;
           }
@@ -387,13 +390,13 @@ class PlopsaBase extends Destination {
         } else if (item.type === 'foods_and_drinks') {
           const entity: Entity = {
             id: this.entityId(item),
-            name: item.title,
+            name: title,
             entityType: 'RESTAURANT',
             parentId: this.parkId,
             destinationId: this.destinationId,
             timezone: this.timezone,
           } as Entity;
-          const coords = this.lookupPoiLocation(item.title) ?? poiCoords;
+          const coords = this.lookupPoiLocation(title) ?? poiCoords;
           if (coords) {
             (entity as any).location = coords;
           }
