@@ -19,8 +19,8 @@ import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
  * Virtual-queue endpoints additionally need a 7-day bearer issued by an
  * OTP-only login flow. Because the OTP cycle cannot run inside this process,
  * the bearer is supplied by an external token service: when `tokenUrl` is
- * configured, this destination performs `GET ${tokenUrl}` (with optional
- * `Authorization: ${tokenAuth}` header) and expects a JSON document of shape
+ * configured, this destination performs `GET ${tokenUrl}` (with an optional
+ * `${tokenAuthHeader}: ${tokenAuth}` credential header) and expects a JSON document of shape
  *   { accessToken: string, exp: number /* epoch ms *​/, ... }
  * The token is cached in-process for a few hours before being re-fetched —
  * the token service is responsible for keeping `accessToken` rolling well
@@ -138,8 +138,15 @@ export class GentingSkyworlds extends Destination {
    */
   @config tokenUrl: string = '';
 
-  /** Optional `Authorization` header value sent on the token-URL GET. */
+  /** Optional credential sent to the token service (under `tokenAuthHeader`). */
   @config tokenAuth: string = '';
+
+  /**
+   * Header name under which `tokenAuth` is sent on the token-URL GET. Defaults
+   * to `Authorization`; override when the token service expects the credential
+   * in a different header.
+   */
+  @config tokenAuthHeader: string = 'Authorization';
 
   constructor(options?: DestinationConstructor) {
     super(options);
@@ -182,7 +189,7 @@ export class GentingSkyworlds extends Destination {
     try {
       return await CacheLib.wrap(cacheKey, async () => {
         const headers: Record<string, string> = {'Accept': 'application/json'};
-        if (this.tokenAuth) headers['Authorization'] = this.tokenAuth;
+        if (this.tokenAuth) headers[this.tokenAuthHeader || 'Authorization'] = this.tokenAuth;
         const resp = await fetch(this.tokenUrl, {headers});
         if (!resp.ok) throw new Error(`token service HTTP ${resp.status}`);
         const doc = await resp.json() as GentingTokenDoc;
