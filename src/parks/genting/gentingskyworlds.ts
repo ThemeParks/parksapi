@@ -178,6 +178,7 @@ export class GentingSkyworlds extends Destination {
   async getAccessToken(): Promise<string> {
     return fetchExternalToken({
       tokenUrl: this.tokenUrl,
+      cacheKeyPrefix: this.constructor.name,
       tokenAuth: this.tokenAuth,
       tokenAuthHeader: this.tokenAuthHeader,
       logPrefix: '[GentingSkyworlds]',

@@ -3,11 +3,13 @@ import { GentingSkyworlds } from '../gentingskyworlds.js';
 import { CacheLib } from '../../../cache.js';
 
 /**
- * The VQ bearer is fetched from an external token service. Some services expect
- * the credential in a header other than `Authorization`, so `tokenAuthHeader`
- * makes the header name configurable (default `Authorization`, backward-compat).
+ * getAccessToken() is a thin delegation to the shared fetchExternalToken()
+ * helper (see src/tokenService.ts and its own test suite for header-shape /
+ * caching coverage). These tests only need to prove the delegation itself
+ * is wired correctly — that Genting's config properties and identity
+ * actually reach the shared helper — not re-verify its internals.
  */
-describe('GentingSkyworlds.getAccessToken — token-service credential header', () => {
+describe('GentingSkyworlds.getAccessToken — delegates to the shared token service', () => {
     const ENV_KEYS = [
         'GENTINGSKYWORLDS_TOKENURL',
         'GENTINGSKYWORLDS_TOKENAUTH',
@@ -31,7 +33,7 @@ describe('GentingSkyworlds.getAccessToken — token-service credential header', 
         CacheLib.clear();
     });
 
-    test('sends tokenAuth under a custom tokenAuthHeader when configured', async () => {
+    test('forwards tokenUrl/tokenAuth/tokenAuthHeader and returns the fetched token', async () => {
         process.env.GENTINGSKYWORLDS_TOKENURL = 'https://token.example/a';
         process.env.GENTINGSKYWORLDS_TOKENAUTH = 'secret-abc';
         process.env.GENTINGSKYWORLDS_TOKENAUTHHEADER = 'x-custom-key';
@@ -43,26 +45,30 @@ describe('GentingSkyworlds.getAccessToken — token-service credential header', 
         const [url, opts] = fetchMock.mock.calls[0] as [string, any];
         expect(url).toBe('https://token.example/a');
         expect(opts.headers['x-custom-key']).toBe('secret-abc');
-        expect(opts.headers).not.toHaveProperty('Authorization');
     });
 
-    test('defaults to the Authorization header when tokenAuthHeader is unset (backward compatible)', async () => {
+    test('caches under a GentingSkyworlds-specific key, reachable via CacheLib.clearByClassName', async () => {
         process.env.GENTINGSKYWORLDS_TOKENURL = 'https://token.example/b';
-        process.env.GENTINGSKYWORLDS_TOKENAUTH = 'secret-def';
 
         await new GentingSkyworlds().getAccessToken();
+        expect(fetchMock).toHaveBeenCalledTimes(1);
 
-        const [, opts] = fetchMock.mock.calls[0] as [string, any];
-        expect(opts.headers['Authorization']).toBe('secret-def');
+        const cleared = CacheLib.clearByClassName('GentingSkyworlds');
+        expect(cleared).toBeGreaterThan(0);
+
+        await new GentingSkyworlds().getAccessToken();
+        expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
-    test('sends no credential header when tokenAuth is empty', async () => {
+    test('forwards the [GentingSkyworlds] log prefix on failure', async () => {
         process.env.GENTINGSKYWORLDS_TOKENURL = 'https://token.example/c';
+        fetchMock.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) });
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-        await new GentingSkyworlds().getAccessToken();
+        const token = await new GentingSkyworlds().getAccessToken();
 
-        const [, opts] = fetchMock.mock.calls[0] as [string, any];
-        expect(opts.headers).not.toHaveProperty('Authorization');
-        expect(Object.keys(opts.headers)).toEqual(['Accept']);
+        expect(token).toBe('');
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('[GentingSkyworlds]'));
+        warnSpy.mockRestore();
     });
 });

@@ -1,5 +1,5 @@
 import {describe, test, expect, vi, beforeEach, afterEach} from 'vitest';
-import {MovieParkGermany} from '../parcsreunidos.js';
+import {MovieParkGermany, Bobbejaanland} from '../parcsreunidos.js';
 import {CacheLib} from '../../../cache.js';
 import type {HTTPObj} from '../../../http.js';
 
@@ -11,7 +11,10 @@ import type {HTTPObj} from '../../../http.js';
  * VQ bearer.
  */
 describe('ParcsReunidosDestination.injectHeaders — token-service credential', () => {
-  const ENV_KEYS = ['MOVIEPARKGERMANY_TOKENURL', 'MOVIEPARKGERMANY_TOKENAUTH', 'MOVIEPARKGERMANY_TOKENAUTHHEADER'];
+  const ENV_KEYS = [
+    'MOVIEPARKGERMANY_TOKENURL', 'MOVIEPARKGERMANY_TOKENAUTH', 'MOVIEPARKGERMANY_TOKENAUTHHEADER',
+    'BOBBEJAANLAND_TOKENURL',
+  ];
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -62,12 +65,32 @@ describe('ParcsReunidosDestination.injectHeaders — token-service credential', 
     expect(req.headers!['Stay-Establishment']).toBe('');
   });
 
-  test('two Parcs Reunidos parks pointed at the same tokenUrl share one cached fetch', async () => {
+  test('two instances of the same park class share one cached fetch', async () => {
     process.env.MOVIEPARKGERMANY_TOKENURL = 'https://token.example/shared-stayapp';
 
     await new MovieParkGermany().injectHeaders({headers: {}} as HTTPObj);
     await new MovieParkGermany().injectHeaders({headers: {}} as HTTPObj);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('two different park classes pointed at the same tokenUrl cache independently (not shared), so --clear-cache stays per-park', async () => {
+    process.env.MOVIEPARKGERMANY_TOKENURL = 'https://token.example/shared-stayapp';
+    process.env.BOBBEJAANLAND_TOKENURL = 'https://token.example/shared-stayapp';
+
+    await new MovieParkGermany().injectHeaders({headers: {}} as HTTPObj);
+    await new Bobbejaanland().injectHeaders({headers: {}} as HTTPObj);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const cleared = CacheLib.clearByClassName('MovieParkGermany');
+    expect(cleared).toBeGreaterThan(0);
+
+    await new MovieParkGermany().injectHeaders({headers: {}} as HTTPObj);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+
+    // Bobbejaanland's own cached token is untouched by clearing MovieParkGermany's.
+    await new Bobbejaanland().injectHeaders({headers: {}} as HTTPObj);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

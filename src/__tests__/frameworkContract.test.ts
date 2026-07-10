@@ -97,15 +97,15 @@ describe('@destinationController auto-applies @config', () => {
   });
 
   test('config prefix resolution works for registered parks', async () => {
-    process.env.STAYAPP_AUTHTOKEN = 'test-token-123';
+    process.env.STAYAPP_TOKENURL = 'https://token.example/shared-stayapp-doc';
 
     const entry = await getDestinationById('movieparkgermany');
     const park = new entry!.DestinationClass();
 
     // Should resolve via STAYAPP prefix (shared)
-    expect((park as any).authToken).toBe('test-token-123');
+    expect((park as any).tokenUrl).toBe('https://token.example/shared-stayapp-doc');
 
-    delete process.env.STAYAPP_AUTHTOKEN;
+    delete process.env.STAYAPP_TOKENURL;
   });
 });
 

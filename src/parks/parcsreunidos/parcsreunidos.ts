@@ -145,6 +145,7 @@ class ParcsReunidosDestination extends Destination {
   async injectHeaders(requestObj: HTTPObj): Promise<void> {
     const token = await fetchExternalToken({
       tokenUrl: this.tokenUrl,
+      cacheKeyPrefix: this.constructor.name,
       tokenAuth: this.tokenAuth,
       tokenAuthHeader: this.tokenAuthHeader,
       logPrefix: `[${this.constructor.name}]`,

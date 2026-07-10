@@ -18,10 +18,16 @@ export interface ExternalTokenDoc {
  *
  * Used by parks whose live-data API needs a credential that can't be derived
  * or refreshed in-process (an OTP-only login cycle, a reverse-engineered
- * app-embedded secret that shouldn't live in this repo, etc.). The token
- * itself is fetched from `tokenUrl` and cached under that URL — multiple
- * destinations pointed at the same `tokenUrl` share one cached fetch rather
- * than each polling the service independently.
+ * app-embedded secret that shouldn't live in this repo, etc.). The token is
+ * cached under `${cacheKeyPrefix}:accessToken:${tokenUrl}` — pass the
+ * calling class's name (e.g. `this.constructor.name`) as `cacheKeyPrefix` so
+ * `CacheLib.clearByClassName()` (and therefore `npm run dev -- <park>
+ * --clear-cache`) can still reach this entry. Two destinations pointed at
+ * the same `tokenUrl` each cache their own copy rather than sharing one —
+ * a deliberate trade against `--clear-cache` staying usable, not an
+ * oversight; the extra token-service round-trip this costs is negligible
+ * next to losing the ability to force-evict a stale cached token while
+ * debugging.
  *
  * Failures are NOT cached (CacheLib.wrap rethrows on inner-fn throw and skips
  * the set step), so a transient token-service blip only costs the caller one
@@ -31,15 +37,22 @@ export interface ExternalTokenDoc {
  */
 export async function fetchExternalToken(opts: {
   tokenUrl: string;
+  cacheKeyPrefix: string;
   tokenAuth?: string;
   tokenAuthHeader?: string;
   cacheTtlSeconds?: number;
   logPrefix?: string;
 }): Promise<string> {
   if (!opts.tokenUrl) return '';
-  const cacheKey = `externalToken:${opts.tokenUrl}`;
+  const cacheKey = `${opts.cacheKeyPrefix}:accessToken:${opts.tokenUrl}`;
   try {
     return await CacheLib.wrap(cacheKey, async () => {
+      // Deliberately raw fetch(), not the @http queue: this isn't a
+      // per-destination Destination method, so it can't carry proxy config
+      // via @inject. Safe today because tokenUrl always points at this
+      // project's own api.themeparks.wiki docs store, never a park's
+      // geo/network-restricted API — revisit if a future tokenUrl needs to
+      // go through a configured proxy.
       const headers: Record<string, string> = {'Accept': 'application/json'};
       if (opts.tokenAuth) headers[opts.tokenAuthHeader || 'Authorization'] = opts.tokenAuth;
       const resp = await fetch(opts.tokenUrl, {headers});
