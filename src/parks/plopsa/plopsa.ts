@@ -519,6 +519,23 @@ class PlopsaBase extends Destination {
   // ── Schedules ─────────────────────────────────────────────────
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
+    const schedules: EntitySchedule[] = [];
+
+    // The park calendar and the show schedules come from separate feeds, so
+    // they are built independently: a failure fetching one must not discard
+    // the other. The park entry is only emitted when the calendar yields days.
+    const parkSchedule = await this.buildParkSchedule();
+    if (parkSchedule.length > 0) {
+      schedules.push({id: this.parkId, schedule: parkSchedule} as EntitySchedule);
+    }
+
+    schedules.push(...await this.buildShowSchedules());
+
+    return schedules;
+  }
+
+  /** Park operating hours for the next ~90 days from the calendar endpoint. */
+  private async buildParkSchedule(): Promise<EntitySchedule['schedule']> {
     const now = new Date();
     const startDate = formatDate(now, this.timezone);
     const endDate = formatDate(addDays(now, 90), this.timezone);
@@ -557,7 +574,11 @@ class PlopsaBase extends Destination {
       }
     }
 
-    // Also build show schedules from entertainments
+    return schedule;
+  }
+
+  /** Per-show operating schedules from the entertainments feed. */
+  private async buildShowSchedules(): Promise<EntitySchedule[]> {
     const entResp = await this.fetchEntertainments();
     const entData = (await entResp.json()) as PlopsaEntertainmentResponse;
     const showSchedules: EntitySchedule[] = [];
@@ -589,10 +610,7 @@ class PlopsaBase extends Destination {
       }
     }
 
-    return [
-      {id: this.parkId, schedule} as EntitySchedule,
-      ...showSchedules,
-    ];
+    return showSchedules;
   }
 }
 

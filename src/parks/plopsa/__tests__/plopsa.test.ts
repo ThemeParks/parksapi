@@ -8,7 +8,7 @@
  * disagrees between instances.
  */
 import {describe, test, expect} from 'vitest';
-import type {Entity} from '@themeparks/typelib';
+import type {Entity, EntitySchedule} from '@themeparks/typelib';
 import {plopsaDecideOperating, Plopsaland} from '../plopsa.js';
 
 describe('plopsaDecideOperating', () => {
@@ -132,5 +132,53 @@ describe('De Panne POI location wiring', () => {
     expect(entities.find((e) => e.id === 'missing-title')).toBeUndefined();
     expect(entities.find((e) => e.id === 'null-title')).toBeUndefined();
     expect(entities.find((e) => e.id === 'anubis')).toBeDefined();
+  });
+});
+
+describe('buildSchedules feed independence', () => {
+  class ScheduleProbe extends Plopsaland {
+    public buildSchedulesForTest(): Promise<EntitySchedule[]> {
+      return this.buildSchedules();
+    }
+  }
+
+  function jsonResponse(payload: unknown) {
+    return {json: async () => payload};
+  }
+
+  const showItems = [{
+    id: 'show-1',
+    plopsa_id: '900',
+    title: 'Test Show',
+    type: {label: 'Show'},
+    schedule_info: {
+      temporarily_closed: false,
+      schedule: [{
+        date: '2026-07-11',
+        timeslots: [{type: 'open', start_time: '14:00', end_time: null}],
+      }],
+    },
+  }];
+
+  test('still returns show schedules when the park calendar fetch fails', async () => {
+    const park = new ScheduleProbe();
+    park.fetchCalendar = async () => { throw new Error('calendar 500'); };
+    park.fetchEntertainments = async () => jsonResponse({items: showItems}) as any;
+
+    const schedules = await park.buildSchedulesForTest();
+
+    // Calendar failed, so no park entry — but the show schedule survives.
+    expect(schedules.find((s) => s.id === 'plopsaland')).toBeUndefined();
+    const show = schedules.find((s) => s.id === '900');
+    expect(show?.schedule).toHaveLength(1);
+    expect(show?.schedule?.[0]?.date).toBe('2026-07-11');
+  });
+
+  test('omits the park entry when the calendar yields no operating days', async () => {
+    const park = new ScheduleProbe();
+    park.fetchCalendar = async () => jsonResponse({schedule: {}}) as any;
+    park.fetchEntertainments = async () => jsonResponse({items: []}) as any;
+
+    expect(await park.buildSchedulesForTest()).toEqual([]);
   });
 });
