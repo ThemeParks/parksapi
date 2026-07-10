@@ -19,8 +19,8 @@ import config from '../../config.js';
 import {http, HTTPObj} from '../../http.js';
 import {CacheLib} from '../../cache.js';
 import {destinationController} from '../../destinationRegistry.js';
-import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import {formatDate, addDays, formatInTimezone} from '../../datetime.js';
+import type {Entity, LiveData, EntitySchedule, LiveTimeSlot} from '@themeparks/typelib';
+import {formatDate, addDays, formatInTimezone, constructDateTime} from '../../datetime.js';
 import dePanneLocations from './locations/plopsaland-de-panne.json' with {type: 'json'};
 
 // ── API response types ──────────────────────────────────────────
@@ -56,6 +56,18 @@ interface PlopsaPOIResponse {
   items: PlopsaPOIItem[];
 }
 
+interface PlopsaScheduleTimeslot {
+  type: string;
+  start_time: string;
+  end_time: string | null;
+}
+
+interface PlopsaScheduleDay {
+  date: string;
+  timeslots: PlopsaScheduleTimeslot[];
+  reserved?: boolean;
+}
+
 interface PlopsaEntertainmentItem {
   id: string;
   plopsa_id?: string;
@@ -65,14 +77,7 @@ interface PlopsaEntertainmentItem {
   };
   schedule_info?: {
     temporarily_closed?: boolean;
-    schedule?: Array<{
-      date: string;
-      timeslots: Array<{
-        type: string;
-        start_time: string;
-        end_time: string | null;
-      }>;
-    }>;
+    schedule?: PlopsaScheduleDay[];
   };
   poi?: {
     id: string;
@@ -130,6 +135,49 @@ function isParkOpenNow(hours: PlopsaTodayHours | null, tz: string): boolean {
     if (slot.start_time <= nowHM && nowHM < slot.end_time) return true;
   }
   return false;
+}
+
+/**
+ * Build the live showtimes for a single entertainment item on a given date.
+ *
+ * The entertainments feed lists per-day `open` timeslots as HH:MM start times
+ * with no end (point-in-time performances). Start times are normalised to
+ * ISO+offset for the park timezone; end times are only emitted when the feed
+ * provides one, otherwise null. Slots for other dates or non-`open` types are
+ * ignored.
+ */
+export function plopsaBuildShowtimes(
+  schedule: PlopsaScheduleDay[] | undefined,
+  date: string,
+  timezone: string,
+): LiveTimeSlot[] {
+  const day = (schedule ?? []).find((d) => d.date === date);
+  const showtimes: LiveTimeSlot[] = [];
+
+  for (const slot of day?.timeslots ?? []) {
+    if (slot.type !== 'open' || !slot.start_time) continue;
+    showtimes.push({
+      type: 'Showtime',
+      startTime: constructDateTime(date, slot.start_time, timezone),
+      endTime: slot.end_time ? constructDateTime(date, slot.end_time, timezone) : null,
+    });
+  }
+
+  return showtimes;
+}
+
+/**
+ * Decide a show's live status from today's performances: OPERATING while a
+ * performance is still upcoming or ongoing, then CLOSED once the day's last
+ * one has ended. The feed omits end times, so each slot's end falls back to
+ * its start. The full day's schedule stays published in `showtimes`.
+ */
+export function plopsaShowStatus(showtimes: LiveTimeSlot[], nowMs: number): 'OPERATING' | 'CLOSED' {
+  const hasUpcoming = showtimes.some((slot) => {
+    const end = slot.endTime ?? slot.startTime;
+    return end != null && Date.parse(end) > nowMs;
+  });
+  return hasUpcoming ? 'OPERATING' : 'CLOSED';
 }
 
 interface CalendarDaySlot {
@@ -435,17 +483,17 @@ class PlopsaBase extends Destination {
   protected async buildLiveData(): Promise<LiveData[]> {
     const today = formatTodayInTimezone(this.timezone);
 
-    const [waitResp, poiResp, hoursResp] = await Promise.all([
+    const [waitResp, poiResp, hoursResp, entResp] = await Promise.all([
       this.fetchWaitTimes(),
       this.fetchPOI(),
       this.fetchTodayHours(today).catch(() => null),
+      this.fetchEntertainments(),
     ]);
 
     const waitTimes = (await waitResp.json()) as PlopsaWaitTimesResponse;
-    if (!waitTimes) return [];
-
     const poiData = (await poiResp.json()) as PlopsaPOIResponse;
     const hoursData = hoursResp ? (await hoursResp.json()) as PlopsaTodayHours : null;
+    const entData = (await entResp.json()) as PlopsaEntertainmentResponse;
 
     // Per-attraction temporarily-closed flag from POI.
     const closedById = new Map<string, boolean>();
@@ -496,7 +544,9 @@ class PlopsaBase extends Destination {
     }
 
     const lastUpdated = new Date().toISOString();
-    return Object.entries(waitTimes).map(([attractionId, waitTime]) => {
+
+    // Attraction live data, keyed off the wait-times feed.
+    const rideLiveData = Object.entries(waitTimes ?? {}).map(([attractionId, waitTime]) => {
       const id = String(attractionId);
       const tempClosed = closedById.get(id) === true;
       const hasWait = typeof waitTime === 'number';
@@ -514,6 +564,30 @@ class PlopsaBase extends Destination {
         lastUpdated,
       } as unknown as LiveData;
     });
+
+    // Show / meet-and-greet live data. The entertainments feed is independent
+    // of the wait-times feed above, so these surface even when a ride feed
+    // hiccups. Today's performances are attached as showtimes and the show is
+    // CLOSED once the last one has passed.
+    const nowMs = Date.now();
+    const showLiveData: LiveData[] = [];
+    for (const item of entData?.items ?? []) {
+      const label = item.type?.label ?? '';
+      if (label !== 'Show' && label !== 'Meet&Greet') continue;
+
+      const showtimes = plopsaBuildShowtimes(item.schedule_info?.schedule, today, this.timezone);
+      const ld = {
+        id: this.entityId({id: item.id, plopsa_id: item.plopsa_id}),
+        status: plopsaShowStatus(showtimes, nowMs),
+        lastUpdated,
+      } as unknown as LiveData;
+      if (showtimes.length > 0) {
+        (ld as {showtimes?: LiveTimeSlot[]}).showtimes = showtimes;
+      }
+      showLiveData.push(ld);
+    }
+
+    return [...rideLiveData, ...showLiveData];
   }
 
   // ── Schedules ─────────────────────────────────────────────────
