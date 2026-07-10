@@ -17,6 +17,7 @@ import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {constructDateTime} from '../../datetime.js';
 import {decodeHtmlEntities} from '../../htmlUtils.js';
+import {fetchExternalToken} from '../../tokenService.js';
 
 // ============================================================================
 // API Response Types
@@ -67,9 +68,31 @@ class ParcsReunidosDestination extends Destination {
   @config
   appId: string = '';
 
-  /** Shared auth token for API requests */
+  /**
+   * HTTPS URL of an external token service that returns the current shared
+   * Stay-App bearer as JSON `{ accessToken, exp }`. The app itself gets this
+   * token via an OAuth2 password-grant against a Keycloak realm using a
+   * fixed, app-embedded service-account credential shared across every
+   * Parcs Reunidos park — that credential is deliberately not stored in this
+   * repo. A separate out-of-process job is responsible for keeping
+   * `accessToken` rolling well ahead of its ~36h expiry; this destination
+   * just consumes it. Leave empty to disable live-data requests entirely
+   * (the establishment/calendar endpoints that don't require auth still
+   * work).
+   */
   @config
-  authToken: string = '';
+  tokenUrl: string = '';
+
+  /** Optional credential sent to the token service (under `tokenAuthHeader`). */
+  @config
+  tokenAuth: string = '';
+
+  /**
+   * Header name under which `tokenAuth` is sent on the token-URL GET.
+   * Defaults to `Authorization`.
+   */
+  @config
+  tokenAuthHeader: string = 'Authorization';
 
   /** Per-park establishment identifier for API header */
   @config
@@ -120,11 +143,23 @@ class ParcsReunidosDestination extends Destination {
     },
   })
   async injectHeaders(requestObj: HTTPObj): Promise<void> {
+    const token = await fetchExternalToken({
+      tokenUrl: this.tokenUrl,
+      tokenAuth: this.tokenAuth,
+      tokenAuthHeader: this.tokenAuthHeader,
+      logPrefix: `[${this.constructor.name}]`,
+    });
     requestObj.headers = {
       ...requestObj.headers,
-      'Authorization': `Bearer ${this.authToken}`,
       'Stay-Establishment': this.stayEstablishment,
     };
+    // Unlike Genting's optional VQ bearer, every Stay-App endpoint requires
+    // this header — but the API rejects a malformed `Bearer ` (empty token)
+    // with AUTHORIZATION_HEADER_BAD_FORMED, which is a worse failure mode
+    // than simply omitting the header and letting the request 401 normally.
+    if (token) {
+      requestObj.headers['Authorization'] = `Bearer ${token}`;
+    }
   }
 
   // ============================================================================

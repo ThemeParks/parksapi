@@ -1,12 +1,13 @@
 import {Destination, DestinationConstructor} from '../../destination.js';
 import config from '../../config.js';
-import {cache, CacheLib} from '../../cache.js';
+import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import {hostnameFromUrl, constructDateTime, formatDate, formatInTimezone, addDays} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 import {VQueueBuilder} from '../../virtualQueue/index.js';
+import {fetchExternalToken} from '../../tokenService.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 
 /**
@@ -91,12 +92,6 @@ interface GentingDesireItineraryResponse {
   result: GentingDesireItineraryEntry[];
 }
 
-interface GentingTokenDoc {
-  accessToken: string;
-  /** Epoch ms. */
-  exp: number;
-}
-
 const DEST_ID = 'gentingskyworldsresort';
 const PARK_ID = 'gentingskyworlds';
 
@@ -175,31 +170,18 @@ export class GentingSkyworlds extends Destination {
 
   /**
    * Fetch the current VQ bearer from the configured token service.
-   * Successful results cache for 3 hours via CacheLib.wrap — the token
-   * service is expected to keep `accessToken` rolling well ahead of its
-   * 7-day expiry. Failures are NOT cached (CacheLib.wrap rethrows on
-   * inner-fn throw and skips the set step), so a transient token-service
-   * blip only suppresses VQ for one HTTP round-trip, not 3 hours.
-   * Returns '' when no `tokenUrl` is configured or when the call fails —
-   * the injector tolerates the empty string and ships everything else.
+   * Successful results cache for 3 hours — the token service is expected to
+   * keep `accessToken` rolling well ahead of its 7-day expiry. Returns ''
+   * when no `tokenUrl` is configured or when the call fails — the injector
+   * tolerates the empty string and ships everything else.
    */
   async getAccessToken(): Promise<string> {
-    if (!this.tokenUrl) return '';
-    const cacheKey = `${this.constructor.name}:accessToken:${this.tokenUrl}`;
-    try {
-      return await CacheLib.wrap(cacheKey, async () => {
-        const headers: Record<string, string> = {'Accept': 'application/json'};
-        if (this.tokenAuth) headers[this.tokenAuthHeader || 'Authorization'] = this.tokenAuth;
-        const resp = await fetch(this.tokenUrl, {headers});
-        if (!resp.ok) throw new Error(`token service HTTP ${resp.status}`);
-        const doc = await resp.json() as GentingTokenDoc;
-        if (!doc?.accessToken) throw new Error('token service returned no accessToken');
-        return doc.accessToken;
-      }, 60 * 60 * 3);
-    } catch (err: any) {
-      console.warn(`[GentingSkyworlds] token fetch failed: ${err?.message ?? err}`);
-      return '';
-    }
+    return fetchExternalToken({
+      tokenUrl: this.tokenUrl,
+      tokenAuth: this.tokenAuth,
+      tokenAuthHeader: this.tokenAuthHeader,
+      logPrefix: '[GentingSkyworlds]',
+    });
   }
 
   // ── HTTP / cache ─────────────────────────────────────────────
