@@ -24,6 +24,8 @@ export class Valleyfair extends EnchantedParks {
       code: 'VF',
       name: 'Valleyfair',
       ridesPath: 'attractions',
+      diningPath: 'dining',
+      showsPath: 'live-entertainment',
       scheduleCategory: 'Park Hours',
       location: {latitude: 44.7977, longitude: -93.4399},
     };
