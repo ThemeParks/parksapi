@@ -11,7 +11,7 @@
 import {Destination, type DestinationConstructor} from '../../destination.js';
 import config from '../../config.js';
 import {http, type HTTPObj} from '../../http.js';
-import {cache} from '../../cache.js';
+import {cache, CacheLib} from '../../cache.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
@@ -219,15 +219,41 @@ class ParcsReunidosDestination extends Destination {
    * than swallowing the error here — @cache/CacheLib.wrap doesn't cache a
    * thrown error, so a transient failure costs one retry, not the full
    * 24h TTL. injectHeaders() is responsible for tolerating the throw.
+   *
+   * Extraction is two-stage and order-independent: first isolate the
+   * `bearerPWA={...}` (or `bearerPWA:{...}`) sub-object, then find `bearer`
+   * within it regardless of key position — a single anchored regex on
+   * `bearerPWA={bearer:"..."` would silently stop matching the moment
+   * Stay-App's bundler reorders that object's keys or emits it as an
+   * object-literal property instead of an assignment.
+   *
+   * A short-lived failure backoff (separate from the 24h success cache,
+   * since CacheLib.wrap never caches a thrown error) prevents hammering
+   * the bundle with a fresh ~1MB fetch on every poll cycle across all 5
+   * parks if it becomes unreachable or changes shape.
    */
   @cache({ttlSeconds: 86400})
   async getAccessToken(): Promise<string> {
-    if (!this.bearerBundleUrl) return '';
-    const resp = await this.fetchBearerBundle();
-    const bundle = await resp.text();
-    const match = /bearerPWA\s*=\s*\{\s*bearer\s*:\s*"([^"]+)"/.exec(bundle);
-    if (!match) throw new Error('bearerPWA constant not found in Weex bundle');
-    return match[1];
+    if (!this.bearerBundleUrl) throw new Error('bearerBundleUrl not configured');
+
+    const failureCacheKey = `${this.constructor.name}:bearerBundleFetchFailed:${this.bearerBundleUrl}`;
+    if (CacheLib.get(failureCacheKey)) {
+      throw new Error('bearer bundle fetch recently failed, backing off');
+    }
+
+    try {
+      const resp = await this.fetchBearerBundle();
+      const bundle = await resp.text();
+      const objMatch = /bearerPWA\s*[:=]\s*\{([^}]*)\}/.exec(bundle);
+      const bearerMatch = objMatch ? /bearer\s*:\s*"([^"]+)"/.exec(objMatch[1]) : null;
+      if (!bearerMatch) throw new Error('bearerPWA constant not found in Weex bundle');
+      return bearerMatch[1];
+    } catch (err) {
+      // Back off 5 minutes before retrying a failing bundle fetch, rather
+      // than re-fetching ~1MB on every poll cycle during an outage.
+      CacheLib.set(failureCacheKey, true, 300);
+      throw err;
+    }
   }
 
   /**
@@ -331,13 +357,21 @@ class ParcsReunidosDestination extends Destination {
     const liveData: LiveData[] = [];
 
     for (const attraction of attractions) {
-      const waitingTime = attraction.waitingTime;
+      const rawWaitingTime = attraction.waitingTime;
 
       // Skip entities with no waitingTime data
-      if (waitingTime === undefined || waitingTime === null) continue;
+      if (rawWaitingTime === undefined || rawWaitingTime === null) continue;
 
       const entityId = String(attraction.id);
       const ld: LiveData = {id: entityId, status: 'CLOSED'} as LiveData;
+
+      // `waitingTime` is only typed `number` at the TS level (an assertion
+      // over an unvalidated JSON response) — coerce via Number() before
+      // Number.isFinite, since Number.isFinite doesn't coerce and a
+      // numeric-string wait time would otherwise silently misclassify an
+      // operating ride as CLOSED. Matches this repo's established pattern
+      // for the same field shape (te2.ts, nigloland.ts).
+      const waitingTime = Number(rawWaitingTime);
 
       // Negative sentinel values (-1, -2, -3, ...) all mean "not currently
       // operating" — verified live against the app's own UI (shows
