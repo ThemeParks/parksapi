@@ -12,7 +12,7 @@ import {
   EntitySchedule,
   LanguageCode,
 } from '@themeparks/typelib';
-import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore, constructDateTime} from '../../datetime.js';
+import {addDays, constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 @destinationController({ category: 'Efteling' })
@@ -404,18 +404,26 @@ export class Efteling extends Destination {
     }
 
     const singleRiderMap = this.buildSingleRiderMap(poiHits);
+    // Parents with a single-rider alternate, so the SINGLE_RIDER key can stay
+    // present across polls even while that rider is closed.
+    const singleRiderCapable = new Set(singleRiderMap.values());
     const waitTimes = await this.getWaitTimes();
 
     // First pass: collect single rider data
-    // WIS returns separate entries for single rider queues using the alternate ID
-    const singleRiderData = new Map<string, number | null>();
+    // WIS returns separate entries for single rider queues using the alternate ID.
+    // Each single rider entry carries its OWN State (open/gesloten), independent of
+    // the parent attraction, so capture it alongside the wait time.
+    const singleRiderData = new Map<string, {status: string; waitTime: number | null}>();
     for (const entry of waitTimes) {
       if (!entry.Id) continue;
       // If this ID is NOT a known POI but IS a single rider alternate ID
       if (!poiData.has(entry.Id) && singleRiderMap.has(entry.Id)) {
         const parentId = singleRiderMap.get(entry.Id)!;
-        const waitTime = entry.WaitingTime !== undefined ? parseInt(String(entry.WaitingTime), 10) : null;
-        singleRiderData.set(parentId, isNaN(waitTime as number) ? null : waitTime);
+        const waitTime = entry.WaitingTime !== undefined ? parseInt(String(entry.WaitingTime), 10) : NaN;
+        singleRiderData.set(parentId, {
+          status: this.mapState(entry.State),
+          waitTime: Number.isFinite(waitTime) ? waitTime : null,
+        });
       }
     }
 
@@ -447,14 +455,24 @@ export class Efteling extends Destination {
         if (!ld.queue) ld.queue = {};
         const waitTime = entry.WaitingTime !== undefined ? parseInt(String(entry.WaitingTime), 10) : NaN;
         ld.queue.STANDBY = {
-          waitTime: (status === 'OPERATING' && !isNaN(waitTime)) ? waitTime : undefined,
+          waitTime: (status === 'OPERATING' && Number.isFinite(waitTime)) ? waitTime : undefined,
         };
 
-        // Single rider queue with actual wait time
-        if (singleRiderData.has(entityId)) {
-          const srTime = singleRiderData.get(entityId)!;
+        // Single rider queue: keep the key present for every capable ride so it
+        // never flaps in and out across polls. Capability comes from the POI
+        // feed, stable across polls, so no persistence is needed. Like STANDBY,
+        // the key stays put and waitTime holds a number only when the rider's
+        // own state is OPERATING; down, refurbishment, closed and open-with-no-
+        // wait all collapse to null (waitTime is required here, so null — not
+        // undefined — is the "present, no wait" value). The key is never
+        // dropped, so consumers never have to read anything into an absent one.
+        if (singleRiderCapable.has(entityId)) {
+          const sr = singleRiderData.get(entityId);
+          // v2 hook: sr.status already carries the OPERATING/CLOSED/DOWN/
+          // REFURBISHMENT signal a per-queue `state` field would need — wire it
+          // in here once typelib's SINGLE_RIDER type gains one.
           ld.queue.SINGLE_RIDER = {
-            waitTime: (status === 'OPERATING' && srTime !== null && srTime !== undefined) ? srTime : null,
+            waitTime: (sr && sr.status === 'OPERATING' && sr.waitTime !== null) ? sr.waitTime : null,
           };
         }
 
