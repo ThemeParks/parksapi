@@ -339,14 +339,17 @@ class ParcsReunidosDestination extends Destination {
       const entityId = String(attraction.id);
       const ld: LiveData = {id: entityId, status: 'CLOSED'} as LiveData;
 
-      if (waitingTime === -2) {
-        // Down / broken
-        ld.status = 'DOWN' as any;
-      } else if (waitingTime === -3 || waitingTime < 0) {
-        // Closed (including other negative values)
-        ld.status = 'CLOSED' as any;
-      } else {
-        // Operating with standby queue
+      // Negative sentinel values (-1, -2, -3, ...) all mean "not currently
+      // operating" — verified live against the app's own UI (shows
+      // "Geschlossen"/Closed) and cross-park data: -2 and -3 both behave
+      // identically (fresh, actively-updating, park-wide "not open" signals
+      // — different establishments apparently use different sentinel values
+      // for the same state). Nothing in the API distinguishes a genuine
+      // ride-is-down state from park/ride-not-open: `temporaryClosed`
+      // correlates with the long-stale -1 bucket (rides untouched for
+      // months/years — a removed/under-refurbishment signal), not with -2
+      // or -3, so there's no reliable DOWN signal here. Default to CLOSED.
+      if (Number.isFinite(waitingTime) && waitingTime >= 0) {
         ld.status = 'OPERATING' as any;
         ld.queue = {
           STANDBY: {waitTime: waitingTime},
