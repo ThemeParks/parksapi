@@ -487,13 +487,13 @@ class PlopsaBase extends Destination {
       this.fetchWaitTimes(),
       this.fetchPOI(),
       this.fetchTodayHours(today).catch(() => null),
-      this.fetchEntertainments(),
+      this.fetchEntertainments().catch(() => null),
     ]);
 
     const waitTimes = (await waitResp.json()) as PlopsaWaitTimesResponse;
     const poiData = (await poiResp.json()) as PlopsaPOIResponse;
     const hoursData = hoursResp ? (await hoursResp.json()) as PlopsaTodayHours : null;
-    const entData = (await entResp.json()) as PlopsaEntertainmentResponse;
+    const entData = entResp ? (await entResp.json()) as PlopsaEntertainmentResponse : null;
 
     // Per-attraction temporarily-closed flag from POI.
     const closedById = new Map<string, boolean>();
@@ -565,10 +565,12 @@ class PlopsaBase extends Destination {
       } as unknown as LiveData;
     });
 
-    // Show / meet-and-greet live data. The entertainments feed is independent
-    // of the wait-times feed above, so these surface even when a ride feed
-    // hiccups. Today's performances are attached as showtimes and the show is
-    // CLOSED once the last one has passed.
+    // Show / meet-and-greet live data. The entertainments fetch is gated by its
+    // own catch above: this method is not wrapped in a try/catch by the base
+    // class, so an unguarded rejection here would reject the whole poll and take
+    // the ride live data down with it. A failing entertainments feed therefore
+    // drops only the shows. Today's performances are attached as showtimes and
+    // the show is CLOSED once the last one has passed.
     const nowMs = Date.now();
     const showLiveData: LiveData[] = [];
     for (const item of entData?.items ?? []) {
@@ -653,8 +655,14 @@ class PlopsaBase extends Destination {
 
   /** Per-show operating schedules from the entertainments feed. */
   private async buildShowSchedules(): Promise<EntitySchedule[]> {
-    const entResp = await this.fetchEntertainments();
-    const entData = (await entResp.json()) as PlopsaEntertainmentResponse;
+    let entData: PlopsaEntertainmentResponse;
+    try {
+      const entResp = await this.fetchEntertainments();
+      entData = (await entResp.json()) as PlopsaEntertainmentResponse;
+    } catch {
+      return [];
+    }
+
     const showSchedules: EntitySchedule[] = [];
 
     for (const item of entData?.items ?? []) {

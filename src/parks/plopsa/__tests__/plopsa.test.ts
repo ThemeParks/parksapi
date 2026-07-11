@@ -181,6 +181,27 @@ describe('buildSchedules feed independence', () => {
 
     expect(await park.buildSchedulesForTest()).toEqual([]);
   });
+
+  test('still returns the park schedule when the entertainments fetch fails', async () => {
+    const park = new ScheduleProbe();
+    park.fetchCalendar = async () => jsonResponse({schedule: {
+      '2026-07': {
+        '2026-07-11': {slots: [{
+          type: 'open',
+          start_time: '2026-07-11T10:00:00+02:00',
+          end_time: '2026-07-11T18:00:00+02:00',
+        }]},
+      },
+    }}) as any;
+    park.fetchEntertainments = async () => { throw new Error('entertainments 500'); };
+
+    const schedules = await park.buildSchedulesForTest();
+
+    // Entertainments failed, so no show schedules — but the park calendar survives.
+    expect(schedules).toHaveLength(1);
+    expect(schedules[0].id).toBe('plopsaland');
+    expect(schedules[0].schedule).toHaveLength(1);
+  });
 });
 
 describe('plopsaBuildShowtimes', () => {
@@ -284,5 +305,27 @@ describe('buildLiveData shows', () => {
 
     // Parades are not mapped as entities, so they must not appear in live data.
     expect(live.find((l) => l.id === '702')).toBeUndefined();
+  });
+
+  test('a failing entertainments feed drops only the shows, never the ride live data', async () => {
+    const park = new LiveProbe();
+    const date = todayIn('Europe/Brussels');
+
+    park.fetchWaitTimes = async () => jsonResponse({'42': 15}) as any;
+    park.fetchPOI = async () => jsonResponse({items: [{
+      id: 'poi-1',
+      title: 'Rides',
+      type: {label: 'Attraction'},
+      contains: [{id: '42', title: 'Some Coaster', type: 'attraction'}],
+    }]}) as any;
+    park.fetchTodayHours = async () =>
+      jsonResponse({date, timeslots: [{type: 'open', start_time: '00:00', end_time: '23:59'}]}) as any;
+    park.fetchEntertainments = async () => { throw new Error('entertainments 500'); };
+
+    // buildLiveData() is not wrapped in a try/catch by the base class, so an
+    // unguarded rejection here would take the ride data down with it.
+    const live = await park.buildLiveDataForTest();
+
+    expect(live.map((l) => l.id)).toEqual(['42']);
   });
 });
