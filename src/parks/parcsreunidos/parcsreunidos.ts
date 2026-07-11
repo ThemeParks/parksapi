@@ -67,9 +67,18 @@ class ParcsReunidosDestination extends Destination {
   @config
   appId: string = '';
 
-  /** Shared auth token for API requests */
+  /**
+   * URL of the Stay-App Weex JS bundle that carries the shared PWA bearer
+   * as a build-time config constant (`i.bearerPWA={bearer:"..."}`) — a
+   * static, long-lived service-account token, not something obtained via
+   * login. Identical across every Parcs Reunidos / Stay-App-powered park
+   * (confirmed by comparing live captures from two different park apps);
+   * it only changes when Stay-App next rebuilds this shared bundle.
+   * Requires the `isBundleRequest: true` header — without it the server
+   * serves a different bundle variant that doesn't carry this constant.
+   */
   @config
-  authToken: string = '';
+  bearerBundleUrl: string = '';
 
   /** Per-park establishment identifier for API header */
   @config
@@ -122,9 +131,18 @@ class ParcsReunidosDestination extends Destination {
   async injectHeaders(requestObj: HTTPObj): Promise<void> {
     requestObj.headers = {
       ...requestObj.headers,
-      'Authorization': `Bearer ${this.authToken}`,
       'Stay-Establishment': this.stayEstablishment,
     };
+    // Every Stay-App endpoint requires this header, but the API rejects a
+    // malformed `Bearer ` (empty token) with AUTHORIZATION_HEADER_BAD_FORMED
+    // — worse than simply omitting the header and letting the request 401
+    // normally — so only set it when a real token was obtained.
+    try {
+      const token = await this.getAccessToken();
+      if (token) requestObj.headers['Authorization'] = `Bearer ${token}`;
+    } catch (err: any) {
+      console.warn(`[${this.constructor.name}] Stay-App bearer unavailable: ${err?.message ?? err}`);
+    }
   }
 
   // ============================================================================
@@ -169,9 +187,48 @@ class ParcsReunidosDestination extends Destination {
     } as any as HTTPObj;
   }
 
+  /**
+   * Fetch the Weex JS bundle carrying the shared PWA bearer. The
+   * `isBundleRequest` header and app-shaped user-agent are required —
+   * without them the server serves a different bundle variant that
+   * doesn't carry the `bearerPWA` config constant.
+   * Cached for 24 hours at HTTP level.
+   */
+  @http({cacheSeconds: 86400, retries: 2})
+  async fetchBearerBundle(): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: this.bearerBundleUrl,
+      headers: {
+        'isBundleRequest': 'true',
+        'user-agent': 'WeexStayApp(WeexStay/1.5.0) Weex/0.28.0.1',
+      },
+    } as any as HTTPObj;
+  }
+
   // ============================================================================
   // Cached Getter Methods
   // ============================================================================
+
+  /**
+   * Extract the shared PWA bearer from the Weex bundle's build-time config
+   * (`i.bearerPWA={bearer:"..."}`). Cached for 24 hours — this is a static,
+   * long-lived token that only changes when Stay-App rebuilds the bundle,
+   * not something needing frequent refresh. Throws on failure (missing
+   * bearerBundleUrl, fetch failure, or the constant not being found) rather
+   * than swallowing the error here — @cache/CacheLib.wrap doesn't cache a
+   * thrown error, so a transient failure costs one retry, not the full
+   * 24h TTL. injectHeaders() is responsible for tolerating the throw.
+   */
+  @cache({ttlSeconds: 86400})
+  async getAccessToken(): Promise<string> {
+    if (!this.bearerBundleUrl) return '';
+    const resp = await this.fetchBearerBundle();
+    const bundle = await resp.text();
+    const match = /bearerPWA\s*=\s*\{\s*bearer\s*:\s*"([^"]+)"/.exec(bundle);
+    if (!match) throw new Error('bearerPWA constant not found in Weex bundle');
+    return match[1];
+  }
 
   /**
    * Get park establishment info (cached 12 hours).
