@@ -126,11 +126,17 @@ export function startMigrationServer(config: ServerConfig): void {
 
     // Run commit in background
     try {
-      // Authenticate
+      // Authenticate. Prefer a fresh login via WIKI_USERNAME+WIKI_API_KEY
+      // whenever both are configured — a static WIKI_TOKEN in .env has no
+      // way to signal it's expired ahead of time, so trusting it blindly
+      // over available credentials means every commit silently 401s
+      // ("Token has expired") until someone notices and replaces it by
+      // hand. wikiToken is now only the fallback for setups that don't
+      // have login credentials at all.
       broadcast('status', {message: 'Authenticating...', progress: 0, total: toCommit.length});
 
-      let token = config.wikiToken;
-      if (!token) {
+      let token: string;
+      if (config.wikiUsername && config.wikiApiKey) {
         const authResp = await fetch(`${config.wikiApiUrl}/auth/login`, {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
@@ -145,6 +151,12 @@ export function startMigrationServer(config: ServerConfig): void {
         }
 
         token = (await authResp.json() as {token: string}).token;
+      } else if (config.wikiToken) {
+        token = config.wikiToken;
+      } else {
+        broadcast('error', {message: 'No WIKI_USERNAME+WIKI_API_KEY or WIKI_TOKEN configured'});
+        commitInProgress = false;
+        return;
       }
       broadcast('status', {message: 'Authenticated', progress: 0, total: toCommit.length});
 
