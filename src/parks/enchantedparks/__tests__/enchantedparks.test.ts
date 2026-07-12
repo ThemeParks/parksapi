@@ -2,6 +2,7 @@ import {describe, test, expect} from 'vitest';
 import {parseTribeEvents, type TribeEventsResponse, EnchantedParks} from '../enchantedparks.js';
 import {parseICalFeed} from '../enchantedparks.js';
 import {parseAttractionsPage} from '../enchantedparks.js';
+import {parseShowsPage} from '../enchantedparks.js';
 
 describe('parseTribeEvents', () => {
   const fixture: TribeEventsResponse = {
@@ -260,6 +261,77 @@ describe('parseAttractionsPage', () => {
 </div>`;
     const out = parseAttractionsPage(beforeHtml);
     expect(out).toEqual([{slug: 'renegade', name: 'Renegade'}]);
+  });
+
+  test('with linkPathSegment="dining", matches dining cards and skips attraction cards', () => {
+    const diningFixture = `<article>
+      <a href="https://valleyfair.enchantedparks.com/rides-and-experiences/dining/gateway-grounds/"><img /></a>
+      <div class="container"><h3>Gateway Grounds</h3></div>
+    </article>
+    <article>
+      <a href="https://valleyfair.enchantedparks.com/rides-and-experiences/attractions/wild-thing/"><img /></a>
+      <div class="container"><h3>Wild Thing</h3></div>
+    </article>`;
+    const out = parseAttractionsPage(diningFixture, 'dining');
+    expect(out).toEqual([{slug: 'gateway-grounds', name: 'Gateway Grounds'}]);
+  });
+});
+
+describe('parseShowsPage', () => {
+  const fixture = `<!doctype html><html><body>
+<article id="post-10106" class="item card passes col span4 post-10106 post type-post category-live-entertainment no-thumb">
+  <figure><img src="happiness.webp" alt="Happiness Is… background image" /></figure>
+  <div class="container">
+    <h4>Happiness Is…</h4>
+    <p>May 23-Aug 30</p>
+  </div>
+</article>
+<article id="post-10113" class="item card passes col span4 post-10113 post type-post category-live-entertainment no-thumb">
+  <figure><img src="peanuts.webp" /></figure>
+  <div class="container">
+    <h4>PEANUTS&#8482; Meet &#038; Greet</h4>
+  </div>
+</article>
+<article id="post-8016" class="item card post-8016 page type-page category-cta-box-footer no-thumb">
+  <figure><img src="cabana.jpg" /></figure>
+  <div class="container"><h4>Cabana Rentals</h4></div>
+</article>
+</body></html>`;
+
+  test('extracts show name per category-live-entertainment card', () => {
+    const out = parseShowsPage(fixture, 'live-entertainment');
+    expect(out.map(s => s.name)).toEqual(['Happiness Is…', 'PEANUTS™ Meet & Greet']);
+  });
+
+  test('ignores cards from other categories (e.g. footer CTAs)', () => {
+    const out = parseShowsPage(fixture, 'live-entertainment');
+    expect(out.map(s => s.name)).not.toContain('Cabana Rentals');
+  });
+
+  test('slugifies names with trademark glyphs and ampersands for the id', () => {
+    const out = parseShowsPage(fixture, 'live-entertainment');
+    const peanuts = out.find(s => s.name === 'PEANUTS™ Meet & Greet');
+    expect(peanuts?.slug).toBe('peanuts-meet-and-greet');
+  });
+
+  test('slugifies an ellipsis/trailing punctuation cleanly', () => {
+    const out = parseShowsPage(fixture, 'live-entertainment');
+    const happiness = out.find(s => s.name === 'Happiness Is…');
+    expect(happiness?.slug).toBe('happiness-is');
+  });
+
+  test('returns empty when no card matches the requested category', () => {
+    expect(parseShowsPage(fixture, 'special-events')).toEqual([]);
+  });
+
+  test('returns empty for HTML with no article cards', () => {
+    expect(parseShowsPage('<html><body>nothing here</body></html>', 'live-entertainment')).toEqual([]);
+  });
+
+  test('deduplicates cards that slugify to the same name', () => {
+    const dup = fixture + fixture;
+    const out = parseShowsPage(dup, 'live-entertainment');
+    expect(out).toHaveLength(2);
   });
 });
 

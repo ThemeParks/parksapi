@@ -109,8 +109,10 @@ export function startMigrationServer(config: ServerConfig): void {
     if (commitInProgress) {
       return res.status(409).json({error: 'Commit already in progress'});
     }
-    if (!config.wikiApiUrl || (!config.wikiToken && (!config.wikiUsername || !config.wikiApiKey))) {
-      return res.status(400).json({error: 'WIKI_API_URL and either WIKI_TOKEN or WIKI_USERNAME+WIKI_API_KEY must be configured in .env'});
+    const hasNewStyleKey = !!config.wikiApiKey?.trim().startsWith('tpw_');
+    const hasLoginCreds = !!(config.wikiUsername && config.wikiApiKey);
+    if (!config.wikiApiUrl || (!config.wikiToken && !hasLoginCreds && !hasNewStyleKey)) {
+      return res.status(400).json({error: 'WIKI_API_URL and one of: a tpw_-prefixed WIKI_API_KEY, WIKI_USERNAME+WIKI_API_KEY, or WIKI_TOKEN must be configured in .env'});
     }
 
     const toCommit = mappings.filter(
@@ -126,11 +128,34 @@ export function startMigrationServer(config: ServerConfig): void {
 
     // Run commit in background
     try {
-      // Authenticate
+      // Authenticate. Three credential shapes, tried in order:
+      //
+      // 1. WIKI_API_KEY starting with `tpw_` — the current-generation API
+      //    key (services/apiKeys.ts on the wiki server), sent directly as
+      //    an X-Api-Key header on every request below. This does NOT go
+      //    through /auth/login: that endpoint's password-login handler
+      //    only checks the legacy single-column `user.apiKey` field
+      //    (auth.controller.ts loginWithPassword -> user.isValidApiKey),
+      //    which the new `tpw_` key system never touches — so a freshly
+      //    generated tpw_ key correctly, permanently 401s there with
+      //    "Invalid username or password" no matter how new it is. The
+      //    key only validates via validateApiKey() (auth.decorator.ts),
+      //    which route-level @auth() middleware calls for the X-Api-Key
+      //    header path, not the login endpoint.
+      // 2. WIKI_USERNAME + WIKI_API_KEY (legacy, non-`tpw_` key) — fresh
+      //    login via /auth/login to mint a JWT.
+      // 3. WIKI_TOKEN — static JWT fallback for setups without login
+      //    credentials at all. No way to detect expiry ahead of time, so
+      //    only used when nothing better is configured.
       broadcast('status', {message: 'Authenticating...', progress: 0, total: toCommit.length});
 
-      let token = config.wikiToken;
-      if (!token) {
+      let token: string | null = null;
+      let apiKeyHeader: string | null = null;
+
+      const trimmedApiKey = config.wikiApiKey?.trim();
+      if (trimmedApiKey?.startsWith('tpw_')) {
+        apiKeyHeader = trimmedApiKey;
+      } else if (config.wikiUsername && config.wikiApiKey) {
         const authResp = await fetch(`${config.wikiApiUrl}/auth/login`, {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
@@ -145,6 +170,12 @@ export function startMigrationServer(config: ServerConfig): void {
         }
 
         token = (await authResp.json() as {token: string}).token;
+      } else if (config.wikiToken) {
+        token = config.wikiToken;
+      } else {
+        broadcast('error', {message: 'No WIKI_USERNAME+WIKI_API_KEY or WIKI_TOKEN configured'});
+        commitInProgress = false;
+        return;
       }
       broadcast('status', {message: 'Authenticated', progress: 0, total: toCommit.length});
 
@@ -157,7 +188,7 @@ export function startMigrationServer(config: ServerConfig): void {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
+              ...(apiKeyHeader ? {'X-Api-Key': apiKeyHeader} : {'Authorization': `Bearer ${token}`}),
             },
             body: JSON.stringify({_id: mapping.newExternalId}),
           });
