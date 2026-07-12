@@ -97,18 +97,30 @@ export type AttractionStub = {slug: string; name: string};
  * Each entry has a slug (URL fragment) and a name (h3 heading text).
  *
  * The pages embed each ride as a card with a link
- *   <a href="…/rides-and-experiences/attractions/{slug}/">…</a>
+ *   <a href="…/rides-and-experiences/{linkPathSegment}/{slug}/">…</a>
  * and a heading `<h3>{name}</h3>`. Both appear inside the same card markup,
  * so we collect distinct slug→name pairs by walking the HTML in order.
+ *
+ * `linkPathSegment` is the category segment the detail-page links use —
+ * this is independent of whatever page is being scraped. Every attraction
+ * (including water-park ones, listed on a separate page) links back to
+ * `/rides-and-experiences/attractions/{slug}/`, so ride-listing scrapes
+ * always pass `'attractions'` regardless of which page they fetched. Dining
+ * cards link to `/rides-and-experiences/dining/{slug}/`, so dining scrapes
+ * pass `'dining'`.
  */
-export function parseAttractionsPage(html: string): AttractionStub[] {
+export function parseAttractionsPage(html: string, linkPathSegment: string = 'attractions'): AttractionStub[] {
   const seen = new Set<string>();
   const out: AttractionStub[] = [];
   // Two-phase h3 search: first look for the next <h3> within ~2KB after the
   // link (the common case — h3 inside or immediately after the card's <a>).
   // If none is found, fall back to the most-recent <h3> in the 2KB before the
   // link (for cards that put the heading above the anchor).
-  const linkRe = /href=["'][^"']*\/rides-and-experiences\/attractions\/([a-z0-9][a-z0-9-]*)\/?["'][^>]*>/gi;
+  const escapedSegment = linkPathSegment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const linkRe = new RegExp(
+    `href=["'][^"']*/rides-and-experiences/${escapedSegment}/([a-z0-9][a-z0-9-]*)/?["'][^>]*>`,
+    'gi',
+  );
   const h3Re = /<h3[^>]*>([\s\S]*?)<\/h3>/gi;
   for (const m of html.matchAll(linkRe)) {
     const slug = m[1];
@@ -145,6 +157,57 @@ export function parseAttractionsPage(html: string): AttractionStub[] {
   return out;
 }
 
+/**
+ * Slugify a name for use in an entity id. Shows have no detail-page URL to
+ * take a slug from (see {@link parseShowsPage}), so we derive one from the
+ * display name instead: strip trademark/ampersand glyphs, lowercase, and
+ * collapse everything else to single hyphens.
+ */
+function slugify(name: string): string {
+  return name
+    .replace(/[™®©]/g, '')
+    .replace(/&/g, ' and ')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Extract show stubs from a `/rides-and-experiences/<path>/` page (e.g.
+ * `live-entertainment`). Unlike rides and dining, show cards have no
+ * individual detail-page link to take a slug from — they're inline content
+ * blocks:
+ *   <article class="… category-{categorySlug} …">
+ *     <figure>…</figure>
+ *     <div class="container"><h4>{name}</h4> … </div>
+ *   </article>
+ *
+ * `categorySlug` is the WordPress category class suffix (e.g.
+ * `live-entertainment`) that marks a card as a show rather than one of the
+ * other card types (footer CTAs, upsells, …) mixed into the same page.
+ */
+export function parseShowsPage(html: string, categorySlug: string): AttractionStub[] {
+  const seen = new Set<string>();
+  const out: AttractionStub[] = [];
+  const escapedCategory = categorySlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const cardRe = new RegExp(`<article\\b[^>]*\\bcategory-${escapedCategory}\\b[^>]*>`, 'gi');
+  const h4Re = /<h4[^>]*>([\s\S]*?)<\/h4>/i;
+  for (const m of html.matchAll(cardRe)) {
+    const cardStart = m.index! + m[0].length;
+    const cardEnd = Math.min(html.length, cardStart + 3000);
+    const window = html.slice(cardStart, cardEnd);
+    const h4 = h4Re.exec(window);
+    if (!h4) continue;
+    const name = decodeHtmlEntities(stripHtmlTags(h4[1]));
+    if (!name) continue;
+    const slug = slugify(name);
+    if (!slug || seen.has(slug)) continue;
+    seen.add(slug);
+    out.push({slug, name});
+  }
+  return out;
+}
+
 export type ParkConfig = {
   /** Entity id, e.g. `enchantedparks_park_VF` */
   id: string;
@@ -154,6 +217,10 @@ export type ParkConfig = {
   name: string;
   /** Path under `/rides-and-experiences/` whose page lists this park's attractions */
   ridesPath: string;
+  /** Path under `/rides-and-experiences/` whose page lists this park's dining locations. Omit if not scraped. */
+  diningPath?: string;
+  /** Path/category under `/rides-and-experiences/` whose page lists this park's shows. Omit if not scraped. */
+  showsPath?: string;
   /** Tribe Events category name that flags this park's operating-hours events (e.g. `Park Hours`, `Waterpark Hours`) */
   scheduleCategory: string;
   /** Park-level geographic location (lat/lng). Required for the harness's anchor-entity check. */
@@ -348,6 +415,40 @@ class EnchantedParks extends Destination {
     }
   }
 
+  /**
+   * Fetch and parse the dining listing for one PARK. Same page shape as
+   * {@link scrapeAttractions} (the WP theme reuses its card markup for every
+   * `/rides-and-experiences/<category>/` listing), just pointed at the
+   * dining category and linking back to `/rides-and-experiences/dining/…`
+   * detail pages instead of `/attractions/…`.
+   */
+  @cache({ttlSeconds: 60 * 60 * 24})
+  async scrapeDining(diningPath: string): Promise<AttractionStub[]> {
+    try {
+      const resp = await this.fetchAttractionsPage(diningPath);
+      const html = await resp.text();
+      return parseAttractionsPage(html, 'dining');
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Fetch and parse the shows listing for one PARK. See
+   * {@link parseShowsPage} for why this needs its own parser rather than
+   * reusing {@link parseAttractionsPage}.
+   */
+  @cache({ttlSeconds: 60 * 60 * 24})
+  async scrapeShows(showsPath: string): Promise<AttractionStub[]> {
+    try {
+      const resp = await this.fetchAttractionsPage(showsPath);
+      const html = await resp.text();
+      return parseShowsPage(html, showsPath);
+    } catch {
+      return [];
+    }
+  }
+
   // ===== Public-API overrides =====
 
   async getDestinations(): Promise<Entity[]> {
@@ -432,6 +533,42 @@ class EnchantedParks extends Destination {
         const loc = this.lookupAttractionLocation(r.name);
         if (loc) (entity as any).location = loc;
         attractions.push(entity);
+      }
+
+      if (this.themePark.diningPath) {
+        const dining = await this.scrapeDining(this.themePark.diningPath);
+        for (const d of dining) {
+          const entity: Entity = {
+            id: `enchantedparks_restaurant_${this.themePark.code}_${d.slug}`,
+            name: d.name,
+            entityType: 'RESTAURANT',
+            parentId: this.themePark.id,
+            parkId: this.themePark.id,
+            destinationId: this.destinationId,
+            timezone: this.timezone,
+          } as Entity;
+          const loc = this.lookupAttractionLocation(d.name);
+          if (loc) (entity as any).location = loc;
+          attractions.push(entity);
+        }
+      }
+
+      if (this.themePark.showsPath) {
+        const shows = await this.scrapeShows(this.themePark.showsPath);
+        for (const s of shows) {
+          const entity: Entity = {
+            id: `enchantedparks_show_${this.themePark.code}_${s.slug}`,
+            name: s.name,
+            entityType: 'SHOW',
+            parentId: this.themePark.id,
+            parkId: this.themePark.id,
+            destinationId: this.destinationId,
+            timezone: this.timezone,
+          } as Entity;
+          const loc = this.lookupAttractionLocation(s.name);
+          if (loc) (entity as any).location = loc;
+          attractions.push(entity);
+        }
       }
     }
 

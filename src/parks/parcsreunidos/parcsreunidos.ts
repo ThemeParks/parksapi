@@ -11,7 +11,7 @@
 import {Destination, type DestinationConstructor} from '../../destination.js';
 import config from '../../config.js';
 import {http, type HTTPObj} from '../../http.js';
-import {cache} from '../../cache.js';
+import {cache, CacheLib} from '../../cache.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
@@ -67,9 +67,18 @@ class ParcsReunidosDestination extends Destination {
   @config
   appId: string = '';
 
-  /** Shared auth token for API requests */
+  /**
+   * URL of the Stay-App Weex JS bundle that carries the shared PWA bearer
+   * as a build-time config constant (`i.bearerPWA={bearer:"..."}`) — a
+   * static, long-lived service-account token, not something obtained via
+   * login. Identical across every Parcs Reunidos / Stay-App-powered park
+   * (confirmed by comparing live captures from two different park apps);
+   * it only changes when Stay-App next rebuilds this shared bundle.
+   * Requires the `isBundleRequest: true` header — without it the server
+   * serves a different bundle variant that doesn't carry this constant.
+   */
   @config
-  authToken: string = '';
+  bearerBundleUrl: string = '';
 
   /** Per-park establishment identifier for API header */
   @config
@@ -122,9 +131,18 @@ class ParcsReunidosDestination extends Destination {
   async injectHeaders(requestObj: HTTPObj): Promise<void> {
     requestObj.headers = {
       ...requestObj.headers,
-      'Authorization': `Bearer ${this.authToken}`,
       'Stay-Establishment': this.stayEstablishment,
     };
+    // Every Stay-App endpoint requires this header, but the API rejects a
+    // malformed `Bearer ` (empty token) with AUTHORIZATION_HEADER_BAD_FORMED
+    // — worse than simply omitting the header and letting the request 401
+    // normally — so only set it when a real token was obtained.
+    try {
+      const token = await this.getAccessToken();
+      if (token) requestObj.headers['Authorization'] = `Bearer ${token}`;
+    } catch (err: any) {
+      console.warn(`[${this.constructor.name}] Stay-App bearer unavailable: ${err?.message ?? err}`);
+    }
   }
 
   // ============================================================================
@@ -169,9 +187,74 @@ class ParcsReunidosDestination extends Destination {
     } as any as HTTPObj;
   }
 
+  /**
+   * Fetch the Weex JS bundle carrying the shared PWA bearer. The
+   * `isBundleRequest` header and app-shaped user-agent are required —
+   * without them the server serves a different bundle variant that
+   * doesn't carry the `bearerPWA` config constant.
+   * Cached for 24 hours at HTTP level.
+   */
+  @http({cacheSeconds: 86400, retries: 2})
+  async fetchBearerBundle(): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: this.bearerBundleUrl,
+      headers: {
+        'isBundleRequest': 'true',
+        'user-agent': 'WeexStayApp(WeexStay/1.5.0) Weex/0.28.0.1',
+      },
+    } as any as HTTPObj;
+  }
+
   // ============================================================================
   // Cached Getter Methods
   // ============================================================================
+
+  /**
+   * Extract the shared PWA bearer from the Weex bundle's build-time config
+   * (`i.bearerPWA={bearer:"..."}`). Cached for 24 hours — this is a static,
+   * long-lived token that only changes when Stay-App rebuilds the bundle,
+   * not something needing frequent refresh. Throws on failure (missing
+   * bearerBundleUrl, fetch failure, or the constant not being found) rather
+   * than swallowing the error here — @cache/CacheLib.wrap doesn't cache a
+   * thrown error, so a transient failure costs one retry, not the full
+   * 24h TTL. injectHeaders() is responsible for tolerating the throw.
+   *
+   * Extraction is two-stage and order-independent: first isolate the
+   * `bearerPWA={...}` (or `bearerPWA:{...}`) sub-object, then find `bearer`
+   * within it regardless of key position — a single anchored regex on
+   * `bearerPWA={bearer:"..."` would silently stop matching the moment
+   * Stay-App's bundler reorders that object's keys or emits it as an
+   * object-literal property instead of an assignment.
+   *
+   * A short-lived failure backoff (separate from the 24h success cache,
+   * since CacheLib.wrap never caches a thrown error) prevents hammering
+   * the bundle with a fresh ~1MB fetch on every poll cycle across all 5
+   * parks if it becomes unreachable or changes shape.
+   */
+  @cache({ttlSeconds: 86400})
+  async getAccessToken(): Promise<string> {
+    if (!this.bearerBundleUrl) throw new Error('bearerBundleUrl not configured');
+
+    const failureCacheKey = `${this.constructor.name}:bearerBundleFetchFailed:${this.bearerBundleUrl}`;
+    if (CacheLib.get(failureCacheKey)) {
+      throw new Error('bearer bundle fetch recently failed, backing off');
+    }
+
+    try {
+      const resp = await this.fetchBearerBundle();
+      const bundle = await resp.text();
+      const objMatch = /bearerPWA\s*[:=]\s*\{([^}]*)\}/.exec(bundle);
+      const bearerMatch = objMatch ? /bearer\s*:\s*"([^"]+)"/.exec(objMatch[1]) : null;
+      if (!bearerMatch) throw new Error('bearerPWA constant not found in Weex bundle');
+      return bearerMatch[1];
+    } catch (err) {
+      // Back off 5 minutes before retrying a failing bundle fetch, rather
+      // than re-fetching ~1MB on every poll cycle during an outage.
+      CacheLib.set(failureCacheKey, true, 300);
+      throw err;
+    }
+  }
 
   /**
    * Get park establishment info (cached 12 hours).
@@ -274,22 +357,33 @@ class ParcsReunidosDestination extends Destination {
     const liveData: LiveData[] = [];
 
     for (const attraction of attractions) {
-      const waitingTime = attraction.waitingTime;
+      const rawWaitingTime = attraction.waitingTime;
 
       // Skip entities with no waitingTime data
-      if (waitingTime === undefined || waitingTime === null) continue;
+      if (rawWaitingTime === undefined || rawWaitingTime === null) continue;
 
       const entityId = String(attraction.id);
       const ld: LiveData = {id: entityId, status: 'CLOSED'} as LiveData;
 
-      if (waitingTime === -2) {
-        // Down / broken
-        ld.status = 'DOWN' as any;
-      } else if (waitingTime === -3 || waitingTime < 0) {
-        // Closed (including other negative values)
-        ld.status = 'CLOSED' as any;
-      } else {
-        // Operating with standby queue
+      // `waitingTime` is only typed `number` at the TS level (an assertion
+      // over an unvalidated JSON response) — coerce via Number() before
+      // Number.isFinite, since Number.isFinite doesn't coerce and a
+      // numeric-string wait time would otherwise silently misclassify an
+      // operating ride as CLOSED. Matches this repo's established pattern
+      // for the same field shape (te2.ts, nigloland.ts).
+      const waitingTime = Number(rawWaitingTime);
+
+      // Negative sentinel values (-1, -2, -3, ...) all mean "not currently
+      // operating" — verified live against the app's own UI (shows
+      // "Geschlossen"/Closed) and cross-park data: -2 and -3 both behave
+      // identically (fresh, actively-updating, park-wide "not open" signals
+      // — different establishments apparently use different sentinel values
+      // for the same state). Nothing in the API distinguishes a genuine
+      // ride-is-down state from park/ride-not-open: `temporaryClosed`
+      // correlates with the long-stale -1 bucket (rides untouched for
+      // months/years — a removed/under-refurbishment signal), not with -2
+      // or -3, so there's no reliable DOWN signal here. Default to CLOSED.
+      if (Number.isFinite(waitingTime) && waitingTime >= 0) {
         ld.status = 'OPERATING' as any;
         ld.queue = {
           STANDBY: {waitTime: waitingTime},

@@ -1,40 +1,48 @@
 /**
  * Plopsa decision-logic regression tests.
  *
- * The full decision matrix for whether a ride emits OPERATING vs CLOSED.
- * The interesting case is row 3: a numeric wait time + a stale
- * `temporarily_closed: true` from POI must NOT downgrade to CLOSED, or
- * multi-collector deployments will flap any ride whose POI snapshot
- * disagrees between instances.
+ * The full decision matrix for the status a ride emits: OPERATING, DOWN,
+ * or CLOSED. The interesting cases are:
+ *  - a *positive* wait time + a stale `temporarily_closed: true` from POI
+ *    must NOT downgrade to DOWN, or multi-collector deployments will flap
+ *    any ride whose POI snapshot disagrees between instances.
+ *  - `temporarily_closed: true` + a `0` wait time (the feed's default/
+ *    no-signal value, present even for closed rides) MUST report DOWN,
+ *    not OPERATING — `0` is not evidence of a live reading.
  */
 import {describe, test, expect} from 'vitest';
 import type {Entity, EntitySchedule, LiveData} from '@themeparks/typelib';
-import {plopsaDecideOperating, plopsaBuildShowtimes, plopsaShowStatus, Plopsaland} from '../plopsa.js';
+import {plopsaDecideStatus, plopsaBuildShowtimes, plopsaShowStatus, Plopsaland} from '../plopsa.js';
 
-describe('plopsaDecideOperating', () => {
+describe('plopsaDecideStatus', () => {
   test('park closed → ride always CLOSED regardless of other inputs', () => {
-    expect(plopsaDecideOperating(false, false, false)).toBe(false);
-    expect(plopsaDecideOperating(false, false, true)).toBe(false);
-    expect(plopsaDecideOperating(false, true,  false)).toBe(false);
-    expect(plopsaDecideOperating(false, true,  true)).toBe(false);
+    expect(plopsaDecideStatus(false, false, false)).toBe('CLOSED');
+    expect(plopsaDecideStatus(false, false, true)).toBe('CLOSED');
+    expect(plopsaDecideStatus(false, true,  false)).toBe('CLOSED');
+    expect(plopsaDecideStatus(false, true,  true)).toBe('CLOSED');
   });
 
   test('park open + ride open + has wait → OPERATING', () => {
-    expect(plopsaDecideOperating(true, false, true)).toBe(true);
+    expect(plopsaDecideStatus(true, false, true)).toBe('OPERATING');
   });
 
   test('park open + ride open + no wait → OPERATING (e.g. brand-new ride before first reading)', () => {
-    expect(plopsaDecideOperating(true, false, false)).toBe(true);
+    expect(plopsaDecideStatus(true, false, false)).toBe('OPERATING');
   });
 
   test('park open + POI says temp-closed + has wait → OPERATING (wait-times feed wins over stale POI hint)', () => {
-    // This is the case the bug report depends on: stale POI says closed,
-    // but the wait-times feed has a real number. Trust the live number.
-    expect(plopsaDecideOperating(true, true, true)).toBe(true);
+    // This is the case the earlier bug report depended on: stale POI says
+    // closed, but the wait-times feed has a real positive number. Trust
+    // the live number.
+    expect(plopsaDecideStatus(true, true, true)).toBe('OPERATING');
   });
 
-  test('park open + POI says temp-closed + no wait → CLOSED (the hint is authoritative when no live signal)', () => {
-    expect(plopsaDecideOperating(true, true, false)).toBe(false);
+  test('park open + POI says temp-closed + no wait → DOWN (the hint is authoritative when no live signal)', () => {
+    // Regression: the waiting-times feed returns `0` (not absence) for
+    // rides with no live reading, including temporarily_closed ones. `0`
+    // must not be treated as `hasWait`, or these rides wrongly show
+    // OPERATING instead of DOWN (e.g. SuperSplash at Plopsaland De Panne).
+    expect(plopsaDecideStatus(true, true, false)).toBe('DOWN');
   });
 });
 
