@@ -98,25 +98,34 @@ function formatTodayInTimezone(tz: string): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+export type PlopsaAttractionStatus = 'OPERATING' | 'DOWN' | 'CLOSED';
+
 /**
- * Decide whether a Plopsa ride should emit as OPERATING right now.
+ * Decide the live status of a Plopsa ride right now.
  *
  * Inputs are intentionally flat booleans + a primitive — pure function so
  * the matrix is easy to unit-test (see `__tests__/plopsa.test.ts`).
  *
- * The wait-times feed is treated as the ground truth: a numeric wait
- * means the ride is taking guests right now. POI's `temporarily_closed`
- * is a hint we use only when the wait-times feed has no number for the
- * ride. Without that priority, a stale 12h-cached POI snapshot on one
- * collector instance disagreeing with another instance's cached snapshot
- * causes lockstep OPERATING ↔ CLOSED flapping for the affected rides.
+ * A *positive* wait-times reading is treated as ground truth: it means the
+ * ride is taking guests right now, so it wins over a stale POI
+ * `temporarily_closed` hint. Without that priority, a stale 12h-cached POI
+ * snapshot on one collector instance disagreeing with another instance's
+ * cached snapshot causes lockstep OPERATING ↔ DOWN flapping for the
+ * affected rides.
+ *
+ * `hasWait` must only be true for a genuine positive reading — the
+ * waiting-times feed returns `0` for every ride (including ones POI marks
+ * `temporarily_closed`) whenever it has no live signal, so `0` is not
+ * evidence the ride is open and must not override the POI hint.
  */
-export function plopsaDecideOperating(
+export function plopsaDecideStatus(
   parkOpenNow: boolean,
   tempClosed: boolean,
   hasWait: boolean,
-): boolean {
-  return parkOpenNow && (hasWait || !tempClosed);
+): PlopsaAttractionStatus {
+  if (!parkOpenNow) return 'CLOSED';
+  if (hasWait || !tempClosed) return 'OPERATING';
+  return 'DOWN';
 }
 
 /** Is the park currently within an "open" timeslot from today's hours? */
@@ -499,17 +508,21 @@ class PlopsaBase extends Destination {
     return Object.entries(waitTimes).map(([attractionId, waitTime]) => {
       const id = String(attractionId);
       const tempClosed = closedById.get(id) === true;
-      const hasWait = typeof waitTime === 'number';
-      const operating = plopsaDecideOperating(parkOpenNow, tempClosed, hasWait);
+      // A raw `0` is the feed's default/no-signal value — it shows up for
+      // every ride, even ones POI marks temporarily_closed — so only a
+      // strictly positive reading counts as live evidence the ride is open.
+      const rawWait = typeof waitTime === 'number' ? waitTime : null;
+      const hasWait = rawWait !== null && rawWait > 0;
+      const status = plopsaDecideStatus(parkOpenNow, tempClosed, hasWait);
 
-      if (!operating) {
-        return {id, status: 'CLOSED', lastUpdated} as unknown as LiveData;
+      if (status !== 'OPERATING') {
+        return {id, status, lastUpdated} as unknown as LiveData;
       }
       return {
         id,
         status: 'OPERATING',
         queue: {
-          STANDBY: {waitTime: hasWait ? waitTime : null},
+          STANDBY: {waitTime: rawWait},
         },
         lastUpdated,
       } as unknown as LiveData;
