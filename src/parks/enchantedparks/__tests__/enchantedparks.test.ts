@@ -386,3 +386,30 @@ describe('attraction location lookup', () => {
     expect(p.lookup('Timber Wolf')).toBeUndefined();
   });
 });
+
+describe('attractionLocations wiring on every EnchantedParks subclass', () => {
+  // Each subclass MUST wire up a locations/<slug>.json snapshot in its
+  // constructor. Without it, updateSource() on the wiki does a full replace
+  // (not a merge) on every collector sync, silently wiping out any
+  // real lat/lng the entity previously had — this happened for real to
+  // Valleyfair (79 attractions/dining/shows lost their coordinates) because
+  // it was the one subclass missing the wiring the other 5 already had.
+  test('every subclass has a non-empty attractionLocations snapshot', async () => {
+    const modules = await Promise.all([
+      import('../valleyfair.js'),
+      import('../worldsoffun.js'),
+      import('../michigansadventure.js'),
+      import('../midamericaparks.js'),
+      import('../greatescapeparks.js'),
+      import('../galvestonislandwaterpark.js'),
+    ]);
+
+    for (const mod of modules) {
+      const ParkClass = Object.values(mod)[0] as new () => EnchantedParks;
+      const instance = new ParkClass();
+      const snapshot = (instance as any).attractionLocations;
+      expect(snapshot, `${ParkClass.name} has no attractionLocations snapshot wired up`).toBeDefined();
+      expect(Object.keys(snapshot).length, `${ParkClass.name}'s attractionLocations snapshot is empty`).toBeGreaterThan(0);
+    }
+  });
+});
