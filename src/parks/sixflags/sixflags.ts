@@ -459,7 +459,7 @@ export class SixFlags extends Destination {
    * (new fields, new grouping rules like WATERPARK_PARENT_OVERRIDES, …).
    * Old entries become unreachable and expire on their TTL — no manual flush.
    */
-  @cache({ttlSeconds: 86400, cacheVersion: 4})
+  @cache({ttlSeconds: 86400, cacheVersion: 5})
   async getParkData(): Promise<SixFlagsParkData[]> {
     const entries = await this.getFirebaseConfig();
 
@@ -538,11 +538,20 @@ export class SixFlags extends Destination {
         }
       }
 
-      // Extract water parks from otherParks array
+      // Extract water parks from otherParks array. `fimsId` is typed as
+      // number but Firebase actually serves it as a numeric-looking string
+      // for some parks — coerce it, or the strict `poi.parkId === wp.parkId`
+      // comparison in buildEntityList() never matches (poi.parkId is always
+      // a real number), the bundled lookup silently returns zero POIs, and
+      // the /poi/park/{id} standalone fallback 404s for BUNDLED-pattern
+      // waterparks. Net effect: the waterpark's entities vanish from every
+      // sync and the collector proposes deleting them. Confirmed live for
+      // Cedar Point Shores, Knott's Soak City, and 3 Hurricane Harbors
+      // (NJ/LA/Chicago) — all had string fimsId and an empty entity list.
       const waterParks = (park.otherParks || [])
         .filter(op => op.label === 'Water Park' && op.fimsId && op.fimsSiteCode)
         .map(op => ({
-          parkId: op.fimsId,
+          parkId: Number(op.fimsId),
           code: op.fimsSiteCode,
           name: op.subProperty || `Water Park ${op.fimsSiteCode}`,
           label: op.label,
