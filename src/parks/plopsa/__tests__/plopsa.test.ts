@@ -11,8 +11,8 @@
  *    not OPERATING — `0` is not evidence of a live reading.
  */
 import {describe, test, expect} from 'vitest';
-import type {Entity} from '@themeparks/typelib';
-import {plopsaDecideStatus, Plopsaland} from '../plopsa.js';
+import type {Entity, EntitySchedule, LiveData} from '@themeparks/typelib';
+import {plopsaDecideStatus, plopsaBuildShowtimes, plopsaShowStatus, Plopsaland} from '../plopsa.js';
 
 describe('plopsaDecideStatus', () => {
   test('park closed → ride always CLOSED regardless of other inputs', () => {
@@ -140,5 +140,200 @@ describe('De Panne POI location wiring', () => {
     expect(entities.find((e) => e.id === 'missing-title')).toBeUndefined();
     expect(entities.find((e) => e.id === 'null-title')).toBeUndefined();
     expect(entities.find((e) => e.id === 'anubis')).toBeDefined();
+  });
+});
+
+describe('buildSchedules feed independence', () => {
+  class ScheduleProbe extends Plopsaland {
+    public buildSchedulesForTest(): Promise<EntitySchedule[]> {
+      return this.buildSchedules();
+    }
+  }
+
+  function jsonResponse(payload: unknown) {
+    return {json: async () => payload};
+  }
+
+  const showItems = [{
+    id: 'show-1',
+    plopsa_id: '900',
+    title: 'Test Show',
+    type: {label: 'Show'},
+    schedule_info: {
+      temporarily_closed: false,
+      schedule: [{
+        date: '2026-07-11',
+        timeslots: [{type: 'open', start_time: '14:00', end_time: null}],
+      }],
+    },
+  }];
+
+  test('still returns show schedules when the park calendar fetch fails', async () => {
+    const park = new ScheduleProbe();
+    park.fetchCalendar = async () => { throw new Error('calendar 500'); };
+    park.fetchEntertainments = async () => jsonResponse({items: showItems}) as any;
+
+    const schedules = await park.buildSchedulesForTest();
+
+    // Calendar failed, so no park entry — but the show schedule survives.
+    expect(schedules.find((s) => s.id === 'plopsaland')).toBeUndefined();
+    const show = schedules.find((s) => s.id === '900');
+    expect(show?.schedule).toHaveLength(1);
+    expect(show?.schedule?.[0]?.date).toBe('2026-07-11');
+  });
+
+  test('omits the park entry when the calendar yields no operating days', async () => {
+    const park = new ScheduleProbe();
+    park.fetchCalendar = async () => jsonResponse({schedule: {}}) as any;
+    park.fetchEntertainments = async () => jsonResponse({items: []}) as any;
+
+    expect(await park.buildSchedulesForTest()).toEqual([]);
+  });
+
+  test('still returns the park schedule when the entertainments fetch fails', async () => {
+    const park = new ScheduleProbe();
+    park.fetchCalendar = async () => jsonResponse({schedule: {
+      '2026-07': {
+        '2026-07-11': {slots: [{
+          type: 'open',
+          start_time: '2026-07-11T10:00:00+02:00',
+          end_time: '2026-07-11T18:00:00+02:00',
+        }]},
+      },
+    }}) as any;
+    park.fetchEntertainments = async () => { throw new Error('entertainments 500'); };
+
+    const schedules = await park.buildSchedulesForTest();
+
+    // Entertainments failed, so no show schedules — but the park calendar survives.
+    expect(schedules).toHaveLength(1);
+    expect(schedules[0].id).toBe('plopsaland');
+    expect(schedules[0].schedule).toHaveLength(1);
+  });
+});
+
+describe('plopsaBuildShowtimes', () => {
+  const tz = 'Europe/Brussels';
+  const schedule = [
+    {date: '2026-07-11', timeslots: [
+      {type: 'open', start_time: '14:00', end_time: null},
+      {type: 'open', start_time: '16:30', end_time: '17:00'},
+      {type: 'closed', start_time: '18:00', end_time: null},
+    ]},
+    {date: '2026-07-12', timeslots: [
+      {type: 'open', start_time: '11:00', end_time: null},
+    ]},
+  ];
+
+  test('returns [] for an undefined schedule or a date with no entry', () => {
+    expect(plopsaBuildShowtimes(undefined, '2026-07-11', tz)).toEqual([]);
+    expect(plopsaBuildShowtimes(schedule, '2026-07-13', tz)).toEqual([]);
+  });
+
+  test('builds ISO+offset slots for the matching date, skipping non-open slots', () => {
+    expect(plopsaBuildShowtimes(schedule, '2026-07-11', tz)).toEqual([
+      {type: 'Showtime', startTime: '2026-07-11T14:00:00+02:00', endTime: null},
+      {type: 'Showtime', startTime: '2026-07-11T16:30:00+02:00', endTime: '2026-07-11T17:00:00+02:00'},
+    ]);
+  });
+});
+
+describe('plopsaShowStatus', () => {
+  const ms = (iso: string) => Date.parse(iso);
+  const slots = [
+    {type: 'Showtime', startTime: '2026-07-11T14:00:00+02:00', endTime: null},
+    {type: 'Showtime', startTime: '2026-07-11T16:30:00+02:00', endTime: '2026-07-11T17:00:00+02:00'},
+  ];
+
+  test('CLOSED when there are no showtimes', () => {
+    expect(plopsaShowStatus([], ms('2026-07-11T12:00:00+02:00'))).toBe('CLOSED');
+  });
+
+  test('OPERATING until the last performance ends', () => {
+    expect(plopsaShowStatus(slots, ms('2026-07-11T12:00:00+02:00'))).toBe('OPERATING');
+    expect(plopsaShowStatus(slots, ms('2026-07-11T16:59:00+02:00'))).toBe('OPERATING');
+  });
+
+  test('CLOSED once the last performance has passed', () => {
+    expect(plopsaShowStatus(slots, ms('2026-07-11T17:30:00+02:00'))).toBe('CLOSED');
+  });
+
+  test('falls back to the start time when a slot has no end time', () => {
+    const pointOnly = [{type: 'Showtime', startTime: '2026-07-11T14:00:00+02:00', endTime: null}];
+    expect(plopsaShowStatus(pointOnly, ms('2026-07-11T13:59:00+02:00'))).toBe('OPERATING');
+    expect(plopsaShowStatus(pointOnly, ms('2026-07-11T14:01:00+02:00'))).toBe('CLOSED');
+  });
+});
+
+describe('buildLiveData shows', () => {
+  class LiveProbe extends Plopsaland {
+    public buildLiveDataForTest(): Promise<LiveData[]> {
+      return this.buildLiveData();
+    }
+  }
+
+  function jsonResponse(payload: unknown) {
+    return {json: async () => payload};
+  }
+
+  function todayIn(tz: string): string {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date());
+  }
+
+  test('emits show live data independently of the wait-times feed', async () => {
+    const park = new LiveProbe();
+    const date = todayIn('Europe/Brussels');
+
+    park.fetchWaitTimes = async () => jsonResponse({}) as any;
+    park.fetchPOI = async () => jsonResponse({items: []}) as any;
+    park.fetchTodayHours = async () =>
+      jsonResponse({date, timeslots: [{type: 'open', start_time: '00:00', end_time: '23:59'}]}) as any;
+    park.fetchEntertainments = async () => jsonResponse({items: [
+      {id: 'a', plopsa_id: '700', title: 'Show A', type: {label: 'Show'},
+        schedule_info: {schedule: [{date, timeslots: [{type: 'open', start_time: '23:59', end_time: null}]}]}},
+      {id: 'b', plopsa_id: '701', title: 'Meet B', type: {label: 'Meet&Greet'},
+        schedule_info: {schedule: [{date: '2000-01-01', timeslots: [{type: 'open', start_time: '10:00', end_time: null}]}]}},
+      {id: 'c', plopsa_id: '702', title: 'Parade C', type: {label: 'Parade'},
+        schedule_info: {schedule: [{date, timeslots: [{type: 'open', start_time: '12:00', end_time: null}]}]}},
+    ]}) as any;
+
+    const live = await park.buildLiveDataForTest();
+
+    // Show with a performance today → present with today's showtimes.
+    const a = live.find((l) => l.id === '700');
+    expect(a).toBeDefined();
+    expect(a?.showtimes).toHaveLength(1);
+
+    // Meet-and-greet whose only performance is on a past date → CLOSED, no showtimes.
+    const b = live.find((l) => l.id === '701');
+    expect(b?.status).toBe('CLOSED');
+    expect(b?.showtimes).toBeUndefined();
+
+    // Parades are not mapped as entities, so they must not appear in live data.
+    expect(live.find((l) => l.id === '702')).toBeUndefined();
+  });
+
+  test('a failing entertainments feed drops only the shows, never the ride live data', async () => {
+    const park = new LiveProbe();
+    const date = todayIn('Europe/Brussels');
+
+    park.fetchWaitTimes = async () => jsonResponse({'42': 15}) as any;
+    park.fetchPOI = async () => jsonResponse({items: [{
+      id: 'poi-1',
+      title: 'Rides',
+      type: {label: 'Attraction'},
+      contains: [{id: '42', title: 'Some Coaster', type: 'attraction'}],
+    }]}) as any;
+    park.fetchTodayHours = async () =>
+      jsonResponse({date, timeslots: [{type: 'open', start_time: '00:00', end_time: '23:59'}]}) as any;
+    park.fetchEntertainments = async () => { throw new Error('entertainments 500'); };
+
+    // buildLiveData() is not wrapped in a try/catch by the base class, so an
+    // unguarded rejection here would take the ride data down with it.
+    const live = await park.buildLiveDataForTest();
+
+    expect(live.map((l) => l.id)).toEqual(['42']);
   });
 });
