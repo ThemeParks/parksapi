@@ -337,3 +337,81 @@ describe('buildLiveData shows', () => {
     expect(live.map((l) => l.id)).toEqual(['42']);
   });
 });
+
+describe('multi-language POI/entertainment merge', () => {
+  // Regression coverage for the case that motivated cross-language merging:
+  // a new attraction (e.g. Draconis) lands in the Dutch feed before the
+  // English translation catches up. buildEntityList must still surface it.
+  class Probe extends Plopsaland {
+    public byLanguage: Record<string, unknown[]> = {};
+    public entByLanguage: Record<string, unknown[]> = {};
+
+    override async fetchPOI(language: string = this.apiLanguage): Promise<any> {
+      return {json: async () => ({items: this.byLanguage[language] ?? []})};
+    }
+
+    override async fetchEntertainments(language: string = this.apiLanguage): Promise<any> {
+      return {json: async () => ({items: this.entByLanguage[language] ?? []})};
+    }
+
+    public buildEntitiesForTest(): Promise<Entity[]> {
+      return this.buildEntityList();
+    }
+  }
+
+  test('surfaces an attraction present only in the secondary language feed', async () => {
+    const park = new Probe();
+    park.byLanguage = {
+      en: [{
+        id: 'poi-1',
+        title: 'Attracties',
+        type: {label: 'Attractions'},
+        contains: [
+          {id: 'existing', title: 'Existing Ride', type: 'attraction'},
+        ],
+      }],
+      nl: [{
+        id: 'poi-1',
+        title: 'Attracties',
+        type: {label: 'Attractions'},
+        contains: [
+          {id: 'existing', title: 'Bestaande Rit', type: 'attraction'},
+          {id: 'draconis', title: 'Draconis', type: 'attraction'},
+        ],
+      }],
+    };
+
+    const entities = await park.buildEntitiesForTest();
+
+    // English feed wins the name for an id present in both.
+    expect(entities.find((e) => e.id === 'existing')?.name).toBe('Existing Ride');
+    // Draconis only exists in the Dutch feed — it must still be added, using
+    // the Dutch title since no English one is available.
+    const draconis = entities.find((e) => e.id === 'draconis');
+    expect(draconis).toBeDefined();
+    expect(draconis?.name).toBe('Draconis');
+    expect(draconis?.entityType).toBe('ATTRACTION');
+  });
+
+  test('surfaces a show present only in the secondary language feed', async () => {
+    const park = new Probe();
+    park.byLanguage = {en: [], nl: []};
+    park.entByLanguage = {
+      en: [
+        {id: 'show-1', title: 'Parade', type: {label: 'Show'}},
+      ],
+      nl: [
+        {id: 'show-1', title: 'Optocht', type: {label: 'Show'}},
+        {id: 'show-2', title: 'Nieuwe Show', type: {label: 'Show'}},
+      ],
+    };
+
+    const entities = await park.buildEntitiesForTest();
+
+    expect(entities.find((e) => e.id === 'show-1')?.name).toBe('Parade');
+    const newShow = entities.find((e) => e.id === 'show-2');
+    expect(newShow).toBeDefined();
+    expect(newShow?.name).toBe('Nieuwe Show');
+    expect(newShow?.entityType).toBe('SHOW');
+  });
+});

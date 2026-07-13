@@ -228,8 +228,22 @@ class PlopsaBase extends Destination {
     return url.endsWith('/api') ? url.slice(0, -4) : url;
   }
 
-  /** Language to use for all API calls */
+  /** Language to use for all single-language API calls (wait times, hours, calendar) */
   apiLanguage: string = 'en';
+
+  /**
+   * Languages to query when building the entity list, in preference order.
+   * The middleware's translated POI/entertainment feeds are maintained
+   * independently per language and can drift out of sync — a newly added
+   * attraction sometimes lands in the native-language feed weeks before the
+   * English translation catches up (e.g. Draconis at Plopsaland De Panne,
+   * present in `nl` but absent from `en` for a while). We fetch every
+   * language in this list and merge: the first language that has a given
+   * attraction/show wins for its name, later languages only fill in
+   * entities missing from earlier ones. Defaults to just `apiLanguage`;
+   * subclasses add their native language as a second source.
+   */
+  languages: string[] = ['en'];
 
   /** park= query parameter for the middleware API */
   parkParam: string = '';
@@ -265,11 +279,11 @@ class PlopsaBase extends Destination {
   // ── HTTP methods ──────────────────────────────────────────────
 
   @http({cacheSeconds: 60 * 60 * 12})
-  async fetchPOI(): Promise<HTTPObj> {
+  async fetchPOI(language: string = this.apiLanguage): Promise<HTTPObj> {
     return {
       method: 'GET',
       url: `${this.apiBase}/api/points-of-interest`,
-      queryParams: {language: this.apiLanguage, park: this.parkParam},
+      queryParams: {language, park: this.parkParam},
       options: {json: true},
     } as any as HTTPObj;
   }
@@ -285,11 +299,11 @@ class PlopsaBase extends Destination {
   }
 
   @http({cacheSeconds: 60 * 60 * 6})
-  async fetchEntertainments(): Promise<HTTPObj> {
+  async fetchEntertainments(language: string = this.apiLanguage): Promise<HTTPObj> {
     return {
       method: 'GET',
       url: `${this.apiBase}/api/entertainments`,
-      queryParams: {language: this.apiLanguage, park: this.parkParam},
+      queryParams: {language, park: this.parkParam},
       options: {json: true},
     } as any as HTTPObj;
   }
@@ -331,6 +345,18 @@ class PlopsaBase extends Destination {
   /** Extract a stable entity ID for an item: prefer plopsa_id, fall back to id. */
   protected entityId(item: {id: string; plopsa_id?: string}): string {
     return String(item.plopsa_id || item.id);
+  }
+
+  /** Fetch the POI feed for every language in `this.languages`, in order. */
+  protected async fetchPOIAllLanguages(): Promise<PlopsaPOIResponse[]> {
+    const responses = await Promise.all(this.languages.map((lang) => this.fetchPOI(lang)));
+    return Promise.all(responses.map((resp) => resp.json() as Promise<PlopsaPOIResponse>));
+  }
+
+  /** Fetch the entertainments feed for every language in `this.languages`, in order. */
+  protected async fetchEntertainmentsAllLanguages(): Promise<PlopsaEntertainmentResponse[]> {
+    const responses = await Promise.all(this.languages.map((lang) => this.fetchEntertainments(lang)));
+    return Promise.all(responses.map((resp) => resp.json() as Promise<PlopsaEntertainmentResponse>));
   }
 
   /**
@@ -396,13 +422,10 @@ class PlopsaBase extends Destination {
   // ── Entity building ───────────────────────────────────────────
 
   protected async buildEntityList(): Promise<Entity[]> {
-    const [poiResp, entResp] = await Promise.all([
-      this.fetchPOI(),
-      this.fetchEntertainments(),
+    const [poiByLanguage, entByLanguage] = await Promise.all([
+      this.fetchPOIAllLanguages(),
+      this.fetchEntertainmentsAllLanguages(),
     ]);
-
-    const poiData = (await poiResp.json()) as PlopsaPOIResponse;
-    const entData = (await entResp.json()) as PlopsaEntertainmentResponse;
 
     const entities: Entity[] = [];
 
@@ -420,20 +443,30 @@ class PlopsaBase extends Destination {
     }
     entities.push(parkEntity);
 
-    // Attractions and restaurants from POI
-    for (const poi of poiData?.items ?? []) {
-      // Fallback pixel→geo coords for the whole POI (Deutschland only).
-      const poiCoords = this.mapCoordinates(poi.map_coordinates);
+    // Attractions and restaurants from POI. Iterate languages in preference
+    // order and skip any id already seen — the first (preferred) language
+    // that carries a given attraction/restaurant wins its name/coords, and
+    // later languages only contribute entities missing from earlier ones
+    // (see `languages` doc comment for why translated feeds can drift).
+    const seenPoiIds = new Set<string>();
+    for (const poiData of poiByLanguage) {
+      for (const poi of poiData?.items ?? []) {
+        // Fallback pixel→geo coords for the whole POI (Deutschland only).
+        const poiCoords = this.mapCoordinates(poi.map_coordinates);
 
-      for (const item of poi.contains ?? []) {
-        const title = typeof item.title === 'string' ? item.title : '';
-        if (!title) continue;
+        for (const item of poi.contains ?? []) {
+          const title = typeof item.title === 'string' ? item.title : '';
+          if (!title) continue;
+          if (item.type !== 'attraction' && item.type !== 'foods_and_drinks') continue;
 
-        if (item.type === 'attraction') {
+          const id = this.entityId(item);
+          if (seenPoiIds.has(id)) continue;
+          seenPoiIds.add(id);
+
           const entity: Entity = {
-            id: this.entityId(item),
+            id,
             name: title,
-            entityType: 'ATTRACTION',
+            entityType: item.type === 'attraction' ? 'ATTRACTION' : 'RESTAURANT',
             parentId: this.parkId,
             destinationId: this.destinationId,
             timezone: this.timezone,
@@ -444,44 +477,37 @@ class PlopsaBase extends Destination {
             (entity as any).location = coords;
           }
           entities.push(entity);
-        } else if (item.type === 'foods_and_drinks') {
-          const entity: Entity = {
-            id: this.entityId(item),
-            name: title,
-            entityType: 'RESTAURANT',
-            parentId: this.parkId,
-            destinationId: this.destinationId,
-            timezone: this.timezone,
-          } as Entity;
-          const coords = this.lookupPoiLocation(title) ?? poiCoords;
-          if (coords) {
-            (entity as any).location = coords;
-          }
-          entities.push(entity);
         }
       }
     }
 
-    // Shows / Meet-and-greets from entertainments list
-    for (const item of entData?.items ?? []) {
-      const label = item.type?.label ?? '';
-      if (label !== 'Show' && label !== 'Meet&Greet') continue;
+    // Shows / Meet-and-greets from entertainments list — same first-language-wins merge.
+    const seenShowIds = new Set<string>();
+    for (const entData of entByLanguage) {
+      for (const item of entData?.items ?? []) {
+        const label = item.type?.label ?? '';
+        if (label !== 'Show' && label !== 'Meet&Greet') continue;
 
-      const entity: Entity = {
-        id: this.entityId({id: item.id, plopsa_id: item.plopsa_id}),
-        name: item.title,
-        entityType: 'SHOW',
-        parentId: this.parkId,
-        destinationId: this.destinationId,
-        timezone: this.timezone,
-      } as Entity;
+        const id = this.entityId({id: item.id, plopsa_id: item.plopsa_id});
+        if (seenShowIds.has(id)) continue;
+        seenShowIds.add(id);
 
-      // Use park location as fallback for shows
-      if (this.parkLat && this.parkLng) {
-        (entity as any).location = {latitude: this.parkLat, longitude: this.parkLng};
+        const entity: Entity = {
+          id,
+          name: item.title,
+          entityType: 'SHOW',
+          parentId: this.parkId,
+          destinationId: this.destinationId,
+          timezone: this.timezone,
+        } as Entity;
+
+        // Use park location as fallback for shows
+        if (this.parkLat && this.parkLng) {
+          (entity as any).location = {latitude: this.parkLat, longitude: this.parkLng};
+        }
+
+        entities.push(entity);
       }
-
-      entities.push(entity);
     }
 
     return entities;
@@ -492,26 +518,31 @@ class PlopsaBase extends Destination {
   protected async buildLiveData(): Promise<LiveData[]> {
     const today = formatTodayInTimezone(this.timezone);
 
-    const [waitResp, poiResp, hoursResp, entResp] = await Promise.all([
+    const [waitResp, poiByLanguage, hoursResp, entByLanguage] = await Promise.all([
       this.fetchWaitTimes(),
-      this.fetchPOI(),
+      this.fetchPOIAllLanguages(),
       this.fetchTodayHours(today).catch(() => null),
-      this.fetchEntertainments().catch(() => null),
+      this.fetchEntertainmentsAllLanguages().catch(() => [] as PlopsaEntertainmentResponse[]),
     ]);
 
     const waitTimes = (await waitResp.json()) as PlopsaWaitTimesResponse;
-    const poiData = (await poiResp.json()) as PlopsaPOIResponse;
-    const hoursData = hoursResp ? (await hoursResp.json()) as PlopsaTodayHours : null;
-    const entData = entResp ? (await entResp.json()) as PlopsaEntertainmentResponse : null;
+    if (!waitTimes) return [];
 
-    // Per-attraction temporarily-closed flag from POI.
+    const hoursData = hoursResp ? (await hoursResp.json()) as PlopsaTodayHours : null;
+
+    // Per-attraction temporarily-closed flag from POI, merged across
+    // languages (first language wins, same preference order as
+    // buildEntityList) so a ride missing from the primary-language feed
+    // still gets its closed flag from whichever language does carry it.
     const closedById = new Map<string, boolean>();
-    for (const poi of poiData?.items ?? []) {
-      for (const item of poi.contains ?? []) {
-        if (item.type !== 'attraction') continue;
-        const id = this.entityId(item);
-        const flag = !!item.schedule_info?.temporarily_closed;
-        closedById.set(id, flag);
+    for (const poiData of poiByLanguage) {
+      for (const poi of poiData?.items ?? []) {
+        for (const item of poi.contains ?? []) {
+          if (item.type !== 'attraction') continue;
+          const id = this.entityId(item);
+          if (closedById.has(id)) continue;
+          closedById.set(id, !!item.schedule_info?.temporarily_closed);
+        }
       }
     }
 
@@ -586,20 +617,27 @@ class PlopsaBase extends Destination {
     // the show is CLOSED once the last one has passed.
     const nowMs = Date.now();
     const showLiveData: LiveData[] = [];
-    for (const item of entData?.items ?? []) {
-      const label = item.type?.label ?? '';
-      if (label !== 'Show' && label !== 'Meet&Greet') continue;
+    const seenLiveShowIds = new Set<string>();
+    for (const entData of entByLanguage) {
+      for (const item of entData?.items ?? []) {
+        const label = item.type?.label ?? '';
+        if (label !== 'Show' && label !== 'Meet&Greet') continue;
 
-      const showtimes = plopsaBuildShowtimes(item.schedule_info?.schedule, today, this.timezone);
-      const ld = {
-        id: this.entityId({id: item.id, plopsa_id: item.plopsa_id}),
-        status: plopsaShowStatus(showtimes, nowMs),
-        lastUpdated,
-      } as unknown as LiveData;
-      if (showtimes.length > 0) {
-        (ld as {showtimes?: LiveTimeSlot[]}).showtimes = showtimes;
+        const id = this.entityId({id: item.id, plopsa_id: item.plopsa_id});
+        if (seenLiveShowIds.has(id)) continue;
+        seenLiveShowIds.add(id);
+
+        const showtimes = plopsaBuildShowtimes(item.schedule_info?.schedule, today, this.timezone);
+        const ld = {
+          id,
+          status: plopsaShowStatus(showtimes, nowMs),
+          lastUpdated,
+        } as unknown as LiveData;
+        if (showtimes.length > 0) {
+          (ld as {showtimes?: LiveTimeSlot[]}).showtimes = showtimes;
+        }
+        showLiveData.push(ld);
       }
-      showLiveData.push(ld);
     }
 
     return [...rideLiveData, ...showLiveData];
@@ -666,42 +704,51 @@ class PlopsaBase extends Destination {
     return schedule;
   }
 
-  /** Per-show operating schedules from the entertainments feed. */
+  /**
+   * Per-show operating schedules from the entertainments feed, merged
+   * across languages (first-wins, same as buildEntityList) so a show
+   * whose schedule only appears in a secondary-language feed isn't dropped.
+   */
   private async buildShowSchedules(): Promise<EntitySchedule[]> {
-    let entData: PlopsaEntertainmentResponse;
+    let entByLanguage: PlopsaEntertainmentResponse[];
     try {
-      const entResp = await this.fetchEntertainments();
-      entData = (await entResp.json()) as PlopsaEntertainmentResponse;
+      entByLanguage = await this.fetchEntertainmentsAllLanguages();
     } catch {
       return [];
     }
 
     const showSchedules: EntitySchedule[] = [];
+    const seenShowScheduleIds = new Set<string>();
 
-    for (const item of entData?.items ?? []) {
-      const label = item.type?.label ?? '';
-      if (label !== 'Show' && label !== 'Meet&Greet') continue;
+    for (const entData of entByLanguage) {
+      for (const item of entData?.items ?? []) {
+        const label = item.type?.label ?? '';
+        if (label !== 'Show' && label !== 'Meet&Greet') continue;
 
-      const showId = this.entityId({id: item.id, plopsa_id: item.plopsa_id});
-      const showSchedule: EntitySchedule['schedule'] = [];
+        const showId = this.entityId({id: item.id, plopsa_id: item.plopsa_id});
+        if (seenShowScheduleIds.has(showId)) continue;
 
-      for (const day of item.schedule_info?.schedule ?? []) {
-        for (const slot of day.timeslots ?? []) {
-          if (slot.type !== 'open') continue;
-          showSchedule.push({
-            date: day.date,
-            type: 'OPERATING',
-            // Show timeslots use HH:MM strings, not full ISO — build with constructDateTime
-            openingTime: `${day.date}T${slot.start_time}:00`,
-            closingTime: slot.end_time
-              ? `${day.date}T${slot.end_time}:00`
-              : `${day.date}T${slot.start_time}:00`,
-          } as any);
+        const showSchedule: EntitySchedule['schedule'] = [];
+
+        for (const day of item.schedule_info?.schedule ?? []) {
+          for (const slot of day.timeslots ?? []) {
+            if (slot.type !== 'open') continue;
+            showSchedule.push({
+              date: day.date,
+              type: 'OPERATING',
+              // Show timeslots use HH:MM strings, not full ISO — build with constructDateTime
+              openingTime: `${day.date}T${slot.start_time}:00`,
+              closingTime: slot.end_time
+                ? `${day.date}T${slot.end_time}:00`
+                : `${day.date}T${slot.start_time}:00`,
+            } as any);
+          }
         }
-      }
 
-      if (showSchedule.length > 0) {
-        showSchedules.push({id: showId, schedule: showSchedule} as EntitySchedule);
+        if (showSchedule.length > 0) {
+          seenShowScheduleIds.add(showId);
+          showSchedules.push({id: showId, schedule: showSchedule} as EntitySchedule);
+        }
       }
     }
 
@@ -724,6 +771,10 @@ export class Plopsaland extends PlopsaBase {
     this.timezone = 'Europe/Brussels';
     this.parkLat = 51.0808363;
     this.parkLng = 2.5957221;
+    // English is preferred for names; Dutch is the park's native feed and
+    // sometimes carries attractions/shows before the English translation
+    // catches up (see `languages` doc comment).
+    this.languages = ['en', 'nl'];
     // Hand-verified per-POI coordinates: the middleware feed has no ride-level
     // lat/lng and De Panne has no pixel→geo transform. See locations/README.
     this.poiLocations = dePanneLocations as Record<string, {latitude: number; longitude: number}>;
@@ -849,6 +900,10 @@ export class PlopsalandDeutschland extends PlopsaBase {
     this.timezone = 'Europe/Berlin';
     this.parkLat = 49.317914992075146;
     this.parkLng = 8.300217955490842;
+    // English is preferred for names; German is the park's native feed and
+    // sometimes carries attractions/shows before the English translation
+    // catches up (see `languages` doc comment).
+    this.languages = ['en', 'de'];
     // calendarUrl set via PLOPSALANDDEUTSCHLAND_CALENDARURL env var
   }
 
