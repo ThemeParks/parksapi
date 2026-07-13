@@ -1,4 +1,8 @@
 {
+  "JB’s Smokehouse": {
+    "latitude": 38.514139,
+    "longitude": -90.677108
+  },
   "Adventure Cove": {
     "latitude": 38.51201,
     "longitude": -90.672694
@@ -166,5 +170,145 @@
   "Yosemite Sam Tugboat Tailspin": {
     "latitude": 38.515972,
     "longitude": -90.676255
+  },
+  "Primo’s Pizzeria": {
+    "latitude": 38.515653,
+    "longitude": -90.677531
+  },
+  "Surfin’ Safari": {
+    "latitude": 38.512583,
+    "longitude": -90.6731
+  },
+  "Macho Nacho": {
+    "latitude": 38.513848,
+    "longitude": -90.675859
+  },
+  "Fowl Ball": {
+    "latitude": 38.515521,
+    "longitude": -90.675683
+  },
+  "Friar Tuck’s": {
+    "latitude": 38.515469,
+    "longitude": -90.676738
+  },
+  "Chop Six": {
+    "latitude": 38.514287,
+    "longitude": -90.673783
+  },
+  "Johnny Rockets® Express": {
+    "latitude": 38.514038,
+    "longitude": -90.674299
+  },
+  "Gold Fever": {
+    "latitude": 38.515163,
+    "longitude": -90.676095
+  },
+  "Bubble Pop": {
+    "latitude": 38.51479997560976,
+    "longitude": -90.67528826829268
+  },
+  "Flashback: On Route 66": {
+    "latitude": 38.514052,
+    "longitude": -90.67542
+  },
+  "First Cone": {
+    "latitude": 38.513488,
+    "longitude": -90.675728
+  },
+  "DC Comics": {
+    "latitude": 38.513792,
+    "longitude": -90.677585
+  },
+  "JB’s Smokehouse BBQ and Sports Bar": {
+    "latitude": 38.514139,
+    "longitude": -90.677108
+  },
+  "Dippin' Dots®": {
+    "latitude": 38.515065,
+    "longitude": -90.676458
+  },
+  "Finnegan's Beachside Bar": {
+    "latitude": 38.512078,
+    "longitude": -90.673244
+  },
+  "Treasure Chest Tiki Bar": {
+    "latitude": 38.512627,
+    "longitude": -90.673495
+  },
+  "Pineapple Pete's": {
+    "latitude": 38.512445,
+    "longitude": -90.673264
+  },
+  "Cowabunga Burgers": {
+    "latitude": 38.512398,
+    "longitude": -90.673182
+  },
+  "Treehouse Treats": {
+    "latitude": 38.516057,
+    "longitude": -90.676156
+  },
+  "Forever Country": {
+    "latitude": 38.515139,
+    "longitude": -90.675879
+  },
+  "Miss Kitty’s Cabaret": {
+    "latitude": 38.515117,
+    "longitude": -90.675945
+  },
+  "Watch Your Caboose…Again!": {
+    "latitude": 38.514867,
+    "longitude": -90.675489
+  },
+  "World's Fair Fudgery": {
+    "latitude": 38.51346,
+    "longitude": -90.67547
+  },
+  "1904 Classic": {
+    "latitude": 38.51397,
+    "longitude": -90.675874
+  },
+  "BATMAN™ Cotton Candy Factory": {
+    "latitude": 38.513858,
+    "longitude": -90.674136
+  },
+  "Colonel Cobbs": {
+    "latitude": 38.515882,
+    "longitude": -90.675329
+  },
+  "Hero's Drinks": {
+    "latitude": 38.51412,
+    "longitude": -90.676663
+  },
+  "Cotton Candy Factory North": {
+    "latitude": 38.516287,
+    "longitude": -90.674569
+  },
+  "Turkey Leg Cart": {
+    "latitude": 38.513278,
+    "longitude": -90.675394
+  },
+  "World’s Best Funnel Cakes": {
+    "latitude": 38.513829,
+    "longitude": -90.674919
+  },
+  "Character Meet and Greet": {
+    "latitude": 38.514275,
+    "longitude": -90.67564
+  },
+  "Let’s Go to the Movies": {
+    "latitude": 38.5141,
+    "longitude": -90.674233
+  },
+  "Colonnades": {
+    "latitude": 38.513722,
+    "longitude": -90.675832
+  },
+  "Beachside Snacks": {
+    "latitude": 38.512601,
+    "longitude": -90.673411
+  },
+  "The Outpost": {
+    "latitude": 38.514881,
+    "longitude": -90.674572
   }
 }

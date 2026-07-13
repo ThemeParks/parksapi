@@ -22,6 +22,8 @@ export class MidAmericaParks extends EnchantedParks {
       code: 'MAP',
       name: 'Mid-America Parks',
       ridesPath: 'attractions',
+      diningPath: 'dining',
+      showsPath: 'live-entertainment',
       scheduleCategory: 'Park Hours',
       location: {latitude: 38.5128, longitude: -90.6724},
     };
