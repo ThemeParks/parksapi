@@ -149,18 +149,10 @@ type LiveDataRecord = {
   OpeningTimes?: string | null;
 };
 
-type LiveDataResortRecord = {
-  _id: number;
-  OpeningTimes?: string | null;
-};
-
 type LiveDataResponse = {
   entities: {
     Item: {
       records: LiveDataRecord[];
-    };
-    Resort?: {
-      records?: LiveDataResortRecord[];
     };
   };
 };
@@ -303,7 +295,7 @@ export function parseLiveOpeningTimes(raw: string | null | undefined, timezone: 
 /**
  * Whether `nowMs` sits inside any of the given opening-hour slots, under
  * half-open [start, end) containment. Slots whose bounds are missing or
- * unparseable are ignored. Shared by the restaurant and park live-status logic.
+ * unparseable are ignored. Drives the restaurant live-status fallback.
  */
 function isOpenNow(hours: LiveTimeSlot[], nowMs: number): boolean {
   return hours.some(h => {
@@ -1149,7 +1141,6 @@ class AttractionsIOV1 extends Destination {
    * Build live data for every entity type the API exposes:
    *   - attractions — operating status + standby wait time (live feed)
    *   - restaurants — open/closed status + today's opening hours (live feed)
-   *   - the park itself — today's opening window (live Resort record)
    *   - shows — today's performance times, evaluated from each show's recurring
    *     ShowTimes schedule in the records data (there is no live show feed)
    *
@@ -1234,20 +1225,6 @@ class AttractionsIOV1 extends Destination {
       }
     }
 
-    // Park: today's actual opening window (from the Resort record). Status is
-    // derived from whether "now" sits inside that window — the Resort record
-    // carries the same hours every day, so a fixed OPERATING would report the
-    // park open all night, every night, after close and before open.
-    const resort = raw?.entities?.Resort?.records?.[0];
-    const parkHours = parseLiveOpeningTimes(resort?.OpeningTimes, this.timezone);
-    if (parkHours.length > 0) {
-      liveData.push({
-        id: this.parkId,
-        status: isOpenNow(parkHours, Date.now()) ? 'OPERATING' : 'CLOSED',
-        operatingHours: parkHours,
-      });
-    }
-
     // Shows: today's performance times, evaluated from each show's recurring
     // ShowTimes schedule in the records data (not the live feed)
     if (showIds.size > 0) {
@@ -1262,7 +1239,7 @@ class AttractionsIOV1 extends Destination {
         if (attractionIds.has(id) || restaurantIds.has(id)) continue;
 
         // A single malformed ShowTimes record must not take down live data for
-        // the whole park (attraction/restaurant/park entries are already on the
+        // the whole park (attraction/restaurant entries are already on the
         // array). Contain the failure to this one show and keep the rest.
         let showtimes: LiveTimeSlot[];
         try {

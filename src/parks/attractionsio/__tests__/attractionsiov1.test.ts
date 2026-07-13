@@ -4,8 +4,7 @@
  * Unlike showtimes.test.ts (which unit-tests the pure ShowTimes helpers), these
  * drive the real `buildEntityList()` and `buildLiveData()` on a live subclass —
  * the entity classification (including the wider category coverage), the
- * restaurant `IsOpen` fallback, the Resort park-hours extraction, the
- * time-derived park status, and the malformed-ShowTimes containment. The raw
+ * restaurant `IsOpen` fallback, and the malformed-ShowTimes containment. The raw
  * network methods (`getPOIData` / `fetchLiveData`) are stubbed with fixtures so
  * nothing hits the API. Full integration is exercised via `npm run dev -- <park>`.
  */
@@ -17,9 +16,8 @@ import {CacheLib} from '../../../cache.js';
 const TZ = 'Europe/Berlin';
 const DATE = '2026-07-08';
 
-// Berlin is +02:00 in July, so 12:00 local == 10:00Z and 23:00 local == 21:00Z.
+// Berlin is +02:00 in July, so 12:00 local == 10:00Z.
 const NOON = new Date('2026-07-08T10:00:00Z');
-const NIGHT = new Date('2026-07-08T21:00:00Z');
 
 const range = (open: string, close: string) =>
   JSON.stringify({type: 'range', start: `${DATE} ${open}`, end: `${DATE} ${close}`});
@@ -70,9 +68,6 @@ function mkLive(): any {
           {_id: 301, OpeningTimes: range('10:00:00', '20:00:00')}, // no IsOpen → window fallback
           {_id: 302, OpeningTimes: range('10:00:00', '11:00:00')}, // no IsOpen, already closed by noon
         ],
-      },
-      Resort: {
-        records: [{_id: 1, OpeningTimes: range('10:00:00', '18:00:00')}],
       },
     },
   };
@@ -157,24 +152,6 @@ describe('buildLiveData', () => {
     expect(entry.queue.STANDBY.waitTime).toBe(30);
   });
 
-  test('the park status is OPERATING when now is inside the live opening window', async () => {
-    const live = await new Probe().live();
-    const park = live.find(l => l.id === 'probe-park');
-    expect(park).toBeDefined();
-    expect(park.status).toBe('OPERATING');
-    expect(park.operatingHours).toHaveLength(1);
-  });
-
-  test('the park status is CLOSED at night, not a hardcoded OPERATING', async () => {
-    vi.setSystemTime(NIGHT);
-    const live = await new Probe().live();
-    const park = live.find(l => l.id === 'probe-park');
-    expect(park).toBeDefined();
-    expect(park.status).toBe('CLOSED');
-    // The hours are still published even though the park is currently closed.
-    expect(park.operatingHours).toHaveLength(1);
-  });
-
   test('a restaurant with a live IsOpen:true is OPERATING regardless of the window', async () => {
     const live = await new Probe().live();
     expect(live.find(l => l.id === '300').status).toBe('OPERATING');
@@ -206,9 +183,8 @@ describe('buildLiveData', () => {
     const broken = live.find(l => l.id === '202');
     expect(broken.showtimes).toBeUndefined();
     expect(broken.status).toBe('CLOSED');
-    // The sibling attraction, park and restaurants still came through.
+    // The sibling attraction and restaurants still came through.
     expect(live.find(l => l.id === '100')).toBeDefined();
-    expect(live.find(l => l.id === 'probe-park')).toBeDefined();
     expect(live.find(l => l.id === '300')).toBeDefined();
   });
 });
