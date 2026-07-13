@@ -336,6 +336,28 @@ describe('buildLiveData shows', () => {
 
     expect(live.map((l) => l.id)).toEqual(['42']);
   });
+
+  test('a null wait-times response drops only the ride data, never the shows', async () => {
+    const park = new LiveProbe();
+    const date = todayIn('Europe/Brussels');
+
+    // The wait-times feed occasionally returns a literal `null` body. That
+    // must not cascade into dropping show live data too — each feed's
+    // failure is isolated to its own entities (see the sibling test above
+    // for the mirror-image entertainments-feed failure).
+    park.fetchWaitTimes = async () => jsonResponse(null) as any;
+    park.fetchPOI = async () => jsonResponse({items: []}) as any;
+    park.fetchTodayHours = async () =>
+      jsonResponse({date, timeslots: [{type: 'open', start_time: '00:00', end_time: '23:59'}]}) as any;
+    park.fetchEntertainments = async () => jsonResponse({items: [
+      {id: 'a', plopsa_id: '700', title: 'Show A', type: {label: 'Show'},
+        schedule_info: {schedule: [{date, timeslots: [{type: 'open', start_time: '23:59', end_time: null}]}]}},
+    ]}) as any;
+
+    const live = await park.buildLiveDataForTest();
+
+    expect(live.map((l) => l.id)).toEqual(['700']);
+  });
 });
 
 describe('multi-language POI/entertainment merge', () => {

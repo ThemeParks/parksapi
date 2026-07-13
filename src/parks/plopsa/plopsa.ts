@@ -526,7 +526,6 @@ class PlopsaBase extends Destination {
     ]);
 
     const waitTimes = (await waitResp.json()) as PlopsaWaitTimesResponse;
-    if (!waitTimes) return [];
 
     const hoursData = hoursResp ? (await hoursResp.json()) as PlopsaTodayHours : null;
 
