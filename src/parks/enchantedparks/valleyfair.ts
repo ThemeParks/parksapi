@@ -1,6 +1,7 @@
 import {EnchantedParks} from './enchantedparks.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {DestinationConstructor} from '../../destination.js';
+import locations from './locations/valleyfair.json' with {type: 'json'};
 
 @destinationController({category: ['Enchanted Parks', 'Valleyfair']})
 export class Valleyfair extends EnchantedParks {
@@ -18,6 +19,7 @@ export class Valleyfair extends EnchantedParks {
     // assign them directly here. The base class also reads options.config for
     // these if a caller wants to supply different ones — only set defaults
     // when the caller hasn't.
+    this.attractionLocations = locations;
     this.destinationLocation ??= {latitude: 44.7977, longitude: -93.4399};
     this.themePark ??= {
       id: 'enchantedparks_park_VF',
