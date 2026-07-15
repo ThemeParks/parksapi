@@ -30,14 +30,27 @@
  * the whole build, and independent upstream sources (attractions, dining,
  * shows, schedule, coordinates) each fail in isolation so one flaky endpoint
  * degrades rather than zeroes out the destination's output.
+ *
+ * WAF: www.oceanpark.com.hk (attractions page, dining page, and both
+ * /api/main/* schedule routes) 403s every request with no/generic
+ * User-Agent, serving a "System Maintenance" page instead of the real SSR
+ * content — Node's http client sends no default UA. That 403 propagates
+ * through getAttractionItems()/getDailyScheduleItems() as a rejected
+ * promise, which buildEntityList/buildLiveData's per-source .catch()
+ * quietly downgrades to "no attractions/shows this cycle" — so without a
+ * browser-like UA this destination silently reports zero attractions and
+ * zero shows on every single sync, not just an occasional flaky one.
+ * map.oceanpark.com.hk (coordinates) isn't behind the same WAF and works
+ * with no UA at all. See Nigloland for the same pattern.
  */
 
 import {Destination, DestinationConstructor} from '../../destination.js';
 import config from '../../config.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
+import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
-import {formatInTimezone, formatDate, constructDateTime} from '../../datetime.js';
+import {formatInTimezone, formatDate, constructDateTime, hostnameFromUrl} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 import type {Entity, LiveData, EntitySchedule, ScheduleEntry} from '@themeparks/typelib';
 import {AttractionTypeEnum} from '@themeparks/typelib';
@@ -429,6 +442,7 @@ export function computeAffineTransform(refPoints: OceanParkReferencePoint[]): Af
 export class OceanParkHongKong extends Destination {
   @config baseURL: string = '';
   @config mapURL: string = '';
+  @config userAgent: string = '';
 
   timezone = TIMEZONE;
 
@@ -439,6 +453,31 @@ export class OceanParkHongKong extends Destination {
 
   getCacheKeyPrefix(): string {
     return 'oceanpark';
+  }
+
+  // ── Auth / WAF ────────────────────────────────────────────────────────────
+
+  /**
+   * www.oceanpark.com.hk 403s any request without a browser-like User-Agent
+   * (see file header). map.oceanpark.com.hk is unaffected, so this is scoped
+   * to baseURL's host only.
+   */
+  @inject({
+    eventName: 'httpRequest',
+    hostname: function (this: OceanParkHongKong) {
+      return hostnameFromUrl(this.baseURL);
+    },
+  })
+  async injectUserAgent(req: HTTPObj): Promise<void> {
+    if (!this.userAgent) {
+      throw new Error(
+        'OceanParkHongKong requires OCEANPARK_USERAGENT to be set (browser-like UA — www.oceanpark.com.hk WAF-blocks default clients)',
+      );
+    }
+    req.headers = {
+      ...req.headers,
+      'user-agent': this.userAgent,
+    };
   }
 
   // ── HTTP Fetch Methods ────────────────────────────────────────────────────

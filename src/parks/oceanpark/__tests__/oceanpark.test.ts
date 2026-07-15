@@ -800,3 +800,26 @@ describe('buildSchedules', () => {
     expect(scheds[0].schedule.find((s: any) => s.date === '2026-07-08')).toBeDefined();
   });
 });
+
+// ── injectUserAgent ───────────────────────────────────────────────────────────
+
+describe('injectUserAgent', () => {
+  // www.oceanpark.com.hk WAF-blocks any request without a browser-like UA
+  // (returns a 403 "System Maintenance" page instead of the real SSR
+  // content) — regression coverage for the bug this caused: every
+  // attractions/dining/schedule fetch failed on every single sync, so
+  // buildLiveData's per-source .catch() silently emitted zero live data for
+  // attractions and shows on every cycle, not just an occasional flaky one.
+  test('sets the configured User-Agent header on the request', async () => {
+    const park = new OceanParkHongKong({config: {baseURL: 'https://www.oceanpark.com.hk', userAgent: 'TestAgent/1.0'} as any});
+    const req: any = {headers: {accept: 'text/html'}};
+    await park.injectUserAgent(req);
+    expect(req.headers['user-agent']).toBe('TestAgent/1.0');
+    expect(req.headers.accept).toBe('text/html');
+  });
+
+  test('throws a clear config error instead of silently sending an unauthenticated request', async () => {
+    const park = new OceanParkHongKong({config: {baseURL: 'https://www.oceanpark.com.hk', userAgent: ''} as any});
+    await expect(park.injectUserAgent({headers: {}} as any)).rejects.toThrow('OCEANPARK_USERAGENT');
+  });
+});
