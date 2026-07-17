@@ -152,6 +152,29 @@ describe('buildLiveData', () => {
     expect(entry.queue.STANDBY.waitTime).toBe(30);
   });
 
+  test('an attraction with IsOpen:true but IsOperational:false is OPERATING (unmetered rides, e.g. Djurs)', async () => {
+    const live = mkLive();
+    live.entities.Item.records.push(
+      {_id: 101, IsOperational: false, IsOpen: true, OpeningTimes: range('10:00:00', '20:00:00')},
+    );
+    const result = await new Probe(mkRecords(), live).live();
+    expect(result.find(l => l.id === '101').status).toBe('OPERATING');
+  });
+
+  test('an attraction with an explicit IsOpen:false is CLOSED even when IsOperational is true', async () => {
+    const live = mkLive();
+    live.entities.Item.records[0] = {_id: 100, IsOperational: true, IsOpen: false, QueueTime: 1800};
+    const result = await new Probe(mkRecords(), live).live();
+    expect(result.find(l => l.id === '100').status).toBe('CLOSED');
+  });
+
+  test('an attraction with no IsOpen falls back to IsOperational: false → CLOSED', async () => {
+    const live = mkLive();
+    live.entities.Item.records.push({_id: 101, IsOperational: false});
+    const result = await new Probe(mkRecords(), live).live();
+    expect(result.find(l => l.id === '101').status).toBe('CLOSED');
+  });
+
   test('a restaurant with a live IsOpen:true is OPERATING regardless of the window', async () => {
     const live = await new Probe().live();
     expect(live.find(l => l.id === '300').status).toBe('OPERATING');

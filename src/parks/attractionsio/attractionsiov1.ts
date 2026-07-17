@@ -141,10 +141,13 @@ type LiveDataRecord = {
   IsOpen?: boolean;
   QueueTime?: number | null;
   /**
-   * Present on venue records (restaurants/shops); rides leave it null. A
-   * stringified {"type":"range",start,end} blob of today's opening window.
-   * `IsOperational` flags *running rides*, so it is always false for dining/
-   * retail venues — `IsOpen` is the correct open/closed signal there.
+   * A stringified {"type":"range",start,end} blob of today's opening window.
+   * Present on venue records (restaurants/shops); most feeds leave it null on
+   * rides, but Djurs Sommerland populates it on attractions too.
+   * `IsOperational` flags *queue-metered running rides*, so it is always
+   * false for dining/retail venues — and, on feeds like Djurs Sommerland,
+   * for open-but-unmetered attractions as well. An explicit `IsOpen` boolean
+   * is the authoritative open/closed signal wherever it is present.
    */
   OpeningTimes?: string | null;
 };
@@ -1172,11 +1175,16 @@ class AttractionsIOV1 extends Destination {
 
       // Attractions: operating status + standby wait time
       if (attractionIds.has(id)) {
-        // Determine status
-        let status: 'OPERATING' | 'CLOSED' | 'DOWN' = record.IsOperational ? 'OPERATING' : 'CLOSED';
-        if (record.IsOpen === false) {
-          status = 'CLOSED';
-        }
+        // An explicit boolean IsOpen is the authoritative live signal, as in
+        // the dining branch below: some feeds (e.g. Djurs Sommerland) set
+        // IsOperational only on their queue-metered rides, leaving every
+        // unmetered-but-open attraction at IsOperational:false. Fall back to
+        // IsOperational when IsOpen is absent (Merlin feeds omit it on
+        // non-operating rides).
+        const isOpen = typeof record.IsOpen === 'boolean'
+          ? record.IsOpen
+          : !!record.IsOperational;
+        const status: 'OPERATING' | 'CLOSED' = isOpen ? 'OPERATING' : 'CLOSED';
 
         const entry: LiveData = {
           id,
