@@ -98,6 +98,58 @@ const DAY_NAME_TO_INDEX: Record<string, number> = {
 // Number of days of schedule data to project from the weekly pattern.
 const SCHEDULE_DAYS = 30;
 
+/** Convert a 12h hour + AM/PM period to a 24h hour. */
+function to24Hour(hour: number, period: string): number {
+  if (period === 'AM') return hour === 12 ? 0 : hour;
+  return hour === 12 ? 12 : hour + 12;
+}
+
+/**
+ * Parse a dashboard `openingHours` string like "4:00 PM - 12:00 AM KSA"
+ * into 24h HH:mm open/close times. Returns null for non-matching strings
+ * (e.g. "Closed").
+ */
+export function parseDashboardHours(str: string): {open: string; close: string} | null {
+  const match = (str || '').match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return null;
+
+  const openHour = to24Hour(parseInt(match[1], 10), match[3].toUpperCase());
+  const closeHour = to24Hour(parseInt(match[4], 10), match[6].toUpperCase());
+
+  return {
+    open: `${String(openHour).padStart(2, '0')}:${match[2]}`,
+    close: `${String(closeHour).padStart(2, '0')}:${match[5]}`,
+  };
+}
+
+/**
+ * Fallback schedule source for when the website scrape that normally
+ * supplies the weekly hours pattern is unavailable (e.g. WAF-blocked —
+ * see getWebsiteSchedule). The dashboard endpoint lives on a different
+ * subdomain and only ever reports *today's* hours, not a weekly pattern,
+ * so this covers a single day rather than a full projection.
+ */
+export function buildTodayScheduleFromDashboard(
+  dashboard: QiddiyaDashboardResponse['data'] | undefined,
+  today: Date,
+  timezone: string,
+): Array<{date: string; type: string; openingTime: string; closingTime: string}> {
+  if (dashboard?.parkInfo?.isOpen === false) return [];
+
+  const hours = parseDashboardHours(dashboard?.parkInfo?.openingHours || '');
+  if (!hours) return [];
+
+  const dateStr = formatDate(today, timezone);
+  const closingDate = hours.close === '00:00' ? formatDate(addDays(today, 1), timezone) : dateStr;
+
+  return [{
+    date: dateStr,
+    type: 'OPERATING',
+    openingTime: constructDateTime(dateStr, hours.open, timezone),
+    closingTime: constructDateTime(closingDate, hours.close, timezone),
+  }];
+}
+
 // Classify an activity as belonging to Six Flags or Aqua Rabia based on the
 // asset path in its image URL. The shared API endpoint returns activities for
 // both parks mixed together.
@@ -206,6 +258,13 @@ export class QiddiyaCity extends Destination {
    * Scrape weekly schedule from the website's megaMenu svelte component.
    * Returns a map of day index (0=Sun..6=Sat) → {open, close} in HH:mm,
    * or absent for closed days.
+   *
+   * sixflagsqiddiyacity.com sits behind Cloudflare Bot Management, which
+   * can 403 this fetch independently of the api.* subdomain used for
+   * activities/live data (confirmed 2026-07-19: browser UA didn't help,
+   * bot-management blocks are fingerprint/reputation-based, not header-
+   * based). When that happens this returns {} and buildSchedules() falls
+   * back to buildTodayScheduleFromDashboard() for a same-day-only schedule.
    */
   @cache({ttlSeconds: 43200}) // 12h
   async getWebsiteSchedule(): Promise<Record<number, {open: string; close: string}>> {
@@ -328,8 +387,7 @@ export class QiddiyaCity extends Destination {
   }
 
   private to24h(hour: number, period: string): number {
-    if (period === 'AM') return hour === 12 ? 0 : hour;
-    return hour === 12 ? 12 : hour + 12;
+    return to24Hour(hour, period);
   }
 
   // ─── Destination + entities ─────────────────────────────────────────────
@@ -472,7 +530,9 @@ export class QiddiyaCity extends Destination {
     const aquaRabia: EntitySchedule = {id: AQUA_RABIA_PARK_ID, schedule: []} as EntitySchedule;
 
     if (Object.keys(weeklyHours).length === 0) {
-      return [{id: SIX_FLAGS_PARK_ID, schedule: []} as EntitySchedule, aquaRabia];
+      const dashboard = await this.getDashboard();
+      const todaySchedule = buildTodayScheduleFromDashboard(dashboard, new Date(), this.timezone);
+      return [{id: SIX_FLAGS_PARK_ID, schedule: todaySchedule} as EntitySchedule, aquaRabia];
     }
 
     // Project the weekly pattern onto the next N days.
