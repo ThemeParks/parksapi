@@ -8,7 +8,64 @@
  * (separately-sourced, unaffected) dashboard endpoint when that happens.
  */
 import {describe, test, expect} from 'vitest';
-import {parseDashboardHours, buildTodayScheduleFromDashboard, closesNextDay} from '../qiddiyacity.js';
+import {
+  parseDashboardHours,
+  buildTodayScheduleFromDashboard,
+  closesNextDay,
+  buildWeeklyScheduleFromMegaMenu,
+} from '../qiddiyacity.js';
+
+describe('buildWeeklyScheduleFromMegaMenu', () => {
+  const OPEN = {open: '16:00', close: '00:00'};
+
+  test('parses the "Weekdays/Weekends" wording the live site emits (Saudi week)', () => {
+    // Weekdays = Sun–Thu, Weekends = Fri–Sat; Mon & Tue closed.
+    const schedule = buildWeeklyScheduleFromMegaMenu({
+      weekdaysSchedule: 'Weekdays: 4 PM - 12 AM',
+      weekendsSchedule: 'Weekends: 4 PM - 12 AM',
+      currentWeatherProTips: [{relatedWeather: 'all', proTipText: 'Mondays & Tuesdays'}],
+    });
+    expect(schedule).toEqual({
+      0: OPEN, // Sunday
+      3: OPEN, // Wednesday
+      4: OPEN, // Thursday
+      5: OPEN, // Friday
+      6: OPEN, // Saturday
+    });
+    // Mon (1) and Tue (2) are closed → absent
+    expect(schedule[1]).toBeUndefined();
+    expect(schedule[2]).toBeUndefined();
+  });
+
+  test('still parses legacy day-range wording ("Wed to Fri & Sun", "Saturdays")', () => {
+    const schedule = buildWeeklyScheduleFromMegaMenu({
+      weekdaysSchedule: 'Wed to Fri & Sun 3 PM - 11 PM',
+      weekendsSchedule: 'Saturdays 12 PM - 12 AM',
+      currentWeatherProTips: [{relatedWeather: 'all', proTipText: 'Mondays & Tuesdays'}],
+    });
+    expect(schedule).toEqual({
+      0: {open: '15:00', close: '23:00'}, // Sunday
+      3: {open: '15:00', close: '23:00'}, // Wednesday
+      4: {open: '15:00', close: '23:00'}, // Thursday
+      5: {open: '15:00', close: '23:00'}, // Friday
+      6: {open: '12:00', close: '00:00'}, // Saturday
+    });
+  });
+
+  test('returns an empty map for null/empty input', () => {
+    expect(buildWeeklyScheduleFromMegaMenu(null)).toEqual({});
+    expect(buildWeeklyScheduleFromMegaMenu({})).toEqual({});
+  });
+
+  test('does not apply closed days it was not told about', () => {
+    const schedule = buildWeeklyScheduleFromMegaMenu({
+      weekdaysSchedule: 'Weekdays: 4 PM - 12 AM',
+      weekendsSchedule: 'Weekends: 4 PM - 12 AM',
+    });
+    // No proTip → all 7 days open
+    expect(Object.keys(schedule).sort()).toEqual(['0', '1', '2', '3', '4', '5', '6']);
+  });
+});
 
 const TZ = 'Asia/Riyadh';
 

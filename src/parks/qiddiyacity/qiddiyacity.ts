@@ -162,6 +162,128 @@ export function buildTodayScheduleFromDashboard(
   }];
 }
 
+/** Shape of the megaMenu locationWeatherSchedule fields the weekly parser reads. */
+export interface MegaMenuSchedule {
+  weekdaysSchedule?: string;
+  weekendsSchedule?: string;
+  currentWeatherProTips?: Array<{relatedWeather?: string; proTipText?: string}>;
+}
+
+// Saudi Arabia work week: the weekend is Fri/Sat, weekdays run Sun–Thu. The
+// site labels its two schedule strings "Weekdays"/"Weekends" against this.
+const SAUDI_WEEKDAYS = [0, 1, 2, 3, 4]; // Sun–Thu
+const SAUDI_WEEKEND = [5, 6]; // Fri, Sat
+
+/** Map a day token ("saturdays"/"sun"/"wed") to a 0=Sun..6=Sat index, or -1. */
+function dayNameToIndex(name: string): number {
+  const clean = name.replace(/s$/i, '').trim().toLowerCase(); // "saturdays" → "saturday"
+  for (const [key, idx] of Object.entries(DAY_NAME_TO_INDEX)) {
+    if (key.startsWith(clean) || clean.startsWith(key.substring(0, 3))) {
+      return idx;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Parse a day spec into 0=Sun..6=Sat indices. Handles the literal words
+ * "Weekdays"/"Weekends" (the wording the live site currently emits) plus day
+ * ranges ("wed to fri") and single days ("saturdays", "sun").
+ */
+function parseDaySpec(text: string): number[] {
+  const days: number[] = [];
+  // Split on "&" / "," to handle "Wed to Fri & Sun"
+  const parts = text.split(/[&,]/).map((s) => s.trim().replace(/from\s*$/i, '').trim());
+
+  for (const part of parts) {
+    if (/weekend/i.test(part)) { days.push(...SAUDI_WEEKEND); continue; }
+    if (/weekday/i.test(part)) { days.push(...SAUDI_WEEKDAYS); continue; }
+
+    // Range: "wed to fri"
+    const rangeMatch = part.match(/(\w+)\s+to\s+(\w+)/i);
+    if (rangeMatch) {
+      const start = dayNameToIndex(rangeMatch[1]);
+      const end = dayNameToIndex(rangeMatch[2]);
+      if (start >= 0 && end >= 0) {
+        // Walk from start to end (wrapping around the week)
+        let d = start;
+        while (true) {
+          days.push(d);
+          if (d === end) break;
+          d = (d + 1) % 7;
+        }
+      }
+      continue;
+    }
+
+    // Single day: "saturdays" / "sunday" / "sat"
+    const idx = dayNameToIndex(part);
+    if (idx >= 0) days.push(idx);
+  }
+
+  return days;
+}
+
+/**
+ * Parse one schedule string ("Weekdays: 4 PM - 12 AM", "Wed to Fri & Sun 3 PM
+ * - 11 PM", "Saturdays 12 PM - 12 AM") into day-index → {open, close} entries,
+ * skipping any day listed in closedDays.
+ */
+function parseScheduleString(
+  str: string,
+  out: Record<number, {open: string; close: string}>,
+  closedDays: Set<number>,
+): void {
+  // Extract the time portion: "N PM - N PM" or "N AM - N AM"
+  const timeMatch = str.match(/(\d{1,2})\s*(AM|PM)\s*-\s*(\d{1,2})\s*(AM|PM)/i);
+  if (!timeMatch) return;
+
+  const openHour = to24Hour(parseInt(timeMatch[1], 10), timeMatch[2].toUpperCase());
+  const closeHour = to24Hour(parseInt(timeMatch[3], 10), timeMatch[4].toUpperCase());
+  const open = `${String(openHour).padStart(2, '0')}:00`;
+  const close = `${String(closeHour).padStart(2, '0')}:00`;
+
+  // Day names/ranges live in the text before the time portion.
+  const dayPart = str.substring(0, timeMatch.index).toLowerCase();
+  for (const dayIdx of parseDaySpec(dayPart)) {
+    if (!closedDays.has(dayIdx)) {
+      out[dayIdx] = {open, close};
+    }
+  }
+}
+
+/** Extract closed-day indices from proTip text like "Mondays & Tuesdays". */
+function parseClosedDays(closedText: string): Set<number> {
+  const closed = new Set<number>();
+  const lower = (closedText || '').toLowerCase();
+  for (const [dayName, dayIdx] of Object.entries(DAY_NAME_TO_INDEX)) {
+    if (lower.includes(dayName.toLowerCase())) closed.add(dayIdx);
+  }
+  return closed;
+}
+
+/**
+ * Build a weekly hours map (0=Sun..6=Sat → {open, close} in 24h HH:mm) from the
+ * website megaMenu's locationWeatherSchedule. Understands both the current
+ * "Weekdays/Weekends" wording and legacy day-range strings, and drops days
+ * listed as closed in the proTips.
+ */
+export function buildWeeklyScheduleFromMegaMenu(
+  lws: MegaMenuSchedule | null | undefined,
+): Record<number, {open: string; close: string}> {
+  const schedule: Record<number, {open: string; close: string}> = {};
+  if (!lws) return schedule;
+
+  const closedText = lws.currentWeatherProTips
+    ?.find((t) => t.relatedWeather === 'all')?.proTipText || '';
+  const closedDays = parseClosedDays(closedText);
+
+  if (lws.weekdaysSchedule) parseScheduleString(lws.weekdaysSchedule, schedule, closedDays);
+  if (lws.weekendsSchedule) parseScheduleString(lws.weekendsSchedule, schedule, closedDays);
+
+  return schedule;
+}
+
 // Classify an activity as belonging to Six Flags or Aqua Rabia based on the
 // asset path in its image URL. The shared API endpoint returns activities for
 // both parks mixed together.
@@ -296,110 +418,11 @@ export class QiddiyaCity extends Destination {
         .replace(/&apos;/g, "'");
 
       const data = JSON.parse(decoded);
-      const lws = data?.locationWeatherSchedule;
-      if (!lws) return {};
-
-      const schedule: Record<number, {open: string; close: string}> = {};
-
-      // Parse closed days from proTips (e.g., "Mondays & Tuesdays")
-      const closedDays = new Set<number>();
-      const closedText = lws.currentWeatherProTips
-        ?.find((t: any) => t.relatedWeather === 'all')?.proTipText || '';
-      for (const [dayName, dayIdx] of Object.entries(DAY_NAME_TO_INDEX)) {
-        if (closedText.toLowerCase().includes(dayName.toLowerCase())) {
-          closedDays.add(dayIdx as number);
-        }
-      }
-
-      // Parse schedule strings like "Wed to Fri & Sun 3 PM - 11 PM"
-      if (lws.weekdaysSchedule) {
-        this.parseScheduleString(lws.weekdaysSchedule, schedule, closedDays);
-      }
-      if (lws.weekendsSchedule) {
-        this.parseScheduleString(lws.weekendsSchedule, schedule, closedDays);
-      }
-
-      return schedule;
+      return buildWeeklyScheduleFromMegaMenu(data?.locationWeatherSchedule);
     } catch (err) {
       console.warn('QiddiyaCity: failed to scrape website schedule:', err);
       return {};
     }
-  }
-
-  /**
-   * Parse a human-readable schedule string like "Wed to Fri & Sun 3 PM - 11 PM"
-   * or "Saturdays from 12 PM - 12 AM" into day-index → {open, close} entries.
-   */
-  private parseScheduleString(
-    str: string,
-    out: Record<number, {open: string; close: string}>,
-    closedDays: Set<number>,
-  ): void {
-    // Extract the time portion: "N PM - N PM" or "N AM - N AM"
-    const timeMatch = str.match(/(\d{1,2})\s*(AM|PM)\s*-\s*(\d{1,2})\s*(AM|PM)/i);
-    if (!timeMatch) return;
-
-    const openHour = this.to24h(parseInt(timeMatch[1]), timeMatch[2].toUpperCase());
-    const closeHour = this.to24h(parseInt(timeMatch[3]), timeMatch[4].toUpperCase());
-    const open = `${String(openHour).padStart(2, '0')}:00`;
-    const close = `${String(closeHour).padStart(2, '0')}:00`;
-
-    // Extract day names/ranges from the text before the time
-    const dayPart = str.substring(0, timeMatch.index).toLowerCase();
-
-    // Resolve day indices from the text
-    const days = this.parseDaySpec(dayPart);
-    for (const dayIdx of days) {
-      if (!closedDays.has(dayIdx)) {
-        out[dayIdx] = {open, close};
-      }
-    }
-  }
-
-  /** Parse day spec like "wed to fri & sun" or "saturdays" into day indices. */
-  private parseDaySpec(text: string): number[] {
-    const days: number[] = [];
-    // Split on "&" / "," to handle "Wed to Fri & Sun"
-    const parts = text.split(/[&,]/).map(s => s.trim().replace(/from\s*$/i, '').trim());
-
-    for (const part of parts) {
-      // Range: "wed to fri"
-      const rangeMatch = part.match(/(\w+)\s+to\s+(\w+)/i);
-      if (rangeMatch) {
-        const start = this.dayNameToIndex(rangeMatch[1]);
-        const end = this.dayNameToIndex(rangeMatch[2]);
-        if (start >= 0 && end >= 0) {
-          // Walk from start to end (wrapping around week)
-          let d = start;
-          while (true) {
-            days.push(d);
-            if (d === end) break;
-            d = (d + 1) % 7;
-          }
-        }
-        continue;
-      }
-
-      // Single day: "saturdays" / "sunday" / "sat"
-      const idx = this.dayNameToIndex(part);
-      if (idx >= 0) days.push(idx);
-    }
-
-    return days;
-  }
-
-  private dayNameToIndex(name: string): number {
-    const clean = name.replace(/s$/i, '').trim().toLowerCase(); // "saturdays" → "saturday"
-    for (const [key, idx] of Object.entries(DAY_NAME_TO_INDEX)) {
-      if (key.startsWith(clean) || clean.startsWith(key.substring(0, 3))) {
-        return idx as number;
-      }
-    }
-    return -1;
-  }
-
-  private to24h(hour: number, period: string): number {
-    return to24Hour(hour, period);
   }
 
   // ─── Destination + entities ─────────────────────────────────────────────
