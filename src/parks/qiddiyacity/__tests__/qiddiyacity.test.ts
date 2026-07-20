@@ -8,9 +8,25 @@
  * (separately-sourced, unaffected) dashboard endpoint when that happens.
  */
 import {describe, test, expect} from 'vitest';
-import {parseDashboardHours, buildTodayScheduleFromDashboard} from '../qiddiyacity.js';
+import {parseDashboardHours, buildTodayScheduleFromDashboard, closesNextDay} from '../qiddiyacity.js';
 
 const TZ = 'Asia/Riyadh';
+
+describe('closesNextDay', () => {
+  test('rolls over for an exact midnight close', () => {
+    expect(closesNextDay('16:00', '00:00')).toBe(true);
+  });
+
+  test('rolls over for a post-midnight close that is not exactly 00:00', () => {
+    // e.g. a Fright Fest night running 4pm-1am — this used to be missed by
+    // a check that only fired on an exact "00:00" close.
+    expect(closesNextDay('16:00', '01:00')).toBe(true);
+  });
+
+  test('does not roll over for a same-day close', () => {
+    expect(closesNextDay('10:00', '18:00')).toBe(false);
+  });
+});
 
 describe('parseDashboardHours', () => {
   test('parses a standard AM/PM range with a trailing timezone abbreviation', () => {
@@ -44,6 +60,12 @@ describe('buildTodayScheduleFromDashboard', () => {
 
   test('rolls a midnight closing time over to the next calendar day', () => {
     const dashboard = {parkInfo: {isOpen: true, openingHours: '4:00 PM - 12:00 AM KSA'}};
+    const schedule = buildTodayScheduleFromDashboard(dashboard, today, TZ);
+    expect(schedule[0].closingTime).toContain('2026-07-20');
+  });
+
+  test('rolls a past-midnight closing time (not exactly 00:00) over to the next calendar day', () => {
+    const dashboard = {parkInfo: {isOpen: true, openingHours: '4:00 PM - 1:00 AM KSA'}};
     const schedule = buildTodayScheduleFromDashboard(dashboard, today, TZ);
     expect(schedule[0].closingTime).toContain('2026-07-20');
   });

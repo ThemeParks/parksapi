@@ -105,6 +105,18 @@ function to24Hour(hour: number, period: string): number {
 }
 
 /**
+ * True when a close time (24h HH:mm) falls on the calendar day after an
+ * open time (24h HH:mm) — i.e. the venue closes past midnight relative to
+ * opening. Compares as zero-padded 24h strings, so lexical order matches
+ * chronological order within a day; a close time that is not later than
+ * open (e.g. open 16:00 / close 01:00) means it rolled into the next day,
+ * not just an exact "00:00" close.
+ */
+export function closesNextDay(open: string, close: string): boolean {
+  return close <= open;
+}
+
+/**
  * Parse a dashboard `openingHours` string like "4:00 PM - 12:00 AM KSA"
  * into 24h HH:mm open/close times. Returns null for non-matching strings
  * (e.g. "Closed").
@@ -140,7 +152,7 @@ export function buildTodayScheduleFromDashboard(
   if (!hours) return [];
 
   const dateStr = formatDate(today, timezone);
-  const closingDate = hours.close === '00:00' ? formatDate(addDays(today, 1), timezone) : dateStr;
+  const closingDate = closesNextDay(hours.open, hours.close) ? formatDate(addDays(today, 1), timezone) : dateStr;
 
   return [{
     date: dateStr,
@@ -547,8 +559,8 @@ export class QiddiyaCity extends Destination {
       const hours = weeklyHours[dayIdx];
       if (!hours) continue; // Closed day
 
-      // Handle midnight closing (e.g. "12 AM" = next day)
-      const closingDate = hours.close === '00:00' ? formatDate(addDays(date, 1), this.timezone) : dateStr;
+      // Handle overnight closing (e.g. "12 AM" or "1 AM" = next day)
+      const closingDate = closesNextDay(hours.open, hours.close) ? formatDate(addDays(date, 1), this.timezone) : dateStr;
 
       schedule.push({
         date: dateStr,
