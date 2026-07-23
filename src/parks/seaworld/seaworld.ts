@@ -67,6 +67,18 @@ type SeaworldAvailabilityResponse = {
   }>;
 };
 
+/**
+ * Decrement the date portion of a local ISO string by one day, preserving the
+ * time-of-day and UTC offset (safe within a single DST season). Used to correct
+ * a source glitch where closes_at is dated a day late.
+ */
+function rollDateBackOneDay(localIso: string): string {
+  const tIdx = localIso.indexOf('T');
+  const d = new Date(`${localIso.slice(0, tIdx)}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10) + localIso.slice(tIdx);
+}
+
 // ---------------------------------------------------------------------------
 // Base class shared by all SeaWorld/Busch Gardens destinations
 // ---------------------------------------------------------------------------
@@ -443,7 +455,14 @@ export class SeaworldDestination extends Destination {
       const byDate = new Map<string, Array<{openingTime: string; closingTime: string}>>();
       for (const oh of parkDetail.open_hours) {
         const openingTime = localFromFakeUtc(oh.opens_at, this.timezone);
-        const closingTime = localFromFakeUtc(oh.closes_at, this.timezone);
+        let closingTime = localFromFakeUtc(oh.closes_at, this.timezone);
+        // Source-glitch guard: on some event days the API dates closes_at a day
+        // late, producing impossible 34–35h "operating" spans. No real session or
+        // event runs >25h, so roll the close back one day. Legit past-midnight
+        // event closes (e.g. 20:00→01:00, ~5h) stay well under the threshold.
+        if (new Date(closingTime).getTime() - new Date(openingTime).getTime() > 25 * 60 * 60 * 1000) {
+          closingTime = rollDateBackOneDay(closingTime);
+        }
         const date = openingTime.slice(0, 10);
         const entries = byDate.get(date);
         if (entries) entries.push({openingTime, closingTime});

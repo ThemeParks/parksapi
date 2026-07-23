@@ -490,7 +490,7 @@ describe('SeaworldDestination.buildSchedules — event hours vs normal hours', (
     expect(operating[0].openingTime).toContain('T10:00:00');
   });
 
-  it('crossing-midnight event that opens in the evening stays TICKETED_EVENT', async () => {
+  it('crossing-midnight event that opens in the evening stays TICKETED_EVENT (not clamped, <25h)', async () => {
     const park = orlandoWithAquaticaHours([
       {opens_at: '2026-07-24T09:00:00.0000000Z', closes_at: '2026-07-24T19:00:00.0000000Z', date: '07/24/2026'},
       {opens_at: '2026-07-24T20:00:00.0000000Z', closes_at: '2026-07-25T01:00:00.0000000Z', date: '07/24/2026'},
@@ -499,6 +499,19 @@ describe('SeaworldDestination.buildSchedules — event hours vs normal hours', (
     const events = day.filter((e: any) => e.type === 'TICKETED_EVENT');
     expect(events).toHaveLength(1);
     expect(events[0].openingTime).toContain('T20:00:00');
-    expect(events[0].closingTime).toContain('2026-07-25T01:00:00'); // next-day close preserved
+    expect(events[0].closingTime).toContain('2026-07-25T01:00:00'); // 5h overnight close preserved
+  });
+
+  it('clamps a >25h source glitch (next-day close on a daytime block) back to the same day', async () => {
+    // Real SeaWorld Orlando glitch on Howl-O-Scream dates: opens 09/18 09:00 but
+    // closes_at is dated 09/19 → a bogus 34h "operating" span.
+    const park = orlandoWithAquaticaHours([
+      {opens_at: '2026-09-18T09:00:00.0000000Z', closes_at: '2026-09-19T19:00:00.0000000Z', date: '09/18/2026'},
+    ]);
+    const day = await schedFor(park, '2026-09-18');
+    expect(day).toHaveLength(1);
+    expect(day[0].type).toBe('OPERATING');
+    // Rolled back one day: 09:00–19:00 same day, not 34h.
+    expect(day[0].closingTime).toContain('2026-09-18T19:00:00');
   });
 });
