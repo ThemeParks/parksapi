@@ -953,10 +953,38 @@ export class SixFlags extends Destination {
       }
     }
 
-    // Process rides (venueId: 1) from venue status
+    // Process rides (venueId: 1) from the union of venue-status and wait-times.
+    //
+    // Venue-status is the ride roster, but the vendor sometimes publishes a
+    // live wait for a ride it has dropped from that roster. Enumerating
+    // venue-status alone silently discards the wait even though we already
+    // fetched it, so the ride goes missing from live output entirely and the
+    // downstream collector, which only stamps a record when we emit one, keeps
+    // serving whatever it last stored.
+    //
+    // Confirmed at Canada's Wonderland (park 40) on 2026-07-23: "The
+    // Daredeviler" (RIDE-040-00072) was serving a 60 minute standby wait in
+    // /wait-times, was absent from /venue-status (79 rides) and absent from
+    // /poi, and themeparks.wiki had been serving a CLOSED record frozen since
+    // 2026-04-20 while the ride was physically operating.
+    //
+    // Rides genuinely removed from a park (Time Warp, Speed City Raceway) are
+    // absent from wait-times too, so the union only recovers rides the vendor
+    // is still publishing live data for. Wait-times-only rides carry no status
+    // string; mapStatus('') falls back to the wait time, which is exactly the
+    // signal we have for them.
     const ridesVenue = venueStatus.venues.find(v => v.venueId === 1);
-    if (ridesVenue?.details) {
-      for (const ride of ridesVenue.details) {
+    const venueStatusRides = ridesVenue?.details ?? [];
+    const rosteredIds = new Set(venueStatusRides.map(r => r.fimsId));
+    const waitTimesOnlyRides = (waitTimesData?.venues ?? [])
+      .filter(v => v.venueId === 1)
+      .flatMap(v => v.details ?? [])
+      .filter(d => d.fimsId && !rosteredIds.has(d.fimsId))
+      .map(d => ({fimsId: d.fimsId, status: ''}));
+    const rideEntries = [...venueStatusRides, ...waitTimesOnlyRides];
+
+    if (rideEntries.length > 0) {
+      for (const ride of rideEntries) {
         if (addedIds.has(ride.fimsId)) continue;
         addedIds.add(ride.fimsId);
 
