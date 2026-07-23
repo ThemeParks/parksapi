@@ -429,20 +429,34 @@ export class SeaworldDestination extends Destination {
       const parkDetail = await this.getParkDetail(parkId);
       if (!parkDetail.open_hours || parkDetail.open_hours.length === 0) continue;
 
-      const schedule = parkDetail.open_hours
-        .map((oh) => {
-          // opens_at / closes_at are "fake UTC" strings that encode local times
-          const openTime = localFromFakeUtc(oh.opens_at, this.timezone);
-          const closeTime = localFromFakeUtc(oh.closes_at, this.timezone);
-          // Extract date portion from the ISO string (YYYY-MM-DD)
-          const date = openTime.slice(0, 10);
-          return {
+      // On event days the API returns a second open_hours block for the SAME
+      // date — the park's daytime session (e.g. 9:00–19:30) plus a separate
+      // evening event after a gap (e.g. 20:00–23:00, "summer nights"). Both
+      // arrive with type-less hours, so emitting them all as OPERATING makes the
+      // event masquerade as (or overwrite) the normal operating hours. Group by
+      // date and keep the earliest session as OPERATING; any later same-date
+      // block is a TICKETED_EVENT.
+      const byDate = new Map<string, typeof parkDetail.open_hours>();
+      for (const oh of parkDetail.open_hours) {
+        const date = localFromFakeUtc(oh.opens_at, this.timezone).slice(0, 10);
+        const entries = byDate.get(date);
+        if (entries) entries.push(oh);
+        else byDate.set(date, [oh]);
+      }
+
+      const schedule = [];
+      for (const [date, entries] of byDate) {
+        // Earliest opening = the park's operating session; later ones are events.
+        entries.sort((a, b) => a.opens_at.localeCompare(b.opens_at));
+        for (let i = 0; i < entries.length; i++) {
+          schedule.push({
             date,
-            openingTime: openTime,
-            closingTime: closeTime,
-            type: 'OPERATING' as const,
-          };
-        });
+            openingTime: localFromFakeUtc(entries[i].opens_at, this.timezone),
+            closingTime: localFromFakeUtc(entries[i].closes_at, this.timezone),
+            type: i === 0 ? ('OPERATING' as const) : ('TICKETED_EVENT' as const),
+          });
+        }
+      }
 
       schedules.push({
         id: parkDetail.Id,
