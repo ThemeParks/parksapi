@@ -67,6 +67,18 @@ type SeaworldAvailabilityResponse = {
   }>;
 };
 
+/**
+ * Decrement the date portion of a local ISO string by one day, preserving the
+ * time-of-day and UTC offset (safe within a single DST season). Used to correct
+ * a source glitch where closes_at is dated a day late.
+ */
+function rollDateBackOneDay(localIso: string): string {
+  const tIdx = localIso.indexOf('T');
+  const d = new Date(`${localIso.slice(0, tIdx)}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10) + localIso.slice(tIdx);
+}
+
 // ---------------------------------------------------------------------------
 // Base class shared by all SeaWorld/Busch Gardens destinations
 // ---------------------------------------------------------------------------
@@ -429,20 +441,67 @@ export class SeaworldDestination extends Destination {
       const parkDetail = await this.getParkDetail(parkId);
       if (!parkDetail.open_hours || parkDetail.open_hours.length === 0) continue;
 
-      const schedule = parkDetail.open_hours
-        .map((oh) => {
-          // opens_at / closes_at are "fake UTC" strings that encode local times
-          const openTime = localFromFakeUtc(oh.opens_at, this.timezone);
-          const closeTime = localFromFakeUtc(oh.closes_at, this.timezone);
-          // Extract date portion from the ISO string (YYYY-MM-DD)
-          const date = openTime.slice(0, 10);
-          return {
-            date,
-            openingTime: openTime,
-            closingTime: closeTime,
-            type: 'OPERATING' as const,
-          };
+      // On event days the API returns a second open_hours block for the SAME
+      // date — the park's daytime session (e.g. 9:00–19:30) plus a separate
+      // ticketed event (evening "summer nights" 20:00–23:00, a pre-opening
+      // early-entry event, or an overnight event). The blocks are type-less, so
+      // emitting them all as OPERATING makes the event masquerade as (or
+      // overwrite) the normal operating hours. There is no event flag on the
+      // hours entries and the /events endpoint is a noisy mixed list (festivals,
+      // shows, private events) that doesn't reliably map to a block — so classify
+      // by time of day: the block overlapping core midday IS the operating
+      // session; every other same-date block is a TICKETED_EVENT. Robust to
+      // events that open before OR after normal hours (unlike "earliest block").
+      const byDate = new Map<string, Array<{openingTime: string; closingTime: string}>>();
+      for (const oh of parkDetail.open_hours) {
+        const openingTime = localFromFakeUtc(oh.opens_at, this.timezone);
+        let closingTime = localFromFakeUtc(oh.closes_at, this.timezone);
+        // Source-glitch guard: on some event days the API dates closes_at a day
+        // late, producing impossible 34–35h "operating" spans. No real session or
+        // event runs >25h, so roll the close back one day. Legit past-midnight
+        // event closes (e.g. 20:00→01:00, ~5h) stay well under the threshold.
+        if (new Date(closingTime).getTime() - new Date(openingTime).getTime() > 25 * 60 * 60 * 1000) {
+          closingTime = rollDateBackOneDay(closingTime);
+        }
+        const date = openingTime.slice(0, 10);
+        const entries = byDate.get(date);
+        if (entries) entries.push({openingTime, closingTime});
+        else byDate.set(date, [{openingTime, closingTime}]);
+      }
+
+      // Local minutes-since-midnight from a "…THH:MM…" ISO string.
+      const minsOfDay = (iso: string) =>
+        parseInt(iso.slice(11, 13), 10) * 60 + parseInt(iso.slice(14, 16), 10);
+      const MIDDAY_START = 12 * 60; // 12:00 local
+      const MIDDAY_END = 16 * 60; //   16:00 local
+
+      const schedule = [];
+      for (const [date, entries] of byDate) {
+        const spans = entries.map((e) => {
+          const open = minsOfDay(e.openingTime);
+          // Next-day close (crosses midnight) rolls the close minutes past 24h.
+          const close =
+            minsOfDay(e.closingTime) + (e.closingTime.slice(0, 10) > date ? 24 * 60 : 0);
+          return {...e, open, close};
         });
+        // Operating session = block(s) overlapping the midday window. Events
+        // (early-morning, evening, overnight) don't reach it. Fall back to the
+        // longest block if none overlaps (e.g. an evening-event-only day) so a
+        // day never loses its operating hours entirely.
+        let operating = spans.filter((s) => s.open < MIDDAY_END && s.close > MIDDAY_START);
+        if (operating.length === 0 && spans.length > 0) {
+          operating = [spans.reduce((a, b) => (b.close - b.open > a.close - a.open ? b : a))];
+        }
+        const operatingSet = new Set(operating);
+        for (const s of spans) {
+          schedule.push({
+            date,
+            openingTime: s.openingTime,
+            closingTime: s.closingTime,
+            type: operatingSet.has(s) ? ('OPERATING' as const) : ('TICKETED_EVENT' as const),
+          });
+        }
+      }
 
       schedules.push({
         id: parkDetail.Id,

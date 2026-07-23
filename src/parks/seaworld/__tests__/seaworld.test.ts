@@ -382,3 +382,136 @@ describe('Destination subclasses', () => {
     expect(park.resortIds[0]).toBe('45FE1F31-D4E4-4B1E-90E0-5255111070F2');
   });
 });
+
+describe('SeaworldDestination.buildSchedules — event hours vs normal hours', () => {
+  const AQUATICA_ID = '4B040706-968A-41B4-9967-D93C7814E665';
+
+  // Build an Orlando instance whose Aquatica park returns the given open_hours.
+  function orlandoWithAquaticaHours(
+    openHours: Array<{opens_at: string; closes_at: string; date: string}>,
+  ) {
+    const park = new SeaworldOrlando();
+    park.resortIds = [AQUATICA_ID];
+    park.getParkDetail = (async (parkId: string) =>
+      ({
+        Id: parkId,
+        park_Name: 'Aquatica Orlando',
+        TimeZone: 'America/New_York',
+        map_center: {Latitude: 28.42, Longitude: -81.47},
+        POIs: {Rides: [], Shows: [], Dining: [], Slides: []},
+        open_hours: openHours,
+      }) as any) as typeof park.getParkDetail;
+    return park;
+  }
+
+  async function schedFor(park: SeaworldOrlando, date: string) {
+    const scheds = await (park as any).buildSchedules();
+    const aq = scheds.find((s: any) => String(s.id).toUpperCase() === AQUATICA_ID);
+    return (aq?.schedule ?? []).filter((e: any) => e.date === date);
+  }
+
+  it('types the evening event block as TICKETED_EVENT, not a second OPERATING', async () => {
+    // Real Aquatica summer-night shape: 9am–7:30pm normal, then 8–11pm event.
+    const park = orlandoWithAquaticaHours([
+      {opens_at: '2026-07-23T09:00:00.0000000Z', closes_at: '2026-07-23T19:30:00.0000000Z', date: '07/23/2026'},
+      {opens_at: '2026-07-23T20:00:00.0000000Z', closes_at: '2026-07-23T23:00:00.0000000Z', date: '07/23/2026'},
+    ]);
+    const day = await schedFor(park, '2026-07-23');
+
+    expect(day).toHaveLength(2);
+    const operating = day.filter((e: any) => e.type === 'OPERATING');
+    const events = day.filter((e: any) => e.type === 'TICKETED_EVENT');
+    // Exactly one OPERATING (the real 9–7:30 hours), one event (8–11pm).
+    expect(operating).toHaveLength(1);
+    expect(operating[0].openingTime).toContain('T09:00:00');
+    expect(operating[0].closingTime).toContain('T19:30:00');
+    expect(events).toHaveLength(1);
+    expect(events[0].openingTime).toContain('T20:00:00');
+  });
+
+  it('leaves a single-block day as OPERATING', async () => {
+    const park = orlandoWithAquaticaHours([
+      {opens_at: '2026-07-26T09:00:00.0000000Z', closes_at: '2026-07-26T19:00:00.0000000Z', date: '07/26/2026'},
+    ]);
+    const day = await schedFor(park, '2026-07-26');
+    expect(day).toHaveLength(1);
+    expect(day[0].type).toBe('OPERATING');
+  });
+
+  it('picks the daytime session as OPERATING regardless of API ordering', async () => {
+    // Event listed before the normal block — order must not decide the type.
+    const park = orlandoWithAquaticaHours([
+      {opens_at: '2026-07-24T20:00:00.0000000Z', closes_at: '2026-07-24T23:00:00.0000000Z', date: '07/24/2026'},
+      {opens_at: '2026-07-24T09:00:00.0000000Z', closes_at: '2026-07-24T19:30:00.0000000Z', date: '07/24/2026'},
+    ]);
+    const day = await schedFor(park, '2026-07-24');
+    const operating = day.filter((e: any) => e.type === 'OPERATING');
+    expect(operating).toHaveLength(1);
+    expect(operating[0].openingTime).toContain('T09:00:00');
+  });
+
+  it('classifies a pre-opening early-entry event as TICKETED_EVENT, not OPERATING', async () => {
+    // Event OPENS BEFORE normal hours — "earliest block" would invert this.
+    const park = orlandoWithAquaticaHours([
+      {opens_at: '2026-07-24T07:00:00.0000000Z', closes_at: '2026-07-24T09:00:00.0000000Z', date: '07/24/2026'},
+      {opens_at: '2026-07-24T09:00:00.0000000Z', closes_at: '2026-07-24T19:30:00.0000000Z', date: '07/24/2026'},
+    ]);
+    const day = await schedFor(park, '2026-07-24');
+    const operating = day.filter((e: any) => e.type === 'OPERATING');
+    const events = day.filter((e: any) => e.type === 'TICKETED_EVENT');
+    expect(operating).toHaveLength(1);
+    expect(operating[0].openingTime).toContain('T09:00:00'); // the real daytime session
+    expect(events).toHaveLength(1);
+    expect(events[0].openingTime).toContain('T07:00:00');
+  });
+
+  it('classifies a midnight-start event as TICKETED_EVENT, not OPERATING', async () => {
+    const park = orlandoWithAquaticaHours([
+      {opens_at: '2026-07-24T00:00:00.0000000Z', closes_at: '2026-07-24T03:00:00.0000000Z', date: '07/24/2026'},
+      {opens_at: '2026-07-24T09:00:00.0000000Z', closes_at: '2026-07-24T19:30:00.0000000Z', date: '07/24/2026'},
+    ]);
+    const day = await schedFor(park, '2026-07-24');
+    const operating = day.filter((e: any) => e.type === 'OPERATING');
+    expect(operating).toHaveLength(1);
+    expect(operating[0].openingTime).toContain('T09:00:00');
+    expect(day.filter((e: any) => e.type === 'TICKETED_EVENT')[0].openingTime).toContain('T00:00:00');
+  });
+
+  it('keeps the daytime session OPERATING even when it is shorter than the event', async () => {
+    // Short shoulder-season day (4h) + longer evening event (5h): duration alone
+    // would misclassify, but the midday-overlapping block is still operating.
+    const park = orlandoWithAquaticaHours([
+      {opens_at: '2026-07-24T10:00:00.0000000Z', closes_at: '2026-07-24T14:00:00.0000000Z', date: '07/24/2026'},
+      {opens_at: '2026-07-24T18:00:00.0000000Z', closes_at: '2026-07-24T23:00:00.0000000Z', date: '07/24/2026'},
+    ]);
+    const day = await schedFor(park, '2026-07-24');
+    const operating = day.filter((e: any) => e.type === 'OPERATING');
+    expect(operating).toHaveLength(1);
+    expect(operating[0].openingTime).toContain('T10:00:00');
+  });
+
+  it('crossing-midnight event that opens in the evening stays TICKETED_EVENT (not clamped, <25h)', async () => {
+    const park = orlandoWithAquaticaHours([
+      {opens_at: '2026-07-24T09:00:00.0000000Z', closes_at: '2026-07-24T19:00:00.0000000Z', date: '07/24/2026'},
+      {opens_at: '2026-07-24T20:00:00.0000000Z', closes_at: '2026-07-25T01:00:00.0000000Z', date: '07/24/2026'},
+    ]);
+    const day = await schedFor(park, '2026-07-24');
+    const events = day.filter((e: any) => e.type === 'TICKETED_EVENT');
+    expect(events).toHaveLength(1);
+    expect(events[0].openingTime).toContain('T20:00:00');
+    expect(events[0].closingTime).toContain('2026-07-25T01:00:00'); // 5h overnight close preserved
+  });
+
+  it('clamps a >25h source glitch (next-day close on a daytime block) back to the same day', async () => {
+    // Real SeaWorld Orlando glitch on Howl-O-Scream dates: opens 09/18 09:00 but
+    // closes_at is dated 09/19 → a bogus 34h "operating" span.
+    const park = orlandoWithAquaticaHours([
+      {opens_at: '2026-09-18T09:00:00.0000000Z', closes_at: '2026-09-19T19:00:00.0000000Z', date: '09/18/2026'},
+    ]);
+    const day = await schedFor(park, '2026-09-18');
+    expect(day).toHaveLength(1);
+    expect(day[0].type).toBe('OPERATING');
+    // Rolled back one day: 09:00–19:00 same day, not 34h.
+    expect(day[0].closingTime).toContain('2026-09-18T19:00:00');
+  });
+});
