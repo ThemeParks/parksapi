@@ -98,6 +98,12 @@ initializeDatabase(database);
 try {
   database.exec('PRAGMA journal_mode=WAL');
   database.exec('PRAGMA busy_timeout=5000');
+  // synchronous=NORMAL: with WAL, fsync only at checkpoints, not per commit.
+  // This is the hot HTTP-response cache — hammered during a park's entity/sync
+  // sweep — and DatabaseSync is synchronous, so per-commit fsync on a slow or
+  // saturated disk stalls the caller's event loop. NORMAL only risks losing the
+  // last uncheckpointed cache rows on a hard crash, which are just re-fetched.
+  database.exec('PRAGMA synchronous=NORMAL');
 } catch {
   // Ignore if PRAGMAs fail (e.g. in-memory databases)
 }
