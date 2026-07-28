@@ -162,13 +162,20 @@ function attr(place: UniversalPlace, name: string): string | undefined {
  * e.g. USH's "Studio Tour - Mandarin/Spanish" and "Studio Tour Last Tram",
  * which are alternate-language / last-departure duplicates of the canonical
  * Studio Tour (their share links even point at WaterWorld). The feed marks each
- * `is_event=true` AND aims its `social_sharing_link?id=` at a DIFFERENT
- * canonical place_id. A genuine standalone entity's share link points at itself
- * — Bowser Jr. Challenge is also `is_event=true` but links to its own id, so it
- * is kept. Dropping these variants keeps the park from filling with per-language
- * / operational duplicates of a ride that's already listed.
+ * `is_event=true` AND aims its `social_sharing_link?id=` at a DIFFERENT place
+ * that ACTUALLY EXISTS in the feed (the canonical to defer to).
+ *
+ * Two things are NOT variants and must be kept:
+ *  - a share link that points at the place's own id (Bowser Jr. Challenge is
+ *    `is_event=true` but links to itself), and
+ *  - a share link that points at an id which does NOT exist in the feed — sloppy
+ *    feed data, not a real alias. UOR's Epic Universe meets (`uor.ueu.show.meet_
+ *    donkey_kong`) link to a phantom `uor.ueu.entertainment.meet_donkey_kong`
+ *    that the feed never emits; they are legit standalone entities.
+ *
+ * `knownPlaceIds` is the set of sanitized place_ids present in the feed.
  */
-function isEventVariantAlias(place: UniversalPlace): boolean {
+export function isEventVariantAlias(place: UniversalPlace, knownPlaceIds: Set<string>): boolean {
   if (attr(place, 'is_event') !== 'true') return false;
   const link = attr(place, 'social_sharing_link');
   const match = typeof link === 'string' ? link.match(/[?&]id=([^&]+)/) : null;
@@ -179,9 +186,10 @@ function isEventVariantAlias(place: UniversalPlace): boolean {
   } catch {
     sharedId = match[1];
   }
-  // Compare sanitized ids — the share-link id and place_id are the same raw
-  // scheme, but normalise defensively (matches how entity ids are formed).
-  return sanitizeId(sharedId) !== sanitizeId(place.place_id);
+  const sharedSan = sanitizeId(sharedId);
+  // A real variant defers to a DIFFERENT canonical that exists. Same-id (self
+  // link) or a target absent from the feed → keep the entity.
+  return sharedSan !== sanitizeId(place.place_id) && knownPlaceIds.has(sharedSan);
 }
 
 /**
@@ -196,9 +204,6 @@ export function placeToEntity(
 ): Entity | null {
   const entityType = PLACE_TYPE_TO_ENTITY[place.place_type.type];
   if (!entityType) return null;
-
-  // Drop per-language / operational variants of another POI (see helper).
-  if (isEventVariantAlias(place)) return null;
 
   const entity: Entity = {
     id: sanitizeId(place.place_id),
@@ -918,8 +923,14 @@ class Universal extends Destination {
       out.push(park);
     }
 
-    // Non-park entities (rides, shows, restaurants).
+    // Non-park entities (rides, shows, restaurants). Drop event-flagged variants
+    // that alias a DIFFERENT existing place (Studio Tour language/last-tram,
+    // Hogwarts Express first/last train) — checked against the full place set so
+    // a share link to a non-existent id (sloppy feed data) is NOT treated as a
+    // variant.
+    const knownPlaceIds = new Set(places.map((p) => sanitizeId(p.place_id)));
     for (const place of places) {
+      if (isEventVariantAlias(place, knownPlaceIds)) continue;
       const entity = placeToEntity(place, destinationId, this.timezone);
       if (entity) out.push(entity);
     }

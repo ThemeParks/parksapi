@@ -2,7 +2,7 @@
  * Unit tests for the pure helpers backing the /places migration.
  */
 import {describe, test, expect} from 'vitest';
-import {placeToEntity, parseShowTimes, type UniversalPlace, type UniversalShowListEntry} from '../universal.js';
+import {placeToEntity, isEventVariantAlias, parseShowTimes, type UniversalPlace, type UniversalShowListEntry} from '../universal.js';
 
 const DESTINATION = 'universalresort_orlando';
 const TZ = 'America/New_York';
@@ -123,51 +123,50 @@ describe('placeToEntity', () => {
     expect(placeToEntity(ridePlace, DESTINATION, TZ)?.parentId).toBe('uor.usf');
   });
 
-  // Event-flagged variants that alias ANOTHER canonical POI (language / last-tram
-  // duplicates) are dropped; genuine event entities that link to themselves stay.
-  const evented = (
-    placeId: string,
-    name: string,
-    type: 'Ride' | 'Show',
-    shareTargetId: string,
-    isEvent = 'true',
-  ): UniversalPlace => ({
+  // isEventVariantAlias: an event-flagged place is a variant ONLY when its share
+  // link targets a DIFFERENT place that EXISTS in the feed. Self-links and links
+  // to a non-existent id (sloppy feed data) are kept.
+  const evented = (placeId: string, shareTargetId: string, isEvent = 'true'): UniversalPlace => ({
     place_id: placeId,
-    name,
+    name: placeId,
     resort_area_code: 'ush',
-    venue_id: 'ush.upper_lot',
     place_type: {
-      type,
+      type: 'Show',
       attributes: [
         {name: 'is_event', value: isEvent},
-        {
-          name: 'social_sharing_link',
-          value: `https://www.universalstudioshollywood.com/applinks/poi?id=${shareTargetId}`,
-        },
+        {name: 'social_sharing_link', value: `https://x/applinks/poi?id=${shareTargetId}`},
       ],
     },
   });
+  const feed = (...ids: string[]) => new Set(ids);
 
-  test('Studio Tour - Mandarin (event, shares WaterWorld id) → null', () => {
-    const p = evented('ush.upper_lot.shows.studio_tour_mandarin', 'Studio Tour - Mandarin', 'Show', 'ush.upper_lot.shows.waterworld');
-    expect(placeToEntity(p, DESTINATION, TZ)).toBeNull();
+  test('variant → true: share target is a different EXISTING place (Studio Tour - Mandarin → WaterWorld)', () => {
+    const p = evented('ush.upper_lot.shows.studio_tour_mandarin', 'ush.upper_lot.shows.waterworld');
+    expect(isEventVariantAlias(p, feed(p.place_id, 'ush.upper_lot.shows.waterworld'))).toBe(true);
   });
 
-  test('Studio Tour Last Tram (event, shares canonical Studio Tour id) → null', () => {
-    const p = evented('ush.upper_lot.rides.studio_tour_last_tram', 'Studio Tour Last Tram', 'Ride', 'ush.upper_lot.rides.studio_tour');
-    expect(placeToEntity(p, DESTINATION, TZ)).toBeNull();
+  test('variant → true: Studio Tour Last Tram and Hogwarts Express First Train (share → canonical that exists)', () => {
+    const tram = evented('ush.upper_lot.rides.studio_tour_last_tram', 'ush.upper_lot.rides.studio_tour');
+    expect(isEventVariantAlias(tram, feed(tram.place_id, 'ush.upper_lot.rides.studio_tour'))).toBe(true);
+    const train = evented('uor.usf.rides.hogwarts_express_first_train', 'uor.usf.rides.hogwarts_express');
+    expect(isEventVariantAlias(train, feed(train.place_id, 'uor.usf.rides.hogwarts_express'))).toBe(true);
   });
 
-  test('Event entity whose share link points at itself → kept (Bowser Jr. Challenge)', () => {
-    const p = evented('ush.lower_lot.rides.bowser.jr.challenge', 'Bowser Jr. Challenge', 'Ride', 'ush.lower_lot.rides.bowser.jr.challenge');
-    const e = placeToEntity(p, DESTINATION, TZ);
-    expect(e).not.toBeNull();
-    expect(e?.parentId).toBe('ush.ush'); // and reparented off upper_lot
+  test('kept: event place whose share link points at ITSELF (Bowser Jr. Challenge)', () => {
+    const p = evented('ush.lower_lot.rides.bowser.jr.challenge', 'ush.lower_lot.rides.bowser.jr.challenge');
+    expect(isEventVariantAlias(p, feed(p.place_id))).toBe(false);
   });
 
-  test('Canonical Studio Tour (not an event) → kept', () => {
-    const p = evented('ush.upper_lot.rides.studio_tour', 'Studio Tour', 'Ride', 'ush.upper_lot.rides.studio_tour', 'false');
-    expect(placeToEntity(p, DESTINATION, TZ)).not.toBeNull();
+  test('kept: event place whose share target does NOT exist in the feed (UOR Meet Donkey Kong false-positive)', () => {
+    // Only uor.ueu.show.meet_donkey_kong exists; its share link points at a
+    // phantom uor.ueu.entertainment.meet_donkey_kong. Must NOT be dropped.
+    const p = evented('uor.ueu.show.meet_donkey_kong', 'uor.ueu.entertainment.meet_donkey_kong');
+    expect(isEventVariantAlias(p, feed(p.place_id))).toBe(false);
+  });
+
+  test('kept: non-event place is never a variant', () => {
+    const p = evented('ush.upper_lot.rides.studio_tour', 'ush.upper_lot.rides.other', 'false');
+    expect(isEventVariantAlias(p, feed(p.place_id, 'ush.upper_lot.rides.other'))).toBe(false);
   });
 
   test('Shop → null (not in PLACE_TYPE_TO_ENTITY)', () => {
