@@ -132,9 +132,56 @@ const PARK_PLACE_ID_TO_LEGACY_VENUE_ID: Record<string, string> = {
   'ush.ush': '13825',
 };
 
+/**
+ * Park-type places we deliberately do NOT surface as parks
+ * (PARK_PLACE_ID_TO_LEGACY_VENUE_ID omits them) still appear as the `venue_id`
+ * of real child places. Left alone, those children reference a parent entity
+ * that is never emitted, so the sync strands them in its unresolved-parent
+ * queue every cycle — never pushing them (observed on USH: 73 dining / rides /
+ * shows held indefinitely, incl. Fast & Furious: Hollywood Drift). Reconcile
+ * each such venue here, keyed by its sanitized venue_id:
+ *   - a park id → reparent the child onto that surfaced park
+ *   - null      → the venue has no wiki representation; drop the child
+ */
+const NON_SURFACED_VENUE_PARENT: Record<string, string | null> = {
+  // USH — Upper/Lower Lot are sub-areas of the single `ush.ush` park.
+  'ush.upper_lot': 'ush.ush',
+  'ush.lower_lot': 'ush.ush',
+  // CityWalk is a dining/shopping district, not a park on the wiki — exclude.
+  'ush.cw': null,
+  'uor.cw': null,
+};
+
 /** Read a single attribute value from a place's place_type.attributes[]. */
 function attr(place: UniversalPlace, name: string): string | undefined {
   return place.place_type.attributes?.find((a) => a.name === name)?.value;
+}
+
+/**
+ * True for event-flagged language / operational *variants* of another POI —
+ * e.g. USH's "Studio Tour - Mandarin/Spanish" and "Studio Tour Last Tram",
+ * which are alternate-language / last-departure duplicates of the canonical
+ * Studio Tour (their share links even point at WaterWorld). The feed marks each
+ * `is_event=true` AND aims its `social_sharing_link?id=` at a DIFFERENT
+ * canonical place_id. A genuine standalone entity's share link points at itself
+ * — Bowser Jr. Challenge is also `is_event=true` but links to its own id, so it
+ * is kept. Dropping these variants keeps the park from filling with per-language
+ * / operational duplicates of a ride that's already listed.
+ */
+function isEventVariantAlias(place: UniversalPlace): boolean {
+  if (attr(place, 'is_event') !== 'true') return false;
+  const link = attr(place, 'social_sharing_link');
+  const match = typeof link === 'string' ? link.match(/[?&]id=([^&]+)/) : null;
+  if (!match) return false;
+  let sharedId: string;
+  try {
+    sharedId = decodeURIComponent(match[1]);
+  } catch {
+    sharedId = match[1];
+  }
+  // Compare sanitized ids — the share-link id and place_id are the same raw
+  // scheme, but normalise defensively (matches how entity ids are formed).
+  return sanitizeId(sharedId) !== sanitizeId(place.place_id);
 }
 
 /**
@@ -150,6 +197,9 @@ export function placeToEntity(
   const entityType = PLACE_TYPE_TO_ENTITY[place.place_type.type];
   if (!entityType) return null;
 
+  // Drop per-language / operational variants of another POI (see helper).
+  if (isEventVariantAlias(place)) return null;
+
   const entity: Entity = {
     id: sanitizeId(place.place_id),
     name: place.name,
@@ -159,7 +209,16 @@ export function placeToEntity(
   } as Entity;
 
   if (place.venue_id) {
-    (entity as any).parentId = sanitizeId(place.venue_id);
+    const venue = sanitizeId(place.venue_id);
+    if (venue in NON_SURFACED_VENUE_PARENT) {
+      const reparent = NON_SURFACED_VENUE_PARENT[venue];
+      // null → venue isn't represented on the wiki (e.g. CityWalk): drop the
+      // child rather than strand it under a parent that is never emitted.
+      if (reparent === null) return null;
+      (entity as any).parentId = reparent;
+    } else {
+      (entity as any).parentId = venue;
+    }
   }
 
   const mapLoc = place.geometry?.locations?.find((l) => l.location_type === 'map');
