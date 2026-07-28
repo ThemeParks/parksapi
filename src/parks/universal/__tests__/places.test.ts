@@ -74,6 +74,102 @@ describe('placeToEntity', () => {
     expect(e?.parentId).toBe('uor.ioa');
   });
 
+  // USH Upper/Lower Lot are sub-areas of the single `ush.ush` park (not surfaced
+  // as parks themselves), so their children must reparent onto `ush.ush` or they
+  // strand in the sync's unresolved-parent queue forever.
+  test('USH Upper Lot child → reparented to ush.ush', () => {
+    const upperLotDining: UniversalPlace = {
+      place_id: 'ush.dining.krusty_burger',
+      name: 'Krusty Burger',
+      resort_area_code: 'ush',
+      venue_id: 'ush.upper_lot',
+      place_type: {type: 'Dining'},
+    };
+    expect(placeToEntity(upperLotDining, DESTINATION, TZ)?.parentId).toBe('ush.ush');
+  });
+
+  test('USH Lower Lot child → reparented to ush.ush', () => {
+    const lowerLotRide: UniversalPlace = {
+      place_id: 'ush.lower_lot.rides.jurassic_world_the_ride',
+      name: 'Jurassic World — The Ride',
+      resort_area_code: 'ush',
+      venue_id: 'ush.lower_lot',
+      place_type: {type: 'Ride'},
+    };
+    expect(placeToEntity(lowerLotRide, DESTINATION, TZ)?.parentId).toBe('ush.ush');
+  });
+
+  test('CityWalk child → null (district not surfaced as a park; excluded)', () => {
+    const ushCityWalk: UniversalPlace = {
+      place_id: 'ush.cw.dining.voodoo_doughnut',
+      name: 'Voodoo Doughnut',
+      resort_area_code: 'ush',
+      venue_id: 'ush.cw',
+      place_type: {type: 'Dining'},
+    };
+    const uorCityWalk: UniversalPlace = {
+      place_id: 'uor.cw.dining.voodoo_doughnut',
+      name: 'Voodoo Doughnut',
+      resort_area_code: 'uor',
+      venue_id: 'uor.cw',
+      place_type: {type: 'Dining'},
+    };
+    expect(placeToEntity(ushCityWalk, DESTINATION, TZ)).toBeNull();
+    expect(placeToEntity(uorCityWalk, DESTINATION, TZ)).toBeNull();
+  });
+
+  test('Surfaced-park venue is left unchanged (no accidental remap)', () => {
+    // ridePlace.venue_id === 'uor.usf' (a real park) must pass through as-is.
+    expect(placeToEntity(ridePlace, DESTINATION, TZ)?.parentId).toBe('uor.usf');
+  });
+
+  // Event-flagged variants that alias ANOTHER canonical POI (language / last-tram
+  // duplicates) are dropped; genuine event entities that link to themselves stay.
+  const evented = (
+    placeId: string,
+    name: string,
+    type: 'Ride' | 'Show',
+    shareTargetId: string,
+    isEvent = 'true',
+  ): UniversalPlace => ({
+    place_id: placeId,
+    name,
+    resort_area_code: 'ush',
+    venue_id: 'ush.upper_lot',
+    place_type: {
+      type,
+      attributes: [
+        {name: 'is_event', value: isEvent},
+        {
+          name: 'social_sharing_link',
+          value: `https://www.universalstudioshollywood.com/applinks/poi?id=${shareTargetId}`,
+        },
+      ],
+    },
+  });
+
+  test('Studio Tour - Mandarin (event, shares WaterWorld id) → null', () => {
+    const p = evented('ush.upper_lot.shows.studio_tour_mandarin', 'Studio Tour - Mandarin', 'Show', 'ush.upper_lot.shows.waterworld');
+    expect(placeToEntity(p, DESTINATION, TZ)).toBeNull();
+  });
+
+  test('Studio Tour Last Tram (event, shares canonical Studio Tour id) → null', () => {
+    const p = evented('ush.upper_lot.rides.studio_tour_last_tram', 'Studio Tour Last Tram', 'Ride', 'ush.upper_lot.rides.studio_tour');
+    expect(placeToEntity(p, DESTINATION, TZ)).toBeNull();
+  });
+
+  test('Event entity whose share link points at itself → kept (Bowser Jr. Challenge)', () => {
+    const p = evented('ush.lower_lot.rides.bowser.jr.challenge', 'Bowser Jr. Challenge', 'Ride', 'ush.lower_lot.rides.bowser.jr.challenge');
+    const e = placeToEntity(p, DESTINATION, TZ);
+    expect(e).not.toBeNull();
+    expect(e?.parentId).toBe('ush.ush'); // and reparented off upper_lot
+  });
+
+  test('Canonical Studio Tour (not an event) → kept', () => {
+    const p = evented('ush.upper_lot.rides.studio_tour', 'Studio Tour', 'Ride', 'ush.upper_lot.rides.studio_tour', 'false');
+    expect(placeToEntity(p, DESTINATION, TZ)).not.toBeNull();
+  });
+
   test('Shop → null (not in PLACE_TYPE_TO_ENTITY)', () => {
     expect(placeToEntity(shopPlace, DESTINATION, TZ)).toBeNull();
   });
