@@ -3,6 +3,13 @@ import {parseTribeEvents, type TribeEventsResponse, EnchantedParks} from '../enc
 import {parseICalFeed} from '../enchantedparks.js';
 import {parseAttractionsPage} from '../enchantedparks.js';
 import {parseShowsPage} from '../enchantedparks.js';
+import {
+  mapFeatureStatus,
+  normalizeRideName,
+  normalizeFeatureName,
+  matchFeaturesToLiveData,
+  type LiveFeature,
+} from '../enchantedparks.js';
 
 describe('parseTribeEvents', () => {
   const fixture: TribeEventsResponse = {
@@ -411,5 +418,152 @@ describe('attractionLocations wiring on every EnchantedParks subclass', () => {
       expect(snapshot, `${ParkClass.name} has no attractionLocations snapshot wired up`).toBeDefined();
       expect(Object.keys(snapshot).length, `${ParkClass.name}'s attractionLocations snapshot is empty`).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('mapFeatureStatus', () => {
+  // The operator's live feed uses free-text status strings with inconsistent
+  // casing (Open / OPEN, Temporarily Closed / TEMPORARILY_CLOSED). Map them to
+  // the framework's canonical statuses.
+  test('open variants → OPERATING', () => {
+    expect(mapFeatureStatus('Open')).toBe('OPERATING');
+    expect(mapFeatureStatus('OPEN')).toBe('OPERATING');
+    expect(mapFeatureStatus('opened')).toBe('OPERATING');
+  });
+
+  test('temporary-closure variants → DOWN (the state the app hides)', () => {
+    expect(mapFeatureStatus('Temporarily Closed')).toBe('DOWN');
+    expect(mapFeatureStatus('TEMPORARILY_CLOSED')).toBe('DOWN');
+    expect(mapFeatureStatus('temp closed')).toBe('DOWN');
+  });
+
+  test('all-day closure → CLOSED', () => {
+    expect(mapFeatureStatus('Closed')).toBe('CLOSED');
+    expect(mapFeatureStatus('CLOSED')).toBe('CLOSED');
+  });
+
+  test('unknown / empty → CLOSED (safe default)', () => {
+    expect(mapFeatureStatus('')).toBe('CLOSED');
+    expect(mapFeatureStatus('something new')).toBe('CLOSED');
+  });
+});
+
+describe('feature-name normalization', () => {
+  // Feature names carry a park-code prefix ("WOF - ", "OOF - ") that the
+  // scraped ride names don't. Stripping it lets the two sources join by name.
+  test('strips the park-code prefix from feature names', () => {
+    expect(normalizeFeatureName('WOF - RipCord')).toBe(normalizeRideName('RipCord'));
+    expect(normalizeFeatureName('OOF - Typhoon')).toBe(normalizeRideName('Typhoon'));
+    expect(normalizeFeatureName('SSA - Oasis Bar')).toBe(normalizeRideName('Oasis Bar'));
+  });
+
+  test('does NOT strip a dash from an unprefixed scraped ride name', () => {
+    // A scraped name is passed through normalizeRideName, which must not eat
+    // leading words — only the uppercase-code prefix on the feature side goes.
+    expect(normalizeRideName('Timber Wolf')).toBe('timber wolf');
+    expect(normalizeRideName('Wild Thing')).toBe('wild thing');
+  });
+
+  test('folds curly apostrophes so both sources agree', () => {
+    expect(normalizeFeatureName('MA - Thunderhawk’s')).toBe(normalizeRideName("Thunderhawk's"));
+  });
+});
+
+describe('matchFeaturesToLiveData', () => {
+  const rides = [
+    {id: 'enchantedparks_attraction_WOF_ripcord', name: 'RipCord'},
+    {id: 'enchantedparks_attraction_WOF_zambezi-zinger', name: 'Zambezi Zinger'},
+    {id: 'enchantedparks_attraction_WOF_mamba', name: 'Mamba'},
+    {id: 'enchantedparks_attraction_OOF_typhoon', name: 'Typhoon'},
+  ];
+
+  const WOF = 'site-uuid-wof';
+  const VF = 'site-uuid-vf';
+
+  const features: LiveFeature[] = [
+    {name: 'WOF - RipCord', siteId: WOF, operationalStatus: 'Temporarily Closed'},
+    {name: 'WOF - Zambezi Zinger', siteId: WOF, operationalStatus: 'Open'},
+    {name: 'WOF - Mamba', siteId: WOF, operationalStatus: 'Closed'},
+    {name: 'OOF - Typhoon', siteId: WOF, operationalStatus: 'OPEN'},
+    // Non-ride POS feature — no matching ride entity, must be dropped.
+    {name: 'WOF - Ticket Sales', siteId: WOF, operationalStatus: 'Open'},
+    // Feature from a different site — must be ignored even if name collides.
+    {name: 'VF - RipCord', siteId: VF, operationalStatus: 'Closed'},
+  ];
+
+  test('maps each matched ride to its live status by id', () => {
+    const out = matchFeaturesToLiveData(features, [WOF], rides);
+    const byId = Object.fromEntries(out.map((l) => [l.id, l.status]));
+    expect(byId['enchantedparks_attraction_WOF_ripcord']).toBe('DOWN');
+    expect(byId['enchantedparks_attraction_WOF_zambezi-zinger']).toBe('OPERATING');
+    expect(byId['enchantedparks_attraction_WOF_mamba']).toBe('CLOSED');
+    expect(byId['enchantedparks_attraction_OOF_typhoon']).toBe('OPERATING');
+  });
+
+  test('drops features with no matching ride entity (POS, retail, gates)', () => {
+    const out = matchFeaturesToLiveData(features, [WOF], rides);
+    // 4 rides matched, Ticket Sales dropped.
+    expect(out).toHaveLength(4);
+    expect(out.every((l) => l.id.startsWith('enchantedparks_attraction_'))).toBe(true);
+  });
+
+  test('only uses features from the requested site id(s)', () => {
+    // The Valleyfair "VF - RipCord" (Closed) must not overwrite the Worlds of
+    // Fun RipCord (Temporarily Closed → DOWN).
+    const out = matchFeaturesToLiveData(features, [WOF], rides);
+    const ripcord = out.find((l) => l.id === 'enchantedparks_attraction_WOF_ripcord');
+    expect(ripcord?.status).toBe('DOWN');
+  });
+
+  test('returns empty when no site ids are supplied', () => {
+    expect(matchFeaturesToLiveData(features, [], rides)).toEqual([]);
+  });
+});
+
+describe('buildLiveData wiring (stubbed network)', () => {
+  // Integration of the pieces without hitting the real feed: stub the two
+  // network-backed getters and assert buildLiveData joins them to the right
+  // entity ids and honours the empty-config guards. Full live integration is
+  // exercised via `npm run dev -- <park>` / `npm run health`.
+  async function makeWorldsOfFun(): Promise<EnchantedParks> {
+    const mod = await import('../worldsoffun.js');
+    const ParkClass = Object.values(mod)[0] as new () => EnchantedParks;
+    return new ParkClass();
+  }
+
+  test('joins feed features to scraped attractions by name', async () => {
+    const park = await makeWorldsOfFun();
+    (park as any).liveStatusEndpoint = 'https://example.invalid/graphql';
+    (park as any).liveStatusApiKey = 'test-key';
+    (park as any).liveStatusSiteIds = ['test-site'];
+    (park as any).getFeatures = async (): Promise<LiveFeature[]> => [
+      {name: 'WOF - Mamba', siteId: 'test-site', operationalStatus: 'Open'},
+      {name: 'WOF - Prowler', siteId: 'test-site', operationalStatus: 'Temporarily Closed'},
+      {name: 'OOF - Typhoon', siteId: 'test-site', operationalStatus: 'Closed'},
+      {name: 'WOF - Ticket Sales', siteId: 'test-site', operationalStatus: 'Open'},
+    ];
+    (park as any).scrapeAttractions = async (path: string) =>
+      path === 'oceans-of-fun'
+        ? [{slug: 'typhoon', name: 'Typhoon'}]
+        : [{slug: 'mamba', name: 'Mamba'}, {slug: 'prowler', name: 'Prowler'}];
+
+    const live = await (park as any).buildLiveData();
+    const byId = Object.fromEntries(live.map((l: any) => [l.id, l.status]));
+
+    expect(byId['enchantedparks_attraction_WOF_mamba']).toBe('OPERATING');
+    expect(byId['enchantedparks_attraction_WOF_prowler']).toBe('DOWN');
+    expect(byId['enchantedparks_attraction_OOF_typhoon']).toBe('CLOSED');
+    // Ticket Sales has no scraped ride entity → dropped.
+    expect(live).toHaveLength(3);
+  });
+
+  test('returns no live data when the endpoint/key are unset', async () => {
+    const park = await makeWorldsOfFun();
+    (park as any).liveStatusEndpoint = '';
+    (park as any).liveStatusApiKey = '';
+    (park as any).getFeatures = async () => [
+      {name: 'WOF - Mamba', siteId: 'test-site', operationalStatus: 'Open'},
+    ];
+    expect(await (park as any).buildLiveData()).toEqual([]);
   });
 });

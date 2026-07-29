@@ -16,6 +16,7 @@ export class MichigansAdventure extends EnchantedParks {
       },
     });
     this.attractionLocations = locations;
+    this.liveStatusSiteIds ??= ['09c32d20-e8e4-482c-a200-d098d4007672']; // Michigan's Adventure
     this.destinationLocation ??= {latitude: 43.3411, longitude: -86.2625};
     this.themePark ??= {
       id: 'enchantedparks_park_MA',

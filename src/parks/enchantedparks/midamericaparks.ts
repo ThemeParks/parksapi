@@ -16,6 +16,8 @@ export class MidAmericaParks extends EnchantedParks {
       },
     });
     this.attractionLocations = locations;
+    // Six Flags St. Louis is the "St Louis" site in the operator's live feed.
+    this.liveStatusSiteIds ??= ['535e5890-11cb-4c95-ac07-a927c6af5398']; // St Louis
     this.destinationLocation ??= {latitude: 38.5128, longitude: -90.6724};
     this.themePark ??= {
       id: 'enchantedparks_park_MAP',
