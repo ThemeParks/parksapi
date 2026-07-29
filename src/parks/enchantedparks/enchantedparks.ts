@@ -222,8 +222,12 @@ export function parseShowsPage(html: string, categorySlug: string): AttractionSt
 export type LiveFeature = {
   /** Display name, prefixed with a park code, e.g. "WOF - RipCord". */
   name: string;
-  /** Site the feature belongs to, e.g. "Worlds of Fun". */
-  parentName: string;
+  /**
+   * Stable UUID of the site the feature belongs to (the feed's
+   * `parentAssignmentId`, which equals the site's `id`). Preferred over the
+   * display name for site selection — it survives renames.
+   */
+  siteId: string;
   /** Free-text operational status, e.g. "Open", "Temporarily Closed". */
   operationalStatus: string;
 };
@@ -269,21 +273,21 @@ export function normalizeFeatureName(name: string): string {
 
 /**
  * Join live-feed features to scraped ride entities by normalized name and
- * emit LiveData. Only features whose `parentName` is in `siteNames` are used,
- * so a same-named ride at a sibling park can't bleed across. Features with no
+ * emit LiveData. Only features whose `siteId` is in `siteIds` are used, so a
+ * same-named ride at a sibling park can't bleed across. Features with no
  * matching ride entity (POS registers, gates, retail carts, points offers) are
  * dropped — the ride roster is the scraped entity list, not the feed.
  */
 export function matchFeaturesToLiveData(
   features: LiveFeature[],
-  siteNames: string[],
+  siteIds: string[],
   rides: Array<{id: string; name: string}>,
 ): LiveData[] {
-  if (!siteNames.length) return [];
-  const siteSet = new Set(siteNames);
+  if (!siteIds.length) return [];
+  const siteSet = new Set(siteIds);
   const statusByName = new Map<string, string>();
   for (const f of features) {
-    if (!siteSet.has(f.parentName)) continue;
+    if (!siteSet.has(f.siteId)) continue;
     const key = normalizeFeatureName(f.name);
     if (!key) continue;
     statusByName.set(key, mapFeatureStatus(f.operationalStatus));
@@ -322,7 +326,7 @@ export type ParkConfig = {
 
 /** Paginated list of live attraction statuses across every site. */
 const LIST_FEATURES_QUERY =
-  'query($nextToken:String){ listFeatures(limit:300, nextToken:$nextToken){ nextToken items{ name parentName operationalStatus } } }';
+  'query($nextToken:String){ listFeatures(limit:300, nextToken:$nextToken){ nextToken items{ name parentAssignmentId operationalStatus } } }';
 
 class EnchantedParks extends Destination {
   /** Subdomain root, e.g. `https://valleyfair.enchantedparks.com` (no trailing slash) */
@@ -390,11 +394,11 @@ class EnchantedParks extends Destination {
   @config liveStatusApiKey: string = '';
 
   /**
-   * Site name(s) in the operator's live feed that belong to this destination
-   * (matched against a feature's `parentName`). Set per subclass. When unset,
-   * live data is skipped.
+   * Stable site UUID(s) in the operator's live feed that belong to this
+   * destination (matched against a feature's `parentAssignmentId`). Set per
+   * subclass. When unset, live data is skipped.
    */
-  liveStatusSites?: string[];
+  liveStatusSiteIds?: string[];
 
   constructor(options?: DestinationConstructor) {
     super(options);
@@ -404,7 +408,7 @@ class EnchantedParks extends Destination {
     if (cfg.themePark) this.themePark = cfg.themePark;
     if (cfg.waterPark) this.waterPark = cfg.waterPark;
     if (cfg.destinationLocation) this.destinationLocation = cfg.destinationLocation;
-    if (cfg.liveStatusSites) this.liveStatusSites = cfg.liveStatusSites;
+    if (cfg.liveStatusSiteIds) this.liveStatusSiteIds = cfg.liveStatusSiteIds;
   }
 
   /** Cache-key prefix so multiple Enchanted Parks don't collide on shared cache keys. */
@@ -696,7 +700,7 @@ class EnchantedParks extends Destination {
    * cache serves all six parks from a single network round-trip per page.
    * `retries: 0` — a transient miss just yields no live update this tick.
    */
-  @http({cacheSeconds: 60, retries: 0, healthCheckArgs: ['']})
+  @http({cacheSeconds: 120, retries: 0, healthCheckArgs: ['']})
   async fetchFeatures(nextToken: string | null): Promise<HTTPObj> {
     return {
       method: 'POST',
@@ -714,10 +718,11 @@ class EnchantedParks extends Destination {
 
   /**
    * All live attraction records across every site, following pagination.
-   * Returns [] on any failure so live-data build degrades to "no update"
-   * rather than throwing.
+   * Cached 2min so the feed is fetched once and reused by every park for the
+   * window. Returns [] on any failure so live-data build degrades to "no
+   * update" rather than throwing.
    */
-  @cache({ttlSeconds: 60})
+  @cache({ttlSeconds: 120})
   async getFeatures(): Promise<LiveFeature[]> {
     if (!this.liveStatusEndpoint || !this.liveStatusApiKey) return [];
     const out: LiveFeature[] = [];
@@ -733,7 +738,7 @@ class EnchantedParks extends Destination {
           if (!it?.name) continue;
           out.push({
             name: it.name,
-            parentName: it.parentName ?? '',
+            siteId: it.parentAssignmentId ?? '',
             operationalStatus: it.operationalStatus ?? '',
           });
         }
@@ -778,13 +783,13 @@ class EnchantedParks extends Destination {
     // Live per-attraction status from the operator's guest-experience feed.
     // Requires the endpoint/key (from .env) and the site-name mapping.
     if (!this.liveStatusEndpoint || !this.liveStatusApiKey) return [];
-    if (!this.liveStatusSites?.length) return [];
+    if (!this.liveStatusSiteIds?.length) return [];
 
     const features = await this.getFeatures();
     if (!features.length) return [];
 
     const rides = await this.getAttractionStubs();
-    return matchFeaturesToLiveData(features, this.liveStatusSites, rides);
+    return matchFeaturesToLiveData(features, this.liveStatusSiteIds, rides);
   }
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {

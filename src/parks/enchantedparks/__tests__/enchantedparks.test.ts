@@ -477,19 +477,22 @@ describe('matchFeaturesToLiveData', () => {
     {id: 'enchantedparks_attraction_OOF_typhoon', name: 'Typhoon'},
   ];
 
+  const WOF = 'site-uuid-wof';
+  const VF = 'site-uuid-vf';
+
   const features: LiveFeature[] = [
-    {name: 'WOF - RipCord', parentName: 'Worlds of Fun', operationalStatus: 'Temporarily Closed'},
-    {name: 'WOF - Zambezi Zinger', parentName: 'Worlds of Fun', operationalStatus: 'Open'},
-    {name: 'WOF - Mamba', parentName: 'Worlds of Fun', operationalStatus: 'Closed'},
-    {name: 'OOF - Typhoon', parentName: 'Worlds of Fun', operationalStatus: 'OPEN'},
+    {name: 'WOF - RipCord', siteId: WOF, operationalStatus: 'Temporarily Closed'},
+    {name: 'WOF - Zambezi Zinger', siteId: WOF, operationalStatus: 'Open'},
+    {name: 'WOF - Mamba', siteId: WOF, operationalStatus: 'Closed'},
+    {name: 'OOF - Typhoon', siteId: WOF, operationalStatus: 'OPEN'},
     // Non-ride POS feature — no matching ride entity, must be dropped.
-    {name: 'WOF - Ticket Sales', parentName: 'Worlds of Fun', operationalStatus: 'Open'},
+    {name: 'WOF - Ticket Sales', siteId: WOF, operationalStatus: 'Open'},
     // Feature from a different site — must be ignored even if name collides.
-    {name: 'VF - RipCord', parentName: 'Valleyfair', operationalStatus: 'Closed'},
+    {name: 'VF - RipCord', siteId: VF, operationalStatus: 'Closed'},
   ];
 
   test('maps each matched ride to its live status by id', () => {
-    const out = matchFeaturesToLiveData(features, ['Worlds of Fun'], rides);
+    const out = matchFeaturesToLiveData(features, [WOF], rides);
     const byId = Object.fromEntries(out.map((l) => [l.id, l.status]));
     expect(byId['enchantedparks_attraction_WOF_ripcord']).toBe('DOWN');
     expect(byId['enchantedparks_attraction_WOF_zambezi-zinger']).toBe('OPERATING');
@@ -498,21 +501,21 @@ describe('matchFeaturesToLiveData', () => {
   });
 
   test('drops features with no matching ride entity (POS, retail, gates)', () => {
-    const out = matchFeaturesToLiveData(features, ['Worlds of Fun'], rides);
+    const out = matchFeaturesToLiveData(features, [WOF], rides);
     // 4 rides matched, Ticket Sales dropped.
     expect(out).toHaveLength(4);
     expect(out.every((l) => l.id.startsWith('enchantedparks_attraction_'))).toBe(true);
   });
 
-  test('only uses features from the requested site(s)', () => {
+  test('only uses features from the requested site id(s)', () => {
     // The Valleyfair "VF - RipCord" (Closed) must not overwrite the Worlds of
     // Fun RipCord (Temporarily Closed → DOWN).
-    const out = matchFeaturesToLiveData(features, ['Worlds of Fun'], rides);
+    const out = matchFeaturesToLiveData(features, [WOF], rides);
     const ripcord = out.find((l) => l.id === 'enchantedparks_attraction_WOF_ripcord');
     expect(ripcord?.status).toBe('DOWN');
   });
 
-  test('returns empty when no site names are supplied', () => {
+  test('returns empty when no site ids are supplied', () => {
     expect(matchFeaturesToLiveData(features, [], rides)).toEqual([]);
   });
 });
@@ -532,11 +535,12 @@ describe('buildLiveData wiring (stubbed network)', () => {
     const park = await makeWorldsOfFun();
     (park as any).liveStatusEndpoint = 'https://example.invalid/graphql';
     (park as any).liveStatusApiKey = 'test-key';
+    (park as any).liveStatusSiteIds = ['test-site'];
     (park as any).getFeatures = async (): Promise<LiveFeature[]> => [
-      {name: 'WOF - Mamba', parentName: 'Worlds of Fun', operationalStatus: 'Open'},
-      {name: 'WOF - Prowler', parentName: 'Worlds of Fun', operationalStatus: 'Temporarily Closed'},
-      {name: 'OOF - Typhoon', parentName: 'Worlds of Fun', operationalStatus: 'Closed'},
-      {name: 'WOF - Ticket Sales', parentName: 'Worlds of Fun', operationalStatus: 'Open'},
+      {name: 'WOF - Mamba', siteId: 'test-site', operationalStatus: 'Open'},
+      {name: 'WOF - Prowler', siteId: 'test-site', operationalStatus: 'Temporarily Closed'},
+      {name: 'OOF - Typhoon', siteId: 'test-site', operationalStatus: 'Closed'},
+      {name: 'WOF - Ticket Sales', siteId: 'test-site', operationalStatus: 'Open'},
     ];
     (park as any).scrapeAttractions = async (path: string) =>
       path === 'oceans-of-fun'
@@ -558,7 +562,7 @@ describe('buildLiveData wiring (stubbed network)', () => {
     (park as any).liveStatusEndpoint = '';
     (park as any).liveStatusApiKey = '';
     (park as any).getFeatures = async () => [
-      {name: 'WOF - Mamba', parentName: 'Worlds of Fun', operationalStatus: 'Open'},
+      {name: 'WOF - Mamba', siteId: 'test-site', operationalStatus: 'Open'},
     ];
     expect(await (park as any).buildLiveData()).toEqual([]);
   });
