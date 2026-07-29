@@ -16,6 +16,7 @@ export class GalvestonIslandWaterpark extends EnchantedParks {
       },
     });
     this.attractionLocations = locations;
+    this.liveStatusSites ??= ['Galveston'];
     this.destinationLocation ??= {latitude: 29.2767, longitude: -94.8231};
     // Water-park-only destination: the upstream site exposes a single
     // `/rides-and-experiences/attractions/` list under the "Waterpark Hours"

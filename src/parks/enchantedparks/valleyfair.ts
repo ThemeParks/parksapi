@@ -20,6 +20,7 @@ export class Valleyfair extends EnchantedParks {
     // these if a caller wants to supply different ones — only set defaults
     // when the caller hasn't.
     this.attractionLocations = locations;
+    this.liveStatusSites ??= ['Valleyfair'];
     this.destinationLocation ??= {latitude: 44.7977, longitude: -93.4399};
     this.themePark ??= {
       id: 'enchantedparks_park_VF',

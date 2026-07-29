@@ -5,6 +5,7 @@ import config from '../../config.js';
 import type {Entity, LiveData, EntitySchedule, ScheduleEntry} from '@themeparks/typelib';
 import {constructDateTime, formatDate} from '../../datetime.js';
 import {decodeHtmlEntities, stripHtmlTags} from '../../htmlUtils.js';
+import {createStatusMap} from '../../statusMap.js';
 
 export type TribeEvent = {
   start_date: string;       // "YYYY-MM-DD HH:MM:SS"
@@ -208,6 +209,98 @@ export function parseShowsPage(html: string, categorySlug: string): AttractionSt
   return out;
 }
 
+// ===== Live ride status (operator guest-experience API) =====
+//
+// The operator runs a guest-experience platform whose live feed publishes a
+// per-attraction `operationalStatus`. It's the only real-time source for these
+// parks (there are no published wait times). The status distinguishes an
+// all-day CLOSED ride from a temporarily-DOWN one — a distinction the operator
+// app itself collapses. Endpoint + key are config (kept in `.env`), never
+// hardcoded here.
+
+/** One attraction record from the operator's live feed. */
+export type LiveFeature = {
+  /** Display name, prefixed with a park code, e.g. "WOF - RipCord". */
+  name: string;
+  /** Site the feature belongs to, e.g. "Worlds of Fun". */
+  parentName: string;
+  /** Free-text operational status, e.g. "Open", "Temporarily Closed". */
+  operationalStatus: string;
+};
+
+/**
+ * Map the feed's free-text status to a framework status. The feed uses
+ * inconsistent casing (Open/OPEN) and both spaced and underscored temporary-
+ * closure strings; `createStatusMap` lowercases before lookup so one entry per
+ * spelling covers every casing. Unknown/empty defaults to CLOSED and logs once.
+ */
+export const mapFeatureStatus = createStatusMap(
+  {
+    OPERATING: ['open', 'opened'],
+    DOWN: ['temporarily closed', 'temporarily_closed', 'temp closed', 'temp closed due weather'],
+    CLOSED: ['closed', 'not scheduled', ''],
+  },
+  {parkName: 'EnchantedParks', defaultStatus: 'CLOSED'},
+);
+
+/**
+ * Normalize a scraped ride name for cross-source matching: fold curly
+ * apostrophes and trademark glyphs, lowercase, and collapse any run of
+ * non-alphanumerics to a single space. Does NOT strip leading words.
+ */
+export function normalizeRideName(name: string): string {
+  return name
+    .replace(/[‘’]/g, "'")
+    .replace(/[™®©]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/**
+ * Normalize a live-feed feature name. Same as {@link normalizeRideName} but
+ * first strips the uppercase park-code prefix ("WOF - ", "OOF - ", "SSA - ")
+ * that the feed carries and the scraped ride names don't. The prefix strip is
+ * uppercase-only so it can't eat a leading word from a scraped name.
+ */
+export function normalizeFeatureName(name: string): string {
+  return normalizeRideName(name.replace(/^[A-Z]{2,5}\s*-\s*/, ''));
+}
+
+/**
+ * Join live-feed features to scraped ride entities by normalized name and
+ * emit LiveData. Only features whose `parentName` is in `siteNames` are used,
+ * so a same-named ride at a sibling park can't bleed across. Features with no
+ * matching ride entity (POS registers, gates, retail carts, points offers) are
+ * dropped — the ride roster is the scraped entity list, not the feed.
+ */
+export function matchFeaturesToLiveData(
+  features: LiveFeature[],
+  siteNames: string[],
+  rides: Array<{id: string; name: string}>,
+): LiveData[] {
+  if (!siteNames.length) return [];
+  const siteSet = new Set(siteNames);
+  const statusByName = new Map<string, string>();
+  for (const f of features) {
+    if (!siteSet.has(f.parentName)) continue;
+    const key = normalizeFeatureName(f.name);
+    if (!key) continue;
+    statusByName.set(key, mapFeatureStatus(f.operationalStatus));
+  }
+
+  const out: LiveData[] = [];
+  const emitted = new Set<string>();
+  for (const r of rides) {
+    if (emitted.has(r.id)) continue;
+    const status = statusByName.get(normalizeRideName(r.name));
+    if (!status) continue;
+    emitted.add(r.id);
+    out.push({id: r.id, status} as LiveData);
+  }
+  return out;
+}
+
 export type ParkConfig = {
   /** Entity id, e.g. `enchantedparks_park_VF` */
   id: string;
@@ -226,6 +319,10 @@ export type ParkConfig = {
   /** Park-level geographic location (lat/lng). Required for the harness's anchor-entity check. */
   location?: {latitude: number; longitude: number};
 };
+
+/** Paginated list of live attraction statuses across every site. */
+const LIST_FEATURES_QUERY =
+  'query($nextToken:String){ listFeatures(limit:300, nextToken:$nextToken){ nextToken items{ name parentName operationalStatus } } }';
 
 class EnchantedParks extends Destination {
   /** Subdomain root, e.g. `https://valleyfair.enchantedparks.com` (no trailing slash) */
@@ -284,6 +381,21 @@ class EnchantedParks extends Destination {
   /** IANA timezone for the destination */
   @config timezone: string = 'America/Chicago';
 
+  /**
+   * Operator live guest-experience API — GraphQL endpoint and public key.
+   * Empty by default; real values come from `.env` (never hardcoded per the
+   * no-secrets rule). When either is empty, live data is skipped.
+   */
+  @config liveStatusEndpoint: string = '';
+  @config liveStatusApiKey: string = '';
+
+  /**
+   * Site name(s) in the operator's live feed that belong to this destination
+   * (matched against a feature's `parentName`). Set per subclass. When unset,
+   * live data is skipped.
+   */
+  liveStatusSites?: string[];
+
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('ENCHANTEDPARKS');
@@ -292,6 +404,7 @@ class EnchantedParks extends Destination {
     if (cfg.themePark) this.themePark = cfg.themePark;
     if (cfg.waterPark) this.waterPark = cfg.waterPark;
     if (cfg.destinationLocation) this.destinationLocation = cfg.destinationLocation;
+    if (cfg.liveStatusSites) this.liveStatusSites = cfg.liveStatusSites;
   }
 
   /** Cache-key prefix so multiple Enchanted Parks don't collide on shared cache keys. */
@@ -575,9 +688,103 @@ class EnchantedParks extends Destination {
     return [...parks, ...attractions];
   }
 
+  // ===== Live ride status =====
+
+  /**
+   * Fetch one page of the operator's live attraction feed. Cached 1min at the
+   * HTTP layer — every subclass POSTs the same query/body, so the shared HTTP
+   * cache serves all six parks from a single network round-trip per page.
+   * `retries: 0` — a transient miss just yields no live update this tick.
+   */
+  @http({cacheSeconds: 60, retries: 0, healthCheckArgs: ['']})
+  async fetchFeatures(nextToken: string | null): Promise<HTTPObj> {
+    return {
+      method: 'POST',
+      url: this.liveStatusEndpoint,
+      headers: {
+        'x-api-key': this.liveStatusApiKey,
+        'content-type': 'application/json',
+      },
+      // Coerce an empty token (e.g. from the health check's args) to null so
+      // the feed returns the first page rather than erroring on an empty string.
+      body: {query: LIST_FEATURES_QUERY, variables: {nextToken: nextToken || null}},
+      options: {json: true},
+    } as any as HTTPObj;
+  }
+
+  /**
+   * All live attraction records across every site, following pagination.
+   * Returns [] on any failure so live-data build degrades to "no update"
+   * rather than throwing.
+   */
+  @cache({ttlSeconds: 60})
+  async getFeatures(): Promise<LiveFeature[]> {
+    if (!this.liveStatusEndpoint || !this.liveStatusApiKey) return [];
+    const out: LiveFeature[] = [];
+    let nextToken: string | null = null;
+    let guard = 0;
+    try {
+      do {
+        const resp = await this.fetchFeatures(nextToken);
+        const data = await resp.json();
+        const box = data?.data?.listFeatures;
+        if (!box) break;
+        for (const it of box.items ?? []) {
+          if (!it?.name) continue;
+          out.push({
+            name: it.name,
+            parentName: it.parentName ?? '',
+            operationalStatus: it.operationalStatus ?? '',
+          });
+        }
+        nextToken = box.nextToken ?? null;
+      } while (nextToken && ++guard < 20);
+    } catch {
+      return [];
+    }
+    return out;
+  }
+
+  /**
+   * Rebuild the (entity id, name) pairs for this destination's attractions,
+   * using the same id formula as {@link buildEntityList} so live data attaches
+   * to the entities already emitted. Restaurants and shows are excluded — the
+   * live feed only carries attractions.
+   */
+  private async getAttractionStubs(): Promise<Array<{id: string; name: string}>> {
+    const stubs: Array<{id: string; name: string}> = [];
+
+    let waterParkSlugs = new Set<string>();
+    if (this.waterPark) {
+      const wpRides = await this.scrapeAttractions(this.waterPark.ridesPath);
+      waterParkSlugs = new Set(wpRides.map(r => r.slug));
+      for (const r of wpRides) {
+        stubs.push({id: `enchantedparks_attraction_${this.waterPark.code}_${r.slug}`, name: r.name});
+      }
+    }
+
+    if (this.themePark) {
+      const tpRides = await this.scrapeAttractions(this.themePark.ridesPath);
+      for (const r of tpRides) {
+        if (waterParkSlugs.has(r.slug)) continue;
+        stubs.push({id: `enchantedparks_attraction_${this.themePark.code}_${r.slug}`, name: r.name});
+      }
+    }
+
+    return stubs;
+  }
+
   protected async buildLiveData(): Promise<LiveData[]> {
-    // No live wait-times source for Enchanted Parks until their app launches.
-    return [];
+    // Live per-attraction status from the operator's guest-experience feed.
+    // Requires the endpoint/key (from .env) and the site-name mapping.
+    if (!this.liveStatusEndpoint || !this.liveStatusApiKey) return [];
+    if (!this.liveStatusSites?.length) return [];
+
+    const features = await this.getFeatures();
+    if (!features.length) return [];
+
+    const rides = await this.getAttractionStubs();
+    return matchFeaturesToLiveData(features, this.liveStatusSites, rides);
   }
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {

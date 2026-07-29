@@ -16,6 +16,9 @@ export class GreatEscapeParks extends EnchantedParks {
       },
     });
     this.attractionLocations = locations;
+    // The Great Escape's water park is a separate site ("Whitewater Bay") in
+    // the live feed; include both so its rides get status too.
+    this.liveStatusSites ??= ['Great Escape', 'Whitewater Bay'];
     this.destinationLocation ??= {latitude: 43.3506, longitude: -73.6889};
     this.themePark ??= {
       id: 'enchantedparks_park_GE',

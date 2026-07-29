@@ -16,6 +16,9 @@ export class WorldsOfFun extends EnchantedParks {
       },
     });
     this.attractionLocations = locations;
+    // Oceans of Fun rides appear under the "Worlds of Fun" site in the live
+    // feed (prefixed "OOF -"); matching is by name so one site name covers both.
+    this.liveStatusSites ??= ['Worlds of Fun'];
     this.destinationLocation ??= {latitude: 39.1746, longitude: -94.4886};
     this.themePark ??= {
       id: 'enchantedparks_park_WOF',
