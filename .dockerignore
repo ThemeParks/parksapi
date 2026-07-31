@@ -1,0 +1,17 @@
+.git
+node_modules
+web-ui/node_modules
+web-ui/dist
+dist
+coverage
+docs
+datacache
+snapshots
+.env
+cache.sqlite
+cache.sqlite-wal
+cache.sqlite-shm
+*.har
+http-dump.jsonl
+output.log
+testout_*
