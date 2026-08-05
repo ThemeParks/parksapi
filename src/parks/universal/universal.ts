@@ -281,6 +281,37 @@ export function parseShowTimes(
   return out;
 }
 
+/**
+ * Map a show-list entry's `status` to a wiki live status.
+ *
+ * Universal reuses its ride operating-state vocabulary for shows. The previous
+ * mapping treated every value except 'OPEN' as CLOSED, which mislabelled a show
+ * that is merely delayed (BRIEF_DELAY / WEATHER_DELAY) or at capacity as CLOSED
+ * even while it still listed a full day of ENABLED performances — the reported
+ * CLOSED-with-showtimes contradiction. Mirror the attraction status semantics
+ * so a delayed show reads DOWN.
+ *
+ * This maps the raw status only. A show whose status is literally CLOSED can
+ * still carry future showtimes (e.g. character meet-and-greets between
+ * appearances); that separate case is not resolved here.
+ */
+export function mapUniversalShowStatus(
+  status: string | undefined,
+): 'OPERATING' | 'DOWN' | 'CLOSED' {
+  switch (status) {
+    case 'OPEN':
+    case 'RIDE_NOW':
+      return 'OPERATING';
+    case 'BRIEF_DELAY':
+    case 'WEATHER_DELAY':
+    case 'AT_CAPACITY':
+      return 'DOWN';
+    default:
+      // CLOSED, CANCELED, EXTENDED_CLOSURE, COMING_SOON, unknown → CLOSED
+      return 'CLOSED';
+  }
+}
+
 // ─── shows/show-list.json (CDN) types ────────────────────────────────────────
 
 export type UniversalShowTime = {
@@ -1105,7 +1136,7 @@ class Universal extends Destination {
       if (!show.show_externally) continue;
       const showId = sanitizeId(show.show_id);
       const showEntry = getOrCreateLiveData(showId);
-      showEntry.status = show.status === 'OPEN' ? 'OPERATING' : 'CLOSED';
+      showEntry.status = mapUniversalShowStatus(show.status);
 
       const times = parseShowTimes(show, this.timezone, now);
       if (times.length > 0) {

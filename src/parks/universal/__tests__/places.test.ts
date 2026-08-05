@@ -2,7 +2,7 @@
  * Unit tests for the pure helpers backing the /places migration.
  */
 import {describe, test, expect} from 'vitest';
-import {placeToEntity, isEventVariantAlias, parseShowTimes, type UniversalPlace, type UniversalShowListEntry} from '../universal.js';
+import {placeToEntity, isEventVariantAlias, parseShowTimes, mapUniversalShowStatus, type UniversalPlace, type UniversalShowListEntry} from '../universal.js';
 
 const DESTINATION = 'universalresort_orlando';
 const TZ = 'America/New_York';
@@ -357,5 +357,55 @@ describe('parseShowTimes', () => {
   test('empty / missing show_times → []', () => {
     expect(parseShowTimes({...baseShow, show_times: []}, UOR_TZ, new Date())).toEqual([]);
     expect(parseShowTimes({...baseShow, show_times: undefined}, UOR_TZ, new Date())).toEqual([]);
+  });
+});
+
+describe('mapUniversalShowStatus', () => {
+  test('OPEN / RIDE_NOW → OPERATING', () => {
+    expect(mapUniversalShowStatus('OPEN')).toBe('OPERATING');
+    expect(mapUniversalShowStatus('RIDE_NOW')).toBe('OPERATING');
+  });
+
+  // Regression: a show that is merely delayed still runs a full day of
+  // performances. The old `=== 'OPEN' ? OPERATING : CLOSED` mapping reported it
+  // CLOSED while emitting showtimes — contradictory. BRIEF_DELAY means DOWN.
+  test('BRIEF_DELAY / WEATHER_DELAY / AT_CAPACITY → DOWN (delayed, not closed)', () => {
+    expect(mapUniversalShowStatus('BRIEF_DELAY')).toBe('DOWN');
+    expect(mapUniversalShowStatus('WEATHER_DELAY')).toBe('DOWN');
+    expect(mapUniversalShowStatus('AT_CAPACITY')).toBe('DOWN');
+  });
+
+  test('genuinely-closed states → CLOSED', () => {
+    expect(mapUniversalShowStatus('CLOSED')).toBe('CLOSED');
+    expect(mapUniversalShowStatus('EXTENDED_CLOSURE')).toBe('CLOSED');
+    expect(mapUniversalShowStatus('COMING_SOON')).toBe('CLOSED');
+  });
+
+  test('unknown / empty / undefined → CLOSED (safe default)', () => {
+    expect(mapUniversalShowStatus('SOMETHING_NEW')).toBe('CLOSED');
+    expect(mapUniversalShowStatus('')).toBe('CLOSED');
+    expect(mapUniversalShowStatus(undefined)).toBe('CLOSED');
+  });
+
+  // Integration of the two halves the buildLiveData show loop combines: the
+  // reported bug was a delayed show emitting status + showtimes that
+  // contradicted each other. Assert they now coexist coherently on one entry.
+  test('delayed show yields DOWN together with its showtimes (contradiction resolved)', () => {
+    const now = new Date('2026-08-05T14:00:00Z');
+    const show: UniversalShowListEntry = {
+      show_id: 'uor.usf.shows.the_bourne_stuntacular',
+      resort_area_code: 'UOR',
+      name: 'The Bourne Stuntacular',
+      status: 'BRIEF_DELAY',
+      show_externally: true,
+      show_times: [
+        {show_time_id: 'a', status: 'ENABLED', start_time: '2026-08-05T15:15:00.000Z'},
+        {show_time_id: 'b', status: 'ENABLED', start_time: '2026-08-05T16:00:00.000Z'},
+      ],
+    };
+    const status = mapUniversalShowStatus(show.status);
+    const showtimes = parseShowTimes(show, 'America/New_York', now);
+    expect(status).toBe('DOWN'); // was 'CLOSED' before the fix — the contradiction
+    expect(showtimes).toHaveLength(2);
   });
 });
