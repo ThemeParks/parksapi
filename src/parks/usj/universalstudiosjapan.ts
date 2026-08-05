@@ -21,7 +21,7 @@ function sanitizeId(id: string): string {
 
 // ─── Status mapping ───────────────────────────────────────────────────────────
 
-const mapQueueStatus = createStatusMap(
+export const mapQueueStatus = createStatusMap(
   {
     OPERATING: ['OPEN'],
     DOWN: ['WEATHER_DELAY', 'BRIEF_DELAY'],
@@ -426,7 +426,11 @@ export class UniversalStudiosJapan extends Destination {
 
     // Show times
     for (const show of showListData) {
-      const showStatus = show.status === 'OPEN' ? 'OPERATING' : 'CLOSED';
+      // Use the same status vocabulary as attractions: a delayed show
+      // (BRIEF_DELAY / WEATHER_DELAY) is DOWN, not CLOSED. The old binary
+      // `=== 'OPEN' ? OPERATING : CLOSED` mislabelled delayed shows as closed
+      // even while they still listed a full day of ENABLED performances.
+      const showStatus = mapQueueStatus(show.status);
 
       const showTimes = (show.show_times || [])
         .filter((st) => st.status === 'ENABLED')

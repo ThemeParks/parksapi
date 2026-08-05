@@ -375,7 +375,7 @@ describe('mapUniversalShowStatus', () => {
     expect(mapUniversalShowStatus('AT_CAPACITY')).toBe('DOWN');
   });
 
-  test('genuinely-closed states → CLOSED', () => {
+  test('genuinely-closed states → CLOSED (no showtimes)', () => {
     expect(mapUniversalShowStatus('CLOSED')).toBe('CLOSED');
     expect(mapUniversalShowStatus('EXTENDED_CLOSURE')).toBe('CLOSED');
     expect(mapUniversalShowStatus('COMING_SOON')).toBe('CLOSED');
@@ -385,6 +385,31 @@ describe('mapUniversalShowStatus', () => {
     expect(mapUniversalShowStatus('SOMETHING_NEW')).toBe('CLOSED');
     expect(mapUniversalShowStatus('')).toBe('CLOSED');
     expect(mapUniversalShowStatus(undefined)).toBe('CLOSED');
+  });
+
+  // Structural: a show still advertising future performances is running today,
+  // so CLOSED-with-showtimes is unreachable (the reported class of bug). This
+  // covers character meet-and-greets that report CLOSED between appearances.
+  test('CLOSED / CANCELED / unknown WITH future showtimes → OPERATING', () => {
+    expect(mapUniversalShowStatus('CLOSED', true)).toBe('OPERATING');
+    expect(mapUniversalShowStatus('CANCELED', true)).toBe('OPERATING');
+    expect(mapUniversalShowStatus('SOMETHING_NEW', true)).toBe('OPERATING');
+    expect(mapUniversalShowStatus(undefined, true)).toBe('OPERATING');
+  });
+
+  test('explicit long-closures stay CLOSED even with showtimes', () => {
+    expect(mapUniversalShowStatus('EXTENDED_CLOSURE', true)).toBe('CLOSED');
+    expect(mapUniversalShowStatus('COMING_SOON', true)).toBe('CLOSED');
+  });
+
+  test('delay states stay DOWN regardless of showtimes', () => {
+    expect(mapUniversalShowStatus('BRIEF_DELAY', true)).toBe('DOWN');
+    expect(mapUniversalShowStatus('WEATHER_DELAY', true)).toBe('DOWN');
+  });
+
+  test('OPEN stays OPERATING regardless of the flag', () => {
+    expect(mapUniversalShowStatus('OPEN', false)).toBe('OPERATING');
+    expect(mapUniversalShowStatus('OPEN', true)).toBe('OPERATING');
   });
 
   // Integration of the two halves the buildLiveData show loop combines: the
@@ -403,9 +428,30 @@ describe('mapUniversalShowStatus', () => {
         {show_time_id: 'b', status: 'ENABLED', start_time: '2026-08-05T16:00:00.000Z'},
       ],
     };
-    const status = mapUniversalShowStatus(show.status);
     const showtimes = parseShowTimes(show, 'America/New_York', now);
+    const status = mapUniversalShowStatus(show.status, showtimes.length > 0);
     expect(status).toBe('DOWN'); // was 'CLOSED' before the fix — the contradiction
     expect(showtimes).toHaveLength(2);
+  });
+
+  // A character meet-and-greet reports status CLOSED between appearances while
+  // still listing today's slots. buildLiveData now promotes it to OPERATING so
+  // the feed never shows CLOSED next to a live schedule.
+  test('CLOSED meet-and-greet with future showtimes → OPERATING with showtimes', () => {
+    const now = new Date('2026-08-05T14:00:00Z');
+    const show: UniversalShowListEntry = {
+      show_id: 'ush.meet.some_character',
+      resort_area_code: 'USH',
+      name: 'Character Meet',
+      status: 'CLOSED',
+      show_externally: true,
+      show_times: [
+        {show_time_id: 'a', status: 'ENABLED', start_time: '2026-08-05T18:30:00.000Z'},
+      ],
+    };
+    const showtimes = parseShowTimes(show, 'America/Los_Angeles', now);
+    const status = mapUniversalShowStatus(show.status, showtimes.length > 0);
+    expect(status).toBe('OPERATING'); // was 'CLOSED' — the reported contradiction
+    expect(showtimes).toHaveLength(1);
   });
 });
