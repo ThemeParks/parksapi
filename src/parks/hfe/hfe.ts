@@ -5,6 +5,7 @@
  * - Dollywood (Pigeon Forge, TN)
  * - Silver Dollar City (Branson, MO)
  * - Kennywood (West Mifflin, PA)
+ * - Kentucky Kingdom & Hurricane Bay (Louisville, KY)
  *
  * Supports entity data (attractions, restaurants), live wait times, and
  * park operating schedules.
@@ -786,5 +787,33 @@ export class Kennywood extends HFEBase {
     this.parkName = 'Kennywood';
     this.parkLatitude = 40.3866;
     this.parkLongitude = -79.8625;
+  }
+}
+
+/**
+ * Kentucky Kingdom & Hurricane Bay - Louisville, Kentucky
+ * Wait Time Dest ID: 4 (shared feed covering the theme park (KK) and the
+ * Hurricane Bay (HB) water park, modelled as one park)
+ *
+ * The CRM exposes two identifiers for this resort: the app-baked "site" GUID
+ * (cd9c6b3d…) only satisfies /activitiesbypark, while the "property" GUID
+ * (932af507…) satisfies both /activitiesbypark and /dailyschedulebytime. We use
+ * the property GUID as the parkId so a single value drives every endpoint, and
+ * keep the site GUID as siteId purely for cache-key namespacing.
+ */
+@destinationController({category: ['Herschend', 'Kentucky Kingdom']})
+export class KentuckyKingdom extends HFEBase {
+  constructor(options?: DestinationConstructor) {
+    super(options);
+    this.addConfigPrefix('KENTUCKYKINGDOM');
+
+    this.destinationSlug = 'kentuckykingdom';
+    this.parkSlug = 'kentuckykingdompark';
+    this.destinationName = 'Kentucky Kingdom';
+    this.parkName = 'Kentucky Kingdom';
+    this.parkLatitude = 38.1919;
+    this.parkLongitude = -85.7304;
+    this.attractionsListId = 'cdfe5fb4-5da7-4bfd-a139-30d6545273b9';
+    this.showCategoryListId = '7b5c298a-b5a9-4fb9-922d-8900420bc049';
   }
 }

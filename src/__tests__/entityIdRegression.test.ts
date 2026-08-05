@@ -107,11 +107,12 @@ describe('Destination ID patterns', () => {
       Array.isArray(d.category) ? d.category.includes('Herschend') : d.category === 'Herschend'
     );
 
-    expect(hfe.length).toBe(3);
+    expect(hfe.length).toBe(4);
     const ids = hfe.map(d => d.id).sort();
     expect(ids).toContain('dollywood');
     expect(ids).toContain('silverdollarcity');
     expect(ids).toContain('kennywood');
+    expect(ids).toContain('kentuckykingdom');
   });
 
   test('Six Flags class covers both Six Flags and Cedar Fair parks', async () => {
