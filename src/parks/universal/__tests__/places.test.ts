@@ -386,4 +386,26 @@ describe('mapUniversalShowStatus', () => {
     expect(mapUniversalShowStatus('')).toBe('CLOSED');
     expect(mapUniversalShowStatus(undefined)).toBe('CLOSED');
   });
+
+  // Integration of the two halves the buildLiveData show loop combines: the
+  // reported bug was a delayed show emitting status + showtimes that
+  // contradicted each other. Assert they now coexist coherently on one entry.
+  test('delayed show yields DOWN together with its showtimes (contradiction resolved)', () => {
+    const now = new Date('2026-08-05T14:00:00Z');
+    const show: UniversalShowListEntry = {
+      show_id: 'uor.usf.shows.the_bourne_stuntacular',
+      resort_area_code: 'UOR',
+      name: 'The Bourne Stuntacular',
+      status: 'BRIEF_DELAY',
+      show_externally: true,
+      show_times: [
+        {show_time_id: 'a', status: 'ENABLED', start_time: '2026-08-05T15:15:00.000Z'},
+        {show_time_id: 'b', status: 'ENABLED', start_time: '2026-08-05T16:00:00.000Z'},
+      ],
+    };
+    const status = mapUniversalShowStatus(show.status);
+    const showtimes = parseShowTimes(show, 'America/New_York', now);
+    expect(status).toBe('DOWN'); // was 'CLOSED' before the fix — the contradiction
+    expect(showtimes).toHaveLength(2);
+  });
 });

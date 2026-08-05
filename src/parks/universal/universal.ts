@@ -287,10 +287,13 @@ export function parseShowTimes(
  * Universal reuses its ride operating-state vocabulary for shows. The previous
  * mapping treated every value except 'OPEN' as CLOSED, which mislabelled a show
  * that is merely delayed (BRIEF_DELAY / WEATHER_DELAY) or at capacity as CLOSED
- * even while it still lists a full day of ENABLED performances — a
+ * even while it still listed a full day of ENABLED performances — the reported
  * CLOSED-with-showtimes contradiction. Mirror the attraction status semantics
- * so a delayed-but-scheduled show reads DOWN, and only genuinely-closed states
- * read CLOSED.
+ * so a delayed show reads DOWN.
+ *
+ * This maps the raw status only. A show whose status is literally CLOSED can
+ * still carry future showtimes (e.g. character meet-and-greets between
+ * appearances); that separate case is not resolved here.
  */
 export function mapUniversalShowStatus(
   status: string | undefined,
@@ -304,7 +307,7 @@ export function mapUniversalShowStatus(
     case 'AT_CAPACITY':
       return 'DOWN';
     default:
-      // CLOSED, EXTENDED_CLOSURE, COMING_SOON, unknown → CLOSED
+      // CLOSED, CANCELED, EXTENDED_CLOSURE, COMING_SOON, unknown → CLOSED
       return 'CLOSED';
   }
 }
