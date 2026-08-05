@@ -2,7 +2,7 @@
  * Unit tests for the pure helpers backing the /places migration.
  */
 import {describe, test, expect} from 'vitest';
-import {placeToEntity, isEventVariantAlias, parseShowTimes, type UniversalPlace, type UniversalShowListEntry} from '../universal.js';
+import {placeToEntity, isEventVariantAlias, parseShowTimes, mapUniversalShowStatus, type UniversalPlace, type UniversalShowListEntry} from '../universal.js';
 
 const DESTINATION = 'universalresort_orlando';
 const TZ = 'America/New_York';
@@ -357,5 +357,33 @@ describe('parseShowTimes', () => {
   test('empty / missing show_times → []', () => {
     expect(parseShowTimes({...baseShow, show_times: []}, UOR_TZ, new Date())).toEqual([]);
     expect(parseShowTimes({...baseShow, show_times: undefined}, UOR_TZ, new Date())).toEqual([]);
+  });
+});
+
+describe('mapUniversalShowStatus', () => {
+  test('OPEN / RIDE_NOW → OPERATING', () => {
+    expect(mapUniversalShowStatus('OPEN')).toBe('OPERATING');
+    expect(mapUniversalShowStatus('RIDE_NOW')).toBe('OPERATING');
+  });
+
+  // Regression: a show that is merely delayed still runs a full day of
+  // performances. The old `=== 'OPEN' ? OPERATING : CLOSED` mapping reported it
+  // CLOSED while emitting showtimes — contradictory. BRIEF_DELAY means DOWN.
+  test('BRIEF_DELAY / WEATHER_DELAY / AT_CAPACITY → DOWN (delayed, not closed)', () => {
+    expect(mapUniversalShowStatus('BRIEF_DELAY')).toBe('DOWN');
+    expect(mapUniversalShowStatus('WEATHER_DELAY')).toBe('DOWN');
+    expect(mapUniversalShowStatus('AT_CAPACITY')).toBe('DOWN');
+  });
+
+  test('genuinely-closed states → CLOSED', () => {
+    expect(mapUniversalShowStatus('CLOSED')).toBe('CLOSED');
+    expect(mapUniversalShowStatus('EXTENDED_CLOSURE')).toBe('CLOSED');
+    expect(mapUniversalShowStatus('COMING_SOON')).toBe('CLOSED');
+  });
+
+  test('unknown / empty / undefined → CLOSED (safe default)', () => {
+    expect(mapUniversalShowStatus('SOMETHING_NEW')).toBe('CLOSED');
+    expect(mapUniversalShowStatus('')).toBe('CLOSED');
+    expect(mapUniversalShowStatus(undefined)).toBe('CLOSED');
   });
 });
