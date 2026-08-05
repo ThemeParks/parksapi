@@ -294,8 +294,15 @@ class PlopsaBase extends Destination {
    * 5 minutes tracks the flag closely enough while still collapsing the
    * per-poll fetches of a collector running on a shorter interval. The feed is
    * ~220 KB per language, and `languages` holds one or two entries per park.
+   *
+   * The shorter TTL puts this fetch on the live path — it now runs on almost
+   * every poll instead of twice a day, and `buildLiveData` awaits it without a
+   * fallback, so a single transient failure would cost the park's entire live
+   * data for that poll. `retries: 3` gives a ~7s exponential-backoff window
+   * (1+2+4, ±10% jitter — see `calculateBackoffDelay` in src/http.ts), same
+   * reasoning as the note on `fetchTodayHours`.
    */
-  @http({cacheSeconds: 60 * 5})
+  @http({cacheSeconds: 60 * 5, retries: 3})
   async fetchPOI(language: string = this.apiLanguage): Promise<HTTPObj> {
     return {
       method: 'GET',
