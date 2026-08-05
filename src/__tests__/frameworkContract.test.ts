@@ -73,6 +73,7 @@ describe('Destination registry', () => {
       'dollywood',
       'silverdollarcity',
       'kennywood',
+      'kentuckykingdom',
     ];
 
     for (const parkId of expectedParks) {

@@ -34,6 +34,7 @@ export const parkMapping: Record<string, string> = {
   'kennywood': 'Kennywood',
   'dollywood': 'Dollywood',
   'silverdollarcity': 'SilverDollarCity',
+  'kentuckykingdom': 'KentuckyKingdom',
   // Parc Asterix
   'parcasterix': 'ParcAsterix',
   // Disney
