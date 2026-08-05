@@ -5,10 +5,15 @@
 #   make build      → build the image once
 #   make park PARK=efteling
 #
-# Fedora ships Podman, not Docker. Override if you are on a Docker host:
-#   make COMPOSE="docker compose" dev
+# On a Podman host (Fedora and friends), override COMPOSE:
+#   make COMPOSE="podman-compose --podman-run-args=--userns=keep-id" dev
+#
+# The image runs as the unprivileged `node` user (uid 1000). Rootless Podman
+# maps that to a subuid rather than to you, so without --userns=keep-id the
+# container cannot write to the bind-mounted source tree. Docker needs no
+# such flag. Export COMPOSE in your shell if you use Podman day to day.
 
-COMPOSE ?= podman-compose
+COMPOSE ?= docker compose
 SERVICE  = parksapi
 RUN      = $(COMPOSE) run --rm $(SERVICE)
 
@@ -72,8 +77,8 @@ compile: ## Type-check / compile TypeScript to dist/
 	$(RUN) npm run build
 
 .PHONY: web
-web: ## Serve the web admin on http://localhost:8888
-	$(COMPOSE) run --rm --service-ports $(SERVICE) npm run web
+web: ## Serve the web admin on http://localhost:8888 (WEB_PORT to change)
+	$(COMPOSE) --profile web run --rm --service-ports web
 
 .PHONY: shell
 shell: ## Open a shell inside the container
@@ -90,8 +95,8 @@ clean: ## Remove containers and the node_modules volume
 	-$(COMPOSE) down -v
 
 .PHONY: clean-all
-clean-all: clean ## Also delete the built image
-	-podman rmi localhost/parksapi-dev
+clean-all: ## Also delete the built image (engine-agnostic, unlike a bare rmi)
+	-$(COMPOSE) down -v --rmi all
 
 ##@ Help
 

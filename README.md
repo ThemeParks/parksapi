@@ -81,6 +81,28 @@ npm run test:coverage  # Coverage report
 npm run health         # Health check all endpoints
 ```
 
+### Without Node installed
+
+A container image pins Node 24 / npm 11, so nothing has to be installed on the
+host. Every command above has a `make` equivalent:
+
+```bash
+make build             # Build the dev image once
+make park PARK=efteling
+make test
+make web               # Web admin on http://localhost:8888
+make                   # Full list of targets
+```
+
+The default engine is Docker. On a Podman host, override `COMPOSE`:
+
+```bash
+make COMPOSE="podman-compose --podman-run-args=--userns=keep-id" park PARK=efteling
+```
+
+Credentials still come from `.env` in the repo root, which the entrypoint
+creates empty on first run.
+
 ## Supported Destinations
 
 75 destinations across Disney, Universal, Cedar Fair, Six Flags, Merlin, and many more.
