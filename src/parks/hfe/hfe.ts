@@ -27,6 +27,18 @@ import {TagBuilder} from '../../tags/index.js';
 // API Response Types
 // ============================================================================
 
+/**
+ * Height requirement object shape returned by the HFE Corp activities endpoint.
+ * The API returns this object for every ride (older code assumed a bare
+ * number/string, which never matched, so height tags were silently dropped).
+ */
+type HFEHeightRequirement = {
+  minHeight?: string | number | null;
+  maxHeight?: string | number | null;
+  companionInfo?: string | null;
+  color?: string | null;
+};
+
 /** Activity from the HFE Corp activities endpoint */
 type HFEActivity = {
   id: string;
@@ -37,7 +49,7 @@ type HFEActivity = {
   latitudeForDirections?: string | number;
   longitudeForDirections?: string | number;
   type?: string[];
-  heightRequirement?: string | number | null;
+  heightRequirement?: string | number | HFEHeightRequirement | null;
   rideWaitTimeRideId?: string | number | null;
 };
 
@@ -130,6 +142,24 @@ class HFEBase extends Destination {
   /** activityListId UUID used to filter shows (differs per park; empty = no shows) */
   @config
   showCategoryListId: string = '';
+
+  /**
+   * Extra activity category strings that also count as attractions (set by
+   * subclass). Some parks tag a handful of rides only under a sub-category
+   * (e.g. Kentucky Kingdom's water-park items sit in 'Water Park' but not
+   * 'All Attractions'); listing those categories here recovers them without
+   * pulling in non-ride POIs. Empty by default = no change.
+   */
+  protected extraAttractionCategories: string[] = [];
+
+  /**
+   * When true, only SHOW entities with a scheduled performance in the fetched
+   * window are emitted. The default heuristic keeps any categorised show, which
+   * a park can defeat by tagging one-off performers (e.g. concert bookings)
+   * with a real category. Setting this drops those ghosts at the cost of hiding
+   * genuinely unscheduled off-season shows until they reappear on the calendar.
+   */
+  protected showsRequireSchedule: boolean = false;
 
   /** Destination entity ID (set by subclass) */
   protected destinationSlug: string = '';
@@ -328,6 +358,18 @@ class HFEBase extends Destination {
     } as Entity];
   }
 
+  /**
+   * Whether an activity should be modelled as an attraction entity.
+   * Shared by buildEntityList and buildLiveData so both agree on the set.
+   */
+  protected isAttractionActivity(a: HFEActivity): boolean {
+    const cats = a.activityCategories ?? [];
+    if (cats.includes(this.attractionCategory)) return true;
+    if (this.extraAttractionCategories.some(c => cats.includes(c))) return true;
+    if (this.attractionsListId && a.activityListId === this.attractionsListId && a.rideWaitTimeRideId != null) return true;
+    return false;
+  }
+
   protected async buildEntityList(): Promise<Entity[]> {
     const activities = await this.getActivities();
 
@@ -342,10 +384,7 @@ class HFEBase extends Destination {
     } as Entity;
 
     const attractions = this.mapEntities(
-      activities.filter(a =>
-        a.activityCategories?.includes(this.attractionCategory) ||
-        (!!this.attractionsListId && a.activityListId === this.attractionsListId && a.rideWaitTimeRideId != null),
-      ),
+      activities.filter(a => this.isAttractionActivity(a)),
       {
         idField: 'id',
         nameField: 'title',
@@ -360,17 +399,25 @@ class HFEBase extends Destination {
         transform: (entity, activity) => {
           const tags = [];
 
-          // Parse height requirement
+          // Parse height requirement. The API returns an object
+          // ({minHeight, maxHeight, ...}); older number/string handling is kept
+          // as a fallback in case the shape varies.
           const heightReq = activity.heightRequirement;
-          if (heightReq != null) {
-            if (typeof heightReq === 'number' && heightReq > 0) {
-              tags.push(TagBuilder.minimumHeight(heightReq, 'in'));
-            } else if (typeof heightReq === 'string') {
-              const heightMatch = heightReq.match(/(\d+)/);
-              if (heightMatch) {
-                tags.push(TagBuilder.minimumHeight(parseInt(heightMatch[1], 10), 'in'));
-              }
-            }
+          const toInches = (v: string | number | null | undefined): number | undefined => {
+            if (v == null) return undefined;
+            const match = String(v).match(/\d+/);
+            if (!match) return undefined;
+            const n = parseInt(match[0], 10);
+            return n > 0 ? n : undefined;
+          };
+          if (typeof heightReq === 'number' || typeof heightReq === 'string') {
+            const min = toInches(heightReq);
+            if (min !== undefined) tags.push(TagBuilder.minimumHeight(min, 'in'));
+          } else if (heightReq && typeof heightReq === 'object') {
+            const min = toInches(heightReq.minHeight);
+            const max = toInches(heightReq.maxHeight);
+            if (min !== undefined) tags.push(TagBuilder.minimumHeight(min, 'in'));
+            if (max !== undefined) tags.push(TagBuilder.maximumHeight(max, 'in'));
           }
 
           if (tags.length > 0) {
@@ -417,7 +464,9 @@ class HFEBase extends Destination {
 
       const showActivities = activities.filter(
         a => a.activityListId === this.showCategoryListId &&
-          ((a.activityCategories?.length ?? 0) > 0 || scheduledIds.has(a.id)),
+          (this.showsRequireSchedule
+            ? scheduledIds.has(a.id)
+            : ((a.activityCategories?.length ?? 0) > 0 || scheduledIds.has(a.id))),
       );
 
       shows.push(...this.mapEntities(showActivities, {
@@ -442,11 +491,15 @@ class HFEBase extends Destination {
   // ============================================================================
 
   protected async buildLiveData(): Promise<LiveData[]> {
-    const activities = await this.getActivities();
-    const attractionActivities = activities.filter(a =>
-      a.activityCategories?.includes(this.attractionCategory) ||
-      (!!this.attractionsListId && a.activityListId === this.attractionsListId && a.rideWaitTimeRideId != null),
-    );
+    let activities: HFEActivity[];
+    try {
+      activities = await this.getActivities();
+    } catch {
+      // Activities cache cold + a transient CRM outage would otherwise throw and
+      // wipe all live data even when the wait-time feed is healthy. Fail safe.
+      return [];
+    }
+    const attractionActivities = activities.filter(a => this.isAttractionActivity(a));
 
     let waitTimes: HFEWaitTime[];
     try {
@@ -773,7 +826,7 @@ export class SilverDollarCity extends HFEBase {
 
 /**
  * Kennywood - West Mifflin, Pennsylvania
- * Wait Time Dest ID: 4
+ * Wait Time Dest ID: 701
  */
 @destinationController({category: ['Herschend', 'Kennywood']})
 export class Kennywood extends HFEBase {
@@ -811,9 +864,15 @@ export class KentuckyKingdom extends HFEBase {
     this.parkSlug = 'kentuckykingdompark';
     this.destinationName = 'Kentucky Kingdom';
     this.parkName = 'Kentucky Kingdom';
-    this.parkLatitude = 38.1919;
-    this.parkLongitude = -85.7304;
+    this.parkLatitude = 38.1955;
+    this.parkLongitude = -85.7457;
     this.attractionsListId = 'cdfe5fb4-5da7-4bfd-a139-30d6545273b9';
     this.showCategoryListId = '7b5c298a-b5a9-4fb9-922d-8900420bc049';
+    // One Hurricane Bay water ride (Splash Zone) is tagged only 'Water Park',
+    // not 'All Attractions'; recover it without pulling in non-ride POIs.
+    this.extraAttractionCategories = ['Water Park'];
+    // KK tags one-off concert bookings with real show categories, which defeats
+    // the default ghost filter; require a scheduled performance instead.
+    this.showsRequireSchedule = true;
   }
 }
