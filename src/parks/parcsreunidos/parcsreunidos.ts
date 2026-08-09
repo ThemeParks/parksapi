@@ -786,9 +786,15 @@ export class Mirabilandia extends ParcsReunidosDestination {
   /**
    * Fetch the park's per-attraction wait-time feed.
    *
-   * Cached 30s to match the microsite's own `REFRESH_INTERVAL` — polling
-   * faster cannot surface fresher data, since the feed's `timestamp` only
-   * advances on that cadence.
+   * Cached 30s, matching the microsite's own `REFRESH_INTERVAL`. The feed
+   * itself regenerates roughly every 60s (measured), so this over-polls
+   * about 2x — deliberately: aligning to 60s risks landing just before a
+   * regeneration and carrying an almost-120s-old wait time.
+   *
+   * The origin sends no `Cache-Control` and sits behind no CDN, so unlike the
+   * app — which appends a `?_=<epoch>` cache-buster to defeat webview
+   * caching — the bare URL is safe here. Verified: bare and cache-busted
+   * requests return identical `timestamp` values across successive polls.
    */
   @http({cacheSeconds: 30})
   async fetchWaitTimes(): Promise<HTTPObj> {
