@@ -26,6 +26,14 @@ import type {Entity, LiveData, EntitySchedule, LocalisedString} from '@themepark
 import {constructDateTime} from '../../datetime.js';
 
 const TOKEN_CACHE_KEY = 'energylandia:idToken';
+/**
+ * Where the long-lived Firebase refresh token lives. Kept apart from the id
+ * token so a 401 can drop the short-lived credential without discarding the
+ * identity and forcing a brand new anonymous account to be minted.
+ */
+const REFRESH_TOKEN_CACHE_KEY = 'energylandia:refreshToken';
+/** Firebase refresh tokens do not expire on a schedule; renew monthly. */
+const REFRESH_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30;
 const DESTINATION_ID = 'energylandia';
 const PARK_ID = 'energylandia-park';
 
@@ -361,17 +369,29 @@ export class Energylandia extends Destination {
     return 'https://identitytoolkit.googleapis.com/v1/accounts';
   }
 
+  private get secureTokenBase(): string {
+    return 'https://securetoken.googleapis.com/v1';
+  }
+
   // ==========================================================================
   // Authentication
   // ==========================================================================
 
   /**
-   * Mint an anonymous Firebase account and return its id token.
+   * A Firebase id token for the park's project, valid ~1 hour.
    *
    * The app signs in anonymously, so there is no credential to configure and
-   * nothing secret to hold. Cached for 50 minutes against the token's 1 hour
-   * lifetime; each cache miss mints a fresh throwaway account, which is what
-   * every first-launch install of the app does anyway.
+   * nothing secret to hold. But anonymous sign-up MINTS A PERMANENT ACCOUNT in
+   * the park's Firebase project, so treating it as the renewal mechanism is
+   * abusive: at a 50 minute TTL that is ~29 accounts per day per collector
+   * host, ~10k a year, accumulating for ever in a third party's user list and
+   * billable to them as monthly active users. An app install mints one account
+   * and then *refreshes* it; this now does the same.
+   *
+   * The refresh token is long-lived and is cached separately for 30 days, so
+   * steady state is one account per host that renews itself. A fresh account is
+   * minted only when there is no usable refresh token — first run, or after the
+   * park revokes it.
    *
    * Throws rather than returning empty on failure — a thrown error is not
    * cached, so a transient outage costs one retry instead of locking the park
@@ -381,12 +401,56 @@ export class Energylandia extends Destination {
   async getIdToken(): Promise<string> {
     if (!this.apiKey) throw new Error('Energylandia requires an API key to be configured');
 
-    const resp = await this.fetchAnonymousSignUp();
-    const data = await resp.json().catch(() => ({}));
-    if (!resp.ok || !data?.idToken) {
-      throw new Error(`Energylandia auth failed: ${resp.status} ${JSON.stringify(data)}`);
+    // Renew the existing identity when we can.
+    const refreshToken = CacheLib.get(REFRESH_TOKEN_CACHE_KEY) as string | undefined;
+    if (refreshToken) {
+      try {
+        const resp = await this.fetchTokenRefresh(String(refreshToken));
+        const data = await resp.json().catch(() => ({}));
+        const idToken = data?.id_token;
+        if (idToken) {
+          // Firebase may hand back a rotated refresh token; keep whichever is
+          // current or the next renewal falls back to minting an account.
+          if (data.refresh_token) {
+            CacheLib.set(REFRESH_TOKEN_CACHE_KEY, String(data.refresh_token), REFRESH_TOKEN_TTL_SECONDS);
+          }
+          return String(idToken);
+        }
+      } catch (err: any) {
+        // A revoked or expired refresh token is expected eventually; fall
+        // through and mint once rather than failing the whole poll.
+        console.warn(`[${this.constructor.name}] token refresh failed, signing up again: ${err?.message ?? err}`);
+      }
+      CacheLib.delete(REFRESH_TOKEN_CACHE_KEY);
+    }
+
+    const data = await this.signUpAnonymously();
+    if (data.refreshToken) {
+      CacheLib.set(REFRESH_TOKEN_CACHE_KEY, String(data.refreshToken), REFRESH_TOKEN_TTL_SECONDS);
     }
     return String(data.idToken);
+  }
+
+  /**
+   * Mint a new anonymous account. Deliberately separate from `getIdToken` so
+   * the one call that creates state is easy to find and to count.
+   */
+  private async signUpAnonymously(): Promise<{idToken: string; refreshToken?: string}> {
+    let data: any;
+    try {
+      const resp = await this.fetchAnonymousSignUp();
+      data = await resp.json().catch(() => ({}));
+    } catch (err: any) {
+      // makeRequest rejects on a non-2xx, so the Identity Toolkit error code
+      // (ADMIN_ONLY_OPERATION, OPERATION_NOT_ALLOWED, TOO_MANY_ATTEMPTS…) only
+      // reaches us via the rejection. Surface it — it is the difference
+      // between "retry later" and "anonymous auth has been switched off".
+      throw new Error(`Energylandia anonymous sign-up failed: ${err?.message ?? err}`);
+    }
+    if (!data?.idToken) {
+      throw new Error(`Energylandia anonymous sign-up returned no idToken: ${JSON.stringify(data)}`);
+    }
+    return data;
   }
 
   @http({retries: 1})
@@ -396,6 +460,19 @@ export class Energylandia extends Destination {
       url: `${this.identityBase}:signUp?key=${this.apiKey}`,
       headers: {'content-type': 'application/json'},
       body: JSON.stringify({returnSecureToken: true}),
+      options: {json: false},
+      tags: ['auth'],
+    } as any as HTTPObj;
+  }
+
+  /** Exchange a refresh token for a fresh id token, creating no new account. */
+  @http({retries: 1})
+  async fetchTokenRefresh(refreshToken: string): Promise<HTTPObj> {
+    return {
+      method: 'POST',
+      url: `${this.secureTokenBase}/token?key=${this.apiKey}`,
+      headers: {'content-type': 'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({grant_type: 'refresh_token', refresh_token: refreshToken}).toString(),
       options: {json: false},
       tags: ['auth'],
     } as any as HTTPObj;
@@ -417,8 +494,19 @@ export class Energylandia extends Destination {
   }
 
   /**
-   * Drop a cached token the moment Firestore rejects it, so the next attempt
-   * mints a new one instead of replaying a dead token for the rest of the TTL.
+   * Drop a cached id token the moment Firestore says it is stale, so the next
+   * attempt renews instead of replaying a dead token for the rest of the TTL.
+   *
+   * ONLY 401. A 403 is a permission verdict — a security rule denying the read,
+   * or anonymous auth switched off — and no amount of re-authenticating fixes
+   * it. Treating it as staleness was actively harmful: clearing `req.response`
+   * makes http.ts compute the request as retryable, so every retry re-entered
+   * injectAuthToken on a now-empty cache and, before this park kept a refresh
+   * token, minted a fresh anonymous account each time. A permanent 403 turned
+   * into thousands of sign-ups a day against the park's Firebase project.
+   *
+   * The refresh token is deliberately left in place: the identity is fine, it
+   * is the one-hour credential that expired.
    */
   @inject({
     eventName: 'httpError',
@@ -426,8 +514,7 @@ export class Energylandia extends Destination {
     tags: {$nin: ['auth']},
   } as any)
   async handleUnauthorized(req: HTTPObj): Promise<void> {
-    const status = req.response?.status;
-    if (status !== 401 && status !== 403) return;
+    if (req.response?.status !== 401) return;
     CacheLib.delete(TOKEN_CACHE_KEY);
     req.response = undefined as any;
   }
@@ -482,16 +569,32 @@ export class Energylandia extends Destination {
     for (let i = 0; i < 25; i++) {
       const resp: HTTPObj = await this.fetchCollectionPage(collection, pageToken);
       const data: any = await resp.json();
-      // Firestore returns 200 with `{}` both for a genuinely empty collection
-      // and for one that does not exist, so an absent `documents` key on the
-      // FIRST page is indistinguishable from a renamed collection or a wrong
-      // project id. Tolerating it silently publishes an empty park and caches
-      // that for the TTL; the caller decides what an empty result means.
       if (Array.isArray(data?.documents)) out.push(...(data.documents as FsDoc[]));
       const next = data?.nextPageToken;
       if (!next || next === pageToken) break;
       pageToken = next;
     }
+
+    // Firestore answers 200 with `{}` both for a genuinely empty collection and
+    // for one that does not exist, so zero documents is indistinguishable from
+    // a renamed collection, a wrong project id, or a security rule that now
+    // denies the read. None of those are survivable states for a park whose
+    // entire catalogue and calendar live here, and the failure is silent: the
+    // result caches, `buildEntityList` emits only DESTINATION and PARK, and
+    // `buildSchedules` wipes the published operating hours — all from a
+    // perfectly healthy-looking 200.
+    //
+    // Throwing means the poll emits nothing and the previous data ages
+    // honestly, which is the correct trade when the alternative is deleting a
+    // live park from a public API. A thrown error is never cached, so recovery
+    // is automatic on the next poll.
+    if (out.length === 0) {
+      throw new Error(
+        `Energylandia Firestore collection '${collection}' returned no documents — ` +
+        `refusing to publish an empty catalogue (renamed collection, wrong project, or denied read?)`,
+      );
+    }
+
     return out;
   }
 

@@ -613,3 +613,130 @@ describe('Energylandia — a wait-feed outage is visible', () => {
     }
   });
 });
+
+describe('Energylandia — auth reuses one identity', () => {
+  const CFG = {...BLANK_CONFIG, apiKey: 'k', projectId: 'p'};
+
+  beforeEach(() => CacheLib.clear());
+  afterEach(() => CacheLib.clear());
+
+  test('signs up once, then refreshes — it does not mint an account per token', async () => {
+    // Anonymous sign-up creates a PERMANENT account in the park's Firebase
+    // project. At a 50-minute TTL, minting per renewal is ~10k accounts a year
+    // per collector host, accumulating in a third party's user list.
+    const p: any = new Energylandia({config: CFG});
+    let signUps = 0, refreshes = 0;
+    p.fetchAnonymousSignUp = async () => {
+      signUps++;
+      return {json: async () => ({idToken: 'id-1', refreshToken: 'refresh-1'})};
+    };
+    p.fetchTokenRefresh = async (rt: string) => {
+      refreshes++;
+      expect(rt).toBe('refresh-1');
+      return {json: async () => ({id_token: `id-${refreshes + 1}`})};
+    };
+
+    expect(await p.getIdToken()).toBe('id-1');
+    CacheLib.delete('energylandia:idToken');       // id token expires
+    expect(await p.getIdToken()).toBe('id-2');
+    CacheLib.delete('energylandia:idToken');
+    expect(await p.getIdToken()).toBe('id-3');
+
+    expect(signUps, 'exactly one account should ever be created').toBe(1);
+    expect(refreshes).toBe(2);
+  });
+
+  test('a rotated refresh token is stored, so the next renewal still refreshes', async () => {
+    const p: any = new Energylandia({config: CFG});
+    let signUps = 0;
+    p.fetchAnonymousSignUp = async () => {
+      signUps++;
+      return {json: async () => ({idToken: 'id-1', refreshToken: 'refresh-1'})};
+    };
+    const seen: string[] = [];
+    p.fetchTokenRefresh = async (rt: string) => {
+      seen.push(rt);
+      return {json: async () => ({id_token: 'id-n', refresh_token: `rotated-${seen.length}`})};
+    };
+    await p.getIdToken();
+    CacheLib.delete('energylandia:idToken');
+    await p.getIdToken();
+    CacheLib.delete('energylandia:idToken');
+    await p.getIdToken();
+    expect(seen).toEqual(['refresh-1', 'rotated-1']);
+    expect(signUps).toBe(1);
+  });
+
+  test('a revoked refresh token falls back to a single new sign-up', async () => {
+    const p: any = new Energylandia({config: CFG});
+    let signUps = 0;
+    p.fetchAnonymousSignUp = async () => {
+      signUps++;
+      return {json: async () => ({idToken: `id-${signUps}`, refreshToken: `refresh-${signUps}`})};
+    };
+    p.fetchTokenRefresh = async () => { throw new Error('TOKEN_EXPIRED'); };
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await p.getIdToken();
+    CacheLib.delete('energylandia:idToken');
+    expect(await p.getIdToken()).toBe('id-2');
+    expect(signUps).toBe(2);
+    warn.mockRestore();
+  });
+
+  test('a 403 does not clear the token, so it cannot drive a sign-up loop', async () => {
+    // 403 is a permission verdict — a denying security rule, or anonymous auth
+    // switched off. Re-authenticating cannot fix it, and clearing the response
+    // made http.ts treat the request as retryable, so every retry minted again.
+    const p: any = new Energylandia({config: CFG});
+    CacheLib.set('energylandia:idToken', 'tok', 3000);
+    const req: any = {response: {status: 403}};
+    await p.handleUnauthorized(req);
+    expect(CacheLib.get('energylandia:idToken')).toBe('tok');
+    expect(req.response).toBeDefined();
+  });
+
+  test('a 401 clears the id token but keeps the identity', async () => {
+    const p: any = new Energylandia({config: CFG});
+    CacheLib.set('energylandia:idToken', 'tok', 3000);
+    CacheLib.set('energylandia:refreshToken', 'refresh-1', 3000);
+    const req: any = {response: {status: 401}};
+    await p.handleUnauthorized(req);
+    // CacheLib.get() returns null on a miss, not undefined.
+    expect(CacheLib.get('energylandia:idToken')).toBeNull();
+    expect(CacheLib.get('energylandia:refreshToken'), 'identity survives an expired credential').toBe('refresh-1');
+    expect(req.response).toBeUndefined();
+  });
+});
+
+describe('Energylandia — an empty Firestore collection is a failure, not an empty park', () => {
+  beforeEach(() => CacheLib.clear());
+  afterEach(() => CacheLib.clear());
+
+  test('refuses to publish an empty catalogue', async () => {
+    // Firestore answers 200 with {} for both "empty" and "does not exist", so
+    // a renamed collection would otherwise wipe the park from the public API
+    // and cache that for 30 minutes.
+    const p: any = new Energylandia({config: {...BLANK_CONFIG, apiKey: 'k', projectId: 'p'}});
+    p.getIdToken = async () => 'tok';
+    p.fetchCollectionPage = async () => ({json: async () => ({})});
+    await expect(p.getAttractionDocs()).rejects.toThrow(/refusing to publish an empty catalogue/);
+  });
+
+  test('still follows pagination and returns every page', async () => {
+    const p: any = new Energylandia({config: {...BLANK_CONFIG, apiKey: 'k', projectId: 'p'}});
+    p.getIdToken = async () => 'tok';
+    const pages: any = {
+      'null': {documents: [{name: 'c/a'}], nextPageToken: 't2'},
+      't2': {documents: [{name: 'c/b'}]},
+    };
+    const seen: any[] = [];
+    p.fetchCollectionPage = async (_c: string, token: string | null) => {
+      seen.push(token);
+      return {json: async () => pages[String(token)]};
+    };
+    const docs = await p.getAttractionDocs();
+    expect(docs.map((d: any) => d.name)).toEqual(['c/a', 'c/b']);
+    expect(seen).toEqual([null, 't2']);
+  });
+});
