@@ -284,19 +284,24 @@ export function parseShowTimes(
 /**
  * Map a show-list entry's `status` to a wiki live status.
  *
- * Universal reuses its ride operating-state vocabulary for shows. The previous
+ * Universal reuses its ride operating-state vocabulary for shows. The original
  * mapping treated every value except 'OPEN' as CLOSED, which mislabelled a show
  * that is merely delayed (BRIEF_DELAY / WEATHER_DELAY) or at capacity as CLOSED
  * even while it still listed a full day of ENABLED performances — the reported
  * CLOSED-with-showtimes contradiction. Mirror the attraction status semantics
  * so a delayed show reads DOWN.
  *
- * This maps the raw status only. A show whose status is literally CLOSED can
- * still carry future showtimes (e.g. character meet-and-greets between
- * appearances); that separate case is not resolved here.
+ * `hasFutureShowtimes` closes the contradiction structurally rather than by
+ * enumerating today's known statuses: a show still advertising future ENABLED
+ * performances is operating today (e.g. character meet-and-greets that report
+ * `CLOSED` between appearances), so it is never emitted as CLOSED alongside a
+ * live schedule. Explicit long closures (EXTENDED_CLOSURE / COMING_SOON) still
+ * win over stray showtimes. Delay states stay DOWN — DOWN + showtimes is
+ * coherent (interrupted but scheduled).
  */
 export function mapUniversalShowStatus(
   status: string | undefined,
+  hasFutureShowtimes = false,
 ): 'OPERATING' | 'DOWN' | 'CLOSED' {
   switch (status) {
     case 'OPEN':
@@ -306,9 +311,14 @@ export function mapUniversalShowStatus(
     case 'WEATHER_DELAY':
     case 'AT_CAPACITY':
       return 'DOWN';
-    default:
-      // CLOSED, CANCELED, EXTENDED_CLOSURE, COMING_SOON, unknown → CLOSED
+    case 'EXTENDED_CLOSURE':
+    case 'COMING_SOON':
+      // Strong "not running for a while" signals win over any stray showtimes.
       return 'CLOSED';
+    default:
+      // CLOSED / CANCELED / unknown: operating today iff it still lists future
+      // ENABLED performances, otherwise CLOSED.
+      return hasFutureShowtimes ? 'OPERATING' : 'CLOSED';
   }
 }
 
@@ -1136,9 +1146,9 @@ class Universal extends Destination {
       if (!show.show_externally) continue;
       const showId = sanitizeId(show.show_id);
       const showEntry = getOrCreateLiveData(showId);
-      showEntry.status = mapUniversalShowStatus(show.status);
 
       const times = parseShowTimes(show, this.timezone, now);
+      showEntry.status = mapUniversalShowStatus(show.status, times.length > 0);
       if (times.length > 0) {
         showEntry.showtimes = times;
       }

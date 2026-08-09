@@ -51,6 +51,35 @@ type StayAppAttractionsResponse = {
   data: StayAppAttraction[];
 };
 
+/**
+ * One attraction in Mirabilandia's own `attrazioni.json` wait-time feed.
+ *
+ * `wait_time` and the `note_*` pair are mutually exclusive: a ride that isn't
+ * currently taking guests carries a note and NO `wait_time` key at all — it is
+ * absent, not zero. `wait_time: 0` therefore means a genuine walk-on.
+ */
+type CodeattrAttraction = {
+  closed?: number;
+  wait_time?: number;
+  note_it?: string;
+  note_en?: string;
+};
+
+/** Mirabilandia `attrazioni.json` response */
+type CodeattrAttractionsResponse = {
+  /** Feed generation time, `YYYY-MM-DD HH:mm:ss` in Europe/Rome local time */
+  timestamp?: string;
+  attrazioni?: Record<string, CodeattrAttraction>;
+};
+
+/** Mirabilandia `info.json` response */
+type CodeattrInfo = {
+  isopen?: boolean;
+  manual_override?: boolean;
+  override_value?: unknown;
+  halloween_open?: boolean;
+};
+
 // ============================================================================
 // Base Class
 // ============================================================================
@@ -647,14 +676,226 @@ export class Bobbejaanland extends ParcsReunidosDestination {
 }
 
 /**
+ * Maps Mirabilandia's own wait-time feed keys to Stay-App attraction IDs
+ * (which are the entity IDs this destination publishes).
+ *
+ * The two systems are unrelated, so this table is the join between them. It was
+ * built by matching the feed's per-area display names against the Stay-App
+ * `translatableName` values; 32 of the 33 non-seasonal keys matched 1:1.
+ *
+ * Deliberate non-1:1 entries:
+ *  - `oil_tower` — the feed publishes ONE queue for what Stay-App models as two
+ *    entities (Oil Tower 1 + 2). The towers share a single queue line, so the
+ *    same wait applies to both.
+ *
+ * Keys intentionally absent:
+ *  - The Halloween Horror Festival mazes (llorona, acid_rain, hypnotic_circus,
+ *    apartment, camera_meraviglie, mini_zombie, paranormal) exist only in the
+ *    feed — Stay-App has no entity for them, so there is nothing to attach live
+ *    data to. They sit behind `halloween_open` and are `closed: 1` off-season.
+ *
+ * Stay-App entities with no feed key (Dino Games, Motion Sphere, Splish Splat,
+ * Giochi a premio, PAW Patrol Adventure Bay, Campo Sioux, Fort Alamo) are play
+ * areas and arcades with no queue, and correctly receive no live data.
+ */
+const MIRABILANDIA_WAIT_TIME_ENTITY_IDS: Record<string, readonly string[]> = {
+  aquila: ['126252'],
+  autosplash: ['126257'],
+  balloons: ['584653'],
+  bicisauro: ['126032'],
+  bikini: ['584644'],
+  blu_river: ['126248'],
+  buffalo_bill: ['126251'],
+  carousel: ['584646'],
+  cowabunga: ['584642'],
+  desmo_race: ['126292'],
+  diavel_ring: ['125994'],
+  divertical: ['126291'],
+  dora_train: ['584655'],
+  el_dorado_falls: ['126250'],
+  eurowheel: ['126026'],
+  gold_digger: ['126254'],
+  i_speed: ['126284'],
+  jellyfish: ['584645'],
+  katun: ['126283'],
+  kiddy_monster: ['125992'],
+  master_thai: ['126249'],
+  monosauro: ['126001'],
+  oil_tower: ['126289', '126287'],
+  patrol: ['584650'],
+  raptotana: ['126150'],
+  raratonga: ['126255'],
+  reptilium: ['125997'],
+  reset: ['126256'],
+  rexplorer: ['126149'],
+  rio_bravo: ['126253'],
+  rubble: ['584648'],
+  simulatori: ['126282'],
+  torri_geronimo: ['126047'],
+  twd: ['303683'],
+};
+
+/**
+ * Classify a feed note into a live status.
+ *
+ * Notes replace `wait_time` entirely, so their only job is to distinguish a
+ * ride that is out of service from one that simply hasn't opened yet. The park
+ * writes three shapes, seen live: a delayed opening ("dalle 11.30" /
+ * "opening at 11.30", punctuation varies between `.` and `:`), an explicit
+ * "Attualmente chiuso" / "Currently closed", and "Non disponibile" /
+ * "Not available".
+ *
+ * Only the last maps to DOWN — it is the park's own wording for a ride that
+ * should be running and isn't. A delayed opening is a ride that is scheduled to
+ * open later today, which is CLOSED, not broken. Anything unrecognised falls
+ * back to CLOSED rather than DOWN: an unknown note is not evidence of a
+ * breakdown, and inventing one would be worse than reporting a closure.
+ */
+function classifyMirabilandiaNote(note: string): 'CLOSED' | 'DOWN' {
+  return /\b(non disponibile|not available)\b/i.test(note) ? 'DOWN' : 'CLOSED';
+}
+
+/**
  * Mirabilandia - Ravenna, Italy
+ *
+ * Wait times do NOT come from Stay-App. Mirabilandia's Stay-App establishment
+ * publishes no `waitingTime` field at all — confirmed over a full operating day
+ * against a sibling park on the same credential — so the inherited
+ * `buildLiveData()` emits nothing for this park.
+ *
+ * The park runs its own wait-time microsite instead, which the official app
+ * opens in a webview via Stay-App's generic `WAITING_TIME_BUTTON_LINK`
+ * establishment string. This class overrides `buildLiveData()` to read that
+ * feed and join it back onto the Stay-App entity IDs.
  */
 @destinationController({category: ['Parcs Reunidos', 'Mirabilandia']})
 export class Mirabilandia extends ParcsReunidosDestination {
+  /**
+   * Base URL of the park's wait-time microsite (the directory containing
+   * `attrazioni.json` and `info.json`). No live data is emitted when unset.
+   */
+  @config
+  waitTimesUrl: string = '';
+
   constructor(options?: DestinationConstructor) {
     super(options);
     this.timezone = 'Europe/Rome';
     this.addConfigPrefix('MIRABILANDIA');
+  }
+
+  /**
+   * Fetch the park's per-attraction wait-time feed.
+   *
+   * Cached 30s, matching the microsite's own `REFRESH_INTERVAL`. The feed
+   * itself regenerates roughly every 60s (measured), so this over-polls
+   * about 2x — deliberately: aligning to 60s risks landing just before a
+   * regeneration and carrying an almost-120s-old wait time.
+   *
+   * The origin sends no `Cache-Control` and sits behind no CDN, so unlike the
+   * app — which appends a `?_=<epoch>` cache-buster to defeat webview
+   * caching — the bare URL is safe here. Verified: bare and cache-busted
+   * requests return identical `timestamp` values across successive polls.
+   */
+  @http({cacheSeconds: 30})
+  async fetchWaitTimes(): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.waitTimesUrl.replace(/\/+$/, '')}/attrazioni.json`,
+      options: {json: true},
+    } as any as HTTPObj;
+  }
+
+  /**
+   * Fetch the microsite's park-level open/closed flag.
+   *
+   * Separate from the attraction feed because the park publishes it separately
+   * and it gates the whole response: when `isopen` is false the microsite hides
+   * every wait time regardless of what `attrazioni.json` still contains.
+   */
+  @http({cacheSeconds: 30})
+  async fetchWaitTimesInfo(): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.waitTimesUrl.replace(/\/+$/, '')}/info.json`,
+      options: {json: true},
+    } as any as HTTPObj;
+  }
+
+  protected async buildLiveData(): Promise<LiveData[]> {
+    // Without the feed there is no wait-time source at all for this park —
+    // Stay-App carries none — so emit nothing rather than a page of guesses.
+    if (!this.waitTimesUrl) return [];
+
+    let info: CodeattrInfo;
+    let attractions: Record<string, CodeattrAttraction>;
+    try {
+      const [infoResp, waitResp] = await Promise.all([
+        this.fetchWaitTimesInfo(),
+        this.fetchWaitTimes(),
+      ]);
+      info = (await infoResp.json()) as CodeattrInfo;
+      const payload = (await waitResp.json()) as CodeattrAttractionsResponse;
+      attractions = payload?.attrazioni ?? {};
+    } catch (err: any) {
+      // Emitting nothing lets the previous values age out honestly. Emitting a
+      // fabricated status here would overwrite good data from a healthy poll.
+      console.warn(`[${this.constructor.name}] wait-time feed unavailable: ${err?.message ?? err}`);
+      return [];
+    }
+
+    const liveData: LiveData[] = [];
+    const push = (entityIds: readonly string[], build: (id: string) => LiveData) => {
+      for (const id of entityIds) liveData.push(build(id));
+    };
+
+    for (const [key, entityIds] of Object.entries(MIRABILANDIA_WAIT_TIME_ENTITY_IDS)) {
+      const item = attractions[key];
+      if (!item) continue;
+
+      // The park is shut: every ride it lists is closed, which is a current
+      // observation and not a stale one, so say so rather than going quiet and
+      // letting the entities rot on the dashboard.
+      if (info?.isopen === false) {
+        push(entityIds, (id) => ({id, status: 'CLOSED'}) as LiveData);
+        continue;
+      }
+
+      // `closed: 1` removes the attraction from the microsite's UI entirely —
+      // it is not part of today's line-up (off-season mazes, rides not opening
+      // at all today). Still CLOSED rather than skipped: we know its current
+      // state, and skipping would strand its last live value.
+      if (item.closed === 1) {
+        push(entityIds, (id) => ({id, status: 'CLOSED'}) as LiveData);
+        continue;
+      }
+
+      // A note replaces the wait time; check it before `wait_time` so a ride
+      // that is out of service is never reported as a zero-minute walk-on.
+      const note = item.note_en || item.note_it;
+      if (note && note.trim()) {
+        const status = classifyMirabilandiaNote(note);
+        push(entityIds, (id) => ({id, status}) as LiveData);
+        continue;
+      }
+
+      // Guard the numeric conversion: `wait_time` is unvalidated JSON, and
+      // Number.isFinite does not coerce, so a numeric string would otherwise
+      // fall through as a non-finite value. `''`/null must not become 0 —
+      // Number('') is 0, hence the explicit nullish/empty check first.
+      if (item.wait_time === undefined || item.wait_time === null || (item.wait_time as unknown) === '') {
+        continue;
+      }
+      const waitTime = Number(item.wait_time);
+      if (!Number.isFinite(waitTime) || waitTime < 0) continue;
+
+      push(entityIds, (id) => ({
+        id,
+        status: 'OPERATING',
+        queue: {STANDBY: {waitTime}},
+      }) as LiveData);
+    }
+
+    return liveData;
   }
 }
 

@@ -1,6 +1,6 @@
 import {describe, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll} from 'vitest';
 import {createServer, IncomingMessage, ServerResponse} from 'http';
-import {MovieParkGermany} from '../parcsreunidos.js';
+import {MovieParkGermany, Mirabilandia} from '../parcsreunidos.js';
 import {CacheLib} from '../../../cache.js';
 import type {HTTPObj} from '../../../http.js';
 
@@ -277,5 +277,146 @@ describe('ParcsReunidosDestination.buildLiveData — operating status mapping', 
 
   test('a numeric-string negative sentinel is still coerced and correctly maps to CLOSED', async () => {
     expect((await liveStatusFor('-2' as any)).status).toBe('CLOSED');
+  });
+});
+
+/**
+ * Mirabilandia's wait times do not come from Stay-App at all — its Stay-App
+ * establishment publishes no `waitingTime` field, so the inherited
+ * buildLiveData() emits nothing. The park runs its own wait-time microsite,
+ * which the official app opens in a webview.
+ *
+ * The feed's defining quirk, and the reason these tests exist: `wait_time` and
+ * the `note_*` pair are MUTUALLY EXCLUSIVE. A ride that isn't taking guests
+ * carries a note and no `wait_time` key at all — it is absent, not zero. Read
+ * off a closed park (where every ride reports `wait_time: 0` and no notes) the
+ * feed looks like "everything is a walk-on", and mapping it that way would
+ * publish a fake 0-minute wait for every ride in the park.
+ */
+describe('Mirabilandia — wait-time microsite live data', () => {
+  const FEED_URL = 'https://feed.example/codeattr';
+
+  /** Katun's Stay-App entity id — the join target for the `katun` feed key. */
+  const KATUN = '126283';
+  /** Oil Tower 1 + 2: two entities behind the single `oil_tower` feed key. */
+  const OIL_TOWER_1 = '126289';
+  const OIL_TOWER_2 = '126287';
+
+  function parkWithFeed(
+    attrazioni: Record<string, unknown>,
+    info: Record<string, unknown> = {isopen: true},
+  ): Mirabilandia {
+    const park = new Mirabilandia();
+    park.waitTimesUrl = FEED_URL;
+    park.fetchWaitTimesInfo = async () => ({json: async () => info} as any as HTTPObj);
+    park.fetchWaitTimes = async () => ({
+      json: async () => ({timestamp: '2026-08-09 10:54:14', attrazioni}),
+    } as any as HTTPObj);
+    return park;
+  }
+
+  async function statusFor(item: Record<string, unknown>, info?: Record<string, unknown>) {
+    const live = await parkWithFeed({katun: item}, info).getLiveData();
+    const ld = live.find((l) => l.id === KATUN);
+    return {status: ld?.status, waitTime: (ld as any)?.queue?.STANDBY?.waitTime, emitted: live.length};
+  }
+
+  beforeEach(() => CacheLib.clear());
+  afterEach(() => CacheLib.clear());
+
+  test('a note replaces wait_time entirely and must never be reported as a 0-minute wait', async () => {
+    // THE regression this park exists to prevent. `wait_time` is absent, not 0.
+    expect(await statusFor({closed: 0, note_it: 'Attualmente chiuso', note_en: 'Currently closed'}))
+      .toEqual({status: 'CLOSED', waitTime: undefined, emitted: 1});
+  });
+
+  test('wait_time 0 is a genuine walk-on, not a closed ride', async () => {
+    expect(await statusFor({closed: 0, wait_time: 0}))
+      .toEqual({status: 'OPERATING', waitTime: 0, emitted: 1});
+  });
+
+  test('a real wait time is published as STANDBY minutes', async () => {
+    expect(await statusFor({closed: 0, wait_time: 10}))
+      .toEqual({status: 'OPERATING', waitTime: 10, emitted: 1});
+  });
+
+  test("the park's own 'not available' wording maps to DOWN", async () => {
+    expect((await statusFor({closed: 0, note_it: 'Non disponibile', note_en: 'Not available'})).status)
+      .toBe('DOWN');
+  });
+
+  test('a delayed opening is CLOSED, not DOWN — the ride is scheduled, not broken', async () => {
+    for (const note of ['dalle 11.30', 'opening at 11.30', 'dalle 11:00', 'opening at 14']) {
+      expect((await statusFor({closed: 0, note_en: note})).status).toBe('CLOSED');
+    }
+  });
+
+  test('an unrecognised note falls back to CLOSED rather than inventing a breakdown', async () => {
+    expect((await statusFor({closed: 0, note_en: 'Something nobody has seen before'})).status)
+      .toBe('CLOSED');
+  });
+
+  test('closed:1 (hidden from the microsite UI) is CLOSED, not skipped', async () => {
+    // Skipping would strand the entity's last live value instead of stating
+    // its real current state.
+    expect((await statusFor({closed: 1, wait_time: 0})).status).toBe('CLOSED');
+  });
+
+  test('when the park is shut every listed ride is CLOSED regardless of wait_time', async () => {
+    expect(await statusFor({closed: 0, wait_time: 25}, {isopen: false}))
+      .toEqual({status: 'CLOSED', waitTime: undefined, emitted: 1});
+  });
+
+  test('the single oil_tower queue is published to both Oil Tower entities', async () => {
+    const live = await parkWithFeed({oil_tower: {closed: 0, wait_time: 15}}).getLiveData();
+    expect(live.map((l) => l.id).sort()).toEqual([OIL_TOWER_2, OIL_TOWER_1].sort());
+    for (const ld of live) {
+      expect(ld.status).toBe('OPERATING');
+      expect((ld as any).queue.STANDBY.waitTime).toBe(15);
+    }
+  });
+
+  test('feed keys with no Stay-App entity are ignored, so no orphan ids are emitted', async () => {
+    // The Halloween mazes exist only in the feed.
+    const live = await parkWithFeed({
+      llorona: {closed: 0, wait_time: 5},
+      mini_zombie: {closed: 0, wait_time: 5},
+      katun: {closed: 0, wait_time: 5},
+    }).getLiveData();
+    expect(live.map((l) => l.id)).toEqual([KATUN]);
+  });
+
+  test('emits nothing when no feed URL is configured, rather than throwing', async () => {
+    const park = new Mirabilandia();
+    park.waitTimesUrl = '';
+    await expect(park.getLiveData()).resolves.toEqual([]);
+  });
+
+  test('a feed failure emits nothing rather than fabricating a status', async () => {
+    // Publishing a guessed status here would overwrite good data written by a
+    // healthy collector on another host.
+    const park = new Mirabilandia();
+    park.waitTimesUrl = FEED_URL;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    park.fetchWaitTimesInfo = async () => { throw new Error('feed down'); };
+    park.fetchWaitTimes = async () => { throw new Error('feed down'); };
+
+    await expect(park.getLiveData()).resolves.toEqual([]);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  test('a note wins over a stray wait_time if the feed ever emits both', async () => {
+    expect((await statusFor({closed: 0, wait_time: 0, note_en: 'Not available'})).status).toBe('DOWN');
+  });
+
+  test('a numeric-string wait_time is coerced rather than dropped', async () => {
+    expect(await statusFor({closed: 0, wait_time: '20' as any}))
+      .toEqual({status: 'OPERATING', waitTime: 20, emitted: 1});
+  });
+
+  test('an empty-string wait_time is skipped, never coerced to a 0-minute wait', async () => {
+    // Number('') is 0 — the exact coercion trap this repo bans isNaN() over.
+    expect((await statusFor({closed: 0, wait_time: '' as any})).emitted).toBe(0);
   });
 });
