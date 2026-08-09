@@ -1,0 +1,272 @@
+import {describe, test, expect, beforeEach, afterEach} from 'vitest';
+import {
+  Energylandia,
+  fsId,
+  fsLocalised,
+  parseWaitMinutes,
+  stripCatalogueNumber,
+  buildScheduleIndex,
+  isWithinOperatingWindow,
+  parkLocalDateTime,
+} from '../energylandia.js';
+import {CacheLib} from '../../../cache.js';
+
+const doc = (id: string, fields: Record<string, any>) => ({
+  name: `projects/p/databases/(default)/documents/attractions/${id}`,
+  fields,
+});
+
+const str = (v: string) => ({stringValue: v});
+const int = (v: string | number) => ({integerValue: String(v)});
+const bool = (v: boolean) => ({booleanValue: v});
+const nameMap = (m: Record<string, string>) => ({
+  mapValue: {fields: Object.fromEntries(Object.entries(m).map(([k, v]) => [k, {stringValue: v}]))},
+});
+
+/**
+ * `queueTimeId` is stored as BOTH integerValue and stringValue in the live
+ * collection — 39 numeric, 50 string, 47 of those the empty string. Reading
+ * only one shape produced a park that looked healthy (89 attractions, all
+ * OPERATING) while silently publishing wait times for 3 rides instead of 42.
+ * It is the single highest-value thing to keep pinned.
+ */
+describe('fsId — the two-shaped Firestore identifier', () => {
+  test('reads a stringValue id', () => {
+    expect(fsId(str('265'))).toBe('265');
+  });
+
+  test('reads an integerValue id — the shape that was silently dropped', () => {
+    expect(fsId(int(153))).toBe('153');
+  });
+
+  test('treats the empty string as absent rather than coercing it to 0', () => {
+    // Number('') is 0, which would collide with the real counter id 0.
+    expect(fsId(str(''))).toBeUndefined();
+    expect(fsId(str('   '))).toBeUndefined();
+  });
+
+  test('returns undefined for a missing field', () => {
+    expect(fsId(undefined)).toBeUndefined();
+  });
+});
+
+describe('parseWaitMinutes', () => {
+  test('accepts a normal wait', () => {
+    expect(parseWaitMinutes(30)).toBe(30);
+  });
+
+  test('accepts 0 as a genuine walk-on', () => {
+    expect(parseWaitMinutes(0)).toBe(0);
+  });
+
+  test('accepts a numeric string', () => {
+    expect(parseWaitMinutes('20')).toBe(20);
+  });
+
+  test('passes through an odd-but-real value the park actually publishes', () => {
+    // One ride has been observed reporting 310, which the official app renders
+    // verbatim as "310 min". Suppressing it would misreport the park and would
+    // equally hide a genuine multi-hour queue.
+    expect(parseWaitMinutes(310)).toBe(310);
+  });
+
+  test('rejects the empty string instead of turning it into a 0-minute wait', () => {
+    expect(parseWaitMinutes('')).toBeUndefined();
+  });
+
+  test('rejects null, undefined and non-numeric junk', () => {
+    expect(parseWaitMinutes(null)).toBeUndefined();
+    expect(parseWaitMinutes(undefined)).toBeUndefined();
+    expect(parseWaitMinutes('n/a')).toBeUndefined();
+  });
+
+  test('rejects negative and impossible values', () => {
+    expect(parseWaitMinutes(-1)).toBeUndefined();
+    expect(parseWaitMinutes(600)).toBeUndefined();
+    expect(parseWaitMinutes(99999)).toBeUndefined();
+  });
+});
+
+describe('name handling', () => {
+  test('lowercases language keys so localisation lookups actually match', () => {
+    // The CMS keys languages uppercase (PL/EN/DE); getLocalizedString matches
+    // lowercase ISO codes, so without this every lookup misses.
+    expect(fsLocalised(nameMap({PL: 'Zadra', EN: 'Zadra EN'}))).toEqual({pl: 'Zadra', en: 'Zadra EN'});
+  });
+
+  test('drops blank translations rather than emitting empty names', () => {
+    expect(fsLocalised(nameMap({PL: 'Hyperion', EN: '   '}))).toEqual({pl: 'Hyperion'});
+  });
+
+  test('strips the catalogue number prefix', () => {
+    expect(stripCatalogueNumber('35. Formuła Autodrom')).toBe('Formuła Autodrom');
+    expect(stripCatalogueNumber('141. Pepsi Hyperion')).toBe('Pepsi Hyperion');
+  });
+
+  test('leaves a name that merely starts with a digit intact', () => {
+    expect(stripCatalogueNumber('7D Cinema')).toBe('7D Cinema');
+  });
+});
+
+describe('buildScheduleIndex', () => {
+  test('maps every day of a period to its hours', () => {
+    const i = buildScheduleIndex([{openFrom: '10:00', openTo: '20:00', days: ['2026-08-09', '2026-08-10']}]);
+    expect(i.get('2026-08-09')).toEqual({open: '10:00', close: '20:00'});
+    expect(i.get('2026-08-10')).toEqual({open: '10:00', close: '20:00'});
+  });
+
+  test('skips CMS placeholder periods that carry no days', () => {
+    expect(buildScheduleIndex([{openFrom: '10:00', openTo: '18:00', days: []}]).size).toBe(0);
+  });
+
+  test('skips a 00:00-00:00 period rather than reading it as midnight-to-midnight', () => {
+    expect(buildScheduleIndex([{openFrom: '00:00', openTo: '00:00', days: ['2026-03-01']}]).size).toBe(0);
+  });
+
+  test('ignores malformed date entries', () => {
+    const i = buildScheduleIndex([{openFrom: '10:00', openTo: '18:00', days: ['not-a-date', '2026-08-09']}]);
+    expect([...i.keys()]).toEqual(['2026-08-09']);
+  });
+});
+
+describe('isWithinOperatingWindow', () => {
+  const index = buildScheduleIndex([{openFrom: '10:00', openTo: '20:00', days: ['2026-08-09']}]);
+
+  test('inside the window', () => {
+    expect(isWithinOperatingWindow(index, '2026-08-09', '12:29')).toBe(true);
+  });
+
+  test('before opening and after closing', () => {
+    expect(isWithinOperatingWindow(index, '2026-08-09', '03:00')).toBe(false);
+    expect(isWithinOperatingWindow(index, '2026-08-09', '22:15')).toBe(false);
+  });
+
+  test('an unpublished date is unknown, not closed', () => {
+    // Distinct from false: the caller must not manufacture a status from a
+    // calendar gap.
+    expect(isWithinOperatingWindow(index, '2026-12-25', '12:00')).toBeUndefined();
+  });
+
+  test('a past-midnight window does not silently invert', () => {
+    const late = buildScheduleIndex([{openFrom: '10:00', openTo: '01:00', days: ['2026-08-09']}]);
+    expect(isWithinOperatingWindow(late, '2026-08-09', '23:30')).toBe(true);
+    expect(isWithinOperatingWindow(late, '2026-08-09', '00:30')).toBe(true);
+    expect(isWithinOperatingWindow(late, '2026-08-09', '05:00')).toBe(false);
+  });
+});
+
+describe('parkLocalDateTime', () => {
+  test('renders the instant in park-local time, not UTC', () => {
+    // 2026-08-09T22:30Z is 00:30 the next day in Warsaw (UTC+2 in summer) —
+    // the case where using UTC would put the park on the wrong calendar day.
+    expect(parkLocalDateTime(new Date('2026-08-09T22:30:00Z'), 'Europe/Warsaw'))
+      .toEqual({date: '2026-08-10', time: '00:30'});
+  });
+});
+
+describe('Energylandia — live data', () => {
+  const ATTRACTIONS = [
+    doc('a1', {active: bool(true), type: str('attraction'), open: bool(true),
+      name: nameMap({PL: '141. Pepsi Hyperion'}), queueTimeId: int(222)}),
+    doc('a2', {active: bool(true), type: str('attraction'), open: bool(true),
+      name: nameMap({PL: '44. Tsunami Drop'}), queueTimeId: str('153')}),
+    doc('a3', {active: bool(true), type: str('attraction'), open: bool(true),
+      name: nameMap({PL: '99. No Counter'}), queueTimeId: str('')}),
+    doc('x1', {active: bool(false), type: str('attraction'), open: bool(false),
+      name: nameMap({PL: 'Retired Ride'}), queueTimeId: int(1)}),
+    doc('r1', {active: bool(true), type: str('restaurant'), open: bool(true),
+      name: nameMap({PL: 'Pizzeria'}), queueTimeId: int(2)}),
+  ];
+
+  const FEED = [
+    {ID_ATRAKCJI: 222, ATRAKCJA: '141 PEPSI HYPERION', CZAS_OCZEKIWANIA: 20},
+    {ID_ATRAKCJI: 153, ATRAKCJA: '44 TSUNAMI DROP', CZAS_OCZEKIWANIA: 310},
+    {ID_ATRAKCJI: 909, ATRAKCJA: 'MAIN TRAIN WINDY', CZAS_OCZEKIWANIA: 310},
+    {ID_ATRAKCJI: 1013, ATRAKCJA: 'FAST-PASS FORMULA KOL LICZNIK', CZAS_OCZEKIWANIA: 40},
+  ];
+
+  function park(opts: {days?: string[]; open?: string; close?: string} = {}) {
+    const p: any = new Energylandia();
+    p.waitTimesUrl = 'https://feed.example/';
+    p.getAttractionDocs = async () => ATTRACTIONS;
+    p.fetchWaitTimes = async () => ({text: async () => JSON.stringify(FEED)});
+    p.getCalendarPeriods = async () => [{
+      openFrom: opts.open ?? '10:00',
+      openTo: opts.close ?? '20:00',
+      days: opts.days ?? [],
+    }];
+    return p;
+  }
+
+  beforeEach(() => CacheLib.clear());
+  afterEach(() => CacheLib.clear());
+
+  test('only active attractions become entities — restaurants and retired rides are excluded', async () => {
+    const entities = await park().getEntities();
+    const names = entities.filter((e: any) => e.entityType === 'ATTRACTION').map((e: any) => e.name).sort();
+    expect(names).toEqual(['No Counter', 'Pepsi Hyperion', 'Tsunami Drop']);
+  });
+
+  test('joins the feed by queueTimeId across BOTH id shapes', async () => {
+    const live = await park().getLiveData();
+    const byId = Object.fromEntries(live.map((l: any) => [l.id, l.queue?.STANDBY?.waitTime]));
+    expect(byId['energylandia-a1']).toBe(20);   // integerValue id
+    expect(byId['energylandia-a2']).toBe(310);  // stringValue id
+  });
+
+  test('an attraction with no counter is OPERATING with no queue, never a fake 0-minute wait', async () => {
+    const live = await park().getLiveData();
+    const a3: any = live.find((l: any) => l.id === 'energylandia-a3');
+    expect(a3.status).toBe('OPERATING');
+    expect(a3.queue).toBeUndefined();
+  });
+
+  test('operator-only counter rows never reach output, without needing a blocklist', async () => {
+    // MAIN TRAIN WINDY and the FAST-PASS lane have no Firestore attraction, so
+    // they drop out of the join on their own.
+    const live = await park().getLiveData();
+    expect(live.map((l: any) => l.id).sort()).toEqual(
+      ['energylandia-a1', 'energylandia-a2', 'energylandia-a3'],
+    );
+  });
+
+  test('everything is CLOSED outside the published operating hours', async () => {
+    // The Firestore `open` flag is true for all of these; it tracks `active`
+    // and never changes over a day, so without the schedule gate the park
+    // would report every ride OPERATING at 3am.
+    const {date} = parkLocalDateTime(new Date(), 'Europe/Warsaw');
+    const live = await park({days: [date], open: '23:58', close: '23:59'}).getLiveData();
+    expect(live.every((l: any) => l.status === 'CLOSED')).toBe(true);
+    expect(live.every((l: any) => l.queue === undefined)).toBe(true);
+  });
+
+  test('a calendar gap is treated as open rather than blacking out a running park', async () => {
+    const live = await park({days: ['1999-01-01']}).getLiveData();
+    expect(live.every((l: any) => l.status === 'OPERATING')).toBe(true);
+  });
+
+  test('a feed outage degrades to status-only rather than taking the park down', async () => {
+    const p = park();
+    p.fetchWaitTimes = async () => { throw new Error('feed down'); };
+    const live = await p.getLiveData();
+    expect(live).toHaveLength(3);
+    expect(live.every((l: any) => l.status === 'OPERATING')).toBe(true);
+    expect(live.every((l: any) => l.queue === undefined)).toBe(true);
+  });
+
+  test('emits nothing from the feed when no feed URL is configured', async () => {
+    const p = park();
+    p.waitTimesUrl = '';
+    const live = await p.getLiveData();
+    expect(live.every((l: any) => l.queue === undefined)).toBe(true);
+  });
+
+  test('schedules cover every published day with park-local times', async () => {
+    const scheds = await park({days: ['2026-08-09', '2026-08-10']}).getSchedules();
+    const rows = scheds[0].schedule;
+    expect(rows).toHaveLength(2);
+    expect(rows[0].date).toBe('2026-08-09');
+    expect(rows[0].openingTime).toContain('2026-08-09T10:00:00');
+    expect(rows[0].closingTime).toContain('2026-08-09T20:00:00');
+  });
+});
