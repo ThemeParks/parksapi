@@ -9,10 +9,9 @@
  *  - Wait times come from a separate, standalone host that is not part of
  *    Firebase at all. It serves a flat JSON array with Polish field names and
  *    is joined back onto Firestore attractions by `queueTimeId`.
- *  - Geo coordinates live in Proximiio (referenced per-attraction by
- *    `proximiioId`) and are deliberately not consumed here — Firestore has no
- *    lat/lng, and pulling a second vendor in for coordinates alone is not
- *    worth the coupling for a first implementation.
+ *  - Geo coordinates come from Proximiio, the mapping vendor behind the app's
+ *    park map. Firestore carries no lat/lng at all — only a `proximiioId`
+ *    pointing into Proximiio's feature set.
  *
  * @module energylandia
  */
@@ -76,6 +75,15 @@ type CalendarPeriod = {
   openTo?: string;
   days: string[];
 };
+
+/** A GeoJSON feature from Proximiio's `/geo/features` collection. */
+type ProximiioFeature = {
+  /** `"<organizationId>:<featureId>"` — matches Firestore's `proximiioId` verbatim. */
+  id?: string;
+  geometry?: {type?: string; coordinates?: unknown};
+};
+
+export type LatLng = {latitude: number; longitude: number};
 
 // ============================================================================
 // Pure helpers (exported so they are testable without a live backend)
@@ -190,6 +198,42 @@ export function buildScheduleIndex(periods: CalendarPeriod[]): Map<string, {open
 }
 
 /**
+ * Index Proximiio features by id, keeping only those that resolve to a single
+ * point.
+ *
+ * The collection is mostly not attractions: of 1036 features, 625 are
+ * LineStrings (the walking-path network used for wayfinding) and 3 are
+ * Polygons. Only Point features carry a usable position, and a LineString's
+ * `coordinates` is an array of pairs — reading `coordinates[0]`/`[1]` off one
+ * would yield an array where a number is expected and silently produce a
+ * garbage location rather than an error.
+ *
+ * GeoJSON orders coordinates `[longitude, latitude]`, which is the reverse of
+ * how they are consumed downstream. Getting this backwards puts the park in
+ * the Indian Ocean, so the mapping is explicit here rather than positional at
+ * the call site.
+ */
+export function buildLocationIndex(features: ProximiioFeature[]): Map<string, LatLng> {
+  const index = new Map<string, LatLng>();
+  for (const feature of features) {
+    if (!feature?.id) continue;
+    if (feature.geometry?.type !== 'Point') continue;
+    const coords = feature.geometry?.coordinates;
+    if (!Array.isArray(coords) || coords.length < 2) continue;
+    const [longitude, latitude] = coords;
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') continue;
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
+    // Reject the null-island placeholder and out-of-range values outright;
+    // an exactly-zero pair is far more likely to be missing data than a real
+    // position, and this park is nowhere near it.
+    if (latitude === 0 && longitude === 0) continue;
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) continue;
+    index.set(feature.id, {latitude, longitude});
+  }
+  return index;
+}
+
+/**
  * Park-local `YYYY-MM-DD` and `HH:mm` for an instant, used to decide whether
  * the park is currently within its published operating window.
  */
@@ -249,6 +293,15 @@ export class Energylandia extends Destination {
    * park still emits entities and schedules, just no wait times.
    */
   @config waitTimesUrl: string = '';
+  /** Base URL of the Proximiio API that backs the app's park map. */
+  @config proximiioBaseUrl: string = '';
+  /**
+   * Proximiio application token. A static JWT with no `exp` claim — it
+   * identifies the park's Proximiio application rather than a user, so there is
+   * no refresh flow to implement. With it unset, entities are emitted without
+   * coordinates rather than not at all.
+   */
+  @config proximiioToken: string = '';
   @config timezone: string = 'Europe/Warsaw';
 
   constructor(options?: DestinationConstructor) {
@@ -398,6 +451,62 @@ export class Energylandia extends Destination {
     return this.readCollection('attractions');
   }
 
+  /**
+   * Fetch one page of Proximiio map features.
+   *
+   * Cached 12 hours: this is the park's physical layout, which changes when a
+   * ride is built, not on any operational timescale.
+   */
+  @http({cacheSeconds: 60 * 60 * 12, retries: 2})
+  async fetchProximiioFeatures(from: number, size: number): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.proximiioBaseUrl.replace(/\/+$/, '')}/v7/geo/features?from=${from}&size=${size}`,
+      headers: {
+        'authorization': `Bearer ${this.proximiioToken}`,
+        'accept': 'application/json',
+      },
+      options: {json: true},
+      tags: ['proximiio'],
+    } as any as HTTPObj;
+  }
+
+  /**
+   * Attraction coordinates, keyed by the same `"<org>:<feature>"` id Firestore
+   * stores in `proximiioId`.
+   *
+   * Returns an empty map on any failure so a Proximiio outage costs
+   * coordinates, never the whole entity list — locations are the one part of
+   * an entity the wiki can survive without.
+   */
+  @cache({ttlSeconds: 60 * 60 * 12})
+  async getLocationIndex(): Promise<Record<string, LatLng>> {
+    if (!this.proximiioBaseUrl || !this.proximiioToken) return {};
+
+    const size = 250;
+    const features: ProximiioFeature[] = [];
+    try {
+      // ~1036 features today. Loop until a short page rather than trusting the
+      // `record-total` header, so a change in total between pages cannot cause
+      // a partial read that still looks complete.
+      for (let page = 0; page < 20; page++) {
+        const resp = await this.fetchProximiioFeatures(page * size, size);
+        const data: any = await resp.json();
+        const batch: ProximiioFeature[] = Array.isArray(data?.features) ? data.features : [];
+        features.push(...batch);
+        if (batch.length < size) break;
+      }
+    } catch (err: any) {
+      console.warn(`[${this.constructor.name}] Proximiio unavailable: ${err?.message ?? err}`);
+      return {};
+    }
+
+    // Returned as a plain object, not a Map: @cache round-trips through JSON
+    // and a Map would deserialise as an empty object (see CLAUDE.md — cache
+    // only JSON-safe types).
+    return Object.fromEntries(buildLocationIndex(features));
+  }
+
   @cache({ttlSeconds: 60 * 60 * 6})
   async getCalendarPeriods(): Promise<CalendarPeriod[]> {
     const docs = await this.readCollection('calendar');
@@ -481,7 +590,10 @@ export class Energylandia extends Destination {
   }
 
   protected async buildEntityList(): Promise<Entity[]> {
-    const attractions = await this.getActiveAttractions();
+    const [attractions, locations] = await Promise.all([
+      this.getActiveAttractions(),
+      this.getLocationIndex(),
+    ]);
 
     const parkEntity: Entity = {
       id: PARK_ID,
@@ -501,6 +613,12 @@ export class Energylandia extends Destination {
       const name = stripCatalogueNumber(this.getLocalizedString(localised));
       if (!name) continue;
 
+      // A stale proximiioId pointing at a feature that no longer exists leaves
+      // the attraction without a location rather than dropping it — the ride is
+      // still real and still has wait times.
+      const proximiioId = fsId(f.proximiioId);
+      const location = proximiioId ? locations[proximiioId] : undefined;
+
       rides.push({
         id: entityIdFromDoc(doc),
         name,
@@ -509,6 +627,7 @@ export class Energylandia extends Destination {
         destinationId: DESTINATION_ID,
         parkId: PARK_ID,
         timezone: this.timezone,
+        location,
       } as Entity);
     }
 

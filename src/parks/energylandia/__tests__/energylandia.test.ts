@@ -8,6 +8,7 @@ import {
   buildScheduleIndex,
   isWithinOperatingWindow,
   parkLocalDateTime,
+  buildLocationIndex,
 } from '../energylandia.js';
 import {CacheLib} from '../../../cache.js';
 
@@ -268,5 +269,112 @@ describe('Energylandia — live data', () => {
     expect(rows[0].date).toBe('2026-08-09');
     expect(rows[0].openingTime).toContain('2026-08-09T10:00:00');
     expect(rows[0].closingTime).toContain('2026-08-09T20:00:00');
+  });
+});
+
+/**
+ * Coordinates come from Proximiio, joined by the `"<org>:<feature>"` id that
+ * Firestore stores verbatim in `proximiioId`. Two things make this easy to get
+ * silently wrong: the collection is mostly walking paths rather than rides
+ * (625 LineStrings vs 408 Points of 1036 features), and GeoJSON orders
+ * coordinates longitude-first.
+ */
+describe('buildLocationIndex', () => {
+  const point = (id: string, lng: number, lat: number) =>
+    ({id, geometry: {type: 'Point', coordinates: [lng, lat]}});
+
+  test('reads GeoJSON longitude-first order without transposing it', () => {
+    // Energylandia is at ~49.99N 19.40E. Transposed, this ride lands off the
+    // coast of Somalia and every map in the product is wrong.
+    const i = buildLocationIndex([point('org:a', 19.404603, 50.000026)]);
+    expect(i.get('org:a')).toEqual({latitude: 50.000026, longitude: 19.404603});
+  });
+
+  test('ignores LineString paths, whose coordinates are an array of pairs', () => {
+    // Reading [0]/[1] off one would yield arrays where numbers are expected
+    // and produce a garbage location rather than an error.
+    const i = buildLocationIndex([
+      {id: 'org:path', geometry: {type: 'LineString', coordinates: [[19.41, 49.99], [19.42, 49.99]]}},
+    ]);
+    expect(i.size).toBe(0);
+  });
+
+  test('ignores Polygon features', () => {
+    const i = buildLocationIndex([
+      {id: 'org:zone', geometry: {type: 'Polygon', coordinates: [[[19.4, 49.9], [19.5, 49.9]]]}},
+    ]);
+    expect(i.size).toBe(0);
+  });
+
+  test('rejects null island rather than placing rides at 0,0', () => {
+    expect(buildLocationIndex([point('org:z', 0, 0)]).size).toBe(0);
+  });
+
+  test('rejects out-of-range and non-finite coordinates', () => {
+    expect(buildLocationIndex([point('org:a', 999, 49.9)]).size).toBe(0);
+    expect(buildLocationIndex([point('org:b', 19.4, 91)]).size).toBe(0);
+    expect(buildLocationIndex([{id: 'org:c', geometry: {type: 'Point', coordinates: [NaN, 49.9]}}]).size).toBe(0);
+    expect(buildLocationIndex([{id: 'org:d', geometry: {type: 'Point', coordinates: ['19.4', '49.9']}} as any]).size).toBe(0);
+  });
+
+  test('skips features with no id or malformed geometry', () => {
+    expect(buildLocationIndex([
+      {geometry: {type: 'Point', coordinates: [19.4, 49.9]}},
+      {id: 'org:e'},
+      {id: 'org:f', geometry: {type: 'Point', coordinates: [19.4]}},
+    ] as any).size).toBe(0);
+  });
+});
+
+describe('Energylandia — attraction locations', () => {
+  const ATTRACTIONS = [
+    doc('a1', {active: bool(true), type: str('attraction'), open: bool(true),
+      name: nameMap({PL: '141. Pepsi Hyperion'}), proximiioId: str('org:mapped')}),
+    doc('a2', {active: bool(true), type: str('attraction'), open: bool(true),
+      name: nameMap({PL: '99. Unmapped Ride'}), proximiioId: str('org:gone')}),
+  ];
+
+  function park() {
+    const p: any = new Energylandia();
+    p.proximiioBaseUrl = 'https://geo.example';
+    p.proximiioToken = 'token';
+    p.getAttractionDocs = async () => ATTRACTIONS;
+    p.getCalendarPeriods = async () => [];
+    p.fetchProximiioFeatures = async () => ({
+      json: async () => ({features: [{id: 'org:mapped', geometry: {type: 'Point', coordinates: [19.4046, 50.0000]}}]}),
+    });
+    return p;
+  }
+
+  beforeEach(() => CacheLib.clear());
+  afterEach(() => CacheLib.clear());
+
+  test('attaches coordinates via proximiioId', async () => {
+    const e: any = (await park().getEntities()).find((x: any) => x.name === 'Pepsi Hyperion');
+    expect(e.location).toEqual({latitude: 50.0, longitude: 19.4046});
+  });
+
+  test('a stale proximiioId leaves the ride without a location, never drops it', async () => {
+    // The ride is still real and still reports wait times.
+    const ents = await park().getEntities();
+    const e: any = ents.find((x: any) => x.name === 'Unmapped Ride');
+    expect(e).toBeDefined();
+    expect(e.location).toBeUndefined();
+  });
+
+  test('a Proximiio outage costs coordinates, not the entity list', async () => {
+    const p = park();
+    p.fetchProximiioFeatures = async () => { throw new Error('proximiio down'); };
+    const ents = (await p.getEntities()).filter((x: any) => x.entityType === 'ATTRACTION');
+    expect(ents).toHaveLength(2);
+    expect(ents.every((x: any) => x.location === undefined)).toBe(true);
+  });
+
+  test('unconfigured Proximiio emits entities without coordinates', async () => {
+    const p = park();
+    p.proximiioToken = '';
+    const ents = (await p.getEntities()).filter((x: any) => x.entityType === 'ATTRACTION');
+    expect(ents).toHaveLength(2);
+    expect(ents.every((x: any) => x.location === undefined)).toBe(true);
   });
 });
