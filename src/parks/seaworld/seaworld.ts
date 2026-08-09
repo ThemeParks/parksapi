@@ -1,14 +1,28 @@
 /**
  * SeaWorld / Busch Gardens Parks TypeScript Implementation
  *
- * Supports 5 destinations:
- *  - SeaWorld Orlando (SeaWorld + Aquatica)
- *  - SeaWorld San Antonio
+ * Supports 7 destinations covering all 12 parks the operator publishes:
+ *  - SeaWorld Orlando (SeaWorld + Aquatica + Discovery Cove)
+ *  - SeaWorld San Antonio (SeaWorld + Aquatica)
  *  - SeaWorld San Diego
- *  - Busch Gardens Tampa
- *  - Busch Gardens Williamsburg
+ *  - Busch Gardens Tampa (Busch Gardens + Adventure Island)
+ *  - Busch Gardens Williamsburg (Busch Gardens + Water Country USA)
+ *  - Sesame Place Philadelphia
+ *  - Sesame Place San Diego
  *
- * API: https://public.api.seaworld.com/ (no auth required)
+ * The full park list is enumerable at `v1/park/` (no path parameter), which
+ * returns every park's UUID, brand and name. That is where the UUIDs below come
+ * from, so a park added by the operator is discoverable rather than guessed —
+ * check it before assuming a park has no feed.
+ *
+ * Not every park reports queues. The water parks (Adventure Island, both
+ * Aquaticas, Water Country USA) and Discovery Cove return an empty `WaitTimes`
+ * array while still publishing a full POI list and operating calendar, so they
+ * are entity-and-schedule parks by design, not a broken join. Third-party
+ * aggregators list wait times for some of them; the operator's own feed does
+ * not carry any.
+ *
+ * API: base URL is config-only (`SEAWORLD_BASEURL`), no auth required.
  */
 
 import {Destination, type DestinationConstructor} from '../../destination.js';
@@ -280,8 +294,14 @@ export class SeaworldDestination extends Destination {
       }
       entities.push(parkEntity);
 
-      // --- ATTRACTIONs (Rides + Slides) ---
-      const rides = this.getAllPoisOfTypes(parkDetail, ['Rides', 'Slides']);
+      // --- ATTRACTIONs (Rides + Slides + Pools) ---
+      // `Pools` is the water parks' own type for wave pools, lazy rivers and
+      // activity lagoons — the headline attractions at a park whose only other
+      // rideable type is `Slides`. Leaving it out cost Discovery Cove every
+      // attraction it has (it lists no Rides or Slides at all) and stripped the
+      // signature item from each water park. Cabanas, Services, Restrooms and
+      // Shops stay out: those are amenities, not attractions.
+      const rides = this.getAllPoisOfTypes(parkDetail, ['Rides', 'Slides', 'Pools']);
       for (const poi of rides) {
         const entity: Entity = {
           id: poi.Id,
@@ -519,7 +539,11 @@ export class SeaworldDestination extends Destination {
 
 /**
  * SeaWorld Parks and Resorts Orlando
- * Includes: SeaWorld Orlando + Aquatica Orlando
+ * Includes: SeaWorld Orlando + Aquatica Orlando + Discovery Cove Orlando
+ *
+ * Discovery Cove is appended rather than inserted: `getDestinations()` takes the
+ * destination's coordinates from `resortIds[0]`, so reordering this array would
+ * silently move the destination pin to a different park.
  */
 @destinationController({category: 'SeaWorld'})
 export class SeaworldOrlando extends SeaworldDestination {
@@ -528,6 +552,7 @@ export class SeaworldOrlando extends SeaworldDestination {
     this.resortIds = [
       'AC3AF402-3C62-4893-8B05-822F19B9D2BC', // SeaWorld Orlando
       '4B040706-968A-41B4-9967-D93C7814E665', // Aquatica Orlando
+      '1FB04DFC-B6C0-4918-BE36-EE6DD14FE741', // Discovery Cove Orlando
     ];
     this.timezone = 'America/New_York';
     this.destinationName = 'SeaWorld Parks and Resorts Orlando';
@@ -537,13 +562,15 @@ export class SeaworldOrlando extends SeaworldDestination {
 
 /**
  * SeaWorld San Antonio
+ * Includes: SeaWorld San Antonio + Aquatica San Antonio
  */
 @destinationController({category: 'SeaWorld'})
 export class SeaworldSanAntonio extends SeaworldDestination {
   constructor(options?: DestinationConstructor) {
     super(options);
     this.resortIds = [
-      'F4040D22-8B8D-4394-AEC7-D05FA5DEA945',
+      'F4040D22-8B8D-4394-AEC7-D05FA5DEA945', // SeaWorld San Antonio
+      '04668F50-A57E-4DE6-8E70-D4567D9B46B5', // Aquatica San Antonio
     ];
     this.timezone = 'America/Chicago';
     this.destinationName = 'SeaWorld San Antonio';
@@ -569,13 +596,15 @@ export class SeaworldSanDiego extends SeaworldDestination {
 
 /**
  * Busch Gardens Tampa
+ * Includes: Busch Gardens Tampa + Adventure Island Tampa
  */
 @destinationController({category: 'Busch Gardens'})
 export class BuschGardensTampa extends SeaworldDestination {
   constructor(options?: DestinationConstructor) {
     super(options);
     this.resortIds = [
-      'C001866B-555D-4E92-B48E-CC67E195DE96',
+      'C001866B-555D-4E92-B48E-CC67E195DE96', // Busch Gardens Tampa
+      '770E691C-E6DA-4264-AF27-863189380D0B', // Adventure Island Tampa
     ];
     this.timezone = 'America/New_York';
     this.destinationName = 'Busch Gardens Tampa';
@@ -585,6 +614,8 @@ export class BuschGardensTampa extends SeaworldDestination {
 
 /**
  * Busch Gardens Williamsburg
+ * Includes: Busch Gardens Williamsburg + Water Country USA
+ *
  * Note: destinationId preserves legacy typo "willamsburg" (one 'l') for
  * backwards compatibility with the JS implementation.
  */
@@ -593,10 +624,59 @@ export class BuschGardensWilliamsburg extends SeaworldDestination {
   constructor(options?: DestinationConstructor) {
     super(options);
     this.resortIds = [
-      '45FE1F31-D4E4-4B1E-90E0-5255111070F2',
+      '45FE1F31-D4E4-4B1E-90E0-5255111070F2', // Busch Gardens Williamsburg
+      '66480532-A73C-4617-9B2D-EDC4430CAB86', // Water Country USA
     ];
     this.timezone = 'America/New_York';
     this.destinationName = 'Busch Gardens Williamsburg';
     this.destinationId = 'buschgardenswillamsburg';
+  }
+}
+
+/**
+ * Sesame Place Philadelphia
+ *
+ * The API still calls this park "Sesame Place Langhorne" (its town), which is
+ * what the PARK entity is named, while the park has traded publicly as Sesame
+ * Place Philadelphia since 2021. The destination carries the public brand so it
+ * is findable under the name guests use.
+ *
+ * Reports real queues: 17 ride rows, 9 of them carrying a live reading during a
+ * midday sample.
+ */
+@destinationController({category: 'Sesame Place'})
+export class SesamePlacePhiladelphia extends SeaworldDestination {
+  constructor(options?: DestinationConstructor) {
+    super(options);
+    this.resortIds = [
+      'F7408854-28CB-4B1E-98E5-4449FE600E85', // Sesame Place Langhorne
+    ];
+    this.timezone = 'America/New_York';
+    this.destinationName = 'Sesame Place Philadelphia';
+    this.destinationId = 'sesameplacephiladelphia';
+  }
+}
+
+/**
+ * Sesame Place San Diego
+ *
+ * Publishes a `WaitTimes` array covering all 7 rides, though a midday sample
+ * found every entry at the `Minutes: -1` sentinel. That is not peculiar to this
+ * park and is not a reason to treat it differently: the same sample had SeaWorld
+ * Orlando at 1 live reading out of 17 rows and Busch Gardens Williamsburg at 10
+ * of 33, both long-shipping destinations. The operator uses -1 widely for a ride
+ * it is not currently reporting, and the base class maps it to CLOSED, which is
+ * the established semantic here rather than a new judgement made for this park.
+ */
+@destinationController({category: 'Sesame Place'})
+export class SesamePlaceSanDiego extends SeaworldDestination {
+  constructor(options?: DestinationConstructor) {
+    super(options);
+    this.resortIds = [
+      'A988F4CE-6A81-4527-9535-DDB378689E52', // Sesame Place San Diego
+    ];
+    this.timezone = 'America/Los_Angeles';
+    this.destinationName = 'Sesame Place San Diego';
+    this.destinationId = 'sesameplacesandiego';
   }
 }
