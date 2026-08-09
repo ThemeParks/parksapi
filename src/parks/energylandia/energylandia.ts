@@ -195,9 +195,25 @@ export function stripCatalogueNumber(name: string): string {
  * `isNaN()` over.
  */
 export function parseWaitMinutes(raw: unknown): number | undefined {
-  if (raw === undefined || raw === null || raw === '') return undefined;
-  const n = Number(raw);
+  let n: number;
+  if (typeof raw === 'number') {
+    n = raw;
+  } else if (typeof raw === 'string') {
+    // Trim before the emptiness test: the feed pads values, and Number(' ')
+    // is 0 just as Number('') is, so an unpadded check lets whitespace become
+    // a fabricated zero-minute walk-on.
+    const t = raw.trim();
+    if (t === '') return undefined;
+    n = Number(t);
+  } else {
+    // Booleans, arrays and objects all coerce through Number() to something
+    // finite (Number(false) and Number([]) are both 0), so reject by type
+    // rather than letting them reach the range check.
+    return undefined;
+  }
   if (!Number.isFinite(n)) return undefined;
+  // Wait times are whole minutes; a fraction means the feed changed shape.
+  if (!Number.isInteger(n)) return undefined;
   if (n < 0 || n >= MAX_PLAUSIBLE_WAIT_MINUTES) return undefined;
   return n;
 }
@@ -466,6 +482,11 @@ export class Energylandia extends Destination {
     for (let i = 0; i < 25; i++) {
       const resp: HTTPObj = await this.fetchCollectionPage(collection, pageToken);
       const data: any = await resp.json();
+      // Firestore returns 200 with `{}` both for a genuinely empty collection
+      // and for one that does not exist, so an absent `documents` key on the
+      // FIRST page is indistinguishable from a renamed collection or a wrong
+      // project id. Tolerating it silently publishes an empty park and caches
+      // that for the TTL; the caller decides what an empty result means.
       if (Array.isArray(data?.documents)) out.push(...(data.documents as FsDoc[]));
       const next = data?.nextPageToken;
       if (!next || next === pageToken) break;
@@ -503,36 +524,57 @@ export class Energylandia extends Destination {
    * Attraction coordinates, keyed by the same `"<org>:<feature>"` id Firestore
    * stores in `proximiioId`.
    *
-   * Returns an empty map on any failure so a Proximiio outage costs
-   * coordinates, never the whole entity list — locations are the one part of
-   * an entity the wiki can survive without.
+   * THROWS on failure, deliberately. This method is `@cache`d, and a cache
+   * stores whatever the function *resolves* to — so catching in here and
+   * returning `{}` would write an empty index under a 12 hour TTL, stripping
+   * coordinates from every attraction for half a day, across process restarts
+   * and every other collector host, because of one transient Proximiio blip.
+   * A thrown error is never cached, so the next poll simply retries. The
+   * caller is responsible for tolerating the throw — see `getLocationIndexSafe`
+   * and the same split in `flamingoland.ts`, where the `.catch` lives at the
+   * call site for exactly this reason.
    */
   @cache({ttlSeconds: 60 * 60 * 12})
   async getLocationIndex(): Promise<Record<string, LatLng>> {
-    if (!this.proximiioBaseUrl || !this.proximiioToken) return {};
-
     const size = 250;
     const features: ProximiioFeature[] = [];
-    try {
-      // ~1036 features today. Loop until a short page rather than trusting the
-      // `record-total` header, so a change in total between pages cannot cause
-      // a partial read that still looks complete.
-      for (let page = 0; page < 20; page++) {
-        const resp = await this.fetchProximiioFeatures(page * size, size);
-        const data: any = await resp.json();
-        const batch: ProximiioFeature[] = Array.isArray(data?.features) ? data.features : [];
-        features.push(...batch);
-        if (batch.length < size) break;
+    // ~1036 features today. Loop until a short page rather than trusting the
+    // `record-total` header, so a change in total between pages cannot cause
+    // a partial read that still looks complete.
+    for (let page = 0; page < 20; page++) {
+      const resp = await this.fetchProximiioFeatures(page * size, size);
+      const data: any = await resp.json();
+      // A 200 whose body has no `features` array is a shape change or an error
+      // page, not an empty page. Breaking on it would cache a truncated index
+      // as though it were the whole park, so fail loudly instead.
+      if (!Array.isArray(data?.features)) {
+        throw new Error(`Proximiio page ${page} returned no features array`);
       }
-    } catch (err: any) {
-      console.warn(`[${this.constructor.name}] Proximiio unavailable: ${err?.message ?? err}`);
-      return {};
+      features.push(...data.features);
+      if (data.features.length < size) break;
     }
 
     // Returned as a plain object, not a Map: @cache round-trips through JSON
     // and a Map would deserialise as an empty object (see CLAUDE.md — cache
     // only JSON-safe types).
     return Object.fromEntries(buildLocationIndex(features));
+  }
+
+  /**
+   * `getLocationIndex` with the failure absorbed, for callers that would rather
+   * publish an attraction without a location than not publish it at all.
+   *
+   * The catch lives here rather than inside the cached method so the empty
+   * result is never persisted — see the note on `getLocationIndex`.
+   */
+  async getLocationIndexSafe(): Promise<Record<string, LatLng>> {
+    if (!this.proximiioBaseUrl || !this.proximiioToken) return {};
+    try {
+      return await this.getLocationIndex();
+    } catch (err: any) {
+      console.warn(`[${this.constructor.name}] Proximiio unavailable: ${err?.message ?? err}`);
+      return {};
+    }
   }
 
   @cache({ttlSeconds: 60 * 60 * 6})
@@ -578,11 +620,16 @@ export class Energylandia extends Destination {
     }
 
     for (const row of rows) {
-      const id = row?.ID_ATRAKCJI;
-      if (id === undefined || id === null || id === '') continue;
+      // Normalise identically to fsId(), which trims the Firestore side —
+      // otherwise a padded feed id never matches its attraction and the wait
+      // is silently dropped.
+      const id = row?.ID_ATRAKCJI === undefined || row?.ID_ATRAKCJI === null
+        ? undefined
+        : String(row.ID_ATRAKCJI).trim();
+      if (!id) continue;
       const minutes = parseWaitMinutes(row.CZAS_OCZEKIWANIA);
       if (minutes === undefined) continue;
-      out.set(String(id), minutes);
+      out.set(id, minutes);
     }
     return out;
   }
@@ -620,7 +667,7 @@ export class Energylandia extends Destination {
   protected async buildEntityList(): Promise<Entity[]> {
     const [attractions, locations] = await Promise.all([
       this.getActiveAttractions(),
-      this.getLocationIndex(),
+      this.getLocationIndexSafe(),
     ]);
 
     const parkEntity: Entity = {
@@ -692,17 +739,50 @@ export class Energylandia extends Destination {
     ]);
 
     const {date, time} = parkLocalDateTime(new Date(), this.timezone);
-    const parkOpen = isWithinOperatingWindow(buildScheduleIndex(periods), date, time);
+    const schedule = buildScheduleIndex(periods);
+    const parkOpen = isWithinOperatingWindow(schedule, date, time);
 
     // The park's published hours are the only live open/closed signal it has.
     // Firestore's per-attraction `open` flag looks like one but is not: it
     // tracks `active` almost exactly (every active attraction is flagged open,
     // every inactive one closed), so it never changes over a day and trusting
     // it would report all 89 rides OPERATING at 3am and through the closed
-    // season. An unpublished date returns undefined and is treated as open, so
-    // a calendar gap degrades to the previous behaviour rather than blacking
-    // out a park that is actually running.
-    const outsideOperatingHours = parkOpen === false;
+    // season.
+    //
+    // An unpublished date means CLOSED, not unknown. The calendar is sparse on
+    // purpose: it lists only the days the park operates, so of the 242 dated
+    // days spanning 2026-01-02..2027-01-31 there are 153 gaps, and those gaps
+    // ARE the closed season and the midweek closures. Reading a gap as "open"
+    // published all 89 rides as OPERATING at 3am on Christmas Day.
+    //
+    // The one case that must not be read as closed is an EMPTY calendar, which
+    // is a source failure (renamed collection, wrong project, a 200 with no
+    // documents) rather than a statement about any particular day. Blacking out
+    // a running park on a Firestore glitch is worse than briefly over-reporting
+    // it as open, so that degrades to open and is logged.
+    let outsideOperatingHours: boolean;
+    if (schedule.size === 0) {
+      console.warn(
+        `[${this.constructor.name}] operating calendar is empty — treating the park as open ` +
+        `rather than closing every attraction on what is probably a source failure`,
+      );
+      outsideOperatingHours = false;
+    } else {
+      outsideOperatingHours = parkOpen !== true;
+    }
+
+    // A wait-feed outage is otherwise invisible: every ride still gets an
+    // OPERATING row, the write still lands, and `lastUpdated` still moves, so
+    // a staleness dashboard sees a perfectly healthy park publishing no queue
+    // times at all. The host is genuinely slow — an 11-second response was
+    // observed in normal operation — so this is a real state, not a
+    // hypothetical. Say so once per build rather than failing the emission.
+    if (!outsideOperatingHours && this.waitTimesUrl && waits.size === 0) {
+      console.warn(
+        `[${this.constructor.name}] park is within operating hours but the wait-time feed ` +
+        `returned no usable rows — publishing status without queue times`,
+      );
+    }
 
     const out: LiveData[] = [];
     for (const doc of attractions) {

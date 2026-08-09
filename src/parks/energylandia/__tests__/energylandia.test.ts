@@ -1,4 +1,4 @@
-import {describe, test, expect, beforeEach, afterEach} from 'vitest';
+import {describe, test, expect, beforeEach, afterEach, vi} from 'vitest';
 import {
   Energylandia,
   fsId,
@@ -23,6 +23,20 @@ const bool = (v: boolean) => ({booleanValue: v});
 const nameMap = (m: Record<string, string>) => ({
   mapValue: {fields: Object.fromEntries(Object.entries(m).map(([k, v]) => [k, {stringValue: v}]))},
 });
+
+/**
+ * Every park instance in this file is constructed with an explicit instance
+ * config rather than by assigning properties afterwards. @config resolves
+ * `instance config > CLASSNAME_PROP > PREFIX_PROP > default` (src/config.ts),
+ * so a plain `p.waitTimesUrl = ''` is SILENTLY OVERRIDDEN when ENERGYLANDIA_*
+ * is exported in the shell — which made two "unconfigured" tests fire real
+ * outbound requests at the park's private hosts and turned a 0.86s suite into
+ * a 3.92s one. Instance config is the only assignment env cannot outrank.
+ */
+const BLANK_CONFIG = {
+  apiKey: '', projectId: '', waitTimesUrl: '',
+  proximiioBaseUrl: '', proximiioToken: '',
+};
 
 /**
  * `queueTimeId` is stored as BOTH integerValue and stringValue in the live
@@ -187,8 +201,7 @@ describe('Energylandia — live data', () => {
   ];
 
   function park(opts: {days?: string[]; open?: string; close?: string} = {}) {
-    const p: any = new Energylandia();
-    p.waitTimesUrl = 'https://feed.example/';
+    const p: any = new Energylandia({config: {...BLANK_CONFIG, waitTimesUrl: 'https://feed.example/'}});
     p.getAttractionDocs = async () => ATTRACTIONS;
     p.fetchWaitTimes = async () => ({text: async () => JSON.stringify(FEED)});
     p.getCalendarPeriods = async () => [{
@@ -232,18 +245,58 @@ describe('Energylandia — live data', () => {
   });
 
   test('everything is CLOSED outside the published operating hours', async () => {
-    // The Firestore `open` flag is true for all of these; it tracks `active`
-    // and never changes over a day, so without the schedule gate the park
-    // would report every ride OPERATING at 3am.
-    const {date} = parkLocalDateTime(new Date(), 'Europe/Warsaw');
-    const live = await park({days: [date], open: '23:58', close: '23:59'}).getLiveData();
-    expect(live.every((l: any) => l.status === 'CLOSED')).toBe(true);
-    expect(live.every((l: any) => l.queue === undefined)).toBe(true);
+    // Pinned to a fixed instant rather than read from the wall clock. The
+    // previous form built a 23:58-23:59 window from `new Date()` and asserted
+    // CLOSED, so it failed for a real 120-second window every day.
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-08-09T01:00:00Z')); // 03:00 in Warsaw
+      const live = await park({days: ['2026-08-09'], open: '10:00', close: '20:00'}).getLiveData();
+      expect(live.every((l: any) => l.status === 'CLOSED')).toBe(true);
+      expect(live.every((l: any) => l.queue === undefined)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
-  test('a calendar gap is treated as open rather than blacking out a running park', async () => {
-    const live = await park({days: ['1999-01-01']}).getLiveData();
+  test('everything is OPERATING inside the published operating hours', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-08-09T10:00:00Z')); // 12:00 in Warsaw
+      const live = await park({days: ['2026-08-09'], open: '10:00', close: '20:00'}).getLiveData();
+      expect(live.some((l: any) => l.status === 'OPERATING')).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('a day missing from the calendar is CLOSED, not open', async () => {
+    // The calendar is sparse ON PURPOSE — it lists only operating days, so of
+    // 242 dated days spanning 2026-01-02..2027-01-31 there are 153 gaps, and
+    // those gaps are the closed season and midweek closures. An earlier version
+    // read a gap as "open" and published all 89 rides as OPERATING at 3am on
+    // Christmas Day.
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-12-25T12:00:00Z'));
+      const live = await park({days: ['2026-08-09'], open: '10:00', close: '20:00'}).getLiveData();
+      expect(live).not.toHaveLength(0);
+      expect(live.every((l: any) => l.status === 'CLOSED')).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('an ENTIRELY empty calendar is a source failure and does not black out the park', async () => {
+    // Distinct from a gap: no dates at all means the collection was renamed,
+    // the project id is wrong, or Firestore returned 200 with no documents.
+    // Closing all 89 rides on that would be worse than briefly over-reporting
+    // the park as open, so it degrades to open and warns.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const live = await park({days: []}).getLiveData();
     expect(live.every((l: any) => l.status === 'OPERATING')).toBe(true);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('calendar is empty'));
+    warn.mockRestore();
   });
 
   test('a feed outage degrades to status-only rather than taking the park down', async () => {
@@ -257,7 +310,7 @@ describe('Energylandia — live data', () => {
 
   test('emits nothing from the feed when no feed URL is configured', async () => {
     const p = park();
-    p.waitTimesUrl = '';
+    p.config = {...BLANK_CONFIG};
     const live = await p.getLiveData();
     expect(live.every((l: any) => l.queue === undefined)).toBe(true);
   });
@@ -335,9 +388,9 @@ describe('Energylandia — attraction locations', () => {
   ];
 
   function park() {
-    const p: any = new Energylandia();
-    p.proximiioBaseUrl = 'https://geo.example';
-    p.proximiioToken = 'token';
+    const p: any = new Energylandia({config: {
+      ...BLANK_CONFIG, proximiioBaseUrl: 'https://geo.example', proximiioToken: 'token',
+    }});
     p.getAttractionDocs = async () => ATTRACTIONS;
     p.getCalendarPeriods = async () => [];
     p.fetchProximiioFeatures = async () => ({
@@ -372,7 +425,7 @@ describe('Energylandia — attraction locations', () => {
 
   test('unconfigured Proximiio emits entities without coordinates', async () => {
     const p = park();
-    p.proximiioToken = '';
+    p.config = {...BLANK_CONFIG};
     const ents = (await p.getEntities()).filter((x: any) => x.entityType === 'ATTRACTION');
     expect(ents).toHaveLength(2);
     expect(ents.every((x: any) => x.location === undefined)).toBe(true);
@@ -387,9 +440,9 @@ describe('Energylandia — pinned fallback coordinates', () => {
   const MINI_TRACK = 'JqDuKAgRzSP54oRShbuv';
 
   function parkWith(features: any[]) {
-    const p: any = new Energylandia();
-    p.proximiioBaseUrl = 'https://geo.example';
-    p.proximiioToken = 'token';
+    const p: any = new Energylandia({config: {
+      ...BLANK_CONFIG, proximiioBaseUrl: 'https://geo.example', proximiioToken: 'token',
+    }});
     p.getCalendarPeriods = async () => [];
     p.getAttractionDocs = async () => [
       doc(MINI_TRACK, {active: bool(true), type: str('attraction'), open: bool(true),
@@ -415,7 +468,6 @@ describe('Energylandia — pinned fallback coordinates', () => {
 
   test('every pinned coordinate sits inside the park', async () => {
     // Guards against a fat-fingered digit or a transposed pair being pasted in.
-    const p: any = new Energylandia();
     const {FALLBACK_LOCATIONS} = await import('../energylandia.js') as any;
     const pins = FALLBACK_LOCATIONS ?? {};
     for (const [id, loc] of Object.entries(pins) as any) {
@@ -423,6 +475,141 @@ describe('Energylandia — pinned fallback coordinates', () => {
       expect(loc.latitude, id).toBeLessThan(50.01);
       expect(loc.longitude, id).toBeGreaterThan(19.39);
       expect(loc.longitude, id).toBeLessThan(19.42);
+    }
+  });
+});
+
+describe('Energylandia — failures must not be cached', () => {
+  const ATTRACTIONS = [
+    doc('a1', {active: bool(true), type: str('attraction'), open: bool(true),
+      name: nameMap({EN: '1. Ride'}), proximiioId: str('org:a')}),
+  ];
+
+  function park() {
+    return new Energylandia({config: {
+      ...BLANK_CONFIG, proximiioBaseUrl: 'https://geo.example', proximiioToken: 'token',
+    }}) as any;
+  }
+
+  beforeEach(() => CacheLib.clear());
+  afterEach(() => CacheLib.clear());
+
+  test('a Proximiio outage is not persisted, so the next poll recovers', async () => {
+    // The regression: the catch used to live INSIDE the @cache'd method, so the
+    // empty result was written under a 12h TTL and every attraction lost its
+    // coordinates for half a day — across restarts and every other collector
+    // host — because of one transient blip.
+    const p = park();
+    p.getAttractionDocs = async () => ATTRACTIONS;
+    p.getCalendarPeriods = async () => [];
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    let fail = true;
+    p.fetchProximiioFeatures = async () => {
+      if (fail) throw new Error('proximiio 503');
+      return {json: async () => ({features: [
+        {id: 'org:a', geometry: {type: 'Point', coordinates: [19.4046, 50.0]}},
+      ]})};
+    };
+
+    const first: any = (await p.getEntities()).find((e: any) => e.entityType === 'ATTRACTION');
+    expect(first.location).toBeUndefined();
+
+    // Proximiio recovers. Nothing was cached, so this poll must see real data.
+    fail = false;
+    const second: any = (await p.getEntities()).find((e: any) => e.entityType === 'ATTRACTION');
+    expect(second.location).toEqual({latitude: 50.0, longitude: 19.4046});
+    warn.mockRestore();
+  });
+
+  test('a 200 with no features array fails loudly instead of caching a truncated index', async () => {
+    const p = park();
+    p.fetchProximiioFeatures = async () => ({json: async () => ({ok: true})});
+    await expect(p.getLocationIndex()).rejects.toThrow(/no features array/);
+  });
+});
+
+describe('Energylandia — wait value hardening', () => {
+  test('whitespace never becomes a fabricated zero-minute walk-on', () => {
+    // Number('  ') is 0 exactly as Number('') is; only the latter was guarded.
+    expect(parseWaitMinutes('  ')).toBeUndefined();
+    expect(parseWaitMinutes('\n')).toBeUndefined();
+  });
+
+  test('a padded numeric string still parses', () => {
+    expect(parseWaitMinutes(' 20 ')).toBe(20);
+  });
+
+  test('non-numeric types are rejected by type, not coerced', () => {
+    // Number(false), Number([]) and Number({}) are 0, 0 and NaN respectively —
+    // the first two would otherwise pass the finite check as a real 0 wait.
+    expect(parseWaitMinutes(false as any)).toBeUndefined();
+    expect(parseWaitMinutes([] as any)).toBeUndefined();
+    expect(parseWaitMinutes({} as any)).toBeUndefined();
+  });
+
+  test('a fractional wait is rejected as a shape change', () => {
+    expect(parseWaitMinutes(12.7)).toBeUndefined();
+  });
+
+  test('joins a padded feed id, matching the trimming fsId already does', async () => {
+    const p: any = new Energylandia({config: {...BLANK_CONFIG, waitTimesUrl: 'https://feed.example/'}});
+    p.getCalendarPeriods = async () => [];
+    p.getAttractionDocs = async () => [
+      doc('a1', {active: bool(true), type: str('attraction'), open: bool(true),
+        name: nameMap({EN: '1. Ride'}), queueTimeId: str(' 5 ')}),
+    ];
+    p.fetchWaitTimes = async () => ({text: async () => JSON.stringify([
+      {ID_ATRAKCJI: ' 5 ', CZAS_OCZEKIWANIA: 15},
+    ])});
+    const live = await p.getLiveData();
+    expect((live[0] as any).queue?.STANDBY?.waitTime).toBe(15);
+  });
+});
+
+describe('Energylandia — a wait-feed outage is visible', () => {
+  test('warns when inside operating hours but no wait rows were usable', async () => {
+    // Without this the outage is silent: 89 OPERATING rows still publish and
+    // lastUpdated still moves, so the staleness dashboard sees a healthy park.
+    const p: any = new Energylandia({config: {...BLANK_CONFIG, waitTimesUrl: 'https://feed.example/'}});
+    p.getAttractionDocs = async () => [
+      doc('a1', {active: bool(true), type: str('attraction'), open: bool(true),
+        name: nameMap({EN: '1. Ride'}), queueTimeId: str('5')}),
+    ];
+    p.getCalendarPeriods = async () => [{openFrom: '10:00', openTo: '20:00', days: ['2026-08-09']}];
+    p.fetchWaitTimes = async () => { throw new Error('feed down'); };
+
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-08-09T10:00:00Z')); // 12:00 Warsaw, park open
+      const live = await p.getLiveData();
+      expect(live.every((l: any) => l.status === 'OPERATING')).toBe(true);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('no usable rows'));
+    } finally {
+      vi.useRealTimers();
+      warn.mockRestore();
+    }
+  });
+
+  test('stays quiet outside operating hours, when an empty feed is expected', async () => {
+    const p: any = new Energylandia({config: {...BLANK_CONFIG, waitTimesUrl: 'https://feed.example/'}});
+    p.getAttractionDocs = async () => [
+      doc('a1', {active: bool(true), type: str('attraction'), open: bool(true),
+        name: nameMap({EN: '1. Ride'}), queueTimeId: str('5')}),
+    ];
+    p.getCalendarPeriods = async () => [{openFrom: '10:00', openTo: '20:00', days: ['2026-08-09']}];
+    p.fetchWaitTimes = async () => ({text: async () => '[]'});
+
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-08-09T01:00:00Z')); // 03:00 Warsaw, closed
+      await p.getLiveData();
+      expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('no usable rows'));
+    } finally {
+      vi.useRealTimers();
+      warn.mockRestore();
     }
   });
 });
