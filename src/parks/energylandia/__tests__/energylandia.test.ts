@@ -1260,16 +1260,26 @@ describe('Energylandia — shows end to end', () => {
     vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
     const p: any = park(['2026-08-09']);
     p.getShowDocs = async () => [
+      // Sunday (the simulated 'today') must itself name a venue, and a LATER day
+      // must disagree. With only today's slots read, this show resolves to a
+      // single venue and gets a location — so a fixture with no Sunday slot
+      // would pass whether the whole week is consulted or not.
       showDoc('roam', {active: bool(true), duration: str('15'),
         name: nameMap({EN: 'Midweek Mover'}),
         timetable: timetable({
-          monday: [{time: '11:00', venue: 'v1'}],
+          sunday: [{time: '11:00', venue: 'v1'}],
           tuesday: [{time: '11:00', venue: 'v2'}],
         })}),
+      // Control: a show appearing on ONE non-today weekday still gets its venue,
+      // so the fix cannot be "never resolve a location".
+      showDoc('stay', {active: bool(true), duration: str('15'),
+        name: nameMap({EN: 'Tuesday Only'}),
+        timetable: timetable({tuesday: [{time: '11:00', venue: 'v2'}]})}),
     ];
     const entities = await p.getEntities();
-    const show = entities.find((e: any) => e.name === 'Midweek Mover');
-    expect(show.location).toBeUndefined();
+    expect(entities.find((e: any) => e.name === 'Midweek Mover').location).toBeUndefined();
+    expect(entities.find((e: any) => e.name === 'Tuesday Only').location)
+      .toEqual({latitude: 49.8, longitude: 19.3});
   });
 
   test('reads duration in BOTH Firestore shapes, so end times cannot silently vanish', async () => {
