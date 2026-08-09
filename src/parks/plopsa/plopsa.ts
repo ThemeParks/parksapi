@@ -278,7 +278,31 @@ class PlopsaBase extends Destination {
 
   // ── HTTP methods ──────────────────────────────────────────────
 
-  @http({cacheSeconds: 60 * 60 * 12})
+  /**
+   * The POI feed is mostly cold metadata (titles, images, height specs), but it
+   * is also the *only* carrier of `schedule_info.temporarily_closed` — live
+   * state that flips several times a day. Plopsaland's two splash rides open a
+   * few hours after the park does and are flagged closed until they do; rides
+   * also break down mid-afternoon.
+   *
+   * So this cannot be cached like metadata. It used to sit at 12h, which let a
+   * snapshot taken while a ride was open report OPERATING for the rest of the
+   * day after it closed — `plopsaDecideStatus` reads `!tempClosed` as "open",
+   * so a stale FALSE surfaces as "Open, 0 min". (The reverse, a stale TRUE
+   * after a ride opens, is already rescued by the `hasWait` priority.)
+   *
+   * 5 minutes tracks the flag closely enough while still collapsing the
+   * per-poll fetches of a collector running on a shorter interval. The feed is
+   * ~220 KB per language, and `languages` holds one or two entries per park.
+   *
+   * The shorter TTL puts this fetch on the live path — it now runs on almost
+   * every poll instead of twice a day, and `buildLiveData` awaits it without a
+   * fallback, so a single transient failure would cost the park's entire live
+   * data for that poll. `retries: 3` gives a ~7s exponential-backoff window
+   * (1+2+4, ±10% jitter — see `calculateBackoffDelay` in src/http.ts), same
+   * reasoning as the note on `fetchTodayHours`.
+   */
+  @http({cacheSeconds: 60 * 5, retries: 3})
   async fetchPOI(language: string = this.apiLanguage): Promise<HTTPObj> {
     return {
       method: 'GET',
