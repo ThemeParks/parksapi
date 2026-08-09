@@ -378,3 +378,51 @@ describe('Energylandia — attraction locations', () => {
     expect(ents.every((x: any) => x.location === undefined)).toBe(true);
   });
 });
+
+describe('Energylandia — pinned fallback coordinates', () => {
+  // Three rides are mapped in Proximiio but Firestore points at recreated
+  // features that no longer exist. The fallback is keyed by Firestore doc id
+  // and consulted ONLY on a miss, so a repointed CMS takes over again by
+  // itself.
+  const MINI_TRACK = 'JqDuKAgRzSP54oRShbuv';
+
+  function parkWith(features: any[]) {
+    const p: any = new Energylandia();
+    p.proximiioBaseUrl = 'https://geo.example';
+    p.proximiioToken = 'token';
+    p.getCalendarPeriods = async () => [];
+    p.getAttractionDocs = async () => [
+      doc(MINI_TRACK, {active: bool(true), type: str('attraction'), open: bool(true),
+        name: nameMap({EN: '220. Mini Track Tour Ride'}), proximiioId: str('org:stale')}),
+    ];
+    p.fetchProximiioFeatures = async () => ({json: async () => ({features})});
+    return p;
+  }
+
+  beforeEach(() => CacheLib.clear());
+  afterEach(() => CacheLib.clear());
+
+  test('fills in a ride whose proximiioId resolves to nothing', async () => {
+    const e: any = (await parkWith([]).getEntities()).find((x: any) => x.entityType === 'ATTRACTION');
+    expect(e.location).toEqual({latitude: 49.999318, longitude: 19.402042});
+  });
+
+  test('live Proximiio data wins over the pin, so a CMS fix self-heals', async () => {
+    const live = [{id: 'org:stale', geometry: {type: 'Point', coordinates: [19.5, 50.5]}}];
+    const e: any = (await parkWith(live).getEntities()).find((x: any) => x.entityType === 'ATTRACTION');
+    expect(e.location).toEqual({latitude: 50.5, longitude: 19.5});
+  });
+
+  test('every pinned coordinate sits inside the park', async () => {
+    // Guards against a fat-fingered digit or a transposed pair being pasted in.
+    const p: any = new Energylandia();
+    const {FALLBACK_LOCATIONS} = await import('../energylandia.js') as any;
+    const pins = FALLBACK_LOCATIONS ?? {};
+    for (const [id, loc] of Object.entries(pins) as any) {
+      expect(loc.latitude, id).toBeGreaterThan(49.98);
+      expect(loc.latitude, id).toBeLessThan(50.01);
+      expect(loc.longitude, id).toBeGreaterThan(19.39);
+      expect(loc.longitude, id).toBeLessThan(19.42);
+    }
+  });
+});

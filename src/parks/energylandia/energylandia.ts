@@ -39,6 +39,34 @@ const PARK_ID = 'energylandia-park';
  */
 const MAX_PLAUSIBLE_WAIT_MINUTES = 600;
 
+/**
+ * Coordinates for attractions whose `proximiioId` in Firestore points at a
+ * feature that no longer exists.
+ *
+ * These three rides ARE mapped in Proximiio — the features were recreated with
+ * new ids and the CMS was never repointed, so the stored id resolves to
+ * nothing. The values below are the real published positions, read from those
+ * live Proximiio features by title, not estimated or interpolated.
+ *
+ * Keyed by Firestore document id, which is stable and opaque, rather than by
+ * name (which carries a catalogue number the park re-sequences) or by the
+ * stale proximiioId (which is the broken thing).
+ *
+ * This is a fallback, consulted only when the Proximiio lookup misses, so it
+ * disappears on its own the moment the park repoints the CMS. Revisit if it
+ * ever grows past a handful of entries — a long list would mean the CMS
+ * references have rotted generally and the join needs rethinking, not more
+ * hardcoding.
+ */
+export const FALLBACK_LOCATIONS: Record<string, LatLng> = {
+  // 220. Mini Track’ Tour Ride
+  JqDuKAgRzSP54oRShbuv: {latitude: 49.999318, longitude: 19.402042},
+  // 219. Candy Critters
+  Z3eRroYWJQBqbiiyWwW7: {latitude: 49.999518, longitude: 19.402044},
+  // 217. Candy Carousel
+  rg9yNdn5nN3ziBBEWiIt: {latitude: 49.999481, longitude: 19.402669},
+};
+
 // ============================================================================
 // Firestore REST value types
 // ============================================================================
@@ -613,11 +641,14 @@ export class Energylandia extends Destination {
       const name = stripCatalogueNumber(this.getLocalizedString(localised));
       if (!name) continue;
 
-      // A stale proximiioId pointing at a feature that no longer exists leaves
-      // the attraction without a location rather than dropping it — the ride is
-      // still real and still has wait times.
+      // Prefer the live Proximiio position; fall back to a pinned coordinate
+      // only when the stored proximiioId resolves to nothing, so a repointed
+      // CMS silently takes over again. A ride with neither is still emitted —
+      // it is real and still reports wait times, it just has no location.
+      const docId = firestoreDocId(doc);
       const proximiioId = fsId(f.proximiioId);
-      const location = proximiioId ? locations[proximiioId] : undefined;
+      const location = (proximiioId ? locations[proximiioId] : undefined)
+        ?? FALLBACK_LOCATIONS[docId];
 
       rides.push({
         id: entityIdFromDoc(doc),
@@ -724,8 +755,12 @@ export class Energylandia extends Destination {
   }
 }
 
+/** The document id portion of a Firestore document path. */
+function firestoreDocId(doc: FsDoc): string {
+  return doc.name.split('/').pop() || doc.name;
+}
+
 /** Stable entity id derived from the Firestore document path. */
 function entityIdFromDoc(doc: FsDoc): string {
-  const docId = doc.name.split('/').pop() || doc.name;
-  return `${DESTINATION_ID}-${docId}`;
+  return `${DESTINATION_ID}-${firestoreDocId(doc)}`;
 }
