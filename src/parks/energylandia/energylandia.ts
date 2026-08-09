@@ -9,6 +9,9 @@
  *  - Wait times come from a separate, standalone host that is not part of
  *    Firebase at all. It serves a flat JSON array with Polish field names and
  *    is joined back onto Firestore attractions by `queueTimeId`.
+ *  - Showtimes come from a `shows` collection of their own, keyed by weekday
+ *    rather than by date, so they are a recurring pattern that has to be read
+ *    against the operating calendar rather than published as-is.
  *  - Geo coordinates come from Proximiio, the mapping vendor behind the app's
  *    park map. Firestore carries no lat/lng at all — only a `proximiioId`
  *    pointing into Proximiio's feature set.
@@ -22,8 +25,8 @@ import {http, type HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
 import config from '../../config.js';
 import {destinationController} from '../../destinationRegistry.js';
-import type {Entity, LiveData, EntitySchedule, LocalisedString} from '@themeparks/typelib';
-import {constructDateTime} from '../../datetime.js';
+import type {Entity, LiveData, EntitySchedule, LocalisedString, LiveTimeSlot} from '@themeparks/typelib';
+import {constructDateTime, addMinutes} from '../../datetime.js';
 
 const TOKEN_CACHE_KEY = 'energylandia:idToken';
 /**
@@ -111,6 +114,29 @@ type CalendarPeriod = {
   openTo?: string;
   days: string[];
 };
+
+/**
+ * One performance in a show's weekly timetable.
+ *
+ * `venueId` is the Firestore id of the attraction the show plays at, and is
+ * genuinely optional: 63 of 259 published slots omit the field entirely. Those
+ * are not broken references — every one of them still names its venue in
+ * `place`, so the venue is always known even when the link to its document is
+ * not. Treat a missing `venueId` as "not linked", never as "no venue".
+ */
+type ShowSlot = {
+  /** `HH:mm`, park-local. */
+  time: string;
+  venueId?: string;
+  place?: LocalisedString;
+};
+
+/** Weekday keys exactly as the CMS spells them in a `timetable` map. */
+export const WEEKDAYS = [
+  'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday',
+] as const;
+
+export type Weekday = typeof WEEKDAYS[number];
 
 /** A GeoJSON feature from Proximiio's `/geo/features` collection. */
 type ProximiioFeature = {
@@ -303,6 +329,155 @@ export function parkLocalDateTime(now: Date, timezone: string): {date: string; t
     date: `${get('year')}-${get('month')}-${get('day')}`,
     time: `${hour}:${get('minute')}`,
   };
+}
+
+/**
+ * The park-local weekday for an instant, as the CMS spells it.
+ *
+ * Separate from `parkLocalDateTime` rather than folded into it: that function's
+ * exact `{date, time}` shape is asserted by its tests, and a show timetable is
+ * keyed by weekday alone. Derived from the same timezone rather than from
+ * `Date.getDay()`, which would read the collector host's day and put the park on
+ * the wrong timetable for the hours either side of local midnight.
+ */
+export function parkLocalWeekday(now: Date, timezone: string): Weekday {
+  const name = new Intl.DateTimeFormat('en-US', {timeZone: timezone, weekday: 'long'})
+    .format(now)
+    .toLowerCase();
+  // en-US 'long' weekdays are exactly the CMS's keys; assert rather than assume,
+  // so an ICU change surfaces here instead of silently emptying every timetable.
+  if (!(WEEKDAYS as readonly string[]).includes(name)) {
+    throw new Error(`Unrecognised weekday '${name}' for timezone ${timezone}`);
+  }
+  return name as Weekday;
+}
+
+/**
+ * Read one weekday's performances out of a show's `timetable` map.
+ *
+ * Slots are sorted by time. The CMS stores them in entry order, which is not
+ * chronological — one observed show lists 16:30 before 13:30 — and an unsorted
+ * list makes "the day's last performance" the wrong entry, which is what decides
+ * whether the show still counts as running.
+ *
+ * A slot with no usable `HH:mm` is dropped rather than repaired: every one of
+ * the 259 published slots parses today, so a malformed time means the shape
+ * changed and guessing at it would publish a performance that does not happen.
+ *
+ * The time is range-checked, not merely shape-checked. `\d{2}:\d{2}` accepts
+ * "25:99", which `constructDateTime` would then resolve by rolling over into
+ * the following day — publishing a performance at an hour the park never
+ * stated, on a date it was never scheduled.
+ */
+export function parseShowSlots(timetable: FsValue | undefined, weekday: Weekday): ShowSlot[] {
+  const values = timetable?.mapValue?.fields?.[weekday]?.arrayValue?.values || [];
+  const slots: ShowSlot[] = [];
+  for (const entry of values) {
+    const f = entry?.mapValue?.fields || {};
+    const time = fsString(f.time)?.trim();
+    if (!time || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) continue;
+    slots.push({
+      time,
+      venueId: fsId(f.attractionId),
+      place: fsLocalised(f.place),
+    });
+  }
+  return slots.sort((a, b) => a.time.localeCompare(b.time));
+}
+
+/**
+ * A show's stated running time in minutes, or undefined when it is unusable.
+ *
+ * The CMS holds this as a string ("15", "20", "120"). Rejected outright rather
+ * than coerced when empty, because `Number('')` is 0 and a zero-length
+ * performance would collapse every end time onto its start.
+ */
+export function parseDurationMinutes(raw: string | undefined): number | undefined {
+  if (raw === undefined) return undefined;
+  const t = raw.trim();
+  if (t === '') return undefined;
+  const n = Number(t);
+  if (!Number.isFinite(n) || !Number.isInteger(n)) return undefined;
+  // A show running over 12 hours is a data error, not a show.
+  if (n <= 0 || n > 12 * 60) return undefined;
+  return n;
+}
+
+/**
+ * Turn one weekday's slots into showtimes for a specific date.
+ *
+ * The feed never populates `timeEnd` — all 259 slots hold an explicit null — so
+ * the end time is derived from the show's own stated `duration`. That is the
+ * park's own number, not an assumption about how long a show runs; when it is
+ * missing or unusable the end time is left null rather than invented.
+ *
+ * The end is rendered back through the same `constructDateTime` the start uses,
+ * rather than taken straight off the shifted Date. Emitting `.toISOString()`
+ * there is correct to the instant but writes it as UTC, so a single showtime
+ * would carry `…T12:45:00+02:00` alongside `…T11:00:00.000Z` — two formats for
+ * one pair of timestamps. Round-tripping through the park's local clock also
+ * makes a performance that runs past midnight land on the next date, and keeps
+ * a DST boundary handled by the same code that handles it for the start.
+ */
+export function buildShowtimes(
+  slots: ShowSlot[],
+  date: string,
+  timezone: string,
+  durationMinutes?: number,
+): LiveTimeSlot[] {
+  return slots.map((slot) => {
+    const startTime = constructDateTime(date, slot.time, timezone);
+    let endTime: string | null = null;
+    if (durationMinutes !== undefined) {
+      const end = addMinutes(new Date(startTime), durationMinutes);
+      const local = parkLocalDateTime(end, timezone);
+      endTime = constructDateTime(local.date, local.time, timezone);
+    }
+    return {type: 'PERFORMANCE_TIME', startTime, endTime};
+  });
+}
+
+/**
+ * A show is OPERATING while it still has a performance to come or one running,
+ * and CLOSED once the day's last has finished.
+ *
+ * Reporting a show OPERATING all day would keep the evening's final parade
+ * listed as running at closing time. A slot with no end time falls back to its
+ * start, so a show without a stated duration goes CLOSED the moment its last
+ * performance begins rather than lingering for ever.
+ */
+export function showStatusFromShowtimes(
+  showtimes: LiveTimeSlot[],
+  nowMs: number,
+): 'OPERATING' | 'CLOSED' {
+  return showtimes.some((slot) => {
+    const start = slot.startTime ? new Date(slot.startTime).getTime() : NaN;
+    if (!Number.isFinite(start)) return false;
+    const end = slot.endTime ? new Date(slot.endTime).getTime() : start;
+    return (Number.isFinite(end) ? end : start) >= nowMs;
+  }) ? 'OPERATING' : 'CLOSED';
+}
+
+/**
+ * The single venue a show plays at across its whole week, or undefined when it
+ * moves between venues.
+ *
+ * Twelve of the thirteen published shows sit at exactly one venue all week; the
+ * exception ("Meeting with Mascots") rotates between three. Pinning a location
+ * on a show that moves would put it at whichever venue happened to be listed
+ * first, so a roaming show is left without one.
+ *
+ * Slots that omit `venueId` are ignored rather than treated as disagreement:
+ * the field is simply absent on 63 slots whose `place` still names the same
+ * venue as their siblings, so counting them as "different" would strip the
+ * location from shows that never move.
+ */
+export function resolveShowVenueId(slots: ShowSlot[]): string | undefined {
+  const venues = new Set<string>();
+  for (const slot of slots) {
+    if (slot.venueId) venues.add(slot.venueId);
+  }
+  return venues.size === 1 ? [...venues][0] : undefined;
 }
 
 /**
@@ -604,6 +779,16 @@ export class Energylandia extends Destination {
   }
 
   /**
+   * The `shows` collection, which is where performances live — NOT the handful
+   * of `type: 'show'` documents in `attractions`, which are the theatres and
+   * amphitheatres the performances play in.
+   */
+  @cache({ttlSeconds: 60 * 30})
+  async getShowDocs(): Promise<FsDoc[]> {
+    return this.readCollection('shows');
+  }
+
+  /**
    * Fetch one page of Proximiio map features.
    *
    * Cached 12 hours: this is the park's physical layout, which changes when a
@@ -750,11 +935,33 @@ export class Energylandia extends Destination {
    * shops, games and shows sharing the collection; only rides are in scope.
    */
   private async getActiveAttractions(): Promise<FsDoc[]> {
+    return this.getActiveDocsOfType('attraction');
+  }
+
+  /**
+   * Documents in `attractions` the park currently publishes, of one `type`.
+   *
+   * The collection mixes rides, restaurants, shops, games, show venues and
+   * unlabelled service points (park entrances, the map pin), so `type` is what
+   * separates them. 316 documents today, of which 89 are rides and 72 are
+   * restaurants.
+   */
+  private async getActiveDocsOfType(type: string): Promise<FsDoc[]> {
     const docs = await this.getAttractionDocs();
     return docs.filter((d) => {
       const f = d.fields || {};
-      return fsBool(f.active) === true && fsString(f.type) === 'attraction';
+      return fsBool(f.active) === true && fsString(f.type) === type;
     });
+  }
+
+  /**
+   * Shows the park currently publishes: 13 of the 157 documents in the
+   * collection. The other 144 are retired or unbuilt and carry `active: false`,
+   * exactly as with attractions.
+   */
+  private async getActiveShows(): Promise<FsDoc[]> {
+    const docs = await this.getShowDocs();
+    return docs.filter((d) => fsBool(d.fields?.active) === true);
   }
 
   async getDestinations(): Promise<Entity[]> {
@@ -767,9 +974,25 @@ export class Energylandia extends Destination {
     } as Entity];
   }
 
+  /**
+   * Where a document sits, preferring the live Proximiio position and falling
+   * back to a pinned coordinate only when the stored `proximiioId` resolves to
+   * nothing, so a repointed CMS silently takes over again.
+   */
+  private locationForDoc(
+    doc: FsDoc,
+    locations: Record<string, LatLng>,
+  ): LatLng | undefined {
+    const proximiioId = fsId(doc.fields?.proximiioId);
+    return (proximiioId ? locations[proximiioId] : undefined)
+      ?? FALLBACK_LOCATIONS[firestoreDocId(doc)];
+  }
+
   protected async buildEntityList(): Promise<Entity[]> {
-    const [attractions, locations] = await Promise.all([
+    const [attractions, restaurants, shows, locations] = await Promise.all([
       this.getActiveAttractions(),
+      this.getActiveDocsOfType('restaurant'),
+      this.getActiveShows(),
       this.getLocationIndexSafe(),
     ]);
 
@@ -783,23 +1006,20 @@ export class Energylandia extends Destination {
       location: {latitude: 49.9906, longitude: 19.4136},
     } as Entity;
 
+    /** The display name a document should carry, or undefined if it has none. */
+    const nameFor = (doc: FsDoc): string | undefined => {
+      const localised = fsLocalised(doc.fields?.name);
+      if (!localised) return undefined;
+      return stripCatalogueNumber(this.getLocalizedString(localised)) || undefined;
+    };
+
     const rides: Entity[] = [];
     for (const doc of attractions) {
-      const f = doc.fields || {};
-      const localised = fsLocalised(f.name);
-      if (!localised) continue;
-      const name = stripCatalogueNumber(this.getLocalizedString(localised));
+      const name = nameFor(doc);
       if (!name) continue;
 
-      // Prefer the live Proximiio position; fall back to a pinned coordinate
-      // only when the stored proximiioId resolves to nothing, so a repointed
-      // CMS silently takes over again. A ride with neither is still emitted —
-      // it is real and still reports wait times, it just has no location.
-      const docId = firestoreDocId(doc);
-      const proximiioId = fsId(f.proximiioId);
-      const location = (proximiioId ? locations[proximiioId] : undefined)
-        ?? FALLBACK_LOCATIONS[docId];
-
+      // A ride with no location is still emitted — it is real and still reports
+      // wait times, it just has no coordinates.
       rides.push({
         id: entityIdFromDoc(doc),
         name,
@@ -808,11 +1028,55 @@ export class Energylandia extends Destination {
         destinationId: DESTINATION_ID,
         parkId: PARK_ID,
         timezone: this.timezone,
-        location,
+        location: this.locationForDoc(doc, locations),
       } as Entity);
     }
 
-    return [parkEntity, ...rides];
+    const dining: Entity[] = [];
+    for (const doc of restaurants) {
+      const name = nameFor(doc);
+      if (!name) continue;
+      dining.push({
+        id: entityIdFromDoc(doc),
+        name,
+        entityType: 'RESTAURANT',
+        parentId: PARK_ID,
+        destinationId: DESTINATION_ID,
+        parkId: PARK_ID,
+        timezone: this.timezone,
+        location: this.locationForDoc(doc, locations),
+      } as Entity);
+    }
+
+    // Shows are located via the venue they play at, since a show document has no
+    // proximiioId of its own — only the theatre it runs in does. A show that
+    // moves between venues during the week gets no location rather than an
+    // arbitrary one; see resolveShowVenueId.
+    const attractionsById = new Map(
+      (await this.getAttractionDocs()).map((doc) => [firestoreDocId(doc), doc]),
+    );
+    const performances: Entity[] = [];
+    for (const doc of shows) {
+      const name = nameFor(doc);
+      if (!name) continue;
+
+      const weeklySlots = WEEKDAYS.flatMap((day) => parseShowSlots(doc.fields?.timetable, day));
+      const venueId = resolveShowVenueId(weeklySlots);
+      const venueDoc = venueId ? attractionsById.get(venueId) : undefined;
+
+      performances.push({
+        id: showEntityIdFromDoc(doc),
+        name,
+        entityType: 'SHOW',
+        parentId: PARK_ID,
+        destinationId: DESTINATION_ID,
+        parkId: PARK_ID,
+        timezone: this.timezone,
+        location: venueDoc ? this.locationForDoc(venueDoc, locations) : undefined,
+      } as Entity);
+    }
+
+    return [parkEntity, ...rides, ...dining, ...performances];
   }
 
   // ==========================================================================
@@ -835,13 +1099,15 @@ export class Energylandia extends Destination {
    * have no Firestore attraction to attach to, and drop out of the join.
    */
   protected async buildLiveData(): Promise<LiveData[]> {
-    const [attractions, waits, periods] = await Promise.all([
+    const [attractions, shows, waits, periods] = await Promise.all([
       this.getActiveAttractions(),
+      this.getActiveShows(),
       this.getWaitTimes(),
       this.getCalendarPeriods(),
     ]);
 
-    const {date, time} = parkLocalDateTime(new Date(), this.timezone);
+    const now = new Date();
+    const {date, time} = parkLocalDateTime(now, this.timezone);
     const schedule = buildScheduleIndex(periods);
     const parkOpen = isWithinOperatingWindow(schedule, date, time);
 
@@ -914,6 +1180,59 @@ export class Energylandia extends Destination {
       } as LiveData);
     }
 
+    out.push(...this.buildShowLiveData(shows, date, now, outsideOperatingHours));
+
+    return out;
+  }
+
+  /**
+   * Today's performances for each published show.
+   *
+   * The timetable is keyed by WEEKDAY, not by date — it is a recurring weekly
+   * pattern with no notion of the calendar. On its own it would happily publish
+   * Saturday's parade on a Saturday in the closed season, so it is gated on the
+   * operating calendar exactly as wait times are: outside published hours a show
+   * is CLOSED and emits no times at all, rather than advertising performances
+   * for a day the park is shut.
+   *
+   * A show with no slots for today is CLOSED with an empty timetable rather than
+   * omitted, so a show that runs only at weekends still reports honestly on a
+   * Tuesday instead of vanishing from the feed.
+   */
+  private buildShowLiveData(
+    shows: FsDoc[],
+    date: string,
+    now: Date,
+    outsideOperatingHours: boolean,
+  ): LiveData[] {
+    const weekday = parkLocalWeekday(now, this.timezone);
+    const nowMs = now.getTime();
+    const out: LiveData[] = [];
+
+    for (const doc of shows) {
+      const id = showEntityIdFromDoc(doc);
+
+      if (outsideOperatingHours) {
+        out.push({id, status: 'CLOSED'} as LiveData);
+        continue;
+      }
+
+      const slots = parseShowSlots(doc.fields?.timetable, weekday);
+      if (slots.length === 0) {
+        out.push({id, status: 'CLOSED'} as LiveData);
+        continue;
+      }
+
+      const duration = parseDurationMinutes(fsString(doc.fields?.duration));
+      const showtimes = buildShowtimes(slots, date, this.timezone, duration);
+
+      out.push({
+        id,
+        status: showStatusFromShowtimes(showtimes, nowMs),
+        showtimes,
+      } as LiveData);
+    }
+
     return out;
   }
 
@@ -946,4 +1265,16 @@ function firestoreDocId(doc: FsDoc): string {
 /** Stable entity id derived from the Firestore document path. */
 function entityIdFromDoc(doc: FsDoc): string {
   return `${DESTINATION_ID}-${firestoreDocId(doc)}`;
+}
+
+/**
+ * Stable entity id for a show.
+ *
+ * Namespaced by collection because a Firestore document id is only unique
+ * *within* its collection: `shows/abc` and `attractions/abc` are different
+ * documents, and an unprefixed id would let a show silently overwrite a ride.
+ * Attractions keep their existing unprefixed ids, which are already published.
+ */
+function showEntityIdFromDoc(doc: FsDoc): string {
+  return `${DESTINATION_ID}-show-${firestoreDocId(doc)}`;
 }
