@@ -839,10 +839,31 @@ describe('parseShowSlots', () => {
     expect(parseShowSlots(tt, 'sunday').map((s) => s.time)).toEqual(['13:30', '16:30']);
   });
 
-  test('a slot with no attractionId still yields its place — 63 of 259 real slots omit the id', () => {
+  test('a slot with no attractionId is kept, unlinked — 63 of 259 real slots omit the id', () => {
+    // The performance is real; only the link to its venue document is missing.
+    // Dropping it would lose a fifth of the park's published showtimes.
     const [slot] = parseShowSlots(tt, 'monday');
+    expect(slot.time).toBe('10:00');
     expect(slot.venueId).toBeUndefined();
-    expect(slot.place).toEqual({en: 'Town Hall Theatre'});
+  });
+
+  test('reads attractionId in BOTH Firestore shapes, not just stringValue', () => {
+    // This CMS stores the same identifier as integerValue AND stringValue.
+    // Reading one shape is how wait times once published for 3 rides, not 42.
+    const asInt = {mapValue: {fields: {sunday: {arrayValue: {values: [
+      {mapValue: {fields: {time: str('12:00'), attractionId: int(7)}}},
+    ]}}}}};
+    expect(parseShowSlots(asInt, 'sunday')[0].venueId).toBe('7');
+  });
+
+  test('an explicitly deactivated slot is not published', () => {
+    const tt2 = {mapValue: {fields: {sunday: {arrayValue: {values: [
+      {mapValue: {fields: {time: str('12:00'), active: bool(false)}}},
+      {mapValue: {fields: {time: str('13:00'), active: bool(true)}}},
+      {mapValue: {fields: {time: str('14:00')}}},
+    ]}}}}};
+    // Absent means published; only an explicit false suppresses.
+    expect(parseShowSlots(tt2, 'sunday').map((x) => x.time)).toEqual(['13:00', '14:00']);
   });
 
   test('drops a malformed time rather than guessing at it', () => {
@@ -906,8 +927,28 @@ describe('buildShowtimes', () => {
     expect(s.endTime).toBe('2026-08-10T00:10:00+02:00');
   });
 
+  test('a performance crossing the spring-forward jump keeps its true length', () => {
+    // 2026-03-29: 02:00 -> 03:00 in Warsaw. A 30 minute show from 01:50 must end
+    // at 03:20+02:00, still 30 real minutes later.
+    const [s] = buildShowtimes([{time: '01:50'}], '2026-03-29', 'Europe/Warsaw', 30);
+    expect(s.startTime).toBe('2026-03-29T01:50:00+01:00');
+    expect(s.endTime).toBe('2026-03-29T03:20:00+02:00');
+    expect(new Date(s.endTime!).getTime() - new Date(s.startTime!).getTime()).toBe(30 * 60 * 1000);
+  });
+
+  test('a performance ending in the autumn fold keeps its true length', () => {
+    // 2026-10-25: 03:00 -> 02:00, so 02:10 local happens TWICE. Deriving the end
+    // by re-resolving a park-local wall clock picks the second occurrence and
+    // turns a 20 minute show into an 80 minute one. Formatting the instant
+    // directly cannot re-resolve it.
+    const [s] = buildShowtimes([{time: '01:50'}], '2026-10-25', 'Europe/Warsaw', 20);
+    expect(s.startTime).toBe('2026-10-25T01:50:00+02:00');
+    expect(s.endTime).toBe('2026-10-25T02:10:00+02:00');
+    expect(new Date(s.endTime!).getTime() - new Date(s.startTime!).getTime()).toBe(20 * 60 * 1000);
+  });
+
   test('is typed as a performance', () => {
-    expect(buildShowtimes(slots, '2026-08-09', 'Europe/Warsaw', 15)[0].type).toBe('PERFORMANCE_TIME');
+    expect(buildShowtimes(slots, '2026-08-09', 'Europe/Warsaw', 15)[0].type).toBe('Performance Time');
   });
 });
 
@@ -934,6 +975,12 @@ describe('showStatusFromShowtimes', () => {
     const noEnd = buildShowtimes([{time: '12:00'}], '2026-08-09', 'Europe/Warsaw', undefined);
     expect(showStatusFromShowtimes(noEnd, at('2026-08-09T11:59:00+02:00'))).toBe('OPERATING');
     expect(showStatusFromShowtimes(noEnd, at('2026-08-09T12:01:00+02:00'))).toBe('CLOSED');
+  });
+
+  test('exactly at the end instant still counts as running', () => {
+    // Inclusive on purpose: a show is not over the millisecond it is due to end.
+    expect(showStatusFromShowtimes(times, at('2026-08-09T18:15:00+02:00'))).toBe('OPERATING');
+    expect(showStatusFromShowtimes(times, at('2026-08-09T18:15:00.001+02:00'))).toBe('CLOSED');
   });
 
   test('a show with no performances today is CLOSED', () => {
@@ -1055,7 +1102,7 @@ describe('Energylandia — shows end to end', () => {
     const fire: any = live.find((l: any) => l.id === 'energylandia-show-s1');
     expect(fire.status).toBe('OPERATING');
     expect(fire.showtimes).toEqual([{
-      type: 'PERFORMANCE_TIME',
+      type: 'Performance Time',
       startTime: '2026-08-09T14:00:00+02:00',
       endTime: '2026-08-09T14:15:00+02:00',
     }]);
@@ -1087,13 +1134,28 @@ describe('Energylandia — shows end to end', () => {
     }
   });
 
-  test('outside the day\'s opening hours nothing is advertised either', async () => {
-    // 05:00Z is 07:00 Warsaw — an operating date, but hours before the gates open.
+  test('before the gates open, today\'s times are still published but the show reads CLOSED', async () => {
+    // 05:00Z is 07:00 Warsaw — an operating date, hours before opening. Times
+    // are reference information about the day and are useful now; status is
+    // about this instant. Gating the TIMES on the instant left the park with no
+    // showtimes for ~14 hours a day, all 13 shows appearing at once at 10:00.
     vi.setSystemTime(new Date('2026-08-09T05:00:00Z'));
     const live = await park(['2026-08-09']).getLiveData();
     const fire: any = live.find((l: any) => l.id === 'energylandia-show-s1');
     expect(fire.status).toBe('CLOSED');
-    expect(fire.showtimes).toBeUndefined();
+    expect(fire.showtimes).toEqual([{
+      type: 'Performance Time',
+      startTime: '2026-08-09T14:00:00+02:00',
+      endTime: '2026-08-09T14:15:00+02:00',
+    }]);
+  });
+
+  test('after closing, the day\'s times remain published and the show reads CLOSED', async () => {
+    vi.setSystemTime(new Date('2026-08-09T20:00:00Z')); // 22:00 Warsaw, park shut at 20:00
+    const live = await park(['2026-08-09']).getLiveData();
+    const fire: any = live.find((l: any) => l.id === 'energylandia-show-s1');
+    expect(fire.status).toBe('CLOSED');
+    expect(fire.showtimes).toHaveLength(1);
   });
 
   test('a show not running today stays in the feed as CLOSED rather than vanishing', async () => {
@@ -1125,6 +1187,157 @@ describe('Energylandia — shows end to end', () => {
     const fire: any = live.find((l: any) => l.id === 'energylandia-show-s1');
     expect(fire.status).toBe('OPERATING');
     expect(fire.showtimes).toHaveLength(1);
+  });
+
+  test('a show and a ride sharing a document id both publish, neither overwrites the other', async () => {
+    // A Firestore doc id is unique only WITHIN its collection, so shows/dup and
+    // attractions/dup are different documents. Without the -show- namespace one
+    // silently replaces the other. The previous version of this test used a
+    // fixture whose only attractions were type:'show', so the emission held no
+    // rides at all and the assertion compared shows against themselves.
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const p: any = park(['2026-08-09']);
+    p.getAttractionDocs = async () => [
+      ...VENUES,
+      doc('dup', {active: bool(true), type: str('attraction'), open: bool(true),
+        name: nameMap({EN: 'A Ride'}), queueTimeId: str('')}),
+    ];
+    p.getShowDocs = async () => [
+      ...SHOWS,
+      showDoc('dup', {active: bool(true), duration: str('15'),
+        name: nameMap({EN: 'A Show'}),
+        timetable: timetable({sunday: [{time: '12:00', venue: 'v1'}]})}),
+    ];
+
+    const entities = await p.getEntities();
+    const ids = entities.map((e: any) => e.id);
+    expect(ids).toContain('energylandia-dup');
+    expect(ids).toContain('energylandia-show-dup');
+    expect(new Set(ids).size).toBe(ids.length);
+
+    const live = await p.getLiveData();
+    const liveIds = live.map((l: any) => l.id);
+    expect(liveIds).toContain('energylandia-dup');
+    expect(liveIds).toContain('energylandia-show-dup');
+    expect(new Set(liveIds).size).toBe(liveIds.length);
+  });
+
+  test('every show live row has an entity behind it — no orphans', async () => {
+    // buildEntityList skips a document with no usable name. buildLiveData must
+    // skip the same ones, or it ships a row for an entity nobody published.
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const p: any = park(['2026-08-09']);
+    p.getShowDocs = async () => [
+      ...SHOWS,
+      showDoc('blank', {active: bool(true), duration: str('15'),
+        name: nameMap({EN: '   '}),
+        timetable: timetable({sunday: [{time: '12:00', venue: 'v1'}]})}),
+    ];
+    const entityIds = new Set((await p.getEntities())
+      .filter((e: any) => e.entityType === 'SHOW').map((e: any) => e.id));
+    const liveShowIds = (await p.getLiveData())
+      .map((l: any) => l.id).filter((id: string) => id.startsWith('energylandia-show-'));
+    expect(liveShowIds).not.toContain('energylandia-show-blank');
+    for (const id of liveShowIds) expect(entityIds).toContain(id);
+    expect(entityIds.size).toBe(liveShowIds.length);
+  });
+
+  test('the weekday comes from PARK time, not the host clock', async () => {
+    // 22:30Z on Sunday is 00:30 Monday in Warsaw. Every other clock in this file
+    // has the same weekday in UTC and Warsaw, so nothing else would notice
+    // parkLocalWeekday being handed 'UTC'. Monday's slot is 11:00, Sunday's 14:00.
+    vi.setSystemTime(new Date('2026-08-09T22:30:00Z'));
+    const live = await park(['2026-08-10']).getLiveData();
+    const fire: any = live.find((l: any) => l.id === 'energylandia-show-s1');
+    expect(fire.showtimes).toHaveLength(1);
+    // Weekday and date must agree: Monday's time stamped on Monday's date.
+    expect(fire.showtimes[0].startTime).toBe('2026-08-10T11:00:00+02:00');
+  });
+
+  test('a show that relocates midweek gets no location', async () => {
+    // resolveShowVenueId is fed the WHOLE week, not just today: a show pinned to
+    // Monday's venue would be placed wrongly for the rest of the week.
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const p: any = park(['2026-08-09']);
+    p.getShowDocs = async () => [
+      showDoc('roam', {active: bool(true), duration: str('15'),
+        name: nameMap({EN: 'Midweek Mover'}),
+        timetable: timetable({
+          monday: [{time: '11:00', venue: 'v1'}],
+          tuesday: [{time: '11:00', venue: 'v2'}],
+        })}),
+    ];
+    const entities = await p.getEntities();
+    const show = entities.find((e: any) => e.name === 'Midweek Mover');
+    expect(show.location).toBeUndefined();
+  });
+
+  test('reads duration in BOTH Firestore shapes, so end times cannot silently vanish', async () => {
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const p: any = park(['2026-08-09']);
+    p.getShowDocs = async () => [
+      showDoc('n1', {active: bool(true), duration: int(25),
+        name: nameMap({EN: 'Integer Duration'}),
+        timetable: timetable({sunday: [{time: '12:00', venue: 'v1'}]})}),
+    ];
+    const live = await p.getLiveData();
+    const show: any = live.find((l: any) => l.id === 'energylandia-show-n1');
+    expect(show.showtimes[0].endTime).toBe('2026-08-09T12:25:00+02:00');
+  });
+
+  test('a performance outside the published window is still published, and warned about', async () => {
+    // The timetable and the calendar are separate documents that genuinely
+    // disagree — a real Tuesday parade sits at 20:15 against a 20:00 close.
+    // Neither is self-evidently wrong, so the park's own timetable is published
+    // as stated rather than censored by the other document, and the conflict is
+    // surfaced rather than hidden.
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const p: any = park(['2026-08-09']);
+    p.getShowDocs = async () => [
+      showDoc('late', {active: bool(true), duration: str('15'),
+        name: nameMap({EN: 'Closing Parade'}),
+        timetable: timetable({sunday: [{time: '20:15', venue: 'v1'}]})}),
+    ];
+    const live = await p.getLiveData();
+    const show: any = live.find((l: any) => l.id === 'energylandia-show-late');
+    expect(show.showtimes[0].startTime).toBe('2026-08-09T20:15:00+02:00');
+    expect(warn.mock.calls.some((c) => String(c[0]).includes('outside the published window'))).toBe(true);
+    warn.mockRestore();
+  });
+
+  test('a shows outage does NOT take the attractions\' live data down with it', async () => {
+    // readCollection throws on an empty collection by design. With getActiveShows
+    // in buildLiveData's Promise.all, the park renaming `shows`, tightening a rule
+    // on it, or emptying it out of season stopped all 89 attractions publishing
+    // status and wait times — the harsher response applied to the milder failure.
+    // Live data has no deletion hazard; a missing show row just goes stale.
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const p: any = park(['2026-08-09']);
+    p.getAttractionDocs = async () => [
+      ...VENUES,
+      doc('ride1', {active: bool(true), type: str('attraction'), open: bool(true),
+        name: nameMap({EN: 'Hyperion'}), queueTimeId: str('')}),
+    ];
+    p.getShowDocs = async () => { throw new Error("collection 'shows' returned no documents"); };
+
+    const live = await p.getLiveData();
+    warn.mockRestore();
+    // The ride still publishes...
+    expect(live.map((l: any) => l.id)).toContain('energylandia-ride1');
+    // ...and no show row is invented.
+    expect(live.filter((l: any) => l.id.startsWith('energylandia-show-'))).toEqual([]);
+  });
+
+  test('a shows outage DOES stop the entity list, because a missing entity is a deletion', async () => {
+    // The opposite trade, deliberately: publishing the park with its shows
+    // silently removed deletes them downstream. Throwing keeps the previous data
+    // ageing honestly, and a thrown error is never cached so it self-heals.
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const p: any = park(['2026-08-09']);
+    p.getShowDocs = async () => { throw new Error("collection 'shows' returned no documents"); };
+    await expect(p.getEntities()).rejects.toThrow(/shows/);
   });
 
   test('shows do not disturb the attraction rows sharing the emission', async () => {
