@@ -9,6 +9,13 @@ import {
   isWithinOperatingWindow,
   parkLocalDateTime,
   buildLocationIndex,
+  parkLocalWeekday,
+  parseShowSlots,
+  parseDurationMinutes,
+  buildShowtimes,
+  showStatusFromShowtimes,
+  resolveShowVenueId,
+  WEEKDAYS,
 } from '../energylandia.js';
 import {CacheLib} from '../../../cache.js';
 
@@ -202,6 +209,7 @@ describe('Energylandia — live data', () => {
 
   function park(opts: {days?: string[]; open?: string; close?: string} = {}) {
     const p: any = new Energylandia({config: {...BLANK_CONFIG, waitTimesUrl: 'https://feed.example/'}});
+    p.getShowDocs = async () => [];
     p.getAttractionDocs = async () => ATTRACTIONS;
     p.fetchWaitTimes = async () => ({text: async () => JSON.stringify(FEED)});
     p.getCalendarPeriods = async () => [{
@@ -215,10 +223,22 @@ describe('Energylandia — live data', () => {
   beforeEach(() => CacheLib.clear());
   afterEach(() => CacheLib.clear());
 
-  test('only active attractions become entities — restaurants and retired rides are excluded', async () => {
+  test('only active rides become ATTRACTIONs — a restaurant is not one, a retired ride is not published', async () => {
     const entities = await park().getEntities();
     const names = entities.filter((e: any) => e.entityType === 'ATTRACTION').map((e: any) => e.name).sort();
     expect(names).toEqual(['No Counter', 'Pepsi Hyperion', 'Tsunami Drop']);
+  });
+
+  test('a restaurant becomes a RESTAURANT rather than being dropped', async () => {
+    const entities = await park().getEntities();
+    const dining = entities.filter((e: any) => e.entityType === 'RESTAURANT');
+    expect(dining.map((e: any) => e.name)).toEqual(['Pizzeria']);
+    expect(dining[0].parkId).toBe('energylandia-park');
+  });
+
+  test('an inactive document is published under no entity type at all', async () => {
+    const entities = await park().getEntities();
+    expect(entities.map((e: any) => e.id)).not.toContain('energylandia-x1');
   });
 
   test('joins the feed by queueTimeId across BOTH id shapes', async () => {
@@ -391,6 +411,7 @@ describe('Energylandia — attraction locations', () => {
     const p: any = new Energylandia({config: {
       ...BLANK_CONFIG, proximiioBaseUrl: 'https://geo.example', proximiioToken: 'token',
     }});
+    p.getShowDocs = async () => [];
     p.getAttractionDocs = async () => ATTRACTIONS;
     p.getCalendarPeriods = async () => [];
     p.fetchProximiioFeatures = async () => ({
@@ -444,6 +465,7 @@ describe('Energylandia — pinned fallback coordinates', () => {
       ...BLANK_CONFIG, proximiioBaseUrl: 'https://geo.example', proximiioToken: 'token',
     }});
     p.getCalendarPeriods = async () => [];
+    p.getShowDocs = async () => [];
     p.getAttractionDocs = async () => [
       doc(MINI_TRACK, {active: bool(true), type: str('attraction'), open: bool(true),
         name: nameMap({EN: '220. Mini Track Tour Ride'}), proximiioId: str('org:stale')}),
@@ -500,6 +522,7 @@ describe('Energylandia — failures must not be cached', () => {
     // coordinates for half a day — across restarts and every other collector
     // host — because of one transient blip.
     const p = park();
+    p.getShowDocs = async () => [];
     p.getAttractionDocs = async () => ATTRACTIONS;
     p.getCalendarPeriods = async () => [];
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -555,6 +578,7 @@ describe('Energylandia — wait value hardening', () => {
   test('joins a padded feed id, matching the trimming fsId already does', async () => {
     const p: any = new Energylandia({config: {...BLANK_CONFIG, waitTimesUrl: 'https://feed.example/'}});
     p.getCalendarPeriods = async () => [];
+    p.getShowDocs = async () => [];
     p.getAttractionDocs = async () => [
       doc('a1', {active: bool(true), type: str('attraction'), open: bool(true),
         name: nameMap({EN: '1. Ride'}), queueTimeId: str(' 5 ')}),
@@ -572,6 +596,7 @@ describe('Energylandia — a wait-feed outage is visible', () => {
     // Without this the outage is silent: 89 OPERATING rows still publish and
     // lastUpdated still moves, so the staleness dashboard sees a healthy park.
     const p: any = new Energylandia({config: {...BLANK_CONFIG, waitTimesUrl: 'https://feed.example/'}});
+    p.getShowDocs = async () => [];
     p.getAttractionDocs = async () => [
       doc('a1', {active: bool(true), type: str('attraction'), open: bool(true),
         name: nameMap({EN: '1. Ride'}), queueTimeId: str('5')}),
@@ -594,6 +619,7 @@ describe('Energylandia — a wait-feed outage is visible', () => {
 
   test('stays quiet outside operating hours, when an empty feed is expected', async () => {
     const p: any = new Energylandia({config: {...BLANK_CONFIG, waitTimesUrl: 'https://feed.example/'}});
+    p.getShowDocs = async () => [];
     p.getAttractionDocs = async () => [
       doc('a1', {active: bool(true), type: str('attraction'), open: bool(true),
         name: nameMap({EN: '1. Ride'}), queueTimeId: str('5')}),
@@ -738,5 +764,604 @@ describe('Energylandia — an empty Firestore collection is a failure, not an em
     const docs = await p.getAttractionDocs();
     expect(docs.map((d: any) => d.name)).toEqual(['c/a', 'c/b']);
     expect(seen).toEqual([null, 't2']);
+  });
+});
+
+// ===========================================================================
+// Shows
+//
+// The timetable is keyed by WEEKDAY, not by date. That single fact is what
+// every test below is guarding: read naively it is a recurring pattern with no
+// notion of the calendar, and it will happily describe Saturday's parade on a
+// Saturday in the closed season.
+// ===========================================================================
+
+const showDoc = (id: string, fields: Record<string, any>) => ({
+  name: `projects/p/databases/(default)/documents/shows/${id}`,
+  fields,
+});
+
+/** A `timetable` map: {monday: [{time, attractionId?, place?}], …}. */
+const timetable = (
+  days: Record<string, Array<{time: string; venue?: string; place?: string}>>,
+) => ({
+  mapValue: {
+    fields: Object.fromEntries(Object.entries(days).map(([day, slots]) => [day, {
+      arrayValue: {
+        values: slots.map((s) => ({
+          mapValue: {
+            fields: {
+              time: str(s.time),
+              timeEnd: {nullValue: null},
+              ...(s.venue !== undefined ? {attractionId: str(s.venue)} : {}),
+              ...(s.place !== undefined ? {place: nameMap({EN: s.place})} : {}),
+            },
+          },
+        })),
+      },
+    }])),
+  },
+});
+
+describe('parkLocalWeekday', () => {
+  test('reads the weekday in park-local time, not the host\'s', () => {
+    // 22:30Z on a Sunday is 00:30 Monday in Warsaw. Using the host clock (or
+    // Date.getDay()) would run Sunday's timetable for the first hours of Monday.
+    expect(parkLocalWeekday(new Date('2026-08-09T22:30:00Z'), 'Europe/Warsaw')).toBe('monday');
+    expect(parkLocalWeekday(new Date('2026-08-09T12:00:00Z'), 'Europe/Warsaw')).toBe('sunday');
+  });
+
+  test('every weekday it returns is a key the timetable can be indexed by', () => {
+    for (let i = 0; i < 7; i++) {
+      const day = parkLocalWeekday(new Date(Date.UTC(2026, 7, 9 + i, 12)), 'Europe/Warsaw');
+      expect(WEEKDAYS).toContain(day);
+    }
+  });
+});
+
+describe('parseShowSlots', () => {
+  const tt = timetable({
+    sunday: [
+      {time: '16:30', venue: 'v1', place: '54. Teatr Colosseo'},
+      {time: '13:30', venue: 'v1', place: '54. Teatr Colosseo'},
+    ],
+    monday: [{time: '10:00', place: 'Town Hall Theatre'}],
+  });
+
+  test('returns only the requested weekday', () => {
+    expect(parseShowSlots(tt, 'monday').map((s) => s.time)).toEqual(['10:00']);
+    expect(parseShowSlots(tt, 'tuesday')).toEqual([]);
+  });
+
+  test('sorts chronologically — the CMS stores entry order, not time order', () => {
+    // One real show lists 16:30 before 13:30. Unsorted, "the day's last
+    // performance" is the wrong entry, which is what decides show status.
+    expect(parseShowSlots(tt, 'sunday').map((s) => s.time)).toEqual(['13:30', '16:30']);
+  });
+
+  test('a slot with no attractionId is kept, unlinked — 63 of 259 real slots omit the id', () => {
+    // The performance is real; only the link to its venue document is missing.
+    // Dropping it would lose a fifth of the park's published showtimes.
+    const [slot] = parseShowSlots(tt, 'monday');
+    expect(slot.time).toBe('10:00');
+    expect(slot.venueId).toBeUndefined();
+  });
+
+  test('reads attractionId in BOTH Firestore shapes, not just stringValue', () => {
+    // This CMS stores the same identifier as integerValue AND stringValue.
+    // Reading one shape is how wait times once published for 3 rides, not 42.
+    const asInt = {mapValue: {fields: {sunday: {arrayValue: {values: [
+      {mapValue: {fields: {time: str('12:00'), attractionId: int(7)}}},
+    ]}}}}};
+    expect(parseShowSlots(asInt, 'sunday')[0].venueId).toBe('7');
+  });
+
+  test('an explicitly deactivated slot is not published', () => {
+    const tt2 = {mapValue: {fields: {sunday: {arrayValue: {values: [
+      {mapValue: {fields: {time: str('12:00'), active: bool(false)}}},
+      {mapValue: {fields: {time: str('13:00'), active: bool(true)}}},
+      {mapValue: {fields: {time: str('14:00')}}},
+    ]}}}}};
+    // Absent means published; only an explicit false suppresses.
+    expect(parseShowSlots(tt2, 'sunday').map((x) => x.time)).toEqual(['13:00', '14:00']);
+  });
+
+  test('drops a malformed time rather than guessing at it', () => {
+    // Range-checked, not just shape-checked: '25:99' matches \\d{2}:\\d{2}, and
+    // constructDateTime would resolve it by rolling into the next day, inventing
+    // a performance at an hour the park never stated.
+    const bad = timetable({sunday: [
+      {time: '25:99'}, {time: '24:00'}, {time: '12:60'}, {time: 'noon'}, {time: '14:00'},
+    ]});
+    expect(parseShowSlots(bad, 'sunday').map((s) => s.time)).toEqual(['14:00']);
+  });
+
+  test('an absent timetable is no performances, not a crash', () => {
+    expect(parseShowSlots(undefined, 'sunday')).toEqual([]);
+  });
+});
+
+describe('parseDurationMinutes', () => {
+  test('reads the CMS string form', () => {
+    expect(parseDurationMinutes('15')).toBe(15);
+    expect(parseDurationMinutes('120')).toBe(120);
+  });
+
+  test('rejects the empty string rather than coercing it to a zero-length show', () => {
+    // Number('') is 0, which would collapse every end time onto its start.
+    expect(parseDurationMinutes('')).toBeUndefined();
+    expect(parseDurationMinutes('   ')).toBeUndefined();
+    expect(parseDurationMinutes('0')).toBeUndefined();
+  });
+
+  test('rejects values that are not a whole, plausible number of minutes', () => {
+    expect(parseDurationMinutes('abc')).toBeUndefined();
+    expect(parseDurationMinutes('15.5')).toBeUndefined();
+    expect(parseDurationMinutes('-15')).toBeUndefined();
+    expect(parseDurationMinutes('100000')).toBeUndefined();
+    expect(parseDurationMinutes(undefined)).toBeUndefined();
+  });
+});
+
+describe('buildShowtimes', () => {
+  const slots = [{time: '12:45'}];
+
+  test('start and end are written in the SAME format', () => {
+    // Regression: deriving the end from the shifted Date and calling
+    // .toISOString() is correct to the instant but renders it as UTC, so one
+    // showtime carried '…T12:45:00+02:00' next to '…T11:00:00.000Z'.
+    const [s] = buildShowtimes(slots, '2026-08-09', 'Europe/Warsaw', 15);
+    expect(s.startTime).toBe('2026-08-09T12:45:00+02:00');
+    expect(s.endTime).toBe('2026-08-09T13:00:00+02:00');
+  });
+
+  test('end time is null when the park states no usable duration', () => {
+    const [s] = buildShowtimes(slots, '2026-08-09', 'Europe/Warsaw', undefined);
+    expect(s.startTime).toBe('2026-08-09T12:45:00+02:00');
+    expect(s.endTime).toBeNull();
+  });
+
+  test('a performance running past midnight ends on the next date', () => {
+    const [s] = buildShowtimes([{time: '23:50'}], '2026-08-09', 'Europe/Warsaw', 20);
+    expect(s.startTime).toBe('2026-08-09T23:50:00+02:00');
+    expect(s.endTime).toBe('2026-08-10T00:10:00+02:00');
+  });
+
+  test('a performance crossing the spring-forward jump keeps its true length', () => {
+    // 2026-03-29: 02:00 -> 03:00 in Warsaw. A 30 minute show from 01:50 must end
+    // at 03:20+02:00, still 30 real minutes later.
+    const [s] = buildShowtimes([{time: '01:50'}], '2026-03-29', 'Europe/Warsaw', 30);
+    expect(s.startTime).toBe('2026-03-29T01:50:00+01:00');
+    expect(s.endTime).toBe('2026-03-29T03:20:00+02:00');
+    expect(new Date(s.endTime!).getTime() - new Date(s.startTime!).getTime()).toBe(30 * 60 * 1000);
+  });
+
+  test('a performance ending in the autumn fold keeps its true length', () => {
+    // 2026-10-25: 03:00 -> 02:00, so 02:10 local happens TWICE. Deriving the end
+    // by re-resolving a park-local wall clock picks the second occurrence and
+    // turns a 20 minute show into an 80 minute one. Formatting the instant
+    // directly cannot re-resolve it.
+    const [s] = buildShowtimes([{time: '01:50'}], '2026-10-25', 'Europe/Warsaw', 20);
+    expect(s.startTime).toBe('2026-10-25T01:50:00+02:00');
+    expect(s.endTime).toBe('2026-10-25T02:10:00+02:00');
+    expect(new Date(s.endTime!).getTime() - new Date(s.startTime!).getTime()).toBe(20 * 60 * 1000);
+  });
+
+  test('is typed as a performance', () => {
+    expect(buildShowtimes(slots, '2026-08-09', 'Europe/Warsaw', 15)[0].type).toBe('Performance Time');
+  });
+});
+
+describe('showStatusFromShowtimes', () => {
+  const at = (iso: string) => new Date(iso).getTime();
+  const times = buildShowtimes(
+    [{time: '12:00'}, {time: '18:00'}], '2026-08-09', 'Europe/Warsaw', 15,
+  );
+
+  test('OPERATING before the first performance', () => {
+    expect(showStatusFromShowtimes(times, at('2026-08-09T09:00:00+02:00'))).toBe('OPERATING');
+  });
+
+  test('OPERATING while a performance is running', () => {
+    expect(showStatusFromShowtimes(times, at('2026-08-09T12:05:00+02:00'))).toBe('OPERATING');
+  });
+
+  test('CLOSED once the day\'s last performance has finished', () => {
+    // Without this the evening parade stays listed as running at closing time.
+    expect(showStatusFromShowtimes(times, at('2026-08-09T18:16:00+02:00'))).toBe('CLOSED');
+  });
+
+  test('with no end time, a performance stops counting once it has begun', () => {
+    const noEnd = buildShowtimes([{time: '12:00'}], '2026-08-09', 'Europe/Warsaw', undefined);
+    expect(showStatusFromShowtimes(noEnd, at('2026-08-09T11:59:00+02:00'))).toBe('OPERATING');
+    expect(showStatusFromShowtimes(noEnd, at('2026-08-09T12:01:00+02:00'))).toBe('CLOSED');
+  });
+
+  test('exactly at the end instant still counts as running', () => {
+    // Inclusive on purpose: a show is not over the millisecond it is due to end.
+    expect(showStatusFromShowtimes(times, at('2026-08-09T18:15:00+02:00'))).toBe('OPERATING');
+    expect(showStatusFromShowtimes(times, at('2026-08-09T18:15:00.001+02:00'))).toBe('CLOSED');
+  });
+
+  test('a show with no performances today is CLOSED', () => {
+    expect(showStatusFromShowtimes([], at('2026-08-09T12:00:00+02:00'))).toBe('CLOSED');
+  });
+});
+
+describe('resolveShowVenueId', () => {
+  test('a show that stays put gets its venue', () => {
+    expect(resolveShowVenueId([{time: '1', venueId: 'v1'}, {time: '2', venueId: 'v1'}])).toBe('v1');
+  });
+
+  test('slots missing the id do not count as disagreement', () => {
+    // 63 real slots omit attractionId while naming the same venue in `place`.
+    // Counting them as different would strip the location from shows that never move.
+    expect(resolveShowVenueId([{time: '1', venueId: 'v1'}, {time: '2'}])).toBe('v1');
+  });
+
+  test('a roaming show gets no venue rather than whichever was listed first', () => {
+    expect(resolveShowVenueId([{time: '1', venueId: 'v1'}, {time: '2', venueId: 'v2'}])).toBeUndefined();
+  });
+
+  test('no venue anywhere is undefined, not a crash', () => {
+    expect(resolveShowVenueId([{time: '1'}])).toBeUndefined();
+    expect(resolveShowVenueId([])).toBeUndefined();
+  });
+});
+
+describe('Energylandia — shows end to end', () => {
+  const SHOWS = [
+    showDoc('s1', {
+      active: bool(true), duration: str('15'),
+      name: nameMap({EN: 'Fire Show', PL: 'Pokaz Ognia'}),
+      timetable: timetable({
+        sunday: [{time: '14:00', venue: 'v1', place: '51. Amfiteatr Egypt'}],
+        monday: [{time: '11:00', venue: 'v1'}],
+      }),
+    }),
+    showDoc('s2', {
+      active: bool(true), duration: str('15'),
+      name: nameMap({EN: 'Meeting with Mascots'}),
+      timetable: timetable({sunday: [
+        {time: '10:00', venue: 'v1'},
+        {time: '12:00', venue: 'v2'},
+      ]}),
+    }),
+    showDoc('s3', {
+      active: bool(true), duration: str('20'),
+      name: nameMap({EN: 'Weekend Only Show'}),
+      timetable: timetable({saturday: [{time: '15:00', venue: 'v1'}]}),
+    }),
+    showDoc('s4', {
+      active: bool(false), duration: str('15'),
+      name: nameMap({EN: 'Retired Show'}),
+      timetable: timetable({sunday: [{time: '13:00', venue: 'v1'}]}),
+    }),
+  ];
+
+  const VENUES = [
+    doc('v1', {active: bool(true), type: str('show'), open: bool(true),
+      name: nameMap({PL: '51. Amfiteatr Egypt'}), proximiioId: str('org:f1')}),
+    doc('v2', {active: bool(true), type: str('show'), open: bool(true),
+      name: nameMap({PL: '54. Teatr Colosseo'}), proximiioId: str('org:f2')}),
+  ];
+
+  function park(days: string[]) {
+    const p: any = new Energylandia({config: {...BLANK_CONFIG}});
+    p.getAttractionDocs = async () => VENUES;
+    p.getShowDocs = async () => SHOWS;
+    p.getWaitTimes = async () => new Map();
+    p.getLocationIndexSafe = async () => ({
+      'org:f1': {latitude: 49.9, longitude: 19.4},
+      'org:f2': {latitude: 49.8, longitude: 19.3},
+    });
+    p.getCalendarPeriods = async () => [{openFrom: '10:00', openTo: '20:00', days}];
+    return p;
+  }
+
+  beforeEach(() => {
+    CacheLib.clear();
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    CacheLib.clear();
+  });
+
+  test('publishes a SHOW per active show, and none for a retired one', async () => {
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const entities = await park(['2026-08-09']).getEntities();
+    const shows = entities.filter((e: any) => e.entityType === 'SHOW');
+    expect(shows.map((s: any) => s.name).sort())
+      .toEqual(['Fire Show', 'Meeting with Mascots', 'Weekend Only Show']);
+  });
+
+  test('show ids are namespaced by collection so a show cannot overwrite a ride', async () => {
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const entities = await park(['2026-08-09']).getEntities();
+    const show = entities.find((e: any) => e.entityType === 'SHOW' && e.name === 'Fire Show');
+    expect(show.id).toBe('energylandia-show-s1');
+    // A Firestore doc id is unique only within its collection, so shows/v1 and
+    // attractions/v1 could otherwise collide on one entity.
+    expect(show.id).not.toBe('energylandia-v1');
+  });
+
+  test('a show that stays put inherits its venue location; a roaming one gets none', async () => {
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const entities = await park(['2026-08-09']).getEntities();
+    const fire = entities.find((e: any) => e.name === 'Fire Show');
+    const mascots = entities.find((e: any) => e.name === 'Meeting with Mascots');
+    expect(fire.location).toEqual({latitude: 49.9, longitude: 19.4});
+    expect(mascots.location).toBeUndefined();
+  });
+
+  test('emits today\'s performances with start and end times', async () => {
+    // 12:00Z is 14:00 in Warsaw, a Sunday inside the published season.
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const live = await park(['2026-08-09']).getLiveData();
+    const fire: any = live.find((l: any) => l.id === 'energylandia-show-s1');
+    expect(fire.status).toBe('OPERATING');
+    expect(fire.showtimes).toEqual([{
+      type: 'Performance Time',
+      startTime: '2026-08-09T14:00:00+02:00',
+      endTime: '2026-08-09T14:15:00+02:00',
+    }]);
+  });
+
+  test('reads the weekday timetable, not one fixed day', async () => {
+    // Same show, next day: 11:00 rather than 14:00.
+    vi.setSystemTime(new Date('2026-08-10T09:00:00Z'));
+    const live = await park(['2026-08-10']).getLiveData();
+    const fire: any = live.find((l: any) => l.id === 'energylandia-show-s1');
+    expect(fire.showtimes[0].startTime).toBe('2026-08-10T11:00:00+02:00');
+  });
+
+  test('a date the park is closed publishes NO performances, however the weekday reads', async () => {
+    // THE point of the gating. 2026-08-09 is a Sunday and every show has a
+    // Sunday timetable, but the calendar lists only a different date, so the
+    // park is shut and nothing may be advertised.
+    //
+    // The calendar must be non-empty. An EMPTY one is a source failure rather
+    // than a statement about any day, and buildLiveData deliberately degrades it
+    // to open — see the empty-calendar test below.
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const live = await park(['2026-08-15']).getLiveData();
+    const shows = live.filter((l: any) => l.id.startsWith('energylandia-show-'));
+    expect(shows).toHaveLength(3);
+    for (const s of shows) {
+      expect(s.status).toBe('CLOSED');
+      expect(s.showtimes).toBeUndefined();
+    }
+  });
+
+  test('before the gates open, today\'s times are still published but the show reads CLOSED', async () => {
+    // 05:00Z is 07:00 Warsaw — an operating date, hours before opening. Times
+    // are reference information about the day and are useful now; status is
+    // about this instant. Gating the TIMES on the instant left the park with no
+    // showtimes for ~14 hours a day, all 13 shows appearing at once at 10:00.
+    vi.setSystemTime(new Date('2026-08-09T05:00:00Z'));
+    const live = await park(['2026-08-09']).getLiveData();
+    const fire: any = live.find((l: any) => l.id === 'energylandia-show-s1');
+    expect(fire.status).toBe('CLOSED');
+    expect(fire.showtimes).toEqual([{
+      type: 'Performance Time',
+      startTime: '2026-08-09T14:00:00+02:00',
+      endTime: '2026-08-09T14:15:00+02:00',
+    }]);
+  });
+
+  test('after closing, the day\'s times remain published and the show reads CLOSED', async () => {
+    vi.setSystemTime(new Date('2026-08-09T20:00:00Z')); // 22:00 Warsaw, park shut at 20:00
+    const live = await park(['2026-08-09']).getLiveData();
+    const fire: any = live.find((l: any) => l.id === 'energylandia-show-s1');
+    expect(fire.status).toBe('CLOSED');
+    expect(fire.showtimes).toHaveLength(1);
+  });
+
+  test('a show not running today stays in the feed as CLOSED rather than vanishing', async () => {
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const live = await park(['2026-08-09']).getLiveData();
+    const weekend: any = live.find((l: any) => l.id === 'energylandia-show-s3');
+    expect(weekend.status).toBe('CLOSED');
+    expect(weekend.showtimes).toBeUndefined();
+  });
+
+  test('goes CLOSED after the day\'s last performance, while the park is still open', async () => {
+    // 16:00Z is 18:00 Warsaw: the park shuts at 20:00, but Fire Show finished
+    // at 14:15 and must not still read as running.
+    vi.setSystemTime(new Date('2026-08-09T16:00:00Z'));
+    const live = await park(['2026-08-09']).getLiveData();
+    const fire: any = live.find((l: any) => l.id === 'energylandia-show-s1');
+    expect(fire.status).toBe('CLOSED');
+    expect(fire.showtimes).toHaveLength(1);
+  });
+
+  test('an empty calendar degrades to open for shows, exactly as it does for rides', async () => {
+    // A Firestore glitch that empties the calendar must not black out a running
+    // park. Shows follow the same rule attractions already do, rather than
+    // inventing a second policy for the same failure.
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const live = await park([]).getLiveData();
+    warn.mockRestore();
+    const fire: any = live.find((l: any) => l.id === 'energylandia-show-s1');
+    expect(fire.status).toBe('OPERATING');
+    expect(fire.showtimes).toHaveLength(1);
+  });
+
+  test('a show and a ride sharing a document id both publish, neither overwrites the other', async () => {
+    // A Firestore doc id is unique only WITHIN its collection, so shows/dup and
+    // attractions/dup are different documents. Without the -show- namespace one
+    // silently replaces the other. The previous version of this test used a
+    // fixture whose only attractions were type:'show', so the emission held no
+    // rides at all and the assertion compared shows against themselves.
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const p: any = park(['2026-08-09']);
+    p.getAttractionDocs = async () => [
+      ...VENUES,
+      doc('dup', {active: bool(true), type: str('attraction'), open: bool(true),
+        name: nameMap({EN: 'A Ride'}), queueTimeId: str('')}),
+    ];
+    p.getShowDocs = async () => [
+      ...SHOWS,
+      showDoc('dup', {active: bool(true), duration: str('15'),
+        name: nameMap({EN: 'A Show'}),
+        timetable: timetable({sunday: [{time: '12:00', venue: 'v1'}]})}),
+    ];
+
+    const entities = await p.getEntities();
+    const ids = entities.map((e: any) => e.id);
+    expect(ids).toContain('energylandia-dup');
+    expect(ids).toContain('energylandia-show-dup');
+    expect(new Set(ids).size).toBe(ids.length);
+
+    const live = await p.getLiveData();
+    const liveIds = live.map((l: any) => l.id);
+    expect(liveIds).toContain('energylandia-dup');
+    expect(liveIds).toContain('energylandia-show-dup');
+    expect(new Set(liveIds).size).toBe(liveIds.length);
+  });
+
+  test('every show live row has an entity behind it — no orphans', async () => {
+    // buildEntityList skips a document with no usable name. buildLiveData must
+    // skip the same ones, or it ships a row for an entity nobody published.
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const p: any = park(['2026-08-09']);
+    p.getShowDocs = async () => [
+      ...SHOWS,
+      showDoc('blank', {active: bool(true), duration: str('15'),
+        name: nameMap({EN: '   '}),
+        timetable: timetable({sunday: [{time: '12:00', venue: 'v1'}]})}),
+    ];
+    const entityIds = new Set((await p.getEntities())
+      .filter((e: any) => e.entityType === 'SHOW').map((e: any) => e.id));
+    const liveShowIds = (await p.getLiveData())
+      .map((l: any) => l.id).filter((id: string) => id.startsWith('energylandia-show-'));
+    expect(liveShowIds).not.toContain('energylandia-show-blank');
+    for (const id of liveShowIds) expect(entityIds).toContain(id);
+    expect(entityIds.size).toBe(liveShowIds.length);
+  });
+
+  test('the weekday comes from PARK time, not the host clock', async () => {
+    // 22:30Z on Sunday is 00:30 Monday in Warsaw. Every other clock in this file
+    // has the same weekday in UTC and Warsaw, so nothing else would notice
+    // parkLocalWeekday being handed 'UTC'. Monday's slot is 11:00, Sunday's 14:00.
+    vi.setSystemTime(new Date('2026-08-09T22:30:00Z'));
+    const live = await park(['2026-08-10']).getLiveData();
+    const fire: any = live.find((l: any) => l.id === 'energylandia-show-s1');
+    expect(fire.showtimes).toHaveLength(1);
+    // Weekday and date must agree: Monday's time stamped on Monday's date.
+    expect(fire.showtimes[0].startTime).toBe('2026-08-10T11:00:00+02:00');
+  });
+
+  test('a show that relocates midweek gets no location', async () => {
+    // resolveShowVenueId is fed the WHOLE week, not just today: a show pinned to
+    // Monday's venue would be placed wrongly for the rest of the week.
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const p: any = park(['2026-08-09']);
+    p.getShowDocs = async () => [
+      // Sunday (the simulated 'today') must itself name a venue, and a LATER day
+      // must disagree. With only today's slots read, this show resolves to a
+      // single venue and gets a location — so a fixture with no Sunday slot
+      // would pass whether the whole week is consulted or not.
+      showDoc('roam', {active: bool(true), duration: str('15'),
+        name: nameMap({EN: 'Midweek Mover'}),
+        timetable: timetable({
+          sunday: [{time: '11:00', venue: 'v1'}],
+          tuesday: [{time: '11:00', venue: 'v2'}],
+        })}),
+      // Control: a show appearing on ONE non-today weekday still gets its venue,
+      // so the fix cannot be "never resolve a location".
+      showDoc('stay', {active: bool(true), duration: str('15'),
+        name: nameMap({EN: 'Tuesday Only'}),
+        timetable: timetable({tuesday: [{time: '11:00', venue: 'v2'}]})}),
+    ];
+    const entities = await p.getEntities();
+    expect(entities.find((e: any) => e.name === 'Midweek Mover').location).toBeUndefined();
+    expect(entities.find((e: any) => e.name === 'Tuesday Only').location)
+      .toEqual({latitude: 49.8, longitude: 19.3});
+  });
+
+  test('reads duration in BOTH Firestore shapes, so end times cannot silently vanish', async () => {
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const p: any = park(['2026-08-09']);
+    p.getShowDocs = async () => [
+      showDoc('n1', {active: bool(true), duration: int(25),
+        name: nameMap({EN: 'Integer Duration'}),
+        timetable: timetable({sunday: [{time: '12:00', venue: 'v1'}]})}),
+    ];
+    const live = await p.getLiveData();
+    const show: any = live.find((l: any) => l.id === 'energylandia-show-n1');
+    expect(show.showtimes[0].endTime).toBe('2026-08-09T12:25:00+02:00');
+  });
+
+  test('a performance after the published close is published as stated, not censored', async () => {
+    // The timetable and the calendar are separate documents that genuinely
+    // disagree — a real Tuesday parade sits at 20:15 against a 20:00 close. The
+    // park's own timetable is the authority on its own showtimes, and a closing
+    // parade running after the stated close is normal. The calendar is asked
+    // only whether the park operated today, never used as a fence to filter
+    // individual performances.
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const p: any = park(['2026-08-09']);
+    p.getShowDocs = async () => [
+      showDoc('late', {active: bool(true), duration: str('15'),
+        name: nameMap({EN: 'Closing Parade'}),
+        timetable: timetable({sunday: [{time: '20:15', venue: 'v1'}]})}),
+    ];
+    const live = await p.getLiveData();
+    const show: any = live.find((l: any) => l.id === 'energylandia-show-late');
+    expect(show.showtimes).toEqual([{
+      type: 'Performance Time',
+      startTime: '2026-08-09T20:15:00+02:00',
+      endTime: '2026-08-09T20:30:00+02:00',
+    }]);
+    // And it is not treated as an anomaly: an out-of-window slot is normal data,
+    // so nothing is logged about it. A warning that fires on every build from
+    // September onwards is noise, not a signal.
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  test('a shows outage does NOT take the attractions\' live data down with it', async () => {
+    // readCollection throws on an empty collection by design. With getActiveShows
+    // in buildLiveData's Promise.all, the park renaming `shows`, tightening a rule
+    // on it, or emptying it out of season stopped all 89 attractions publishing
+    // status and wait times — the harsher response applied to the milder failure.
+    // Live data has no deletion hazard; a missing show row just goes stale.
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const p: any = park(['2026-08-09']);
+    p.getAttractionDocs = async () => [
+      ...VENUES,
+      doc('ride1', {active: bool(true), type: str('attraction'), open: bool(true),
+        name: nameMap({EN: 'Hyperion'}), queueTimeId: str('')}),
+    ];
+    p.getShowDocs = async () => { throw new Error("collection 'shows' returned no documents"); };
+
+    const live = await p.getLiveData();
+    warn.mockRestore();
+    // The ride still publishes...
+    expect(live.map((l: any) => l.id)).toContain('energylandia-ride1');
+    // ...and no show row is invented.
+    expect(live.filter((l: any) => l.id.startsWith('energylandia-show-'))).toEqual([]);
+  });
+
+  test('a shows outage DOES stop the entity list, because a missing entity is a deletion', async () => {
+    // The opposite trade, deliberately: publishing the park with its shows
+    // silently removed deletes them downstream. Throwing keeps the previous data
+    // ageing honestly, and a thrown error is never cached so it self-heals.
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const p: any = park(['2026-08-09']);
+    p.getShowDocs = async () => { throw new Error("collection 'shows' returned no documents"); };
+    await expect(p.getEntities()).rejects.toThrow(/shows/);
+  });
+
+  test('shows do not disturb the attraction rows sharing the emission', async () => {
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
+    const live = await park(['2026-08-09']).getLiveData();
+    const ids = live.map((l: any) => l.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
