@@ -1257,9 +1257,7 @@ export class Energylandia extends Destination {
       } as LiveData);
     }
 
-    out.push(...this.buildShowLiveData(
-      shows, date, now, operatesToday, outsideOperatingHours, schedule.get(date),
-    ));
+    out.push(...this.buildShowLiveData(shows, date, now, operatesToday, outsideOperatingHours));
 
     return out;
   }
@@ -1280,6 +1278,15 @@ export class Energylandia extends Destination {
    * `status` still reflects the instant, so a show outside operating hours reads
    * CLOSED while its day's times stay published.
    *
+   * Performances outside the day's published hours are published as stated. The
+   * timetable and the calendar are separate documents that genuinely disagree —
+   * a Tuesday parade sits at 20:15 against a 20:00 close, and the 19:00 shows
+   * sit an hour past the 18:00 close most of the autumn calendar uses — and the
+   * park's own timetable is the authority on its own showtimes. A closing parade
+   * running after the stated close is normal; the calendar's close is not a
+   * fence to censor the timetable with. The only question this code asks of the
+   * calendar is whether the park operated at all today.
+   *
    * A show with no performances today is CLOSED and carries no `showtimes` key
    * (an empty array is not the house convention), so a weekend-only show still
    * reports honestly on a Tuesday instead of vanishing from the feed.
@@ -1294,12 +1301,10 @@ export class Energylandia extends Destination {
     now: Date,
     operatesToday: boolean,
     outsideOperatingHours: boolean,
-    hours?: {open: string; close: string},
   ): LiveData[] {
     const weekday = parkLocalWeekday(now, this.timezone);
     const nowMs = now.getTime();
     const out: LiveData[] = [];
-    let outsideWindow = 0;
 
     for (const doc of shows) {
       if (!this.displayNameFor(doc)) continue;
@@ -1309,10 +1314,6 @@ export class Energylandia extends Destination {
       if (slots.length === 0) {
         out.push({id, status: 'CLOSED'} as LiveData);
         continue;
-      }
-
-      if (hours) {
-        outsideWindow += slots.filter((s) => s.time < hours.open || s.time > hours.close).length;
       }
 
       // fsId, not fsString: `duration` is a string on every document today, but
@@ -1326,22 +1327,6 @@ export class Energylandia extends Destination {
         status: outsideOperatingHours ? 'CLOSED' : showStatusFromShowtimes(showtimes, nowMs),
         showtimes,
       } as LiveData);
-    }
-
-    // The timetable and the calendar are separate documents and they genuinely
-    // disagree: a Tuesday parade is listed at 20:15 against a 20:00 close, and
-    // the shows scheduled at 19:00 sit an hour past the 18:00 close that most of
-    // the published calendar uses. Neither source is self-evidently the wrong
-    // one — a closing parade may well run after the stated close, while a 19:00
-    // show on an 18:00 day looks like a timetable nobody updated — so the park's
-    // own showtimes are published as stated rather than silently censored by the
-    // other document. Say so once per build so the disagreement is visible
-    // instead of being discovered downstream.
-    if (outsideWindow > 0 && hours) {
-      console.warn(
-        `[${this.constructor.name}] ${outsideWindow} performance(s) today fall outside the ` +
-        `published window ${hours.open}-${hours.close} — publishing the park's timetable as stated`,
-      );
     }
 
     return out;

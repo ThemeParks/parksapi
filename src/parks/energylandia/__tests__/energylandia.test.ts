@@ -1295,12 +1295,13 @@ describe('Energylandia — shows end to end', () => {
     expect(show.showtimes[0].endTime).toBe('2026-08-09T12:25:00+02:00');
   });
 
-  test('a performance outside the published window is still published, and warned about', async () => {
+  test('a performance after the published close is published as stated, not censored', async () => {
     // The timetable and the calendar are separate documents that genuinely
-    // disagree — a real Tuesday parade sits at 20:15 against a 20:00 close.
-    // Neither is self-evidently wrong, so the park's own timetable is published
-    // as stated rather than censored by the other document, and the conflict is
-    // surfaced rather than hidden.
+    // disagree — a real Tuesday parade sits at 20:15 against a 20:00 close. The
+    // park's own timetable is the authority on its own showtimes, and a closing
+    // parade running after the stated close is normal. The calendar is asked
+    // only whether the park operated today, never used as a fence to filter
+    // individual performances.
     vi.setSystemTime(new Date('2026-08-09T12:00:00Z'));
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const p: any = park(['2026-08-09']);
@@ -1311,8 +1312,15 @@ describe('Energylandia — shows end to end', () => {
     ];
     const live = await p.getLiveData();
     const show: any = live.find((l: any) => l.id === 'energylandia-show-late');
-    expect(show.showtimes[0].startTime).toBe('2026-08-09T20:15:00+02:00');
-    expect(warn.mock.calls.some((c) => String(c[0]).includes('outside the published window'))).toBe(true);
+    expect(show.showtimes).toEqual([{
+      type: 'Performance Time',
+      startTime: '2026-08-09T20:15:00+02:00',
+      endTime: '2026-08-09T20:30:00+02:00',
+    }]);
+    // And it is not treated as an anomaly: an out-of-window slot is normal data,
+    // so nothing is logged about it. A warning that fires on every build from
+    // September onwards is noise, not a signal.
+    expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });
 
