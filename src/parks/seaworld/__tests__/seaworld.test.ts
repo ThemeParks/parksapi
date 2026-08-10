@@ -15,6 +15,8 @@ import {
   SeaworldSanDiego,
   BuschGardensTampa,
   BuschGardensWilliamsburg,
+  SesamePlacePhiladelphia,
+  SesamePlaceSanDiego,
 } from '../seaworld.js';
 
 // ---------------------------------------------------------------------------
@@ -43,6 +45,14 @@ const MOCK_PARK_DETAIL_SWO = {
         Coordinate: {Latitude: 28.412, Longitude: -81.462},
       },
     ],
+    Pools: [
+      {
+        Id: 'pool-001',
+        Name: 'Roa’s Rapids',
+        Type: 'Pools',
+        Coordinate: {Latitude: 28.415, Longitude: -81.465},
+      },
+    ],
     Shows: [
       {
         Id: 'show-001',
@@ -65,6 +75,17 @@ const MOCK_PARK_DETAIL_SWO = {
     ],
     AnimalExperiences: [
       {Id: 'ae-001', Name: 'Dolphin Encounter', Type: 'Animal Experiences'},
+    ],
+    // Water-park amenities that sit alongside Pools/Slides and must NOT be
+    // promoted to attractions when Pools is.
+    Cabanas: [
+      {Id: 'cab-001', Name: 'Private Cabana 12', Type: 'Cabanas'},
+    ],
+    Restrooms: [
+      {Id: 'wc-001', Name: 'Restroom', Type: 'Restrooms'},
+    ],
+    Shops: [
+      {Id: 'shop-001', Name: 'Gift Shop', Type: 'Shops'},
     ],
   },
   open_hours: [
@@ -116,17 +137,23 @@ function createMockedOrlando() {
 
   // Mock getParkDetail to return our fixture only for the SWO park
   // and a minimal fixture for Aquatica
+  // Each sibling park returns its OWN Id. Returning a shared fixture for every
+  // non-SWO UUID would collapse Aquatica and Discovery Cove onto one entity id
+  // and hide a duplicate-park bug rather than expose it.
+  const SIBLINGS: Record<string, string> = {
+    '4B040706-968A-41B4-9967-D93C7814E665': 'Aquatica Orlando',
+    '1FB04DFC-B6C0-4918-BE36-EE6DD14FE741': 'Discovery Cove Orlando',
+  };
   park.getParkDetail = async (parkId: string) => {
     if (parkId === MOCK_PARK_ID_SWO) {
       return MOCK_PARK_DETAIL_SWO as any;
     }
-    // Aquatica minimal
     return {
-      Id: '4B040706-968A-41B4-9967-D93C7814E665',
-      park_Name: 'Aquatica Orlando',
+      Id: parkId,
+      park_Name: SIBLINGS[parkId] ?? 'Unknown Park',
       TimeZone: 'America/New_York',
       map_center: {Latitude: 28.42, Longitude: -81.47},
-      POIs: {Rides: [], Shows: [], Dining: [], Slides: []},
+      POIs: {Rides: [], Shows: [], Dining: [], Slides: [], Pools: []},
       open_hours: [],
     } as any;
   };
@@ -155,11 +182,19 @@ describe('SeaworldOrlando', () => {
       expect(park.timezone).toBe('America/New_York');
     });
 
-    it('has two resort IDs', () => {
+    it('has three resort IDs', () => {
       const park = new SeaworldOrlando();
-      expect(park.resortIds).toHaveLength(2);
+      expect(park.resortIds).toHaveLength(3);
       expect(park.resortIds[0]).toBe('AC3AF402-3C62-4893-8B05-822F19B9D2BC');
       expect(park.resortIds[1]).toBe('4B040706-968A-41B4-9967-D93C7814E665');
+      expect(park.resortIds[2]).toBe('1FB04DFC-B6C0-4918-BE36-EE6DD14FE741');
+    });
+
+    it('keeps SeaWorld Orlando first so the destination pin does not move', () => {
+      // getDestinations() reads map_center off resortIds[0]. A reorder here
+      // would relocate the destination without failing anything else.
+      const park = new SeaworldOrlando();
+      expect(park.resortIds[0]).toBe('AC3AF402-3C62-4893-8B05-822F19B9D2BC');
     });
 
     it('getCacheKeyPrefix returns destination-specific prefix', () => {
@@ -189,17 +224,35 @@ describe('SeaworldOrlando', () => {
   });
 
   describe('buildEntityList', () => {
-    it('includes destination, parks, attractions (rides+slides), shows, restaurants', async () => {
+    it('includes destination, parks, attractions (rides+slides+pools), shows, restaurants', async () => {
       const park = createMockedOrlando();
       const entities = await (park as any).buildEntityList();
 
       const byType = (type: string) => entities.filter((e: any) => e.entityType === type);
 
       expect(byType('DESTINATION')).toHaveLength(1);
-      expect(byType('PARK')).toHaveLength(2); // SWO + Aquatica
-      expect(byType('ATTRACTION')).toHaveLength(2); // 1 ride + 1 slide (SWO only)
+      expect(byType('PARK')).toHaveLength(3); // SWO + Aquatica + Discovery Cove
+      expect(byType('ATTRACTION')).toHaveLength(3); // 1 ride + 1 slide + 1 pool (SWO only)
       expect(byType('SHOW')).toHaveLength(1);
       expect(byType('RESTAURANT')).toHaveLength(1);
+    });
+
+    it('emits one PARK per resort ID with distinct ids', async () => {
+      const park = createMockedOrlando();
+      const entities = await (park as any).buildEntityList();
+      const parkIds = entities.filter((e: any) => e.entityType === 'PARK').map((e: any) => e.id);
+      expect(new Set(parkIds).size).toBe(parkIds.length);
+      expect(parkIds).toEqual(park.resortIds);
+    });
+
+    it('maps Pools as a RIDE attraction (water-park headline items)', async () => {
+      const park = createMockedOrlando();
+      const entities = await (park as any).buildEntityList();
+      const pool = entities.find((e: any) => e.id === 'pool-001');
+      expect(pool).toBeDefined();
+      expect(pool.entityType).toBe('ATTRACTION');
+      expect(pool.attractionType).toBe('RIDE');
+      expect(pool.parentId).toBe(MOCK_PARK_ID_SWO);
     });
 
     it('does not include Services or AnimalExperiences', async () => {
@@ -208,6 +261,17 @@ describe('SeaworldOrlando', () => {
       const ids = entities.map((e: any) => e.id);
       expect(ids).not.toContain('svc-001');
       expect(ids).not.toContain('ae-001');
+    });
+
+    it('does not promote water-park amenities alongside Pools', async () => {
+      // Cabanas outnumber every real attraction at these parks (45 at Adventure
+      // Island). Letting them through would swamp the park with rentals.
+      const park = createMockedOrlando();
+      const entities = await (park as any).buildEntityList();
+      const ids = entities.map((e: any) => e.id);
+      expect(ids).not.toContain('cab-001');
+      expect(ids).not.toContain('wc-001');
+      expect(ids).not.toContain('shop-001');
     });
 
     it('entity IDs are strings (UUIDs preserved)', async () => {
@@ -341,6 +405,8 @@ describe('Cache key prefix isolation', () => {
       new SeaworldSanDiego(),
       new BuschGardensTampa(),
       new BuschGardensWilliamsburg(),
+      new SesamePlacePhiladelphia(),
+      new SesamePlaceSanDiego(),
     ];
     const prefixes = parks.map(p => p.getCacheKeyPrefix());
     const uniquePrefixes = new Set(prefixes);
@@ -357,8 +423,9 @@ describe('Destination subclasses', () => {
     const park = new SeaworldSanAntonio();
     expect(park.destinationId).toBe('seaworldsanantonio');
     expect(park.timezone).toBe('America/Chicago');
-    expect(park.resortIds).toHaveLength(1);
+    expect(park.resortIds).toHaveLength(2);
     expect(park.resortIds[0]).toBe('F4040D22-8B8D-4394-AEC7-D05FA5DEA945');
+    expect(park.resortIds[1]).toBe('04668F50-A57E-4DE6-8E70-D4567D9B46B5'); // Aquatica SA
   });
 
   it('SeaworldSanDiego has correct config', () => {
@@ -372,14 +439,64 @@ describe('Destination subclasses', () => {
     const park = new BuschGardensTampa();
     expect(park.destinationId).toBe('buschgardenstampa');
     expect(park.timezone).toBe('America/New_York');
+    expect(park.resortIds).toHaveLength(2);
     expect(park.resortIds[0]).toBe('C001866B-555D-4E92-B48E-CC67E195DE96');
+    expect(park.resortIds[1]).toBe('770E691C-E6DA-4264-AF27-863189380D0B'); // Adventure Island
   });
 
   it('BuschGardensWilliamsburg preserves legacy destinationId typo', () => {
     const park = new BuschGardensWilliamsburg();
     // "willamsburg" — one 'l' — matches JS implementation
     expect(park.destinationId).toBe('buschgardenswillamsburg');
+    expect(park.resortIds).toHaveLength(2);
     expect(park.resortIds[0]).toBe('45FE1F31-D4E4-4B1E-90E0-5255111070F2');
+    expect(park.resortIds[1]).toBe('66480532-A73C-4617-9B2D-EDC4430CAB86'); // Water Country USA
+  });
+
+  it('SesamePlacePhiladelphia has correct config', () => {
+    const park = new SesamePlacePhiladelphia();
+    expect(park.destinationId).toBe('sesameplacephiladelphia');
+    expect(park.destinationName).toBe('Sesame Place Philadelphia');
+    expect(park.timezone).toBe('America/New_York');
+    expect(park.resortIds).toEqual(['F7408854-28CB-4B1E-98E5-4449FE600E85']);
+  });
+
+  it('SesamePlaceSanDiego has correct config', () => {
+    const park = new SesamePlaceSanDiego();
+    expect(park.destinationId).toBe('sesameplacesandiego');
+    expect(park.destinationName).toBe('Sesame Place San Diego');
+    expect(park.timezone).toBe('America/Los_Angeles');
+    expect(park.resortIds).toEqual(['A988F4CE-6A81-4527-9535-DDB378689E52']);
+  });
+});
+
+describe('Park UUID assignment across destinations', () => {
+  const ALL = () => [
+    new SeaworldOrlando(),
+    new SeaworldSanAntonio(),
+    new SeaworldSanDiego(),
+    new BuschGardensTampa(),
+    new BuschGardensWilliamsburg(),
+    new SesamePlacePhiladelphia(),
+    new SesamePlaceSanDiego(),
+  ];
+
+  it('assigns every park UUID to exactly one destination', () => {
+    // A UUID pasted into two destinations would publish the same PARK twice
+    // under different parents, and the collector would see it flap between them.
+    const all = ALL().flatMap((p) => p.resortIds);
+    expect(new Set(all).size).toBe(all.length);
+  });
+
+  it('covers all 12 parks the operator publishes', () => {
+    expect(ALL().flatMap((p) => p.resortIds)).toHaveLength(12);
+  });
+
+  it('gives every destination a unique id and at least one park', () => {
+    const parks = ALL();
+    const ids = parks.map((p) => p.destinationId);
+    expect(new Set(ids).size).toBe(parks.length);
+    for (const p of parks) expect(p.resortIds.length).toBeGreaterThan(0);
   });
 });
 
