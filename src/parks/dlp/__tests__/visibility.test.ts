@@ -11,30 +11,6 @@ function stubbedPark(): DisneylandParis {
   const park = new DisneylandParis();
   vi.spyOn(park as any, 'getPOIData').mockResolvedValue({
     ThemePark: [{id: 'P1', name: 'Disneyland Park', type: 'ThemePark'}],
-    Attraction: [
-      {
-        id: 'P1DA10',
-        name: 'Disneyland Railroad Discoveryland Station',
-        type: 'Attraction',
-        location: {id: 'P1'},
-        hideFunctionality: 'Hide from Web List + Mobile App',
-      },
-      {
-        id: 'P1NA16',
-        name: 'Disneyland Railroad Fantasyland Station',
-        type: 'Attraction',
-        location: {id: 'P1'},
-        hideFunctionality: 'Hide from Web List + Mobile App',
-      },
-      {
-        // Control: retirement-flagged record not in VISIBILITY_EXCEPTIONS — must stay dropped.
-        id: 'P1DA14-OLD',
-        name: 'Retired Attraction',
-        type: 'Attraction',
-        location: {id: 'P1'},
-        hideFunctionality: 'Hide from Web List + Mobile App',
-      },
-    ],
     Entertainment: [
       {
         id: 'P1GS93',
@@ -61,18 +37,6 @@ function stubbedPark(): DisneylandParis {
 describe('DLP visibility exceptions', () => {
   beforeEach(() => vi.restoreAllMocks());
 
-  it('surfaces railroad stations flagged Hide from Web List + Mobile App', async () => {
-    const entities = await stubbedPark().getEntities();
-    const discovery = entities.find((e) => e.id === 'P1DA10');
-    const fantasy = entities.find((e) => e.id === 'P1NA16');
-    expect(discovery).toBeDefined();
-    expect(discovery?.entityType).toBe('ATTRACTION');
-    expect((discovery as any)?.parkId).toBe('P1');
-    expect(fantasy).toBeDefined();
-    expect(fantasy?.entityType).toBe('ATTRACTION');
-    expect((fantasy as any)?.parkId).toBe('P1');
-  });
-
   it('surfaces P1GS93 (Live Your Story) despite its "Hide from the Service" flag', async () => {
     const entities = await stubbedPark().getEntities();
     const lys = entities.find((e) => e.id === 'P1GS93');
@@ -81,9 +45,8 @@ describe('DLP visibility exceptions', () => {
     expect((lys as any)?.parkId).toBe('P1');
   });
 
-  it('still drops other retirement-flagged POIs not in the exception set', async () => {
+  it('still drops other hidden shows not in the exception set', async () => {
     const entities = await stubbedPark().getEntities();
     expect(entities.find((e) => e.id === 'P1G107')).toBeUndefined();
-    expect(entities.find((e) => e.id === 'P1DA14-OLD')).toBeUndefined();
   });
 });

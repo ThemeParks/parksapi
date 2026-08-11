@@ -35,8 +35,8 @@ const VISIBILITY_EXCEPTIONS = new Set([
   'P2EA00', // Frozen Ever After
   'P2DA00', // Tangled Spin
   'P1GS93', // Live Your Story – a Disney Princess Celebration (Castle Stage; Disney flags it "Hide from the Service")
-  'P1DA10', // Disneyland Railroad Discoveryland Station (retirement-flagged but still reports wait times)
-  'P1NA16', // Disneyland Railroad Fantasyland Station (retirement-flagged but still reports wait times)
+  'P1DA10', // Disneyland Railroad Discoveryland Station
+  'P1NA16', // Disneyland Railroad Fantasyland Station
 ]);
 
 /** Hide rules that exclude entities from the POI list */
