@@ -96,6 +96,9 @@ const MAX_HEIGHT_CM = 200;
  * baseline alive while the 12h POI cache lags. */
 const SINGLE_RIDER_RECENT_SECONDS = 48 * 60 * 60;
 
+/** Upper bound for a show length; a slot longer than a day is bad data */
+const MAX_SHOW_DURATION_MINUTES = 24 * 60;
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -178,6 +181,20 @@ function parseDLPWait(v: unknown): number | undefined {
   if (v === null || v === undefined || v === '') return undefined;
   const n = typeof v === 'number' ? v : Number(v);
   return Number.isFinite(n) ? n : undefined;
+}
+
+/**
+ * Total length of a show in whole minutes, or 0 when the API omits the
+ * duration or reports something unusable. Callers fall back to the schedule
+ * feed's own end time on 0.
+ */
+function showDurationMinutes(duration: DLPPOIEntity['duration']): number {
+  if (!duration) return 0;
+  const hours = Number(duration.hours ?? 0);
+  const minutes = Number(duration.minutes ?? 0);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return 0;
+  const total = Math.round(hours * 60 + minutes);
+  return total > 0 && total <= MAX_SHOW_DURATION_MINUTES ? total : 0;
 }
 
 /**
@@ -274,9 +291,6 @@ export class DisneylandParis extends Destination {
 
   @config
   timezone: string = 'Europe/Paris';
-
-  /** Cache of show entities with duration data (populated during entity building) */
-  private showDurationMap: Map<string, number> = new Map();
 
   constructor(options?: DestinationConstructor) {
     super(options);
@@ -433,6 +447,12 @@ export class DisneylandParis extends Destination {
           }
           Entertainment: activities(market: $market, types: "Entertainment") {
             ${this.entityFields}
+            ... on Entertainment {
+              duration {
+                hours
+                minutes
+              }
+            }
           }
           Event: activities(market: $market, types: "Event") {
             ${this.entityFields}
@@ -844,9 +864,6 @@ export class DisneylandParis extends Destination {
       },
     });
 
-    // Clear show duration map (rebuilt each time)
-    this.showDurationMap.clear();
-
     // Build attraction, show, and restaurant entities
     const entityEntries: Entity[] = [];
     for (const poi of filteredEntities) {
@@ -874,14 +891,6 @@ export class DisneylandParis extends Destination {
       }
 
       entity.tags = entityType === 'ATTRACTION' ? this.buildTags(poi) : [];
-
-      // Store show duration for live data
-      if (entityType === 'SHOW' && poi.duration) {
-        const durationMinutes = (poi.duration.minutes || 0) + ((poi.duration.hours || 0) * 60);
-        if (durationMinutes > 0) {
-          this.showDurationMap.set(poi.id, durationMinutes);
-        }
-      }
 
       entityEntries.push(entity);
     }
@@ -1012,6 +1021,13 @@ export class DisneylandParis extends Destination {
     // `todayStr` (YYYY-MM-DD in park tz) is computed at the top of this method.
     // The payload is shared with the dining block below.
     let todaySchedules: DLPScheduleActivityEntry[] = [];
+
+    const showDurations = new Map<string, number>();
+    for (const poi of emittablePois) {
+      const minutes = showDurationMinutes(poi.duration);
+      if (minutes > 0) showDurations.set(poi.id, minutes);
+    }
+
     try {
       todaySchedules = await this.getScheduleForDate(todayStr);
     } catch (e) {
@@ -1024,7 +1040,7 @@ export class DisneylandParis extends Destination {
         const performances = sched.schedules.filter((s) => s.status === 'PERFORMANCE_TIME');
         if (performances.length === 0) continue;
 
-        const showDuration = this.showDurationMap.get(sched.id) || 0;
+        const showDuration = showDurations.get(sched.id) || 0;
 
         const showtimes = performances.map((p) => {
           const startTime = constructDateTime(todayStr, p.startTime, this.timezone);
