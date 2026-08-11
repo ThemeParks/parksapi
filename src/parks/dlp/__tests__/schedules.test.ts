@@ -5,7 +5,7 @@ import {DisneylandParis} from '../disneylandparis.js';
  * The schedule feed covers far more than the POI set the park publishes —
  * hotel and Disney Village restaurants, character meets, and records the
  * visibility filter drops. Only entities that actually get emitted may carry
- * schedules.
+ * schedules, and one unusable row may not cost the other sixty days.
  */
 const OPERATING = {startTime: '09:30:00', endTime: '22:00:00', status: 'OPERATING'};
 
@@ -102,6 +102,46 @@ describe('DLP schedules', () => {
       startTime: '00:00:00', endTime: '23:59:00', status: 'OPERATING',
     })).getSchedules();
     expect(schedules[0].schedule[0].closingTime).toMatch(/T23:59:00/);
+  });
+
+  // === Malformed input ===
+
+  it.each([
+    ['the feed returns null', null],
+    ['the feed returns a string', 'text'],
+    ['the feed returns a null entry', [null]],
+    ['an entry has no id or schedules', [{}]],
+    ['schedules is null', [{id: 'P1RA00', schedules: null}]],
+    ['schedules is a string', [{id: 'P1RA00', schedules: 'text'}]],
+    ['schedules is a number', [{id: 'P1RA00', schedules: 42}]],
+    ['schedules is an object', [{id: 'P1RA00', schedules: {}}]],
+    ['a row is null', [{id: 'P1RA00', schedules: [null]}]],
+    ['a row has no times', [{id: 'P1RA00', schedules: [{status: 'OPERATING'}]}]],
+  ])('survives when %s', async (_label, activities) => {
+    expect(await scheduledIds(activities)).toEqual([]);
+  });
+
+  it.each([
+    'abc',
+    '9:30:00',
+    '25:00:00',
+    '09:99:00',
+    '09:30:99',
+    '0930',
+    '',
+  ])('skips a row whose time reads "%s"', async (startTime) => {
+    expect(await scheduledIds(feedFor(['P1RA00'], {...OPERATING, startTime}))).toEqual([]);
+  });
+
+  it('drops only the unusable row, not the whole build', async () => {
+    const schedules = await stubbedPark([{
+      id: 'P1RA00',
+      name: 'Big Thunder Mountain',
+      schedules: [OPERATING, {...OPERATING, startTime: 'abc'}],
+    }]).getSchedules();
+
+    expect(schedules).toHaveLength(1);
+    expect(schedules[0].schedule).toHaveLength(60);
   });
 
   it('survives a schedule fetch that rejects', async () => {

@@ -52,6 +52,9 @@ const SHOW_SUBTYPES = new Set([
   'Parade',
 ]);
 
+/** Wall-clock time the schedule feed publishes, e.g. `21:30:00` */
+const TIME_OF_DAY = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -1091,11 +1094,16 @@ export class DisneylandParis extends Destination {
       if (!dateData) continue;
 
       for (const entity of dateData) {
-        if (!entity.schedules) continue;
+        if (!Array.isArray(entity?.schedules)) continue;
         if (!publishedIds.has(entity.id)) continue;
 
         for (const hours of entity.schedules) {
-          if (hours.status === 'REFURBISHMENT' || hours.status === 'CLOSED') continue;
+          if (hours?.status === 'REFURBISHMENT' || hours?.status === 'CLOSED') continue;
+
+          // These arrive as plain GraphQL strings, and constructDateTime throws
+          // on anything it can't parse — which costs every entity all 60 days,
+          // not just this row.
+          if (!TIME_OF_DAY.test(hours?.startTime) || !TIME_OF_DAY.test(hours?.endTime)) continue;
 
           const openTime = constructDateTime(dateString, hours.startTime, this.timezone);
           let closeTime = constructDateTime(dateString, hours.endTime, this.timezone);
