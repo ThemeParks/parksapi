@@ -37,10 +37,13 @@ const VISIBILITY_EXCEPTIONS = new Set([
   'P2DA00', // Tangled Spin
   'P1GS93', // Live Your Story – a Disney Princess Celebration (Castle Stage; Disney flags it "Hide from the Service")
   // Disney flags these "Hide from Web List + Mobile App", which it otherwise uses as a
-  // retirement marker (every old-/-OLD record carries it). These two are live and still
-  // report wait times, so they are the only members of that flag we surface.
+  // retirement marker (every old-/-OLD record carries it). Each one is live even so:
+  // the stations report wait times, the meet & greets hold performance times.
   'P1DA10', // Disneyland Railroad Discoveryland Station
   'P1NA16', // Disneyland Railroad Fantasyland Station
+  'P2MG31', // Meet Goofy, the Movie Director
+  'P1MG21', // An Encounter with Captain Hook
+  'P1MG05', // Meet Donald Duck or his friends
 ]);
 
 /**
@@ -76,6 +79,7 @@ const SHOW_SUBTYPES = new Set([
   'Fireworks',
   'Atmosphere',
   'Parade',
+  'Character Experience - Meet & Greet',
 ]);
 
 /** Wall-clock time the schedule feed publishes, e.g. `21:30:00`.
