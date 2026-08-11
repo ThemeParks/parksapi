@@ -37,11 +37,16 @@ const VISIBILITY_EXCEPTIONS = new Set([
   'P1GS93', // Live Your Story – a Disney Princess Celebration (Castle Stage; Disney flags it "Hide from the Service")
 ]);
 
-/** Hide rules that exclude entities from the POI list */
+/**
+ * Hide rules that exclude entities from the POI list.
+ *
+ * `Hide from the Mobile App` is deliberately not one of them. Every record
+ * carrying it is an off-site or guest-information page, not a venue in
+ * either park.
+ */
 const HIDE_RULES = new Set([
   'Hide from Web List + Mobile App',
   'Hide from the Service',
-  'Hide from Mobile App',
 ]);
 
 /** Entertainment subtypes that map to SHOW entity type */
