@@ -1068,6 +1068,12 @@ export class DisneylandParis extends Destination {
     const now = new Date();
     const scheduleMap = new Map<string, any[]>();
 
+    // The schedule feed reaches well past the POI set we publish — hotel and
+    // Disney Village restaurants, character meets, records the visibility
+    // filter drops. Hours for an entity we never emit can't be attached to
+    // anything, so the published list is the authority on what to keep.
+    const publishedIds = new Set((await this.buildEntityList()).map((entity) => entity.id));
+
     // Fetch 60 days of schedule data
     for (let i = 0; i < 60; i++) {
       const date = addDays(now, i);
@@ -1086,7 +1092,7 @@ export class DisneylandParis extends Destination {
 
       for (const entity of dateData) {
         if (!entity.schedules) continue;
-        if (IGNORE_ENTITIES.has(entity.id)) continue;
+        if (!publishedIds.has(entity.id)) continue;
 
         for (const hours of entity.schedules) {
           if (hours.status === 'REFURBISHMENT' || hours.status === 'CLOSED') continue;
