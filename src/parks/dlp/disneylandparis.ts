@@ -30,19 +30,22 @@ const IGNORE_ENTITIES = new Set([
   'P2EA02', // Entry to World of Frozen (land-entry pass, not a ride)
 ]);
 
-/** Entities that bypass visibility/hide rules */
-const VISIBILITY_EXCEPTIONS = new Set([
-  'P2EA00', // Frozen Ever After
-  'P2DA00', // Tangled Spin
-  'P1GS93', // Live Your Story – a Disney Princess Celebration (Castle Stage; Disney flags it "Hide from the Service")
+/** Non-attraction POIs that must surface despite "Hide from the Service" */
+const SERVICE_HIDE_EXCEPTIONS = new Set([
+  'P1GS93', // Live Your Story – a Disney Princess Celebration (Castle Stage)
 ]);
 
-/** Hide rules that exclude entities from the POI list */
-const HIDE_RULES = new Set([
-  'Hide from Web List + Mobile App',
-  'Hide from the Service',
-  'Hide from Mobile App',
-]);
+/**
+ * Disney hideFunctionality policy per POI category.
+ * Attractions default to surfacing app-only hides so wait-time feeds stay complete.
+ */
+const HIDE_FUNCTIONALITY_POLICY: Readonly<
+  Record<string, {attraction: boolean; default: boolean}>
+> = {
+  'Hide from the Service': {attraction: false, default: false},
+  'Hide from Mobile App': {attraction: true, default: false},
+  'Hide from Web List + Mobile App': {attraction: true, default: false},
+};
 
 /** Entertainment subtypes that map to SHOW entity type */
 const SHOW_SUBTYPES = new Set([
@@ -585,25 +588,32 @@ export class DisneylandParis extends Destination {
   }
 
   /**
+   * Whether a POI row passes Disney visibility flags (after park and ignore checks).
+   * Attractions bypass app-only hide flags so wait-time feeds stay complete.
+   */
+  private isVisiblePOIEntity(entity: DLPPOIEntity & {category: string}): boolean {
+    if (SERVICE_HIDE_EXCEPTIONS.has(entity.id)) return true;
+
+    const hideFlag = entity.hideFunctionality;
+    if (!hideFlag) return true;
+
+    const policy = HIDE_FUNCTIONALITY_POLICY[hideFlag];
+    if (!policy) return true;
+
+    return entity.category === 'Attraction' ? policy.attraction : policy.default;
+  }
+
+  /**
    * Filter POI entities to only include those in P1 or P2 parks,
-   * excluding hidden and ignored entities.
+   * excluding ignored entities and Disney visibility-hidden POIs.
+   * App-hidden attractions are kept so live wait data matches the queue API.
    */
   private filterPOIEntities(entities: Array<DLPPOIEntity & {category: string}>): Array<DLPPOIEntity & {category: string}> {
     return entities.filter((entity) => {
-      // Must be in a park (P1 or P2)
       const parkId = entity.location?.id;
       if (parkId !== 'P1' && parkId !== 'P2') return false;
-
-      // Skip ignored entities
       if (IGNORE_ENTITIES.has(entity.id)) return false;
-
-      // Visibility exceptions bypass hide rules
-      if (VISIBILITY_EXCEPTIONS.has(entity.id)) return true;
-
-      // Filter hidden entities
-      if (entity.hideFunctionality && HIDE_RULES.has(entity.hideFunctionality)) return false;
-
-      return true;
+      return this.isVisiblePOIEntity(entity);
     });
   }
 
