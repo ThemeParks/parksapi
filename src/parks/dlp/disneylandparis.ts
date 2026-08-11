@@ -1071,6 +1071,9 @@ export class DisneylandParis extends Destination {
 
     const nowMs = Date.now();
     const isWithinWindow = (open: string, close: string): boolean => {
+      // The feed types these as plain strings, so a malformed one would reach
+      // constructDateTime and throw out of the whole build.
+      if (!TIME_OF_DAY.test(open) || !TIME_OF_DAY.test(close)) return false;
       const o = new Date(constructDateTime(todayStr, open.slice(0, 5), this.timezone)).getTime();
       const c = new Date(constructDateTime(todayStr, close.slice(0, 5), this.timezone)).getTime();
       return nowMs >= o && nowMs <= c;
@@ -1115,6 +1118,39 @@ export class DisneylandParis extends Destination {
       }
       // If a walkthrough already has a row from upstream feeds (PA / VQ /
       // showtimes), leave it — those feeds are authoritative.
+    }
+
+    // === Dining (from today's schedule) ===
+    // Without published hours a restaurant is skipped, not reported closed.
+    for (const poi of emittablePois) {
+      if (this.mapEntityType(poi) !== 'RESTAURANT') continue;
+
+      const hours = (poi.schedules || []).find((s) => s.date === todayStr);
+      if (!hours || !hours.startTime || !hours.endTime) continue;
+
+      const ld = getOrCreate(poi.id);
+      if (!ld) continue;
+
+      // Unlike the wait feed's, this REFURBISHMENT is a real closure, and the
+      // only signal for it — buildSchedules skips those days entirely.
+      if (hours.status === 'REFURBISHMENT') {
+        ld.status = 'REFURBISHMENT' as any;
+        continue;
+      }
+      if (!TIME_OF_DAY.test(hours.startTime) || !TIME_OF_DAY.test(hours.endTime)) {
+        ld.status = 'CLOSED' as any;
+        continue;
+      }
+
+      const startTime = constructDateTime(todayStr, hours.startTime.slice(0, 5), this.timezone);
+      const endTime = constructDateTime(todayStr, hours.endTime.slice(0, 5), this.timezone);
+
+      const open = hours.closed !== true
+        && this.mapStatus(hours.status) === 'OPERATING'
+        && nowMs >= new Date(startTime).getTime()
+        && nowMs <= new Date(endTime).getTime();
+      ld.status = (open ? 'OPERATING' : 'CLOSED') as any;
+      ld.operatingHours = [{type: 'OPERATING', startTime, endTime}];
     }
 
     return liveData;
