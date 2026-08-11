@@ -11,6 +11,7 @@ import {
   LiveData,
   EntitySchedule,
   LanguageCode,
+  TagData,
 } from '@themeparks/typelib';
 import {formatInTimezone, addDays, constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
@@ -82,6 +83,9 @@ const SHOW_SUBTYPES = new Set([
  * constructDateTime and throw. */
 const TIME_OF_DAY = /^(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?|24:00(?::00)?)$/;
 
+/** Upper bound for a rider height restriction; anything taller is bad data */
+const MAX_HEIGHT_CM = 300;
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -110,13 +114,43 @@ type DLPPOIEntity = {
   coordinates?: DLPCoordinate[];
   schedules?: DLPScheduleEntry[];
   subType?: string;
-  // Extended fields from detailed queries
-  height?: Array<{ id: string; value: string; iconFont?: string }>;
-  minimumHeight?: string;
+  duration?: { hours?: number; minutes?: number };
+  // Attraction-only, from the inline fragment in fetchPOI
+  height?: Array<{ id: string }>;
   physicalConsiderations?: Array<{ id: string }>;
   interests?: Array<{ id: string }>;
-  duration?: { hours?: number; minutes?: number };
+  singleRider?: boolean;
 };
+
+/**
+ * Ids of a POI facet list. GraphQL lists may hold nulls, and the whole field
+ * is absent on every type but Attraction, so anything unusable is dropped
+ * rather than allowed to fail the entity build.
+ */
+function facetIds(list: Array<{id?: string}> | undefined): Set<string> {
+  if (!Array.isArray(list)) return new Set();
+  return new Set(
+    list.map((facet) => facet?.id).filter((id): id is string => typeof id === 'string'),
+  );
+}
+
+/**
+ * Parse a height facet id into centimetres: `81cm` → 81, `1_20m` → 120.
+ * Returns undefined for `anyHeight`, for ids in any other shape, and for
+ * values outside a plausible rider height.
+ *
+ * The facet's companion `value` string is localised — the same restriction
+ * reads `1.20 m` in en-gb and `1,20 m` in fr-fr — so the id is the only
+ * market-independent source.
+ */
+function parseHeightCm(facetId: string): number | undefined {
+  const match = /^(\d+(?:_\d+)?)(cm|m)$/.exec(facetId);
+  if (!match) return undefined;
+  const value = Number(match[1].replace('_', '.'));
+  if (!Number.isFinite(value)) return undefined;
+  const cm = Math.round(match[2] === 'm' ? value * 100 : value);
+  return cm > 0 && cm <= MAX_HEIGHT_CM ? cm : undefined;
+}
 
 type DLPWaitTimeEntry = {
   entityId: string;
@@ -368,6 +402,18 @@ export class DisneylandParis extends Destination {
         query: `query activities($market: String!) {
           Attraction: activities(market: $market, types: "Attraction") {
             ${this.entityFields}
+            ... on Attraction {
+              height {
+                id
+              }
+              physicalConsiderations {
+                id
+              }
+              interests {
+                id
+              }
+              singleRider
+            }
           }
           DiningEvent: activities(market: $market, types: "DiningEvent") {
             ${this.entityFields}
@@ -417,7 +463,7 @@ export class DisneylandParis extends Destination {
   /**
    * Get POI data (cached 12h)
    */
-  @cache({ttlSeconds: 43200, cacheVersion: 2})
+  @cache({ttlSeconds: 43200, cacheVersion: 3})
   async getPOIData(): Promise<Record<string, DLPPOIEntity[]>> {
     const resp = await this.fetchPOI();
     const data = await resp.json();
@@ -652,20 +698,33 @@ export class DisneylandParis extends Destination {
   }
 
   /**
-   * Parse height string into centimeters.
-   * Handles "1.2 m" -> 120, "102 cm" -> 102
+   * Build the tags for a POI entity. Every field read here belongs to the
+   * Attraction type, so shows and restaurants come back with an empty list.
    */
-  private parseHeightCm(heightStr: string): number | undefined {
-    const match = /([\d.]+)\s*(\w+)/.exec(heightStr);
-    if (!match) return undefined;
+  private buildTags(poi: DLPPOIEntity): TagData[] {
+    const tags: TagData[] = [];
 
-    const value = parseFloat(match[1]);
-    const unit = match[2].toLowerCase();
+    const heightCm = [...facetIds(poi.height)]
+      .map((id) => parseHeightCm(id))
+      .find((cm) => cm !== undefined);
+    if (heightCm !== undefined) {
+      tags.push(TagBuilder.minimumHeight(heightCm, 'cm'));
+    }
 
-    if (unit === 'm') return Math.round(value * 100);
-    if (unit === 'cm') return Math.round(value);
+    if (facetIds(poi.physicalConsiderations).has('expectantMothersMayNotRide')) {
+      tags.push(TagBuilder.unsuitableForPregnantPeople());
+    }
 
-    return undefined;
+    if (poi.singleRider === true) {
+      tags.push(TagBuilder.singleRider());
+    }
+
+    const interests = facetIds(poi.interests);
+    if (interests.has('disney-premier-access-one')) tags.push(TagBuilder.paidReturnTime());
+    if (interests.has('guestMayGetSplashed')) tags.push(TagBuilder.mayGetWet());
+    if (interests.has('PhotoPass')) tags.push(TagBuilder.onRidePhoto());
+
+    return tags;
   }
 
   /**
@@ -804,34 +863,7 @@ export class DisneylandParis extends Destination {
         (entity as Entity & {attractionType?: string}).attractionType = 'SHOW';
       }
 
-      // Build tags
-      const tags: any[] = [];
-
-      // Height restriction
-      if (poi.minimumHeight) {
-        const heightCm = this.parseHeightCm(poi.minimumHeight);
-        if (heightCm && heightCm > 0) {
-          tags.push(TagBuilder.minimumHeight(heightCm, 'cm'));
-        }
-      }
-      // Also check height array (older format)
-      if (poi.height) {
-        for (const h of poi.height) {
-          if (h.id === 'anyHeight') continue;
-          const heightCm = this.parseHeightCm(h.value);
-          if (heightCm && heightCm > 0) {
-            tags.push(TagBuilder.minimumHeight(heightCm, 'cm'));
-            break; // Only one height tag
-          }
-        }
-      }
-
-      // Pregnancy
-      if (poi.physicalConsiderations?.some((c) => c.id === 'expectantMothersMayNotRide')) {
-        tags.push(TagBuilder.unsuitableForPregnantPeople());
-      }
-
-      entity.tags = tags.filter(Boolean);
+      entity.tags = this.buildTags(poi);
 
       // Store show duration for live data
       if (entityType === 'SHOW' && poi.duration) {
