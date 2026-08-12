@@ -11,7 +11,10 @@ import {DisneylandParis} from '../disneylandparis.js';
 function stubbedPark(): DisneylandParis {
   const park = new DisneylandParis();
   vi.spyOn(park as any, 'getPOIData').mockResolvedValue({
-    ThemePark: [{id: 'P1', name: 'Disneyland Park', type: 'ThemePark'}],
+    ThemePark: [
+      {id: 'P1', name: 'Disneyland Park', type: 'ThemePark'},
+      {id: 'P2', name: 'Disney Adventure World', type: 'ThemePark'},
+    ],
     Attraction: [
       {
         id: 'P1DA10',
@@ -88,6 +91,32 @@ function stubbedPark(): DisneylandParis {
         type: 'Entertainment',
         subType: 'Stage Show',
         location: {id: 'P1'},
+      },
+      {
+        id: 'P2MG33',
+        name: 'Spider-Man Heroic Encounter',
+        type: 'Entertainment',
+        subType: 'Character Experience - Meet & Greet',
+        location: {id: 'P2'},
+        hideFunctionality: 'Hide from the Service',
+      },
+      {
+        id: 'P2MG43',
+        name: 'MARVEL Super Hero Heroic Encounter',
+        type: 'Entertainment',
+        subType: 'Character Experience - Meet & Greet',
+        location: {id: 'P2'},
+        hideFunctionality: 'Hide from the Service',
+      },
+      {
+        // Control: the retired twin of a published meet & greet, carrying the
+        // same flag but no virtual queue — must stay dropped.
+        id: 'P2MG59',
+        name: 'Meet a Toy Story Character',
+        type: 'Entertainment',
+        subType: 'Character Experience - Meet & Greet',
+        location: {id: 'P2'},
+        hideFunctionality: 'Hide from the Service',
       },
     ],
   });
@@ -174,5 +203,20 @@ describe('DLP visibility exceptions', () => {
   it('publishes a show flagged "Hide from the Mobile App"', async () => {
     const entities = await stubbedPark().getEntities();
     expect(entities.find((e) => e.id === 'P1G108')?.entityType).toBe('SHOW');
+  });
+
+  it('surfaces the two Heroic Encounters despite their "Hide from the Service" flag', async () => {
+    const entities = await stubbedPark().getEntities();
+    for (const id of ['P2MG33', 'P2MG43']) {
+      const meet = entities.find((e) => e.id === id);
+      expect(meet, id).toBeDefined();
+      expect(meet?.entityType).toBe('SHOW');
+      expect((meet as any)?.parkId).toBe('P2');
+    }
+  });
+
+  it('still drops a retired meet & greet carrying the same flag', async () => {
+    const entities = await stubbedPark().getEntities();
+    expect(entities.find((e) => e.id === 'P2MG59')).toBeUndefined();
   });
 });

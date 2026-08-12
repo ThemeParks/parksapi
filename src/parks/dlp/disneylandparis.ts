@@ -44,6 +44,10 @@ const VISIBILITY_EXCEPTIONS = new Set([
   'P2MG31', // Meet Goofy, the Movie Director
   'P1MG21', // An Encounter with Captain Hook
   'P1MG05', // Meet Donald Duck or his friends
+  // Also flagged "Hide from the Service", but both run a live virtual queue:
+  // enabled, with booking waves dated to the day being served.
+  'P2MG33', // Spider-Man Heroic Encounter
+  'P2MG43', // MARVEL Super Hero Heroic Encounter
 ]);
 
 /**
