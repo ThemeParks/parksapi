@@ -239,6 +239,15 @@ type DLPVQueueResponse = {
   queues?: DLPVQueueEntry[];
 };
 
+/**
+ * A wave's status, upper-cased: `OPEN`, `CLOSED`, `FULL` or `FINISHED`.
+ * Anything the feed reports in another shape becomes the empty string, which
+ * no caller treats as bookable.
+ */
+function waveStatus(wave: DLPVQueueWave | null | undefined): string {
+  return typeof wave?.status === 'string' ? wave.status.toUpperCase() : '';
+}
+
 type DLPScheduleActivityEntry = {
   id: string;
   name?: string;
@@ -981,40 +990,39 @@ export class DisneylandParis extends Destination {
     }
 
     // === Virtual Queue (free return time) ===
-    // Each queue's waves array is ordered chronologically by openAt; the
-    // next wave that still has capacity is the one to surface. If all
-    // waves have status FINISHED, the queue's done for the day.
+    // Waves are the day's booking windows, ordered chronologically, with
+    // `nextWaveId` marking the one in play. Only an OPEN wave takes
+    // bookings: CLOSED is scheduled to open later, FULL is that wave's
+    // allocation gone, FINISHED is done with. A return window is therefore
+    // published only for an OPEN wave, and the queue counts as temporarily
+    // full for as long as a CLOSED wave is still to come.
     const vqueueData = await this.getVirtualQueueData();
     for (const q of vqueueData) {
-      if (!q.queueContentId || q.enabled === false) continue;
-      const waves = q.waves ?? [];
+      if (!q?.queueContentId || q.enabled === false) continue;
+      const waves = Array.isArray(q.waves) ? q.waves : [];
       if (waves.length === 0) continue;
 
+      const pending = waves.filter((w) => waveStatus(w) !== 'FINISHED');
       const activeWave =
-        (q.nextWaveId && waves.find((w) => w.waveId === q.nextWaveId)) ||
-        waves.find((w) => (w.status || '').toUpperCase() !== 'FINISHED');
-
-      const allFinished = waves.every(
-        (w) => (w.status || '').toUpperCase() === 'FINISHED',
-      );
+        (q.nextWaveId && waves.find((w) => w?.waveId === q.nextWaveId)) || pending[0];
 
       const ld = getOrCreate(q.queueContentId);
       if (!ld) continue;
       if (!ld.queue) ld.queue = {};
 
-      if (allFinished || !activeWave) {
-        ld.queue.RETURN_TIME = this.buildReturnTimeQueue('FINISHED', null, null);
-      } else {
-        // Wave statuses observed: CLOSED (scheduled, not yet open), FINISHED,
-        // and presumably OPEN/AVAILABLE when actively booking. Anything
-        // non-FINISHED surfaces as AVAILABLE with the wave's window so the
-        // wiki can render the upcoming slot.
-        ld.queue.RETURN_TIME = this.buildReturnTimeQueue(
-          'AVAILABLE',
-          parseDLPDate(activeWave.openAt ?? null),
-          parseDLPDate(activeWave.closedAt ?? null),
+      const open = waveStatus(activeWave) === 'OPEN';
+      const from = open ? parseDLPDate(activeWave?.openAt ?? null) : null;
+      const until = open ? parseDLPDate(activeWave?.closedAt ?? null) : null;
+
+      // AVAILABLE has to carry a window, so a wave that reads open without a
+      // usable one falls back with the rest.
+      ld.queue.RETURN_TIME = from && until
+        ? this.buildReturnTimeQueue('AVAILABLE', from, until)
+        : this.buildReturnTimeQueue(
+          waves.some((w) => waveStatus(w) === 'CLOSED') ? 'TEMP_FULL' : 'FINISHED',
+          null,
+          null,
         );
-      }
     }
 
     // === Show Times (from today's schedule) ===
