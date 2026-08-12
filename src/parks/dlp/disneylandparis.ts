@@ -35,6 +35,9 @@ const VISIBILITY_EXCEPTIONS = new Set([
   'P2EA00', // Frozen Ever After
   'P2DA00', // Tangled Spin
   'P1GS93', // Live Your Story – a Disney Princess Celebration (Castle Stage; Disney flags it "Hide from the Service")
+  // Also flagged "Hide from the Service", but a running attraction: it posts
+  // wait times and the schedule feed lists it as operating.
+  'P1DA13', // Mickey's PhilharMagic
   // Disney flags these "Hide from Web List + Mobile App", which it otherwise uses as a
   // retirement marker (every old-/-OLD record carries it). These two are live and still
   // report wait times, so they are the only members of that flag we surface.

@@ -34,6 +34,22 @@ function stubbedPark(): DisneylandParis {
         location: {id: 'P1'},
         hideFunctionality: 'Hide from Web List + Mobile App',
       },
+      {
+        id: 'P1DA13',
+        name: 'Mickey’s PhilharMagic',
+        type: 'Attraction',
+        location: {id: 'P1'},
+        hideFunctionality: 'Hide from the Service',
+      },
+      {
+        // Control: the only other attraction carrying "Hide from the Service",
+        // and it appears in no live feed — must stay dropped.
+        id: 'P1JF00',
+        name: 'Gardens of Wonder',
+        type: 'Attraction',
+        location: {id: 'P1'},
+        hideFunctionality: 'Hide from the Service',
+      },
     ],
     Entertainment: [
       {
@@ -81,9 +97,18 @@ describe('DLP visibility exceptions', () => {
     expect((lys as any)?.parkId).toBe('P1');
   });
 
+  it('surfaces P1DA13 (Mickey’s PhilharMagic) despite its "Hide from the Service" flag', async () => {
+    const entities = await stubbedPark().getEntities();
+    const philharMagic = entities.find((e) => e.id === 'P1DA13');
+    expect(philharMagic).toBeDefined();
+    expect(philharMagic?.entityType).toBe('ATTRACTION');
+    expect((philharMagic as any)?.parkId).toBe('P1');
+  });
+
   it('still drops other retirement-flagged POIs not in the exception set', async () => {
     const entities = await stubbedPark().getEntities();
     expect(entities.find((e) => e.id === 'P1G107')).toBeUndefined();
     expect(entities.find((e) => e.id === 'P1DA14-OLD')).toBeUndefined();
+    expect(entities.find((e) => e.id === 'P1JF00')).toBeUndefined();
   });
 });
