@@ -1064,19 +1064,7 @@ export class DisneylandParis extends Destination {
     // synthetic CLOSED + STANDBY:null all day. Instead we emit
     // OPERATING/CLOSED derived from today's POI schedule (or park-hours
     // fallback) and no queue. Detection is data-driven: persist a 30-day
-    // cache of IDs that have ever appeared in the wait feed, mirroring the
-    // singleRiderCapable pattern below.
-    //
-    // Single-rider eligibility isn't on POI, so remember IDs we've seen
-    // with `singleRider.isAvailable === true` and re-emit SINGLE_RIDER
-    // null for them while the feed is asleep.
-    const srCacheKey = `${this.getCacheKeyPrefix()}:dlp:singleRiderCapable`;
-    const previouslySeenSR = CacheLib.get(srCacheKey) as string[] | null;
-    const seenSR = new Set<string>(Array.isArray(previouslySeenSR) ? previouslySeenSR : []);
-    for (const wt of waitTimes) {
-      if (wt.singleRider?.isAvailable === true && wt.entityId) seenSR.add(wt.entityId);
-    }
-    CacheLib.set(srCacheKey, [...seenSR], 30 * 24 * 60 * 60); // 30 days
+    // cache of IDs that have ever appeared in the wait feed.
 
     // Wait-feed history: which attractions are queue-bearing? Walkthroughs
     // never appear here. 30-day TTL covers normal refurb cycles.
@@ -1146,7 +1134,7 @@ export class DisneylandParis extends Destination {
         }
         if (!ld.queue) ld.queue = {};
         if (!ld.queue.STANDBY) ld.queue.STANDBY = {waitTime: null};
-        if (!ld.queue.SINGLE_RIDER && seenSR.has(id)) {
+        if (!ld.queue.SINGLE_RIDER && poi.singleRider === true) {
           ld.queue.SINGLE_RIDER = {waitTime: null};
         }
       } else if (!ld) {
