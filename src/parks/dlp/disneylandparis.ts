@@ -1106,19 +1106,29 @@ export class DisneylandParis extends Destination {
       (poi) => this.mapEntityType(poi) === 'ATTRACTION',
     );
 
-    // Today's park-open window — fallback for walkthroughs whose POI
-    // entry doesn't carry its own schedule (Discovery Arcade etc.).
-    // Derived from queue-bearing rides' POI schedules.
-    const parkScheduleEntries = attractionPois
-      .filter((p) => queueBearingIds.has(p.id))
-      .flatMap((p) => p.schedules || [])
-      .filter((s) => s.date === todayStr && s.status === 'OPERATING' && !s.closed);
-    const parkOpenStr = parkScheduleEntries.length
-      ? parkScheduleEntries.map((s) => s.startTime).sort()[0]
-      : null;
-    const parkCloseStr = parkScheduleEntries.length
-      ? parkScheduleEntries.map((s) => s.endTime).sort().reverse()[0]
-      : null;
+    // Today's park-open window, per park — the fallback for walkthroughs whose
+    // POI entry doesn't carry its own schedule (Discovery Arcade etc.).
+    //
+    // Read from each park's own row in the schedule feed. Deriving it from the
+    // attraction estate instead (min start / max end across queue-bearing
+    // rides) fails three ways: a single early or late ride moves the whole
+    // window, the two parks are conflated into one set of hours, and the POI
+    // schedules it read only ever carry the date they were fetched, so after
+    // park-local midnight there is nothing left to derive from.
+    const parkHours = new Map<string, {open: string; close: string}>();
+    try {
+      for (const sched of await this.getScheduleForDate(todayStr)) {
+        if (sched.id !== 'P1' && sched.id !== 'P2') continue;
+        const operating = (sched.schedules || []).find(
+          (s) => s.status === 'OPERATING' && s.closed !== true && s.startTime && s.endTime,
+        );
+        if (operating) {
+          parkHours.set(sched.id, {open: operating.startTime, close: operating.endTime});
+        }
+      }
+    } catch (e) {
+      console.error(`[DLP] Error fetching today's park hours: ${e}`);
+    }
 
     const nowMs = Date.now();
     const isWithinWindow = (open: string, close: string): boolean => {
@@ -1138,8 +1148,9 @@ export class DisneylandParis extends Destination {
       if (own?.status === 'OPERATING' && own.startTime && own.endTime) {
         return isWithinWindow(own.startTime, own.endTime) ? 'OPERATING' : 'CLOSED';
       }
-      if (parkOpenStr && parkCloseStr) {
-        return isWithinWindow(parkOpenStr, parkCloseStr) ? 'OPERATING' : 'CLOSED';
+      const hours = parkHours.get(poi.location?.id ?? '');
+      if (hours) {
+        return isWithinWindow(hours.open, hours.close) ? 'OPERATING' : 'CLOSED';
       }
       return 'CLOSED';
     };
