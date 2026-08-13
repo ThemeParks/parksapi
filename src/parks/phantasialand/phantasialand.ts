@@ -45,6 +45,37 @@ const categoryToEntityType: Record<string, Entity['entityType'] | undefined> = {
   'PHANTASIALAND_HOTELS_RESTAURANTS': 'RESTAURANT',
 };
 
+/**
+ * The entity type this POI would be published as, or undefined if it is not
+ * published at all.
+ *
+ * The single source of truth for "does this record become an entity". The live
+ * path needs the same answer as the entity path: the POI feed carries several
+ * records per venue and the signage feed reports against whichever one it
+ * likes, so a second copy of this rule that drifted would silently strand
+ * wait times on ids no consumer can resolve.
+ */
+function publishedEntityType(poi: any): Entity['entityType'] | undefined {
+  if (poi?.adminOnly) return undefined;
+
+  // A record with no seasons is a retired or placeholder copy of a venue.
+  if (!Array.isArray(poi?.seasons) || poi.seasons.length === 0) return undefined;
+
+  // Hotel restaurants are only published when actually tagged as one.
+  if (poi.category === 'PHANTASIALAND_HOTELS_RESTAURANTS') {
+    if (!Array.isArray(poi.tags) || !poi.tags.includes('RESTAURANT')) return undefined;
+  }
+
+  return categoryToEntityType[poi.category];
+}
+
+/** How much a live-data row actually tells us, for picking between duplicates. */
+function livenessScore(ld: LiveData): number {
+  return (ld.queue ? 2 : 0)
+    + ((ld.showtimes?.length ?? 0) > 0 ? 2 : 0)
+    + (ld.status === 'OPERATING' ? 1 : 0);
+}
+
 @destinationController({category: 'Phantasialand'})
 export class Phantasialand extends Destination {
   @config
@@ -378,20 +409,7 @@ export class Phantasialand extends Destination {
     }> = [];
 
     for (const poi of pois) {
-      // Skip admin-only entries
-      if (poi.adminOnly) continue;
-
-      // Skip entries without seasons
-      if (!poi.seasons || !Array.isArray(poi.seasons) || poi.seasons.length === 0) continue;
-
-      const category = poi.category;
-      let entityType = categoryToEntityType[category];
-
-      // For hotel restaurant category, only include if tagged as RESTAURANT
-      if (category === 'PHANTASIALAND_HOTELS_RESTAURANTS') {
-        if (!Array.isArray(poi.tags) || !poi.tags.includes('RESTAURANT')) continue;
-      }
-
+      const entityType = publishedEntityType(poi);
       if (!entityType) continue;
 
       // Build multi-language name. The API ships two shapes:
@@ -455,14 +473,71 @@ export class Phantasialand extends Destination {
     return [parkEntity, ...entities];
   }
 
+  /**
+   * Unpublished POI id -> the published id for the same venue.
+   *
+   * The POI feed carries several records per venue: one with seasons, which
+   * becomes the entity, and retired or placeholder copies with `seasons: []`
+   * which do not. The signage feed reports live state against whichever copy
+   * it likes, so Black Mamba's wait time arrives under the unpublished id
+   * while the published entity gets a bare CLOSED — the park ends up with no
+   * wait times at all downstream.
+   *
+   * Records are linked by title, which matches exactly across the copies.
+   * A title is only aliased when exactly one of its records is published;
+   * groups with none (Lockers, Toilets, Nobis) or with several stay unmapped
+   * and their rows keep being dropped.
+   */
+  private async getLiveIdMapping(): Promise<{aliases: Map<string, string>; publishedIds: Set<string>}> {
+    const pois = await this.getPOI();
+
+    const publishedIds = new Set<string>();
+    const byTitle = new Map<string, {published: string[]; unpublished: string[]}>();
+    for (const poi of pois) {
+      const {en, de} = pickLocalisedName(poi?.title ?? poi?._title ?? poi?.name);
+      const title = en || de;
+      if (!title) continue;
+
+      const isPublished = !!publishedEntityType(poi);
+      if (isPublished) publishedIds.add(String(poi.id));
+
+      let group = byTitle.get(title);
+      if (!group) {
+        group = {published: [], unpublished: []};
+        byTitle.set(title, group);
+      }
+      (isPublished ? group.published : group.unpublished).push(String(poi.id));
+    }
+
+    const aliases = new Map<string, string>();
+    for (const {published, unpublished} of byTitle.values()) {
+      if (published.length !== 1) continue;
+      for (const id of unpublished) aliases.set(id, published[0]);
+    }
+    return {aliases, publishedIds};
+  }
+
   protected async buildLiveData(): Promise<LiveData[]> {
-    const signage = await this.getSignage();
-    const liveData: LiveData[] = [];
+    const [signage, {aliases, publishedIds}] = await Promise.all([
+      this.getSignage(),
+      this.getLiveIdMapping(),
+    ]);
+    // Keyed by published id: once aliased, two signage entries can land on the
+    // same entity (a bare CLOSED for the published copy, the real state for
+    // the other), so the more informative row wins.
+    const rows = new Map<string, LiveData>();
 
     for (const entry of signage) {
       if (!entry.poiId) continue;
 
-      const entityId = String(entry.poiId);
+      const rawId = String(entry.poiId);
+      const entityId = aliases.get(rawId) ?? rawId;
+
+      // Venues the entity list doesn't publish (services, photo points,
+      // records with no live copy at all) can't be looked up by a consumer,
+      // so their rows are dropped rather than emitted against a dead id.
+      if (!publishedIds.has(entityId)) continue;
+
       const ld: LiveData = {id: entityId, status: 'CLOSED'} as LiveData;
 
       if (entry.showTimes !== null && entry.showTimes !== undefined) {
@@ -493,10 +568,13 @@ export class Phantasialand extends Destination {
         ld.status = (entry.open ? 'OPERATING' : 'CLOSED') as any;
       }
 
-      liveData.push(ld);
+      const existing = rows.get(entityId);
+      if (!existing || livenessScore(ld) > livenessScore(existing)) {
+        rows.set(entityId, ld);
+      }
     }
 
-    return liveData;
+    return [...rows.values()];
   }
 
   /**
