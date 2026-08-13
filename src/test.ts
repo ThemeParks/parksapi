@@ -174,6 +174,36 @@ function printSummary(summaries: ParkTestSummary[]): void {
     console.log('');
   }
 
+  // Orphan roll-up. These don't fail a park, so without a summary line they'd
+  // only ever be seen by someone running a single park verbosely — while the
+  // rows themselves keep reaching consumers.
+  const withOrphans = summaries
+    .map((summary) => {
+      const counts = summary.results.reduce(
+        (acc, result) => {
+          const orphans = (result.details?.orphanIds ?? []) as string[];
+          if (result.testName === 'getLiveData') acc.live = orphans.length;
+          if (result.testName === 'getSchedules') acc.schedules = orphans.length;
+          return acc;
+        },
+        {live: 0, schedules: 0},
+      );
+      return {parkName: summary.parkName, ...counts};
+    })
+    .filter((s) => s.live > 0 || s.schedules > 0);
+
+  if (withOrphans.length > 0) {
+    console.log(`Rows keyed to unpublished entities (${withOrphans.length} park(s)):`);
+    withOrphans.forEach(({parkName, live, schedules}) => {
+      const parts = [
+        live > 0 ? `${live} live` : null,
+        schedules > 0 ? `${schedules} schedule` : null,
+      ].filter(Boolean).join(', ');
+      console.log(`  ⚠ ${parkName.padEnd(40)} ${parts}`);
+    });
+    console.log('');
+  }
+
   // Failed test details
   if (failed.length > 0) {
     console.log('Failed Tests:');

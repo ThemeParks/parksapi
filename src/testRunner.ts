@@ -308,8 +308,9 @@ export async function testPark(
       const totalDays = schedules.reduce((sum, s) => sum + s.schedule.length, 0);
 
       const orphanIds = findOrphans(schedules);
+      const orphanIdSet = new Set(orphanIds);
       const orphanDays = schedules
-        .filter((s) => orphanIds.includes(s.id))
+        .filter((s) => orphanIdSet.has(s.id))
         .reduce((sum, s) => sum + s.schedule.length, 0);
 
       return { count: schedules.length, totalDays, schedules, orphanIds, orphanDays };
@@ -321,7 +322,7 @@ export async function testPark(
         const orphanIds = (schedulesResult.details.orphanIds ?? []) as string[];
         reportOrphans(orphanIds, 'Schedules');
         if (orphanIds.length > 0) {
-          console.log(`       (${schedulesResult.details.orphanDays} of ${schedulesResult.details.totalDays} days)`);
+          console.log(`       (${schedulesResult.details.orphanDays} of ${schedulesResult.details.totalDays} days affected)`);
         }
       } else {
         console.log(`   ✗ Failed: ${schedulesResult.error}`);
