@@ -9,6 +9,28 @@ import {getQueueLength} from './http.js';
 import {tracing} from './tracing.js';
 import {typeDetector} from './typeDetector.js';
 
+/**
+ * Distinct ids in `rows` that no published entity claims.
+ *
+ * Live data or schedules keyed to an id `getEntities()` never emits cannot be
+ * looked up by a consumer, so they are dead weight in the output. Usually it
+ * means a build path is reading a wider upstream feed than the entity list.
+ *
+ * Returns nothing when `publishedIds` is empty, so a failed or skipped
+ * getEntities() reports no orphans rather than every row.
+ */
+export function findOrphanIds(
+  rows: Array<{id?: string}>,
+  publishedIds: ReadonlySet<string>,
+): string[] {
+  if (publishedIds.size === 0) return [];
+  const orphans = new Set<string>();
+  for (const row of rows) {
+    if (row?.id && !publishedIds.has(row.id)) orphans.add(row.id);
+  }
+  return [...orphans];
+}
+
 export type TestResult = {
   testName: string;
   passed: boolean;
@@ -205,6 +227,25 @@ export async function testPark(
     }
   }
 
+  // IDs the destination actually publishes. Live data and schedules keyed to
+  // anything outside this set can't be looked up by a consumer, so they are
+  // dead weight in the output. Empty when getEntities() failed, in which case
+  // the orphan checks below stay quiet rather than reporting every row.
+  const publishedIds = new Set<string>(
+    entitiesResult.passed
+      ? ((entitiesResult.details?.entities ?? []) as Array<{id: string}>).map((e) => e.id)
+      : [],
+  );
+
+  const findOrphans = (rows: Array<{id?: string}>): string[] => findOrphanIds(rows, publishedIds);
+
+  const reportOrphans = (orphans: string[], label: string): void => {
+    if (orphans.length === 0) return;
+    const sample = orphans.slice(0, 5).join(', ');
+    const more = orphans.length > 5 ? `, +${orphans.length - 5} more` : '';
+    console.log(`     ⚠ ${label} for unpublished entities: ${orphans.length} (${sample}${more})`);
+  };
+
   // Test 3: getLiveData()
   if (!skipLiveData) {
     if (verbose) console.log('\n3. Testing getLiveData()...');
@@ -225,7 +266,9 @@ export async function testPark(
       // Count entries with wait times
       const withWaitTimes = liveData.filter(l => l.queue?.STANDBY?.waitTime !== undefined).length;
 
-      return { count: liveData.length, statuses, withWaitTimes, liveData };
+      const orphanIds = findOrphans(liveData);
+
+      return { count: liveData.length, statuses, withWaitTimes, liveData, orphanIds };
     });
     results.push(liveDataResult);
     if (verbose) {
@@ -235,6 +278,7 @@ export async function testPark(
         Object.entries(liveDataResult.details.statuses).forEach(([status, count]) => {
           console.log(`     - ${status}: ${count}`);
         });
+        reportOrphans(liveDataResult.details.orphanIds ?? [], 'Live data');
       } else {
         console.log(`   ✗ Failed: ${liveDataResult.error}`);
       }
@@ -263,12 +307,22 @@ export async function testPark(
 
       const totalDays = schedules.reduce((sum, s) => sum + s.schedule.length, 0);
 
-      return { count: schedules.length, totalDays, schedules };
+      const orphanIds = findOrphans(schedules);
+      const orphanDays = schedules
+        .filter((s) => orphanIds.includes(s.id))
+        .reduce((sum, s) => sum + s.schedule.length, 0);
+
+      return { count: schedules.length, totalDays, schedules, orphanIds, orphanDays };
     });
     results.push(schedulesResult);
     if (verbose) {
       if (schedulesResult.passed) {
         console.log(`   ✓ Found ${schedulesResult.details.count} schedule(s) with ${schedulesResult.details.totalDays} total days (${schedulesResult.duration}ms)`);
+        const orphanIds = (schedulesResult.details.orphanIds ?? []) as string[];
+        reportOrphans(orphanIds, 'Schedules');
+        if (orphanIds.length > 0) {
+          console.log(`       (${schedulesResult.details.orphanDays} of ${schedulesResult.details.totalDays} days)`);
+        }
       } else {
         console.log(`   ✗ Failed: ${schedulesResult.error}`);
       }
