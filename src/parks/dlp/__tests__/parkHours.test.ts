@@ -1,4 +1,4 @@
-import {describe, it, expect, vi, afterEach} from 'vitest';
+import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
 import {DisneylandParis} from '../disneylandparis.js';
 import {CacheLib} from '../../../cache.js';
 import {formatInTimezone} from '../../../datetime.js';
@@ -12,24 +12,27 @@ import {formatInTimezone} from '../../../datetime.js';
  * queue-bearing rides — which one outlying ride could move by hours, which
  * conflated P1 and P2 into a single window, and which read POI schedules that
  * only ever carry the date they were fetched.
+ *
+ * The clock is pinned throughout. These windows are wall-clock relative, so on
+ * a live clock the suite went red between 22:30 and 01:30 Paris, when a
+ * +90-minute window wraps past midnight.
  */
 const TZ = 'Europe/Paris';
+
+/** Midday in Paris, well inside any plausible park day. */
+const NOON = new Date('2026-08-13T12:00:00+02:00');
 
 function parkToday(): string {
   const [mm, dd, yyyy] = formatInTimezone(new Date(), TZ, 'date').split('/');
   return `${yyyy}-${mm}-${dd}`;
 }
 
-/** A time `offsetMinutes` from now, in the park's wall clock, as `HH:MM:SS`. */
+/** A time `offsetMinutes` from the pinned now, in the park's wall clock. */
 function parkClock(offsetMinutes: number): string {
   const at = new Date(Date.now() + offsetMinutes * 60_000);
   return formatInTimezone(at, TZ, 'iso').slice(11, 19);
 }
 
-/**
- * A park with one walkthrough attraction that publishes no schedule of its
- * own, so it can only resolve through the park-hours fallback.
- */
 function stubbedPark(opts: {
   parkSchedules?: any[];
   walkthroughPark?: string;
@@ -69,35 +72,33 @@ function stubbedPark(opts: {
   return park;
 }
 
+/** The walkthrough's published status, or undefined when no row was emitted. */
 async function walkthroughStatus(park: DisneylandParis): Promise<string | undefined> {
   const live = await park.getLiveData();
   return live.find((l) => l.id === 'P1MA00')?.status;
 }
 
-/** A park row that is open right now, from 90 minutes ago to 90 minutes ahead. */
-function openNow(id: string) {
+function parkRow(id: string, startTime: string, endTime: string, extra: Record<string, unknown> = {}) {
   return {
     id,
     name: id,
-    schedules: [
-      {startTime: parkClock(-90), endTime: parkClock(90), status: 'OPERATING', closed: false},
-    ],
+    schedules: [{startTime, endTime, status: 'OPERATING', closed: false, ...extra}],
   };
 }
 
-/** A park row whose operating window has already ended. */
-function closedNow(id: string) {
-  return {
-    id,
-    name: id,
-    schedules: [
-      {startTime: parkClock(-180), endTime: parkClock(-120), status: 'OPERATING', closed: false},
-    ],
-  };
-}
+/** Open right now: from 90 minutes ago to 90 minutes ahead. */
+const openNow = (id: string) => parkRow(id, parkClock(-90), parkClock(90));
+/** Shut: the window ended two hours ago. */
+const closedNow = (id: string) => parkRow(id, parkClock(-180), parkClock(-120));
 
 describe('DLP park-hours fallback for walkthroughs', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOON);
+  });
+
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     CacheLib.clearByClassName('DisneylandParis');
   });
@@ -131,8 +132,7 @@ describe('DLP park-hours fallback for walkthroughs', () => {
   it('ignores a queue-bearing ride that runs past park close', async () => {
     // The regression this fixes: park close was the latest endTime across
     // queue-bearing rides, so one ride publishing 23:59 kept every walkthrough
-    // OPERATING long after the park shut. The station below is exactly that
-    // shape, and the park's own row says it closed two hours ago.
+    // OPERATING long after the park shut.
     const park = stubbedPark({
       parkSchedules: [closedNow('P1')],
       extraAttractions: [
@@ -142,35 +142,20 @@ describe('DLP park-hours fallback for walkthroughs', () => {
           type: 'Attraction',
           location: {id: 'P1'},
           schedules: [
-            {
-              date: parkToday(),
-              startTime: '00:00:00',
-              endTime: '23:59:00',
-              status: 'OPERATING',
-              closed: false,
-            },
+            {date: parkToday(), startTime: '00:00:00', endTime: '23:59:00', status: 'OPERATING', closed: false},
           ],
         },
       ],
-      // Present in the wait feed, so it counts as queue-bearing.
       waitTimes: [{entityId: 'P1DA10', type: 'Attraction', status: 'OPERATING', postedWaitMinutes: '5'}],
     });
     expect(await walkthroughStatus(park)).toBe('CLOSED');
   });
 
   it('ignores a queue-bearing ride that opens before the park', async () => {
-    // Mirror of the above on the open side: an 08:13 ride start used to become
-    // park open, so walkthroughs read OPERATING before guests could get in.
+    // Mirror on the open side: an 08:13 ride start used to become park open,
+    // so walkthroughs read OPERATING before guests could get in.
     const park = stubbedPark({
-      parkSchedules: [
-        {
-          id: 'P1',
-          name: 'P1',
-          schedules: [
-            {startTime: parkClock(60), endTime: parkClock(180), status: 'OPERATING', closed: false},
-          ],
-        },
-      ],
+      parkSchedules: [parkRow('P1', parkClock(60), parkClock(180))],
       extraAttractions: [
         {
           id: 'P1RA00',
@@ -178,13 +163,7 @@ describe('DLP park-hours fallback for walkthroughs', () => {
           type: 'Attraction',
           location: {id: 'P1'},
           schedules: [
-            {
-              date: parkToday(),
-              startTime: parkClock(-60),
-              endTime: parkClock(180),
-              status: 'OPERATING',
-              closed: false,
-            },
+            {date: parkToday(), startTime: parkClock(-60), endTime: parkClock(180), status: 'OPERATING', closed: false},
           ],
         },
       ],
@@ -193,24 +172,11 @@ describe('DLP park-hours fallback for walkthroughs', () => {
     expect(await walkthroughStatus(park)).toBe('CLOSED');
   });
 
-  it('reports CLOSED rather than throwing when the park publishes no hours', async () => {
-    const park = stubbedPark({parkSchedules: []});
-    expect(await walkthroughStatus(park)).toBe('CLOSED');
-  });
-
   it('ignores a closed-flagged park row', async () => {
     const park = stubbedPark({
-      parkSchedules: [
-        {
-          id: 'P1',
-          name: 'P1',
-          schedules: [
-            {startTime: parkClock(-90), endTime: parkClock(90), status: 'OPERATING', closed: true},
-          ],
-        },
-      ],
+      parkSchedules: [parkRow('P1', parkClock(-90), parkClock(90), {closed: true})],
     });
-    expect(await walkthroughStatus(park)).toBe('CLOSED');
+    expect(await walkthroughStatus(park)).toBeUndefined();
   });
 
   it('ignores EXTRA_MAGIC_HOURS when choosing the window', async () => {
@@ -230,9 +196,89 @@ describe('DLP park-hours fallback for walkthroughs', () => {
     expect(await walkthroughStatus(park)).toBe('CLOSED');
   });
 
-  it('survives a schedule-feed failure', async () => {
-    const park = stubbedPark({parkSchedules: []});
-    vi.spyOn(park as any, 'getScheduleForDate').mockRejectedValue(new Error('upstream 500'));
-    expect(await walkthroughStatus(park)).toBe('CLOSED');
+  it('picks the OPERATING row whatever order the feed lists it in', async () => {
+    // Observed live: some days EXTRA_MAGIC_HOURS is index 0, some days it isn't.
+    const park = stubbedPark({
+      parkSchedules: [
+        {
+          id: 'P1',
+          name: 'P1',
+          schedules: [
+            {startTime: parkClock(-90), endTime: parkClock(90), status: 'OPERATING', closed: false},
+            {startTime: parkClock(-240), endTime: parkClock(-180), status: 'EXTRA_MAGIC_HOURS', closed: false},
+          ],
+        },
+      ],
+    });
+    expect(await walkthroughStatus(park)).toBe('OPERATING');
+  });
+
+  describe('a park day that runs past midnight', () => {
+    it('is still open before midnight', async () => {
+      vi.setSystemTime(new Date('2026-08-13T23:00:00+02:00'));
+      const park = stubbedPark({parkSchedules: [parkRow('P1', '09:30:00', '01:00:00')]});
+      expect(await walkthroughStatus(park)).toBe('OPERATING');
+    });
+
+    it('reads the small hours against the new day, not the one still running', async () => {
+      // Known limitation, pinned so it is a decision rather than a surprise.
+      // At 00:30 the park is still in the 13th's 09:30-01:00 day, but todayStr
+      // has rolled to the 14th and buildLiveData only fetches todayStr — so we
+      // judge against the 14th's window, which has not opened yet, and report
+      // CLOSED. Resolving this properly needs yesterday's row too.
+      vi.setSystemTime(new Date('2026-08-14T00:30:00+02:00'));
+      const park = stubbedPark({parkSchedules: [parkRow('P1', '09:30:00', '01:00:00')]});
+      expect(await walkthroughStatus(park)).toBe('CLOSED');
+    });
+
+    it('is shut in the gap between closing and reopening', async () => {
+      vi.setSystemTime(new Date('2026-08-13T08:00:00+02:00'));
+      const park = stubbedPark({parkSchedules: [parkRow('P1', '09:30:00', '01:00:00')]});
+      expect(await walkthroughStatus(park)).toBe('CLOSED');
+    });
+  });
+
+  describe('when no hours are published', () => {
+    // Emitting CLOSED here would assert a closure nobody reported. The row is
+    // omitted instead, so the last good value stands.
+
+    it('emits no row when the park publishes no hours', async () => {
+      const park = stubbedPark({parkSchedules: []});
+      expect(await walkthroughStatus(park)).toBeUndefined();
+    });
+
+    it('emits no row when the feed carries no row for this park', async () => {
+      // Real shape: past the publication horizon the feed returns activities
+      // but no P1/P2 rows at all.
+      const park = stubbedPark({parkSchedules: [openNow('P2')], walkthroughPark: 'P1'});
+      expect(await walkthroughStatus(park)).toBeUndefined();
+    });
+
+    it('emits no row when the schedule feed fails', async () => {
+      const park = stubbedPark({parkSchedules: []});
+      vi.spyOn(park as any, 'getScheduleForDate').mockRejectedValue(new Error('upstream 500'));
+      expect(await walkthroughStatus(park)).toBeUndefined();
+    });
+
+    it('still honours the walkthrough\'s own schedule when it has one', async () => {
+      // No park hours, but the attraction publishes its own window: that is a
+      // real observation and must still be used.
+      const park = stubbedPark({
+        parkSchedules: [],
+        extraAttractions: [
+          {
+            id: 'P1MA03',
+            name: 'Liberty Arcade',
+            type: 'Attraction',
+            location: {id: 'P1'},
+            schedules: [
+              {date: parkToday(), startTime: parkClock(-90), endTime: parkClock(90), status: 'OPERATING', closed: false},
+            ],
+          },
+        ],
+      });
+      const live = await park.getLiveData();
+      expect(live.find((l) => l.id === 'P1MA03')?.status).toBe('OPERATING');
+    });
   });
 });

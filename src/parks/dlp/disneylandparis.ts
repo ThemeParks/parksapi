@@ -1136,13 +1136,39 @@ export class DisneylandParis extends Destination {
       // constructDateTime and throw out of the whole build.
       if (!TIME_OF_DAY.test(open) || !TIME_OF_DAY.test(close)) return false;
       const o = new Date(constructDateTime(todayStr, open.slice(0, 5), this.timezone)).getTime();
-      const c = new Date(constructDateTime(todayStr, close.slice(0, 5), this.timezone)).getTime();
+
+      // A window closing after midnight ends tomorrow. Without this a
+      // 09:30-01:00 day reads as closing before it opened, so nothing is ever
+      // inside it.
+      //
+      // The day is stepped at noon UTC rather than via `new Date(dateStr)`,
+      // which parses in the host's zone: on a host at UTC+10 or beyond that
+      // lands on the previous day and the step silently does nothing.
+      let closeDateStr = todayStr;
+      if (close < open) {
+        const next = new Date(`${todayStr}T12:00:00Z`);
+        next.setUTCDate(next.getUTCDate() + 1);
+        closeDateStr = next.toISOString().slice(0, 10);
+      }
+      const c = new Date(constructDateTime(closeDateStr, close.slice(0, 5), this.timezone)).getTime();
+
       return nowMs >= o && nowMs <= c;
     };
 
+    /**
+     * OPERATING/CLOSED for a walkthrough, or undefined when neither its own
+     * schedule nor its park's hours are published.
+     *
+     * Undefined means no row is emitted. A walkthrough is only ever knowable
+     * through published hours, so with none in hand `CLOSED` would be a
+     * statement we cannot support — and the upstream shapes that get us here
+     * (an empty schedule payload, a date past the publication horizon) are
+     * ones the feed really produces. Reporting nothing lets the last good
+     * value stand instead of overwriting it with a guess.
+     */
     const deriveWalkthroughStatus = (
       poi: DLPPOIEntity & {category: string},
-    ): 'OPERATING' | 'CLOSED' => {
+    ): 'OPERATING' | 'CLOSED' | undefined => {
       const own = (poi.schedules || []).find((s) => s.date === todayStr);
       if (own?.closed === true) return 'CLOSED';
       if (own?.status === 'OPERATING' && own.startTime && own.endTime) {
@@ -1152,7 +1178,7 @@ export class DisneylandParis extends Destination {
       if (hours) {
         return isWithinWindow(hours.open, hours.close) ? 'OPERATING' : 'CLOSED';
       }
-      return 'CLOSED';
+      return undefined;
     };
 
     for (const poi of attractionPois) {
@@ -1174,10 +1200,14 @@ export class DisneylandParis extends Destination {
           ld.queue.SINGLE_RIDER = {waitTime: null};
         }
       } else if (!ld) {
-        // Walkthrough — status from schedule, no queue.
-        const walkthrough = {id, status: deriveWalkthroughStatus(poi)} as LiveData;
-        liveDataMap.set(id, walkthrough);
-        liveData.push(walkthrough);
+        // Walkthrough — status from schedule, no queue. Skipped entirely when
+        // no hours are published, rather than asserting a closure we can't see.
+        const status = deriveWalkthroughStatus(poi);
+        if (status) {
+          const walkthrough = {id, status} as LiveData;
+          liveDataMap.set(id, walkthrough);
+          liveData.push(walkthrough);
+        }
       }
       // If a walkthrough already has a row from upstream feeds (PA / VQ /
       // showtimes), leave it — those feeds are authoritative.
