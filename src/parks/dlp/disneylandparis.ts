@@ -77,14 +77,19 @@ const HIDE_RULES = new Set([
   'Hide from the Service',
 ]);
 
+const MEET_AND_GREET_SUBTYPE = 'Character Experience - Meet & Greet';
+
 /** Entertainment subtypes that map to SHOW entity type */
 const SHOW_SUBTYPES = new Set([
   'Stage Show',
   'Fireworks',
   'Atmosphere',
   'Parade',
-  'Character Experience - Meet & Greet',
+  MEET_AND_GREET_SUBTYPE,
 ]);
+
+/** How many days ahead buildSchedules publishes. */
+const SCHEDULE_DAYS = 60;
 
 /** Wall-clock time the schedule feed publishes, e.g. `21:30:00`.
  * `24:00` is a valid midnight close; out-of-range values would reach
@@ -793,7 +798,77 @@ export class DisneylandParis extends Destination {
   private async getEmittablePOIEntities(): Promise<Array<DLPPOIEntity & {category: string}>> {
     const poiData = await this.getPOIData();
     const allEntities = this.flattenPOI(poiData);
-    return this.filterPOIEntities(allEntities).filter((poi) => this.mapEntityType(poi) !== undefined);
+    const emittable = this.filterPOIEntities(allEntities)
+      .filter((poi) => this.mapEntityType(poi) !== undefined);
+
+    const withData = await this.getMeetAndGreetIdsWithData();
+    if (withData === null) return emittable;
+    return emittable.filter(
+      (poi) => poi.subType !== MEET_AND_GREET_SUBTYPE || withData.has(poi.id),
+    );
+  }
+
+  /**
+   * Meet & greets that have something to publish: a performance somewhere in
+   * the window buildSchedules covers, or a virtual queue Disney has switched
+   * on. Null means "publish all of them" — see getScheduledActivityIds.
+   *
+   * Disney lists 22, and 8 of those carry neither. Publishing them puts bare
+   * records on the wiki with no live data and no schedule day, and because the
+   * entity gate and the schedule window are the same, an entity we publish is
+   * one we can also attach hours to.
+   *
+   * The queue clause is what lets the six virtual-queue meet & greets appear
+   * on their own: they hold no schedule rows at all, so while every queue
+   * reads `enabled: false` they stay out, and the day Disney turns one back on
+   * it returns without a code change.
+   */
+  private async getMeetAndGreetIdsWithData(): Promise<Set<string> | null> {
+    const scheduled = await this.getScheduledActivityIds();
+    if (scheduled === null) return null;
+
+    const ids = new Set(scheduled);
+    try {
+      for (const queue of await this.getVirtualQueueData()) {
+        if (queue?.queueContentId && queue.enabled !== false) ids.add(queue.queueContentId);
+      }
+    } catch {
+      // The queue feed is optional; a failure only narrows what we publish.
+    }
+    return ids;
+  }
+
+  /**
+   * Ids the schedule feed carries rows for, across the same window
+   * buildSchedules publishes.
+   *
+   * Returns null when no day in that window came back with a single row.
+   * DLP always publishes park hours, so that is an outage rather than a quiet
+   * estate — and a cached empty answer must not be allowed to unpublish
+   * entities, the same trap #296 closed for schedules.
+   */
+  @cache({ttlSeconds: 43200, key: 'dlp:getScheduledActivityIds'})
+  private async getScheduledActivityIds(): Promise<string[] | null> {
+    const now = new Date();
+    const ids = new Set<string>();
+    let answered = false;
+
+    for (let i = 0; i < SCHEDULE_DAYS; i++) {
+      const [mm, dd, yyyy] = formatInTimezone(addDays(now, i), this.timezone, 'date').split('/');
+      let rows: DLPScheduleActivityEntry[];
+      try {
+        rows = await this.getScheduleForDate(`${yyyy}-${mm}-${dd}`);
+      } catch {
+        continue;
+      }
+      if (!Array.isArray(rows) || rows.length === 0) continue;
+      answered = true;
+      for (const row of rows) {
+        if (row?.id && Array.isArray(row.schedules) && row.schedules.length > 0) ids.add(row.id);
+      }
+    }
+
+    return answered ? [...ids] : null;
   }
 
   /**
@@ -845,7 +920,8 @@ export class DisneylandParis extends Destination {
   protected async buildEntityList(): Promise<Entity[]> {
     const poiData = await this.getPOIData();
     const allEntities = this.flattenPOI(poiData);
-    const filteredEntities = this.filterPOIEntities(allEntities);
+    // The same gate the live and schedule paths use, so the three cannot drift.
+    const filteredEntities = await this.getEmittablePOIEntities();
 
     const destinationId = 'dlp';
 
@@ -1281,8 +1357,8 @@ export class DisneylandParis extends Destination {
     // When POI is unavailable, schedules publish unfiltered rather than empty.
     const publishedIds = await this.getPublishedEntityIds();
 
-    // Fetch 60 days of schedule data
-    for (let i = 0; i < 60; i++) {
+    // Fetch SCHEDULE_DAYS of schedule data
+    for (let i = 0; i < SCHEDULE_DAYS; i++) {
       const date = addDays(now, i);
       const dateStr = formatInTimezone(date, this.timezone, 'date');
       // Convert MM/DD/YYYY to YYYY-MM-DD

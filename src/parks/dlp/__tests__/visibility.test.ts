@@ -8,12 +8,35 @@ import {DisneylandParis} from '../disneylandparis.js';
  * Heroic Encounters are all live despite their flags, so each must be
  * force-surfaced while flagged records outside the set stay filtered.
  *
+ * Meet & greets carry a second gate on top: Disney lists 22 and 8 of them have
+ * no performance in the published window and no virtual queue switched on, so
+ * those wait until they have something to show.
+ *
  * Mickey's PhilharMagic exists twice in POI — published Entertainment record
  * P1G103 and hidden Attraction twin P1DA13 — and must surface exactly once, as
  * P1G103, with the twin's live and schedule data folded onto it.
  */
-function stubbedPark(): DisneylandParis {
+
+/**
+ * Ids the schedule feed carries rows for. Stubbed at the sweep rather than at
+ * getScheduleForDate: the sweep is cached under a fixed key, so a real one
+ * would leak the first test's answer into every later test in this file.
+ *
+ * P1G108 is deliberately absent — it is a Stage Show, and the gate must leave
+ * everything that is not a meet & greet alone. P2MG59 is deliberately present,
+ * so that it can only be dropped by its retirement flag.
+ */
+const SCHEDULED_IDS = ['P1MG10', 'P2MG31', 'P1MG21', 'P1MG05', 'P2MG59', 'P1G103', 'P1DA13'];
+
+function stubbedPark(opts: {
+  scheduledIds?: string[] | null;
+  queues?: unknown[];
+} = {}): DisneylandParis {
   const park = new DisneylandParis();
+  vi.spyOn(park as any, 'getScheduledActivityIds').mockResolvedValue(
+    opts.scheduledIds === undefined ? SCHEDULED_IDS : opts.scheduledIds,
+  );
+  vi.spyOn(park as any, 'getVirtualQueueData').mockResolvedValue(opts.queues ?? []);
   vi.spyOn(park as any, 'getPOIData').mockResolvedValue({
     ThemePark: [
       {id: 'P1', name: 'Disneyland Park', type: 'ThemePark'},
@@ -154,15 +177,24 @@ function stubbedPark(): DisneylandParis {
         subType: 'Character Experience - Meet & Greet',
         location: {id: 'P1'},
       },
+      {
+        // Unflagged too, but no performance anywhere in the window and no
+        // queue: one of the 8 that would publish as a bare record.
+        id: 'P1MG99',
+        name: 'Meet Nobody in Particular',
+        type: 'Entertainment',
+        subType: 'Character Experience - Meet & Greet',
+        location: {id: 'P1'},
+      },
     ],
   });
   return park;
 }
 
-function stubLiveFeeds(park: DisneylandParis, waitTimes: unknown[] = []): void {
+function stubLiveFeeds(park: DisneylandParis, waitTimes: unknown[] = [], queues: unknown[] = []): void {
   vi.spyOn(park as any, 'getWaitTimes').mockResolvedValue(waitTimes);
   vi.spyOn(park as any, 'getPremierAccess').mockResolvedValue([]);
-  vi.spyOn(park as any, 'getVirtualQueueData').mockResolvedValue([]);
+  vi.spyOn(park as any, 'getVirtualQueueData').mockResolvedValue(queues);
 }
 
 describe('DLP visibility exceptions', () => {
@@ -259,18 +291,77 @@ describe('DLP visibility exceptions', () => {
     expect(entities.find((e) => e.id === 'P1G108')?.entityType).toBe('SHOW');
   });
 
-  it('surfaces the two Heroic Encounters despite their "Hide from the Service" flag', async () => {
+  it('still drops a retired meet & greet carrying the same flag', async () => {
+    // P2MG59 is in SCHEDULED_IDS, so only its flag can be dropping it.
     const entities = await stubbedPark().getEntities();
-    for (const id of ['P2MG33', 'P2MG43']) {
-      const meet = entities.find((e) => e.id === id);
-      expect(meet, id).toBeDefined();
-      expect(meet?.entityType).toBe('SHOW');
-      expect((meet as any)?.parkId).toBe('P2');
+    expect(entities.find((e) => e.id === 'P2MG59')).toBeUndefined();
+  });
+});
+
+describe('DLP meet & greets without data', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('holds back a meet & greet with no performance and no queue', async () => {
+    const entities = await stubbedPark().getEntities();
+    // Unflagged, and flagged-but-excepted, alike: the gate is the data.
+    for (const id of ['P1MG99', 'P2MG33', 'P2MG43']) {
+      expect(entities.find((e) => e.id === id), id).toBeUndefined();
     }
   });
 
-  it('still drops a retired meet & greet carrying the same flag', async () => {
+  it('publishes a meet & greet once its virtual queue is switched on', async () => {
+    const park = stubbedPark({
+      queues: [{queueContentId: 'P2MG33', enabled: true, queueId: 'q1', activityId: 'a1', waves: []}],
+    });
+    const entities = await park.getEntities();
+    const meet = entities.find((e) => e.id === 'P2MG33');
+    expect(meet).toBeDefined();
+    expect(meet?.entityType).toBe('SHOW');
+    expect((meet as any)?.parkId).toBe('P2');
+    // Its twin has no queue of its own and stays out.
+    expect(entities.find((e) => e.id === 'P2MG43')).toBeUndefined();
+  });
+
+  it('keeps a disabled queue out', async () => {
+    const park = stubbedPark({
+      queues: [{queueContentId: 'P2MG33', enabled: false, queueId: 'q1', activityId: 'a1', waves: []}],
+    });
+    const entities = await park.getEntities();
+    expect(entities.find((e) => e.id === 'P2MG33')).toBeUndefined();
+  });
+
+  it('leaves entities that are not meet & greets alone', async () => {
+    // P1G108 carries no schedule rows in the fixture and must publish anyway.
     const entities = await stubbedPark().getEntities();
-    expect(entities.find((e) => e.id === 'P2MG59')).toBeUndefined();
+    expect(entities.find((e) => e.id === 'P1G108')?.entityType).toBe('SHOW');
+    expect(entities.find((e) => e.id === 'P1DA10')?.entityType).toBe('ATTRACTION');
+  });
+
+  it('publishes every meet & greet when the schedule feed answers with nothing', async () => {
+    // An outage must widen the set, not empty it — a cached empty answer would
+    // otherwise unpublish 22 entities for 12 hours.
+    const entities = await stubbedPark({scheduledIds: null}).getEntities();
+    for (const id of ['P1MG99', 'P2MG33', 'P2MG43', 'P1MG10']) {
+      expect(entities.find((e) => e.id === id), id).toBeDefined();
+    }
+  });
+
+  it('leaves no orphan schedule behind for a held-back meet & greet', async () => {
+    // buildSchedules filters on the same gate, so a schedule row the feed
+    // does carry must not outlive the entity it belongs to.
+    const park = stubbedPark();
+    vi.spyOn(park as any, 'getScheduleForDate').mockResolvedValue([
+      {
+        id: 'P1MG99',
+        name: 'Meet Nobody in Particular',
+        location: {id: 'P1'},
+        schedules: [{
+          date: '2026-08-20', startTime: '11:00', endTime: '11:30',
+          status: 'PERFORMANCE_TIME',
+        }],
+      },
+    ]);
+    const schedules = await park.getSchedules();
+    expect(schedules.find((s) => s.id === 'P1MG99')).toBeUndefined();
   });
 });
