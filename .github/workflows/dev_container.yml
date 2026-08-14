@@ -52,7 +52,10 @@ jobs:
         test -z "$found" || { echo "$found"; exit 1; }
 
     - name: Test suite in-container
-      run: make test
+      # --retry=1: traceContextPropagation.test.ts calls httpbin.org, and this
+      # job runs alongside Unit Test, so both hit that endpoint at once. A
+      # genuinely broken test still fails both attempts.
+      run: make test ARGS="--retry=1"
 
     - name: Web admin serves the UI
       run: |

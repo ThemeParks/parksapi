@@ -67,8 +67,8 @@ health: ## Health-check all endpoints (ARGS to scope it)
 ##@ Build & tests
 
 .PHONY: test
-test: ## Run the Vitest suite
-	$(RUN) npm test
+test: ## Run the Vitest suite (ARGS to scope it, e.g. ARGS=src/tags)
+	$(RUN) npm test -- $(ARGS)
 
 .PHONY: coverage
 coverage: ## Run tests with coverage report
