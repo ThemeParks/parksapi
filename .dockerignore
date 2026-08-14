@@ -1,28 +1,22 @@
-# Docker matches per path component, so patterns need **/ to catch nested
-# files. Kept in sync with .gitignore.
-.git
+# Default-deny. Mirroring .gitignore only excludes what we thought to name,
+# which leaves untracked scratch files and nested checkouts free to reach an
+# image layer — and `cache.sqlite` holds the @cache store, which carries live
+# bearer tokens for nine destinations. Everything is excluded, then the files
+# the image actually needs are added back.
+*
+
+!package.json
+!package-lock.json
+!tsconfig.json
+!vitest.config.ts
+!vitest.setup.ts
+!parksapi-entrypoint.sh
+!src
+
+# src/ is allowed wholesale above, so re-exclude what can appear inside it:
+# HAR captures from `npm run har`, harness dumps, and a stray install.
 **/node_modules
-**/dist
-coverage
-docs
-datacache
-snapshots
-scripts
-.vscode
-.idea
-.cursor
-.claude/settings.local.json
-.claude/scheduled_tasks.lock
-.env
-cache.sqlite
-cache.sqlite-wal
-cache.sqlite-shm
 **/*.har
 **/testout_*
 **/temp*.json
 **/temp*.js
-http-dump.jsonl
-output.log
-entity-map-viewer.html
-opencode.json
-VQUEUE_FRAMEWORK_SPEC.md
