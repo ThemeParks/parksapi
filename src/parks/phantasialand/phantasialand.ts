@@ -45,6 +45,45 @@ const categoryToEntityType: Record<string, Entity['entityType'] | undefined> = {
   'PHANTASIALAND_HOTELS_RESTAURANTS': 'RESTAURANT',
 };
 
+/**
+ * How old a signage row may be and still count as an observation.
+ *
+ * The feed rewrites its whole snapshot every ~2 minutes under one shared
+ * timestamp, so a row it is still reporting on is minutes old; there is no
+ * per-venue cadence that could make a live row legitimately stale. Rows for
+ * venues removed from the signage config are never pruned and never touched
+ * again: the youngest observed is 54 days, the oldest 2.7 years.
+ *
+ * A week sits 8x clear of the nearest relic while tolerating a feed outage
+ * far longer than any observed. It is deliberately not tighter — the cost of
+ * being wrong in that direction is every row going stale at once.
+ */
+const MAX_SIGNAGE_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Milliseconds since a signage row was last regenerated, or null when it
+ * carries no readable timestamp.
+ *
+ * Null means "cannot tell", and the caller keeps the row: dropping on missing
+ * evidence would silently empty the feed if the shape ever changes. All three
+ * fields are consulted so a row is only considered stale when every timestamp
+ * agrees it is.
+ */
+function signageRowAge(entry: any, nowMs: number): number | null {
+  const stamps = [entry?.updatedAt, entry?.createdAt, entry?.updatedRow]
+    .map((value) => (typeof value === 'string' ? Date.parse(value) : NaN))
+    .filter((ms) => Number.isFinite(ms));
+
+  if (stamps.length === 0) return null;
+
+  // The newest of the three is the row-write time. Measured ordering is
+  // always `updatedAt < createdAt = updatedRow`: updatedAt is the upstream
+  // data tick and lags the write by a minute or so. Relics keep their own
+  // frozen updatedAt rather than picking up the current tick, so taking the
+  // newest cannot resurrect one.
+  return nowMs - Math.max(...stamps);
+}
+
 @destinationController({category: 'Phantasialand'})
 export class Phantasialand extends Destination {
   @config
@@ -458,11 +497,32 @@ export class Phantasialand extends Destination {
   protected async buildLiveData(): Promise<LiveData[]> {
     const signage = await this.getSignage();
     const liveData: LiveData[] = [];
+    const nowMs = Date.now();
+    let staleRows = 0;
 
     for (const entry of signage) {
       if (!entry.poiId) continue;
 
       const entityId = String(entry.poiId);
+
+      // The signage feed regenerates a row for every venue it is still
+      // reporting on, and never deletes the ones it has stopped reporting.
+      // Retired rows keep their original timestamp and their last observed
+      // state forever — Mystic Winter Castle was published OPERATING with
+      // nine showtimes dated February, all summer.
+      //
+      // Such a row is emitted as a bare CLOSED rather than skipped. Skipping
+      // writes nothing, and the wiki keeps rows until something replaces
+      // them, so the stale showtimes would simply sit there for good. One
+      // CLOSED clears them; after that the value stops changing and stops
+      // being rewritten, so nothing fakes a heartbeat either. Same treatment
+      // as a retired Nigloland ride.
+      const age = signageRowAge(entry, nowMs);
+      if (age !== null && age > MAX_SIGNAGE_AGE_MS) {
+        staleRows++;
+        liveData.push({id: entityId, status: 'CLOSED'} as LiveData);
+        continue;
+      }
       const ld: LiveData = {id: entityId, status: 'CLOSED'} as LiveData;
 
       if (entry.showTimes !== null && entry.showTimes !== undefined) {
@@ -494,6 +554,16 @@ export class Phantasialand extends Destination {
       }
 
       liveData.push(ld);
+    }
+
+    // Every row going stale at once means the feed stopped, not that the
+    // estate retired overnight. The output is still safe — everything reads
+    // CLOSED — but it is worth saying out loud rather than inferring from a
+    // park that has quietly gone dark.
+    if (staleRows > 0 && staleRows === liveData.length) {
+      console.error(
+        `[Phantasialand] every signage row (${staleRows}) is older than ${MAX_SIGNAGE_AGE_MS / 86400000}d — the feed has probably stopped updating`,
+      );
     }
 
     return liveData;
