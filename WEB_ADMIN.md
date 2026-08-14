@@ -21,7 +21,7 @@ npm run dev
 
 Access the UI at: **http://localhost:3000**
 
-Dev mode is a host-only workflow; the container path is `make web`.
+Dev mode is a host-only workflow.
 
 ### Production Mode
 
@@ -31,8 +31,7 @@ Build and run everything:
 npm run web
 ```
 
-Access the UI at: **http://localhost:8888** (or `PORT` environment variable),
-or `make web` to run the same thing in a container.
+Access the UI at: **http://localhost:8888** (or `PORT` environment variable).
 
 ## Features
 

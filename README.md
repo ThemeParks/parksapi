@@ -90,7 +90,6 @@ the host beyond Docker (or Podman):
 make build             # Build the dev image once
 make park PARK=efteling
 make test
-make web               # Web admin on http://localhost:8888
 make                   # Full list of targets
 ```
 
@@ -100,6 +99,10 @@ Most destinations need credentials in `.env` in the repo root; the container
 creates an empty one on first run, and `make park PARK=efteling` is one of the
 few that passes without any. Dependencies install into `node_modules/` on first
 run and reinstall when the lockfile changes (`make deps` forces it).
+
+The container serves the API only. The React admin UI is a host-side build:
+run `npm run web:build` on the host once, and `web-ui/dist` is visible in the
+container through the bind mount.
 
 git is not installed in the image — commit from the host, the tree is
 bind-mounted.

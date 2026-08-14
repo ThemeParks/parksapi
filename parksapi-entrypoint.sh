@@ -31,8 +31,5 @@ ensure_deps() {
 }
 
 ensure_deps /app
-if [ "${ENSURE_WEB_UI:-}" = "1" ]; then
-  ensure_deps /app/web-ui
-fi
 
 exec "$@"

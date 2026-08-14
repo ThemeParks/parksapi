@@ -78,10 +78,6 @@ coverage: ## Run tests with coverage report
 compile: ## Type-check / compile TypeScript to dist/
 	$(RUN) npm run build
 
-.PHONY: web
-web: ## Serve the web admin on http://localhost:8888 (WEB_PORT to change)
-	$(COMPOSE) --profile web run --rm --service-ports web
-
 .PHONY: shell
 shell: ## Open a shell inside the container
 	$(RUN) bash
@@ -92,15 +88,13 @@ shell: ## Open a shell inside the container
 cache-clear: ## Drop the SQLite cache and retest everything fresh
 	$(RUN) npm run dev -- --clear-cache $(ARGS)
 
-# COMPOSE_PROFILES: `down` only removes services in the active profiles, so
-# without it the web service and its port survive.
 .PHONY: clean
 clean: ## Remove containers and networks
-	COMPOSE_PROFILES=web $(COMPOSE) down -v --remove-orphans
+	$(COMPOSE) down -v --remove-orphans
 
 .PHONY: clean-all
 clean-all: ## Also delete the built image (engine-agnostic, unlike a bare rmi)
-	COMPOSE_PROFILES=web $(COMPOSE) down -v --remove-orphans --rmi local
+	$(COMPOSE) down -v --remove-orphans --rmi local
 
 ##@ Help
 

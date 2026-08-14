@@ -18,14 +18,3 @@ services:
   parksapi:
     <<: *parksapi
     command: ["npm", "run", "dev", "--", "--list"]
-
-  web:
-    <<: *parksapi
-    profiles: ["web"]
-    environment:
-      <<: *env
-      PORT: "${WEB_PORT:-8888}"
-      ENSURE_WEB_UI: "1"
-    ports:
-      - "${WEB_PORT:-8888}:${WEB_PORT:-8888}"
-    command: ["npm", "run", "web"]

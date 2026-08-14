@@ -57,19 +57,7 @@ jobs:
       # genuinely broken test still fails both attempts.
       run: make test ARGS="--retry=1"
 
-    - name: Web admin serves the UI
-      run: |
-        # `env`, not a plain assignment: UID is readonly in bash.
-        env UID="$(id -u)" GID="$(id -g)" \
-          docker compose --env-file /dev/null --profile web up -d web
-        for i in $(seq 1 60); do
-          curl -sf -o /dev/null http://localhost:8888/ && break
-          sleep 5
-        done
-        test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8888/)" = 200
-        test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8888/api/destinations)" = 200
-
-    - name: make clean removes the web service too
+    - name: make clean removes containers and networks
       run: |
         make clean
         test -z "$(docker ps -aq --filter name=parksapi)"
