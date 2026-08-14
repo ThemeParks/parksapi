@@ -77,8 +77,10 @@ const SHOW_SUBTYPES = new Set([
   'Parade',
 ]);
 
-/** Wall-clock time the schedule feed publishes, e.g. `21:30:00` */
-const TIME_OF_DAY = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+/** Wall-clock time the schedule feed publishes, e.g. `21:30:00`.
+ * `24:00` is a valid midnight close; out-of-range values would reach
+ * constructDateTime and throw. */
+const TIME_OF_DAY = /^(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?|24:00(?::00)?)$/;
 
 // ============================================================================
 // Types
@@ -966,10 +968,15 @@ export class DisneylandParis extends Destination {
 
     // === Show Times (from today's schedule) ===
     // `todayStr` (YYYY-MM-DD in park tz) is computed at the top of this method.
+    // The payload is shared with the dining block below.
+    let todaySchedules: DLPScheduleActivityEntry[] = [];
     try {
-      const scheduleData = await this.getScheduleForDate(todayStr);
-
-      for (const sched of scheduleData) {
+      todaySchedules = await this.getScheduleForDate(todayStr);
+    } catch (e) {
+      console.error(`[DLP] Error fetching today's schedule: ${e}`);
+    }
+    try {
+      for (const sched of todaySchedules) {
         if (!sched.schedules) continue;
 
         const performances = sched.schedules.filter((s) => s.status === 'PERFORMANCE_TIME');
@@ -1121,11 +1128,20 @@ export class DisneylandParis extends Destination {
     }
 
     // === Dining (from today's schedule) ===
+    // Sourced from the activity-schedule payload above rather than the POI
+    // blob, whose `schedules` only ever carry the day it was fetched — after
+    // midnight the 12h POI cache would have no row for the new date.
     // Without published hours a restaurant is skipped, not reported closed.
+    // This feed is authoritative for a restaurant's status, so unlike the
+    // walkthrough block above it overwrites what other feeds set.
+    const todayRowsById = new Map<string, DLPScheduleEntry[]>();
+    for (const sched of todaySchedules) {
+      if (sched?.id && Array.isArray(sched.schedules)) todayRowsById.set(sched.id, sched.schedules);
+    }
     for (const poi of emittablePois) {
       if (this.mapEntityType(poi) !== 'RESTAURANT') continue;
 
-      const hours = (poi.schedules || []).find((s) => s.date === todayStr);
+      const hours = (todayRowsById.get(poi.id) || []).find((s) => s.date === todayStr);
       if (!hours || !hours.startTime || !hours.endTime) continue;
 
       const ld = getOrCreate(poi.id);
@@ -1134,22 +1150,30 @@ export class DisneylandParis extends Destination {
       // Unlike the wait feed's, this REFURBISHMENT is a real closure, and the
       // only signal for it — buildSchedules skips those days entirely.
       if (hours.status === 'REFURBISHMENT') {
-        ld.status = 'REFURBISHMENT' as any;
+        ld.status = 'REFURBISHMENT';
         continue;
       }
       if (!TIME_OF_DAY.test(hours.startTime) || !TIME_OF_DAY.test(hours.endTime)) {
-        ld.status = 'CLOSED' as any;
+        ld.status = 'CLOSED';
         continue;
       }
 
       const startTime = constructDateTime(todayStr, hours.startTime.slice(0, 5), this.timezone);
-      const endTime = constructDateTime(todayStr, hours.endTime.slice(0, 5), this.timezone);
+      let endTime = constructDateTime(todayStr, hours.endTime.slice(0, 5), this.timezone);
+      // Midnight crossing, mirroring buildSchedules.
+      if (hours.endTime.slice(0, 5) < hours.startTime.slice(0, 5)) {
+        const nextDay = addDays(new Date(`${todayStr}T00:00:00`), 1);
+        const [nmm, ndd, nyyyy] = formatInTimezone(nextDay, this.timezone, 'date').split('/');
+        endTime = constructDateTime(`${nyyyy}-${nmm}-${ndd}`, hours.endTime.slice(0, 5), this.timezone);
+      }
 
+      // Only an explicit OPERATING opens the row; any new status token reads
+      // CLOSED rather than borrowing the wait feed's OPERATING default.
       const open = hours.closed !== true
-        && this.mapStatus(hours.status) === 'OPERATING'
+        && hours.status === 'OPERATING'
         && nowMs >= new Date(startTime).getTime()
-        && nowMs <= new Date(endTime).getTime();
-      ld.status = (open ? 'OPERATING' : 'CLOSED') as any;
+        && nowMs < new Date(endTime).getTime();
+      ld.status = open ? 'OPERATING' : 'CLOSED';
       ld.operatingHours = [{type: 'OPERATING', startTime, endTime}];
     }
 
