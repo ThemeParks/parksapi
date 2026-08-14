@@ -6,16 +6,17 @@
 #   make park PARK=efteling
 #
 # On a Podman host (Fedora and friends), override COMPOSE:
-#   make COMPOSE="podman-compose --podman-run-args=--userns=keep-id" dev
-#
-# The image runs as the unprivileged `node` user (uid 1000). Rootless Podman
-# maps that to a subuid rather than to you, so without --userns=keep-id the
-# container cannot write to the bind-mounted source tree. Docker needs no
-# such flag. Export COMPOSE in your shell if you use Podman day to day.
+#   make COMPOSE="podman-compose --env-file /dev/null" dev
 
-COMPOSE ?= docker compose
+# --env-file /dev/null: compose otherwise parses the app's .env for its own
+# interpolation and rejects multi-line values.
+COMPOSE ?= docker compose --env-file /dev/null
 SERVICE  = parksapi
 RUN      = $(COMPOSE) run --rm $(SERVICE)
+
+# The container writes into the bind mount, so it runs as the host user.
+export UID := $(shell id -u)
+export GID := $(shell id -g)
 
 # Optional: extra flags forwarded to the test harness, e.g.
 #   make dev ARGS="--skip-schedules --verbose"
