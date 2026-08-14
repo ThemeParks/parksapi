@@ -1,4 +1,4 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest';
+import {describe, it, expect, vi, afterEach} from 'vitest';
 import {DisneylandParis} from '../disneylandparis.js';
 
 /**
@@ -47,7 +47,25 @@ const feedFor = (ids: string[], hours: unknown = OPERATING) =>
   ids.map((id) => ({id, name: id, schedules: [hours]}));
 
 describe('DLP schedules', () => {
-  beforeEach(() => vi.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
+
+  // === POI unavailability must not empty the feed ===
+
+  it.each([
+    ['getPOIData rejects', () => Promise.reject(new Error('POI upstream 503'))],
+    ['getPOIData returns an empty object', () => Promise.resolve({})],
+    ['POI carries only the park records', () => Promise.resolve({
+      ThemePark: [{id: 'P1', name: 'Disneyland Park', type: 'ThemePark'}],
+    })],
+  ])('publishes unfiltered schedules when %s', async (_label, poi) => {
+    const park = new DisneylandParis();
+    vi.spyOn(park as any, 'getPOIData').mockImplementation(poi as any);
+    vi.spyOn(park as any, 'getScheduleForDate')
+      .mockResolvedValue(feedFor(['P1', 'P1RA00', 'H01R01']));
+
+    const schedules = await park.getSchedules();
+    expect(schedules.map((s) => s.id).sort()).toEqual(['H01R01', 'P1', 'P1RA00']);
+  });
 
   // === Only published entities ===
 

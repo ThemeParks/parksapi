@@ -1,4 +1,4 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest';
+import {describe, it, expect, vi, afterEach} from 'vitest';
 import {DisneylandParis} from '../disneylandparis.js';
 
 /**
@@ -69,7 +69,7 @@ function stubbedPark(): DisneylandParis {
 }
 
 describe('DLP visibility exceptions', () => {
-  beforeEach(() => vi.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it('surfaces railroad stations flagged Hide from Web List + Mobile App', async () => {
     const entities = await stubbedPark().getEntities();

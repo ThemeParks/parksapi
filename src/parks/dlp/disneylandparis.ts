@@ -677,6 +677,27 @@ export class DisneylandParis extends Destination {
   }
 
   /**
+   * Ids the entity list publishes, or null when POI is unavailable — a
+   * GraphQL 200-with-errors body reaches getPOIData as an empty object with
+   * no exception, and 12h of cache would pin it. Callers filtering on the
+   * result must treat null as "do not filter", not "filter everything out".
+   */
+  private async getPublishedEntityIds(): Promise<Set<string> | null> {
+    try {
+      const pois = await this.getEmittablePOIEntities();
+      if (pois.length === 0) return null;
+      const ids = new Set<string>(pois.map((poi) => poi.id));
+      // The parks and the destination are published but are not POI records.
+      ids.add('P1');
+      ids.add('P2');
+      ids.add('dlp');
+      return ids;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Map DLP wait time status to our status
    */
   private mapStatus(status: string | null): string {
@@ -1085,7 +1106,8 @@ export class DisneylandParis extends Destination {
     // Disney Village restaurants, character meets, records the visibility
     // filter drops. Hours for an entity we never emit can't be attached to
     // anything, so the published list is the authority on what to keep.
-    const publishedIds = new Set((await this.buildEntityList()).map((entity) => entity.id));
+    // When POI is unavailable, schedules publish unfiltered rather than empty.
+    const publishedIds = await this.getPublishedEntityIds();
 
     // Fetch 60 days of schedule data
     for (let i = 0; i < 60; i++) {
@@ -1105,7 +1127,7 @@ export class DisneylandParis extends Destination {
 
       for (const entity of dateData) {
         if (!Array.isArray(entity?.schedules)) continue;
-        if (!publishedIds.has(entity.id)) continue;
+        if (publishedIds && !publishedIds.has(entity.id)) continue;
 
         for (const hours of entity.schedules) {
           if (hours?.status === 'REFURBISHMENT' || hours?.status === 'CLOSED') continue;
@@ -1118,8 +1140,10 @@ export class DisneylandParis extends Destination {
           const openTime = constructDateTime(dateString, hours.startTime, this.timezone);
           let closeTime = constructDateTime(dateString, hours.endTime, this.timezone);
 
-          // Handle midnight crossing: if close < open, add 1 day to close
-          if (hours.endTime < hours.startTime) {
+          // Handle midnight crossing: if close < open, add 1 day to close.
+          // Compared on HH:MM so a mixed HH:MM / HH:MM:SS pair can't
+          // fabricate a rollover.
+          if (hours.endTime.slice(0, 5) < hours.startTime.slice(0, 5)) {
             const nextDay = addDays(new Date(`${dateString}T00:00:00`), 1);
             const nextDayStr = formatInTimezone(nextDay, this.timezone, 'date');
             const [nmm, ndd, nyyyy] = nextDayStr.split('/');
