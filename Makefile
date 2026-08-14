@@ -36,32 +36,32 @@ rebuild: ## Rebuild the image from scratch, ignoring layer cache
 	$(COMPOSE) build --no-cache
 
 .PHONY: deps
-deps: ## Reinstall node_modules inside the container volume
-	$(RUN) npm ci --ignore-scripts
+deps: ## Force a dependency reinstall from the lockfile
+	$(COMPOSE) run --rm -e PARKSAPI_FORCE_DEPS=1 $(SERVICE) true
 
 ##@ Running the harness
 
 .PHONY: dev
-dev: ## Test every park (long: 76 destinations, hits live APIs)
+dev: ## Test every park (long: 80 destinations, hits live APIs)
 	$(RUN) npm run dev -- $(ARGS)
 
 .PHONY: park
 park: ## Test one park — make park PARK=efteling
 	@test -n "$(PARK)" || { echo "usage: make park PARK=<parkId>   (see: make list)"; exit 1; }
-	$(RUN) npm run dev -- $(PARK) $(ARGS)
+	$(RUN) npm run dev -- "$(PARK)" $(ARGS)
 
 .PHONY: category
-category: ## Test a whole category — make category CATEGORY=Universal
+category: ## Test a whole category — make category CATEGORY="Alton Towers"
 	@test -n "$(CATEGORY)" || { echo "usage: make category CATEGORY=<name>"; exit 1; }
-	$(RUN) npm run dev -- --category $(CATEGORY) $(ARGS)
+	$(RUN) npm run dev -- --category "$(CATEGORY)" $(ARGS)
 
 .PHONY: list
 list: ## List available park IDs
 	$(RUN) npm run dev -- --list
 
 .PHONY: health
-health: ## Health-check all endpoints
-	$(RUN) npm run health
+health: ## Health-check all endpoints (ARGS to scope it)
+	$(RUN) npm run health -- $(ARGS)
 
 ##@ Build & tests
 
@@ -91,13 +91,15 @@ shell: ## Open a shell inside the container
 cache-clear: ## Drop the SQLite cache and retest everything fresh
 	$(RUN) npm run dev -- --clear-cache $(ARGS)
 
+# COMPOSE_PROFILES: `down` only removes services in the active profiles, so
+# without it the web service and its port survive.
 .PHONY: clean
-clean: ## Remove containers and the node_modules volume
-	-$(COMPOSE) down -v
+clean: ## Remove containers and networks
+	COMPOSE_PROFILES=web $(COMPOSE) down -v --remove-orphans
 
 .PHONY: clean-all
 clean-all: ## Also delete the built image (engine-agnostic, unlike a bare rmi)
-	-$(COMPOSE) down -v --rmi all
+	COMPOSE_PROFILES=web $(COMPOSE) down -v --remove-orphans --rmi local
 
 ##@ Help
 

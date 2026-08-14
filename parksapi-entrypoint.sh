@@ -22,7 +22,7 @@ ensure_deps() {
   dir="$1"
   stamp="$dir/node_modules/.parksapi-deps"
   want=$(sha256sum "$dir/package-lock.json" | cut -d' ' -f1)
-  if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$want" ]; then
+  if [ "${PARKSAPI_FORCE_DEPS:-}" != "1" ] && [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$want" ]; then
     return 0
   fi
   echo "→ installing dependencies in $dir…" >&2
