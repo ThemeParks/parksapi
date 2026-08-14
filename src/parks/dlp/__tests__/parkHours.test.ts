@@ -55,6 +55,24 @@ function stubbedPark(opts: {
         location: {id: opts.walkthroughPark ?? 'P1'},
         // No `schedules` — this is the whole point: it must fall back.
       },
+      {
+        // Canary. Carries its own window, so it resolves without park hours
+        // and must read OPERATING in every test. Without it, a test that only
+        // asserts CLOSED would pass just as happily against a dead pipeline.
+        id: 'P1MA03',
+        name: 'Liberty Arcade',
+        type: 'Attraction',
+        location: {id: 'P1'},
+        // A narrow window around now: wide enough to always contain it,
+        // narrow enough never to straddle midnight at any pinned clock.
+        schedules: [{
+          date: parkToday(),
+          startTime: parkClock(-5),
+          endTime: parkClock(5),
+          status: 'OPERATING',
+          closed: false,
+        }],
+      },
       ...(opts.extraAttractions ?? []),
     ],
   });
@@ -72,9 +90,13 @@ function stubbedPark(opts: {
   return park;
 }
 
-/** The walkthrough's published status, or undefined when no row was emitted. */
+/**
+ * The walkthrough's published status, having first checked the canary is
+ * alive so an assertion of CLOSED cannot be satisfied by an empty pipeline.
+ */
 async function walkthroughStatus(park: DisneylandParis): Promise<string | undefined> {
   const live = await park.getLiveData();
+  expect(live.find((l) => l.id === 'P1MA03')?.status).toBe('OPERATING');
   return live.find((l) => l.id === 'P1MA00')?.status;
 }
 
@@ -172,15 +194,17 @@ describe('DLP park-hours fallback for walkthroughs', () => {
     expect(await walkthroughStatus(park)).toBe('CLOSED');
   });
 
-  it('ignores a closed-flagged park row', async () => {
+  it('reports CLOSED for a closed-flagged park row', async () => {
     const park = stubbedPark({
       parkSchedules: [parkRow('P1', parkClock(-90), parkClock(90), {closed: true})],
     });
-    expect(await walkthroughStatus(park)).toBeUndefined();
+    expect(await walkthroughStatus(park)).toBe('CLOSED');
   });
 
-  it('ignores EXTRA_MAGIC_HOURS when choosing the window', async () => {
-    // EMH is a hotel-guest preview, not general park opening.
+  it('counts EXTRA_MAGIC_HOURS as part of the window', async () => {
+    // EMH is hotel-guest-only, but guests are in the park and the rides
+    // publish windows covering it. Excluding it would report a coaster
+    // operating while a walkthrough beside it reads closed.
     const park = stubbedPark({
       parkSchedules: [
         {
@@ -188,12 +212,30 @@ describe('DLP park-hours fallback for walkthroughs', () => {
           name: 'P1',
           schedules: [
             {startTime: parkClock(-30), endTime: parkClock(30), status: 'EXTRA_MAGIC_HOURS', closed: false},
-            {startTime: parkClock(-180), endTime: parkClock(-120), status: 'OPERATING', closed: false},
+            {startTime: parkClock(60), endTime: parkClock(180), status: 'OPERATING', closed: false},
           ],
         },
       ],
     });
-    expect(await walkthroughStatus(park)).toBe('CLOSED');
+    expect(await walkthroughStatus(park)).toBe('OPERATING');
+  });
+
+  it('spans the whole day when the feed splits it into several windows', async () => {
+    // A day broken by a private event publishes two OPERATING rows; taking
+    // only the first would report closed for the rest of the day.
+    const park = stubbedPark({
+      parkSchedules: [
+        {
+          id: 'P1',
+          name: 'P1',
+          schedules: [
+            {startTime: parkClock(-240), endTime: parkClock(-180), status: 'OPERATING', closed: false},
+            {startTime: parkClock(-60), endTime: parkClock(60), status: 'OPERATING', closed: false},
+          ],
+        },
+      ],
+    });
+    expect(await walkthroughStatus(park)).toBe('OPERATING');
   });
 
   it('picks the OPERATING row whatever order the feed lists it in', async () => {
@@ -239,46 +281,41 @@ describe('DLP park-hours fallback for walkthroughs', () => {
   });
 
   describe('when no hours are published', () => {
-    // Emitting CLOSED here would assert a closure nobody reported. The row is
-    // omitted instead, so the last good value stands.
+    // CLOSED, not silence. The wiki keeps a row until something replaces it,
+    // so emitting nothing would leave a walkthrough last seen OPERATING
+    // reading OPERATING forever. And since the query only asks for OPERATING
+    // and EXTRA_MAGIC_HOURS rows, a park shut all day cannot produce a row at
+    // all — absence is what a real closure looks like.
+    //
+    // The canary in each of these proves the pipeline is alive, so CLOSED is
+    // a decision rather than an empty result.
 
-    it('emits no row when the park publishes no hours', async () => {
+    it('reports CLOSED when the park publishes no hours', async () => {
       const park = stubbedPark({parkSchedules: []});
-      expect(await walkthroughStatus(park)).toBeUndefined();
+      expect(await walkthroughStatus(park)).toBe('CLOSED');
     });
 
-    it('emits no row when the feed carries no row for this park', async () => {
+    it('reports CLOSED when the feed carries no row for this park', async () => {
       // Real shape: past the publication horizon the feed returns activities
       // but no P1/P2 rows at all.
       const park = stubbedPark({parkSchedules: [openNow('P2')], walkthroughPark: 'P1'});
-      expect(await walkthroughStatus(park)).toBeUndefined();
+      expect(await walkthroughStatus(park)).toBe('CLOSED');
     });
 
-    it('emits no row when the schedule feed fails', async () => {
+    it('reports CLOSED when the schedule feed fails', async () => {
       const park = stubbedPark({parkSchedules: []});
       vi.spyOn(park as any, 'getScheduleForDate').mockRejectedValue(new Error('upstream 500'));
-      expect(await walkthroughStatus(park)).toBeUndefined();
+      expect(await walkthroughStatus(park)).toBe('CLOSED');
     });
 
     it('still honours the walkthrough\'s own schedule when it has one', async () => {
       // No park hours, but the attraction publishes its own window: that is a
-      // real observation and must still be used.
-      const park = stubbedPark({
-        parkSchedules: [],
-        extraAttractions: [
-          {
-            id: 'P1MA03',
-            name: 'Liberty Arcade',
-            type: 'Attraction',
-            location: {id: 'P1'},
-            schedules: [
-              {date: parkToday(), startTime: parkClock(-90), endTime: parkClock(90), status: 'OPERATING', closed: false},
-            ],
-          },
-        ],
-      });
+      // real observation and must still be used. This is the canary's own
+      // case, asserted explicitly rather than only as a precondition.
+      const park = stubbedPark({parkSchedules: []});
       const live = await park.getLiveData();
       expect(live.find((l) => l.id === 'P1MA03')?.status).toBe('OPERATING');
+      expect(live.find((l) => l.id === 'P1MA00')?.status).toBe('CLOSED');
     });
   });
 });

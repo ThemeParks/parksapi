@@ -13,7 +13,7 @@ import {
   LanguageCode,
   TagData,
 } from '@themeparks/typelib';
-import {formatInTimezone, addDays, constructDateTime} from '../../datetime.js';
+import {formatInTimezone, addDays, constructDateTime, shiftDateString} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 // ============================================================================
@@ -1106,25 +1106,38 @@ export class DisneylandParis extends Destination {
       (poi) => this.mapEntityType(poi) === 'ATTRACTION',
     );
 
-    // Today's park-open window, per park — the fallback for walkthroughs whose
-    // POI entry doesn't carry its own schedule (Discovery Arcade etc.).
+    // Today's guests-on-site window, per park — the fallback for walkthroughs
+    // whose POI entry doesn't carry its own schedule (Discovery Arcade etc.).
     //
-    // Read from each park's own row in the schedule feed. Deriving it from the
-    // attraction estate instead (min start / max end across queue-bearing
-    // rides) fails three ways: a single early or late ride moves the whole
-    // window, the two parks are conflated into one set of hours, and the POI
-    // schedules it read only ever carry the date they were fetched, so after
-    // park-local midnight there is nothing left to derive from.
+    // Read from each park's own row in the schedule feed rather than derived
+    // from the attraction estate. The old min-start/max-end across
+    // queue-bearing rides let one early ride move the window: measured, it
+    // opened the parks at 08:19 against a published 09:30. It also read POI
+    // schedules, which only carry the date they were fetched, so after
+    // park-local midnight there was nothing left to derive from.
+    //
+    // EXTRA_MAGIC_HOURS counts. It is hotel-guest-only, but guests are in the
+    // park and the rides publish windows covering it, so excluding it would
+    // report Big Thunder Mountain operating at 08:45 while Sleeping Beauty
+    // Castle, fifty metres away, reads closed.
     const parkHours = new Map<string, {open: string; close: string}>();
     try {
       for (const sched of await this.getScheduleForDate(todayStr)) {
         if (sched.id !== 'P1' && sched.id !== 'P2') continue;
-        const operating = (sched.schedules || []).find(
-          (s) => s.status === 'OPERATING' && s.closed !== true && s.startTime && s.endTime,
+
+        // Union of every window the feed publishes for the day. A day split
+        // by a private event would otherwise lose whichever half `.find()`
+        // happened to miss.
+        const windows = (sched.schedules || []).filter(
+          (s) => (s.status === 'OPERATING' || s.status === 'EXTRA_MAGIC_HOURS')
+            && s.closed !== true && s.startTime && s.endTime,
         );
-        if (operating) {
-          parkHours.set(sched.id, {open: operating.startTime, close: operating.endTime});
-        }
+        if (windows.length === 0) continue;
+
+        parkHours.set(sched.id, {
+          open: windows.map((s) => s.startTime).sort()[0],
+          close: windows.map((s) => s.endTime).sort().reverse()[0],
+        });
       }
     } catch (e) {
       console.error(`[DLP] Error fetching today's park hours: ${e}`);
@@ -1141,34 +1154,29 @@ export class DisneylandParis extends Destination {
       // 09:30-01:00 day reads as closing before it opened, so nothing is ever
       // inside it.
       //
-      // The day is stepped at noon UTC rather than via `new Date(dateStr)`,
-      // which parses in the host's zone: on a host at UTC+10 or beyond that
-      // lands on the previous day and the step silently does nothing.
-      let closeDateStr = todayStr;
-      if (close < open) {
-        const next = new Date(`${todayStr}T12:00:00Z`);
-        next.setUTCDate(next.getUTCDate() + 1);
-        closeDateStr = next.toISOString().slice(0, 10);
-      }
+      // shiftDateString anchors at noon UTC; stepping via `new Date(dateStr)`
+      // parses in the host's zone and silently fails to advance on any host
+      // east of Paris.
+      const closeDateStr = close < open ? shiftDateString(todayStr, 1) : todayStr;
       const c = new Date(constructDateTime(closeDateStr, close.slice(0, 5), this.timezone)).getTime();
 
       return nowMs >= o && nowMs <= c;
     };
 
     /**
-     * OPERATING/CLOSED for a walkthrough, or undefined when neither its own
-     * schedule nor its park's hours are published.
+     * OPERATING or CLOSED for a walkthrough.
      *
-     * Undefined means no row is emitted. A walkthrough is only ever knowable
-     * through published hours, so with none in hand `CLOSED` would be a
-     * statement we cannot support — and the upstream shapes that get us here
-     * (an empty schedule payload, a date past the publication horizon) are
-     * ones the feed really produces. Reporting nothing lets the last good
-     * value stand instead of overwriting it with a guess.
+     * With no hours in hand this answers CLOSED rather than staying silent.
+     * Silence is not the neutral option: the wiki keeps a live-data row until
+     * something replaces it, so emitting nothing leaves a walkthrough last
+     * seen OPERATING reading OPERATING indefinitely. And the query only asks
+     * for OPERATING and EXTRA_MAGIC_HOURS rows, so a park closed all day
+     * cannot produce a row at all — absence is exactly what a genuine closure
+     * looks like, which is the case where CLOSED is most likely right.
      */
     const deriveWalkthroughStatus = (
       poi: DLPPOIEntity & {category: string},
-    ): 'OPERATING' | 'CLOSED' | undefined => {
+    ): 'OPERATING' | 'CLOSED' => {
       const own = (poi.schedules || []).find((s) => s.date === todayStr);
       if (own?.closed === true) return 'CLOSED';
       if (own?.status === 'OPERATING' && own.startTime && own.endTime) {
@@ -1178,7 +1186,7 @@ export class DisneylandParis extends Destination {
       if (hours) {
         return isWithinWindow(hours.open, hours.close) ? 'OPERATING' : 'CLOSED';
       }
-      return undefined;
+      return 'CLOSED';
     };
 
     for (const poi of attractionPois) {
@@ -1200,14 +1208,10 @@ export class DisneylandParis extends Destination {
           ld.queue.SINGLE_RIDER = {waitTime: null};
         }
       } else if (!ld) {
-        // Walkthrough — status from schedule, no queue. Skipped entirely when
-        // no hours are published, rather than asserting a closure we can't see.
-        const status = deriveWalkthroughStatus(poi);
-        if (status) {
-          const walkthrough = {id, status} as LiveData;
-          liveDataMap.set(id, walkthrough);
-          liveData.push(walkthrough);
-        }
+        // Walkthrough — status from schedule, no queue.
+        const walkthrough = {id, status: deriveWalkthroughStatus(poi)} as LiveData;
+        liveDataMap.set(id, walkthrough);
+        liveData.push(walkthrough);
       }
       // If a walkthrough already has a row from upstream feeds (PA / VQ /
       // showtimes), leave it — those feeds are authoritative.
