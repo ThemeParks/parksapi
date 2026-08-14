@@ -12,7 +12,7 @@
 <h1>Interface HTTPObj</h1></div>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">HTTPObj</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#body">body</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#headers">headers</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#method">method</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;GET&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;POST&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;PUT&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;DELETE&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;PATCH&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;HEAD&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;OPTIONS&quot;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#ok">ok</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#onarraybuffer">onArrayBuffer</a><span class="tsd-signature-symbol">:</span> (<span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">data</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ArrayBuffer</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span>) <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#onblob">onBlob</a><span class="tsd-signature-symbol">:</span> (<span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">data</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Blob</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span>) <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#onjson">onJson</a><span class="tsd-signature-symbol">:</span> (<span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">data</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span>) <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#ontext">onText</a><span class="tsd-signature-symbol">:</span> (<span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">data</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span>) <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#options">options</a><span class="tsd-signature-symbol">?:</span> <a href="../types/HTTPOptions.html" class="tsd-signature-type tsd-kind-type-alias">HTTPOptions</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#queryparams">queryParams</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#response">response</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Response</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#status">status</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#tags">tags</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#url">url</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#arraybuffer-1">arrayBuffer</a><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">ArrayBuffer</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#blob-1">blob</a><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Blob</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#clone-1">clone</a><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a href="" class="tsd-signature-type tsd-kind-interface">HTTPObj</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#json-1">json</a><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#text-1">text</a><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L77">src/http.ts:77</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L77">src/http.ts:77</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -50,72 +50,72 @@
 <h3 class="tsd-anchor-link" id="body"><code class="tsd-tag">Optional</code><span>body</span><a href="#body" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">body</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">any</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L83">src/http.ts:83</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L83">src/http.ts:83</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="headers"><code class="tsd-tag">Optional</code><span>headers</span><a href="#headers" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">headers</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">&gt;</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L80">src/http.ts:80</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L80">src/http.ts:80</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="method"><span>method</span><a href="#method" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">method</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;GET&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;POST&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;PUT&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;DELETE&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;PATCH&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;HEAD&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;OPTIONS&quot;</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L78">src/http.ts:78</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L78">src/http.ts:78</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="ok"><span>ok</span><a href="#ok" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">ok</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L94">src/http.ts:94</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L94">src/http.ts:94</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="onarraybuffer"><span>on<wbr/>Array<wbr/>Buffer</span><a href="#onarraybuffer" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">onArrayBuffer</span><span class="tsd-signature-symbol">:</span> (<span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">data</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ArrayBuffer</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span>) <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L101">src/http.ts:101</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L101">src/http.ts:101</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="onblob"><span>on<wbr/>Blob</span><a href="#onblob" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">onBlob</span><span class="tsd-signature-symbol">:</span> (<span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">data</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Blob</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span>) <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L100">src/http.ts:100</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L100">src/http.ts:100</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="onjson"><span>on<wbr/>Json</span><a href="#onjson" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">onJson</span><span class="tsd-signature-symbol">:</span> (<span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">data</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span>) <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L98">src/http.ts:98</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L98">src/http.ts:98</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="ontext"><span>on<wbr/>Text</span><a href="#ontext" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">onText</span><span class="tsd-signature-symbol">:</span> (<span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">data</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span>) <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L99">src/http.ts:99</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L99">src/http.ts:99</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="options"><code class="tsd-tag">Optional</code><span>options</span><a href="#options" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">options</span><span class="tsd-signature-symbol">?:</span> <a href="../types/HTTPOptions.html" class="tsd-signature-type tsd-kind-type-alias">HTTPOptions</a></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L81">src/http.ts:81</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L81">src/http.ts:81</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="queryparams"><code class="tsd-tag">Optional</code><span>query<wbr/>Params</span><a href="#queryparams" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">queryParams</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">&gt;</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L82">src/http.ts:82</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L82">src/http.ts:82</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="response"><code class="tsd-tag">Optional</code><span>response</span><a href="#response" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">response</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Response</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L86">src/http.ts:86</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L86">src/http.ts:86</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="status"><span>status</span><a href="#status" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">status</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L93">src/http.ts:93</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L93">src/http.ts:93</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="tags"><span>tags</span><a href="#tags" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">tags</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L84">src/http.ts:84</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L84">src/http.ts:84</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="url"><span>url</span><a href="#url" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">url</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L79">src/http.ts:79</a></li></ul></aside></section></section></details>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L79">src/http.ts:79</a></li></ul></aside></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -127,7 +127,7 @@
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">ArrayBuffer</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L92">src/http.ts:92</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L92">src/http.ts:92</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="blob"><span>blob</span><a href="#blob" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -136,7 +136,7 @@
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Blob</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L91">src/http.ts:91</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L91">src/http.ts:91</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="clone"><span>clone</span><a href="#clone" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -145,7 +145,7 @@
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-interface">HTTPObj</a></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L95">src/http.ts:95</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L95">src/http.ts:95</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="json"><span>json</span><a href="#json" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -154,7 +154,7 @@
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L89">src/http.ts:89</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L89">src/http.ts:89</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="text"><span>text</span><a href="#text" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -163,7 +163,7 @@
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/7adb62740ad6581768aa78a1e85b0d2ce47a2e15/src/http.ts#L90">src/http.ts:90</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/5e2fd412ab81ab591a19a31184d9f28d9941c90f/src/http.ts#L90">src/http.ts:90</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
