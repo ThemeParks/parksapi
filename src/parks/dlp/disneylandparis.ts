@@ -196,7 +196,6 @@ function showDurationMinutes(duration: DLPPOIEntity['duration']): number {
   if (!duration) return 0;
   const hours = Number(duration.hours ?? 0);
   const minutes = Number(duration.minutes ?? 0);
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return 0;
   const total = Math.round(hours * 60 + minutes);
   return total > 0 && total <= MAX_SHOW_DURATION_MINUTES ? total : 0;
 }
@@ -1006,27 +1005,41 @@ export class DisneylandParis extends Destination {
       const waves = Array.isArray(q.waves) ? q.waves : [];
       if (waves.length === 0) continue;
 
+      // A live OPEN wave wins over `nextWaveId`, which can lag a transition.
       const pending = waves.filter((w) => waveStatus(w) !== 'FINISHED');
       const activeWave =
-        (q.nextWaveId && waves.find((w) => w?.waveId === q.nextWaveId)) || pending[0];
+        waves.find((w) => waveStatus(w) === 'OPEN') ||
+        (q.nextWaveId && waves.find((w) => w?.waveId === q.nextWaveId)) ||
+        pending[0];
 
       const ld = getOrCreate(q.queueContentId);
       if (!ld) continue;
-      if (!ld.queue) ld.queue = {};
+
+      // Overnight every wave reads CLOSED; publishing TEMP_FULL there would
+      // be wrong, so no RETURN_TIME until a wave has actually been in play.
+      const dayStarted = waves.some((w) =>
+        ['OPEN', 'FULL', 'FINISHED'].includes(waveStatus(w)));
+      if (!dayStarted) continue;
 
       const open = waveStatus(activeWave) === 'OPEN';
       const from = open ? parseDLPDate(activeWave?.openAt ?? null) : null;
       const until = open ? parseDLPDate(activeWave?.closedAt ?? null) : null;
 
+      if (!ld.queue) ld.queue = {};
+
       // AVAILABLE has to carry a window, so a wave that reads open without a
       // usable one falls back with the rest.
-      ld.queue.RETURN_TIME = from && until
-        ? this.buildReturnTimeQueue('AVAILABLE', from, until)
-        : this.buildReturnTimeQueue(
+      if (from && until) {
+        // A bookable window means the experience is running.
+        ld.status = 'OPERATING';
+        ld.queue.RETURN_TIME = this.buildReturnTimeQueue('AVAILABLE', from, until);
+      } else {
+        ld.queue.RETURN_TIME = this.buildReturnTimeQueue(
           waves.some((w) => waveStatus(w) === 'CLOSED') ? 'TEMP_FULL' : 'FINISHED',
           null,
           null,
         );
+      }
     }
 
     // === Show Times (from today's schedule) ===

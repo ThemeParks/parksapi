@@ -1,4 +1,4 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest';
+import {describe, it, expect, vi, afterEach} from 'vitest';
 import {DisneylandParis} from '../disneylandparis.js';
 
 /**
@@ -52,8 +52,9 @@ function stubbedPark(): DisneylandParis {
       schedules: [{date, startTime: '22:45:00', endTime: '22:45:00', status: 'PERFORMANCE_TIME'}],
     },
     {
+      // No duration published — the feed's zero-length slot survives.
       id: 'P2GS54',
-      schedules: [{date, startTime: '10:30:00', endTime: '10:50:00', status: 'PERFORMANCE_TIME'}],
+      schedules: [{date, startTime: '10:30:00', endTime: '10:30:00', status: 'PERFORMANCE_TIME'}],
     },
   ]);
 
@@ -66,7 +67,7 @@ function spanMinutes(startTime: string, endTime: string): number {
 }
 
 describe('DLP showtimes', () => {
-  beforeEach(() => vi.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   it('derives the end time from the POI duration', async () => {
     const live = await stubbedPark().getLiveData();
@@ -87,17 +88,25 @@ describe('DLP showtimes', () => {
     const live = await stubbedPark().getLiveData();
 
     const show = live.find((l) => l.id === 'P2GS54');
-    expect(spanMinutes(show!.showtimes![0].startTime!, show!.showtimes![0].endTime!)).toBe(20);
+    expect(show?.showtimes).toHaveLength(1);
+    expect(spanMinutes(show!.showtimes![0].startTime!, show!.showtimes![0].endTime!)).toBe(0);
   });
 
-  it('resolves durations without a preceding getEntities call', async () => {
-    // getLiveData is a standalone entry point; durations must not depend on
-    // entity building having run first.
-    const park = stubbedPark();
-    const live = await park.getLiveData();
+  it('resolves the same durations with and without a preceding getEntities call', async () => {
+    // getLiveData is a standalone entry point; both call orders must agree.
+    const cold = stubbedPark();
+    const coldLive = await cold.getLiveData();
 
-    const parade = live.find((l) => l.id === 'P1GS21');
-    expect(spanMinutes(parade!.showtimes![0].startTime!, parade!.showtimes![0].endTime!)).toBe(30);
+    const warm = stubbedPark();
+    await warm.getEntities();
+    const warmLive = await warm.getLiveData();
+
+    for (const live of [coldLive, warmLive]) {
+      const parade = live.find((l) => l.id === 'P1GS21');
+      expect(spanMinutes(parade!.showtimes![0].startTime!, parade!.showtimes![0].endTime!)).toBe(30);
+    }
+    expect(warmLive.find((l) => l.id === 'P1GS21')?.showtimes)
+      .toEqual(coldLive.find((l) => l.id === 'P1GS21')?.showtimes);
   });
 });
 
@@ -136,7 +145,7 @@ async function spanFor(duration: unknown): Promise<number> {
 }
 
 describe('DLP showtime duration parsing', () => {
-  beforeEach(() => vi.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   // The feed reports 17:30 to 17:35, so a 5 minute span means the duration was
   // rejected and the feed's own end time survived.
@@ -144,6 +153,7 @@ describe('DLP showtime duration parsing', () => {
     ['missing', undefined],
     ['empty', {}],
     ['null members', {hours: null, minutes: null}],
+    ['zero', {hours: 0, minutes: 0}],
     ['negative', {hours: 0, minutes: -20}],
     ['not a number', {hours: 'soon', minutes: 'later'}],
     ['longer than a day', {hours: 99999, minutes: 0}],

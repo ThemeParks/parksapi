@@ -2,11 +2,15 @@ import {describe, it, expect, vi, afterEach} from 'vitest';
 import {DisneylandParis} from '../disneylandparis.js';
 
 /**
- * A hidden POI is normally dropped by filterPOIEntities (HIDE_RULES); entities
- * in VISIBILITY_EXCEPTIONS bypass that. Mickey's PhilharMagic exists twice in
- * POI — published Entertainment record P1G103 and hidden Attraction twin
- * P1DA13 — and must surface exactly once, as P1G103, with the twin's live
- * and schedule data folded onto it.
+ * A hidden POI is normally dropped by filterPOIEntities (HIDE_RULES). Entities
+ * listed in VISIBILITY_EXCEPTIONS bypass that: P1GS93 ("Live Your Story"), the
+ * two railroad stations, three schedule-backed meet & greets and the two
+ * Heroic Encounters are all live despite their flags, so each must be
+ * force-surfaced while flagged records outside the set stay filtered.
+ *
+ * Mickey's PhilharMagic exists twice in POI — published Entertainment record
+ * P1G103 and hidden Attraction twin P1DA13 — and must surface exactly once, as
+ * P1G103, with the twin's live and schedule data folded onto it.
  */
 function stubbedPark(): DisneylandParis {
   const park = new DisneylandParis();
@@ -118,6 +122,38 @@ function stubbedPark(): DisneylandParis {
         location: {id: 'P2'},
         hideFunctionality: 'Hide from the Service',
       },
+      {
+        id: 'P2MG31',
+        name: 'Meet Goofy, the Movie Director',
+        type: 'Entertainment',
+        subType: 'Character Experience - Meet & Greet',
+        location: {id: 'P2'},
+        hideFunctionality: 'Hide from Web List + Mobile App',
+      },
+      {
+        id: 'P1MG21',
+        name: 'An Encounter with Captain Hook',
+        type: 'Entertainment',
+        subType: 'Character Experience - Meet & Greet',
+        location: {id: 'P1'},
+        hideFunctionality: 'Hide from Web List + Mobile App',
+      },
+      {
+        id: 'P1MG05',
+        name: 'Meet Donald Duck or his friends',
+        type: 'Entertainment',
+        subType: 'Character Experience - Meet & Greet',
+        location: {id: 'P1'},
+        hideFunctionality: 'Hide from Web List + Mobile App',
+      },
+      {
+        // Unflagged meet & greet — the common case this branch turns on.
+        id: 'P1MG10',
+        name: 'Meet Mickey Mouse',
+        type: 'Entertainment',
+        subType: 'Character Experience - Meet & Greet',
+        location: {id: 'P1'},
+      },
     ],
   });
   return park;
@@ -131,6 +167,24 @@ function stubLiveFeeds(park: DisneylandParis, waitTimes: unknown[] = []): void {
 
 describe('DLP visibility exceptions', () => {
   afterEach(() => vi.restoreAllMocks());
+
+  it('publishes an unflagged meet & greet as a SHOW entity', async () => {
+    const entities = await stubbedPark().getEntities();
+    const meet = entities.find((e) => e.id === 'P1MG10');
+    expect(meet).toBeDefined();
+    expect(meet?.entityType).toBe('SHOW');
+    expect((meet as any)?.parkId).toBe('P1');
+  });
+
+  it('surfaces the three schedule-backed meet & greets despite their retirement flag', async () => {
+    const entities = await stubbedPark().getEntities();
+    for (const [id, parkId] of [['P2MG31', 'P2'], ['P1MG21', 'P1'], ['P1MG05', 'P1']]) {
+      const meet = entities.find((e) => e.id === id);
+      expect(meet, id).toBeDefined();
+      expect(meet?.entityType).toBe('SHOW');
+      expect((meet as any)?.parkId).toBe(parkId);
+    }
+  });
 
   it('surfaces railroad stations flagged Hide from Web List + Mobile App', async () => {
     const entities = await stubbedPark().getEntities();
