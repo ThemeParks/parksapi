@@ -42,6 +42,21 @@ const VISIBILITY_EXCEPTIONS = new Set([
   'P1NA16', // Disneyland Railroad Fantasyland Station
 ]);
 
+/**
+ * DLP splits Mickey's PhilharMagic across two records: published
+ * Entertainment record P1G103 carries the showtimes, while hidden Attraction
+ * twin P1DA13 carries the standby wait and a schedule restating those
+ * showtimes. Live and schedule rows for the twin fold onto the published id.
+ */
+const ID_ALIASES: Record<string, string> = {
+  P1DA13: 'P1G103',
+};
+
+/** Entity types keyed by id, checked ahead of the category mapping. */
+const ENTITY_TYPE_OVERRIDES: Record<string, Entity['entityType']> = {
+  P1G103: 'ATTRACTION', // PhilharMagic is an attraction across Disney resorts
+};
+
 /** Hide rules that exclude entities from the POI list */
 const HIDE_RULES = new Set([
   'Hide from Web List + Mobile App',
@@ -647,6 +662,8 @@ export class DisneylandParis extends Destination {
    * Map DLP entity type to our entity type
    */
   private mapEntityType(entity: DLPPOIEntity & {category: string}): Entity['entityType'] | undefined {
+    const override = ENTITY_TYPE_OVERRIDES[entity.id];
+    if (override) return override;
     if (entity.category === 'Attraction') return 'ATTRACTION';
     if (entity.category === 'Restaurant') return 'RESTAURANT';
     if (entity.category === 'Entertainment') {
@@ -751,6 +768,11 @@ export class DisneylandParis extends Destination {
         entity.location = {latitude: coords.lat, longitude: coords.lng};
       }
 
+      if (poi.id === 'P1G103') {
+        // 4D cinema — destination.ts otherwise defaults ATTRACTION to RIDE.
+        (entity as Entity & {attractionType?: string}).attractionType = 'SHOW';
+      }
+
       // Build tags
       const tags: any[] = [];
 
@@ -834,7 +856,7 @@ export class DisneylandParis extends Destination {
       if (!wt.entityId || wt.type !== 'Attraction') continue;
       if (IGNORE_ENTITIES.has(wt.entityId)) continue;
 
-      const ld = getOrCreate(wt.entityId);
+      const ld = getOrCreate(ID_ALIASES[wt.entityId] ?? wt.entityId);
       if (!ld) continue;
       ld.status = this.mapStatus(wt.status) as any;
 
@@ -996,7 +1018,7 @@ export class DisneylandParis extends Destination {
       Array.isArray(previousHistory) ? previousHistory : [],
     );
     for (const wt of waitTimes) {
-      if (wt.entityId) queueBearingIds.add(wt.entityId);
+      if (wt.entityId) queueBearingIds.add(ID_ALIASES[wt.entityId] ?? wt.entityId);
     }
     CacheLib.set(queueHistoryKey, [...queueBearingIds], 30 * 24 * 60 * 60); // 30 days
 
@@ -1092,6 +1114,7 @@ export class DisneylandParis extends Destination {
       for (const entity of dateData) {
         if (!entity.schedules) continue;
         if (IGNORE_ENTITIES.has(entity.id)) continue;
+        const scheduleId = ID_ALIASES[entity.id] ?? entity.id;
 
         for (const hours of entity.schedules) {
           if (hours.status === 'REFURBISHMENT' || hours.status === 'CLOSED') continue;
@@ -1119,10 +1142,10 @@ export class DisneylandParis extends Destination {
             description = 'Performance Time';
           }
 
-          if (!scheduleMap.has(entity.id)) {
-            scheduleMap.set(entity.id, []);
+          if (!scheduleMap.has(scheduleId)) {
+            scheduleMap.set(scheduleId, []);
           }
-          scheduleMap.get(entity.id)!.push({
+          scheduleMap.get(scheduleId)!.push({
             date: dateString,
             openingTime: openTime,
             closingTime: closeTime,
