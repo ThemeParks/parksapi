@@ -3,9 +3,10 @@ import {DisneylandParis} from '../disneylandparis.js';
 import {CacheLib} from '../../../cache.js';
 
 /**
- * Single-rider capability comes from the POI `singleRider` facet. The wait
- * feed reports the same flag, but only answers while the park is awake, so
- * the facet is what keeps a ride's queue present overnight.
+ * Single-rider capability comes from the POI `singleRider` facet, OR'd with
+ * wait-feed sightings from the last 48h. The facet keeps a ride's queue
+ * present overnight; the sighting bridges the POI cache lagging a fresh
+ * addition, and lapses so a retired queue disappears.
  */
 function stubbedPark(
   attractions: Array<Record<string, unknown>>,
@@ -91,6 +92,34 @@ describe('DLP single rider', () => {
       [feedRow({singleRider: {isAvailable: false}})],
     ));
     expect(queue.SINGLE_RIDER).toEqual({waitTime: null});
+  });
+
+  it('bridges a fresh addition the POI cache does not carry yet', async () => {
+    // The feed advertised single rider this morning; the facet lags behind.
+    await stubbedPark(
+      [RIDE],
+      [feedRow({singleRider: {isAvailable: true, singleRiderWaitMinutes: 10}})],
+    ).getLiveData();
+
+    const queue = await queueOf(stubbedPark([RIDE]));
+    expect(queue.SINGLE_RIDER).toEqual({waitTime: null});
+  });
+
+  it('lets a retired single-rider queue disappear once the sighting lapses', async () => {
+    vi.useFakeTimers();
+    try {
+      await stubbedPark(
+        [{...RIDE, singleRider: true}],
+        [feedRow({singleRider: {isAvailable: true, singleRiderWaitMinutes: 10}})],
+      ).getLiveData();
+
+      // Two days on: no facet, feed asleep, last sighting lapsed.
+      vi.setSystemTime(Date.now() + 49 * 60 * 60 * 1000);
+      const queue = await queueOf(stubbedPark([RIDE]));
+      expect(queue.SINGLE_RIDER).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it.each([

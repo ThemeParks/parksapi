@@ -18,18 +18,24 @@ function stubbedPark(attraction: Record<string, unknown>): DisneylandParis {
       location: {id: 'P1'},
       ...attraction,
     }],
+    // Both carry taggable fields, which only the entity-type guard drops.
     Entertainment: [{
       id: 'P1GS00',
       name: 'Disney Illuminations',
       type: 'Entertainment',
       subType: 'Fireworks',
       location: {id: 'P1'},
+      singleRider: true,
+      interests: [{id: 'guestMayGetSplashed'}],
     }],
     Restaurant: [{
       id: 'P1AR06',
       name: 'Casa de Coco',
       type: 'Restaurant',
       location: {id: 'P1'},
+      height: [{id: '1_20m'}],
+      singleRider: true,
+      interests: [{id: 'disney-premier-access-one'}, {id: 'PhotoPass'}],
     }],
   });
 
@@ -54,10 +60,14 @@ describe('DLP attraction tags', () => {
     expect(await tagsOf({})).toEqual([]);
   });
 
-  it('emits no tags for shows or restaurants', async () => {
+  it('emits no tags for shows or restaurants even when the feed hands them the fields', async () => {
     const entities = await stubbedPark({}).getEntities();
-    expect(entities.find((e) => e.id === 'P1GS00')?.tags).toEqual([]);
-    expect(entities.find((e) => e.id === 'P1AR06')?.tags).toEqual([]);
+    const show = entities.find((e) => e.id === 'P1GS00');
+    const restaurant = entities.find((e) => e.id === 'P1AR06');
+    expect(show).toBeDefined();
+    expect(restaurant).toBeDefined();
+    expect(show?.tags).toEqual([]);
+    expect(restaurant?.tags).toEqual([]);
   });
 
   // === Minimum height ===
@@ -85,9 +95,13 @@ describe('DLP attraction tags', () => {
     expect(entities.find((e) => e.id === 'P1RA00')?.tags?.[0].value).toEqual({height: 120, unit: 'cm'});
   });
 
-  it('accepts a height right on the sanity bound', async () => {
-    const entities = await stubbedPark({height: [{id: '300cm'}]}).getEntities();
-    expect(entities.find((e) => e.id === 'P1RA00')?.tags?.[0].value).toEqual({height: 300, unit: 'cm'});
+  it.each([
+    ['40cm', 40],
+    ['200cm', 200],
+    ['2m', 200],
+  ])('accepts %s right on the plausibility bound as %i cm', async (facetId, expected) => {
+    const entities = await stubbedPark({height: [{id: facetId}]}).getEntities();
+    expect(entities.find((e) => e.id === 'P1RA00')?.tags?.[0].value).toEqual({height: expected, unit: 'cm'});
   });
 
   it.each([
@@ -97,7 +111,9 @@ describe('DLP attraction tags', () => {
     '0cm',
     '0_00m',
     '-5cm',
-    '301cm',
+    '39cm',
+    '201cm',
+    '300cm',
     '999999cm',
     '9_99m',
     '1e3cm',
@@ -108,6 +124,12 @@ describe('DLP attraction tags', () => {
     '1_20',
     '1_2_3m',
     'm',
+    // Mixed-unit shapes that would round down to a nonsense 1cm.
+    '1_20cm',
+    '0_81cm',
+    '1cm',
+    '2_50m',
+    '3m',
   ])('emits no height tag for the "%s" facet', async (facetId) => {
     expect(await tagsOf({height: [{id: facetId}]})).toEqual([]);
   });

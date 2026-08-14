@@ -83,8 +83,14 @@ const SHOW_SUBTYPES = new Set([
  * constructDateTime and throw. */
 const TIME_OF_DAY = /^(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?|24:00(?::00)?)$/;
 
-/** Upper bound for a rider height restriction; anything taller is bad data */
-const MAX_HEIGHT_CM = 300;
+/** Plausible band for a rider height restriction; outside it is bad data
+ * (a mixed-unit id like `1_20cm` would otherwise round down to 1cm). */
+const MIN_HEIGHT_CM = 40;
+const MAX_HEIGHT_CM = 200;
+
+/** How long a wait-feed single-rider sighting keeps the queue's overnight
+ * baseline alive while the 12h POI cache lags. */
+const SINGLE_RIDER_RECENT_SECONDS = 48 * 60 * 60;
 
 // ============================================================================
 // Types
@@ -149,7 +155,7 @@ function parseHeightCm(facetId: string): number | undefined {
   const value = Number(match[1].replace('_', '.'));
   if (!Number.isFinite(value)) return undefined;
   const cm = Math.round(match[2] === 'm' ? value * 100 : value);
-  return cm > 0 && cm <= MAX_HEIGHT_CM ? cm : undefined;
+  return cm >= MIN_HEIGHT_CM && cm <= MAX_HEIGHT_CM ? cm : undefined;
 }
 
 type DLPWaitTimeEntry = {
@@ -463,7 +469,7 @@ export class DisneylandParis extends Destination {
   /**
    * Get POI data (cached 12h)
    */
-  @cache({ttlSeconds: 43200, cacheVersion: 3})
+  @cache({ttlSeconds: 43200, cacheVersion: 4})
   async getPOIData(): Promise<Record<string, DLPPOIEntity[]>> {
     const resp = await this.fetchPOI();
     const data = await resp.json();
@@ -698,8 +704,8 @@ export class DisneylandParis extends Destination {
   }
 
   /**
-   * Build the tags for a POI entity. Every field read here belongs to the
-   * Attraction type, so shows and restaurants come back with an empty list.
+   * Build the tags for an attraction. The caller guards on entity type, so
+   * a record of another type carrying these fields can never grow tags.
    */
   private buildTags(poi: DLPPOIEntity): TagData[] {
     const tags: TagData[] = [];
@@ -863,7 +869,7 @@ export class DisneylandParis extends Destination {
         (entity as Entity & {attractionType?: string}).attractionType = 'SHOW';
       }
 
-      entity.tags = this.buildTags(poi);
+      entity.tags = entityType === 'ATTRACTION' ? this.buildTags(poi) : [];
 
       // Store show duration for live data
       if (entityType === 'SHOW' && poi.duration) {
@@ -1063,8 +1069,7 @@ export class DisneylandParis extends Destination {
     // publishes in the wait feed. They'd otherwise inherit a misleading
     // synthetic CLOSED + STANDBY:null all day. Instead we emit
     // OPERATING/CLOSED derived from today's POI schedule (or park-hours
-    // fallback) and no queue. Detection is data-driven: persist a 30-day
-    // cache of IDs that have ever appeared in the wait feed.
+    // fallback) and no queue.
 
     // Wait-feed history: which attractions are queue-bearing? Walkthroughs
     // never appear here. 30-day TTL covers normal refurb cycles.
@@ -1077,6 +1082,25 @@ export class DisneylandParis extends Destination {
       if (wt.entityId) queueBearingIds.add(ID_ALIASES[wt.entityId] ?? wt.entityId);
     }
     CacheLib.set(queueHistoryKey, [...queueBearingIds], 30 * 24 * 60 * 60); // 30 days
+
+    // Recently-seen single-rider ids, OR'd with the POI facet below. Entries
+    // carry their own timestamp rather than being re-seeded, so retirements
+    // actually lapse.
+    const srRecentKey = `${this.getCacheKeyPrefix()}:dlp:singleRiderRecent`;
+    const previousSR = CacheLib.get(srRecentKey) as Record<string, number> | null;
+    const srCutoff = Date.now() - SINGLE_RIDER_RECENT_SECONDS * 1000;
+    const singleRiderRecent: Record<string, number> = {};
+    if (previousSR && typeof previousSR === 'object') {
+      for (const [id, seenAt] of Object.entries(previousSR)) {
+        if (typeof seenAt === 'number' && seenAt > srCutoff) singleRiderRecent[id] = seenAt;
+      }
+    }
+    for (const wt of waitTimes) {
+      if (wt.entityId && wt.singleRider?.isAvailable === true) {
+        singleRiderRecent[wt.entityId] = Date.now();
+      }
+    }
+    CacheLib.set(srRecentKey, singleRiderRecent, SINGLE_RIDER_RECENT_SECONDS);
 
     const attractionPois = emittablePois.filter(
       (poi) => this.mapEntityType(poi) === 'ATTRACTION',
@@ -1134,7 +1158,8 @@ export class DisneylandParis extends Destination {
         }
         if (!ld.queue) ld.queue = {};
         if (!ld.queue.STANDBY) ld.queue.STANDBY = {waitTime: null};
-        if (!ld.queue.SINGLE_RIDER && poi.singleRider === true) {
+        if (!ld.queue.SINGLE_RIDER &&
+          (poi.singleRider === true || singleRiderRecent[id] !== undefined)) {
           ld.queue.SINGLE_RIDER = {waitTime: null};
         }
       } else if (!ld) {
