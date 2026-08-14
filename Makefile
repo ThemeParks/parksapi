@@ -5,8 +5,9 @@
 #   make build      → build the image once
 #   make park PARK=efteling
 #
-# On a Podman host (Fedora and friends), override COMPOSE:
-#   make COMPOSE="podman-compose --env-file /dev/null" dev
+# On a Podman host (Fedora and friends), override COMPOSE — rootless Podman
+# maps your uid to a subuid unless it is told to keep it:
+#   make COMPOSE="podman-compose --env-file /dev/null --podman-run-args=--userns=keep-id" dev
 
 # --env-file /dev/null: compose otherwise parses the app's .env for its own
 # interpolation and rejects multi-line values.
@@ -28,7 +29,7 @@ PARK ?=
 ##@ Setup
 
 .PHONY: build
-build: ## Build the dev image (npm install happens here)
+build: ## Build the dev image (deps install on first run, into node_modules/)
 	$(COMPOSE) build
 
 .PHONY: rebuild
