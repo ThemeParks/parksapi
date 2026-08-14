@@ -12,6 +12,9 @@ on:
       - Makefile
       - parksapi-entrypoint.sh
       - .dockerignore
+      - .gitattributes
+      - package.json
+      - package-lock.json
       - .github/workflows/dev_container.yml
   pull_request:
     branches: [main]
@@ -21,6 +24,9 @@ on:
       - Makefile
       - parksapi-entrypoint.sh
       - .dockerignore
+      - .gitattributes
+      - package.json
+      - package-lock.json
       - .github/workflows/dev_container.yml
 
 jobs:
@@ -52,10 +58,7 @@ jobs:
         test -z "$found" || { echo "$found"; exit 1; }
 
     - name: Test suite in-container
-      # --retry=1: traceContextPropagation.test.ts calls httpbin.org, and this
-      # job runs alongside Unit Test, so both hit that endpoint at once. A
-      # genuinely broken test still fails both attempts.
-      run: make test ARGS="--retry=1"
+      run: make test
 
     - name: make clean removes containers and networks
       run: |

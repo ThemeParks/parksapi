@@ -9,8 +9,9 @@
 # maps your uid to a subuid unless it is told to keep it:
 #   make COMPOSE="podman-compose --env-file /dev/null --podman-run-args=--userns=keep-id" dev
 
-# --env-file /dev/null: compose otherwise parses the app's .env for its own
-# interpolation and rejects multi-line values.
+# --env-file /dev/null: compose otherwise reads the app's .env for its own
+# interpolation, where a key named TZ, UID or GID would silently win over the
+# values exported below.
 COMPOSE ?= docker compose --env-file /dev/null
 SERVICE  = parksapi
 RUN      = $(COMPOSE) run --rm $(SERVICE)
@@ -42,7 +43,7 @@ rebuild: ## Rebuild the image from scratch, ignoring layer cache
 	$(COMPOSE) build --no-cache
 
 .PHONY: deps
-deps: ## Force a dependency reinstall from the lockfile
+deps: ## Force a dependency reinstall from the lockfile (does not build dist/ — see compile)
 	$(COMPOSE) run --rm -e PARKSAPI_FORCE_DEPS=1 $(SERVICE) true
 
 ##@ Running the harness
@@ -94,7 +95,7 @@ cache-clear: ## Drop the SQLite cache and retest everything fresh
 	$(RUN) npm run dev -- --clear-cache $(ARGS)
 
 .PHONY: clean
-clean: ## Remove containers and networks
+clean: ## Remove this tree's containers, networks and volumes
 	$(COMPOSE) down -v --remove-orphans
 
 .PHONY: clean-all
