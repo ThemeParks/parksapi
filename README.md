@@ -83,8 +83,8 @@ npm run health         # Health check all endpoints
 
 ### Without Node installed
 
-A container image pins Node 24 / npm 11, so nothing has to be installed on the
-host. Every command above has a `make` equivalent:
+Every command above also runs in a container, so nothing has to be installed on
+the host beyond Docker (or Podman):
 
 ```bash
 make build             # Build the dev image once
@@ -94,18 +94,25 @@ make web               # Web admin on http://localhost:8888
 make                   # Full list of targets
 ```
 
-The default engine is Docker. On a Podman host, override `COMPOSE`:
+`make build` builds the image — the TypeScript compile is `make compile`.
+
+Most destinations need credentials in `.env` in the repo root; the container
+creates an empty one on first run, and `make park PARK=efteling` is one of the
+few that passes without any. Dependencies install into `node_modules/` on first
+run and reinstall when the lockfile changes (`make deps` forces it).
+
+git is not installed in the image — commit from the host, the tree is
+bind-mounted.
+
+The default engine is Docker. On a Podman host, override `COMPOSE` (untested):
 
 ```bash
-make COMPOSE="podman-compose --podman-run-args=--userns=keep-id" park PARK=efteling
+make COMPOSE="podman-compose --env-file /dev/null --podman-run-args=--userns=keep-id" park PARK=efteling
 ```
-
-Credentials still come from `.env` in the repo root, which the entrypoint
-creates empty on first run.
 
 ## Supported Destinations
 
-75 destinations across Disney, Universal, Cedar Fair, Six Flags, Merlin, and many more.
+80 destinations across Disney, Universal, Cedar Fair, Six Flags, Merlin, and many more.
 
 Run `npm run dev -- --list` for the full list with IDs and categories, or see below:
 

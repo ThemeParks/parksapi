@@ -21,6 +21,8 @@ npm run dev
 
 Access the UI at: **http://localhost:3000**
 
+Dev mode is a host-only workflow; the container path is `make web`.
+
 ### Production Mode
 
 Build and run everything:
@@ -29,7 +31,8 @@ Build and run everything:
 npm run web
 ```
 
-Access the UI at: **http://localhost:8080** (or `PORT` environment variable)
+Access the UI at: **http://localhost:8888** (or `PORT` environment variable),
+or `make web` to run the same thing in a container.
 
 ## Features
 
@@ -168,7 +171,7 @@ Execute an HTTP method with custom parameters.
 ## Configuration
 
 ### Environment Variables
-- `PORT`: Server port (default: 8080)
+- `PORT`: Server port (default: 8888)
 - `NODE_ENV`: Set to `production` for optimized builds
 
 All other environment variables (API credentials, etc.) are loaded from `.env` file via the `@config` decorator system.
