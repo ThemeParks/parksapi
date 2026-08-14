@@ -130,6 +130,27 @@ describe('DLP virtual queue', () => {
     expect(row.queue?.RETURN_TIME).toBeUndefined();
   });
 
+  // A dormant configuration row: Disney leaves these in the wave list with
+  // both dates nulled, so they carry no evidence of having run.
+  const dormant = {waveId: 'w0', name: 'EMT', openAt: null, closedAt: null, status: 'FINISHED'};
+
+  it('does not read a dateless FINISHED wave as the day having started', async () => {
+    const row = await liveRowOf(
+      stubbedPark([morning('CLOSED'), afternoon('CLOSED'), dormant]),
+    );
+    expect(row).toBeDefined();
+    expect(row.status).toBe('CLOSED');
+    expect(row.queue?.RETURN_TIME).toBeUndefined();
+  });
+
+  it('still counts a FINISHED wave that kept its dates', async () => {
+    const row = await liveRowOf(
+      stubbedPark([morning('FINISHED'), afternoon('CLOSED'), dormant]),
+    );
+    expect(row.queue?.RETURN_TIME).toEqual({state: 'TEMP_FULL', returnStart: null, returnEnd: null});
+    expect(row.status).toBe('OPERATING');
+  });
+
   it('finishes once the last wave is full', async () => {
     const row = await liveRowOf(
       stubbedPark([morning('FINISHED'), afternoon('FULL')], {nextWaveId: 'w2'}),

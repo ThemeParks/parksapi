@@ -1091,10 +1091,21 @@ export class DisneylandParis extends Destination {
       const ld = getOrCreate(q.queueContentId);
       if (!ld) continue;
 
-      // Overnight every wave reads CLOSED; publishing TEMP_FULL there would
-      // be wrong, so no RETURN_TIME until a wave has actually been in play.
-      const dayStarted = waves.some((w) =>
-        ['OPEN', 'FULL', 'FINISHED'].includes(waveStatus(w)));
+      // Overnight every wave that matters reads CLOSED; publishing TEMP_FULL
+      // there would be wrong, so no RETURN_TIME until a wave has actually
+      // been in play.
+      //
+      // A FINISHED wave only counts as evidence of that while it still holds
+      // its dates. The list is not today's waves: Disney keeps dormant rows
+      // in it, FINISHED with openAt and closedAt nulled, and retires the
+      // day's real waves into that same shape once they have passed. Reading
+      // a dateless one as history is enough to publish "temporarily full,
+      // come back later" through a night when nothing has opened.
+      const dayStarted = waves.some((w) => {
+        const status = waveStatus(w);
+        if (status === 'OPEN' || status === 'FULL') return true;
+        return status === 'FINISHED' && parseDLPDate(w?.openAt ?? null) !== null;
+      });
       if (!dayStarted) continue;
 
       const open = waveStatus(activeWave) === 'OPEN';
