@@ -55,6 +55,8 @@ class WalibiBase extends Destination {
   apiShortcode: string = '';
   /** Culture/language code for API requests */
   culture: string = 'en';
+  /** Locales merged into the attraction list on top of `culture` (see getAttractions) */
+  mergeCultures: string[] = ['nl', 'fr', 'en'];
   /** Destination-level entity ID */
   destinationSlug: string = '';
   /** Park-level entity ID */
@@ -73,10 +75,22 @@ class WalibiBase extends Destination {
     return `walibi:${this.destinationSlug}`;
   }
 
-  /** Extract the last path segment from a CMS path as a stable slug */
+  /**
+   * Extract the last path segment from a CMS path as a stable slug.
+   *
+   * The CMS derives that segment from the display name without sanitising it,
+   * so it can carry characters the entity id charset (`/^[\w.-]+$/`) rejects —
+   * "Pêche & Mignon" arrives as `p-che-&-mignon`. Validation runs over the
+   * whole entity list, so one such restaurant used to reject every Walibi
+   * Belgium entity, rides included. Fold the rejected runs into a single
+   * hyphen; clean slugs come through unchanged, so existing ids do not shift.
+   */
   private pathSlug(path: string | undefined): string | null {
     if (!path) return null;
-    return path.split('/').pop() || null;
+    const segment = path.split('/').pop();
+    if (!segment) return null;
+    const slug = segment.replace(/[^\w.-]+/g, '-').replace(/-{2,}/g, '-').replace(/^-|-$/g, '');
+    return slug || null;
   }
 
   // ── Header injection ─────────────────────────────────────────
@@ -95,10 +109,10 @@ class WalibiBase extends Destination {
   // ── HTTP Methods ─────────────────────────────────────────────
 
   @http({cacheSeconds: 86400})
-  async fetchAttractions(): Promise<HTTPObj> {
+  async fetchAttractions(culture: string = this.culture): Promise<HTTPObj> {
     return {
       method: 'GET',
-      url: `${this.baseURL}api/${this.apiShortcode}/${this.culture}/attractions.v1.json`,
+      url: `${this.baseURL}api/${this.apiShortcode}/${culture}/attractions.v1.json`,
       options: {json: true},
     } as any as HTTPObj;
   }
@@ -132,10 +146,47 @@ class WalibiBase extends Destination {
 
   // ── Cached Data ──────────────────────────────────────────────
 
-  @cache({ttlSeconds: 86400})
+  /**
+   * The CMS serves one attractions feed per locale and those feeds are
+   * maintained independently, so they drift. Walibi Belgium's `nl` and `en`
+   * feeds both omit VAMPIRE (waitingTimeName 34) while `fr` lists it — the
+   * ride had no entity and no live data at all, even though
+   * waitingtimes.v1.json reported it open throughout.
+   *
+   * So merge the other locales in, keyed on waitingTimeName. The configured
+   * culture is authoritative for names and coordinates; a fallback locale can
+   * only ever add a ride the primary feed never listed. Entries without a
+   * waitingTimeName are ignored here — buildEntityList drops them anyway, and
+   * the CMS path they would have to be keyed on is itself locale-specific.
+   */
+  @cache({ttlSeconds: 86400, cacheVersion: 2})
   async getAttractions(): Promise<AttractionPOI[]> {
-    const resp = await this.fetchAttractions();
-    return await resp.json() || [];
+    const attractions = [...await this.fetchAttractionList(this.culture)];
+    const seen = new Set(attractions.map(a => a.waitingTimeName).filter(Boolean));
+
+    for (const culture of this.mergeCultures) {
+      if (culture === this.culture) continue;
+
+      for (const poi of await this.fetchAttractionList(culture)) {
+        if (!poi.waitingTimeName || seen.has(poi.waitingTimeName)) continue;
+        seen.add(poi.waitingTimeName);
+        attractions.push(poi);
+        console.log(`[${this.constructor.name}] "${poi.title}" (${poi.waitingTimeName}) is missing from the '${this.culture}' feed, taken from '${culture}'`);
+      }
+    }
+
+    return attractions;
+  }
+
+  /** One locale's attraction feed. A locale that 404s or returns junk is skipped. */
+  private async fetchAttractionList(culture: string): Promise<AttractionPOI[]> {
+    try {
+      const resp = await this.fetchAttractions(culture);
+      const data = await resp.json();
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
   }
 
   @cache({ttlSeconds: 86400})
@@ -235,7 +286,10 @@ class WalibiBase extends Destination {
       .map(entry => {
         // Match wait time entry to attraction via waitingTimeName
         const attraction = attractions.find(a => a.waitingTimeName === entry.id);
-        if (!attraction) return null;
+        if (!attraction) {
+          this.warnOrphanWaitTime(entry.id);
+          return null;
+        }
 
         if (SKIP_STATUSES.has(entry.status)) return null;
         const status = mapStatus(entry.status);
@@ -256,6 +310,19 @@ class WalibiBase extends Destination {
       })
       .filter((x): x is LiveData => x !== null);
   }
+
+  /**
+   * A wait time whose id matches no attraction in any locale cannot be
+   * published — we have no name for it. That used to happen silently; now it
+   * says so once per id, so the next CMS gap surfaces without a bug report.
+   */
+  private warnOrphanWaitTime(id: string): void {
+    if (this.warnedOrphanWaitTimes.has(id)) return;
+    this.warnedOrphanWaitTimes.add(id);
+    console.log(`[${this.constructor.name}] wait time id ${id} matches no attraction in any of [${[this.culture, ...this.mergeCultures].join(', ')}] — not published`);
+  }
+
+  private readonly warnedOrphanWaitTimes = new Set<string>();
 
   // ── Schedules ────────────────────────────────────────────────
 
@@ -362,7 +429,11 @@ export class WalibiBelgium extends WalibiBase {
     this.addConfigPrefix('WALIBIBELGIUM');
     this.baseURL = this.baseURL || 'https://www.walibi.be/';
     this.apiShortcode = 'wbe';
-    this.culture = 'nl';
+    // Wavre is francophone and the `fr` feed is the better maintained one —
+    // it is the only locale that lists VAMPIRE. Restaurant path slugs and
+    // attraction waitingTimeNames are identical across locales, so this
+    // changes display names only, not entity ids.
+    this.culture = 'fr';
     this.destinationSlug = 'walibibelgium';
     this.parkSlug = 'walibibelgiumpark';
     this.parkName = 'Walibi Belgium';
