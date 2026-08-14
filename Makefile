@@ -19,6 +19,11 @@ RUN      = $(COMPOSE) run --rm $(SERVICE)
 export UID := $(shell id -u)
 export GID := $(shell id -g)
 
+# Compose otherwise derives the project from the directory basename, so two
+# checkouts both named parksapi share one project: `make clean` in a review
+# clone would tear down a `make dev` running in the main tree.
+export COMPOSE_PROJECT_NAME := parksapi-$(shell printf '%s' '$(CURDIR)' | sha256sum | cut -c1-8)
+
 # Optional: extra flags forwarded to the test harness, e.g.
 #   make dev ARGS="--skip-schedules --verbose"
 ARGS ?=
