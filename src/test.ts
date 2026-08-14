@@ -182,8 +182,8 @@ function printSummary(summaries: ParkTestSummary[]): void {
       const counts = summary.results.reduce(
         (acc, result) => {
           const orphans = (result.details?.orphanIds ?? []) as string[];
-          if (result.testName === 'getLiveData') acc.live = orphans.length;
-          if (result.testName === 'getSchedules') acc.schedules = orphans.length;
+          if (result.testName === 'getLiveData') acc.live += orphans.length;
+          if (result.testName === 'getSchedules') acc.schedules += orphans.length;
           return acc;
         },
         {live: 0, schedules: 0},
@@ -196,8 +196,8 @@ function printSummary(summaries: ParkTestSummary[]): void {
     console.log(`Rows keyed to unpublished entities (${withOrphans.length} park(s)):`);
     withOrphans.forEach(({parkName, live, schedules}) => {
       const parts = [
-        live > 0 ? `${live} live` : null,
-        schedules > 0 ? `${schedules} schedule` : null,
+        live > 0 ? `${live} live row${live === 1 ? '' : 's'}` : null,
+        schedules > 0 ? `${schedules} schedule row${schedules === 1 ? '' : 's'}` : null,
       ].filter(Boolean).join(', ');
       console.log(`  ⚠ ${parkName.padEnd(40)} ${parts}`);
     });

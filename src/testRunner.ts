@@ -8,28 +8,7 @@ import {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {getQueueLength} from './http.js';
 import {tracing} from './tracing.js';
 import {typeDetector} from './typeDetector.js';
-
-/**
- * Distinct ids in `rows` that no published entity claims.
- *
- * Live data or schedules keyed to an id `getEntities()` never emits cannot be
- * looked up by a consumer, so they are dead weight in the output. Usually it
- * means a build path is reading a wider upstream feed than the entity list.
- *
- * Returns nothing when `publishedIds` is empty, so a failed or skipped
- * getEntities() reports no orphans rather than every row.
- */
-export function findOrphanIds(
-  rows: Array<{id?: string}>,
-  publishedIds: ReadonlySet<string>,
-): string[] {
-  if (publishedIds.size === 0) return [];
-  const orphans = new Set<string>();
-  for (const row of rows) {
-    if (row?.id && !publishedIds.has(row.id)) orphans.add(row.id);
-  }
-  return [...orphans];
-}
+import {findOrphanIds} from './orphanCheck.js';
 
 export type TestResult = {
   testName: string;
