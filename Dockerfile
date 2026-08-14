@@ -18,7 +18,8 @@ USER node
 # --ignore-scripts skips the root "prepare": "tsc" hook, which cannot run yet
 # (no sources at this point) and is not needed: tsx executes TypeScript directly.
 COPY --chown=node:node package.json package-lock.json ./
-RUN npm ci --ignore-scripts && npm cache clean --force
+RUN npm ci --ignore-scripts && npm cache clean --force \
+    && sha256sum package-lock.json | cut -d' ' -f1 > node_modules/.parksapi-deps
 
 # Baked-in sources, so the image is usable without a bind mount too.
 COPY --chown=node:node . .
