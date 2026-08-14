@@ -11,6 +11,7 @@ import {
   LiveData,
   EntitySchedule,
   LanguageCode,
+  TagData,
 } from '@themeparks/typelib';
 import {formatInTimezone, addDays, constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
@@ -82,6 +83,15 @@ const SHOW_SUBTYPES = new Set([
  * constructDateTime and throw. */
 const TIME_OF_DAY = /^(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?|24:00(?::00)?)$/;
 
+/** Plausible band for a rider height restriction; outside it is bad data
+ * (a mixed-unit id like `1_20cm` would otherwise round down to 1cm). */
+const MIN_HEIGHT_CM = 40;
+const MAX_HEIGHT_CM = 200;
+
+/** How long a wait-feed single-rider sighting keeps the queue's overnight
+ * baseline alive while the 12h POI cache lags. */
+const SINGLE_RIDER_RECENT_SECONDS = 48 * 60 * 60;
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -110,13 +120,43 @@ type DLPPOIEntity = {
   coordinates?: DLPCoordinate[];
   schedules?: DLPScheduleEntry[];
   subType?: string;
-  // Extended fields from detailed queries
-  height?: Array<{ id: string; value: string; iconFont?: string }>;
-  minimumHeight?: string;
+  duration?: { hours?: number; minutes?: number };
+  // Attraction-only, from the inline fragment in fetchPOI
+  height?: Array<{ id: string }>;
   physicalConsiderations?: Array<{ id: string }>;
   interests?: Array<{ id: string }>;
-  duration?: { hours?: number; minutes?: number };
+  singleRider?: boolean;
 };
+
+/**
+ * Ids of a POI facet list. GraphQL lists may hold nulls, and the whole field
+ * is absent on every type but Attraction, so anything unusable is dropped
+ * rather than allowed to fail the entity build.
+ */
+function facetIds(list: Array<{id?: string}> | undefined): Set<string> {
+  if (!Array.isArray(list)) return new Set();
+  return new Set(
+    list.map((facet) => facet?.id).filter((id): id is string => typeof id === 'string'),
+  );
+}
+
+/**
+ * Parse a height facet id into centimetres: `81cm` → 81, `1_20m` → 120.
+ * Returns undefined for `anyHeight`, for ids in any other shape, and for
+ * values outside a plausible rider height.
+ *
+ * The facet's companion `value` string is localised — the same restriction
+ * reads `1.20 m` in en-gb and `1,20 m` in fr-fr — so the id is the only
+ * market-independent source.
+ */
+function parseHeightCm(facetId: string): number | undefined {
+  const match = /^(\d+(?:_\d+)?)(cm|m)$/.exec(facetId);
+  if (!match) return undefined;
+  const value = Number(match[1].replace('_', '.'));
+  if (!Number.isFinite(value)) return undefined;
+  const cm = Math.round(match[2] === 'm' ? value * 100 : value);
+  return cm >= MIN_HEIGHT_CM && cm <= MAX_HEIGHT_CM ? cm : undefined;
+}
 
 type DLPWaitTimeEntry = {
   entityId: string;
@@ -368,6 +408,18 @@ export class DisneylandParis extends Destination {
         query: `query activities($market: String!) {
           Attraction: activities(market: $market, types: "Attraction") {
             ${this.entityFields}
+            ... on Attraction {
+              height {
+                id
+              }
+              physicalConsiderations {
+                id
+              }
+              interests {
+                id
+              }
+              singleRider
+            }
           }
           DiningEvent: activities(market: $market, types: "DiningEvent") {
             ${this.entityFields}
@@ -417,7 +469,7 @@ export class DisneylandParis extends Destination {
   /**
    * Get POI data (cached 12h)
    */
-  @cache({ttlSeconds: 43200, cacheVersion: 2})
+  @cache({ttlSeconds: 43200, cacheVersion: 4})
   async getPOIData(): Promise<Record<string, DLPPOIEntity[]>> {
     const resp = await this.fetchPOI();
     const data = await resp.json();
@@ -652,20 +704,33 @@ export class DisneylandParis extends Destination {
   }
 
   /**
-   * Parse height string into centimeters.
-   * Handles "1.2 m" -> 120, "102 cm" -> 102
+   * Build the tags for an attraction. The caller guards on entity type, so
+   * a record of another type carrying these fields can never grow tags.
    */
-  private parseHeightCm(heightStr: string): number | undefined {
-    const match = /([\d.]+)\s*(\w+)/.exec(heightStr);
-    if (!match) return undefined;
+  private buildTags(poi: DLPPOIEntity): TagData[] {
+    const tags: TagData[] = [];
 
-    const value = parseFloat(match[1]);
-    const unit = match[2].toLowerCase();
+    const heightCm = [...facetIds(poi.height)]
+      .map((id) => parseHeightCm(id))
+      .find((cm) => cm !== undefined);
+    if (heightCm !== undefined) {
+      tags.push(TagBuilder.minimumHeight(heightCm, 'cm'));
+    }
 
-    if (unit === 'm') return Math.round(value * 100);
-    if (unit === 'cm') return Math.round(value);
+    if (facetIds(poi.physicalConsiderations).has('expectantMothersMayNotRide')) {
+      tags.push(TagBuilder.unsuitableForPregnantPeople());
+    }
 
-    return undefined;
+    if (poi.singleRider === true) {
+      tags.push(TagBuilder.singleRider());
+    }
+
+    const interests = facetIds(poi.interests);
+    if (interests.has('disney-premier-access-one')) tags.push(TagBuilder.paidReturnTime());
+    if (interests.has('guestMayGetSplashed')) tags.push(TagBuilder.mayGetWet());
+    if (interests.has('PhotoPass')) tags.push(TagBuilder.onRidePhoto());
+
+    return tags;
   }
 
   /**
@@ -804,34 +869,7 @@ export class DisneylandParis extends Destination {
         (entity as Entity & {attractionType?: string}).attractionType = 'SHOW';
       }
 
-      // Build tags
-      const tags: any[] = [];
-
-      // Height restriction
-      if (poi.minimumHeight) {
-        const heightCm = this.parseHeightCm(poi.minimumHeight);
-        if (heightCm && heightCm > 0) {
-          tags.push(TagBuilder.minimumHeight(heightCm, 'cm'));
-        }
-      }
-      // Also check height array (older format)
-      if (poi.height) {
-        for (const h of poi.height) {
-          if (h.id === 'anyHeight') continue;
-          const heightCm = this.parseHeightCm(h.value);
-          if (heightCm && heightCm > 0) {
-            tags.push(TagBuilder.minimumHeight(heightCm, 'cm'));
-            break; // Only one height tag
-          }
-        }
-      }
-
-      // Pregnancy
-      if (poi.physicalConsiderations?.some((c) => c.id === 'expectantMothersMayNotRide')) {
-        tags.push(TagBuilder.unsuitableForPregnantPeople());
-      }
-
-      entity.tags = tags.filter(Boolean);
+      entity.tags = entityType === 'ATTRACTION' ? this.buildTags(poi) : [];
 
       // Store show duration for live data
       if (entityType === 'SHOW' && poi.duration) {
@@ -1031,20 +1069,7 @@ export class DisneylandParis extends Destination {
     // publishes in the wait feed. They'd otherwise inherit a misleading
     // synthetic CLOSED + STANDBY:null all day. Instead we emit
     // OPERATING/CLOSED derived from today's POI schedule (or park-hours
-    // fallback) and no queue. Detection is data-driven: persist a 30-day
-    // cache of IDs that have ever appeared in the wait feed, mirroring the
-    // singleRiderCapable pattern below.
-    //
-    // Single-rider eligibility isn't on POI, so remember IDs we've seen
-    // with `singleRider.isAvailable === true` and re-emit SINGLE_RIDER
-    // null for them while the feed is asleep.
-    const srCacheKey = `${this.getCacheKeyPrefix()}:dlp:singleRiderCapable`;
-    const previouslySeenSR = CacheLib.get(srCacheKey) as string[] | null;
-    const seenSR = new Set<string>(Array.isArray(previouslySeenSR) ? previouslySeenSR : []);
-    for (const wt of waitTimes) {
-      if (wt.singleRider?.isAvailable === true && wt.entityId) seenSR.add(wt.entityId);
-    }
-    CacheLib.set(srCacheKey, [...seenSR], 30 * 24 * 60 * 60); // 30 days
+    // fallback) and no queue.
 
     // Wait-feed history: which attractions are queue-bearing? Walkthroughs
     // never appear here. 30-day TTL covers normal refurb cycles.
@@ -1057,6 +1082,25 @@ export class DisneylandParis extends Destination {
       if (wt.entityId) queueBearingIds.add(ID_ALIASES[wt.entityId] ?? wt.entityId);
     }
     CacheLib.set(queueHistoryKey, [...queueBearingIds], 30 * 24 * 60 * 60); // 30 days
+
+    // Recently-seen single-rider ids, OR'd with the POI facet below. Entries
+    // carry their own timestamp rather than being re-seeded, so retirements
+    // actually lapse.
+    const srRecentKey = `${this.getCacheKeyPrefix()}:dlp:singleRiderRecent`;
+    const previousSR = CacheLib.get(srRecentKey) as Record<string, number> | null;
+    const srCutoff = Date.now() - SINGLE_RIDER_RECENT_SECONDS * 1000;
+    const singleRiderRecent: Record<string, number> = {};
+    if (previousSR && typeof previousSR === 'object') {
+      for (const [id, seenAt] of Object.entries(previousSR)) {
+        if (typeof seenAt === 'number' && seenAt > srCutoff) singleRiderRecent[id] = seenAt;
+      }
+    }
+    for (const wt of waitTimes) {
+      if (wt.entityId && wt.singleRider?.isAvailable === true) {
+        singleRiderRecent[wt.entityId] = Date.now();
+      }
+    }
+    CacheLib.set(srRecentKey, singleRiderRecent, SINGLE_RIDER_RECENT_SECONDS);
 
     const attractionPois = emittablePois.filter(
       (poi) => this.mapEntityType(poi) === 'ATTRACTION',
@@ -1114,7 +1158,8 @@ export class DisneylandParis extends Destination {
         }
         if (!ld.queue) ld.queue = {};
         if (!ld.queue.STANDBY) ld.queue.STANDBY = {waitTime: null};
-        if (!ld.queue.SINGLE_RIDER && seenSR.has(id)) {
+        if (!ld.queue.SINGLE_RIDER &&
+          (poi.singleRider === true || singleRiderRecent[id] !== undefined)) {
           ld.queue.SINGLE_RIDER = {waitTime: null};
         }
       } else if (!ld) {
