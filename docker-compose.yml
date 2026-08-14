@@ -1,34 +1,31 @@
-# Shared definition — the two services differ only by what they run and by
-# whether they publish a port.
+x-env: &env
+  TZ: ${TZ:-UTC}
+  # npm needs a writable HOME for uids that have no passwd entry
+  HOME: /tmp
+  npm_config_cache: /tmp/.npm
+
 x-parksapi: &parksapi
   build:
     context: .
-  image: parksapi-dev
   working_dir: /app
+  user: "${UID:-1000}:${GID:-1000}"
   # :z = SELinux shared relabel (required on Fedora for bind mounts)
   volumes:
     - .:/app:z
-    # keep container-installed node_modules out of the host tree
-    - parksapi_node_modules:/app/node_modules
-  environment:
-    TZ: ${TZ:-UTC}
-  tty: true
+  environment: *env
 
 services:
-  # Default service: the harness, the tests, a shell. Publishes nothing.
   parksapi:
     <<: *parksapi
-    command: ["npm", "run", "dev"]
+    command: ["npm", "run", "dev", "--", "--list"]
 
-  # The web admin, and the only thing that binds a port. Behind a profile so
-  # it is inert unless asked for — `compose up` would otherwise take 8888 on
-  # every developer running the harness.
   web:
     <<: *parksapi
     profiles: ["web"]
+    environment:
+      <<: *env
+      PORT: "${WEB_PORT:-8888}"
+      ENSURE_WEB_UI: "1"
     ports:
-      - "${WEB_PORT:-8888}:8888"
+      - "${WEB_PORT:-8888}:${WEB_PORT:-8888}"
     command: ["npm", "run", "web"]
-
-volumes:
-  parksapi_node_modules:
