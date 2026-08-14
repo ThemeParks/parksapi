@@ -80,17 +80,23 @@ class WalibiBase extends Destination {
    *
    * The CMS derives that segment from the display name without sanitising it,
    * so it can carry characters the entity id charset (`/^[\w.-]+$/`) rejects —
-   * "Pêche & Mignon" arrives as `p-che-&-mignon`. Validation runs over the
-   * whole entity list, so one such restaurant used to reject every Walibi
-   * Belgium entity, rides included. Fold the rejected runs into a single
-   * hyphen; clean slugs come through unchanged, so existing ids do not shift.
+   * "Pêche & Mignon" arrives as `p-che-&-mignon`, which trips the dev
+   * harness's id check (`src/testRunner.ts`) and takes the whole Walibi
+   * Belgium entity list down with it.
+   *
+   * Replace only the runs the charset rejects. Anything already legal is
+   * untouched by construction — including the trailing hyphens the CMS emits
+   * (`wild-rock-caf-`, `stardocks-caf-`), which are live entity ids today and
+   * must not shift. Collapsing or trimming hyphens as well would rename those
+   * two restaurants and could silently merge distinct slugs into one id.
    */
   private pathSlug(path: string | undefined): string | null {
     if (!path) return null;
     const segment = path.split('/').pop();
     if (!segment) return null;
-    const slug = segment.replace(/[^\w.-]+/g, '-').replace(/-{2,}/g, '-').replace(/^-|-$/g, '');
-    return slug || null;
+    // A non-empty segment always sanitises to a non-empty slug: every rejected
+    // run becomes a hyphen, which the charset accepts.
+    return segment.replace(/[^\w.-]+/g, '-');
   }
 
   // ── Header injection ─────────────────────────────────────────
@@ -149,15 +155,17 @@ class WalibiBase extends Destination {
   /**
    * The CMS serves one attractions feed per locale and those feeds are
    * maintained independently, so they drift. Walibi Belgium's `nl` and `en`
-   * feeds both omit VAMPIRE (waitingTimeName 34) while `fr` lists it — the
-   * ride had no entity and no live data at all, even though
-   * waitingtimes.v1.json reported it open throughout.
+   * feeds both omit VAMPIRE (waitingTimeName 34) while `fr` lists it, which is
+   * how the drift was found — that park is now configured on `fr`, so the
+   * merge is no longer what recovers VAMPIRE. What it does recover today is Le
+   * Galion and Tam Tam Aventure on Walibi Rhône-Alpes, absent from `fr` but
+   * listed elsewhere; and it makes the next such gap a non-event.
    *
-   * So merge the other locales in, keyed on waitingTimeName. The configured
-   * culture is authoritative for names and coordinates; a fallback locale can
-   * only ever add a ride the primary feed never listed. Entries without a
-   * waitingTimeName are ignored here — buildEntityList drops them anyway, and
-   * the CMS path they would have to be keyed on is itself locale-specific.
+   * Merge keyed on waitingTimeName — the only id stable across locales; title
+   * and path are both locale-specific. The configured culture is authoritative
+   * for names and coordinates; a fallback locale can only ever add a ride the
+   * primary feed never listed, never overwrite one. Entries without a
+   * waitingTimeName are ignored here — buildEntityList drops them anyway.
    */
   @cache({ttlSeconds: 86400, cacheVersion: 2})
   async getAttractions(): Promise<AttractionPOI[]> {
@@ -171,25 +179,41 @@ class WalibiBase extends Destination {
         if (!poi.waitingTimeName || seen.has(poi.waitingTimeName)) continue;
         seen.add(poi.waitingTimeName);
         attractions.push(poi);
-        console.log(`[${this.constructor.name}] "${poi.title}" (${poi.waitingTimeName}) is missing from the '${this.culture}' feed, taken from '${culture}'`);
+        console.warn(`[${this.constructor.name}] "${poi.title}" (${poi.waitingTimeName}) is missing from the '${this.culture}' feed, taken from '${culture}'`);
       }
     }
 
     return attractions;
   }
 
-  /** One locale's attraction feed. A locale that 404s or returns junk is skipped. */
+  /**
+   * One locale's attraction feed.
+   *
+   * A *fallback* locale that fails is skipped — the merge is a bonus and must
+   * not be able to sink the poll. The *configured* locale is not optional: a
+   * transient 5xx there has to propagate so the cycle is skipped, exactly as
+   * it did before the merge existed. Swallowing it would publish a clean,
+   * empty, wrong park and pin that `[]` in the 24h cache for every process
+   * sharing it.
+   *
+   * A locale the CMS doesn't serve answers 200 with `[]`, not 404, so an
+   * unknown locale costs a request and adds nothing rather than throwing.
+   */
   private async fetchAttractionList(culture: string): Promise<AttractionPOI[]> {
     try {
       const resp = await this.fetchAttractions(culture);
       const data = await resp.json();
       return Array.isArray(data) ? data : [];
-    } catch {
+    } catch (err) {
+      if (culture === this.culture) throw err;
       return [];
     }
   }
 
-  @cache({ttlSeconds: 86400})
+  // cacheVersion 2: the restaurants feed follows `culture`, and Walibi Belgium
+  // moved nl -> fr. Without the bump the park would serve `fr` attractions
+  // next to `nl` restaurant names and coordinates for up to 24h after deploy.
+  @cache({ttlSeconds: 86400, cacheVersion: 2})
   async getRestaurants(): Promise<AttractionPOI[]> {
     const resp = await this.fetchRestaurants();
     return await resp.json() || [];
@@ -282,12 +306,17 @@ class WalibiBase extends Destination {
       this.getWaitTimes(),
     ]);
 
-    return waitTimes
+    const orphans: string[] = [];
+
+    const live = waitTimes
       .map(entry => {
         // Match wait time entry to attraction via waitingTimeName
         const attraction = attractions.find(a => a.waitingTimeName === entry.id);
         if (!attraction) {
-          this.warnOrphanWaitTime(entry.id);
+          if (!this.warnedOrphanWaitTimes.has(entry.id)) {
+            this.warnedOrphanWaitTimes.add(entry.id);
+            orphans.push(entry.id);
+          }
           return null;
         }
 
@@ -309,17 +338,27 @@ class WalibiBase extends Destination {
         return ld;
       })
       .filter((x): x is LiveData => x !== null);
+
+    this.warnOrphanWaitTimes(orphans);
+    return live;
   }
 
   /**
    * A wait time whose id matches no attraction in any locale cannot be
-   * published — we have no name for it. That used to happen silently; now it
-   * says so once per id, so the next CMS gap surfaces without a bug report.
+   * published — we have no name for it. That used to happen silently.
+   *
+   * Most of these are permanent feed junk (Bellewaerde alone carries ~68
+   * unmapped ids), so one line per id would bury a genuinely new CMS gap in a
+   * wall of noise. Summarise instead: one line per poll listing only ids not
+   * already reported, so the steady state is silent and a new gap is a short
+   * line of its own.
    */
-  private warnOrphanWaitTime(id: string): void {
-    if (this.warnedOrphanWaitTimes.has(id)) return;
-    this.warnedOrphanWaitTimes.add(id);
-    console.log(`[${this.constructor.name}] wait time id ${id} matches no attraction in any of [${[this.culture, ...this.mergeCultures].join(', ')}] — not published`);
+  private warnOrphanWaitTimes(ids: string[]): void {
+    if (!ids.length) return;
+    const locales = [...new Set([this.culture, ...this.mergeCultures])].join(', ');
+    const shown = ids.slice(0, 10).join(', ');
+    const rest = ids.length > 10 ? ` (+${ids.length - 10} more)` : '';
+    console.warn(`[${this.constructor.name}] ${ids.length} wait time id(s) match no attraction in [${locales}] — not published: ${shown}${rest}`);
   }
 
   private readonly warnedOrphanWaitTimes = new Set<string>();
