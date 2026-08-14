@@ -118,6 +118,9 @@ describe('DLP virtual queue', () => {
       stubbedPark([morning('FULL'), afternoon('CLOSED')], {nextWaveId: 'w1'}),
     );
     expect(row.queue?.RETURN_TIME).toEqual({state: 'TEMP_FULL', returnStart: null, returnEnd: null});
+    // "Come back later" says the experience is running, so the seeded CLOSED
+    // would contradict the queue it is published next to.
+    expect(row.status).toBe('OPERATING');
   });
 
   it('publishes no return time before the first wave of the day has opened', async () => {
@@ -132,11 +135,14 @@ describe('DLP virtual queue', () => {
       stubbedPark([morning('FINISHED'), afternoon('FULL')], {nextWaveId: 'w2'}),
     );
     expect(row.queue?.RETURN_TIME).toEqual({state: 'FINISHED', returnStart: null, returnEnd: null});
+    // Nothing left to open, so the seeded CLOSED is the honest answer.
+    expect(row.status).toBe('CLOSED');
   });
 
   it('finishes when every wave is done', async () => {
     const row = await liveRowOf(stubbedPark([morning('FINISHED'), afternoon('FINISHED')]));
     expect(row.queue?.RETURN_TIME).toEqual({state: 'FINISHED', returnStart: null, returnEnd: null});
+    expect(row.status).toBe('CLOSED');
   });
 
   it('never claims availability for a status it does not recognise', async () => {

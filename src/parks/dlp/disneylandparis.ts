@@ -1109,12 +1109,14 @@ export class DisneylandParis extends Destination {
         // A bookable window means the experience is running.
         ld.status = 'OPERATING';
         ld.queue.RETURN_TIME = this.buildReturnTimeQueue('AVAILABLE', from, until);
+      } else if (waves.some((w) => waveStatus(w) === 'CLOSED')) {
+        // "Full, come back later" says the experience is running too — a
+        // later wave is still scheduled to open.
+        ld.status = 'OPERATING';
+        ld.queue.RETURN_TIME = this.buildReturnTimeQueue('TEMP_FULL', null, null);
       } else {
-        ld.queue.RETURN_TIME = this.buildReturnTimeQueue(
-          waves.some((w) => waveStatus(w) === 'CLOSED') ? 'TEMP_FULL' : 'FINISHED',
-          null,
-          null,
-        );
+        // Nothing left to open today, so the seeded CLOSED is the truth.
+        ld.queue.RETURN_TIME = this.buildReturnTimeQueue('FINISHED', null, null);
       }
     }
 
