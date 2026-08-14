@@ -1,17 +1,28 @@
+# Docker matches per path component, so patterns need **/ to catch nested
+# files. Kept in sync with .gitignore.
 .git
-node_modules
-web-ui/node_modules
-web-ui/dist
-dist
+**/node_modules
+**/dist
 coverage
 docs
 datacache
 snapshots
+scripts
+.vscode
+.idea
+.cursor
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
 .env
 cache.sqlite
 cache.sqlite-wal
 cache.sqlite-shm
-*.har
+**/*.har
+**/testout_*
+**/temp*.json
+**/temp*.js
 http-dump.jsonl
 output.log
-testout_*
+entity-map-viewer.html
+opencode.json
+VQUEUE_FRAMEWORK_SPEC.md
