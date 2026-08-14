@@ -72,6 +72,16 @@ function stubbedPark(): DisneylandParis {
         hideFunctionality: 'Hide from Web List + Mobile App',
       },
       {
+        // "Hide from the Mobile App" marks content pages, not venues, so it is
+        // not a hide rule. Correcting it into one would drop this show.
+        id: 'P1G108',
+        name: 'The Lion King: Rhythms of the Pride Lands',
+        type: 'Entertainment',
+        subType: 'Stage Show',
+        location: {id: 'P1'},
+        hideFunctionality: 'Hide from the Mobile App',
+      },
+      {
         // The published PhilharMagic record.
         id: 'P1G103',
         name: 'Mickey’s PhilharMagic',
@@ -159,5 +169,10 @@ describe('DLP visibility exceptions', () => {
     expect(entities.find((e) => e.id === 'P1G107')).toBeUndefined();
     expect(entities.find((e) => e.id === 'P1DA14-OLD')).toBeUndefined();
     expect(entities.find((e) => e.id === 'P1JF00')).toBeUndefined();
+  });
+
+  it('publishes a show flagged "Hide from the Mobile App"', async () => {
+    const entities = await stubbedPark().getEntities();
+    expect(entities.find((e) => e.id === 'P1G108')?.entityType).toBe('SHOW');
   });
 });

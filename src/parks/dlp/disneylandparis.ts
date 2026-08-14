@@ -57,11 +57,16 @@ const ENTITY_TYPE_OVERRIDES: Record<string, Entity['entityType']> = {
   P1G103: 'ATTRACTION', // PhilharMagic is an attraction across Disney resorts
 };
 
-/** Hide rules that exclude entities from the POI list */
+/**
+ * Hide rules that exclude entities from the POI list.
+ *
+ * `Hide from the Mobile App` is deliberately not one of them. Every record
+ * carrying it is an off-site or guest-information page, not a venue in
+ * either park.
+ */
 const HIDE_RULES = new Set([
   'Hide from Web List + Mobile App',
   'Hide from the Service',
-  'Hide from Mobile App',
 ]);
 
 /** Entertainment subtypes that map to SHOW entity type */
@@ -71,6 +76,9 @@ const SHOW_SUBTYPES = new Set([
   'Atmosphere',
   'Parade',
 ]);
+
+/** Wall-clock time the schedule feed publishes, e.g. `21:30:00` */
+const TIME_OF_DAY = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 
 // ============================================================================
 // Types
@@ -686,6 +694,27 @@ export class DisneylandParis extends Destination {
   }
 
   /**
+   * Ids the entity list publishes, or null when POI is unavailable — a
+   * GraphQL 200-with-errors body reaches getPOIData as an empty object with
+   * no exception, and 12h of cache would pin it. Callers filtering on the
+   * result must treat null as "do not filter", not "filter everything out".
+   */
+  private async getPublishedEntityIds(): Promise<Set<string> | null> {
+    try {
+      const pois = await this.getEmittablePOIEntities();
+      if (pois.length === 0) return null;
+      const ids = new Set<string>(pois.map((poi) => poi.id));
+      // The parks and the destination are published but are not POI records.
+      ids.add('P1');
+      ids.add('P2');
+      ids.add('dlp');
+      return ids;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Map DLP wait time status to our status
    */
   private mapStatus(status: string | null): string {
@@ -1095,6 +1124,13 @@ export class DisneylandParis extends Destination {
     const now = new Date();
     const scheduleMap = new Map<string, any[]>();
 
+    // The schedule feed reaches well past the POI set we publish — hotel and
+    // Disney Village restaurants, character meets, records the visibility
+    // filter drops. Hours for an entity we never emit can't be attached to
+    // anything, so the published list is the authority on what to keep.
+    // When POI is unavailable, schedules publish unfiltered rather than empty.
+    const publishedIds = await this.getPublishedEntityIds();
+
     // Fetch 60 days of schedule data
     for (let i = 0; i < 60; i++) {
       const date = addDays(now, i);
@@ -1112,18 +1148,28 @@ export class DisneylandParis extends Destination {
       if (!dateData) continue;
 
       for (const entity of dateData) {
-        if (!entity.schedules) continue;
-        if (IGNORE_ENTITIES.has(entity.id)) continue;
+        if (!Array.isArray(entity?.schedules)) continue;
+        // Alias before filtering, not after. The hidden PhilharMagic twin's
+        // rows fold onto a published id, so testing the raw id against the
+        // published set would drop them before the alias could move them.
         const scheduleId = ID_ALIASES[entity.id] ?? entity.id;
+        if (publishedIds && !publishedIds.has(scheduleId)) continue;
 
         for (const hours of entity.schedules) {
-          if (hours.status === 'REFURBISHMENT' || hours.status === 'CLOSED') continue;
+          if (hours?.status === 'REFURBISHMENT' || hours?.status === 'CLOSED') continue;
+
+          // These arrive as plain GraphQL strings, and constructDateTime throws
+          // on anything it can't parse — which costs every entity all 60 days,
+          // not just this row.
+          if (!TIME_OF_DAY.test(hours?.startTime) || !TIME_OF_DAY.test(hours?.endTime)) continue;
 
           const openTime = constructDateTime(dateString, hours.startTime, this.timezone);
           let closeTime = constructDateTime(dateString, hours.endTime, this.timezone);
 
-          // Handle midnight crossing: if close < open, add 1 day to close
-          if (hours.endTime < hours.startTime) {
+          // Handle midnight crossing: if close < open, add 1 day to close.
+          // Compared on HH:MM so a mixed HH:MM / HH:MM:SS pair can't
+          // fabricate a rollover.
+          if (hours.endTime.slice(0, 5) < hours.startTime.slice(0, 5)) {
             const nextDay = addDays(new Date(`${dateString}T00:00:00`), 1);
             const nextDayStr = formatInTimezone(nextDay, this.timezone, 'date');
             const [nmm, ndd, nyyyy] = nextDayStr.split('/');
