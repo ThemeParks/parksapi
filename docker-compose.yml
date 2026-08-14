@@ -1,20 +1,14 @@
-x-env: &env
-  TZ: ${TZ:-UTC}
-  # npm needs a writable HOME for uids that have no passwd entry
-  HOME: /tmp
-  npm_config_cache: /tmp/.npm
-
-x-parksapi: &parksapi
-  build:
-    context: .
-  working_dir: /app
-  user: "${UID:-1000}:${GID:-1000}"
-  # :z = SELinux shared relabel (required on Fedora for bind mounts)
-  volumes:
-    - .:/app:z
-  environment: *env
-
 services:
   parksapi:
-    <<: *parksapi
+    build:
+      context: .
+    working_dir: /app
+    user: "${UID:-1000}:${GID:-1000}"
+    # :z = SELinux shared relabel, required for bind mounts on Fedora. It
+    # relabels the whole tree, .git included, and the labels outlive the
+    # container.
+    volumes:
+      - .:/app:z
+    environment:
+      TZ: ${TZ:-UTC}
     command: ["npm", "run", "dev", "--", "--list"]
