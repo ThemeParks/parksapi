@@ -45,6 +45,35 @@ const categoryToEntityType: Record<string, Entity['entityType'] | undefined> = {
   'PHANTASIALAND_HOTELS_RESTAURANTS': 'RESTAURANT',
 };
 
+/**
+ * How old a signage row may be and still count as an observation.
+ *
+ * Rows the feed is still reporting on are regenerated every few minutes, so
+ * in practice a live row is seconds old. Retired rows are frozen: the
+ * youngest observed is 54 days, the oldest 2.7 years. A day is far from both
+ * edges, and leaves room for the feed to pause overnight without discarding
+ * genuine observations.
+ */
+const MAX_SIGNAGE_AGE_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Milliseconds since a signage row was last regenerated, or null when it
+ * carries no readable timestamp.
+ *
+ * Null means "cannot tell", and the caller keeps the row: dropping on missing
+ * evidence would silently empty the feed if the shape ever changes. All three
+ * fields are consulted so a row is only considered stale when every timestamp
+ * agrees it is.
+ */
+function signageRowAge(entry: any, nowMs: number): number | null {
+  const stamps = [entry?.updatedAt, entry?.createdAt, entry?.updatedRow]
+    .map((value) => (typeof value === 'string' ? Date.parse(value) : NaN))
+    .filter((ms) => Number.isFinite(ms));
+
+  if (stamps.length === 0) return null;
+  return nowMs - Math.max(...stamps);
+}
+
 @destinationController({category: 'Phantasialand'})
 export class Phantasialand extends Destination {
   @config
@@ -458,9 +487,19 @@ export class Phantasialand extends Destination {
   protected async buildLiveData(): Promise<LiveData[]> {
     const signage = await this.getSignage();
     const liveData: LiveData[] = [];
+    const nowMs = Date.now();
 
     for (const entry of signage) {
       if (!entry.poiId) continue;
+
+      // The signage feed regenerates a row for every venue it is still
+      // reporting on, and never deletes the ones it has stopped reporting.
+      // Retired rows keep their original timestamp and their last observed
+      // state forever, so publishing them states as current something last
+      // seen months ago — Mystic Winter Castle was being published OPERATING
+      // with nine showtimes in August off a February observation.
+      const age = signageRowAge(entry, nowMs);
+      if (age !== null && age > MAX_SIGNAGE_AGE_MS) continue;
 
       const entityId = String(entry.poiId);
       const ld: LiveData = {id: entityId, status: 'CLOSED'} as LiveData;
