@@ -43,7 +43,7 @@ deps: ## Force a dependency reinstall from the lockfile
 ##@ Running the harness
 
 .PHONY: dev
-dev: ## Test every park (long: 80 destinations, hits live APIs)
+dev: ## Test all 80 destinations against live APIs (long; most need credentials)
 	$(RUN) npm run dev -- $(ARGS)
 
 .PHONY: park
