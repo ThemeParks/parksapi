@@ -274,6 +274,13 @@ export class SeaworldDestination extends Destination {
     entities.push(...await this.getDestinations());
 
     // Parks, Attractions, Shows, Restaurants
+    //
+    // Deliberately NOT wrapped in a per-park try/catch (unlike buildLiveData).
+    // The collector diffs this list against the live API and issues
+    // `DELETE v1/entity/<id>` for anything present remotely but missing here.
+    // Swallowing a fetch failure would emit a partial list and delete every
+    // entity of the failed park from the wiki — far worse than the outage it
+    // would be papering over. Throwing aborts the sync and changes nothing.
     for (const parkId of this.resortIds) {
       const parkDetail = await this.getParkDetail(parkId);
 
@@ -383,7 +390,27 @@ export class SeaworldDestination extends Destination {
     };
 
     for (const parkId of this.resortIds) {
-      const availability = await this.getAvailability(parkId, searchDate);
+      // Isolate per-park failures. Every park in this destination shares one
+      // upstream, so an unguarded throw here loses live data for the whole
+      // family: a single 403 on Discovery Cove would take SeaWorld Orlando and
+      // Aquatica down with it. src/http.ts treats 4xx as non-retryable
+      // (correctly — a rejection is definitive, and retrying a bot-protection
+      // block in-cycle just adds load), so the throw arrives immediately.
+      // Skipping omits this park's rows for this cycle only; the next cycle
+      // retries from scratch. Sibling parks keep reporting.
+      //
+      // buildEntityList/buildSchedules deliberately do NOT do this — see the
+      // comment on their loops.
+      let availability: SeaworldAvailabilityResponse;
+      try {
+        availability = await this.getAvailability(parkId, searchDate);
+      } catch (err: any) {
+        console.warn(
+          `[${this.constructor.name}] live data unavailable for park ${parkId}, ` +
+          `skipping it this cycle: ${err?.message ?? err}`
+        );
+        continue;
+      }
 
       // --- Wait times ---
       for (const wt of (availability.WaitTimes || [])) {
@@ -457,6 +484,11 @@ export class SeaworldDestination extends Destination {
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const schedules: EntitySchedule[] = [];
 
+    // Also deliberately un-isolated, for the same reason as buildEntityList:
+    // a partial schedule set silently drops a park's operating hours rather
+    // than reporting them as unknown. Both loops read the same 12h-cached
+    // getParkDetail, so a transient upstream failure is usually absorbed by
+    // the cache before it ever reaches here.
     for (const parkId of this.resortIds) {
       const parkDetail = await this.getParkDetail(parkId);
       if (!parkDetail.open_hours || parkDetail.open_hours.length === 0) continue;
