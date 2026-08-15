@@ -34,7 +34,8 @@
     "audit:live": "tsx --env-file=.env src/tools/audit/live.ts",
     "har": "tsx src/tools/har/index.ts",
     "docs": "typedoc",
-    "prepare": "tsc"
+    "prepare": "tsc",
+    "readme": "tsx src/tools/readme/destinations.ts"
   },
   "repository": {
     "type": "git",
