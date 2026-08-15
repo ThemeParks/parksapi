@@ -38,10 +38,15 @@ const POSTS = [
 
 /**
  * Routes cover what the two tracing suites used to reach for on httpbin.org
- * and jsonplaceholder.typicode.com. `/delay/:ms` is capped well below the
- * old one-second sleep: the test needs a request that finishes later than
- * its sibling, not a real second of wall clock.
+ * and jsonplaceholder.typicode.com.
+ *
+ * `/delay/<n>` keeps httpbin's path shape but ignores the number and sleeps a
+ * fixed DELAY_MS. The caller only needs a request that finishes later than its
+ * sibling, not a real second of wall clock — and taking the duration from the
+ * URL would be a request-controlled timer, which is worth avoiding on
+ * principle even in a test fixture.
  */
+const DELAY_MS = 25;
 function handle(req: IncomingMessage, res: ServerResponse): void {
   const path = (req.url || '/').split('?')[0];
 
@@ -52,13 +57,11 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
-  const delay = /^\/delay\/(\d+)$/.exec(path);
-  if (delay) {
-    const ms = Math.min(Number(delay[1]), 50);
+  if (/^\/delay\/\d+$/.test(path)) {
     setTimeout(() => {
       res.writeHead(200, {'Content-Type': 'application/json'});
       res.end(JSON.stringify({delayed: true}));
-    }, ms);
+    }, DELAY_MS);
     return;
   }
 
