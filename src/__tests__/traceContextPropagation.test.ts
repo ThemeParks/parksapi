@@ -1,15 +1,33 @@
+/**
+ * Trace context has to survive the hop into an injection handler and into any
+ * request that handler makes of its own. That is a property of `src/tracing.ts`
+ * and `src/http.ts`, not of any particular endpoint, so these run against a
+ * loopback server rather than httpbin.org — see helpers/localHttpServer.ts.
+ */
 import { tracing } from '../tracing';
 import { http, HTTPObj, stopHttpQueue, waitForHttpQueue } from '../http';
 import { inject } from '../injector';
+import { startLocalServer, LocalServer } from './helpers/localHttpServer';
+
+/** Loopback, so the `@inject` hostname matcher has a literal to match on. */
+const HOST = '127.0.0.1';
 
 describe('Trace Context Propagation', () => {
-  afterAll(() => {
+  let server: LocalServer;
+
+  beforeAll(async () => {
+    server = await startLocalServer();
+  });
+
+  afterAll(async () => {
     stopHttpQueue();
+    await server.close();
   });
 
   it('should propagate trace context through injection handlers', async () => {
     const capturedTraceIds: string[] = [];
     const capturedEvents: string[] = [];
+    const baseURL = server.baseURL;
 
     class TestClass {
       @http({ cacheSeconds: 0 })
@@ -22,7 +40,7 @@ describe('Trace Context Propagation', () => {
 
         return {
           method: 'GET',
-          url: 'http://httpbin.org/get',
+          url: `${baseURL}/get`,
           tags: ['test'],
         } as HTTPObj;
       }
@@ -37,14 +55,14 @@ describe('Trace Context Propagation', () => {
 
         return {
           method: 'GET',
-          url: 'http://httpbin.org/delay/1',
+          url: `${baseURL}/delay/1`,
           tags: ['nested'],
         } as HTTPObj;
       }
 
       @inject({
         eventName: 'httpRequest',
-        hostname: 'httpbin.org',
+        hostname: HOST,
         tags: { $nin: ['nested'] }
       })
       async injectHandler(req: any) {
@@ -82,21 +100,28 @@ describe('Trace Context Propagation', () => {
     // All captured trace IDs should be the same
     expect(capturedTraceIds.length).toBeGreaterThan(0);
     const firstTraceId = capturedTraceIds[0];
-    capturedTraceIds.forEach((id, index) => {
+    capturedTraceIds.forEach((id) => {
       expect(id).toBe(firstTraceId);
     });
 
     // All should match the trace result
     expect(firstTraceId).toBe(result.traceId);
-  }, 35000); // Increased timeout to account for external HTTP requests
+
+    // The requests really went out over the socket, rather than the assertions
+    // above passing on a request that never left.
+    expect(server.requests).toContain('/get');
+    expect(server.requests).toContain('/delay/1');
+  });
 
   it('should capture HTTP events in trace when requests are made in injection handlers', async () => {
+    const baseURL = server.baseURL;
+
     class TestClass {
       @http({ cacheSeconds: 0 })
       async mainRequest(): Promise<HTTPObj> {
         return {
           method: 'GET',
-          url: 'http://httpbin.org/status/200',
+          url: `${baseURL}/status/200`,
           tags: ['main'],
         } as HTTPObj;
       }
@@ -105,14 +130,14 @@ describe('Trace Context Propagation', () => {
       async authRequest(): Promise<HTTPObj> {
         return {
           method: 'GET',
-          url: 'http://httpbin.org/status/201',
+          url: `${baseURL}/status/201`,
           tags: ['auth'],
         } as HTTPObj;
       }
 
       @inject({
         eventName: 'httpRequest',
-        hostname: 'httpbin.org',
+        hostname: HOST,
         tags: { $nin: ['auth'] }
       })
       async injectAuth(req: any) {
@@ -138,10 +163,10 @@ describe('Trace Context Propagation', () => {
     const startEvents = result.events.filter(e => e.eventType === 'http.request.start');
     const urls = startEvents.map(e => e.url);
 
-    expect(urls).toContain('http://httpbin.org/status/200');
-    expect(urls).toContain('http://httpbin.org/status/201');
+    expect(urls).toContain(`${baseURL}/status/200`);
+    expect(urls).toContain(`${baseURL}/status/201`);
 
     // All events should have the same trace ID
     expect(result.events.every(e => e.traceId === result.traceId)).toBe(true);
-  }, 35000); // Increased timeout to account for external HTTP requests
+  });
 });
