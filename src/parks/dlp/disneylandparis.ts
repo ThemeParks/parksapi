@@ -825,9 +825,9 @@ export class DisneylandParis extends Destination {
    */
   private async getMeetAndGreetIdsWithData(): Promise<Set<string> | null> {
     const scheduled = await this.getScheduledActivityIds();
-    if (scheduled === null) return null;
+    if (!scheduled.answered) return null;
 
-    const ids = new Set(scheduled);
+    const ids = new Set(scheduled.ids);
     try {
       for (const queue of await this.getVirtualQueueData()) {
         if (queue?.queueContentId && queue.enabled !== false) ids.add(queue.queueContentId);
@@ -842,13 +842,17 @@ export class DisneylandParis extends Destination {
    * Ids the schedule feed carries rows for, across the same window
    * buildSchedules publishes.
    *
-   * Returns null when no day in that window came back with a single row.
-   * DLP always publishes park hours, so that is an outage rather than a quiet
-   * estate — and a cached empty answer must not be allowed to unpublish
+   * `answered` is false when no day in that window came back with a single
+   * row. DLP always publishes park hours, so that is an outage rather than a
+   * quiet estate — and a cached empty answer must not be allowed to unpublish
    * entities, the same trap #296 closed for schedules.
+   *
+   * The outage carries a flag rather than a null return because CacheLib reads
+   * a cached null as a miss: a null here would re-run the 60-day sweep on every
+   * call, from all three public entry points, for as long as the feed is down.
    */
   @cache({ttlSeconds: 43200, key: 'dlp:getScheduledActivityIds'})
-  private async getScheduledActivityIds(): Promise<string[] | null> {
+  private async getScheduledActivityIds(): Promise<{answered: boolean; ids: string[]}> {
     const now = new Date();
     const ids = new Set<string>();
     let answered = false;
@@ -868,7 +872,7 @@ export class DisneylandParis extends Destination {
       }
     }
 
-    return answered ? [...ids] : null;
+    return {answered, ids: [...ids]};
   }
 
   /**

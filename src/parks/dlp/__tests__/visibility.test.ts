@@ -33,8 +33,14 @@ function stubbedPark(opts: {
   queues?: unknown[];
 } = {}): DisneylandParis {
   const park = new DisneylandParis();
+  // null stands for the outage: the sweep reports it as answered: false rather
+  // than as a null return, because a cached null reads back as a cache miss.
   vi.spyOn(park as any, 'getScheduledActivityIds').mockResolvedValue(
-    opts.scheduledIds === undefined ? SCHEDULED_IDS : opts.scheduledIds,
+    opts.scheduledIds === undefined
+      ? {answered: true, ids: SCHEDULED_IDS}
+      : opts.scheduledIds === null
+        ? {answered: false, ids: []}
+        : {answered: true, ids: opts.scheduledIds},
   );
   vi.spyOn(park as any, 'getVirtualQueueData').mockResolvedValue(opts.queues ?? []);
   vi.spyOn(park as any, 'getPOIData').mockResolvedValue({
