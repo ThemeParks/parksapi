@@ -38,6 +38,8 @@ function stubbedPark(opts: {
   walkthroughPark?: string;
   extraAttractions?: any[];
   waitTimes?: any[];
+  /** Per-entity rows in the schedule feed. Defaults to just the canary. */
+  entitySchedules?: any[];
 }): DisneylandParis {
   const park = new DisneylandParis();
   const today = parkToday();
@@ -56,22 +58,18 @@ function stubbedPark(opts: {
         // No `schedules` — this is the whole point: it must fall back.
       },
       {
-        // Canary. Carries its own window, so it resolves without park hours
-        // and must read OPERATING in every test. Without it, a test that only
-        // asserts CLOSED would pass just as happily against a dead pipeline.
+        // Canary. Carries its own window in the schedule feed, so it resolves
+        // without park hours and must read OPERATING in every test. Without
+        // it, a test that only asserts CLOSED would pass just as happily
+        // against a dead pipeline.
+        //
+        // No `schedules` here either. The POI blob is never the source for
+        // own-hours: it carries only the date it was fetched and is cached
+        // 12h, so past park-local midnight it is empty for the current date.
         id: 'P1MA03',
         name: 'Liberty Arcade',
         type: 'Attraction',
         location: {id: 'P1'},
-        // A narrow window around now: wide enough to always contain it,
-        // narrow enough never to straddle midnight at any pinned clock.
-        schedules: [{
-          date: parkToday(),
-          startTime: parkClock(-5),
-          endTime: parkClock(5),
-          status: 'OPERATING',
-          closed: false,
-        }],
       },
       ...(opts.extraAttractions ?? []),
     ],
@@ -80,8 +78,22 @@ function stubbedPark(opts: {
   vi.spyOn(park as any, 'getWaitTimes').mockResolvedValue(opts.waitTimes ?? []);
   vi.spyOn(park as any, 'getPremierAccess').mockResolvedValue([]);
   vi.spyOn(park as any, 'getVirtualQueueData').mockResolvedValue([]);
+  // The canary's own window rides along with every stub. Narrow around now:
+  // wide enough to always contain it, narrow enough never to straddle
+  // midnight at any pinned clock.
+  const canaryRow = {
+    id: 'P1MA03',
+    name: 'Liberty Arcade',
+    schedules: [{
+      startTime: parkClock(-5),
+      endTime: parkClock(5),
+      status: 'OPERATING',
+      closed: false,
+    }],
+  };
+
   vi.spyOn(park as any, 'getScheduleForDate').mockResolvedValue(
-    (opts.parkSchedules ?? []).map((s) => ({
+    [...(opts.parkSchedules ?? []), ...(opts.entitySchedules ?? [canaryRow])].map((s) => ({
       ...s,
       schedules: s.schedules.map((r: any) => ({...r, date: today})),
     })),
@@ -128,6 +140,45 @@ describe('DLP park-hours fallback for walkthroughs', () => {
   it('reports OPERATING inside its own park\'s published window', async () => {
     const park = stubbedPark({parkSchedules: [openNow('P1'), closedNow('P2')]});
     expect(await walkthroughStatus(park)).toBe('OPERATING');
+  });
+
+  it('reads an entity\'s own hours from the schedule feed, not the POI blob', async () => {
+    // The state after park-local midnight: the 12h-cached POI blob still
+    // carries yesterday's row and nothing for today, while the schedule feed
+    // is fetched per date and is correct. Sourcing own-hours from POI meant a
+    // walkthrough with its own shorter window silently inherited full park
+    // hours until the cache rolled.
+    //
+    // Park is open, the entity's own window closed two hours ago. Reading the
+    // feed gives CLOSED; reading the POI blob gives OPERATING via the park
+    // fallback, because the blob has no row for today at all.
+    const park = stubbedPark({
+      parkSchedules: [openNow('P1'), openNow('P2')],
+      entitySchedules: [
+        {
+          id: 'P1MA00',
+          name: 'Discovery Arcade',
+          schedules: [{
+            startTime: parkClock(-180),
+            endTime: parkClock(-120),
+            status: 'OPERATING',
+            closed: false,
+          }],
+        },
+        // Canary carried explicitly, since the default is replaced.
+        {
+          id: 'P1MA03',
+          name: 'Liberty Arcade',
+          schedules: [{
+            startTime: parkClock(-5),
+            endTime: parkClock(5),
+            status: 'OPERATING',
+            closed: false,
+          }],
+        },
+      ],
+    });
+    expect(await walkthroughStatus(park)).toBe('CLOSED');
   });
 
   it('reports CLOSED outside its own park\'s published window', async () => {
@@ -303,9 +354,19 @@ describe('DLP park-hours fallback for walkthroughs', () => {
     });
 
     it('reports CLOSED when the schedule feed fails', async () => {
+      // The canary cannot apply here. Own-hours come from the same feed as
+      // park hours, so a total feed failure leaves every walkthrough without
+      // a window by definition. Assert the rows exist and are CLOSED instead,
+      // which still fails on a pipeline that emits nothing at all.
       const park = stubbedPark({parkSchedules: []});
       vi.spyOn(park as any, 'getScheduleForDate').mockRejectedValue(new Error('upstream 500'));
-      expect(await walkthroughStatus(park)).toBe('CLOSED');
+
+      const live = await park.getLiveData();
+      for (const id of ['P1MA00', 'P1MA03']) {
+        const row = live.find((l) => l.id === id);
+        expect(row, `expected a live row for ${id}`).toBeDefined();
+        expect(row?.status).toBe('CLOSED');
+      }
     });
 
     it('still honours the walkthrough\'s own schedule when it has one', async () => {
