@@ -23,7 +23,11 @@ export GID := $(shell id -g)
 # Compose otherwise derives the project from the directory basename, so two
 # checkouts both named parksapi share one project: `make clean` in a review
 # clone would tear down a `make dev` running in the main tree.
-export COMPOSE_PROJECT_NAME := parksapi-$(shell printf '%s' '$(CURDIR)' | sha256sum | cut -c1-8)
+#
+# macOS ships shasum rather than GNU coreutils, and an empty digest here would
+# put every checkout back into one shared project. The failing command consumes
+# no stdin, so the fallback still receives the whole input.
+export COMPOSE_PROJECT_NAME := parksapi-$(shell printf '%s' '$(CURDIR)' | { sha256sum 2>/dev/null || shasum -a 256; } | cut -c1-8)
 
 # Optional: extra flags forwarded to the test harness, e.g.
 #   make dev ARGS="--skip-schedules --verbose"
