@@ -29,6 +29,12 @@ const IGNORE_ENTITIES = new Set([
   'P2AC00',
   'armageddon',
   'P2EA02', // Entry to World of Frozen (land-entry pass, not a ride)
+  // Disney Adventure World's entrance building. POI types it "Attraction" with
+  // the same shape as every ride — empty subType, anyHeight, a Guest Entrance
+  // coordinate — so nothing in the record separates it from Phantom Manor. It
+  // is a place you walk through, carries no schedules and never a wait, and the
+  // wait feed reports only a bare OPERATING. Same class as P2EA02 above.
+  'P2FD03', // World Premiere
 ]);
 
 /** Entities that bypass visibility/hide rules */
