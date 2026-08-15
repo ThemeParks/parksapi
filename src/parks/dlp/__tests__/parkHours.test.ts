@@ -4,7 +4,7 @@ import {CacheLib} from '../../../cache.js';
 import {formatInTimezone} from '../../../datetime.js';
 
 /**
- * Walkthrough attractions (Discovery Arcade, Sleeping Beauty Castle, …) never
+ * Walkthrough attractions (La Cabane des Robinson, La Tanière du Dragon, …) never
  * appear in the wait feed, so their live status falls back to park hours.
  *
  * Those hours come from each park's own row in the schedule feed. They used to
@@ -51,8 +51,8 @@ function stubbedPark(opts: {
     ],
     Attraction: [
       {
-        id: 'P1MA00',
-        name: 'Discovery Arcade',
+        id: 'P1AA01',
+        name: 'La Cabane des Robinson',
         type: 'Attraction',
         location: {id: opts.walkthroughPark ?? 'P1'},
         // No `schedules` — this is the whole point: it must fall back.
@@ -66,8 +66,8 @@ function stubbedPark(opts: {
         // No `schedules` here either. The POI blob is never the source for
         // own-hours: it carries only the date it was fetched and is cached
         // 12h, so past park-local midnight it is empty for the current date.
-        id: 'P1MA03',
-        name: 'Liberty Arcade',
+        id: 'P1NA12',
+        name: 'La Tanière du Dragon',
         type: 'Attraction',
         location: {id: 'P1'},
       },
@@ -82,8 +82,8 @@ function stubbedPark(opts: {
   // wide enough to always contain it, narrow enough never to straddle
   // midnight at any pinned clock.
   const canaryRow = {
-    id: 'P1MA03',
-    name: 'Liberty Arcade',
+    id: 'P1NA12',
+    name: 'La Tanière du Dragon',
     schedules: [{
       startTime: parkClock(-5),
       endTime: parkClock(5),
@@ -108,8 +108,8 @@ function stubbedPark(opts: {
  */
 async function walkthroughStatus(park: DisneylandParis): Promise<string | undefined> {
   const live = await park.getLiveData();
-  expect(live.find((l) => l.id === 'P1MA03')?.status).toBe('OPERATING');
-  return live.find((l) => l.id === 'P1MA00')?.status;
+  expect(live.find((l) => l.id === 'P1NA12')?.status).toBe('OPERATING');
+  return live.find((l) => l.id === 'P1AA01')?.status;
 }
 
 function parkRow(id: string, startTime: string, endTime: string, extra: Record<string, unknown> = {}) {
@@ -156,8 +156,8 @@ describe('DLP park-hours fallback for walkthroughs', () => {
       parkSchedules: [openNow('P1'), openNow('P2')],
       entitySchedules: [
         {
-          id: 'P1MA00',
-          name: 'Discovery Arcade',
+          id: 'P1AA01',
+          name: 'La Cabane des Robinson',
           schedules: [{
             startTime: parkClock(-180),
             endTime: parkClock(-120),
@@ -167,8 +167,8 @@ describe('DLP park-hours fallback for walkthroughs', () => {
         },
         // Canary carried explicitly, since the default is replaced.
         {
-          id: 'P1MA03',
-          name: 'Liberty Arcade',
+          id: 'P1NA12',
+          name: 'La Tanière du Dragon',
           schedules: [{
             startTime: parkClock(-5),
             endTime: parkClock(5),
@@ -362,7 +362,7 @@ describe('DLP park-hours fallback for walkthroughs', () => {
       vi.spyOn(park as any, 'getScheduleForDate').mockRejectedValue(new Error('upstream 500'));
 
       const live = await park.getLiveData();
-      for (const id of ['P1MA00', 'P1MA03']) {
+      for (const id of ['P1AA01', 'P1NA12']) {
         const row = live.find((l) => l.id === id);
         expect(row, `expected a live row for ${id}`).toBeDefined();
         expect(row?.status).toBe('CLOSED');
@@ -375,8 +375,8 @@ describe('DLP park-hours fallback for walkthroughs', () => {
       // case, asserted explicitly rather than only as a precondition.
       const park = stubbedPark({parkSchedules: []});
       const live = await park.getLiveData();
-      expect(live.find((l) => l.id === 'P1MA03')?.status).toBe('OPERATING');
-      expect(live.find((l) => l.id === 'P1MA00')?.status).toBe('CLOSED');
+      expect(live.find((l) => l.id === 'P1NA12')?.status).toBe('OPERATING');
+      expect(live.find((l) => l.id === 'P1AA01')?.status).toBe('CLOSED');
     });
   });
 });
