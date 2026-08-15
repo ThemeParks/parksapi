@@ -1,0 +1,14 @@
+services:
+  parksapi:
+    build:
+      context: .
+    working_dir: /app
+    user: "${UID:-1000}:${GID:-1000}"
+    # :z = SELinux shared relabel, required for bind mounts on Fedora. It
+    # relabels the whole tree, .git included, and the labels outlive the
+    # container.
+    volumes:
+      - .:/app:z
+    environment:
+      TZ: ${TZ:-UTC}
+    command: ["npm", "run", "dev", "--", "--list"]
