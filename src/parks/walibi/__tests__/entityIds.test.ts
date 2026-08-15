@@ -45,11 +45,9 @@ describe('WalibiBase.buildEntityList — restaurant ids from CMS paths', () => {
 
     const dining = entities.filter(e => e.entityType === 'RESTAURANT');
     expect(dining.map(e => e.name)).toEqual(['Pêche & Mignon', 'Crêpes Corner']);
-    // Only the `&` is replaced, so the hyphens around it survive:
-    // `dining_p-che-&-mignon` becomes `dining_p-che---mignon`. Ugly, but it is
-    // the rename with the smallest blast radius, and it is the id the wiki
-    // record has to be repointed to.
-    expect(dining[0].id).toBe('dining_p-che---mignon');
+    // The `&` and the hyphens glued to it collapse into one: this is the id
+    // the live `dining_p-che-&-mignon` record has to be repointed to.
+    expect(dining[0].id).toBe('dining_p-che-mignon');
 
     for (const entity of entities) {
       expect(entity.id).toMatch(/^[\w.-]+$/);
@@ -83,6 +81,22 @@ describe('WalibiBase.buildEntityList — restaurant ids from CMS paths', () => {
     const ids = entities.filter(e => e.entityType === 'RESTAURANT').map(e => e.id);
     expect(ids).toEqual(['dining_cafe--rouge', 'dining_cafe-rouge']);
     expect(new Set(ids).size).toBe(2);
+  });
+
+  test('leaves every slug the charset already accepts byte-identical', async () => {
+    // The guarantee that makes this safe to ship: sanitising touches only runs
+    // containing a rejected character, so a legal slug matches nothing. These
+    // are real slugs from the live feeds, hyphen shapes and all.
+    const legal = [
+      'crepes-corner', 'stardocks-caf-', 'wild-rock-caf-', 'cafe--rouge',
+      'shiva-s-food-truck', 'n-soso', 'javass-coffee-corner', 'fun-o-clock',
+      'cine-chill', 'ice_saloon', 'pizza.solo', '-taco', 'taco-',
+    ];
+
+    const entities = await stubbedPark(legal.map(slug => restaurant(slug, slug))).getEntities();
+
+    expect(entities.filter(e => e.entityType === 'RESTAURANT').map(e => e.id))
+      .toEqual(legal.map(slug => `dining_${slug}`));
   });
 
   test('a slug made entirely of rejected characters still publishes, rather than leaving a stale row', async () => {

@@ -84,19 +84,24 @@ class WalibiBase extends Destination {
    * harness's id check (`src/testRunner.ts`) and takes the whole Walibi
    * Belgium entity list down with it.
    *
-   * Replace only the runs the charset rejects. Anything already legal is
-   * untouched by construction — including the trailing hyphens the CMS emits
-   * (`wild-rock-caf-`, `stardocks-caf-`), which are live entity ids today and
-   * must not shift. Collapsing or trimming hyphens as well would rename those
-   * two restaurants and could silently merge distinct slugs into one id.
+   * Rewrite only runs that contain a rejected character, absorbing the hyphens
+   * immediately around them so `p-che-&-mignon` lands on `p-che-mignon` rather
+   * than `p-che---mignon`. A slug that already satisfies `/^[\w.-]+$/` matches
+   * nothing and comes through byte-identical — by construction, not by luck.
+   *
+   * That guarantee is the point: the CMS emits trailing hyphens
+   * (`stardocks-caf-`, `wild-rock-caf-`) and doubled ones (`cafe--rouge`),
+   * all legal and all live entity ids. Collapsing or trimming hyphens
+   * unconditionally would rename them, and would let `cafe--rouge` and
+   * `cafe-rouge` collide into one entity with nothing to detect it.
    */
   private pathSlug(path: string | undefined): string | null {
     if (!path) return null;
     const segment = path.split('/').pop();
     if (!segment) return null;
-    // A non-empty segment always sanitises to a non-empty slug: every rejected
-    // run becomes a hyphen, which the charset accepts.
-    return segment.replace(/[^\w.-]+/g, '-');
+    // A non-empty segment always sanitises to a non-empty slug: a rejected run
+    // becomes a hyphen, which the charset accepts.
+    return segment.replace(/-*[^\w.-]+-*/g, '-');
   }
 
   // ── Header injection ─────────────────────────────────────────
