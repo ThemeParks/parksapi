@@ -55,6 +55,8 @@ class WalibiBase extends Destination {
   apiShortcode: string = '';
   /** Culture/language code for API requests */
   culture: string = 'en';
+  /** Locales merged into the attraction list on top of `culture` (see getAttractions) */
+  mergeCultures: string[] = ['nl', 'fr', 'en'];
   /** Destination-level entity ID */
   destinationSlug: string = '';
   /** Park-level entity ID */
@@ -73,10 +75,33 @@ class WalibiBase extends Destination {
     return `walibi:${this.destinationSlug}`;
   }
 
-  /** Extract the last path segment from a CMS path as a stable slug */
+  /**
+   * Extract the last path segment from a CMS path as a stable slug.
+   *
+   * The CMS derives that segment from the display name without sanitising it,
+   * so it can carry characters the entity id charset (`/^[\w.-]+$/`) rejects —
+   * "Pêche & Mignon" arrives as `p-che-&-mignon`, which trips the dev
+   * harness's id check (`src/testRunner.ts`) and takes the whole Walibi
+   * Belgium entity list down with it.
+   *
+   * Rewrite only runs that contain a rejected character, absorbing the hyphens
+   * immediately around them so `p-che-&-mignon` lands on `p-che-mignon` rather
+   * than `p-che---mignon`. A slug that already satisfies `/^[\w.-]+$/` matches
+   * nothing and comes through byte-identical — by construction, not by luck.
+   *
+   * That guarantee is the point: the CMS emits trailing hyphens
+   * (`stardocks-caf-`, `wild-rock-caf-`) and doubled ones (`cafe--rouge`),
+   * all legal and all live entity ids. Collapsing or trimming hyphens
+   * unconditionally would rename them, and would let `cafe--rouge` and
+   * `cafe-rouge` collide into one entity with nothing to detect it.
+   */
   private pathSlug(path: string | undefined): string | null {
     if (!path) return null;
-    return path.split('/').pop() || null;
+    const segment = path.split('/').pop();
+    if (!segment) return null;
+    // A non-empty segment always sanitises to a non-empty slug: a rejected run
+    // becomes a hyphen, which the charset accepts.
+    return segment.replace(/-*[^\w.-]+-*/g, '-');
   }
 
   // ── Header injection ─────────────────────────────────────────
@@ -95,10 +120,10 @@ class WalibiBase extends Destination {
   // ── HTTP Methods ─────────────────────────────────────────────
 
   @http({cacheSeconds: 86400})
-  async fetchAttractions(): Promise<HTTPObj> {
+  async fetchAttractions(culture: string = this.culture): Promise<HTTPObj> {
     return {
       method: 'GET',
-      url: `${this.baseURL}api/${this.apiShortcode}/${this.culture}/attractions.v1.json`,
+      url: `${this.baseURL}api/${this.apiShortcode}/${culture}/attractions.v1.json`,
       options: {json: true},
     } as any as HTTPObj;
   }
@@ -132,13 +157,68 @@ class WalibiBase extends Destination {
 
   // ── Cached Data ──────────────────────────────────────────────
 
-  @cache({ttlSeconds: 86400})
+  /**
+   * The CMS serves one attractions feed per locale and those feeds are
+   * maintained independently, so they drift. Walibi Belgium's `nl` and `en`
+   * feeds both omit VAMPIRE (waitingTimeName 34) while `fr` lists it, which is
+   * how the drift was found — that park is now configured on `fr`, so the
+   * merge is no longer what recovers VAMPIRE. What it does recover today is Le
+   * Galion and Tam Tam Aventure on Walibi Rhône-Alpes, absent from `fr` but
+   * listed elsewhere; and it makes the next such gap a non-event.
+   *
+   * Merge keyed on waitingTimeName — the only id stable across locales; title
+   * and path are both locale-specific. The configured culture is authoritative
+   * for names and coordinates; a fallback locale can only ever add a ride the
+   * primary feed never listed, never overwrite one. Entries without a
+   * waitingTimeName are ignored here — buildEntityList drops them anyway.
+   */
+  @cache({ttlSeconds: 86400, cacheVersion: 2})
   async getAttractions(): Promise<AttractionPOI[]> {
-    const resp = await this.fetchAttractions();
-    return await resp.json() || [];
+    const attractions = [...await this.fetchAttractionList(this.culture)];
+    const seen = new Set(attractions.map(a => a.waitingTimeName).filter(Boolean));
+
+    for (const culture of this.mergeCultures) {
+      if (culture === this.culture) continue;
+
+      for (const poi of await this.fetchAttractionList(culture)) {
+        if (!poi.waitingTimeName || seen.has(poi.waitingTimeName)) continue;
+        seen.add(poi.waitingTimeName);
+        attractions.push(poi);
+        console.warn(`[${this.constructor.name}] "${poi.title}" (${poi.waitingTimeName}) is missing from the '${this.culture}' feed, taken from '${culture}'`);
+      }
+    }
+
+    return attractions;
   }
 
-  @cache({ttlSeconds: 86400})
+  /**
+   * One locale's attraction feed.
+   *
+   * A *fallback* locale that fails is skipped — the merge is a bonus and must
+   * not be able to sink the poll. The *configured* locale is not optional: a
+   * transient 5xx there has to propagate so the cycle is skipped, exactly as
+   * it did before the merge existed. Swallowing it would publish a clean,
+   * empty, wrong park and pin that `[]` in the 24h cache for every process
+   * sharing it.
+   *
+   * A locale the CMS doesn't serve answers 200 with `[]`, not 404, so an
+   * unknown locale costs a request and adds nothing rather than throwing.
+   */
+  private async fetchAttractionList(culture: string): Promise<AttractionPOI[]> {
+    try {
+      const resp = await this.fetchAttractions(culture);
+      const data = await resp.json();
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      if (culture === this.culture) throw err;
+      return [];
+    }
+  }
+
+  // cacheVersion 2: the restaurants feed follows `culture`, and Walibi Belgium
+  // moved nl -> fr. Without the bump the park would serve `fr` attractions
+  // next to `nl` restaurant names and coordinates for up to 24h after deploy.
+  @cache({ttlSeconds: 86400, cacheVersion: 2})
   async getRestaurants(): Promise<AttractionPOI[]> {
     const resp = await this.fetchRestaurants();
     return await resp.json() || [];
@@ -231,11 +311,19 @@ class WalibiBase extends Destination {
       this.getWaitTimes(),
     ]);
 
-    return waitTimes
+    const orphans: string[] = [];
+
+    const live = waitTimes
       .map(entry => {
         // Match wait time entry to attraction via waitingTimeName
         const attraction = attractions.find(a => a.waitingTimeName === entry.id);
-        if (!attraction) return null;
+        if (!attraction) {
+          if (!this.warnedOrphanWaitTimes.has(entry.id)) {
+            this.warnedOrphanWaitTimes.add(entry.id);
+            orphans.push(entry.id);
+          }
+          return null;
+        }
 
         if (SKIP_STATUSES.has(entry.status)) return null;
         const status = mapStatus(entry.status);
@@ -255,7 +343,30 @@ class WalibiBase extends Destination {
         return ld;
       })
       .filter((x): x is LiveData => x !== null);
+
+    this.warnOrphanWaitTimes(orphans);
+    return live;
   }
+
+  /**
+   * A wait time whose id matches no attraction in any locale cannot be
+   * published — we have no name for it. That used to happen silently.
+   *
+   * Most of these are permanent feed junk (Bellewaerde alone carries ~68
+   * unmapped ids), so one line per id would bury a genuinely new CMS gap in a
+   * wall of noise. Summarise instead: one line per poll listing only ids not
+   * already reported, so the steady state is silent and a new gap is a short
+   * line of its own.
+   */
+  private warnOrphanWaitTimes(ids: string[]): void {
+    if (!ids.length) return;
+    const locales = [...new Set([this.culture, ...this.mergeCultures])].join(', ');
+    const shown = ids.slice(0, 10).join(', ');
+    const rest = ids.length > 10 ? ` (+${ids.length - 10} more)` : '';
+    console.warn(`[${this.constructor.name}] ${ids.length} wait time id(s) match no attraction in [${locales}] — not published: ${shown}${rest}`);
+  }
+
+  private readonly warnedOrphanWaitTimes = new Set<string>();
 
   // ── Schedules ────────────────────────────────────────────────
 
@@ -362,7 +473,11 @@ export class WalibiBelgium extends WalibiBase {
     this.addConfigPrefix('WALIBIBELGIUM');
     this.baseURL = this.baseURL || 'https://www.walibi.be/';
     this.apiShortcode = 'wbe';
-    this.culture = 'nl';
+    // Wavre is francophone and the `fr` feed is the better maintained one —
+    // it is the only locale that lists VAMPIRE. Restaurant path slugs and
+    // attraction waitingTimeNames are identical across locales, so this
+    // changes display names only, not entity ids.
+    this.culture = 'fr';
     this.destinationSlug = 'walibibelgium';
     this.parkSlug = 'walibibelgiumpark';
     this.parkName = 'Walibi Belgium';
