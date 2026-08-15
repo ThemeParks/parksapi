@@ -29,12 +29,21 @@ const IGNORE_ENTITIES = new Set([
   'P2AC00',
   'armageddon',
   'P2EA02', // Entry to World of Frozen (land-entry pass, not a ride)
-  // Disney Adventure World's entrance building. POI types it "Attraction" with
-  // the same shape as every ride — empty subType, anyHeight, a Guest Entrance
-  // coordinate — so nothing in the record separates it from Phantom Manor. It
-  // is a place you walk through, carries no schedules and never a wait, and the
-  // wait feed reports only a bare OPERATING. Same class as P2EA02 above.
-  'P2FD03', // World Premiere
+  // Buildings, not attractions. POI types each of these "Attraction" with the
+  // same shape as every ride — empty subType, anyHeight, a Guest Entrance
+  // coordinate — so nothing in the record separates them from Phantom Manor.
+  // They are places you walk through: no schedules, never a wait, and the wait
+  // feed reports only a bare OPERATING row. Same class as P2EA02 above.
+  //
+  // Horse-Drawn Streetcars (P1MA02) shares the shape and deliberately stays:
+  // it is a vehicle you ride, not a building you are inside.
+  'P2FD03', // World Premiere — Disney Adventure World's entrance building
+  'P1MA00', // Discovery Arcade
+  'P1MA03', // Liberty Arcade
+  // The castle itself. What is inside it publishes separately, as
+  // P1NA06 La Galerie de la Belle au Bois Dormant and P1NA12 La Tanière du
+  // Dragon, so dropping the shell loses nothing.
+  'P1NA04', // Sleeping Beauty Castle
 ]);
 
 /** Entities that bypass visibility/hide rules */
