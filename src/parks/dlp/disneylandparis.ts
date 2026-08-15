@@ -52,10 +52,17 @@ const VISIBILITY_EXCEPTIONS = new Set([
   'P2DA00', // Tangled Spin
   'P1GS93', // Live Your Story – a Disney Princess Celebration (Castle Stage; Disney flags it "Hide from the Service")
   // Disney flags these "Hide from Web List + Mobile App", which it otherwise uses as a
-  // retirement marker (every old-/-OLD record carries it). These two are live and still
-  // report wait times, so they are the only members of that flag we surface.
+  // retirement marker (every old-/-OLD record carries it). Each one is live even so:
+  // the stations report wait times, the meet & greets hold performance times.
   'P1DA10', // Disneyland Railroad Discoveryland Station
   'P1NA16', // Disneyland Railroad Fantasyland Station
+  'P2MG31', // Meet Goofy, the Movie Director
+  'P1MG21', // An Encounter with Captain Hook
+  'P1MG05', // Meet Donald Duck or his friends
+  // Also flagged "Hide from the Service", but both run a live virtual queue:
+  // enabled, with booking waves dated to the day being served.
+  'P2MG33', // Spider-Man Heroic Encounter
+  'P2MG43', // MARVEL Super Hero Heroic Encounter
 ]);
 
 /**
@@ -85,13 +92,19 @@ const HIDE_RULES = new Set([
   'Hide from the Service',
 ]);
 
+const MEET_AND_GREET_SUBTYPE = 'Character Experience - Meet & Greet';
+
 /** Entertainment subtypes that map to SHOW entity type */
 const SHOW_SUBTYPES = new Set([
   'Stage Show',
   'Fireworks',
   'Atmosphere',
   'Parade',
+  MEET_AND_GREET_SUBTYPE,
 ]);
+
+/** How many days ahead buildSchedules publishes. */
+const SCHEDULE_DAYS = 60;
 
 /** Wall-clock time the schedule feed publishes, e.g. `21:30:00`.
  * `24:00` is a valid midnight close; out-of-range values would reach
@@ -106,6 +119,9 @@ const MAX_HEIGHT_CM = 200;
 /** How long a wait-feed single-rider sighting keeps the queue's overnight
  * baseline alive while the 12h POI cache lags. */
 const SINGLE_RIDER_RECENT_SECONDS = 48 * 60 * 60;
+
+/** Upper bound for a show length; a slot longer than a day is bad data */
+const MAX_SHOW_DURATION_MINUTES = 24 * 60;
 
 // ============================================================================
 // Types
@@ -192,6 +208,19 @@ function parseDLPWait(v: unknown): number | undefined {
 }
 
 /**
+ * Total length of a show in whole minutes, or 0 when the API omits the
+ * duration or reports something unusable. Callers fall back to the schedule
+ * feed's own end time on 0.
+ */
+function showDurationMinutes(duration: DLPPOIEntity['duration']): number {
+  if (!duration) return 0;
+  const hours = Number(duration.hours ?? 0);
+  const minutes = Number(duration.minutes ?? 0);
+  const total = Math.round(hours * 60 + minutes);
+  return total > 0 && total <= MAX_SHOW_DURATION_MINUTES ? total : 0;
+}
+
+/**
  * Parse a DLP API timestamp like `2026-04-25T21:35:00.000+0200` into a Date.
  * Returns null for empty/invalid input. The non-canonical offset format
  * (`+0200` without a colon) is accepted by V8 but is not RFC 3339 — guard
@@ -232,6 +261,15 @@ type DLPVQueueEntry = {
 type DLPVQueueResponse = {
   queues?: DLPVQueueEntry[];
 };
+
+/**
+ * A wave's status, upper-cased: `OPEN`, `CLOSED`, `FULL` or `FINISHED`.
+ * Anything the feed reports in another shape becomes the empty string, which
+ * no caller treats as bookable.
+ */
+function waveStatus(wave: DLPVQueueWave | null | undefined): string {
+  return typeof wave?.status === 'string' ? wave.status.toUpperCase() : '';
+}
 
 type DLPScheduleActivityEntry = {
   id: string;
@@ -285,9 +323,6 @@ export class DisneylandParis extends Destination {
 
   @config
   timezone: string = 'Europe/Paris';
-
-  /** Cache of show entities with duration data (populated during entity building) */
-  private showDurationMap: Map<string, number> = new Map();
 
   constructor(options?: DestinationConstructor) {
     super(options);
@@ -444,6 +479,12 @@ export class DisneylandParis extends Destination {
           }
           Entertainment: activities(market: $market, types: "Entertainment") {
             ${this.entityFields}
+            ... on Entertainment {
+              duration {
+                hours
+                minutes
+              }
+            }
           }
           Event: activities(market: $market, types: "Event") {
             ${this.entityFields}
@@ -484,7 +525,7 @@ export class DisneylandParis extends Destination {
   /**
    * Get POI data (cached 12h)
    */
-  @cache({ttlSeconds: 43200, cacheVersion: 4})
+  @cache({ttlSeconds: 43200, cacheVersion: 5})
   async getPOIData(): Promise<Record<string, DLPPOIEntity[]>> {
     const resp = await this.fetchPOI();
     const data = await resp.json();
@@ -772,7 +813,81 @@ export class DisneylandParis extends Destination {
   private async getEmittablePOIEntities(): Promise<Array<DLPPOIEntity & {category: string}>> {
     const poiData = await this.getPOIData();
     const allEntities = this.flattenPOI(poiData);
-    return this.filterPOIEntities(allEntities).filter((poi) => this.mapEntityType(poi) !== undefined);
+    const emittable = this.filterPOIEntities(allEntities)
+      .filter((poi) => this.mapEntityType(poi) !== undefined);
+
+    const withData = await this.getMeetAndGreetIdsWithData();
+    if (withData === null) return emittable;
+    return emittable.filter(
+      (poi) => poi.subType !== MEET_AND_GREET_SUBTYPE || withData.has(poi.id),
+    );
+  }
+
+  /**
+   * Meet & greets that have something to publish: a performance somewhere in
+   * the window buildSchedules covers, or a virtual queue Disney has switched
+   * on. Null means "publish all of them" — see getScheduledActivityIds.
+   *
+   * Disney lists 22, and 8 of those carry neither. Publishing them puts bare
+   * records on the wiki with no live data and no schedule day, and because the
+   * entity gate and the schedule window are the same, an entity we publish is
+   * one we can also attach hours to.
+   *
+   * The queue clause is what lets the six virtual-queue meet & greets appear
+   * on their own: they hold no schedule rows at all, so while every queue
+   * reads `enabled: false` they stay out, and the day Disney turns one back on
+   * it returns without a code change.
+   */
+  private async getMeetAndGreetIdsWithData(): Promise<Set<string> | null> {
+    const scheduled = await this.getScheduledActivityIds();
+    if (!scheduled.answered) return null;
+
+    const ids = new Set(scheduled.ids);
+    try {
+      for (const queue of await this.getVirtualQueueData()) {
+        if (queue?.queueContentId && queue.enabled !== false) ids.add(queue.queueContentId);
+      }
+    } catch {
+      // The queue feed is optional; a failure only narrows what we publish.
+    }
+    return ids;
+  }
+
+  /**
+   * Ids the schedule feed carries rows for, across the same window
+   * buildSchedules publishes.
+   *
+   * `answered` is false when no day in that window came back with a single
+   * row. DLP always publishes park hours, so that is an outage rather than a
+   * quiet estate — and a cached empty answer must not be allowed to unpublish
+   * entities, the same trap #296 closed for schedules.
+   *
+   * The outage carries a flag rather than a null return because CacheLib reads
+   * a cached null as a miss: a null here would re-run the 60-day sweep on every
+   * call, from all three public entry points, for as long as the feed is down.
+   */
+  @cache({ttlSeconds: 43200, key: 'dlp:getScheduledActivityIds'})
+  private async getScheduledActivityIds(): Promise<{answered: boolean; ids: string[]}> {
+    const now = new Date();
+    const ids = new Set<string>();
+    let answered = false;
+
+    for (let i = 0; i < SCHEDULE_DAYS; i++) {
+      const [mm, dd, yyyy] = formatInTimezone(addDays(now, i), this.timezone, 'date').split('/');
+      let rows: DLPScheduleActivityEntry[];
+      try {
+        rows = await this.getScheduleForDate(`${yyyy}-${mm}-${dd}`);
+      } catch {
+        continue;
+      }
+      if (!Array.isArray(rows) || rows.length === 0) continue;
+      answered = true;
+      for (const row of rows) {
+        if (row?.id && Array.isArray(row.schedules) && row.schedules.length > 0) ids.add(row.id);
+      }
+    }
+
+    return {answered, ids: [...ids]};
   }
 
   /**
@@ -824,7 +939,8 @@ export class DisneylandParis extends Destination {
   protected async buildEntityList(): Promise<Entity[]> {
     const poiData = await this.getPOIData();
     const allEntities = this.flattenPOI(poiData);
-    const filteredEntities = this.filterPOIEntities(allEntities);
+    // The same gate the live and schedule paths use, so the three cannot drift.
+    const filteredEntities = await this.getEmittablePOIEntities();
 
     const destinationId = 'dlp';
 
@@ -855,9 +971,6 @@ export class DisneylandParis extends Destination {
       },
     });
 
-    // Clear show duration map (rebuilt each time)
-    this.showDurationMap.clear();
-
     // Build attraction, show, and restaurant entities
     const entityEntries: Entity[] = [];
     for (const poi of filteredEntities) {
@@ -885,14 +998,6 @@ export class DisneylandParis extends Destination {
       }
 
       entity.tags = entityType === 'ATTRACTION' ? this.buildTags(poi) : [];
-
-      // Store show duration for live data
-      if (entityType === 'SHOW' && poi.duration) {
-        const durationMinutes = (poi.duration.minutes || 0) + ((poi.duration.hours || 0) * 60);
-        if (durationMinutes > 0) {
-          this.showDurationMap.set(poi.id, durationMinutes);
-        }
-      }
 
       entityEntries.push(entity);
     }
@@ -983,39 +1088,73 @@ export class DisneylandParis extends Destination {
     }
 
     // === Virtual Queue (free return time) ===
-    // Each queue's waves array is ordered chronologically by openAt; the
-    // next wave that still has capacity is the one to surface. If all
-    // waves have status FINISHED, the queue's done for the day.
+    // Waves are the day's booking windows, ordered chronologically, with
+    // `nextWaveId` marking the one in play. Only an OPEN wave takes
+    // bookings: CLOSED is scheduled to open later, FULL is that wave's
+    // allocation gone, FINISHED is done with. A return window is therefore
+    // published only for an OPEN wave, and the queue counts as temporarily
+    // full for as long as a CLOSED wave is still to come.
     const vqueueData = await this.getVirtualQueueData();
+    const openedToday = (v: string | null | undefined): boolean => {
+      const d = parseDLPDate(v);
+      if (!d) return false;
+      const [wMM, wDD, wYYYY] = formatInTimezone(d, this.timezone, 'date').split('/');
+      return `${wYYYY}-${wMM}-${wDD}` === todayStr;
+    };
     for (const q of vqueueData) {
-      if (!q.queueContentId || q.enabled === false) continue;
-      const waves = q.waves ?? [];
+      if (!q?.queueContentId || q.enabled === false) continue;
+      const waves = Array.isArray(q.waves) ? q.waves : [];
       if (waves.length === 0) continue;
 
+      // A live OPEN wave wins over `nextWaveId`, which can lag a transition.
+      const pending = waves.filter((w) => waveStatus(w) !== 'FINISHED');
       const activeWave =
-        (q.nextWaveId && waves.find((w) => w.waveId === q.nextWaveId)) ||
-        waves.find((w) => (w.status || '').toUpperCase() !== 'FINISHED');
-
-      const allFinished = waves.every(
-        (w) => (w.status || '').toUpperCase() === 'FINISHED',
-      );
+        waves.find((w) => waveStatus(w) === 'OPEN') ||
+        (q.nextWaveId && waves.find((w) => w?.waveId === q.nextWaveId)) ||
+        pending[0];
 
       const ld = getOrCreate(q.queueContentId);
       if (!ld) continue;
+
+      // Overnight every wave that matters reads CLOSED; publishing TEMP_FULL
+      // there would be wrong, so no RETURN_TIME until a wave has actually
+      // been in play.
+      //
+      // A FINISHED wave only counts as evidence of that while it still holds
+      // an openAt falling on the current park date. The list is not today's
+      // waves: Disney keeps dormant rows in it, FINISHED with openAt and
+      // closedAt nulled, and retires the day's real waves into that same
+      // shape once they have passed. Reading a dateless one as history is
+      // enough to publish "temporarily full, come back later" through a night
+      // when nothing has opened, and a stale dated one would do the same if
+      // the feed ever held yesterday's waves past midnight.
+      const dayStarted = waves.some((w) => {
+        const status = waveStatus(w);
+        if (status === 'OPEN' || status === 'FULL') return true;
+        return status === 'FINISHED' && openedToday(w?.openAt ?? null);
+      });
+      if (!dayStarted) continue;
+
+      const open = waveStatus(activeWave) === 'OPEN';
+      const from = open ? parseDLPDate(activeWave?.openAt ?? null) : null;
+      const until = open ? parseDLPDate(activeWave?.closedAt ?? null) : null;
+
       if (!ld.queue) ld.queue = {};
 
-      if (allFinished || !activeWave) {
-        ld.queue.RETURN_TIME = this.buildReturnTimeQueue('FINISHED', null, null);
+      // AVAILABLE has to carry a window, so a wave that reads open without a
+      // usable one falls back with the rest.
+      if (from && until) {
+        // A bookable window means the experience is running.
+        ld.status = 'OPERATING';
+        ld.queue.RETURN_TIME = this.buildReturnTimeQueue('AVAILABLE', from, until);
+      } else if (waves.some((w) => waveStatus(w) === 'CLOSED')) {
+        // "Full, come back later" says the experience is running too — a
+        // later wave is still scheduled to open.
+        ld.status = 'OPERATING';
+        ld.queue.RETURN_TIME = this.buildReturnTimeQueue('TEMP_FULL', null, null);
       } else {
-        // Wave statuses observed: CLOSED (scheduled, not yet open), FINISHED,
-        // and presumably OPEN/AVAILABLE when actively booking. Anything
-        // non-FINISHED surfaces as AVAILABLE with the wave's window so the
-        // wiki can render the upcoming slot.
-        ld.queue.RETURN_TIME = this.buildReturnTimeQueue(
-          'AVAILABLE',
-          parseDLPDate(activeWave.openAt ?? null),
-          parseDLPDate(activeWave.closedAt ?? null),
-        );
+        // Nothing left to open today, so the seeded CLOSED is the truth.
+        ld.queue.RETURN_TIME = this.buildReturnTimeQueue('FINISHED', null, null);
       }
     }
 
@@ -1023,6 +1162,13 @@ export class DisneylandParis extends Destination {
     // `todayStr` (YYYY-MM-DD in park tz) is computed at the top of this method.
     // The payload is shared with the dining block below.
     let todaySchedules: DLPScheduleActivityEntry[] = [];
+
+    const showDurations = new Map<string, number>();
+    for (const poi of emittablePois) {
+      const minutes = showDurationMinutes(poi.duration);
+      if (minutes > 0) showDurations.set(poi.id, minutes);
+    }
+
     try {
       todaySchedules = await this.getScheduleForDate(todayStr);
     } catch (e) {
@@ -1035,7 +1181,7 @@ export class DisneylandParis extends Destination {
         const performances = sched.schedules.filter((s) => s.status === 'PERFORMANCE_TIME');
         if (performances.length === 0) continue;
 
-        const showDuration = this.showDurationMap.get(sched.id) || 0;
+        const showDuration = showDurations.get(sched.id) || 0;
 
         const showtimes = performances.map((p) => {
           const startTime = constructDateTime(todayStr, p.startTime, this.timezone);
@@ -1301,8 +1447,8 @@ export class DisneylandParis extends Destination {
     // When POI is unavailable, schedules publish unfiltered rather than empty.
     const publishedIds = await this.getPublishedEntityIds();
 
-    // Fetch 60 days of schedule data
-    for (let i = 0; i < 60; i++) {
+    // Fetch SCHEDULE_DAYS of schedule data
+    for (let i = 0; i < SCHEDULE_DAYS; i++) {
       const date = addDays(now, i);
       const dateStr = formatInTimezone(date, this.timezone, 'date');
       // Convert MM/DD/YYYY to YYYY-MM-DD
