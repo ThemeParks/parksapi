@@ -2,8 +2,9 @@
  * Walibi / Bellewaerde / Compagnie des Alpes parks
  *
  * 4 parks sharing the same API pattern: each park has its own domain,
- * API shortcode, and API key. Entity IDs are slugified from names
- * (attr_xxx, dining_xxx) since the API provides no stable IDs.
+ * API shortcode, and API key. Rides with a queue board are keyed on the
+ * CMS wait-time id; everything else — the rest of the rides, and every
+ * restaurant — is keyed on its CMS path (attr_xxx, dining_xxx).
  *
  * Wait times are in seconds (divided by 60 for minutes).
  */
@@ -258,12 +259,17 @@ class WalibiBase extends Destination {
       location: {latitude: this.parkLat, longitude: this.parkLng},
     } as Entity;
 
-    // Attractions use waitingTimeName (UUID) as entity ID
+    // A ride with a queue board is keyed on its wait-time id — those are live
+    // wiki records and must not shift. Only rides that have one carry the
+    // field, so the rest fall back to the CMS path, exactly as restaurants do.
     const attrEntities = attractions
-      .filter(a => a.waitingTimeName)
       .map(a => {
+        const slug = this.pathSlug(a.path);
+        const id = a.waitingTimeName || (slug && `attr_${slug}`);
+        if (!id) return null;
+
         const entity: Entity = {
-          id: a.waitingTimeName!,
+          id,
           name: a.title,
           entityType: 'ATTRACTION',
           parentId: this.parkSlug,
@@ -277,7 +283,8 @@ class WalibiBase extends Destination {
           };
         }
         return entity;
-      });
+      })
+      .filter((e): e is Entity => e !== null);
 
     // Restaurants use CMS path slug as entity ID (no UUID available)
     const diningEntities = restaurants
