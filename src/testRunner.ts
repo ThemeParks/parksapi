@@ -9,6 +9,7 @@ import {getQueueLength} from './http.js';
 import {tracing} from './tracing.js';
 import {typeDetector} from './typeDetector.js';
 import {findOrphanIds} from './orphanCheck.js';
+import {findDuplicateEntityIds, describeDuplicateEntityIds} from './duplicateCheck.js';
 
 export type TestResult = {
   testName: string;
@@ -160,6 +161,23 @@ export async function testPark(
         throw new Error(`Entity ${idx} id has unsafe characters: ${escaped} ("${entity.name}")`);
       }
     });
+
+    // Structural uniqueness requirement: an id identifies one entity.
+    //
+    // A hard failure rather than a warning, unlike the orphan and missing-
+    // location reports below. An orphan row is dead weight a consumer ignores;
+    // a duplicate id means one of the two entities is silently discarded on
+    // the way out, and there is no legitimate reason to emit one twice. It
+    // stays invisible otherwise: Walibi Holland shipped two Walibi Express
+    // stations under one CMS wait-time id, and Station 2 has never existed on
+    // the wiki as a result.
+    //
+    // Safe to fail hard: surveyed across all 80 destinations, Walibi Holland
+    // was the only one, and it is fixed alongside this check.
+    const duplicateIds = findDuplicateEntityIds(entities);
+    if (duplicateIds.length > 0) {
+      throw new Error(`Duplicate entity ids: ${describeDuplicateEntityIds(duplicateIds)}`);
+    }
 
     // Structural location requirement: DESTINATION + PARK must have location.
     // These are the anchor points for the whole hierarchy — a missing coord

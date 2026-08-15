@@ -29,6 +29,30 @@ const mapStatus = createStatusMap({
 /** Statuses that should be excluded from live data entirely */
 const SKIP_STATUSES = new Set(['not_operational']);
 
+/**
+ * CMS path slugs that must be keyed on the path rather than on
+ * `waitingTimeName`, because the feed hands their wait-time id to another POI
+ * as well.
+ *
+ * Walibi Holland's two Walibi Express stations are 150m apart and share one
+ * queue board, so the CMS gives both rows
+ * `460e803c-6f87-442c-86b6-3cd80280beaf`. Two entities under one id means one
+ * is silently discarded: Station 2 has never existed on the wiki.
+ *
+ * Listed explicitly rather than resolved by a first-wins or last-wins rule,
+ * because the winner has to be Station 1 and neither rule can guarantee that.
+ * Station 1 holds the shared id on the wiki today, and the feed happens to
+ * list Station 2 first — so first-wins would rename the live record and
+ * orphan its history, and last-wins would do the same the day the feed
+ * reorders. Naming the loser is the only order-independent answer.
+ *
+ * The wait feed carries a single row for the shared id, which stays with
+ * Station 1. Station 2 publishes without live data, like any path-keyed ride.
+ */
+const PATH_KEYED_ATTRACTIONS = new Set([
+  'walibi-express-station-2',
+]);
+
 // ── Types ──────────────────────────────────────────────────────
 
 interface AttractionPOI {
@@ -262,10 +286,15 @@ class WalibiBase extends Destination {
     // A ride with a queue board is keyed on its wait-time id — those are live
     // wiki records and must not shift. Only rides that have one carry the
     // field, so the rest fall back to the CMS path, exactly as restaurants do.
+    // A POI listed in PATH_KEYED_ATTRACTIONS gives up its shared wait-time id
+    // and takes the same path fallback.
     const attrEntities = attractions
       .map(a => {
         const slug = this.pathSlug(a.path);
-        const id = a.waitingTimeName || (slug && `attr_${slug}`);
+        const waitTimeId = slug !== null && PATH_KEYED_ATTRACTIONS.has(slug)
+          ? null
+          : a.waitingTimeName;
+        const id = waitTimeId || (slug && `attr_${slug}`);
         if (!id) return null;
 
         const entity: Entity = {
