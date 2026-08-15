@@ -1,5 +1,6 @@
 import {describe, it, expect, vi, afterEach} from 'vitest';
 import {DisneylandParis} from '../disneylandparis.js';
+import {constructDateTime, formatInTimezone} from '../../../datetime.js';
 
 /**
  * A virtual queue's waves are the day's booking windows. Only an OPEN wave
@@ -47,32 +48,52 @@ function stubbedPark(
   return park;
 }
 
-const morning = (status: string) => ({
+/**
+ * Waves are dated on the park's current date. A FINISHED wave only counts as
+ * evidence the day has started while its openAt still falls on that date, so
+ * a fixture pinned to a fixed date would stop exercising that the day after it
+ * was written.
+ */
+const PARK_TZ = 'Europe/Paris';
+const [pMM, pDD, pYYYY] = formatInTimezone(new Date(), PARK_TZ, 'date').split('/');
+const TODAY = `${pYYYY}-${pMM}-${pDD}`;
+
+const YESTERDAY = (() => {
+  const d = new Date(`${TODAY}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+})();
+
+// Park-local wall clock to an instant, so the fixture carries the offset in
+// force on that date rather than a hardcoded one.
+const at = (date: string, time: string) => constructDateTime(date, time, PARK_TZ);
+
+const morning = (status: string, date: string = TODAY) => ({
   waveId: 'w1',
   name: 'morning',
-  openAt: '2026-08-12T09:45:00.000+0200',
-  closedAt: '2026-08-12T13:30:00.000+0200',
+  openAt: at(date, '09:45'),
+  closedAt: at(date, '13:30'),
   status,
 });
 
-const afternoon = (status: string) => ({
+const afternoon = (status: string, date: string = TODAY) => ({
   waveId: 'w2',
   name: 'afternoon',
-  openAt: '2026-08-12T14:00:00.000+0200',
-  closedAt: '2026-08-12T17:35:00.000+0200',
+  openAt: at(date, '14:00'),
+  closedAt: at(date, '17:35'),
   status,
 });
 
 const MORNING_WINDOW = {
   state: 'AVAILABLE',
-  returnStart: '2026-08-12T09:45:00+02:00',
-  returnEnd: '2026-08-12T13:30:00+02:00',
+  returnStart: at(TODAY, '09:45'),
+  returnEnd: at(TODAY, '13:30'),
 };
 
 const AFTERNOON_WINDOW = {
   state: 'AVAILABLE',
-  returnStart: '2026-08-12T14:00:00+02:00',
-  returnEnd: '2026-08-12T17:35:00+02:00',
+  returnStart: at(TODAY, '14:00'),
+  returnEnd: at(TODAY, '17:35'),
 };
 
 async function liveRowOf(park: DisneylandParis): Promise<any> {
@@ -137,6 +158,24 @@ describe('DLP virtual queue', () => {
   it('does not read a dateless FINISHED wave as the day having started', async () => {
     const row = await liveRowOf(
       stubbedPark([morning('CLOSED'), afternoon('CLOSED'), dormant]),
+    );
+    expect(row).toBeDefined();
+    expect(row.status).toBe('CLOSED');
+    expect(row.queue?.RETURN_TIME).toBeUndefined();
+  });
+
+  // Yesterday's wave, still dated, as the feed would hold it past midnight.
+  const stale = {
+    waveId: 'wY',
+    name: 'yesterday',
+    openAt: at(YESTERDAY, '09:45'),
+    closedAt: at(YESTERDAY, '13:30'),
+    status: 'FINISHED',
+  };
+
+  it('does not read yesterday\'s dated FINISHED wave as the day having started', async () => {
+    const row = await liveRowOf(
+      stubbedPark([stale, morning('CLOSED'), afternoon('CLOSED')]),
     );
     expect(row).toBeDefined();
     expect(row.status).toBe('CLOSED');

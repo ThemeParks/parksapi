@@ -1080,6 +1080,12 @@ export class DisneylandParis extends Destination {
     // published only for an OPEN wave, and the queue counts as temporarily
     // full for as long as a CLOSED wave is still to come.
     const vqueueData = await this.getVirtualQueueData();
+    const openedToday = (v: string | null | undefined): boolean => {
+      const d = parseDLPDate(v);
+      if (!d) return false;
+      const [wMM, wDD, wYYYY] = formatInTimezone(d, this.timezone, 'date').split('/');
+      return `${wYYYY}-${wMM}-${wDD}` === todayStr;
+    };
     for (const q of vqueueData) {
       if (!q?.queueContentId || q.enabled === false) continue;
       const waves = Array.isArray(q.waves) ? q.waves : [];
@@ -1100,15 +1106,17 @@ export class DisneylandParis extends Destination {
       // been in play.
       //
       // A FINISHED wave only counts as evidence of that while it still holds
-      // its dates. The list is not today's waves: Disney keeps dormant rows
-      // in it, FINISHED with openAt and closedAt nulled, and retires the
-      // day's real waves into that same shape once they have passed. Reading
-      // a dateless one as history is enough to publish "temporarily full,
-      // come back later" through a night when nothing has opened.
+      // an openAt falling on the current park date. The list is not today's
+      // waves: Disney keeps dormant rows in it, FINISHED with openAt and
+      // closedAt nulled, and retires the day's real waves into that same
+      // shape once they have passed. Reading a dateless one as history is
+      // enough to publish "temporarily full, come back later" through a night
+      // when nothing has opened, and a stale dated one would do the same if
+      // the feed ever held yesterday's waves past midnight.
       const dayStarted = waves.some((w) => {
         const status = waveStatus(w);
         if (status === 'OPEN' || status === 'FULL') return true;
-        return status === 'FINISHED' && parseDLPDate(w?.openAt ?? null) !== null;
+        return status === 'FINISHED' && openedToday(w?.openAt ?? null);
       });
       if (!dayStarted) continue;
 
