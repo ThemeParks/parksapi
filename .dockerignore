@@ -1,0 +1,22 @@
+# Default-deny. Mirroring .gitignore only excludes what we thought to name,
+# which leaves untracked scratch files and nested checkouts free to reach an
+# image layer — and `cache.sqlite` holds the @cache store, which carries live
+# bearer tokens for nine destinations. Everything is excluded, then the files
+# the image actually needs are added back.
+*
+
+!package.json
+!package-lock.json
+!tsconfig.json
+!vitest.config.ts
+!vitest.setup.ts
+!parksapi-entrypoint.sh
+!src
+
+# src/ is allowed wholesale above, so re-exclude what can appear inside it:
+# HAR captures from `npm run har`, harness dumps, and a stray install.
+**/node_modules
+**/*.har
+**/testout_*
+**/temp*.json
+**/temp*.js

@@ -40,3 +40,6 @@ scripts/
 
 # Specs/plans (local only, not committed)
 VQUEUE_FRAMEWORK_SPEC.md
+
+# Dependency install lock, left behind only if a container is killed mid-install
+.parksapi-deps.lock/

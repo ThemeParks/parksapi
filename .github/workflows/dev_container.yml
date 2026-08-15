@@ -1,0 +1,85 @@
+name: Dev Container
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - docker-compose.yml
+      - Makefile
+      - parksapi-entrypoint.sh
+      - .dockerignore
+      - .gitattributes
+      - package.json
+      - package-lock.json
+      - .github/workflows/dev_container.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - docker-compose.yml
+      - Makefile
+      - parksapi-entrypoint.sh
+      - .dockerignore
+      - .gitattributes
+      - package.json
+      - package-lock.json
+      - .github/workflows/dev_container.yml
+
+jobs:
+  dev-container:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Shell files are LF
+      run: |
+        for f in parksapi-entrypoint.sh Dockerfile Makefile; do
+          if grep -qU $'\r' "$f"; then echo "CRLF in $f"; exit 1; fi
+        done
+
+    - name: Build image
+      run: make build
+
+    - name: Entrypoint creates .env and stamps the lockfile
+      run: |
+        rm -f .env
+        make list
+        test -f .env
+        test "$(cat node_modules/.parksapi-deps)" = "$(sha256sum package-lock.json | cut -d' ' -f1)"
+
+    - name: Nothing root-owned in the tree
+      run: |
+        found=$(find . -path ./.git -prune -o -uid 0 -print | head)
+        test -z "$found" || { echo "$found"; exit 1; }
+
+    - name: Test suite in-container
+      run: make test
+
+    - name: make clean removes containers and networks
+      run: |
+        make clean
+        test -z "$(docker ps -aq --filter name=parksapi)"
+
+    - name: Build context is an allowlist
+      run: |
+        # Files the .dockerignore has to keep out, planted where a root-anchored
+        # pattern would miss them. Tag the image here: compose derives the name
+        # from the project and `make clean` has removed the containers it could
+        # be read from.
+        mkdir -p nested/inner
+        : > nested/inner/.env
+        : > nested/inner/cache.sqlite
+        : > nested/scratch-note.txt
+        : > src/parks/probe.har
+        docker build -t parksapi-imagecheck .
+        docker run --rm --entrypoint sh parksapi-imagecheck -c '
+          find /app -path /app/node_modules -prune -o \
+            \( -name "*.har" -o -name ".env" -o -name "cache.sqlite" \
+               -o -name "scratch-note.txt" -o -name "settings.local.json" \) -print > /tmp/found
+          test ! -s /tmp/found'
+        rm -rf nested src/parks/probe.har
