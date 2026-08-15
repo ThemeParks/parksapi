@@ -14,6 +14,7 @@ import {
   localFromFakeUtc,
   hostnameFromUrl,
   constructDateTime,
+  shiftDateString,
 } from '../datetime.js';
 
 describe('DateTime Utilities', () => {
@@ -795,5 +796,56 @@ describe('DateTime Utilities', () => {
     test('handles http URL', () => {
       expect(hostnameFromUrl('http://localhost/api')).toBe('localhost');
     });
+  });
+});
+
+describe('shiftDateString', () => {
+  it('steps forward and back a day', () => {
+    expect(shiftDateString('2026-08-13', 1)).toBe('2026-08-14');
+    expect(shiftDateString('2026-08-13', -1)).toBe('2026-08-12');
+    expect(shiftDateString('2026-08-13', 0)).toBe('2026-08-13');
+  });
+
+  it('crosses month, year and leap-day boundaries', () => {
+    expect(shiftDateString('2026-08-31', 1)).toBe('2026-09-01');
+    expect(shiftDateString('2026-12-31', 1)).toBe('2027-01-01');
+    expect(shiftDateString('2027-01-01', -1)).toBe('2026-12-31');
+    expect(shiftDateString('2028-02-28', 1)).toBe('2028-02-29');
+    expect(shiftDateString('2028-03-01', -1)).toBe('2028-02-29');
+  });
+
+  it('crosses a DST boundary without slipping', () => {
+    // Europe/Paris springs forward on 2026-03-29 and back on 2026-10-25.
+    expect(shiftDateString('2026-03-28', 1)).toBe('2026-03-29');
+    expect(shiftDateString('2026-03-29', 1)).toBe('2026-03-30');
+    expect(shiftDateString('2026-10-24', 1)).toBe('2026-10-25');
+    expect(shiftDateString('2026-10-25', 1)).toBe('2026-10-26');
+  });
+
+  it('steps by more than one day', () => {
+    expect(shiftDateString('2026-08-13', 60)).toBe('2026-10-12');
+  });
+
+  it('throws on an unparseable date rather than returning a wrong one', () => {
+    expect(() => shiftDateString('not-a-date', 1)).toThrow(RangeError);
+  });
+
+  it('steps identically whatever timezone the host runs in', () => {
+    // The whole point of the helper. `new Date('2026-08-13T00:00:00')` parses
+    // in the host zone, so the naive form fails to advance on any host east of
+    // UTC — and CI runs UTC, where the naive form looks fine. Pinning the zone
+    // here is what makes that regression catchable.
+    const original = process.env.TZ;
+    try {
+      for (const tz of ['UTC', 'Pacific/Kiritimati', 'Pacific/Auckland', 'Asia/Tokyo', 'Europe/Moscow', 'America/Los_Angeles']) {
+        process.env.TZ = tz;
+        expect(shiftDateString('2026-08-13', 1), tz).toBe('2026-08-14');
+        expect(shiftDateString('2026-12-31', 1), tz).toBe('2027-01-01');
+        expect(shiftDateString('2026-08-13', -1), tz).toBe('2026-08-12');
+      }
+    } finally {
+      if (original === undefined) delete process.env.TZ;
+      else process.env.TZ = original;
+    }
   });
 });
