@@ -1,4 +1,4 @@
-<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>HTTPParameterDefinition | ThemeParks.wiki Parks API - v2.0.0</title><meta name="description" content="Documentation for ThemeParks.wiki Parks API"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
+<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>shiftDateString | ThemeParks.wiki Parks API - v2.0.0</title><meta name="description" content="Documentation for ThemeParks.wiki Parks API"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
 <div class="tsd-toolbar-contents container"><a href="../index.html" class="title">ThemeParks.wiki Parks API - v2.0.0</a>
 <div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/>
 <ul role="listbox" id="tsd-search-results"></ul>
@@ -8,11 +8,32 @@
 <div class="col-content">
 <div class="tsd-page-title">
 <ul class="tsd-breadcrumb" aria-label="Breadcrumb">
-<li><a href="" aria-current="page">HTTPParameterDefinition</a></li></ul>
-<h1>Type Alias HTTPParameterDefinition</h1></div>
-<div class="tsd-signature"><span class="tsd-kind-type-alias">HTTPParameterDefinition</span><span class="tsd-signature-symbol">:</span> <a href="HTTPParameter.html" class="tsd-signature-type tsd-kind-type-alias">HTTPParameter</a></div><aside class="tsd-sources">
+<li><a href="" aria-current="page">shiftDateString</a></li></ul>
+<h1>Function shiftDateString</h1></div>
+<section class="tsd-panel">
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="shiftdatestring"><span class="tsd-kind-call-signature">shiftDateString</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">dateStr</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">days</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><a href="#shiftdatestring" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Step a calendar date string by whole days, independent of the host timezone.</p>
+<p><code>new Date('2026-08-13T00:00:00')</code> parses in the <em>host's</em> zone, so adding a
+day and reformatting in the park's zone silently returns the same date on
+any host east of that park. This anchors at noon UTC instead, which no
+offset or DST shift can push across a date boundary.</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><span class="tsd-kind-parameter">dateStr</span>: <span class="tsd-signature-type">string</span></span>
+<div class="tsd-comment tsd-typography"><p>Date in YYYY-MM-DD format</p>
+</div></li>
+<li><span><span class="tsd-kind-parameter">days</span>: <span class="tsd-signature-type">number</span></span>
+<div class="tsd-comment tsd-typography"><p>Whole days to add; may be negative</p>
+</div></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4><p>The resulting date in YYYY-MM-DD format</p>
+<aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/6f19960e5ba94cb1a28f682fcac9b78298971518/src/http.ts#L24">src/http.ts:24</a></li></ul></aside></div>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/6f19960e5ba94cb1a28f682fcac9b78298971518/src/datetime.ts#L219">src/datetime.ts:219</a></li></ul></aside></div></li></ul></section></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
