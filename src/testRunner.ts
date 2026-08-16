@@ -260,8 +260,11 @@ export async function testPark(
         return acc;
       }, {} as Record<string, number>);
 
-      // Count entries with wait times
-      const withWaitTimes = liveData.filter(l => l.queue?.STANDBY?.waitTime !== undefined).length;
+      // Count entries with an actual wait time. `null` is a deliberate value
+      // meaning "queue exists, no current reading" — DLP, Phantasialand and
+      // SeaWorld all emit it on STANDBY — so it must not be counted as having a
+      // wait time, or a park where nothing is measured reports 100% coverage.
+      const withWaitTimes = liveData.filter(l => l.queue?.STANDBY?.waitTime != null).length;
 
       const orphanIds = findOrphans(liveData);
 
