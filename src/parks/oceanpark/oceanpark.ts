@@ -388,6 +388,8 @@ export function parseHourRange(text: string): {open: string; close: string} | nu
  */
 export function addDaysToDateString(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split('-').map(Number);
+  // utc-date-ok: built from a parsed YYYY-MM-DD via Date.UTC, so this shifts a
+  // supplied calendar day rather than reading one off the clock.
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
 

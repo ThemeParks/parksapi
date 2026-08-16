@@ -222,6 +222,8 @@ export function shiftDateString(dateStr: string, days: number): string {
     throw new RangeError(`shiftDateString: unparseable date "${dateStr}"`);
   }
   anchored.setUTCDate(anchored.getUTCDate() + days);
+  // utc-date-ok: date-only arithmetic on a calendar date the caller supplied,
+  // anchored at noon UTC so no offset can shift the day. Not "today".
   return anchored.toISOString().slice(0, 10);
 }
 

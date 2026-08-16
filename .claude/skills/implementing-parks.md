@@ -222,6 +222,26 @@ protected async buildSchedules(): Promise<EntitySchedule[]> {
 }
 ```
 
+**Never derive "today" from `toISOString()`.** That gives the UTC day, which is
+not the park's day for several hours of every evening — 4-7h behind for US
+parks, ahead for Asia-Pacific. A request keyed on it silently asks for the wrong
+date, and only during opening hours, so it looks fine whenever you check it.
+
+```typescript
+// WRONG — UTC day. After 20:00 Eastern this is already tomorrow.
+const today = new Date().toISOString().slice(0, 10);
+
+// RIGHT — the park's own calendar day.
+const today = formatDate(new Date(), this.timezone);
+```
+
+This has been shipped twice (`enchantedparks`, and SeaWorld in #314, where every
+show published the next day's showtimes through the evening event window).
+`src/__tests__/utcDateTrap.test.ts` now fails the build on it. Deliberate UTC
+arithmetic on a date that is *already* a calendar day is fine — anchor at
+`T00:00:00Z`, add days, read it back — and opts out with a `utc-date-ok:`
+comment giving the reason.
+
 ## Validation
 
 ### Health Check

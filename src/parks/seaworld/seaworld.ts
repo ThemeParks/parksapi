@@ -90,6 +90,8 @@ function rollDateBackOneDay(localIso: string): string {
   const tIdx = localIso.indexOf('T');
   const d = new Date(`${localIso.slice(0, tIdx)}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() - 1);
+  // utc-date-ok: the date half of a local ISO string, re-anchored at T00:00:00Z
+  // purely to decrement it. The time and offset are carried over untouched.
   return d.toISOString().slice(0, 10) + localIso.slice(tIdx);
 }
 
