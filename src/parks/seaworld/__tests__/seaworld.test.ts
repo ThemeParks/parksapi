@@ -369,6 +369,80 @@ describe('SeaworldOrlando', () => {
     });
   });
 
+  // -------------------------------------------------------------------------
+  // Regression: upstream 403 on one park UUID must not take its siblings down.
+  //
+  // All three Orlando parks share one upstream. src/http.ts treats 4xx as
+  // non-retryable, so a bot-protection block rejects immediately; before the
+  // fix the unguarded `await` in the resortIds loop propagated that rejection
+  // and buildLiveData() emitted nothing for the entire destination.
+  // -------------------------------------------------------------------------
+  describe('per-park failure isolation', () => {
+    const DISCOVERY_COVE = '1FB04DFC-B6C0-4918-BE36-EE6DD14FE741';
+
+    // Reject for one park UUID only; the others keep serving the fixture.
+    function failOnePark(park: any, failingParkId: string) {
+      park.getAvailability = async (parkId: string) => {
+        if (parkId === failingParkId) {
+          throw new Error('Request failed with status code 403');
+        }
+        return MOCK_AVAILABILITY_SWO as any;
+      };
+    }
+
+    it('still returns sibling park live data when one park 403s', async () => {
+      const park = createMockedOrlando();
+      failOnePark(park, DISCOVERY_COVE);
+
+      const liveData = await (park as any).buildLiveData();
+
+      // SeaWorld Orlando's own rides must still report.
+      const ride001 = liveData.find((ld: any) => ld.id === 'ride-001');
+      expect(ride001).toBeDefined();
+      expect(ride001.status).toBe('OPERATING');
+      expect(ride001.queue.STANDBY.waitTime).toBe(30);
+    });
+
+    it('returns an empty list rather than throwing when every park 403s', async () => {
+      const park = createMockedOrlando();
+      park.getAvailability = async () => {
+        throw new Error('Request failed with status code 403');
+      };
+
+      // No rows is correct here: emitting a fabricated CLOSED for a park we
+      // cannot see would push invented state to the wiki.
+      await expect((park as any).buildLiveData()).resolves.toEqual([]);
+    });
+
+    // The next two guard the deliberate asymmetry. The collector diffs the
+    // entity list and issues DELETE v1/entity/<id> for anything missing, so
+    // swallowing a failure here would delete the failed park's entities from
+    // the wiki. These must keep throwing.
+    it('buildEntityList still throws when a park fetch fails', async () => {
+      const park = createMockedOrlando();
+      park.getParkDetail = async (parkId: string) => {
+        if (parkId === DISCOVERY_COVE) {
+          throw new Error('Request failed with status code 403');
+        }
+        return MOCK_PARK_DETAIL_SWO as any;
+      };
+
+      await expect((park as any).buildEntityList()).rejects.toThrow(/403/);
+    });
+
+    it('buildSchedules still throws when a park fetch fails', async () => {
+      const park = createMockedOrlando();
+      park.getParkDetail = async (parkId: string) => {
+        if (parkId === DISCOVERY_COVE) {
+          throw new Error('Request failed with status code 403');
+        }
+        return MOCK_PARK_DETAIL_SWO as any;
+      };
+
+      await expect((park as any).buildSchedules()).rejects.toThrow(/403/);
+    });
+  });
+
   describe('buildSchedules', () => {
     it('returns schedule for each park with open_hours', async () => {
       const park = createMockedOrlando();
