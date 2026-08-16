@@ -1169,6 +1169,8 @@ class EuropaParkBase extends Destination {
     // boundary; _applyDateToTime re-derives the correct offset for the new day.
     const closingDate = new Date(`${closingTime.substring(0, 10)}T00:00:00Z`);
     closingDate.setUTCDate(closingDate.getUTCDate() + 1);
+    // utc-date-ok: closingDate was anchored at T00:00:00Z from an existing
+    // date string, so this reads back the same calendar day plus one.
     const nextDay = closingDate.toISOString().substring(0, 10);
     return this._applyDateToTime(closingTime, nextDay);
   }

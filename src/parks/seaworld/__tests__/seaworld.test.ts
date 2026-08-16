@@ -718,6 +718,43 @@ describe('SeaworldOrlando', () => {
       expect(row!.queue?.STANDBY?.waitTime).toBeNull();
     });
 
+    it('asks for the park-local date, not the UTC date', async () => {
+      // 21:30 on 15 Aug in New York is already 16 Aug in UTC. Asking for the
+      // UTC date fetches TOMORROW's availability while the park is still open,
+      // which is when summer nights and Howl-O-Scream run. The app itself sends
+      // LocalDate.now(), i.e. the device-local date.
+      vi.useFakeTimers({toFake: ['Date']});
+      vi.setSystemTime(new Date('2026-08-16T01:30:00Z'));
+
+      const seen: string[] = [];
+      const park = createMockedOrlando();
+      (park as any).getAvailability = async (_id: string, searchDate: string) => {
+        seen.push(searchDate);
+        return {WaitTimes: [], ShowTimes: []} as any;
+      };
+      await (park as any).buildLiveData();
+
+      expect(seen.length).toBeGreaterThan(0);
+      for (const d of seen) expect(d).toBe('2026-08-15');
+    });
+
+    it('asks for the park-local date in a western timezone too', async () => {
+      // 17:30 on 15 Aug in Los Angeles is likewise 16 Aug in UTC.
+      vi.useFakeTimers({toFake: ['Date']});
+      vi.setSystemTime(new Date('2026-08-16T00:30:00Z'));
+
+      const seen: string[] = [];
+      const park = new SeaworldSanDiego();
+      (park as any).getParkDetail = async () => ({...MOCK_PARK_DETAIL_SWO, open_hours: []}) as any;
+      (park as any).getAvailability = async (_id: string, searchDate: string) => {
+        seen.push(searchDate);
+        return {WaitTimes: [], ShowTimes: []} as any;
+      };
+      await (park as any).buildLiveData();
+
+      expect(seen).toContain('2026-08-15');
+    });
+
     it('never emits a bare waitTime of undefined', async () => {
       // `{waitTime: undefined}` serialises to `"STANDBY": {}`, which says
       // nothing. Every branch must produce an explicit number or null.

@@ -31,7 +31,7 @@ import {http, type HTTPObj} from '../../http.js';
 import {cache} from '../../cache.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import {localFromFakeUtc} from '../../datetime.js';
+import {formatDate, localFromFakeUtc} from '../../datetime.js';
 
 // ---------------------------------------------------------------------------
 // API response types
@@ -90,6 +90,8 @@ function rollDateBackOneDay(localIso: string): string {
   const tIdx = localIso.indexOf('T');
   const d = new Date(`${localIso.slice(0, tIdx)}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() - 1);
+  // utc-date-ok: the date half of a local ISO string, re-anchored at T00:00:00Z
+  // purely to decrement it. The time and offset are carried over untouched.
   return d.toISOString().slice(0, 10) + localIso.slice(tIdx);
 }
 
@@ -225,10 +227,20 @@ export class SeaworldDestination extends Destination {
   }
 
   /**
-   * Return today's date string in YYYY-MM-DD format (used as searchDate).
+   * Today's date in the PARK's timezone, YYYY-MM-DD, for use as searchDate.
+   *
+   * Must not be the UTC date. UTC is 4-7h ahead of the US parks, so from 20:00
+   * Eastern (17:00 Pacific) the UTC date has already rolled over and we would
+   * ask the API for tomorrow while the park is still open — precisely the
+   * window when summer nights, Howl-O-Scream and other ticketed evening events
+   * run. searchDate selects which day's ShowTimes come back, so the evening
+   * schedule would be replaced by the next day's.
+   *
+   * The app agrees: DefaultAvailabilityRepository sends
+   * `LocalDate.now().toString()`, i.e. the device-local date.
    */
   private getTodayDateString(): string {
-    return new Date().toISOString().slice(0, 10);
+    return formatDate(new Date(), this.timezone);
   }
 
   /**
@@ -257,9 +269,7 @@ export class SeaworldDestination extends Destination {
       return false;
     }
 
-    const todayLocal = new Intl.DateTimeFormat('en-CA', {
-      timeZone: this.timezone, year: 'numeric', month: '2-digit', day: '2-digit',
-    }).format(new Date(nowMs));
+    const todayLocal = formatDate(new Date(nowMs), this.timezone);
     let sawToday = false;
 
     for (const oh of parkDetail.open_hours) {
