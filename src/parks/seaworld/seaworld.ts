@@ -231,6 +231,42 @@ export class SeaworldDestination extends Destination {
     return new Date().toISOString().slice(0, 10);
   }
 
+  /**
+   * Is this park within its published operating hours right now?
+   *
+   * Needed because the feed's "no reading" state (Minutes < 0 with a blank
+   * Status) carries no information about whether a ride is running, and the
+   * right reading flips with the clock. Overnight the feed drops EVERY ride to
+   * that state with no closure marker at all — a 02:16 local sample had all 17
+   * SeaWorld Orlando rides there — so treating it as OPERATING unconditionally
+   * would show a shut park's rides as open all night.
+   *
+   * Returns null when the answer cannot be determined (no hours published, or
+   * the park detail fetch failed); callers fall back to the conservative
+   * reading rather than guessing.
+   */
+  private isParkOpenNow(parkDetail: SeaworldParkDetail): boolean | null {
+    if (!parkDetail?.open_hours || parkDetail.open_hours.length === 0) return null;
+
+    const now = Date.now();
+    for (const oh of parkDetail.open_hours) {
+      const openingTime = localFromFakeUtc(oh.opens_at, this.timezone);
+      let closingTime = localFromFakeUtc(oh.closes_at, this.timezone);
+      // Same source-glitch guard as buildSchedules: a closes_at dated a day
+      // late produces an impossible 34-35h span, which would otherwise report
+      // the park open right through the night.
+      if (new Date(closingTime).getTime() - new Date(openingTime).getTime() > 25 * 60 * 60 * 1000) {
+        closingTime = rollDateBackOneDay(closingTime);
+      }
+      const open = new Date(openingTime).getTime();
+      const close = new Date(closingTime).getTime();
+      if (Number.isFinite(open) && Number.isFinite(close) && now >= open && now < close) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   // -------------------------------------------------------------------------
   // Destination entity (optional override for custom names)
   // -------------------------------------------------------------------------
@@ -380,6 +416,11 @@ export class SeaworldDestination extends Destination {
     const liveDataMap = new Map<string, LiveData>();
     const searchDate = this.getTodayDateString();
 
+    // Note the CLOSED default: it is only ever observable for a SHOW that has
+    // no showtimes today, which is the correct reading for a show. Every
+    // wait-time branch below assigns a status explicitly, so a ride can never
+    // fall through to this default — do not rely on `continue` to leave a ride
+    // unset, as that silently republishes it as CLOSED.
     const getOrCreate = (id: string): LiveData => {
       let entry = liveDataMap.get(id);
       if (!entry) {
@@ -402,8 +443,21 @@ export class SeaworldDestination extends Destination {
       // buildEntityList/buildSchedules deliberately do NOT do this — see the
       // comment on their loops.
       let availability: SeaworldAvailabilityResponse;
+      let parkIsOpen: boolean | null = null;
       try {
         availability = await this.getAvailability(parkId, searchDate);
+        // Operating hours decide how to read the "no reading" state below.
+        // Cached 12h, so this is normally free. A failure here must not cost us
+        // the live data we already have: fall back to parkIsOpen = null, which
+        // takes the conservative branch.
+        try {
+          parkIsOpen = this.isParkOpenNow(await this.getParkDetail(parkId));
+        } catch (err: any) {
+          console.warn(
+            `[${this.constructor.name}] operating hours unavailable for park ${parkId}, ` +
+            `treating unmeasured rides as closed: ${err?.message ?? err}`
+          );
+        }
       } catch (err: any) {
         console.warn(
           `[${this.constructor.name}] live data unavailable for park ${parkId}, ` +
@@ -413,19 +467,57 @@ export class SeaworldDestination extends Destination {
       }
 
       // --- Wait times ---
+      //
+      // The feed carries three states, not two. `Minutes: -1` alone does NOT
+      // mean closed; it is the sentinel for "no value", and `Status` is what
+      // separates a real closure from an absent reading:
+      //
+      //   Status non-empty          -> genuinely closed, text says why
+      //   Minutes >= 0              -> operating, real wait time
+      //   Minutes < 0, Status empty -> upstream has no current reading
+      //
+      // This matches the vendor app's own parser, which discards the entire
+      // wait-time object when minutes are negative AND status is blank
+      // (PoiAvailabilityEntityMapper.checkWaitTimeNull), then renders the ride
+      // normally with no wait badge. It never shows such a ride as closed.
+      //
+      // Mapping the third case to CLOSED (the previous behaviour) was wrong for
+      // 59 of 122 rides family-wide, and it also swallowed real closures: a ride
+      // already published as CLOSED shows no change at the moment it actually
+      // closes, so the event never reaches consumers.
+      //
+      // Test `Status` generically rather than matching known strings. A 41-round
+      // census saw three ("Closed Temporarily", "Closed For The Day", "Closed Due
+      // To Weather"), and the newest was the most frequent — the set is open.
       for (const wt of (availability.WaitTimes || [])) {
         if (!wt.Id) continue;
         const entry = getOrCreate(wt.Id);
 
-        if (wt.Minutes !== undefined) {
-          if (wt.Minutes < 0) {
-            // Negative minutes = closed (e.g. -1 = "Closed Temporarily")
-            entry.status = 'CLOSED';
-            entry.queue = {STANDBY: {waitTime: undefined}};
-          } else {
-            entry.status = 'OPERATING';
-            entry.queue = {STANDBY: {waitTime: wt.Minutes}};
-          }
+        // Either field carries the closure text; StatusDisplay is null when absent.
+        const closureText = (wt.Status || wt.StatusDisplay || '').trim();
+        const minutes = Number(wt.Minutes);
+
+        if (closureText) {
+          entry.status = 'CLOSED';
+          entry.queue = {STANDBY: {waitTime: null}};
+        } else if (Number.isFinite(minutes) && minutes >= 0) {
+          entry.status = 'OPERATING';
+          entry.queue = {STANDBY: {waitTime: minutes}};
+        } else {
+          // No reading available, so the feed tells us nothing about this ride
+          // and the operating hours decide the reading. Open: the ride is
+          // presumed running, we simply have no wait time. Shut (or unknown):
+          // closed, which is also the safe default — overnight every ride lands
+          // here with no closure marker, and claiming OPERATING would show a
+          // shut park as open.
+          //
+          // Either way waitTime is null, never undefined: the queue exists and
+          // does produce values later (observed: rides sat unmeasured for
+          // hours, then reported a real wait), which is exactly the schema's
+          // "queue exists but no current value is available". Omitting `queue`
+          // would instead claim the entity has no queue at all.
+          entry.status = parkIsOpen ? 'OPERATING' : 'CLOSED';
+          entry.queue = {STANDBY: {waitTime: null}};
         }
       }
 
@@ -692,13 +784,16 @@ export class SesamePlacePhiladelphia extends SeaworldDestination {
 /**
  * Sesame Place San Diego
  *
- * Publishes a `WaitTimes` array covering all 7 rides, though a midday sample
- * found every entry at the `Minutes: -1` sentinel. That is not peculiar to this
- * park and is not a reason to treat it differently: the same sample had SeaWorld
- * Orlando at 1 live reading out of 17 rows and Busch Gardens Williamsburg at 10
- * of 33, both long-shipping destinations. The operator uses -1 widely for a ride
- * it is not currently reporting, and the base class maps it to CLOSED, which is
- * the established semantic here rather than a new judgement made for this park.
+ * Publishes a `WaitTimes` array covering all 7 rides. A full operating day of
+ * sampling found every entry at the `Minutes: -1` sentinel with an empty
+ * `Status`, i.e. "no current reading" rather than closed. That is not peculiar
+ * to this park — it is the most common state family-wide (45% of observations)
+ * — but this park is the extreme, being the only one where no ride produced a
+ * reading all day.
+ *
+ * The base class maps that state to OPERATING with a null standby wait time, so
+ * this park correctly shows its rides as open with no wait data, instead of the
+ * seven all-day CLOSED rows it published before.
  */
 @destinationController({category: 'Sesame Place'})
 export class SesamePlaceSanDiego extends SeaworldDestination {
