@@ -34,7 +34,7 @@
     "audit:live": "tsx --env-file=.env src/tools/audit/live.ts",
     "har": "tsx src/tools/har/index.ts",
     "docs": "typedoc",
-    "prepare": "tsc && (git config core.hooksPath .githooks || true)",
+    "prepare": "tsc && ([ \"$(git rev-parse --show-toplevel 2>/dev/null)\" = \"$(pwd -P)\" ] && git config core.hooksPath .githooks || true)",
     "readme": "tsx src/tools/readme/destinations.ts"
   },
   "repository": {
