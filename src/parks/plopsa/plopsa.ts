@@ -755,15 +755,20 @@ class PlopsaBase extends Destination {
 
         for (const day of item.schedule_info?.schedule ?? []) {
           for (const slot of day.timeslots ?? []) {
-            if (slot.type !== 'open') continue;
+            if (slot.type !== 'open' || !slot.start_time) continue;
+            // Show timeslots use HH:MM strings, not full ISO, so the park offset
+            // has to be applied — the same call the live path makes in
+            // plopsaBuildShowtimes. Concatenating the strings instead left the
+            // time with NO offset, which anything parsing it as an instant
+            // resolves in its own timezone rather than the park's.
+            const openingTime = constructDateTime(day.date, slot.start_time, this.timezone);
             showSchedule.push({
               date: day.date,
               type: 'OPERATING',
-              // Show timeslots use HH:MM strings, not full ISO — build with constructDateTime
-              openingTime: `${day.date}T${slot.start_time}:00`,
+              openingTime,
               closingTime: slot.end_time
-                ? `${day.date}T${slot.end_time}:00`
-                : `${day.date}T${slot.start_time}:00`,
+                ? constructDateTime(day.date, slot.end_time, this.timezone)
+                : openingTime,
             } as any);
           }
         }
