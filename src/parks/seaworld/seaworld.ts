@@ -241,14 +241,27 @@ export class SeaworldDestination extends Destination {
    * SeaWorld Orlando rides there — so treating it as OPERATING unconditionally
    * would show a shut park's rides as open all night.
    *
-   * Returns null when the answer cannot be determined (no hours published, or
-   * the park detail fetch failed); callers fall back to the conservative
-   * reading rather than guessing.
+   * Every published block counts, including ticketed evening events: the park
+   * is operating for whoever holds that ticket, and a ride running during a
+   * summer-nights session is not closed.
+   *
+   * Returns false when nothing covers the current moment. That is deliberately
+   * indistinguishable from "shut" at the call site, because the conservative
+   * reading is the same either way, but the two cases that are NOT ordinary
+   * closures get a warning so they are visible in logs rather than silently
+   * flipping a park's unmeasured rides to CLOSED at midday.
    */
-  private isParkOpenNow(parkDetail: SeaworldParkDetail): boolean | null {
-    if (!parkDetail?.open_hours || parkDetail.open_hours.length === 0) return null;
+  private isParkOpenNow(parkDetail: SeaworldParkDetail, nowMs: number = Date.now()): boolean {
+    if (!parkDetail?.open_hours || parkDetail.open_hours.length === 0) {
+      console.warn(`[${this.constructor.name}] no operating hours published; treating unmeasured rides as closed`);
+      return false;
+    }
 
-    const now = Date.now();
+    const todayLocal = new Intl.DateTimeFormat('en-CA', {
+      timeZone: this.timezone, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date(nowMs));
+    let sawToday = false;
+
     for (const oh of parkDetail.open_hours) {
       const openingTime = localFromFakeUtc(oh.opens_at, this.timezone);
       let closingTime = localFromFakeUtc(oh.closes_at, this.timezone);
@@ -260,9 +273,20 @@ export class SeaworldDestination extends Destination {
       }
       const open = new Date(openingTime).getTime();
       const close = new Date(closingTime).getTime();
-      if (Number.isFinite(open) && Number.isFinite(close) && now >= open && now < close) {
-        return true;
-      }
+      if (!Number.isFinite(open) || !Number.isFinite(close)) continue;
+      // No explicit guard for an inverted span (closes_at dated a day early,
+      // the mirror of the >25h case): the half-open test below cannot match an
+      // empty interval, so such a block is skipped naturally. An extra check
+      // would be unreachable by any observable behaviour.
+      if (openingTime.slice(0, 10) === todayLocal) sawToday = true;
+      if (nowMs >= open && nowMs < close) return true;
+    }
+
+    if (!sawToday) {
+      console.warn(
+        `[${this.constructor.name}] operating hours contain no block for ${todayLocal}; ` +
+        `treating unmeasured rides as closed`
+      );
     }
     return false;
   }
@@ -493,9 +517,22 @@ export class SeaworldDestination extends Destination {
         if (!wt.Id) continue;
         const entry = getOrCreate(wt.Id);
 
-        // Either field carries the closure text; StatusDisplay is null when absent.
-        const closureText = (wt.Status || wt.StatusDisplay || '').trim();
-        const minutes = Number(wt.Minutes);
+        // Either field carries the closure text; StatusDisplay is null when
+        // absent. Coerce with String() before trimming: a non-string here would
+        // throw, and this loop sits outside the per-park try above, so one
+        // malformed row would take down every park in the destination and undo
+        // the isolation that block exists to provide.
+        //
+        // Trim each field separately rather than `a || b`. A whitespace-only
+        // Status is truthy, so it would win the || and then trim to empty,
+        // discarding a real closure sitting in StatusDisplay.
+        const closureText = String(wt.Status ?? '').trim() || String(wt.StatusDisplay ?? '').trim();
+
+        // Only trust an actual number. Number() maps null, '', '  ' and [] to 0,
+        // which is finite and >= 0, so coercing here would invent a walk-on out
+        // of an absent field. The base-class sanitiser cannot catch that either,
+        // because 0 is a perfectly valid wait time.
+        const minutes = typeof wt.Minutes === 'number' ? wt.Minutes : NaN;
 
         if (closureText) {
           entry.status = 'CLOSED';

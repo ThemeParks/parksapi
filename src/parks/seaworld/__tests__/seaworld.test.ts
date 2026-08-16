@@ -102,20 +102,21 @@ const MOCK_PARK_DETAIL_SWO = {
   ],
 };
 
-// Field shapes here mirror real captured payloads. The three wait-time states
-// the feed actually uses are all represented:
-//   Status non-empty          -> genuinely closed
-//   Minutes >= 0              -> operating with a reading
-//   Minutes < 0, Status empty -> no current reading (the common case, 45% of
-//                                observations across a 41-round census)
+// Field shapes match the five combinations seen across a 41-round census
+// (5002 observations, 2026-08-15). Note measured rows carry StatusDisplay: ''
+// while no-reading rows carry null — the API distinguishes them, so the
+// fixture does too:
+//   Status non-empty          -> genuinely closed        (842 obs)
+//   Minutes >= 0, Display ''  -> operating with a reading (1890 obs)
+//   Minutes < 0, Display null -> no current reading       (2270 obs, 45%)
 const MOCK_AVAILABILITY_SWO = {
   WaitTimes: [
     // Normal wait time
-    {Id: 'ride-001', Minutes: 30, Status: '', StatusDisplay: null, Title: 'Ice Breaker', LastUpDateTime: '2026-04-01T10:00:00Z'},
+    {Id: 'ride-001', Minutes: 30, Status: '', StatusDisplay: '', Title: 'Ice Breaker', LastUpDateTime: '2026-04-01T10:00:00Z'},
     // No current reading: -1 sentinel with a blank status. NOT a closure.
     {Id: 'ride-002', Minutes: -1, Status: '', StatusDisplay: null, Title: 'Unmeasured Ride', LastUpDateTime: '2026-04-01T10:00:00Z'},
     // Zero wait time (walk-on)
-    {Id: 'ride-003', Minutes: 0, Status: '', StatusDisplay: null, Title: 'Walk On Ride', LastUpDateTime: '2026-04-01T10:00:00Z'},
+    {Id: 'ride-003', Minutes: 0, Status: '', StatusDisplay: '', Title: 'Walk On Ride', LastUpDateTime: '2026-04-01T10:00:00Z'},
     // Genuinely closed, with the closure reason in both status fields
     {Id: 'ride-004', Minutes: -1, Status: 'Closed Temporarily', StatusDisplay: 'Closed Temporarily', Title: 'Closed Ride', LastUpDateTime: '2026-04-01T10:00:00Z'},
     // Closure string that did not exist when this park was first implemented —
@@ -143,32 +144,27 @@ const MOCK_AVAILABILITY_SWO = {
 // ---------------------------------------------------------------------------
 // Operating-hours helpers
 //
-// An unmeasured ride is read as open or closed depending on whether the park is
-// currently operating, so tests that exercise that path must pin the hours
-// rather than inherit the fixture's fixed April dates.
+// An unmeasured ride reads as open or closed depending on whether the park is
+// operating, so those tests pin BOTH the hours and the clock. An earlier
+// version derived the window from Date.now(), which failed for the 60 minutes
+// of the DST fall-back when the ambiguous wall clock resolved to the earlier
+// offset and the window stopped bracketing now. Gate tests must never be flaky,
+// so the clock is injected instead.
 // ---------------------------------------------------------------------------
 
-/**
- * Wall-clock string in the park's timezone, offset by `hours` from now.
- * open_hours values are "fake UTC" (local wall time carrying a Z), which is
- * what localFromFakeUtc expects.
- */
-function localWallTime(hours: number, timeZone = 'America/New_York'): string {
-  const t = new Date(Date.now() + hours * 3600 * 1000);
-  const p = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hour12: false,
-  }).formatToParts(t).reduce((acc: any, part) => (acc[part.type] = part.value, acc), {});
-  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}.0000000Z`;
-}
+/** Local 09:00-21:00 on 2026-08-15, in "fake UTC" (local wall time with a Z). */
+const HOURS_TODAY = [
+  {opens_at: '2026-08-15T09:00:00.0000000Z', closes_at: '2026-08-15T21:00:00.0000000Z', date: '08/15/2026'},
+];
 
-/** open_hours that bracket the current moment (park open) or sit in the past. */
-function openHours(open: boolean) {
-  return open
-    ? [{opens_at: localWallTime(-1), closes_at: localWallTime(1), date: 'today'}]
-    : [{opens_at: '2020-01-01T09:00:00.0000000Z', closes_at: '2020-01-01T17:00:00.0000000Z', date: 'past'}];
+/** 14:00 America/New_York — inside HOURS_TODAY. */
+const CLOCK_PARK_OPEN = new Date('2026-08-15T18:00:00Z');
+/** 08:00 America/New_York, same local day — before opening, so hours for today exist. */
+const CLOCK_PARK_SHUT = new Date('2026-08-15T12:00:00Z');
+
+function pinClock(at: Date) {
+  vi.useFakeTimers({toFake: ['Date']});
+  vi.setSystemTime(at);
 }
 
 // ---------------------------------------------------------------------------
@@ -200,9 +196,15 @@ function createMockedOrlando() {
     } as any;
   };
 
-  // Mock getAvailability
-  park.getAvailability = async (_parkId: string, _searchDate: string) => {
-    return MOCK_AVAILABILITY_SWO as any;
+  // Mock getAvailability, per park. Returning the SWO fixture for every resort
+  // id (as this used to) made the wait-time rows get processed three times, and
+  // the last park's verdict overwrote the first two. That silently defanged the
+  // closure tests: deleting closure detection entirely still left them green,
+  // because they were really asserting Discovery Cove's no-hours fallback.
+  // The real feed returns each park's own rides, so mirror that.
+  park.getAvailability = async (parkId: string, _searchDate: string) => {
+    if (parkId === MOCK_PARK_ID_SWO) return MOCK_AVAILABILITY_SWO as any;
+    return {WaitTimes: [], ShowTimes: []} as any;
   };
 
   return park;
@@ -363,17 +365,19 @@ describe('SeaworldOrlando', () => {
     });
 
     it('treats a -1 with blank status as "no reading", not a closure', async () => {
-      const park = createMockedOrlando();
       // Pin the park open: the no-reading state is read against operating hours.
+      pinClock(CLOCK_PARK_OPEN);
+      const park = createMockedOrlando();
       const detail = (park as any).getParkDetail;
       (park as any).getParkDetail = async (id: string) => ({
-        ...(await detail(id)), open_hours: openHours(true),
+        ...(await detail(id)), open_hours: HOURS_TODAY,
       });
       const liveData = await (park as any).buildLiveData();
       const ride002 = liveData.find((ld: any) => ld.id === 'ride-002');
       expect(ride002).toBeDefined();
       // The ride is open, we simply have no wait time for it. Publishing CLOSED
-      // here mislabelled 59 of 122 rides family-wide and, worse, meant a ride
+      // here mislabelled 59 of 122 rides in a sampled round family-wide and,
+      // worse, meant a ride
       // already showing CLOSED produced no visible change when it really closed.
       expect(ride002.status).toBe('OPERATING');
       expect(ride002.queue?.STANDBY?.waitTime).toBeNull();
@@ -440,25 +444,33 @@ describe('SeaworldOrlando', () => {
   // -------------------------------------------------------------------------
   // Regression: the three wait-time states must stay distinct.
   //
-  // Sequences below are taken verbatim from a 41-round census (5207 observations,
-  // 2026-08-15). They are the real transitions the feed produced, not invented
-  // shapes.
+  // OBSERVED_SEQUENCE below is a real transition from a 41-round census (5002
+  // observations, 2026-08-15). Other rows in this block are deliberately
+  // defensive shapes that the census never produced (blank Status with only
+  // StatusDisplay set, a missing Minutes field, whitespace) — they pin
+  // behaviour the code claims to have rather than behaviour the feed exhibits.
   // -------------------------------------------------------------------------
   describe('wait-time state semantics', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     function availabilityWith(waitTimes: any[]) {
       return {WaitTimes: waitTimes, ShowTimes: []};
     }
 
     /**
-     * `open` controls whether now falls inside published operating hours, which
-     * is what decides how an unmeasured ride is read.
+     * `open` controls whether the pinned clock falls inside published operating
+     * hours, which is what decides how an unmeasured ride is read. `hours` lets
+     * a test supply its own blocks (events, corrupt spans).
      */
-    function parkReturning(waitTimes: any[], open = true) {
+    function parkReturning(waitTimes: any[], open = true, hours: any[] = HOURS_TODAY) {
+      pinClock(open ? CLOCK_PARK_OPEN : CLOCK_PARK_SHUT);
       const park = createMockedOrlando();
       (park as any).getAvailability = async () => availabilityWith(waitTimes) as any;
       (park as any).getParkDetail = async () => ({
         ...MOCK_PARK_DETAIL_SWO,
-        open_hours: openHours(open),
+        open_hours: hours,
       }) as any;
       return park;
     }
@@ -576,6 +588,134 @@ describe('SeaworldOrlando', () => {
       const row = liveData.find((ld: any) => ld.id === 'r');
       expect(row.status).toBe('OPERATING');
       expect(row.queue?.STANDBY?.waitTime).toBeNull();
+    });
+
+    // The following pin behaviours that survived deliberate mutation of the
+    // implementation, i.e. the code could be broken in these specific ways with
+    // the rest of the suite still green.
+
+    it('closes on Status alone, while the park is open', async () => {
+      // Status carries the closure in 100% of real observations, yet ignoring
+      // it entirely used to pass. Park pinned OPEN so the hours fallback cannot
+      // produce the CLOSED verdict for us.
+      const park = parkReturning([
+        {Id: 'r', Minutes: -1, Status: 'Closed For The Day', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+      ], true);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+    });
+
+    it('closes on an unseen closure string, while the park is open', async () => {
+      const park = parkReturning([
+        {Id: 'r', Minutes: -1, Status: 'Closed For Private Event', StatusDisplay: 'Closed For Private Event', Title: 'A', LastUpDateTime: 'x'},
+      ], true);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+    });
+
+    it('treats a whitespace-only Status as no reading, not a closure', async () => {
+      // '   ' is truthy, so `Status || StatusDisplay` would pick it and then
+      // trim to empty, throwing away a real closure. Each field is trimmed
+      // separately for this reason.
+      const park = parkReturning([
+        {Id: 'blank', Minutes: -1, Status: '   ', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+        {Id: 'real', Minutes: -1, Status: '   ', StatusDisplay: 'Closed Temporarily', Title: 'B', LastUpDateTime: 'x'},
+      ], true);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'blank').status).toBe('OPERATING');
+      expect(liveData.find((ld: any) => ld.id === 'real').status).toBe('CLOSED');
+    });
+
+    it('does not throw the whole destination on a non-string Status', async () => {
+      // This loop runs outside the per-park try, so a TypeError here would take
+      // down every park in the destination and undo #312's isolation.
+      const park = parkReturning([
+        {Id: 'r', Minutes: -1, Status: 5 as any, StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+      ], true);
+      await expect((park as any).buildLiveData()).resolves.toBeInstanceOf(Array);
+    });
+
+    it('does not invent a walk-on from a null or empty Minutes', async () => {
+      // Number(null) and Number('') are both 0, which is finite and >= 0.
+      const park = parkReturning([
+        {Id: 'nul', Minutes: null as any, Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+        {Id: 'empty', Minutes: '' as any, Status: '', StatusDisplay: null, Title: 'B', LastUpDateTime: 'x'},
+      ], true);
+      const liveData = await (park as any).buildLiveData();
+      for (const id of ['nul', 'empty']) {
+        expect(liveData.find((ld: any) => ld.id === id).queue?.STANDBY?.waitTime).toBeNull();
+      }
+    });
+
+    it('honours an evening event block, not just the first block of the day', async () => {
+      // Real event-day shape: daytime session already over, ticketed evening
+      // session in progress. Only considering open_hours[0] would report closed.
+      const park = parkReturning([
+        {Id: 'r', Minutes: -1, Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+      ], true, [
+        {opens_at: '2026-08-15T09:00:00.0000000Z', closes_at: '2026-08-15T13:00:00.0000000Z', date: '08/15/2026'},
+        {opens_at: '2026-08-15T13:30:00.0000000Z', closes_at: '2026-08-15T23:00:00.0000000Z', date: '08/15/2026'},
+      ]);
+      // Clock is 14:00 local, inside the SECOND block only.
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('OPERATING');
+    });
+
+    it('applies the >25h glitch guard so a mis-dated close does not hold the park open', async () => {
+      // closes_at dated a day late yields a ~34h span. Ungurarded, the park
+      // reads open right through the night and every unmeasured ride flips to
+      // OPERATING. Clock is 08:00 local, before the 09:00 open.
+      const park = parkReturning([
+        {Id: 'r', Minutes: -1, Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+      ], false, [
+        {opens_at: '2026-08-14T09:00:00.0000000Z', closes_at: '2026-08-15T19:00:00.0000000Z', date: '08/14/2026'},
+      ]);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+    });
+
+    it('does not report open for an inverted block whose close precedes its open', async () => {
+      const park = parkReturning([
+        {Id: 'r', Minutes: -1, Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+      ], true, [
+        {opens_at: '2026-08-15T09:00:00.0000000Z', closes_at: '2026-08-14T21:00:00.0000000Z', date: '08/15/2026'},
+      ]);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+    });
+
+    it('treats the opening instant as open and the closing instant as shut', async () => {
+      const row = {Id: 'r', Minutes: -1, Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'};
+      // Exactly 09:00 local = 13:00Z.
+      vi.useFakeTimers({toFake: ['Date']});
+      vi.setSystemTime(new Date('2026-08-15T13:00:00Z'));
+      let park = createMockedOrlando();
+      (park as any).getAvailability = async () => availabilityWith([row]) as any;
+      (park as any).getParkDetail = async () => ({...MOCK_PARK_DETAIL_SWO, open_hours: HOURS_TODAY}) as any;
+      let liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('OPERATING');
+
+      // Exactly 21:00 local = 01:00Z next day.
+      vi.setSystemTime(new Date('2026-08-16T01:00:00Z'));
+      park = createMockedOrlando();
+      (park as any).getAvailability = async () => availabilityWith([row]) as any;
+      (park as any).getParkDetail = async () => ({...MOCK_PARK_DETAIL_SWO, open_hours: HOURS_TODAY}) as any;
+      liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+    });
+
+    it('survives sanitisation on the public getLiveData path', async () => {
+      // Every other assertion here reads buildLiveData() output, before the base
+      // class sanitises and strips undefined. The null-vs-undefined argument is
+      // about what actually reaches consumers, so check the public path too.
+      const park = parkReturning([
+        {Id: 'ride-001', Minutes: -1, Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+      ], true);
+      const liveData = await park.getLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'ride-001');
+      expect(row).toBeDefined();
+      expect(row!.queue?.STANDBY).toHaveProperty('waitTime');
+      expect(row!.queue?.STANDBY?.waitTime).toBeNull();
     });
 
     it('never emits a bare waitTime of undefined', async () => {
