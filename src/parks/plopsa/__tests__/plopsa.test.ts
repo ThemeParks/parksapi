@@ -283,6 +283,78 @@ describe('buildSchedules feed independence', () => {
 
     expect(new Date(entry.openingTime).getTime())
       .toBe(new Date(live[0].startTime as string).getTime());
+    // Pinned absolutely as well: comparing only instants passes on a host whose
+    // own offset happens to match the park's, so on a CEST machine this test
+    // would survive the fix being reverted.
+    expect(new Date(entry.openingTime).toISOString()).toBe('2026-07-11T12:00:00.000Z');
+  });
+
+  /**
+   * constructDateTime throws on anything it cannot parse — a single-digit hour,
+   * a stray space, an empty string. The old concatenation never threw: it
+   * published one malformed entry and moved on. Without a guard, one bad slot in
+   * one show's feed rejects the whole buildSchedules run and takes the park's
+   * successfully-fetched operating hours with it, which is exactly the feed
+   * independence the tests above exist to protect.
+   */
+  test('drops a slot with an unparseable time instead of losing the whole run', async () => {
+    const badSlot = [{
+      ...showItems[0],
+      schedule_info: {
+        temporarily_closed: false,
+        schedule: [{
+          date: '2026-07-11',
+          timeslots: [
+            {type: 'open', start_time: '9:30', end_time: null},
+            {type: 'open', start_time: '14:00', end_time: null},
+          ],
+        }],
+      },
+    }];
+    const park = new ScheduleProbe();
+    park.fetchCalendar = async () => jsonResponse({schedule: {
+      '2026-07': {
+        '2026-07-11': {slots: [{
+          type: 'open',
+          start_time: '2026-07-11T10:00:00+02:00',
+          end_time: '2026-07-11T18:00:00+02:00',
+        }]},
+      },
+    }}) as any;
+    park.fetchEntertainments = async () => jsonResponse({items: badSlot}) as any;
+
+    const schedules = await park.buildSchedulesForTest();
+
+    // the park's own hours survive
+    expect(schedules.find((s) => s.id === 'plopsaland')?.schedule).toHaveLength(1);
+    // and so does the show's good slot
+    const show = schedules.find((s) => s.id === '900');
+    expect(show?.schedule).toHaveLength(1);
+    expect((show?.schedule?.[0] as any).openingTime).toBe('2026-07-11T14:00:00+02:00');
+  });
+
+  test('drops a slot whose end time is unparseable, keeping the rest', async () => {
+    const badEnd = [{
+      ...showItems[0],
+      schedule_info: {
+        temporarily_closed: false,
+        schedule: [{
+          date: '2026-07-11',
+          timeslots: [
+            {type: 'open', start_time: '12:00', end_time: '18:0'},
+            {type: 'open', start_time: '14:00', end_time: null},
+          ],
+        }],
+      },
+    }];
+    const park = new ScheduleProbe();
+    park.fetchCalendar = async () => { throw new Error('calendar 500'); };
+    park.fetchEntertainments = async () => jsonResponse({items: badEnd}) as any;
+
+    const show = (await park.buildSchedulesForTest()).find((s) => s.id === '900');
+
+    expect(show?.schedule).toHaveLength(1);
+    expect((show?.schedule?.[0] as any).openingTime).toBe('2026-07-11T14:00:00+02:00');
   });
 
   test('omits the park entry when the calendar yields no operating days', async () => {
