@@ -77,6 +77,37 @@ describe('DLP showtimes', () => {
     expect(spanMinutes(parade!.showtimes![0].startTime!, parade!.showtimes![0].endTime!)).toBe(30);
   });
 
+  it('folds an aliased twin onto the published id, with its duration', async () => {
+    // ID_ALIASES promises live rows for the hidden PhilharMagic twin fold onto
+    // the published record, and the wait-time path honours that. This path did
+    // not: it read the duration under the raw feed id, found nothing, then
+    // handed the raw id to getOrCreate, which drops it for not being a
+    // published entity. The row vanished and the schedule path disagreed with
+    // the live one by the show's whole running time.
+    const park = new DisneylandParis();
+    vi.spyOn(park as any, 'getPOIData').mockResolvedValue({
+      ThemePark: [{id: 'P1', name: 'Disneyland Park', type: 'ThemePark'}],
+      Entertainment: [{
+        id: 'P1G103', name: 'Mickey’s PhilharMagic', type: 'Entertainment',
+        subType: 'Stage Show', location: {id: 'P1'}, duration: {hours: 0, minutes: 12},
+      }],
+    });
+    vi.spyOn(park as any, 'getWaitTimes').mockResolvedValue([]);
+    vi.spyOn(park as any, 'getPremierAccess').mockResolvedValue([]);
+    vi.spyOn(park as any, 'getVirtualQueueData').mockResolvedValue([]);
+    vi.spyOn(park as any, 'getScheduleForDate').mockImplementation(async (date: string) => [{
+      id: 'P1DA13', // the hidden twin
+      schedules: [{date, startTime: '12:30:00', endTime: '12:30:00', status: 'PERFORMANCE_TIME'}],
+    }]);
+
+    const live = await park.getLiveData();
+    const show = live.find((l) => l.id === 'P1G103');
+    expect(show?.showtimes).toHaveLength(1);
+    expect(spanMinutes(show!.showtimes![0].startTime!, show!.showtimes![0].endTime!)).toBe(12);
+    // And nothing published under the raw feed id.
+    expect(live.find((l) => l.id === 'P1DA13')).toBeUndefined();
+  });
+
   it('adds hours and minutes together', async () => {
     const live = await stubbedPark().getLiveData();
 

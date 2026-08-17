@@ -1163,11 +1163,10 @@ export class DisneylandParis extends Destination {
     // The payload is shared with the dining block below.
     let todaySchedules: DLPScheduleActivityEntry[] = [];
 
-    const showDurations = new Map<string, number>();
-    for (const poi of emittablePois) {
-      const minutes = showDurationMinutes(poi.duration);
-      if (minutes > 0) showDurations.set(poi.id, minutes);
-    }
+    // Same map buildSchedules uses, so the live and schedule views of a
+    // performance cannot disagree about how long it runs. The POI list is
+    // already in scope here, so hand it over rather than re-deriving it.
+    const showDurations = await this.getShowDurations(emittablePois);
 
     try {
       todaySchedules = await this.getScheduleForDate(todayStr);
@@ -1181,7 +1180,18 @@ export class DisneylandParis extends Destination {
         const performances = sched.schedules.filter((s) => s.status === 'PERFORMANCE_TIME');
         if (performances.length === 0) continue;
 
-        const showDuration = showDurations.get(sched.id) || 0;
+        // Alias before every lookup, exactly as buildSchedules does. The
+        // ID_ALIASES docblock promises live rows fold onto the published id,
+        // and the wait-time path above honours that, but this block did not:
+        // it read the duration under the raw feed id (finding nothing) and
+        // then handed the raw id to getOrCreate, which drops it for failing
+        // the published-entity gate. Not reachable today — the schedule feed
+        // only requests PERFORMANCE_TIME for Entertainment records and the
+        // aliased twin is an Attraction — but it made the live and schedule
+        // paths disagree by the duration for any alias that ever does carry
+        // showtimes.
+        const liveId = ID_ALIASES[sched.id] ?? sched.id;
+        const showDuration = showDurations.get(liveId) || 0;
 
         const showtimes = performances.map((p) => {
           const startTime = constructDateTime(todayStr, p.startTime, this.timezone);
@@ -1200,14 +1210,14 @@ export class DisneylandParis extends Destination {
           };
         });
 
-        const existing = liveDataMap.get(sched.id);
+        const existing = liveDataMap.get(liveId);
         if (existing) {
           existing.showtimes = showtimes;
           if (showtimes.length > 0) {
             existing.status = 'OPERATING' as any;
           }
         } else {
-          const ld = getOrCreate(sched.id);
+          const ld = getOrCreate(liveId);
           if (!ld) continue;
           ld.status = 'OPERATING' as any;
           ld.showtimes = showtimes;
@@ -1436,9 +1446,57 @@ export class DisneylandParis extends Destination {
     return liveData;
   }
 
+  /**
+   * Published show id to advertised running time in minutes, for the shows that
+   * carry one. 16 of 144 emittable POIs do; the rest return 0 and are left with
+   * whatever end time the feed gave.
+   *
+   * Shared by buildLiveData and buildSchedules so the two cannot drift. They did:
+   * the live path applied the duration and the schedule path did not, so
+   * /entity/<id>/live served The Lion King as 12:30-13:00 while
+   * /entity/<id>/schedule served the same performance as 12:30-12:30.
+   */
+  private async getShowDurations(
+    pois?: Array<DLPPOIEntity & {category: string}>,
+  ): Promise<Map<string, number>> {
+    const durations = new Map<string, number>();
+
+    // A caller that already holds the list passes it in. getEmittablePOIEntities
+    // is undecorated, so calling it again re-parses the cached POI blob and
+    // re-runs flatten+filter — no extra HTTP, but wasted work on every live
+    // cycle, where the list is already in scope.
+    //
+    // Fetching it here is guarded for buildSchedules, which is built to publish
+    // unfiltered when POI is unavailable rather than publish nothing: an
+    // unguarded call would turn a degraded day into 60 days of missing
+    // schedules. The guard does nothing for buildLiveData, which already calls
+    // getEmittablePOIEntities unguarded and would have thrown first. Durations
+    // are an enhancement; without them a performance keeps the feed's end time.
+    let source = pois;
+    if (!source) {
+      try {
+        source = await this.getEmittablePOIEntities();
+      } catch (e) {
+        console.error(`[DLP] show durations unavailable, performances keep the feed's end time: ${e}`);
+        return durations;
+      }
+    }
+
+    for (const poi of source) {
+      const minutes = showDurationMinutes(poi.duration);
+      if (minutes > 0) durations.set(poi.id, minutes);
+    }
+    return durations;
+  }
+
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const now = new Date();
     const scheduleMap = new Map<string, any[]>();
+
+    // Keyed by published id, which is what scheduleId already is — the alias is
+    // applied before the lookup below, so the folded PhilharMagic twin resolves
+    // to the same entry the POI list carries.
+    const showDurations = await this.getShowDurations();
 
     // The schedule feed reaches well past the POI set we publish — hotel and
     // Disney Village restaurants, character meets, records the visibility
@@ -1502,6 +1560,29 @@ export class DisneylandParis extends Destination {
           } else if (hours.status === 'PERFORMANCE_TIME') {
             type = 'INFO';
             description = 'Performance Time';
+
+            // The feed sends endTime === startTime for every performance, so a
+            // schedule entry built straight from it is zero-length and tells a
+            // consumer nothing about how long the show runs. Where the POI
+            // advertises a running time, use it — the same value and the same
+            // arithmetic the live path already applies.
+            //
+            // Note this DISCARDS the feed's own endTime rather than preferring
+            // it, which is only safe because that value is always equal to
+            // startTime: 2765 of 2765 PERFORMANCE_TIME rows over 14 days and 33
+            // ids, zero counterexamples. If the feed ever starts publishing a
+            // real window, this would silently override it, and the tests below
+            // pin the no-duration side of that behaviour rather than this one.
+            // The live path is structurally immune because it only substitutes
+            // startTime when a duration exists; this path has no such fallback.
+            const showDuration = showDurations.get(scheduleId) ?? 0;
+            if (showDuration > 0) {
+              closeTime = formatInTimezone(
+                new Date(new Date(openTime).getTime() + showDuration * 60 * 1000),
+                this.timezone,
+                'iso',
+              );
+            }
           }
 
           if (!scheduleMap.has(scheduleId)) {
