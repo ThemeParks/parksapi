@@ -1179,7 +1179,18 @@ export class DisneylandParis extends Destination {
         const performances = sched.schedules.filter((s) => s.status === 'PERFORMANCE_TIME');
         if (performances.length === 0) continue;
 
-        const showDuration = showDurations.get(sched.id) || 0;
+        // Alias before every lookup, exactly as buildSchedules does. The
+        // ID_ALIASES docblock promises live rows fold onto the published id,
+        // and the wait-time path above honours that, but this block did not:
+        // it read the duration under the raw feed id (finding nothing) and
+        // then handed the raw id to getOrCreate, which drops it for failing
+        // the published-entity gate. Not reachable today — the schedule feed
+        // only requests PERFORMANCE_TIME for Entertainment records and the
+        // aliased twin is an Attraction — but it made the live and schedule
+        // paths disagree by the duration for any alias that ever does carry
+        // showtimes.
+        const liveId = ID_ALIASES[sched.id] ?? sched.id;
+        const showDuration = showDurations.get(liveId) || 0;
 
         const showtimes = performances.map((p) => {
           const startTime = constructDateTime(todayStr, p.startTime, this.timezone);
@@ -1198,14 +1209,14 @@ export class DisneylandParis extends Destination {
           };
         });
 
-        const existing = liveDataMap.get(sched.id);
+        const existing = liveDataMap.get(liveId);
         if (existing) {
           existing.showtimes = showtimes;
           if (showtimes.length > 0) {
             existing.status = 'OPERATING' as any;
           }
         } else {
-          const ld = getOrCreate(sched.id);
+          const ld = getOrCreate(liveId);
           if (!ld) continue;
           ld.status = 'OPERATING' as any;
           ld.showtimes = showtimes;
@@ -1446,11 +1457,12 @@ export class DisneylandParis extends Destination {
    */
   private async getShowDurations(): Promise<Map<string, number>> {
     const durations = new Map<string, number>();
-    // A POI outage must not cost the caller its own work. buildSchedules is
-    // built to publish unfiltered when POI is unavailable rather than publish
-    // nothing, and an unguarded call here would turn a degraded day into 60
-    // days of missing schedules. Durations are an enhancement; without them a
-    // performance falls back to the feed's own end time.
+    // Guarded for buildSchedules, which is built to publish unfiltered when POI
+    // is unavailable rather than publish nothing — an unguarded call here would
+    // turn a degraded day into 60 days of missing schedules. It does nothing for
+    // buildLiveData, which already calls getEmittablePOIEntities unguarded and
+    // would have thrown before reaching this. Durations are an enhancement;
+    // without them a performance keeps the feed's own end time.
     let pois: Array<DLPPOIEntity & {category: string}>;
     try {
       pois = await this.getEmittablePOIEntities();
