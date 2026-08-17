@@ -145,13 +145,42 @@ describe('DLP schedules', () => {
 
     it('leaves the feed end time alone when no duration is published', async () => {
       // Mickey's PhilharMagic is the real case: duration null, nothing to
-      // derive from, so the zero-length entry is the honest answer.
+      // derive from, so whatever the feed sent stands.
+      //
+      // The fixture deliberately carries a NON-zero window. With the usual
+      // endTime === startTime shape, "preserved the feed's value" and
+      // "recomputed it as start + 0" are byte-identical, so the assertion
+      // could not tell them apart and a `> 0` to `>= 0` slip went unnoticed.
       const schedules = await parkWithDuration(
-        feedFor(['P1RA00'], PERFORMANCE), null,
+        feedFor(['P1RA00'], {startTime: '12:30:00', endTime: '14:00:00', status: 'PERFORMANCE_TIME'}),
+        null,
       ).getSchedules();
       const entry = schedules[0].schedule[0];
       expect(entry.openingTime).toContain('T12:30:00');
-      expect(entry.closingTime).toContain('T12:30:00');
+      expect(entry.closingTime).toContain('T14:00:00');
+    });
+
+    it('keeps a real feed window when the show has no duration', async () => {
+      // Same guard from the other side: a duration of zero must not be applied.
+      const schedules = await parkWithDuration(
+        feedFor(['P1RA00'], {startTime: '12:30:00', endTime: '14:00:00', status: 'PERFORMANCE_TIME'}),
+        {hours: 0, minutes: 0},
+      ).getSchedules();
+      expect(schedules[0].schedule[0].closingTime).toContain('T14:00:00');
+    });
+
+    it('carries a performance across midnight', async () => {
+      // The duration is applied AFTER the string-comparison rollover branch and
+      // replaces its result, so the day roll has to come out of the millisecond
+      // arithmetic instead. Correct today, but nothing pinned it.
+      const schedules = await parkWithDuration(
+        feedFor(['P1RA00'], {startTime: '23:50:00', endTime: '23:50:00', status: 'PERFORMANCE_TIME'}),
+        {hours: 0, minutes: 30},
+      ).getSchedules();
+      const entry = schedules[0].schedule[0];
+      const span = (new Date(entry.closingTime).getTime() - new Date(entry.openingTime).getTime()) / 60000;
+      expect(span).toBe(30);
+      expect(entry.closingTime).toContain('T00:20:00');
     });
 
     it('does not stretch non-performance entries', async () => {
@@ -188,11 +217,25 @@ describe('DLP schedules', () => {
       expect(entry.closingTime).toContain('T12:42:00');
     });
 
-    it('matches what the live path publishes for the same performance', async () => {
-      // The two paths drifted once; pin them to the same arithmetic.
+    it('publishes the same window on the schedule path as on the live path', async () => {
+      // Compare the two outputs directly. The previous version of this test
+      // asserted the private duration map instead, which pinned neither path —
+      // and so missed that the live path was still looking the duration up
+      // under the un-aliased id.
       const park: any = parkWithDuration(feedFor(['P1RA00'], PERFORMANCE), {hours: 0, minutes: 30});
-      const durations = await park.getShowDurations();
-      expect(durations.get('P1RA00')).toBe(30);
+      vi.spyOn(park, 'getWaitTimes').mockResolvedValue([]);
+      vi.spyOn(park, 'getPremierAccess').mockResolvedValue([]);
+      vi.spyOn(park, 'getVirtualQueueData').mockResolvedValue([]);
+
+      const schedules = await park.getSchedules();
+      const live = await park.getLiveData();
+
+      const entry = schedules.find((s: any) => s.id === 'P1RA00').schedule
+        .find((e: any) => e.description === 'Performance Time');
+      const slot = live.find((l: any) => l.id === 'P1RA00').showtimes[0];
+
+      expect(entry.openingTime).toBe(slot.startTime);
+      expect(entry.closingTime).toBe(slot.endTime);
     });
   });
 

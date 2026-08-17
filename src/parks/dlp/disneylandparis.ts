@@ -1554,6 +1554,15 @@ export class DisneylandParis extends Destination {
             // consumer nothing about how long the show runs. Where the POI
             // advertises a running time, use it — the same value and the same
             // arithmetic the live path already applies.
+            //
+            // Note this DISCARDS the feed's own endTime rather than preferring
+            // it, which is only safe because that value is always equal to
+            // startTime: 2765 of 2765 PERFORMANCE_TIME rows over 14 days and 33
+            // ids, zero counterexamples. If the feed ever starts publishing a
+            // real window, this would silently override it, and the tests below
+            // pin the no-duration side of that behaviour rather than this one.
+            // The live path is structurally immune because it only substitutes
+            // startTime when a duration exists; this path has no such fallback.
             const showDuration = showDurations.get(scheduleId) ?? 0;
             if (showDuration > 0) {
               closeTime = formatInTimezone(
