@@ -755,15 +755,33 @@ class PlopsaBase extends Destination {
 
         for (const day of item.schedule_info?.schedule ?? []) {
           for (const slot of day.timeslots ?? []) {
-            if (slot.type !== 'open') continue;
+            if (slot.type !== 'open' || !slot.start_time) continue;
+            // Show timeslots use HH:MM strings, not full ISO, so the park offset
+            // has to be applied — the same call the live path makes in
+            // plopsaBuildShowtimes. Concatenating the strings instead left the
+            // time with NO offset, which anything parsing it as an instant
+            // resolves in its own timezone rather than the park's.
+            //
+            // constructDateTime throws on anything it cannot parse ('9:30', a
+            // stray space, ''), where concatenation silently published one bad
+            // entry. Catching per slot keeps that blast radius: without it a
+            // single malformed time in one show's feed rejects the whole run and
+            // takes the park's own operating hours with it.
+            let openingTime: string;
+            let closingTime: string;
+            try {
+              openingTime = constructDateTime(day.date, slot.start_time, this.timezone);
+              closingTime = slot.end_time
+                ? constructDateTime(day.date, slot.end_time, this.timezone)
+                : openingTime;
+            } catch {
+              continue;
+            }
             showSchedule.push({
               date: day.date,
               type: 'OPERATING',
-              // Show timeslots use HH:MM strings, not full ISO — build with constructDateTime
-              openingTime: `${day.date}T${slot.start_time}:00`,
-              closingTime: slot.end_time
-                ? `${day.date}T${slot.end_time}:00`
-                : `${day.date}T${slot.start_time}:00`,
+              openingTime,
+              closingTime,
             } as any);
           }
         }

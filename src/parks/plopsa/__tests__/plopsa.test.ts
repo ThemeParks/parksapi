@@ -182,6 +182,181 @@ describe('buildSchedules feed independence', () => {
     expect(show?.schedule?.[0]?.date).toBe('2026-07-11');
   });
 
+  /**
+   * Show timeslots arrive as bare 'HH:MM'. Building the entry time by string
+   * concatenation leaves it with NO UTC offset, so anything parsing it as an
+   * absolute instant resolves it in ITS OWN timezone — the server's, not the
+   * park's. Plopsa runs on Europe/Brussels, so every stored show time was served
+   * one or two hours off, and the showtime backfill had to skip every Plopsa day
+   * because the stored entry and the live observation for the same performance
+   * resolved to different instants.
+   *
+   * The live path already does this correctly (plopsaBuildShowtimes uses
+   * constructDateTime); only the schedule path did not, despite a comment saying
+   * it did.
+   */
+  test('writes show times with the park UTC offset, not a bare local string', async () => {
+    const park = new ScheduleProbe();
+    park.fetchCalendar = async () => { throw new Error('calendar 500'); };
+    park.fetchEntertainments = async () => jsonResponse({items: showItems}) as any;
+
+    const schedules = await park.buildSchedulesForTest();
+    const entry = schedules.find((s) => s.id === '900')?.schedule?.[0] as any;
+
+    // July in Brussels is CEST, +02:00
+    expect(entry.openingTime).toBe('2026-07-11T14:00:00+02:00');
+    expect(new Date(entry.openingTime).toISOString()).toBe('2026-07-11T12:00:00.000Z');
+  });
+
+  test('mirrors the start when a timeslot carries no end, still with the offset', async () => {
+    const park = new ScheduleProbe();
+    park.fetchCalendar = async () => { throw new Error('calendar 500'); };
+    park.fetchEntertainments = async () => jsonResponse({items: showItems}) as any;
+
+    const entry = (await park.buildSchedulesForTest())
+      .find((s) => s.id === '900')?.schedule?.[0] as any;
+
+    expect(entry.closingTime).toBe('2026-07-11T14:00:00+02:00');
+  });
+
+  test('uses the end time when one is given', async () => {
+    const withEnd = [{
+      ...showItems[0],
+      schedule_info: {
+        temporarily_closed: false,
+        schedule: [{
+          date: '2026-07-11',
+          timeslots: [{type: 'open', start_time: '14:00', end_time: '14:30'}],
+        }],
+      },
+    }];
+    const park = new ScheduleProbe();
+    park.fetchCalendar = async () => { throw new Error('calendar 500'); };
+    park.fetchEntertainments = async () => jsonResponse({items: withEnd}) as any;
+
+    const entry = (await park.buildSchedulesForTest())
+      .find((s) => s.id === '900')?.schedule?.[0] as any;
+
+    expect(entry.openingTime).toBe('2026-07-11T14:00:00+02:00');
+    expect(entry.closingTime).toBe('2026-07-11T14:30:00+02:00');
+  });
+
+  /**
+   * Winter is CET, +01:00. A hardcoded offset would pass the summer cases above
+   * and be wrong for half the year.
+   */
+  test('uses the winter offset for a winter date', async () => {
+    const winter = [{
+      ...showItems[0],
+      schedule_info: {
+        temporarily_closed: false,
+        schedule: [{
+          date: '2027-01-03',
+          timeslots: [{type: 'open', start_time: '12:15', end_time: null}],
+        }],
+      },
+    }];
+    const park = new ScheduleProbe();
+    park.fetchCalendar = async () => { throw new Error('calendar 500'); };
+    park.fetchEntertainments = async () => jsonResponse({items: winter}) as any;
+
+    const entry = (await park.buildSchedulesForTest())
+      .find((s) => s.id === '900')?.schedule?.[0] as any;
+
+    expect(entry.openingTime).toBe('2027-01-03T12:15:00+01:00');
+  });
+
+  /**
+   * The schedule and live paths describe the same performance, and the backfill
+   * compares them as instants. If they disagree, every Plopsa day is skipped.
+   */
+  test('agrees with the live showtime path on the same performance', async () => {
+    const park = new ScheduleProbe();
+    park.fetchCalendar = async () => { throw new Error('calendar 500'); };
+    park.fetchEntertainments = async () => jsonResponse({items: showItems}) as any;
+
+    const entry = (await park.buildSchedulesForTest())
+      .find((s) => s.id === '900')?.schedule?.[0] as any;
+    const live = plopsaBuildShowtimes(
+      showItems[0].schedule_info.schedule as any, '2026-07-11', 'Europe/Brussels',
+    );
+
+    expect(new Date(entry.openingTime).getTime())
+      .toBe(new Date(live[0].startTime as string).getTime());
+    // Pinned absolutely as well: comparing only instants passes on a host whose
+    // own offset happens to match the park's, so on a CEST machine this test
+    // would survive the fix being reverted.
+    expect(new Date(entry.openingTime).toISOString()).toBe('2026-07-11T12:00:00.000Z');
+  });
+
+  /**
+   * constructDateTime throws on anything it cannot parse — a single-digit hour,
+   * a stray space, an empty string. The old concatenation never threw: it
+   * published one malformed entry and moved on. Without a guard, one bad slot in
+   * one show's feed rejects the whole buildSchedules run and takes the park's
+   * successfully-fetched operating hours with it, which is exactly the feed
+   * independence the tests above exist to protect.
+   */
+  test('drops a slot with an unparseable time instead of losing the whole run', async () => {
+    const badSlot = [{
+      ...showItems[0],
+      schedule_info: {
+        temporarily_closed: false,
+        schedule: [{
+          date: '2026-07-11',
+          timeslots: [
+            {type: 'open', start_time: '9:30', end_time: null},
+            {type: 'open', start_time: '14:00', end_time: null},
+          ],
+        }],
+      },
+    }];
+    const park = new ScheduleProbe();
+    park.fetchCalendar = async () => jsonResponse({schedule: {
+      '2026-07': {
+        '2026-07-11': {slots: [{
+          type: 'open',
+          start_time: '2026-07-11T10:00:00+02:00',
+          end_time: '2026-07-11T18:00:00+02:00',
+        }]},
+      },
+    }}) as any;
+    park.fetchEntertainments = async () => jsonResponse({items: badSlot}) as any;
+
+    const schedules = await park.buildSchedulesForTest();
+
+    // the park's own hours survive
+    expect(schedules.find((s) => s.id === 'plopsaland')?.schedule).toHaveLength(1);
+    // and so does the show's good slot
+    const show = schedules.find((s) => s.id === '900');
+    expect(show?.schedule).toHaveLength(1);
+    expect((show?.schedule?.[0] as any).openingTime).toBe('2026-07-11T14:00:00+02:00');
+  });
+
+  test('drops a slot whose end time is unparseable, keeping the rest', async () => {
+    const badEnd = [{
+      ...showItems[0],
+      schedule_info: {
+        temporarily_closed: false,
+        schedule: [{
+          date: '2026-07-11',
+          timeslots: [
+            {type: 'open', start_time: '12:00', end_time: '18:0'},
+            {type: 'open', start_time: '14:00', end_time: null},
+          ],
+        }],
+      },
+    }];
+    const park = new ScheduleProbe();
+    park.fetchCalendar = async () => { throw new Error('calendar 500'); };
+    park.fetchEntertainments = async () => jsonResponse({items: badEnd}) as any;
+
+    const show = (await park.buildSchedulesForTest()).find((s) => s.id === '900');
+
+    expect(show?.schedule).toHaveLength(1);
+    expect((show?.schedule?.[0] as any).openingTime).toBe('2026-07-11T14:00:00+02:00');
+  });
+
   test('omits the park entry when the calendar yields no operating days', async () => {
     const park = new ScheduleProbe();
     park.fetchCalendar = async () => jsonResponse({schedule: {}}) as any;
