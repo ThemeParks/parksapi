@@ -1164,8 +1164,9 @@ export class DisneylandParis extends Destination {
     let todaySchedules: DLPScheduleActivityEntry[] = [];
 
     // Same map buildSchedules uses, so the live and schedule views of a
-    // performance cannot disagree about how long it runs.
-    const showDurations = await this.getShowDurations();
+    // performance cannot disagree about how long it runs. The POI list is
+    // already in scope here, so hand it over rather than re-deriving it.
+    const showDurations = await this.getShowDurations(emittablePois);
 
     try {
       todaySchedules = await this.getScheduleForDate(todayStr);
@@ -1455,22 +1456,33 @@ export class DisneylandParis extends Destination {
    * /entity/<id>/live served The Lion King as 12:30-13:00 while
    * /entity/<id>/schedule served the same performance as 12:30-12:30.
    */
-  private async getShowDurations(): Promise<Map<string, number>> {
+  private async getShowDurations(
+    pois?: Array<DLPPOIEntity & {category: string}>,
+  ): Promise<Map<string, number>> {
     const durations = new Map<string, number>();
-    // Guarded for buildSchedules, which is built to publish unfiltered when POI
-    // is unavailable rather than publish nothing — an unguarded call here would
-    // turn a degraded day into 60 days of missing schedules. It does nothing for
-    // buildLiveData, which already calls getEmittablePOIEntities unguarded and
-    // would have thrown before reaching this. Durations are an enhancement;
-    // without them a performance keeps the feed's own end time.
-    let pois: Array<DLPPOIEntity & {category: string}>;
-    try {
-      pois = await this.getEmittablePOIEntities();
-    } catch (e) {
-      console.error(`[DLP] show durations unavailable, performances keep the feed's end time: ${e}`);
-      return durations;
+
+    // A caller that already holds the list passes it in. getEmittablePOIEntities
+    // is undecorated, so calling it again re-parses the cached POI blob and
+    // re-runs flatten+filter — no extra HTTP, but wasted work on every live
+    // cycle, where the list is already in scope.
+    //
+    // Fetching it here is guarded for buildSchedules, which is built to publish
+    // unfiltered when POI is unavailable rather than publish nothing: an
+    // unguarded call would turn a degraded day into 60 days of missing
+    // schedules. The guard does nothing for buildLiveData, which already calls
+    // getEmittablePOIEntities unguarded and would have thrown first. Durations
+    // are an enhancement; without them a performance keeps the feed's end time.
+    let source = pois;
+    if (!source) {
+      try {
+        source = await this.getEmittablePOIEntities();
+      } catch (e) {
+        console.error(`[DLP] show durations unavailable, performances keep the feed's end time: ${e}`);
+        return durations;
+      }
     }
-    for (const poi of pois) {
+
+    for (const poi of source) {
       const minutes = showDurationMinutes(poi.duration);
       if (minutes > 0) durations.set(poi.id, minutes);
     }
