@@ -1163,11 +1163,9 @@ export class DisneylandParis extends Destination {
     // The payload is shared with the dining block below.
     let todaySchedules: DLPScheduleActivityEntry[] = [];
 
-    const showDurations = new Map<string, number>();
-    for (const poi of emittablePois) {
-      const minutes = showDurationMinutes(poi.duration);
-      if (minutes > 0) showDurations.set(poi.id, minutes);
-    }
+    // Same map buildSchedules uses, so the live and schedule views of a
+    // performance cannot disagree about how long it runs.
+    const showDurations = await this.getShowDurations();
 
     try {
       todaySchedules = await this.getScheduleForDate(todayStr);
@@ -1436,9 +1434,45 @@ export class DisneylandParis extends Destination {
     return liveData;
   }
 
+  /**
+   * Published show id to advertised running time in minutes, for the shows that
+   * carry one. 16 of 144 emittable POIs do; the rest return 0 and are left with
+   * whatever end time the feed gave.
+   *
+   * Shared by buildLiveData and buildSchedules so the two cannot drift. They did:
+   * the live path applied the duration and the schedule path did not, so
+   * /entity/<id>/live served The Lion King as 12:30-13:00 while
+   * /entity/<id>/schedule served the same performance as 12:30-12:30.
+   */
+  private async getShowDurations(): Promise<Map<string, number>> {
+    const durations = new Map<string, number>();
+    // A POI outage must not cost the caller its own work. buildSchedules is
+    // built to publish unfiltered when POI is unavailable rather than publish
+    // nothing, and an unguarded call here would turn a degraded day into 60
+    // days of missing schedules. Durations are an enhancement; without them a
+    // performance falls back to the feed's own end time.
+    let pois: Array<DLPPOIEntity & {category: string}>;
+    try {
+      pois = await this.getEmittablePOIEntities();
+    } catch (e) {
+      console.error(`[DLP] show durations unavailable, performances keep the feed's end time: ${e}`);
+      return durations;
+    }
+    for (const poi of pois) {
+      const minutes = showDurationMinutes(poi.duration);
+      if (minutes > 0) durations.set(poi.id, minutes);
+    }
+    return durations;
+  }
+
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const now = new Date();
     const scheduleMap = new Map<string, any[]>();
+
+    // Keyed by published id, which is what scheduleId already is — the alias is
+    // applied before the lookup below, so the folded PhilharMagic twin resolves
+    // to the same entry the POI list carries.
+    const showDurations = await this.getShowDurations();
 
     // The schedule feed reaches well past the POI set we publish — hotel and
     // Disney Village restaurants, character meets, records the visibility
@@ -1502,6 +1536,20 @@ export class DisneylandParis extends Destination {
           } else if (hours.status === 'PERFORMANCE_TIME') {
             type = 'INFO';
             description = 'Performance Time';
+
+            // The feed sends endTime === startTime for every performance, so a
+            // schedule entry built straight from it is zero-length and tells a
+            // consumer nothing about how long the show runs. Where the POI
+            // advertises a running time, use it — the same value and the same
+            // arithmetic the live path already applies.
+            const showDuration = showDurations.get(scheduleId) ?? 0;
+            if (showDuration > 0) {
+              closeTime = formatInTimezone(
+                new Date(new Date(openTime).getTime() + showDuration * 60 * 1000),
+                this.timezone,
+                'iso',
+              );
+            }
           }
 
           if (!scheduleMap.has(scheduleId)) {

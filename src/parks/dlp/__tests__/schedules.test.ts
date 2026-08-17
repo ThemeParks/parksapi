@@ -111,6 +111,91 @@ describe('DLP schedules', () => {
     expect(show[0].schedule[0]).toMatchObject({type: 'INFO', description: 'Performance Time'});
   });
 
+  /**
+   * The feed sends endTime === startTime for every performance, so a schedule
+   * entry built straight from it is zero-length. The live path has applied the
+   * POI's advertised running time since #293; the schedule path did not, so
+   * /entity/<id>/live served The Lion King as 12:30-13:00 while
+   * /entity/<id>/schedule served the same performance as 12:30-12:30.
+   */
+  describe('performance duration', () => {
+    /** A park whose POI list gives P1RA00 a 30-minute running time. */
+    function parkWithDuration(activities: unknown, duration: unknown) {
+      const park = new DisneylandParis();
+      vi.spyOn(park as any, 'getPOIData').mockResolvedValue({
+        ThemePark: [{id: 'P1', name: 'Disneyland Park', type: 'ThemePark'}],
+        Attraction: [
+          {id: 'P1RA00', name: 'The Lion King', type: 'Attraction', location: {id: 'P1'}, duration},
+        ],
+      });
+      vi.spyOn(park as any, 'getScheduleForDate').mockResolvedValue(activities);
+      return park;
+    }
+
+    const PERFORMANCE = {startTime: '12:30:00', endTime: '12:30:00', status: 'PERFORMANCE_TIME'};
+
+    it('gives a zero-length performance the advertised running time', async () => {
+      const schedules = await parkWithDuration(
+        feedFor(['P1RA00'], PERFORMANCE), {hours: 0, minutes: 30},
+      ).getSchedules();
+      const entry = schedules[0].schedule[0];
+      expect(entry.openingTime).toContain('T12:30:00');
+      expect(entry.closingTime).toContain('T13:00:00');
+    });
+
+    it('leaves the feed end time alone when no duration is published', async () => {
+      // Mickey's PhilharMagic is the real case: duration null, nothing to
+      // derive from, so the zero-length entry is the honest answer.
+      const schedules = await parkWithDuration(
+        feedFor(['P1RA00'], PERFORMANCE), null,
+      ).getSchedules();
+      const entry = schedules[0].schedule[0];
+      expect(entry.openingTime).toContain('T12:30:00');
+      expect(entry.closingTime).toContain('T12:30:00');
+    });
+
+    it('does not stretch non-performance entries', async () => {
+      const schedules = await parkWithDuration(
+        feedFor(['P1RA00'], OPERATING), {hours: 0, minutes: 30},
+      ).getSchedules();
+      const entry = schedules[0].schedule[0];
+      expect(entry.type).toBe('OPERATING');
+      expect(entry.closingTime).toContain('T22:00:00');
+    });
+
+    it('finds the duration through the PhilharMagic alias', async () => {
+      // The schedule feed serves the hidden twin P1DA13, whose rows fold onto
+      // the published P1G103. Durations are keyed by published id, so looking
+      // up the raw feed id would silently find nothing and leave the entry
+      // zero-length — the exact bug being fixed, just one alias further along.
+      const park = new DisneylandParis();
+      vi.spyOn(park as any, 'getPOIData').mockResolvedValue({
+        ThemePark: [{id: 'P1', name: 'Disneyland Park', type: 'ThemePark'}],
+        Entertainment: [
+          {
+            id: 'P1G103', name: 'Mickey’s PhilharMagic', type: 'Entertainment',
+            location: {id: 'P1'}, duration: {hours: 0, minutes: 12},
+          },
+        ],
+      });
+      vi.spyOn(park as any, 'getScheduleForDate').mockResolvedValue(
+        feedFor(['P1DA13'], PERFORMANCE),
+      );
+
+      const schedules = await park.getSchedules();
+      const entry = schedules.find((s: any) => s.id === 'P1G103')!.schedule[0];
+      expect(entry.openingTime).toContain('T12:30:00');
+      expect(entry.closingTime).toContain('T12:42:00');
+    });
+
+    it('matches what the live path publishes for the same performance', async () => {
+      // The two paths drifted once; pin them to the same arithmetic.
+      const park: any = parkWithDuration(feedFor(['P1RA00'], PERFORMANCE), {hours: 0, minutes: 30});
+      const durations = await park.getShowDurations();
+      expect(durations.get('P1RA00')).toBe(30);
+    });
+  });
+
   it.each(['REFURBISHMENT', 'CLOSED'])('skips %s days', async (status) => {
     expect(await scheduledIds(feedFor(['P1RA00'], {...OPERATING, status}))).toEqual([]);
   });
