@@ -804,6 +804,76 @@ describe('SeaworldOrlando', () => {
       }
     });
 
+    // --- shows ---------------------------------------------------------
+    // A non-empty ShowTimes array means "scheduled today", not "running now":
+    // the feed serves the whole day's list from midnight. Sampled at 03:46
+    // local, SeaWorld Orlando returned 22 slots from 10:45 to 18:30.
+
+    const SHOW_ROW = {
+      Id: 'show-x',
+      ShowTimes: [{
+        StartDateTime: '2026-08-15T22:00:00Z', EndDateTime: '2026-08-15T22:30:00Z',
+        StartTime: '2026-08-15T18:00:00', EndTime: '2026-08-15T18:30:00',
+      }],
+    };
+
+    function parkWithShows(waitTimes: any[], shows: any[], open: boolean) {
+      pinClock(open ? CLOCK_PARK_OPEN : CLOCK_PARK_SHUT);
+      const park = createMockedOrlando();
+      (park as any).getAvailability = async () => ({WaitTimes: waitTimes, ShowTimes: shows}) as any;
+      (park as any).getParkDetail = async () => ({...MOCK_PARK_DETAIL_SWO, open_hours: HOURS_TODAY}) as any;
+      return park;
+    }
+
+    it('reports a show as OPERATING while the park is open', async () => {
+      const park = parkWithShows([], [SHOW_ROW], true);
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'show-x');
+      expect(row.status).toBe('OPERATING');
+      expect(row.showtimes).toHaveLength(1);
+    });
+
+    it('reports a show as CLOSED once the park has shut, keeping the schedule', async () => {
+      // This was the last thing still showing a shut park as open after the
+      // wait-time fixes landed.
+      const park = parkWithShows([], [SHOW_ROW], false);
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'show-x');
+      expect(row.status).toBe('CLOSED');
+      // The times are still published — a closed park should still show today's
+      // line-up rather than going blank.
+      expect(row.showtimes).toHaveLength(1);
+    });
+
+    it('carries shows through an unlisted event on the same evidence as rides', async () => {
+      // Schedule says shut, a ride reports a live queue, so the park is running
+      // and its shows are running with it.
+      const park = parkWithShows(
+        [{Id: 'r', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: FRESH_STAMP_NIGHT}],
+        [SHOW_ROW], false);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'show-x').status).toBe('OPERATING');
+    });
+
+    it('does not let a schedule overwrite an explicit ride closure', async () => {
+      // No id appears in both arrays today, but if one ever does, the operator
+      // saying "Closed For The Day" must outrank "had performances listed".
+      const park = parkWithShows(
+        [{Id: 'show-x', Minutes: -1, Status: 'Closed For The Day', StatusDisplay: 'Closed For The Day', Title: 'A', LastUpDateTime: FRESH_STAMP}],
+        [SHOW_ROW], true);
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'show-x');
+      expect(row.status).toBe('CLOSED');
+      expect(row.showtimes).toHaveLength(1);
+    });
+
+    it('survives a malformed ShowTimes payload', async () => {
+      for (const bad of [{} as any, 'oops' as any, [null] as any, undefined as any]) {
+        const park = parkWithShows([], bad, true);
+        await expect((park as any).buildLiveData()).resolves.toBeInstanceOf(Array);
+      }
+    });
+
     it('survives an unparseable timestamp without taking down the park', async () => {
       // localFromFakeUtc throws on anything it cannot read, and this loop runs
       // outside the per-park try, so a malformed stamp would otherwise lose
