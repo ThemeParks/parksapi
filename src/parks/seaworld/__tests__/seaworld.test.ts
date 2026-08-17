@@ -102,6 +102,22 @@ const MOCK_PARK_DETAIL_SWO = {
   ],
 };
 
+/**
+ * Stamps are US Eastern wall time with no zone suffix — that is the real shape
+ * for readings and closures (the fractional `…Z` form only ever appears on
+ * no-reading rows). These sit a few minutes before CLOCK_PARK_OPEN, which is
+ * 14:00 Eastern, matching the 3-minute median age measured in the wild.
+ */
+const FRESH_STAMP = '2026-08-15T13:57:00';
+/** Same shape, but hours old — the frozen-value case. */
+const STALE_STAMP = '2026-08-15T09:30:00';
+/**
+ * Fresh against CLOCK_PARK_SHUT (23:00 Eastern) rather than the open clock.
+ * Models the two things that actually happen after close: the feed refreshing a
+ * 0 every few minutes, and a genuinely live reading during an unlisted event.
+ */
+const FRESH_STAMP_NIGHT = '2026-08-15T22:57:00';
+
 // Field shapes match the five combinations seen across a 41-round census
 // (5002 observations, 2026-08-15). Note measured rows carry StatusDisplay: ''
 // while no-reading rows carry null — the API distinguishes them, so the
@@ -112,16 +128,16 @@ const MOCK_PARK_DETAIL_SWO = {
 const MOCK_AVAILABILITY_SWO = {
   WaitTimes: [
     // Normal wait time
-    {Id: 'ride-001', Minutes: 30, Status: '', StatusDisplay: '', Title: 'Ice Breaker', LastUpDateTime: '2026-04-01T10:00:00Z'},
+    {Id: 'ride-001', Minutes: 30, Status: '', StatusDisplay: '', Title: 'Ice Breaker', LastUpDateTime: FRESH_STAMP},
     // No current reading: -1 sentinel with a blank status. NOT a closure.
-    {Id: 'ride-002', Minutes: -1, Status: '', StatusDisplay: null, Title: 'Unmeasured Ride', LastUpDateTime: '2026-04-01T10:00:00Z'},
+    {Id: 'ride-002', Minutes: -1, Status: '', StatusDisplay: null, Title: 'Unmeasured Ride', LastUpDateTime: FRESH_STAMP},
     // Zero wait time (walk-on)
-    {Id: 'ride-003', Minutes: 0, Status: '', StatusDisplay: '', Title: 'Walk On Ride', LastUpDateTime: '2026-04-01T10:00:00Z'},
+    {Id: 'ride-003', Minutes: 0, Status: '', StatusDisplay: '', Title: 'Walk On Ride', LastUpDateTime: FRESH_STAMP},
     // Genuinely closed, with the closure reason in both status fields
-    {Id: 'ride-004', Minutes: -1, Status: 'Closed Temporarily', StatusDisplay: 'Closed Temporarily', Title: 'Closed Ride', LastUpDateTime: '2026-04-01T10:00:00Z'},
+    {Id: 'ride-004', Minutes: -1, Status: 'Closed Temporarily', StatusDisplay: 'Closed Temporarily', Title: 'Closed Ride', LastUpDateTime: FRESH_STAMP},
     // Closure string that did not exist when this park was first implemented —
     // guards against anyone reintroducing a hardcoded list of known strings
-    {Id: 'ride-005', Minutes: -1, Status: 'Closed Due To Weather', StatusDisplay: 'Closed Due To Weather', Title: 'Weathered Ride', LastUpDateTime: '2026-04-01T10:00:00Z'},
+    {Id: 'ride-005', Minutes: -1, Status: 'Closed Due To Weather', StatusDisplay: 'Closed Due To Weather', Title: 'Weathered Ride', LastUpDateTime: FRESH_STAMP},
   ],
   ShowTimes: [
     // Show with actual times
@@ -159,8 +175,12 @@ const HOURS_TODAY = [
 
 /** 14:00 America/New_York — inside HOURS_TODAY. */
 const CLOCK_PARK_OPEN = new Date('2026-08-15T18:00:00Z');
-/** 08:00 America/New_York, same local day — before opening, so hours for today exist. */
-const CLOCK_PARK_SHUT = new Date('2026-08-15T12:00:00Z');
+/**
+ * 23:00 America/New_York on the same local day — after the 21:00 close, which
+ * is the window this whole change is about. Still the same calendar day, so
+ * today's hours are present and the park is simply shut rather than unknown.
+ */
+const CLOCK_PARK_SHUT = new Date('2026-08-16T03:00:00Z');
 
 function pinClock(at: Date) {
   vi.useFakeTimers({toFake: ['Date']});
@@ -355,6 +375,11 @@ describe('SeaworldOrlando', () => {
   });
 
   describe('buildLiveData', () => {
+    // A reading is only published when the park is demonstrably operating, so
+    // these need a fixed "now" that the fixture's stamps are fresh against.
+    beforeEach(() => pinClock(CLOCK_PARK_OPEN));
+    afterEach(() => vi.useRealTimers());
+
     it('returns live data for rides with positive wait times', async () => {
       const park = createMockedOrlando();
       const liveData = await (park as any).buildLiveData();
@@ -541,16 +566,144 @@ describe('SeaworldOrlando', () => {
       expect(row.queue?.STANDBY?.waitTime).toBeNull();
     });
 
-    it('still reports a real wait time after hours if the feed publishes one', async () => {
-      // Operating hours only arbitrate the no-reading case. An actual number is
-      // evidence in its own right and must not be overridden by the clock.
+    it('publishes a live queue during an event the schedule does not list', async () => {
+      // Early entry, a private hire, an extra ticketed hour. The calendar says
+      // shut, the rides are running, and a real queue is being reported. This
+      // must publish: suppressing a live reading is worse than any relic.
       const park = parkReturning([
-        {Id: 'r', Minutes: 20, Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+        {Id: 'r', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: FRESH_STAMP_NIGHT},
       ], false);
       const liveData = await (park as any).buildLiveData();
       const row = liveData.find((ld: any) => ld.id === 'r');
       expect(row.status).toBe('OPERATING');
       expect(row.queue?.STANDBY?.waitTime).toBe(20);
+    });
+
+    it('carries walk-ons and unmeasured rides through that same event', async () => {
+      // One queue anywhere vouches for the park, so a 0 alongside it is a
+      // genuine walk-on rather than the closed-park 0 — and an unmeasured ride
+      // is presumed running too. Without this, an unlisted event would publish
+      // only the rides that happened to have a queue.
+      const park = parkReturning([
+        {Id: 'queue', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: FRESH_STAMP_NIGHT},
+        {Id: 'walkon', Minutes: 0, Status: '', StatusDisplay: '', Title: 'B', LastUpDateTime: FRESH_STAMP_NIGHT},
+        {Id: 'unmeasured', Minutes: -1, Status: '', StatusDisplay: null, Title: 'C', LastUpDateTime: FRESH_STAMP_NIGHT},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'walkon').status).toBe('OPERATING');
+      expect(liveData.find((ld: any) => ld.id === 'walkon').queue?.STANDBY?.waitTime).toBe(0);
+      expect(liveData.find((ld: any) => ld.id === 'unmeasured').status).toBe('OPERATING');
+    });
+
+    it('closes a walk-on zero once the park has actually shut', async () => {
+      // The mirror of the test above, and the bug this change exists for. At
+      // close the feed drops each ride to 0 and keeps REFRESHING that 0 all
+      // night, so the stamp stays fresh and only the absence of any queue
+      // anywhere distinguishes it. Kraken and Mako showed a walk-on at 3am.
+      const park = parkReturning([
+        {Id: 'a', Minutes: 0, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: FRESH_STAMP_NIGHT},
+        {Id: 'b', Minutes: 0, Status: '', StatusDisplay: '', Title: 'B', LastUpDateTime: FRESH_STAMP_NIGHT},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      for (const id of ['a', 'b']) {
+        const row = liveData.find((ld: any) => ld.id === id);
+        expect(row.status).toBe('CLOSED');
+        expect(row.queue?.STANDBY?.waitTime).toBeNull();
+      }
+    });
+
+    it('closes a frozen positive value once the park has shut', async () => {
+      // The other half: values that freeze rather than dropping to 0. Observed
+      // at 651 minutes old, still being served at midnight.
+      const park = parkReturning([
+        {Id: 'r', Minutes: 45, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: STALE_STAMP},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'r');
+      expect(row.status).toBe('CLOSED');
+      expect(row.queue?.STANDBY?.waitTime).toBeNull();
+    });
+
+    it('a stale positive alone does not vouch for the park', async () => {
+      // Only a FRESH positive counts as evidence. A frozen value must not drag
+      // the rest of the park's rides back to OPERATING with it.
+      const park = parkReturning([
+        {Id: 'frozen', Minutes: 45, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: STALE_STAMP},
+        {Id: 'unmeasured', Minutes: -1, Status: '', StatusDisplay: null, Title: 'B', LastUpDateTime: FRESH_STAMP},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'unmeasured').status).toBe('CLOSED');
+    });
+
+    it('publishes a stale value normally while the park is open', async () => {
+      // Staleness only decides things when the park is otherwise shut. During
+      // opening hours a quiet ride's older number is still the best we have,
+      // and discarding it would be the suppression this design avoids.
+      const park = parkReturning([
+        {Id: 'r', Minutes: 45, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: STALE_STAMP},
+      ], true);
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'r');
+      expect(row.status).toBe('OPERATING');
+      expect(row.queue?.STANDBY?.waitTime).toBe(45);
+    });
+
+    it('reads the stamp as Eastern even for a Pacific park', async () => {
+      // The stamp is US Eastern for EVERY park, not the park's own zone. San
+      // Diego is where that matters: read as Pacific, an Eastern stamp lands
+      // three hours in the future and the reading would be discarded.
+      //
+      // Clock is 20:00 Pacific, an hour after this park's 19:00 close, so the
+      // schedule cannot supply the verdict — only the reading can.
+      vi.useFakeTimers({toFake: ['Date']});
+      vi.setSystemTime(new Date('2026-08-16T03:00:00Z')); // 23:00 ET / 20:00 PT
+
+      const park = new SeaworldSanDiego();
+      (park as any).getParkDetail = async () => ({
+        ...MOCK_PARK_DETAIL_SWO,
+        open_hours: [
+          {opens_at: '2026-08-15T09:00:00.0000000Z', closes_at: '2026-08-15T19:00:00.0000000Z', date: '08/15/2026'},
+        ],
+      }) as any;
+      (park as any).getAvailability = async () => ({
+        // 22:57 Eastern = 19:57 Pacific = 3 minutes ago. Read as Pacific it
+        // would be 22:57 PT, i.e. nearly three hours from now.
+        WaitTimes: [{Id: 'r', Minutes: 25, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: '2026-08-15T22:57:00'}],
+        ShowTimes: [],
+      }) as any;
+
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'r');
+      expect(row.status).toBe('OPERATING');
+      expect(row.queue?.STANDBY?.waitTime).toBe(25);
+    });
+
+    it('does not treat a future-dated stamp as fresh', async () => {
+      // Never observed in 1890 readings, so this only fires on corruption — but
+      // a stamp from tomorrow would look eternally fresh and hold a shut park
+      // open indefinitely.
+      const park = parkReturning([
+        {Id: 'r', Minutes: 30, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: '2026-08-17T12:00:00'},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'r');
+      expect(row.status).toBe('CLOSED');
+    });
+
+    it('survives an unparseable timestamp without taking down the park', async () => {
+      // localFromFakeUtc throws on anything it cannot read, and this loop runs
+      // outside the per-park try, so a malformed stamp would otherwise lose
+      // live data for every park in the destination.
+      const park = parkReturning([
+        {Id: 'queue', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: FRESH_STAMP},
+        {Id: 'bad', Minutes: 10, Status: '', StatusDisplay: '', Title: 'B', LastUpDateTime: 'not-a-date'},
+        {Id: 'worse', Minutes: 10, Status: '', StatusDisplay: '', Title: 'C', LastUpDateTime: 'x'},
+        {Id: 'empty', Minutes: 10, Status: '', StatusDisplay: '', Title: 'D', LastUpDateTime: ''},
+      ], true);
+      const liveData = await (park as any).buildLiveData();
+      for (const id of ['bad', 'worse', 'empty']) {
+        expect(liveData.find((ld: any) => ld.id === id).status).toBe('OPERATING');
+      }
     });
 
     it('falls back to CLOSED when operating hours cannot be determined', async () => {
@@ -569,7 +722,7 @@ describe('SeaworldOrlando', () => {
     it('keeps live data when only the park detail fetch fails', async () => {
       // The hours lookup must not cost us the availability data we already have.
       const park = parkReturning([
-        {Id: 'measured', Minutes: 45, Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+        {Id: 'measured', Minutes: 45, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: FRESH_STAMP},
       ]);
       (park as any).getParkDetail = async () => {
         throw new Error('park detail unavailable');
@@ -781,6 +934,9 @@ describe('SeaworldOrlando', () => {
   // and buildLiveData() emitted nothing for the entire destination.
   // -------------------------------------------------------------------------
   describe('per-park failure isolation', () => {
+    beforeEach(() => pinClock(CLOCK_PARK_OPEN));
+    afterEach(() => vi.useRealTimers());
+
     const DISCOVERY_COVE = '1FB04DFC-B6C0-4918-BE36-EE6DD14FE741';
 
     // Reject for one park UUID only; the others keep serving the fixture.

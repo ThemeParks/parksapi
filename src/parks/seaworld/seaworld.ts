@@ -33,6 +33,21 @@ import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {formatDate, localFromFakeUtc} from '../../datetime.js';
 
+/**
+ * `LastUpDateTime` is US Eastern for every park in the family, whatever zone
+ * the park itself sits in. See readingAgeMinutes() for the measurements.
+ */
+const SEAWORLD_STAMP_TIMEZONE = 'America/New_York';
+
+/**
+ * How old a reading may be and still count as live evidence that a ride is
+ * running. In-hours ages are tightly clustered — median 3 minutes, p90 21 —
+ * while the stale positives still being served at midnight were 238 minutes
+ * old, so anything from roughly 40 to 200 minutes behaves identically. 60 is
+ * comfortably clear of both ends.
+ */
+const SEAWORLD_FRESH_READING_MINUTES = 60;
+
 // ---------------------------------------------------------------------------
 // API response types
 // ---------------------------------------------------------------------------
@@ -241,6 +256,35 @@ export class SeaworldDestination extends Destination {
    */
   private getTodayDateString(): string {
     return formatDate(new Date(), this.timezone);
+  }
+
+  /**
+   * How old is a wait-time reading, in minutes, or null if it cannot be dated.
+   *
+   * `LastUpDateTime` is US Eastern wall time for EVERY park, not the park's own
+   * zone. Measured across 1890 readings: read as Eastern the median age is 3
+   * minutes for all six reporting parks and not one reading is dated in the
+   * future. Read as park-local instead, San Antonio sits a clean hour ahead and
+   * San Diego three — which is what made an earlier review call the field
+   * timezone-inconsistent. It is consistent; it is just not local.
+   *
+   * Real readings and closures carry a bare local stamp ("2026-08-15T14:00:00");
+   * the no-reading rows carry a fractional UTC one ("…T18:20:04.776142Z"). That
+   * split held for all 5002 rows of the census, so a trailing Z means the row
+   * was synthesised and there is nothing to date.
+   */
+  private readingAgeMinutes(stamp: unknown, nowMs: number): number | null {
+    if (typeof stamp !== 'string' || !stamp || stamp.endsWith('Z')) return null;
+    // localFromFakeUtc THROWS on anything it cannot read, and this runs from
+    // the wait-time loop, which sits outside the per-park try — an unparseable
+    // stamp would otherwise take down every park in the destination. Undatable
+    // is not exceptional here, it just means the reading vouches for nothing.
+    try {
+      const t = new Date(localFromFakeUtc(stamp, SEAWORLD_STAMP_TIMEZONE)).getTime();
+      return Number.isFinite(t) ? (nowMs - t) / 60000 : null;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -500,6 +544,41 @@ export class SeaworldDestination extends Destination {
         continue;
       }
 
+      // --- Is this park actually operating right now? ---
+      //
+      // The schedule is not the only evidence, and must not be the only vote.
+      // Early entry, a private hire, an extra ticketed hour: the park runs, the
+      // rides run, and none of it is in the published calendar. Suppressing live
+      // readings in that window is worse than anything this method prevents.
+      //
+      // So a fresh POSITIVE reading anywhere in the park vouches for the whole
+      // park. That is safe because of what the overnight data shows: across 648
+      // readings taken while every park was shut, the number that were both
+      // fresh and positive was zero. Queues do not appear at a closed park.
+      //
+      // It has to be fresh AND positive. Neither half alone works. The feed
+      // keeps publishing after close, so a plain "any reading" test is useless
+      // (516 fresh zeros overnight), and it also freezes old values, so a plain
+      // "any positive" test is equally useless (84 stale positives overnight,
+      // up to 651 minutes old).
+      const nowMs = Date.now();
+      const liveEvidence = (availability.WaitTimes || []).some((wt) => {
+        const m = typeof wt.Minutes === 'number' ? wt.Minutes : NaN;
+        if (!Number.isFinite(m) || m <= 0) return false;
+        if (String(wt.Status ?? '').trim() || String(wt.StatusDisplay ?? '').trim()) return false;
+        const age = this.readingAgeMinutes(wt.LastUpDateTime, nowMs);
+        // A future-dated stamp is not evidence of anything. Not one of the 1890
+        // readings measured was dated ahead of its sample, so this only fires on
+        // corruption — but a stamp from tomorrow would otherwise look eternally
+        // fresh and hold a shut park open. Small negative values are tolerated
+        // for clock skew between us and the operator.
+        return age !== null && age <= SEAWORLD_FRESH_READING_MINUTES && age >= -5;
+      });
+      // Either signal is enough. Schedule alone covers a quiet morning where
+      // nothing has a queue yet; evidence alone covers the unpublished event,
+      // and also carries the park when the hours lookup failed entirely.
+      const parkOperating = parkIsOpen === true || liveEvidence;
+
       // --- Wait times ---
       //
       // The feed carries three states, not two. `Minutes: -1` alone does NOT
@@ -548,12 +627,29 @@ export class SeaworldDestination extends Destination {
           entry.status = 'CLOSED';
           entry.queue = {STANDBY: {waitTime: null}};
         } else if (Number.isFinite(minutes) && minutes >= 0) {
-          entry.status = 'OPERATING';
-          entry.queue = {STANDBY: {waitTime: minutes}};
+          // A reading is not self-evidently current. The feed does not clear
+          // wait times at close: it drops the ride to 0 and keeps refreshing
+          // that 0 all night (Kraken went 5min at 21:01 ET to 0 at 21:06 and
+          // held it with a 3-minute-old stamp until dawn), and separately it
+          // freezes older values in place for hours. Publishing either as
+          // OPERATING is how two headline coasters came to show a walk-on wait
+          // at 3am.
+          //
+          // Both cases are ambiguous ONLY in isolation: a 0 could be a genuine
+          // walk-on and a stale value could be a quiet ride. What resolves them
+          // is whether the park is running at all, so defer to that rather than
+          // trying to judge the reading alone.
+          if (parkOperating) {
+            entry.status = 'OPERATING';
+            entry.queue = {STANDBY: {waitTime: minutes}};
+          } else {
+            entry.status = 'CLOSED';
+            entry.queue = {STANDBY: {waitTime: null}};
+          }
         } else {
           // No reading available, so the feed tells us nothing about this ride
-          // and the operating hours decide the reading. Open: the ride is
-          // presumed running, we simply have no wait time. Shut (or unknown):
+          // and whether the park is running decides it. Operating: the ride is
+          // presumed running, we simply have no wait time. Not operating:
           // closed, which is also the safe default — overnight every ride lands
           // here with no closure marker, and claiming OPERATING would show a
           // shut park as open.
@@ -563,7 +659,7 @@ export class SeaworldDestination extends Destination {
           // hours, then reported a real wait), which is exactly the schema's
           // "queue exists but no current value is available". Omitting `queue`
           // would instead claim the entity has no queue at all.
-          entry.status = parkIsOpen ? 'OPERATING' : 'CLOSED';
+          entry.status = parkOperating ? 'OPERATING' : 'CLOSED';
           entry.queue = {STANDBY: {waitTime: null}};
         }
       }
