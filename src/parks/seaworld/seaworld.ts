@@ -516,6 +516,10 @@ export class SeaworldDestination extends Destination {
     // wait-time branch below assigns a status explicitly, so a ride can never
     // fall through to this default — do not rely on `continue` to leave a ride
     // unset, as that silently republishes it as CLOSED.
+    // Ids the operator explicitly closed this cycle. The show loop must not
+    // overwrite a real closure with a schedule.
+    const closedByStatus = new Set<string>();
+
     const getOrCreate = (id: string): LiveData => {
       let entry = liveDataMap.get(id);
       if (!entry) {
@@ -670,6 +674,7 @@ export class SeaworldDestination extends Destination {
         if (closureText) {
           entry.status = 'CLOSED';
           entry.queue = {STANDBY: {waitTime: null}};
+          closedByStatus.add(wt.Id);
         } else if (Number.isFinite(minutes) && minutes >= 0) {
           // A reading is not self-evidently current. The feed does not clear
           // wait times at close: it drops the ride to 0 and keeps refreshing
@@ -709,12 +714,34 @@ export class SeaworldDestination extends Destination {
       }
 
       // --- Show times ---
-      for (const st of (availability.ShowTimes || [])) {
-        if (!st.Id) continue;
+      //
+      // A non-empty ShowTimes array means "has performances scheduled today",
+      // NOT "running now". The feed publishes the whole day's list from
+      // midnight: sampled at 03:46 local, SeaWorld Orlando returned 22 slots
+      // running 10:45 to 18:30, every one still hours away. Reading that as
+      // OPERATING is the same category error the wait-time branch just stopped
+      // making, and after that fix these were the only rows left showing a shut
+      // park as open.
+      //
+      // So the status follows the park, exactly as a ride's does. Note this is
+      // deliberately not "is a performance on stage right now" — that would
+      // flap several times a day as each show starts and ends, and the
+      // showtimes array already carries that detail for anyone who wants it.
+      // The schedule is published either way, so a closed park still shows
+      // today's line-up.
+      const showRows = Array.isArray(availability?.ShowTimes) ? availability.ShowTimes : [];
+      for (const st of showRows) {
+        if (!st?.Id) continue;
         const entry = getOrCreate(st.Id);
 
         if (st.ShowTimes && st.ShowTimes.length > 0) {
-          entry.status = 'OPERATING';
+          // An explicit closure outranks a schedule. No id currently appears in
+          // both arrays (checked across five parks), but if one ever does, the
+          // operator saying "Closed For The Day" must not be overwritten by the
+          // fact that performances were listed this morning.
+          if (!closedByStatus.has(st.Id)) {
+            entry.status = parkOperating ? 'OPERATING' : 'CLOSED';
+          }
           entry.showtimes = st.ShowTimes.map((time) => {
             // StartTime/EndTime are local datetime strings without a timezone
             // suffix (e.g. "2026-04-01T12:00:00").  Use constructDateTime to
