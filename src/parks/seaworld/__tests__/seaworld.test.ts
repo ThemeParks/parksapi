@@ -117,6 +117,17 @@ const STALE_STAMP = '2026-08-15T09:30:00';
  * 0 every few minutes, and a genuinely live reading during an unlisted event.
  */
 const FRESH_STAMP_NIGHT = '2026-08-15T22:57:00';
+/**
+ * 30 minutes before CLOCK_PARK_SHUT. Well inside the window but nowhere near
+ * the 3-minute mark every other fixture sits at — without a fixture in this
+ * band, inverting the age subtraction passes the whole suite, and the freshness
+ * constant itself is pinned only to a range hundreds of minutes wide.
+ */
+const AGEING_STAMP = '2026-08-15T22:30:00';
+/** 4 hours before CLOCK_PARK_SHUT — outside the window, must not vouch. */
+const TOO_OLD_STAMP = '2026-08-15T19:00:00';
+/** 2 minutes AFTER CLOCK_PARK_SHUT — operator clock skew, must still vouch. */
+const SKEWED_STAMP = '2026-08-15T23:02:00';
 
 // Field shapes match the five combinations seen across a 41-round census
 // (5002 observations, 2026-08-15). Note measured rows carry StatusDisplay: ''
@@ -690,15 +701,121 @@ describe('SeaworldOrlando', () => {
       expect(row.status).toBe('CLOSED');
     });
 
+    // The freshness window itself. Every other fixture sits 3 minutes old, and
+    // with only that one point the age arithmetic can be inverted, or the
+    // constant moved almost anywhere, without a single test noticing.
+    it('accepts a reading well inside the window as evidence', async () => {
+      const park = parkReturning([
+        {Id: 'r', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: AGEING_STAMP},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('OPERATING');
+    });
+
+    it('rejects a reading beyond the window as evidence', async () => {
+      const park = parkReturning([
+        {Id: 'r', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: TOO_OLD_STAMP},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+    });
+
+    it('tolerates a slightly future stamp from operator clock skew', async () => {
+      // Distinct from the far-future case below: a couple of minutes ahead is
+      // ordinary skew and must not throw away a live reading.
+      const park = parkReturning([
+        {Id: 'r', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: SKEWED_STAMP},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('OPERATING');
+    });
+
+    it('does not let an undatable stamp vouch for a shut park', async () => {
+      // "Undatable vouches for nothing" is a design decision, so pin it. No
+      // valid stamp anywhere in this payload, or .some() would short-circuit
+      // before ever reaching these rows.
+      const park = parkReturning([
+        {Id: 'a', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: 'not-a-date'},
+        {Id: 'b', Minutes: 15, Status: '', StatusDisplay: '', Title: 'B', LastUpDateTime: '2026-08-15'},
+        // Deliberately the SAME wall clock as FRESH_STAMP_NIGHT: if the
+        // lowercase-z guard were dropped this would read as 3 minutes old and
+        // vouch for the park, so the guard is the only thing under test.
+        {Id: 'c', Minutes: 10, Status: '', StatusDisplay: '', Title: 'C', LastUpDateTime: '2026-08-15T22:57:00z'},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      for (const id of ['a', 'b', 'c']) {
+        expect(liveData.find((ld: any) => ld.id === id).status).toBe('CLOSED');
+      }
+    });
+
+    it('does not let a date-only stamp vouch just after midnight', async () => {
+      // A bare date parses to local midnight, so shortly after midnight it
+      // measures as minutes old. Without the time-component guard one such row
+      // would hold a shut park open through the small hours — precisely the
+      // window this whole change exists to fix.
+      vi.useFakeTimers({toFake: ['Date']});
+      vi.setSystemTime(new Date('2026-08-16T04:30:00Z')); // 00:30 Eastern
+
+      const park = createMockedOrlando();
+      (park as any).getParkDetail = async () => ({...MOCK_PARK_DETAIL_SWO, open_hours: HOURS_TODAY}) as any;
+      (park as any).getAvailability = async () => ({
+        WaitTimes: [{Id: 'r', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: '2026-08-16'}],
+        ShowTimes: [],
+      }) as any;
+
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+    });
+
+    it('does not let a ride carrying a closure string vouch for the park', async () => {
+      // A closed ride cannot be proof the park is running, whatever number
+      // happens to sit beside the closure text.
+      const park = parkReturning([
+        {Id: 'r', Minutes: 25, Status: 'Closed Temporarily', StatusDisplay: 'Closed Temporarily', Title: 'A', LastUpDateTime: FRESH_STAMP_NIGHT},
+        {Id: 'other', Minutes: 0, Status: '', StatusDisplay: '', Title: 'B', LastUpDateTime: FRESH_STAMP_NIGHT},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+      expect(liveData.find((ld: any) => ld.id === 'other').status).toBe('CLOSED');
+    });
+
+    it('publishes readings when the operating hours could not be fetched', async () => {
+      // Not knowing the hours is not the same as knowing the park is shut. The
+      // feed can drop a whole park to stale zeros mid-afternoon — San Antonio
+      // did, for 15 minutes on a Saturday — so absence of evidence must not
+      // black out a park we simply have no schedule for.
+      const park = parkReturning([
+        {Id: 'r', Minutes: 0, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: TOO_OLD_STAMP},
+      ], true);
+      (park as any).getParkDetail = async () => {
+        throw new Error('park detail unavailable');
+      };
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'r');
+      expect(row.status).toBe('OPERATING');
+      expect(row.queue?.STANDBY?.waitTime).toBe(0);
+    });
+
+    it('survives a malformed WaitTimes payload without taking down the park', async () => {
+      for (const bad of [{} as any, 'oops' as any, [null] as any, undefined as any]) {
+        const park = createMockedOrlando();
+        (park as any).getAvailability = async () => ({WaitTimes: bad, ShowTimes: []}) as any;
+        await expect((park as any).buildLiveData()).resolves.toBeInstanceOf(Array);
+      }
+    });
+
     it('survives an unparseable timestamp without taking down the park', async () => {
       // localFromFakeUtc throws on anything it cannot read, and this loop runs
       // outside the per-park try, so a malformed stamp would otherwise lose
       // live data for every park in the destination.
+      // Bad rows FIRST. .some() short-circuits, so putting a valid stamp ahead
+      // of them means they are never parsed and the test proves nothing —
+      // which is exactly what an earlier version of it did.
       const park = parkReturning([
-        {Id: 'queue', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: FRESH_STAMP},
         {Id: 'bad', Minutes: 10, Status: '', StatusDisplay: '', Title: 'B', LastUpDateTime: 'not-a-date'},
         {Id: 'worse', Minutes: 10, Status: '', StatusDisplay: '', Title: 'C', LastUpDateTime: 'x'},
         {Id: 'empty', Minutes: 10, Status: '', StatusDisplay: '', Title: 'D', LastUpDateTime: ''},
+        {Id: 'queue', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: FRESH_STAMP},
       ], true);
       const liveData = await (park as any).buildLiveData();
       for (const id of ['bad', 'worse', 'empty']) {

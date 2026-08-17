@@ -41,12 +41,22 @@ const SEAWORLD_STAMP_TIMEZONE = 'America/New_York';
 
 /**
  * How old a reading may be and still count as live evidence that a ride is
- * running. In-hours ages are tightly clustered — median 3 minutes, p90 21 —
- * while the stale positives still being served at midnight were 238 minutes
- * old, so anything from roughly 40 to 200 minutes behaves identically. 60 is
- * comfortably clear of both ends.
+ * running.
+ *
+ * Measured bounds, not guessed. The freshest positive in a park — the value
+ * that actually casts the vote — has a median age of about 3 minutes at five
+ * parks and 12 at SeaWorld Orlando, whose feed runs slower; the worst observed
+ * was 37. Going the other way, the youngest stale positive still being served
+ * after every park had shut was 182 minutes. So the usable range is roughly
+ * 40 to 180 and every value in it behaves identically on the captured data.
+ *
+ * 90 rather than 60 because of the DST fall-back. constructDateTime resolves an
+ * ambiguous wall clock to the first pass, so during the repeated hour every
+ * reading computes exactly 60 minutes too old. At 60 the evidence vote would
+ * vanish family-wide for that hour — which in 2026 lands on Halloween night,
+ * mid Howl-O-Scream, with isParkOpenNow failing the same way at the same time.
  */
-const SEAWORLD_FRESH_READING_MINUTES = 60;
+const SEAWORLD_FRESH_READING_MINUTES = 90;
 
 // ---------------------------------------------------------------------------
 // API response types
@@ -274,7 +284,14 @@ export class SeaworldDestination extends Destination {
    * was synthesised and there is nothing to date.
    */
   private readingAgeMinutes(stamp: unknown, nowMs: number): number | null {
-    if (typeof stamp !== 'string' || !stamp || stamp.endsWith('Z')) return null;
+    if (typeof stamp !== 'string' || !stamp) return null;
+    // Case-insensitively, because the parser strips /Z$/i and a lowercase 'z'
+    // would otherwise slip past and be read as a local wall clock.
+    if (/z$/i.test(stamp)) return null;
+    // Require a time component. A date-only stamp parses to local midnight, so
+    // for the first hour or so after midnight it would measure as minutes old
+    // and could hold a shut park open all by itself.
+    if (!stamp.includes('T')) return null;
     // localFromFakeUtc THROWS on anything it cannot read, and this runs from
     // the wait-time loop, which sits outside the per-park try — an unparseable
     // stamp would otherwise take down every park in the destination. Undatable
@@ -562,7 +579,9 @@ export class SeaworldDestination extends Destination {
       // "any positive" test is equally useless (84 stale positives overnight,
       // up to 651 minutes old).
       const nowMs = Date.now();
-      const liveEvidence = (availability.WaitTimes || []).some((wt) => {
+      const waitRows = Array.isArray(availability?.WaitTimes) ? availability.WaitTimes : [];
+      const liveEvidence = waitRows.some((wt) => {
+        if (!wt) return false;
         const m = typeof wt.Minutes === 'number' ? wt.Minutes : NaN;
         if (!Number.isFinite(m) || m <= 0) return false;
         if (String(wt.Status ?? '').trim() || String(wt.StatusDisplay ?? '').trim()) return false;
@@ -575,9 +594,34 @@ export class SeaworldDestination extends Destination {
         return age !== null && age <= SEAWORLD_FRESH_READING_MINUTES && age >= -5;
       });
       // Either signal is enough. Schedule alone covers a quiet morning where
-      // nothing has a queue yet; evidence alone covers the unpublished event,
-      // and also carries the park when the hours lookup failed entirely.
+      // nothing has a queue yet; evidence alone covers the unpublished event.
+      //
+      // The third state matters as much as the other two. `parkIsOpen` is null
+      // when the hours lookup FAILED, which is not the same as knowing the park
+      // is shut, and evidence does not reliably cover the gap: San Antonio spent
+      // three consecutive rounds at 14:31-14:41 CT on a Saturday afternoon with
+      // every ride rolled back to a stale all-zero snapshot and no fresh
+      // positive anywhere. With hours unavailable at that moment, treating
+      // absence of evidence as closure would black out a demonstrably open park.
+      // So when we do not know, publish what the feed says and let the reading
+      // stand — the same thing this code did before the frozen-value fix.
+      const hoursUnknown = parkIsOpen === null;
       const parkOperating = parkIsOpen === true || liveEvidence;
+
+      // The whole evidence vote rests on being able to date a stamp. If upstream
+      // ever changes that format — an offset, a universal Z, anything — every
+      // reading becomes undatable, evidence silently goes to zero, and the
+      // destination quietly degrades to schedule-only with nothing in the logs.
+      // Say so once per park per cycle rather than finding out from a graph.
+      if (!liveEvidence) {
+        const positives = waitRows.filter((wt) => wt && typeof wt.Minutes === 'number' && wt.Minutes > 0);
+        if (positives.length > 0 && !positives.some((wt) => this.readingAgeMinutes(wt.LastUpDateTime, nowMs) !== null)) {
+          console.warn(
+            `[${this.constructor.name}] park ${parkId}: ${positives.length} positive wait time(s) ` +
+            `but none carries a datable timestamp — the freshness check cannot run`
+          );
+        }
+      }
 
       // --- Wait times ---
       //
@@ -602,8 +646,8 @@ export class SeaworldDestination extends Destination {
       // Test `Status` generically rather than matching known strings. A 41-round
       // census saw three ("Closed Temporarily", "Closed For The Day", "Closed Due
       // To Weather"), and the newest was the most frequent — the set is open.
-      for (const wt of (availability.WaitTimes || [])) {
-        if (!wt.Id) continue;
+      for (const wt of waitRows) {
+        if (!wt?.Id) continue;
         const entry = getOrCreate(wt.Id);
 
         // Either field carries the closure text; StatusDisplay is null when
@@ -639,7 +683,7 @@ export class SeaworldDestination extends Destination {
           // walk-on and a stale value could be a quiet ride. What resolves them
           // is whether the park is running at all, so defer to that rather than
           // trying to judge the reading alone.
-          if (parkOperating) {
+          if (parkOperating || hoursUnknown) {
             entry.status = 'OPERATING';
             entry.queue = {STANDBY: {waitTime: minutes}};
           } else {
