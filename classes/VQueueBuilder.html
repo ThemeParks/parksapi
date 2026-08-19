@@ -14,7 +14,7 @@
 <div class="tsd-comment tsd-typography"><p>Main builder class for creating virtual queue objects</p>
 </div></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/b167e627b7553a4a4a197caedbefd8486ff5a4f8/src/virtualQueue/builder.ts#L206">src/virtualQueue/builder.ts:206</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/1cb612e9729a9e44058916ed41634f925a7df3e1/src/virtualQueue/builder.ts#L206">src/virtualQueue/builder.ts:206</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -54,12 +54,12 @@
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">BoardingGroupBuilder</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-example">
-<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="typescript"><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-7">queue</span><span class="hl-1"> = </span><span class="hl-3">VQueueBuilder</span><span class="hl-1">.</span><span class="hl-8">boardingGroup</span><span class="hl-1">()</span><br/><span class="hl-1">  .</span><span class="hl-8">available</span><span class="hl-1">()</span><br/><span class="hl-1">  .</span><span class="hl-8">currentGroups</span><span class="hl-1">(</span><span class="hl-9">45</span><span class="hl-1">, </span><span class="hl-9">60</span><span class="hl-1">)</span><br/><span class="hl-1">  .</span><span class="hl-8">estimatedWait</span><span class="hl-1">(</span><span class="hl-9">30</span><span class="hl-1">)</span><br/><span class="hl-1">  .</span><span class="hl-8">build</span><span class="hl-1">();</span>
+<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="typescript"><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-8">queue</span><span class="hl-1"> = </span><span class="hl-3">VQueueBuilder</span><span class="hl-1">.</span><span class="hl-9">boardingGroup</span><span class="hl-1">()</span><br/><span class="hl-1">  .</span><span class="hl-9">available</span><span class="hl-1">()</span><br/><span class="hl-1">  .</span><span class="hl-9">currentGroups</span><span class="hl-1">(</span><span class="hl-6">45</span><span class="hl-1">, </span><span class="hl-6">60</span><span class="hl-1">)</span><br/><span class="hl-1">  .</span><span class="hl-9">estimatedWait</span><span class="hl-1">(</span><span class="hl-6">30</span><span class="hl-1">)</span><br/><span class="hl-1">  .</span><span class="hl-9">build</span><span class="hl-1">();</span>
 </code><button type="button">Copy</button></pre>
 
 </div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/b167e627b7553a4a4a197caedbefd8486ff5a4f8/src/virtualQueue/builder.ts#L250">src/virtualQueue/builder.ts:250</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/1cb612e9729a9e44058916ed41634f925a7df3e1/src/virtualQueue/builder.ts#L250">src/virtualQueue/builder.ts:250</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="paidreturntime"><code class="tsd-tag">Static</code><span>paid<wbr/>Return<wbr/>Time</span><a href="#paidreturntime" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -71,12 +71,12 @@
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">PaidReturnTimeBuilder</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-example">
-<h4 class="tsd-anchor-link" id="example-1">Example<a href="#example-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="typescript"><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-7">queue</span><span class="hl-1"> = </span><span class="hl-3">VQueueBuilder</span><span class="hl-1">.</span><span class="hl-8">paidReturnTime</span><span class="hl-1">()</span><br/><span class="hl-1">  .</span><span class="hl-8">available</span><span class="hl-1">()</span><br/><span class="hl-1">  .</span><span class="hl-8">withWindow</span><span class="hl-1">(</span><span class="hl-3">startTime</span><span class="hl-1">, </span><span class="hl-3">endTime</span><span class="hl-1">)</span><br/><span class="hl-1">  .</span><span class="hl-8">withPrice</span><span class="hl-1">(</span><span class="hl-4">&#39;USD&#39;</span><span class="hl-1">, </span><span class="hl-9">1500</span><span class="hl-1">)</span><br/><span class="hl-1">  .</span><span class="hl-8">build</span><span class="hl-1">();</span>
+<h4 class="tsd-anchor-link" id="example-1">Example<a href="#example-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="typescript"><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-8">queue</span><span class="hl-1"> = </span><span class="hl-3">VQueueBuilder</span><span class="hl-1">.</span><span class="hl-9">paidReturnTime</span><span class="hl-1">()</span><br/><span class="hl-1">  .</span><span class="hl-9">available</span><span class="hl-1">()</span><br/><span class="hl-1">  .</span><span class="hl-9">withWindow</span><span class="hl-1">(</span><span class="hl-3">startTime</span><span class="hl-1">, </span><span class="hl-3">endTime</span><span class="hl-1">)</span><br/><span class="hl-1">  .</span><span class="hl-9">withPrice</span><span class="hl-1">(</span><span class="hl-4">&#39;USD&#39;</span><span class="hl-1">, </span><span class="hl-6">1500</span><span class="hl-1">)</span><br/><span class="hl-1">  .</span><span class="hl-9">build</span><span class="hl-1">();</span>
 </code><button type="button">Copy</button></pre>
 
 </div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/b167e627b7553a4a4a197caedbefd8486ff5a4f8/src/virtualQueue/builder.ts#L234">src/virtualQueue/builder.ts:234</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/1cb612e9729a9e44058916ed41634f925a7df3e1/src/virtualQueue/builder.ts#L234">src/virtualQueue/builder.ts:234</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="returntime"><code class="tsd-tag">Static</code><span>return<wbr/>Time</span><a href="#returntime" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -88,12 +88,12 @@
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">ReturnTimeBuilder</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-example">
-<h4 class="tsd-anchor-link" id="example-2">Example<a href="#example-2" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="typescript"><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-7">queue</span><span class="hl-1"> = </span><span class="hl-3">VQueueBuilder</span><span class="hl-1">.</span><span class="hl-8">returnTime</span><span class="hl-1">()</span><br/><span class="hl-1">  .</span><span class="hl-8">available</span><span class="hl-1">()</span><br/><span class="hl-1">  .</span><span class="hl-8">withWindow</span><span class="hl-1">(</span><span class="hl-4">&#39;2024-10-15T14:30:00-04:00&#39;</span><span class="hl-1">, </span><span class="hl-4">&#39;2024-10-15T14:45:00-04:00&#39;</span><span class="hl-1">)</span><br/><span class="hl-1">  .</span><span class="hl-8">build</span><span class="hl-1">();</span>
+<h4 class="tsd-anchor-link" id="example-2">Example<a href="#example-2" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="typescript"><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-8">queue</span><span class="hl-1"> = </span><span class="hl-3">VQueueBuilder</span><span class="hl-1">.</span><span class="hl-9">returnTime</span><span class="hl-1">()</span><br/><span class="hl-1">  .</span><span class="hl-9">available</span><span class="hl-1">()</span><br/><span class="hl-1">  .</span><span class="hl-9">withWindow</span><span class="hl-1">(</span><span class="hl-4">&#39;2024-10-15T14:30:00-04:00&#39;</span><span class="hl-1">, </span><span class="hl-4">&#39;2024-10-15T14:45:00-04:00&#39;</span><span class="hl-1">)</span><br/><span class="hl-1">  .</span><span class="hl-9">build</span><span class="hl-1">();</span>
 </code><button type="button">Copy</button></pre>
 
 </div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/b167e627b7553a4a4a197caedbefd8486ff5a4f8/src/virtualQueue/builder.ts#L218">src/virtualQueue/builder.ts:218</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/1cb612e9729a9e44058916ed41634f925a7df3e1/src/virtualQueue/builder.ts#L218">src/virtualQueue/builder.ts:218</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
