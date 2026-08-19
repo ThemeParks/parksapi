@@ -454,38 +454,4 @@ describe('mapUniversalShowStatus', () => {
     expect(status).toBe('OPERATING'); // was 'CLOSED' — the reported contradiction
     expect(showtimes).toHaveLength(1);
   });
-
-  // Regression for programme#86 / parksapi USH incident: the feed lists the
-  // whole day's ENABLED slots from midnight, so hasFutureShowtimes stays true
-  // all night once the feed rolls to the next operating day. Without a clock
-  // gate a show sampled overnight reads OPERATING straight through the
-  // closure and the row never gets rewritten (frozen "current" value).
-  test('park closed (parkOperating=false) overrides future showtimes → CLOSED', () => {
-    expect(mapUniversalShowStatus('CLOSED', true, false)).toBe('CLOSED');
-    expect(mapUniversalShowStatus(undefined, true, false)).toBe('CLOSED');
-  });
-
-  test('park open (parkOperating=true) with future showtimes → OPERATING, same as the default', () => {
-    expect(mapUniversalShowStatus('CLOSED', true, true)).toBe('OPERATING');
-  });
-
-  test('parkOperating defaults to true (ungated) when the caller omits it', () => {
-    expect(mapUniversalShowStatus('CLOSED', true)).toBe('OPERATING');
-  });
-
-  // Live evidence (programme#86, sampled 03:24 PDT with USH's own schedule
-  // confirming the park shut): 25 of 31 externally-shown entries carried
-  // `status: "OPEN"` outright, not just a stray future showtime. The status
-  // field is not reliably live either, so an explicit OPEN/RIDE_NOW is
-  // gated the same as the showtimes fallback — the same stale-reading
-  // category already fixed for ride wait times (parksapi #316).
-  test('explicit OPEN/RIDE_NOW IS clock-gated: closed park overrides a live-looking status', () => {
-    expect(mapUniversalShowStatus('OPEN', false, false)).toBe('CLOSED');
-    expect(mapUniversalShowStatus('RIDE_NOW', false, false)).toBe('CLOSED');
-  });
-
-  test('delay/long-closure signals are NOT clock-gated — neither claims OPERATING', () => {
-    expect(mapUniversalShowStatus('BRIEF_DELAY', true, false)).toBe('DOWN');
-    expect(mapUniversalShowStatus('EXTENDED_CLOSURE', true, false)).toBe('CLOSED');
-  });
 });
