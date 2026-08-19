@@ -324,6 +324,14 @@ export class DisneylandParis extends Destination {
   @config
   timezone: string = 'Europe/Paris';
 
+  /**
+   * A seasonal show's POI and schedule entries disappear entirely once its
+   * run ends — buildLiveData() has nothing to key off, so the row would
+   * otherwise freeze at its last live value forever (parksapi #74). See
+   * Destination.retireMissingLiveEntities for the mechanism.
+   */
+  protected retireMissingLiveEntities = true;
+
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('DLP');
