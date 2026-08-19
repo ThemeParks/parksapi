@@ -151,6 +151,27 @@ describe('DLP dining hours', () => {
     expect(await statusAt('13:00:00', hours)).toBe('CLOSED');
   });
 
+  it('rolls the midnight crossing forward whatever timezone the host runs in', async () => {
+    // `new Date(`${todayStr}T00:00:00`)` parses in the host's zone, so
+    // "add a day, reformat in Europe/Paris" silently fails to advance on
+    // any host east of Paris — Pacific/Kiritimati (UTC+14) is the sharpest
+    // case. shiftDateString (already used a few lines up for the
+    // walkthrough path) anchors at noon UTC instead, so no offset can push
+    // it across a date boundary.
+    const hours = {startTime: '19:00:00', endTime: '01:00:00', status: 'OPERATING'};
+    const original = process.env.TZ;
+    try {
+      for (const tz of ['UTC', 'Pacific/Kiritimati', 'Pacific/Auckland', 'Asia/Tokyo', 'America/Los_Angeles']) {
+        process.env.TZ = tz;
+        expect(await statusAt('23:30:00', hours), tz).toBe('OPERATING');
+        expect(await statusAt('13:00:00', hours), tz).toBe('CLOSED');
+      }
+    } finally {
+      if (original === undefined) delete process.env.TZ;
+      else process.env.TZ = original;
+    }
+  });
+
   it('ignores hours published for another day', async () => {
     const date = parkToday();
     vi.setSystemTime(new Date(`${date}T13:00:00${tzOffset(date)}`));
