@@ -152,6 +152,24 @@ const NON_SURFACED_VENUE_PARENT: Record<string, string | null> = {
   'uor.cw': null,
 };
 
+/**
+ * Resolve a show-list entry's `venue_id` to the schedule-bearing park
+ * place_id used as a key into PARK_PLACE_ID_TO_LEGACY_VENUE_ID (e.g.
+ * 'ush.upper_lot' -> 'ush.ush'), for clock-gating show status against park
+ * hours. Mirrors the reparenting placeToEntity applies to child entities.
+ * Returns null when the venue has no schedule to check against (CityWalk,
+ * or a missing/unrecognised venue_id) — callers should treat that as
+ * "hours unknown" and not gate on it.
+ */
+function resolveScheduleVenue(venueId: string | undefined): string | null {
+  if (!venueId) return null;
+  const venue = sanitizeId(venueId);
+  if (venue in NON_SURFACED_VENUE_PARENT) {
+    return NON_SURFACED_VENUE_PARENT[venue];
+  }
+  return venue;
+}
+
 /** Read a single attribute value from a place's place_type.attributes[]. */
 function attr(place: UniversalPlace, name: string): string | undefined {
   return place.place_type.attributes?.find((a) => a.name === name)?.value;
@@ -298,15 +316,36 @@ export function parseShowTimes(
  * live schedule. Explicit long closures (EXTENDED_CLOSURE / COMING_SOON) still
  * win over stray showtimes. Delay states stay DOWN — DOWN + showtimes is
  * coherent (interrupted but scheduled).
+ *
+ * `parkOperating` clock-gates every path that would otherwise resolve to
+ * OPERATING. Two independent things stay stale straight through an
+ * overnight closure, and both were observed live at USH (programme#86),
+ * not just theorised:
+ *   - `show_times` lists the *whole day's* ENABLED performances from
+ *     midnight, so "has a future slot" (`hasFutureShowtimes`) stays true
+ *     all night once the feed rolls to the next operating day.
+ *   - The `status` field itself is not reliably live either. Sampled at
+ *     03:24 PDT with USH's own schedule confirming the park shut, 25 of
+ *     31 externally-shown entries carried `status: "OPEN"` outright — the
+ *     same category of stale-reading bug already fixed for the ride
+ *     wait-time feed (parksapi #316), just on the status field instead of
+ *     a queue reading. An explicit `OPEN`/`RIDE_NOW` is therefore trusted
+ *     only while the park is actually open.
+ * Long-closure (EXTENDED_CLOSURE / COMING_SOON) and delay (BRIEF_DELAY /
+ * WEATHER_DELAY / AT_CAPACITY) signals are NOT gated — neither claims the
+ * show is operating, so there is nothing for the clock to override.
+ * Default true (ungated) when hours are unknown — callers pass false only
+ * when a schedule lookup positively confirms the park shut.
  */
 export function mapUniversalShowStatus(
   status: string | undefined,
   hasFutureShowtimes = false,
+  parkOperating = true,
 ): 'OPERATING' | 'DOWN' | 'CLOSED' {
   switch (status) {
     case 'OPEN':
     case 'RIDE_NOW':
-      return 'OPERATING';
+      return parkOperating ? 'OPERATING' : 'CLOSED';
     case 'BRIEF_DELAY':
     case 'WEATHER_DELAY':
     case 'AT_CAPACITY':
@@ -317,8 +356,8 @@ export function mapUniversalShowStatus(
       return 'CLOSED';
     default:
       // CLOSED / CANCELED / unknown: operating today iff it still lists future
-      // ENABLED performances, otherwise CLOSED.
-      return hasFutureShowtimes ? 'OPERATING' : 'CLOSED';
+      // ENABLED performances AND the park is actually open right now.
+      return (hasFutureShowtimes && parkOperating) ? 'OPERATING' : 'CLOSED';
   }
 }
 
@@ -906,6 +945,42 @@ class Universal extends Destination {
   }
 
   /**
+   * Is the park behind `legacyVenueId` open right now — inside today's
+   * EXTRA_HOURS or OPERATING window per the legacy schedule endpoint?
+   *
+   * OpenTimeString/CloseTimeString/EarlyEntryString all carry a real UTC
+   * offset (the API stamps everything Eastern, even for Hollywood — see
+   * buildSchedules), so `new Date(...)` gives a directly comparable instant
+   * with no re-projection needed. Scanning every returned day rather than
+   * matching on the `Date` field sidesteps any day-boundary ambiguity
+   * around midnight.
+   *
+   * Returns true (ungated) if the schedule can't be fetched — a lookup
+   * failure must not silently start marking every show CLOSED.
+   */
+  async isParkOperatingNow(legacyVenueId: string, now: Date): Promise<boolean> {
+    let schedule: UniversalScheduleResponse;
+    try {
+      schedule = await this.getVenueSchedule(legacyVenueId);
+    } catch (err: any) {
+      console.warn(
+        `Universal: venue schedule unavailable for ${legacyVenueId}, unable to clock-gate shows: ${err?.message ?? err}`,
+      );
+      return true;
+    }
+
+    const nowMs = now.getTime();
+    for (const day of schedule ?? []) {
+      if (day.VenueStatus === 'Closed') continue;
+      const openMs = new Date(day.EarlyEntryString || day.OpenTimeString).getTime();
+      const closeMs = new Date(day.CloseTimeString).getTime();
+      if (!Number.isFinite(openMs) || !Number.isFinite(closeMs)) continue;
+      if (nowMs >= openMs && nowMs <= closeMs) return true;
+    }
+    return false;
+  }
+
+  /**
    * Get destination entity
    */
   async getDestinations(): Promise<Entity[]> {
@@ -1141,14 +1216,31 @@ class Universal extends Destination {
     }
 
     // Process show times from the CDN show-list.json (place_id-keyed).
+    //
+    // Whether each surfaced park is open right now, keyed by sanitized place
+    // id (e.g. 'ush.ush'). Computed once per cycle and shared across every
+    // show at that venue — clock-gates the "has future showtimes" default in
+    // mapUniversalShowStatus so a show doesn't read OPERATING straight
+    // through an overnight closure just because today's slot list is never
+    // empty (see mapUniversalShowStatus doc comment).
     const now = new Date();
+    const parkOperatingByVenue = new Map<string, boolean>();
+    for (const [placeId, legacyVenueId] of Object.entries(PARK_PLACE_ID_TO_LEGACY_VENUE_ID)) {
+      if (!placeId.startsWith(`${this.resortKey}.`)) continue;
+      parkOperatingByVenue.set(sanitizeId(placeId), await this.isParkOperatingNow(legacyVenueId, now));
+    }
+
     for (const show of showList) {
       if (!show.show_externally) continue;
       const showId = sanitizeId(show.show_id);
       const showEntry = getOrCreateLiveData(showId);
 
       const times = parseShowTimes(show, this.timezone, now);
-      showEntry.status = mapUniversalShowStatus(show.status, times.length > 0);
+      const scheduleVenue = resolveScheduleVenue(show.venue_id);
+      // No resolvable venue (CityWalk, or a missing/unrecognised venue_id) ->
+      // hours unknown -> don't gate, same as a failed schedule lookup.
+      const parkOperating = scheduleVenue ? (parkOperatingByVenue.get(scheduleVenue) ?? true) : true;
+      showEntry.status = mapUniversalShowStatus(show.status, times.length > 0, parkOperating);
       if (times.length > 0) {
         showEntry.showtimes = times;
       }
