@@ -1426,11 +1426,11 @@ export class DisneylandParis extends Destination {
 
       const startTime = constructDateTime(todayStr, hours.startTime.slice(0, 5), this.timezone);
       let endTime = constructDateTime(todayStr, hours.endTime.slice(0, 5), this.timezone);
-      // Midnight crossing, mirroring buildSchedules.
+      // Midnight crossing, mirroring buildSchedules. shiftDateString anchors
+      // at noon UTC; stepping via `new Date(dateStr)` parses in the host's
+      // zone and silently fails to advance on any host east of Paris.
       if (hours.endTime.slice(0, 5) < hours.startTime.slice(0, 5)) {
-        const nextDay = addDays(new Date(`${todayStr}T00:00:00`), 1);
-        const [nmm, ndd, nyyyy] = formatInTimezone(nextDay, this.timezone, 'date').split('/');
-        endTime = constructDateTime(`${nyyyy}-${nmm}-${ndd}`, hours.endTime.slice(0, 5), this.timezone);
+        endTime = constructDateTime(shiftDateString(todayStr, 1), hours.endTime.slice(0, 5), this.timezone);
       }
 
       // Only an explicit OPERATING opens the row; any new status token reads
@@ -1542,13 +1542,11 @@ export class DisneylandParis extends Destination {
 
           // Handle midnight crossing: if close < open, add 1 day to close.
           // Compared on HH:MM so a mixed HH:MM / HH:MM:SS pair can't
-          // fabricate a rollover.
+          // fabricate a rollover. shiftDateString anchors at noon UTC;
+          // stepping via `new Date(dateStr)` parses in the host's zone and
+          // silently fails to advance on any host east of Paris.
           if (hours.endTime.slice(0, 5) < hours.startTime.slice(0, 5)) {
-            const nextDay = addDays(new Date(`${dateString}T00:00:00`), 1);
-            const nextDayStr = formatInTimezone(nextDay, this.timezone, 'date');
-            const [nmm, ndd, nyyyy] = nextDayStr.split('/');
-            const nextDayString = `${nyyyy}-${nmm}-${ndd}`;
-            closeTime = constructDateTime(nextDayString, hours.endTime, this.timezone);
+            closeTime = constructDateTime(shiftDateString(dateString, 1), hours.endTime, this.timezone);
           }
 
           let type: string = 'OPERATING';
