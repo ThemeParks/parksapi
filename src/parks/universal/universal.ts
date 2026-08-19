@@ -157,9 +157,12 @@ const NON_SURFACED_VENUE_PARENT: Record<string, string | null> = {
  * place_id used as a key into PARK_PLACE_ID_TO_LEGACY_VENUE_ID (e.g.
  * 'ush.upper_lot' -> 'ush.ush'), for clock-gating show status against park
  * hours. Mirrors the reparenting placeToEntity applies to child entities.
- * Returns null when the venue has no schedule to check against (CityWalk,
- * or a missing/unrecognised venue_id) — callers should treat that as
- * "hours unknown" and not gate on it.
+ * Returns null only for a missing venue_id, or a venue explicitly mapped to
+ * null in NON_SURFACED_VENUE_PARENT (CityWalk — no schedule to check
+ * against). Any other venue_id passes through sanitized as-is, whether or
+ * not it's actually a surfaced park; a value that isn't a real key in
+ * PARK_PLACE_ID_TO_LEGACY_VENUE_ID simply misses the lookup at the call
+ * site and falls back to "hours unknown", same end result as null.
  */
 function resolveScheduleVenue(venueId: string | undefined): string | null {
   if (!venueId) return null;
@@ -449,15 +452,26 @@ export function parseExpressNowResponse(data: unknown): Record<string, ExpressNo
 }
 
 /**
- * Universal schedule API response
+ * Universal schedule API response.
+ *
+ * Real captures (src/parks/universal/gentype/Universal{Orlando,Studios}.
+ * fetchVenueSchedule.ts) show this shape varies by resort: UOR omits
+ * `VenueStatus`/`OpenTimeString`/`CloseTimeString` entirely on some days
+ * (closed days), USH never sends `VenueStatus` at all. All optional here to
+ * match. `SpecialEntryUnix` is real (both resorts send it on every day) but
+ * has been 0 on every day observed across ~11 weeks for all 5 venues,
+ * including deep into a would-be Halloween Horror Nights window — its
+ * semantics (a separate early-access tier? populated only near an actual
+ * special-hours date?) are unconfirmed, so isParkOperatingNow deliberately
+ * does not act on it yet. See the isParkOperatingNow doc comment.
  */
 type UniversalScheduleResponse = Array<{
   Date: string;
-  VenueStatus: string;
-  OpenTimeString: string;
-  CloseTimeString: string;
+  VenueStatus?: string;
+  OpenTimeString?: string;
+  CloseTimeString?: string;
   EarlyEntryString?: string;
-  SpecialEntryString?: string;
+  SpecialEntryUnix?: number;
 }>;
 
 @config
@@ -955,29 +969,63 @@ class Universal extends Destination {
    * matching on the `Date` field sidesteps any day-boundary ambiguity
    * around midnight.
    *
-   * Returns true (ungated) if the schedule can't be fetched — a lookup
-   * failure must not silently start marking every show CLOSED.
+   * Returns true (ungated) whenever the schedule can't be trusted — a
+   * rejected fetch, a non-array response, or an array where not one single
+   * day parses into a usable window (empty array, every day malformed).
+   * Those are indistinguishable from an upstream glitch and must not
+   * silently start marking every show CLOSED. Only a response containing at
+   * least one genuinely parseable day, with none of them covering `now`,
+   * counts as a confirmed "the park is shut" — that is the ordinary,
+   * expected overnight case.
+   *
+   * Known gap, not yet acted on: does NOT check `SpecialEntryUnix`. It's a
+   * real field on every returned day (both resorts), but has been 0 on
+   * every day observed so far across ~11 weeks, including deep into a
+   * would-be Halloween Horror Nights window — its meaning is unconfirmed,
+   * so nothing is built on an unverified guess. If a ticketed after-hours
+   * event's showtimes turn out not to be covered by this endpoint at all,
+   * shows tied to that event would be wrongly gated CLOSED; needs a live
+   * check once such an event is actually running.
    */
   async isParkOperatingNow(legacyVenueId: string, now: Date): Promise<boolean> {
-    let schedule: UniversalScheduleResponse;
     try {
-      schedule = await this.getVenueSchedule(legacyVenueId);
+      const schedule = await this.getVenueSchedule(legacyVenueId);
+      if (!Array.isArray(schedule)) {
+        console.warn(`Universal: venue schedule for ${legacyVenueId} was not an array, unable to clock-gate shows`);
+        return true;
+      }
+
+      const nowMs = now.getTime();
+      // A day we could make a confident call on — either a real open/close
+      // window, or an explicit "Closed" (e.g. Volcano Bay's off-season).
+      // Both count. Only a day with neither (garbage / missing fields) does
+      // not, so a schedule that is EXPLICITLY closed every day still yields
+      // a confident `false` rather than failing open.
+      let sawValidDay = false;
+      for (const day of schedule) {
+        if (!day) continue;
+        if (day.VenueStatus === 'Closed') {
+          sawValidDay = true;
+          continue;
+        }
+        const openMs = new Date(day.EarlyEntryString || day.OpenTimeString || NaN).getTime();
+        const closeMs = new Date(day.CloseTimeString || NaN).getTime();
+        if (!Number.isFinite(openMs) || !Number.isFinite(closeMs)) continue;
+        sawValidDay = true;
+        if (nowMs >= openMs && nowMs <= closeMs) return true;
+      }
+
+      if (!sawValidDay) {
+        console.warn(`Universal: venue schedule for ${legacyVenueId} had no usable day, unable to clock-gate shows`);
+        return true;
+      }
+      return false;
     } catch (err: any) {
       console.warn(
         `Universal: venue schedule unavailable for ${legacyVenueId}, unable to clock-gate shows: ${err?.message ?? err}`,
       );
       return true;
     }
-
-    const nowMs = now.getTime();
-    for (const day of schedule ?? []) {
-      if (day.VenueStatus === 'Closed') continue;
-      const openMs = new Date(day.EarlyEntryString || day.OpenTimeString).getTime();
-      const closeMs = new Date(day.CloseTimeString).getTime();
-      if (!Number.isFinite(openMs) || !Number.isFinite(closeMs)) continue;
-      if (nowMs >= openMs && nowMs <= closeMs) return true;
-    }
-    return false;
   }
 
   /**
@@ -1314,6 +1362,10 @@ class Universal extends Destination {
 
       for (const daySchedule of venueSchedule) {
         if (daySchedule.VenueStatus === 'Closed') continue;
+        // UOR's real API omits Open/CloseTimeString on some days (e.g. an
+        // off-season closure) without necessarily setting VenueStatus —
+        // skip rather than publish an Invalid Date schedule entry.
+        if (!daySchedule.OpenTimeString || !daySchedule.CloseTimeString) continue;
 
         // The API server lives in Orlando and stamps every entry with the
         // Eastern offset — including Hollywood venues. Re-project into the

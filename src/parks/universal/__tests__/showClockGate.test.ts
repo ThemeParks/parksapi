@@ -52,12 +52,22 @@ const SHOW: UniversalShowListEntry = {
   ],
 };
 
-function stubPark<T extends UniversalStudios | UniversalOrlando>(park: T, showList: UniversalShowListEntry[]): T {
+function stubPark<T extends UniversalStudios | UniversalOrlando>(
+  park: T,
+  showList: UniversalShowListEntry[],
+  scheduleByVenueId: Record<string, any> = {'13825': USH_SCHEDULE_FIXTURE},
+): T {
   (park as any)._init = async () => undefined;
   (park as any).getWaitTimes = async () => [];
   (park as any).getVirtualQueueStates = async () => [];
   (park as any).getShowList = async () => showList;
-  (park as any).getVenueSchedule = async () => USH_SCHEDULE_FIXTURE;
+  // venueId-aware, unlike a fixed return value: needed for UOR (4 distinct
+  // legacy venue ids sharing one buildLiveData call) to prove each park
+  // gates independently rather than all sharing whatever the stub returns.
+  (park as any).getVenueSchedule = async (venueId: string) => {
+    if (!(venueId in scheduleByVenueId)) throw new Error(`no schedule fixture stubbed for venue ${venueId}`);
+    return scheduleByVenueId[venueId];
+  };
   return park;
 }
 
@@ -163,5 +173,248 @@ describe('Universal buildLiveData — show status clock-gated against park hours
     const entry = liveData.find((d) => d.id === 'ush.cw.entertainment.5_towers_stage');
 
     expect(entry!.status).toBe('OPERATING'); // hours unknown -> ungated, same as before the fix
+  });
+
+  // resolveScheduleVenue's reparenting branch (NON_SURFACED_VENUE_PARENT),
+  // driven end-to-end through buildLiveData rather than just unit-tested in
+  // isolation: a show whose venue_id is the sub-area 'ush.upper_lot' must
+  // gate against the SURFACED park's schedule ('ush.ush' / legacy 13825),
+  // not go ungated for lack of a direct match.
+  test('a show at Upper Lot reparents onto ush.ush\'s schedule (not ungated)', async () => {
+    const upperLotShow: UniversalShowListEntry = {
+      ...SHOW,
+      show_id: 'ush.upper_lot.shows.meet_dracula',
+      venue_id: 'ush.upper_lot',
+    };
+
+    // Overnight, ush.ush schedule says shut -> reparented show must gate CLOSED.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-18T10:00:00.000Z'));
+    let park = stubPark(new UniversalStudios(), [upperLotShow]);
+    let liveData = await park.getLiveData();
+    let entry = liveData.find((d) => d.id === 'ush.upper_lot.shows.meet_dracula');
+    expect(entry!.status).toBe('CLOSED');
+    vi.useRealTimers();
+
+    // Inside ush.ush's operating window -> the same reparented show is OPERATING.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-18T19:00:00.000Z'));
+    park = stubPark(new UniversalStudios(), [upperLotShow]);
+    liveData = await park.getLiveData();
+    entry = liveData.find((d) => d.id === 'ush.upper_lot.shows.meet_dracula');
+    expect(entry!.status).toBe('OPERATING');
+  });
+
+  // The `parkOperatingByVenue.get(scheduleVenue) ?? true` fail-open branch:
+  // resolveScheduleVenue passes an unrecognised (but non-null) venue_id
+  // through as-is, and it simply never appears as a key in the venue map
+  // built from PARK_PLACE_ID_TO_LEGACY_VENUE_ID — must fall open (ungated),
+  // not throw and not silently resolve to closed.
+  test('a show at an unrecognised venue_id (no PARK_PLACE_ID_TO_LEGACY_VENUE_ID entry) falls open, ungated', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-18T10:00:00.000Z')); // overnight, USH's real park shut
+
+    const mysteryVenueShow: UniversalShowListEntry = {
+      ...SHOW,
+      show_id: 'ush.some_new_area.shows.mystery_show',
+      venue_id: 'ush.some_new_area', // not in NON_SURFACED_VENUE_PARENT, not a surfaced park key
+    };
+    const park = stubPark(new UniversalStudios(), [mysteryVenueShow]);
+    const liveData = await park.getLiveData();
+    const entry = liveData.find((d) => d.id === 'ush.some_new_area.shows.mystery_show');
+
+    expect(entry!.status).toBe('OPERATING'); // hours unknown -> ungated
+  });
+
+  test('a non-array schedule response does not throw and degrades to ungated', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-18T10:00:00.000Z')); // overnight, park shut
+
+    const park = stubPark(new UniversalStudios(), [SHOW]);
+    (park as any).getVenueSchedule = async () => ({error: 'not found', problem: 'VENUE_NOT_FOUND'});
+
+    const liveData = await park.getLiveData();
+    const entry = liveData.find((d) => d.id === 'ush.cw.entertainment.meet_mario_and_luigi');
+
+    expect(entry!.status).toBe('OPERATING');
+  });
+
+  test('an empty schedule array degrades to ungated (indistinguishable from an upstream glitch)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-18T10:00:00.000Z')); // overnight, park shut
+
+    const park = stubPark(new UniversalStudios(), [SHOW]);
+    (park as any).getVenueSchedule = async () => [];
+
+    const liveData = await park.getLiveData();
+    const entry = liveData.find((d) => d.id === 'ush.cw.entertainment.meet_mario_and_luigi');
+
+    expect(entry!.status).toBe('OPERATING');
+  });
+
+  test('a schedule where every day is explicitly Closed is a confident CLOSED, not a fail-open', async () => {
+    // Distinguishes "we have real data and it says closed" (Volcano Bay's
+    // off-season) from "we have no usable data" (the empty-array case
+    // above) — both must not throw, but only the latter should fail open.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-18T19:00:00.000Z')); // would be OPERATING hours if open
+
+    const park = stubPark(new UniversalStudios(), [SHOW]);
+    (park as any).getVenueSchedule = async () => [
+      {Date: '2026-08-18', VenueStatus: 'Closed'},
+    ];
+
+    const liveData = await park.getLiveData();
+    const entry = liveData.find((d) => d.id === 'ush.cw.entertainment.meet_mario_and_luigi');
+
+    expect(entry!.status).toBe('CLOSED');
+  });
+
+  test('a schedule day with no VenueStatus field at all still gates correctly (real USH shape has none)', async () => {
+    // src/parks/universal/gentype/UniversalStudios.fetchVenueSchedule.ts —
+    // real USH captures never include VenueStatus at all, unlike UOR's
+    // fixture. Prove the openMs/closeMs-only path works without it.
+    const noStatusFixture = [
+      {
+        Date: '2026-08-18',
+        OpenTimeString: '2026-08-18T09:00:00-07:00',
+        CloseTimeString: '2026-08-18T19:00:00-07:00',
+        EarlyEntryString: '2026-08-18T08:00:00-07:00',
+      },
+    ];
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-18T10:00:00.000Z')); // overnight, before EarlyEntry
+    let park = stubPark(new UniversalStudios(), [SHOW], {'13825': noStatusFixture});
+    let liveData = await park.getLiveData();
+    let entry = liveData.find((d) => d.id === 'ush.cw.entertainment.meet_mario_and_luigi');
+    expect(entry!.status).toBe('CLOSED');
+    vi.useRealTimers();
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-18T19:00:00.000Z')); // inside the window
+    park = stubPark(new UniversalStudios(), [SHOW], {'13825': noStatusFixture});
+    liveData = await park.getLiveData();
+    entry = liveData.find((d) => d.id === 'ush.cw.entertainment.meet_mario_and_luigi');
+    expect(entry!.status).toBe('OPERATING');
+  });
+
+  test('multi-day schedule: matches the correct day, not just the first entry', async () => {
+    // Two days with DIFFERENT hours; `now` only falls inside the second
+    // day's window. A bug that only checked schedule[0] would wrongly gate
+    // this CLOSED.
+    const multiDayFixture = [
+      {
+        Date: '2026-08-17',
+        VenueStatus: 'Open',
+        OpenTimeString: '2026-08-17T09:00:00-07:00',
+        CloseTimeString: '2026-08-17T17:00:00-07:00', // closes well before `now` below
+      },
+      {
+        Date: '2026-08-18',
+        VenueStatus: 'Open',
+        OpenTimeString: '2026-08-18T09:00:00-07:00',
+        CloseTimeString: '2026-08-18T23:00:00-07:00',
+      },
+    ];
+
+    // SHOW's fixed show_times are both in the past by this point in the
+    // month, which would fail hasFutureShowtimes regardless of gating — use
+    // a show with a slot still ahead of this test's `now`.
+    const lateShow: UniversalShowListEntry = {
+      ...SHOW,
+      show_times: [
+        {show_time_id: 'c', status: 'ENABLED', start_time: '2026-08-19T04:30:00.000Z'},
+      ],
+    };
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-19T04:00:00.000Z')); // 2026-08-18T21:00 PDT — only day 2 covers this
+    const park = stubPark(new UniversalStudios(), [lateShow], {'13825': multiDayFixture});
+    const liveData = await park.getLiveData();
+    const entry = liveData.find((d) => d.id === 'ush.cw.entertainment.meet_mario_and_luigi');
+
+    expect(entry!.status).toBe('OPERATING');
+  });
+
+  // Universal Orlando: 4 parks sharing one buildLiveData call, each with its
+  // own legacy venue id and independently computed operating state. Proves
+  // the resortKey-filtered venue loop and per-venue gating both work when
+  // more than one venue is in play at once — UOR was entirely untested
+  // before this (only single-park UniversalStudios was exercised above).
+  describe('Universal Orlando — multiple parks gated independently in one cycle', () => {
+    const UOR_OPEN_SCHEDULE = [
+      {
+        Date: '2026-08-18',
+        VenueStatus: 'Open',
+        OpenTimeString: '2026-08-18T09:00:00-04:00',
+        CloseTimeString: '2026-08-18T21:00:00-04:00',
+      },
+    ];
+    const UOR_CLOSED_SCHEDULE = [
+      {Date: '2026-08-18', VenueStatus: 'Closed'},
+    ];
+
+    test('a show at USF (open) reads OPERATING while a show at IOA (closed) reads CLOSED, same cycle', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-08-18T19:00:00.000Z')); // 15:00 EDT — inside USF's window
+
+      const usfShow: UniversalShowListEntry = {
+        ...SHOW,
+        show_id: 'uor.usf.shows.bourne_stuntacular',
+        venue_id: 'uor.usf',
+      };
+      const ioaShow: UniversalShowListEntry = {
+        ...SHOW,
+        show_id: 'uor.ioa.shows.frog_choir',
+        venue_id: 'uor.ioa',
+      };
+
+      const park = stubPark(new UniversalOrlando(), [usfShow, ioaShow], {
+        '10010': UOR_OPEN_SCHEDULE,   // uor.usf
+        '10000': UOR_CLOSED_SCHEDULE, // uor.ioa
+        '24000': UOR_CLOSED_SCHEDULE, // uor.eu
+        '13801': UOR_CLOSED_SCHEDULE, // uor.vb
+      });
+
+      const liveData = await park.getLiveData();
+      const usfEntry = liveData.find((d) => d.id === 'uor.usf.shows.bourne_stuntacular');
+      const ioaEntry = liveData.find((d) => d.id === 'uor.ioa.shows.frog_choir');
+
+      expect(usfEntry!.status).toBe('OPERATING');
+      expect(ioaEntry!.status).toBe('CLOSED');
+    });
+
+    test('one UOR park\'s schedule-fetch failure does not corrupt gating for the others', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-08-18T19:00:00.000Z'));
+
+      const usfShow: UniversalShowListEntry = {
+        ...SHOW,
+        show_id: 'uor.usf.shows.bourne_stuntacular',
+        venue_id: 'uor.usf',
+      };
+      const ioaShow: UniversalShowListEntry = {
+        ...SHOW,
+        show_id: 'uor.ioa.shows.frog_choir',
+        venue_id: 'uor.ioa',
+      };
+
+      const park = stubPark(new UniversalOrlando(), [usfShow, ioaShow], {
+        '10010': UOR_OPEN_SCHEDULE,   // uor.usf — healthy
+        '24000': UOR_CLOSED_SCHEDULE, // uor.eu
+        '13801': UOR_CLOSED_SCHEDULE, // uor.vb
+        // '10000' (uor.ioa) deliberately unstubbed -> stubPark's fixture
+        // throws "no schedule fixture stubbed for venue 10000", exercising
+        // isParkOperatingNow's own catch block for that one venue only.
+      });
+
+      const liveData = await park.getLiveData();
+      const usfEntry = liveData.find((d) => d.id === 'uor.usf.shows.bourne_stuntacular');
+      const ioaEntry = liveData.find((d) => d.id === 'uor.ioa.shows.frog_choir');
+
+      expect(usfEntry!.status).toBe('OPERATING'); // unaffected by IOA's failure
+      expect(ioaEntry!.status).toBe('OPERATING'); // IOA's own lookup failed -> ungated, not crashed
+    });
   });
 });
