@@ -251,7 +251,12 @@ describe('live entity retirement gate', () => {
     });
   });
 
-  test('a retired entity is closed once, not on every subsequent poll', async () => {
+  /**
+   * Nothing here can see whether a build was delivered, and the send path
+   * diffs the current build rather than holding a retry queue, so a close
+   * emitted once and dropped would be lost for good.
+   */
+  test('a retired entity keeps being closed while it stays absent', async () => {
     vi.useFakeTimers();
     const park = new RetiringTestDestination({retire: true, retirementMs: 7 * 24 * 60 * 60 * 1000});
 
@@ -265,9 +270,37 @@ describe('live entity retirement gate', () => {
     const closing = await park.getLiveData();
     expect(closing.find((d) => d.id === 'show2')).toEqual({id: 'show2', status: 'CLOSED'});
 
-    // Still absent, but the close has already been written.
+    // A push that never landed must not have destroyed the only close.
     const after = await park.getLiveData();
-    expect(after.map((d) => d.id)).toEqual(['show1']);
+    expect(after.find((d) => d.id === 'show2')).toEqual({id: 'show2', status: 'CLOSED'});
+  });
+
+  /**
+   * The withhold path still increments misses for everything it declined to
+   * close. Left banked, a partial recovery that drops the eligible set under
+   * the threshold fires them all at once on corroboration gathered entirely
+   * while the gate was saying the feed could not be trusted.
+   */
+  test('a partial recovery after a withheld collapse does not fire on banked misses', async () => {
+    vi.useFakeTimers();
+    const park = new RetiringTestDestination({retire: true, retirementMs: 7 * 24 * 60 * 60 * 1000});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const all = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+
+    park.liveIds = all;
+    await park.getLiveData();
+
+    // Feed collapses to one id and stays there for several cycles.
+    vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
+    park.liveIds = ['a'];
+    for (let i = 0; i < 6; i++) await park.getLiveData();
+
+    // Partial recovery: enough returns that the guard no longer applies.
+    park.liveIds = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+    const live = await park.getLiveData();
+
+    expect(live.filter((d) => d.status === 'CLOSED')).toEqual([]);
+    warn.mockRestore();
   });
 
   test('reads the flat id-to-timestamp map written before miss counting existed', async () => {

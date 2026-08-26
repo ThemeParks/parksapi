@@ -1099,8 +1099,16 @@ export abstract class Destination {
    * fabricated CLOSED is indistinguishable from a real one downstream, so
    * the log line is the only forensic trail.
    *
-   * A retired id is dropped from tracking once its row is emitted, so the
-   * close is written once rather than re-appended on every subsequent poll.
+   * The CLOSED row is re-appended on every subsequent build for as long as
+   * the entity stays absent, rather than emitted once and forgotten. That
+   * looks wasteful and is deliberate: nothing here can observe whether a
+   * build was actually delivered, and the send path holds no retry queue of
+   * its own — it diffs the rows in the *current* build against the last
+   * committed hashes. A close emitted once and dropped (batch rejected, push
+   * skipped, process died between build and POST) would therefore be lost
+   * for good, leaving exactly the frozen row this gate exists to clear. The
+   * repeat costs one hash comparison per build and collapses to a single
+   * write; the alternative costs correctness.
    */
   private async applyLiveEntityRetirement(data: LiveData[]): Promise<LiveData[]> {
     const key = await this.liveEntityRetirementCacheKey();
@@ -1126,18 +1134,23 @@ export abstract class Destination {
     if (bulk) {
       // Withhold every close this cycle rather than a subset: a feed that has
       // shed this much is not evidence about any single entity.
+      //
+      // Zero the miss counts as well. Otherwise they keep climbing through the
+      // whole incident, and the moment a partial recovery drops the eligible
+      // set back under the threshold, whatever is still absent fires
+      // immediately on hundreds of misses banked while the gate itself was
+      // saying the feed could not be trusted. Recovery has to earn fresh
+      // corroboration.
+      for (const id of eligible) tracked[id].misses = 0;
       console.warn(
         `[${this.constructor.name}] withholding ${eligible.length} live-entity retirements ` +
         `(${trackedCount} tracked) — feed looks degraded, not retired`,
       );
     } else {
-      for (const id of eligible) {
-        data.push({id, status: 'CLOSED'} as LiveData);
-        delete tracked[id];
-      }
+      for (const id of eligible) data.push({id, status: 'CLOSED'} as LiveData);
       if (eligible.length) {
         console.log(
-          `[${this.constructor.name}] force-closed ${eligible.length} live ` +
+          `[${this.constructor.name}] force-closing ${eligible.length} live ` +
           `${eligible.length === 1 ? 'entity' : 'entities'} absent from the feed: ${eligible.join(', ')}`,
         );
       }
