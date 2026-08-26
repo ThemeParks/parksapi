@@ -281,26 +281,103 @@ describe('live entity retirement gate', () => {
    * the threshold fires them all at once on corroboration gathered entirely
    * while the gate was saying the feed could not be trusted.
    */
-  test('a partial recovery after a withheld collapse does not fire on banked misses', async () => {
-    vi.useFakeTimers();
-    const park = new RetiringTestDestination({retire: true, retirementMs: 7 * 24 * 60 * 60 * 1000});
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const all = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+  /**
+   * Zeroing the counts on the withheld build is not enough on its own. The
+   * reset only happens on builds where eligibility is reached, so whether a
+   * partial recovery publishes a wrong CLOSED came down to which beat of the
+   * cycle it landed on — one timing in three still fired, on misses accrued
+   * entirely inside the window the gate had declared untrustworthy. The
+   * cooldown is what makes it hold for every timing.
+   */
+  test.each([5, 6, 7, 8, 9, 10, 11, 12])(
+    'a partial recovery after %i collapsed builds never fires on evidence from the untrusted window',
+    async (collapseBuilds) => {
+      vi.useFakeTimers();
+      const park = new RetiringTestDestination({retire: true, retirementMs: 7 * 24 * 60 * 60 * 1000});
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-    park.liveIds = all;
+      park.liveIds = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+      await park.getLiveData();
+
+      vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
+      park.liveIds = ['a'];
+      for (let i = 0; i < collapseBuilds; i++) await park.getLiveData();
+
+      // Partial recovery, which is how these incidents usually end: enough
+      // returns that the eligible set drops back under the threshold.
+      park.liveIds = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+      const live = await park.getLiveData();
+
+      expect(live.filter((d) => d.status === 'CLOSED')).toEqual([]);
+      warn.mockRestore();
+    },
+  );
+
+  /**
+   * A permanently dead id must stop counting as evidence. Otherwise ids
+   * accumulated across seasons eventually exceed the degraded-feed threshold
+   * on every build, the guard trips for good, and the gate silently stops
+   * working — the original freeze, returned, with only a warn to show for it.
+   */
+  test('seasonal ids retiring year after year do not accumulate into a permanent withhold', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const park = new RetiringTestDestination({retire: true, retirementMs: 4 * 60 * 60 * 1000});
+    const yearRound = Array.from({length: 20}, (_, i) => `ride${i}`);
+
+    for (let season = 0; season < 4; season++) {
+      const houses = Array.from({length: 15}, (_, i) => `s${season}_house${i}`);
+
+      // Event runs: houses live alongside the year-round rides.
+      park.liveIds = [...yearRound, ...houses];
+      await park.getLiveData();
+
+      // Season ends: houses gone for good.
+      vi.setSystemTime(Date.now() + 5 * 60 * 60 * 1000);
+      park.liveIds = yearRound;
+      await park.getLiveData();
+      await park.getLiveData();
+      const live = await park.getLiveData();
+
+      const closed = live.filter((d) => d.status === 'CLOSED').map((d) => d.id);
+      expect(closed.sort()).toEqual(houses.sort());
+
+      // A year passes before the next season.
+      vi.setSystemTime(Date.now() + 365 * 24 * 60 * 60 * 1000);
+      park.liveIds = yearRound;
+      await park.getLiveData();
+    }
+
+    expect(warn).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
+  test('a retired entity stops being repeated once the repeat window elapses', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const park = new RetiringTestDestination({retire: true, retirementMs: 7 * 24 * 60 * 60 * 1000});
+
+    park.liveIds = ['show1', 'show2'];
     await park.getLiveData();
 
-    // Feed collapses to one id and stays there for several cycles.
     vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
-    park.liveIds = ['a'];
-    for (let i = 0; i < 6; i++) await park.getLiveData();
+    park.liveIds = ['show1'];
+    await park.getLiveData();
+    await park.getLiveData();
+    const closing = await park.getLiveData();
+    expect(closing.find((d) => d.id === 'show2')).toEqual({id: 'show2', status: 'CLOSED'});
 
-    // Partial recovery: enough returns that the guard no longer applies.
-    park.liveIds = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
-    const live = await park.getLiveData();
+    // Still repeated a day later, so a dropped push recovers.
+    vi.setSystemTime(Date.now() + 24 * 60 * 60 * 1000);
+    const soon = await park.getLiveData();
+    expect(soon.find((d) => d.id === 'show2')).toEqual({id: 'show2', status: 'CLOSED'});
 
-    expect(live.filter((d) => d.status === 'CLOSED')).toEqual([]);
-    warn.mockRestore();
+    // Past the repeat window it is forgotten rather than repeated forever.
+    vi.setSystemTime(Date.now() + 4 * 24 * 60 * 60 * 1000);
+    const later = await park.getLiveData();
+    expect(later.map((d) => d.id)).toEqual(['show1']);
+    vi.restoreAllMocks();
   });
 
   test('reads the flat id-to-timestamp map written before miss counting existed', async () => {

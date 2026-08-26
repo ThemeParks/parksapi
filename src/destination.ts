@@ -11,6 +11,17 @@ import {formatInTimezone} from "./datetime.js";
 import {stripHtmlTags, decodeHtmlEntities} from "./htmlUtils.js";
 
 /**
+ * Per-entity bookkeeping for the live-entity retirement gate. `misses` counts
+ * consecutive absences from successful builds; `retiredAt` is set once a close
+ * has been emitted, marking the id as settled rather than fresh evidence.
+ */
+interface LiveEntityRetirementState {
+  seenAt: number;
+  misses: number;
+  retiredAt?: number;
+}
+
+/**
  * Patterns for promotional/status text appended or prepended to entity names.
  * Applied after HTML stripping and entity decoding.
  */
@@ -264,6 +275,22 @@ export abstract class Destination {
    * @default 5
    */
   protected liveEntityRetirementMinBulk: number = 5;
+
+  /**
+   * How long a retired entity keeps having its CLOSED row re-appended before
+   * the gate forgets it entirely.
+   *
+   * The repeat exists so a close that was built but never delivered is not
+   * lost for good. It cannot run forever, though: a permanently dead id would
+   * otherwise count as fresh evidence of a collapse on every future build, and
+   * enough of them accumulated across seasons would trip
+   * {@link liveEntityRetirementMaxFraction} for good and silently disable the
+   * gate. A few days covers any rejected batch or dead process by orders of
+   * magnitude, and bounds the pile.
+   *
+   * @default 3 days
+   */
+  protected liveEntityRetirementRepeatMs: number = 3 * 24 * 60 * 60 * 1000;
 
   /**
    * Optional cache key prefix for all cached methods.
@@ -1118,8 +1145,24 @@ export abstract class Destination {
     const currentIds = new Set(data.map((entry) => entry.id));
     for (const id of currentIds) tracked[id] = {seenAt: now, misses: 0};
 
+    // Ids closed on an earlier build. Their row is repeated so a close that
+    // was built but never delivered still lands, but they are settled
+    // business: they say nothing about whether the feed is healthy now, so
+    // they are kept out of both the guard's arithmetic and the log line.
+    const repeating: string[] = [];
     const eligible: string[] = [];
+    let liveTracked = 0;
+
     for (const [id, state] of Object.entries(tracked)) {
+      if (state.retiredAt !== undefined) {
+        if (now - state.retiredAt >= this.liveEntityRetirementRepeatMs) {
+          delete tracked[id];
+        } else if (!currentIds.has(id)) {
+          repeating.push(id);
+        }
+        continue;
+      }
+      liveTracked += 1;
       if (currentIds.has(id)) continue;
       state.misses += 1;
       if (now - state.seenAt >= this.liveEntityRetirementMs && state.misses >= this.liveEntityRetirementMinMisses) {
@@ -1127,27 +1170,29 @@ export abstract class Destination {
       }
     }
 
-    const trackedCount = Object.keys(tracked).length;
     const bulk = eligible.length >= this.liveEntityRetirementMinBulk
-      && eligible.length > trackedCount * this.liveEntityRetirementMaxFraction;
+      && eligible.length > liveTracked * this.liveEntityRetirementMaxFraction;
+    // A feed that just failed the trust test does not get to retire anything
+    // for a full window afterwards. Without this, whether a partial recovery
+    // publishes a wrong CLOSED comes down to which build it lands on: the
+    // miss counts reset on the withheld build, so a recovery arriving
+    // minMisses builds later finds a fresh, complete-looking set of misses
+    // accrued entirely inside the untrusted window.
+    const withheldAt = CacheLib.get(`${key}:withheldAt`) as number | null;
+    const cooling = withheldAt != null && now - withheldAt < this.liveEntityRetirementMs;
 
-    if (bulk) {
-      // Withhold every close this cycle rather than a subset: a feed that has
-      // shed this much is not evidence about any single entity.
-      //
-      // Zero the miss counts as well. Otherwise they keep climbing through the
-      // whole incident, and the moment a partial recovery drops the eligible
-      // set back under the threshold, whatever is still absent fires
-      // immediately on hundreds of misses banked while the gate itself was
-      // saying the feed could not be trusted. Recovery has to earn fresh
-      // corroboration.
+    if (bulk || (cooling && eligible.length)) {
       for (const id of eligible) tracked[id].misses = 0;
+      if (bulk) CacheLib.set(`${key}:withheldAt`, now, 400 * 24 * 60 * 60);
       console.warn(
         `[${this.constructor.name}] withholding ${eligible.length} live-entity retirements ` +
-        `(${trackedCount} tracked) — feed looks degraded, not retired`,
+        `(${liveTracked} tracked) — ${bulk ? 'feed looks degraded, not retired' : 'feed still cooling down after a degraded window'}`,
       );
     } else {
-      for (const id of eligible) data.push({id, status: 'CLOSED'} as LiveData);
+      for (const id of eligible) {
+        data.push({id, status: 'CLOSED'} as LiveData);
+        tracked[id].retiredAt = now;
+      }
       if (eligible.length) {
         console.log(
           `[${this.constructor.name}] force-closing ${eligible.length} live ` +
@@ -1155,6 +1200,8 @@ export abstract class Destination {
         );
       }
     }
+
+    for (const id of repeating) data.push({id, status: 'CLOSED'} as LiveData);
 
     // Long TTL: this tracks "have we ever seen this id live", not a
     // short-lived cache — losing it early just reverts that one id to the
@@ -1169,14 +1216,18 @@ export abstract class Destination {
    * hold that older shape and live for 400 days, so it has to keep working
    * rather than force every tracked id back to square one.
    */
-  private readLiveEntityRetirementState(key: string): Record<string, {seenAt: number, misses: number}> {
-    const raw = CacheLib.get(key) as Record<string, number | {seenAt: number, misses: number}> | null;
-    const out: Record<string, {seenAt: number, misses: number}> = {};
+  private readLiveEntityRetirementState(key: string): Record<string, LiveEntityRetirementState> {
+    const raw = CacheLib.get(key) as Record<string, number | LiveEntityRetirementState> | null;
+    const out: Record<string, LiveEntityRetirementState> = {};
     for (const [id, value] of Object.entries(raw ?? {})) {
       if (typeof value === 'number') {
         out[id] = {seenAt: value, misses: 0};
       } else if (value && Number.isFinite(value.seenAt)) {
-        out[id] = {seenAt: value.seenAt, misses: Number.isFinite(value.misses) ? value.misses : 0};
+        out[id] = {
+          seenAt: value.seenAt,
+          misses: Number.isFinite(value.misses) ? value.misses : 0,
+          ...(Number.isFinite(value.retiredAt as number) ? {retiredAt: value.retiredAt} : {}),
+        };
       }
     }
     return out;
