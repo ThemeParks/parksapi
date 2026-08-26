@@ -1,6 +1,6 @@
 # ThemeParks.wiki Park Data Backend
 
-An open-source TypeScript library for fetching real-time theme park data — wait times, schedules, and entity metadata — from 75+ destinations worldwide.
+An open-source TypeScript library for fetching real-time theme park data — wait times, schedules, and entity metadata — from <!-- destinations:count -->80<!-- /destinations:count -->+ destinations worldwide.
 
 This library powers the free API at [ThemeParks.wiki](https://themeparks.wiki).
 
@@ -81,11 +81,46 @@ npm run test:coverage  # Coverage report
 npm run health         # Health check all endpoints
 ```
 
+### Without Node installed
+
+Every command above also runs in a container, so nothing has to be installed on
+the host beyond Docker (or Podman):
+
+```bash
+make build             # Build the dev image once
+make park PARK=efteling
+make test
+make                   # Full list of targets
+```
+
+`make build` builds the image — the TypeScript compile is `make compile`.
+
+Most destinations need credentials in `.env` in the repo root; the container
+creates an empty one on first run, and `make park PARK=efteling` is one of the
+few that passes without any. Dependencies install into `node_modules/` on first
+run and reinstall when the lockfile changes (`make deps` forces it).
+
+The container serves the API only. The React admin UI is a host-side build:
+run `npm run web:build` on the host once, and `web-ui/dist` is visible in the
+container through the bind mount.
+
+git is not installed in the image — commit from the host, the tree is
+bind-mounted.
+
+The default engine is Docker. On a Podman host, override `COMPOSE` (untested):
+
+```bash
+make COMPOSE="podman-compose --env-file /dev/null --podman-run-args=--userns=keep-id" park PARK=efteling
+```
+
 ## Supported Destinations
 
-75 destinations across Disney, Universal, Cedar Fair, Six Flags, Merlin, and many more.
+<!-- destinations:table -->
+80 destinations across Disney, Universal, Cedar Fair, Six Flags, Merlin, and many more.
 
-Run `npm run dev -- --list` for the full list with IDs and categories, or see below:
+Some parks are served through a parent destination rather than an id of their own — Cedar Point and Knott's Berry Farm arrive under the Six Flags controller, for instance — so they are entities in the output rather than rows here.
+
+Run `npm run dev -- --list` for the same list with categories.
 
 <details>
 <summary>All destinations</summary>
@@ -94,32 +129,33 @@ Run `npm run dev -- --list` for the full list with IDs and categories, or see be
 |---|---|
 | Alton Towers | `altontowers` |
 | Bellewaerde | `bellewaerde` |
+| Blackpool Pleasure Beach | `blackpoolpleasurebeach` |
 | Bobbejaanland | `bobbejaanland` |
 | Busch Gardens Tampa | `buschgardenstampa` |
 | Busch Gardens Williamsburg | `buschgardenswilliamsburg` |
-| California's Great America | `californiasgreatamerica` |
-| Canada's Wonderland | `canadaswonderland` |
-| Carowinds | `carowinds` |
-| Cedar Point | `cedarpoint` |
-| Chessington World of Adventures | `chessingtonworldofadventures` |
+| Chessington World Of Adventures | `chessingtonworldofadventures` |
 | Chimelong | `chimelong` |
 | Disneyland Paris | `disneylandparis` |
 | Djurs Sommerland | `djurssommerland` |
 | Dollywood | `dollywood` |
-| Dorney Park | `dorneypark` |
 | Efteling | `efteling` |
-| Europa-Park | `europapark` |
+| Energylandia | `energylandia` |
+| Europa Park | `europapark` |
 | Everland | `everland` |
+| Fantawild | `fantawild` |
+| Flamingo Land | `flamingoland` |
+| Fuji Q Highland | `fujiqhighland` |
 | Futuroscope | `futuroscope` |
+| Galveston Island Waterpark | `galvestonislandwaterpark` |
 | Gardaland | `gardaland` |
-| Hansa-Park | `hansapark` |
+| Genting Skyworlds | `gentingskyworlds` |
+| Great Escape Parks | `greatescapeparks` |
+| Hansa Park | `hansapark` |
 | Heide Park | `heidepark` |
 | Hersheypark | `hersheypark` |
 | Kennywood | `kennywood` |
-| Kings Dominion | `kingsdominion` |
-| Kings Island | `kingsisland` |
+| Kentucky Kingdom | `kentuckykingdom` |
 | Knoebels | `knoebels` |
-| Knott's Berry Farm | `knottsberryfarm` |
 | Legoland Billund | `legolandbillund` |
 | Legoland California | `legolandcalifornia` |
 | Legoland Deutschland | `legolanddeutschland` |
@@ -130,27 +166,32 @@ Run `npm run dev -- --list` for the full list with IDs and categories, or see be
 | Legoland Windsor | `legolandwindsor` |
 | Liseberg | `liseberg` |
 | Lotte World | `lotteworld` |
-| Michigan's Adventure | `michigansadventure` |
+| Michigans Adventure | `michigansadventure` |
+| Mid America Parks | `midamericaparks` |
 | Mirabilandia | `mirabilandia` |
 | Movie Park Germany | `movieparkgermany` |
-| Parc Asterix | `parcasterix` |
+| Nigloland | `nigloland` |
+| Ocean Park Hong Kong | `oceanparkhongkong` |
 | Paradise Country | `paradisecountry` |
-| Parque de Atracciones Madrid | `parquedeatraccionesmadrid` |
+| Parc Asterix | `parcasterix` |
+| Parque De Atracciones Madrid | `parquedeatraccionesmadrid` |
 | Parque Warner Madrid | `parquewarnermadrid` |
 | Paultons Park | `paultonspark` |
 | Peppa Pig Theme Park Florida | `peppapigthemeparkflorida` |
 | Phantasialand | `phantasialand` |
 | Plopsaland | `plopsaland` |
 | Plopsaland Deutschland | `plopsalanddeutschland` |
-| PortAventura World | `portaventuraworld` |
+| Port Aventura World | `portaventuraworld` |
+| Qiddiya City | `qiddiyacity` |
 | Sea World Gold Coast | `seaworldgoldcoast` |
-| SeaWorld Orlando | `seaworldorlando` |
-| SeaWorld San Antonio | `seaworldsanantonio` |
-| SeaWorld San Diego | `seaworldsandiego` |
+| Seaworld Orlando | `seaworldorlando` |
+| Seaworld San Antonio | `seaworldsanantonio` |
+| Seaworld San Diego | `seaworldsandiego` |
+| Sesame Place Philadelphia | `sesameplacephiladelphia` |
+| Sesame Place San Diego | `sesameplacesandiego` |
 | Shanghai Disneyland Resort | `shanghaidisneylandresort` |
 | Silver Dollar City | `silverdollarcity` |
 | Six Flags | `sixflags` |
-| Six Flags Qiddiya City | `sixflagsqiddiyacity` |
 | Thorpe Park | `thorpepark` |
 | Tokyo Disney Resort | `tokyodisneyresort` |
 | Toverland | `toverland` |
@@ -162,12 +203,14 @@ Run `npm run dev -- --list` for the full list with IDs and categories, or see be
 | Valleyfair | `valleyfair` |
 | Walibi Belgium | `walibibelgium` |
 | Walibi Holland | `walibiholland` |
-| Walibi Rhone-Alpes | `walibirhonealpes` |
-| Warner Bros. Movie World | `warnerbrosmovieworld` |
-| Wet'n'Wild Gold Coast | `wetnwildgoldcoast` |
-| Worlds of Fun | `worldsoffun` |
+| Walibi Rhone Alpes | `walibirhonealpes` |
+| Warner Bros Movie World | `warnerbrosmovieworld` |
+| Wet N Wild Gold Coast | `wetnwildgoldcoast` |
+| Worlds Of Fun | `worldsoffun` |
 
 </details>
+<!-- /destinations:table -->
+
 
 ## Entity Types
 

@@ -15,6 +15,8 @@ export * from './datetime.js';
 export * from './htmlUtils.js';
 export * from './statusMap.js';
 export * from './promiseReuse.js';
+export * from './orphanCheck.js';
+export * from './duplicateCheck.js';
 
 // Export default as named export for config decorator
 export { default as config } from './config.js';

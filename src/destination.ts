@@ -4,7 +4,7 @@ import {reusable} from "./promiseReuse.js";
 import {loadProxyConfig, hasProxyConfig, type ProxyConfig} from "./proxy.js";
 import {inject} from "./injector.js";
 import {type HTTPObj, HttpQueue, http} from "./http.js";
-import {cache} from "./cache.js";
+import {cache, CacheLib} from "./cache.js";
 import {VQueueBuilder} from "./virtualQueue/builder.js";
 import {calculateReturnWindow} from "./virtualQueue/timeWindows.js";
 import {formatInTimezone} from "./datetime.js";
@@ -188,6 +188,43 @@ export abstract class Destination {
    * @default false
    */
   hasLiveStream: boolean = false;
+
+  /**
+   * Opt-in: force-close a previously-live entity once it has been absent
+   * from a full buildLiveData() snapshot for longer than
+   * {@link liveEntityRetirementMs}.
+   *
+   * The collector is upsert-only with no delete path, so simply omitting a
+   * retired entity from buildLiveData() output achieves nothing — the last
+   * value sits there indefinitely (see nigloland.ts RIDE_RETIREMENT_MS for
+   * the same trap on a wait-time signal). Confirmed independently on two
+   * park modules: a seasonal show run ends, the entity leaves the upstream
+   * feed entirely, and its live row freezes mid-run — 50+ days OPERATING on
+   * one, 17+ days on another (parksapi #74, #83).
+   *
+   * Off by default. A destination whose buildLiveData() legitimately omits
+   * entities for unrelated reasons (a genuinely partial feed, a bug) would
+   * have them wrongly force-closed, so this only applies where the pattern
+   * has actually been confirmed. Only ever applied to a full snapshot
+   * (`scope` undefined) — a partial/streaming build's absentees carry no
+   * meaning and are never gated.
+   *
+   * @default false
+   */
+  protected retireMissingLiveEntities: boolean = false;
+
+  /**
+   * How long an entity may be missing from a full buildLiveData() snapshot
+   * before {@link retireMissingLiveEntities} presumes it retired and
+   * force-closes it. Conservative default: the confirmed real-world cases
+   * were stale 17 and 50+ days, so a week already improves on both by an
+   * order of magnitude while tolerating a normal multi-day show hiatus.
+   * Override per-destination if evidence supports a tighter or looser
+   * window.
+   *
+   * @default 7 days
+   */
+  protected liveEntityRetirementMs: number = 7 * 24 * 60 * 60 * 1000;
 
   /**
    * Optional cache key prefix for all cached methods.
@@ -963,7 +1000,10 @@ export abstract class Destination {
   @trace()
   async getLiveData(scope?: ReadonlySet<string>): Promise<LiveData[]> {
     await this.init();
-    const data = await this.buildLiveData(scope);
+    let data = await this.buildLiveData(scope);
+    if (this.retireMissingLiveEntities && scope === undefined) {
+      data = await this.applyLiveEntityRetirement(data);
+    }
     // Sanitise waitTime values — must be a finite number or null/undefined.
     // Catches bugs like waitTime:"" which crash downstream integer columns.
     for (const entry of data) {
@@ -980,6 +1020,55 @@ export abstract class Destination {
       }
     }
     for (const entry of data) stripUndefinedDeep(entry);
+    return data;
+  }
+
+  /**
+   * Cache key for this destination's {@link retireMissingLiveEntities}
+   * last-seen tracking. Reuses the same prefix resolution the `@cache`
+   * decorator applies, so it lands in the same namespace
+   * `CacheLib.clearByClassName()` already sweeps for this destination.
+   */
+  private async liveEntityRetirementCacheKey(): Promise<string> {
+    let prefix: string;
+    if (typeof this.getCacheKeyPrefix === 'function') {
+      const result = this.getCacheKeyPrefix();
+      prefix = result instanceof Promise ? await result : result;
+    } else {
+      prefix = this.cacheKeyPrefix || this.constructor.name;
+    }
+    return `${prefix}:liveEntityRetirement`;
+  }
+
+  /**
+   * Diff a full buildLiveData() snapshot against the last-seen timestamps
+   * recorded on the previous call. Any entity that was live before and has
+   * now been missing for {@link liveEntityRetirementMs} gets a synthetic
+   * `{id, status: 'CLOSED'}` row appended — a genuine value change, so the
+   * collector's hash-dedup actually writes it and clears the frozen row.
+   * Entities that reappear simply update their own timestamp and drop out
+   * of consideration; nothing here mutates entries buildLiveData() already
+   * returned.
+   */
+  private async applyLiveEntityRetirement(data: LiveData[]): Promise<LiveData[]> {
+    const key = await this.liveEntityRetirementCacheKey();
+    const now = Date.now();
+    const lastSeen: Record<string, number> = (CacheLib.get(key) as Record<string, number> | null) ?? {};
+
+    const currentIds = new Set(data.map((entry) => entry.id));
+    for (const id of currentIds) lastSeen[id] = now;
+
+    for (const [id, seenAt] of Object.entries(lastSeen)) {
+      if (currentIds.has(id)) continue;
+      if (now - seenAt >= this.liveEntityRetirementMs) {
+        data.push({id, status: 'CLOSED'} as LiveData);
+      }
+    }
+
+    // Long TTL: this tracks "have we ever seen this id live", not a
+    // short-lived cache — losing it early just reverts that one id to the
+    // pre-fix silent-freeze behaviour until it's next seen live.
+    CacheLib.set(key, lastSeen, 400 * 24 * 60 * 60);
     return data;
   }
 

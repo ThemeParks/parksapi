@@ -205,6 +205,53 @@ protected async buildLiveData(): Promise<LiveData[]> {
 
 **waitTime must be a finite number or null/undefined — never a string.** The base class `getLiveData()` sanitises output and replaces any non-numeric waitTime with `null`, but always validate at the source too. The base class guard is a safety net, not an excuse to skip validation.
 
+#### A present value is not a current value
+
+The most expensive class of bug in this library is reading a field that means
+*"scheduled today"* or *"last known"* as if it meant *"true right now"*. It has
+been shipped three times in one park family (parksapi #313, #316, #317), each
+time looking obviously correct in review.
+
+Before mapping any field to a status, ask three questions of the real payload —
+sampled **overnight and during opening hours**, because the daytime shape alone
+will not show you the bug:
+
+1. **Does the feed distinguish "no data" from "closed"?** Many do, in a field
+   you are not reading. SeaWorld publishes `Minutes: -1` for both, and the
+   difference lives in a separate `Status` string that is empty for one and
+   populated for the other. Mapping the sentinel straight to `CLOSED` mislabelled
+   45% of rides and, worse, meant a ride already showing `CLOSED` produced **no
+   visible change at the moment it actually closed** — the event never reached
+   consumers at all.
+
+2. **Does the feed clear values at close, or keep serving them?** Check after
+   closing time. SeaWorld does neither cleanly: it drops rides to `0` and keeps
+   *refreshing* that `0` all night, and separately freezes older values in place
+   for hours. A staleness check cannot see the first; a value check cannot see
+   the second.
+
+3. **Does a list mean "today" or "now"?** A showtimes array is usually the whole
+   day's schedule, served from midnight. Length > 0 means the show runs today,
+   not that it is on stage.
+
+When a value is ambiguous in isolation, resolve it against whether the park is
+operating rather than trying to judge the value alone. **But never let a
+schedule suppress live data.** Parks open early, run private hires and sell
+extra ticketed hours, none of which reach the published calendar — and
+publishing `CLOSED` for a ride that is visibly reporting a queue is worse than
+the stale value you were trying to remove. Let a live reading override the
+calendar, and use the calendar only where you have no reading at all.
+
+Two practical notes if you build something like this:
+
+- **Timestamps may not be in the park's timezone.** SeaWorld stamps every park
+  in US Eastern regardless of where the park is, which reads as a three-hour
+  error at a Pacific park and looks like corrupt data until you check all of
+  them together.
+- **Test the whole freshness band.** If every fixture is the same age, inverting
+  the comparison passes the entire suite. Include one comfortably inside the
+  window, one outside, and one slightly in the future.
+
 ### 6. Schedules
 
 Use `constructDateTime()` for building timezone-aware ISO strings from date + time:
@@ -221,6 +268,26 @@ protected async buildSchedules(): Promise<EntitySchedule[]> {
   return [{ id: 'park', schedule } as EntitySchedule];
 }
 ```
+
+**Never derive "today" from `toISOString()`.** That gives the UTC day, which is
+not the park's day for several hours of every evening — 4-7h behind for US
+parks, ahead for Asia-Pacific. A request keyed on it silently asks for the wrong
+date, and only during opening hours, so it looks fine whenever you check it.
+
+```typescript
+// WRONG — UTC day. After 20:00 Eastern this is already tomorrow.
+const today = new Date().toISOString().slice(0, 10);
+
+// RIGHT — the park's own calendar day.
+const today = formatDate(new Date(), this.timezone);
+```
+
+This has been shipped twice (`enchantedparks`, and SeaWorld in #314, where every
+show published the next day's showtimes through the evening event window).
+`src/__tests__/utcDateTrap.test.ts` now fails the build on it. Deliberate UTC
+arithmetic on a date that is *already* a calendar day is fine — anchor at
+`T00:00:00Z`, add days, read it back — and opts out with a `utc-date-ok:`
+comment giving the reason.
 
 ## Validation
 

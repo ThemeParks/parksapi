@@ -8,6 +8,8 @@ import {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {getQueueLength} from './http.js';
 import {tracing} from './tracing.js';
 import {typeDetector} from './typeDetector.js';
+import {findOrphanIds} from './orphanCheck.js';
+import {findDuplicateEntityIds, describeDuplicateEntityIds} from './duplicateCheck.js';
 
 export type TestResult = {
   testName: string;
@@ -160,6 +162,23 @@ export async function testPark(
       }
     });
 
+    // Structural uniqueness requirement: an id identifies one entity.
+    //
+    // A hard failure rather than a warning, unlike the orphan and missing-
+    // location reports below. An orphan row is dead weight a consumer ignores;
+    // a duplicate id means one of the two entities is silently discarded on
+    // the way out, and there is no legitimate reason to emit one twice. It
+    // stays invisible otherwise: Walibi Holland shipped two Walibi Express
+    // stations under one CMS wait-time id, and Station 2 has never existed on
+    // the wiki as a result.
+    //
+    // Safe to fail hard: surveyed across all 80 destinations, Walibi Holland
+    // was the only one, and it is fixed alongside this check.
+    const duplicateIds = findDuplicateEntityIds(entities);
+    if (duplicateIds.length > 0) {
+      throw new Error(`Duplicate entity ids: ${describeDuplicateEntityIds(duplicateIds)}`);
+    }
+
     // Structural location requirement: DESTINATION + PARK must have location.
     // These are the anchor points for the whole hierarchy — a missing coord
     // almost always indicates a mapEntities wiring bug.
@@ -205,6 +224,25 @@ export async function testPark(
     }
   }
 
+  // IDs the destination actually publishes. Live data and schedules keyed to
+  // anything outside this set can't be looked up by a consumer, so they are
+  // dead weight in the output. Empty when getEntities() failed, in which case
+  // the orphan checks below stay quiet rather than reporting every row.
+  const publishedIds = new Set<string>(
+    entitiesResult.passed
+      ? ((entitiesResult.details?.entities ?? []) as Array<{id: string}>).map((e) => e.id)
+      : [],
+  );
+
+  const findOrphans = (rows: Array<{id?: string}>): string[] => findOrphanIds(rows, publishedIds);
+
+  const reportOrphans = (orphans: string[], label: string): void => {
+    if (orphans.length === 0) return;
+    const sample = orphans.slice(0, 5).join(', ');
+    const more = orphans.length > 5 ? `, +${orphans.length - 5} more` : '';
+    console.log(`     ⚠ ${label} for unpublished entities: ${orphans.length} (${sample}${more})`);
+  };
+
   // Test 3: getLiveData()
   if (!skipLiveData) {
     if (verbose) console.log('\n3. Testing getLiveData()...');
@@ -222,10 +260,15 @@ export async function testPark(
         return acc;
       }, {} as Record<string, number>);
 
-      // Count entries with wait times
-      const withWaitTimes = liveData.filter(l => l.queue?.STANDBY?.waitTime !== undefined).length;
+      // Count entries with an actual wait time. `null` is a deliberate value
+      // meaning "queue exists, no current reading" — DLP, Phantasialand and
+      // SeaWorld all emit it on STANDBY — so it must not be counted as having a
+      // wait time, or a park where nothing is measured reports 100% coverage.
+      const withWaitTimes = liveData.filter(l => l.queue?.STANDBY?.waitTime != null).length;
 
-      return { count: liveData.length, statuses, withWaitTimes, liveData };
+      const orphanIds = findOrphans(liveData);
+
+      return { count: liveData.length, statuses, withWaitTimes, liveData, orphanIds };
     });
     results.push(liveDataResult);
     if (verbose) {
@@ -235,6 +278,7 @@ export async function testPark(
         Object.entries(liveDataResult.details.statuses).forEach(([status, count]) => {
           console.log(`     - ${status}: ${count}`);
         });
+        reportOrphans(liveDataResult.details.orphanIds ?? [], 'Live data');
       } else {
         console.log(`   ✗ Failed: ${liveDataResult.error}`);
       }
@@ -263,12 +307,23 @@ export async function testPark(
 
       const totalDays = schedules.reduce((sum, s) => sum + s.schedule.length, 0);
 
-      return { count: schedules.length, totalDays, schedules };
+      const orphanIds = findOrphans(schedules);
+      const orphanIdSet = new Set(orphanIds);
+      const orphanDays = schedules
+        .filter((s) => orphanIdSet.has(s.id))
+        .reduce((sum, s) => sum + s.schedule.length, 0);
+
+      return { count: schedules.length, totalDays, schedules, orphanIds, orphanDays };
     });
     results.push(schedulesResult);
     if (verbose) {
       if (schedulesResult.passed) {
         console.log(`   ✓ Found ${schedulesResult.details.count} schedule(s) with ${schedulesResult.details.totalDays} total days (${schedulesResult.duration}ms)`);
+        const orphanIds = (schedulesResult.details.orphanIds ?? []) as string[];
+        reportOrphans(orphanIds, 'Schedules');
+        if (orphanIds.length > 0) {
+          console.log(`       (${schedulesResult.details.orphanDays} of ${schedulesResult.details.totalDays} days affected)`);
+        }
       } else {
         console.log(`   ✗ Failed: ${schedulesResult.error}`);
       }

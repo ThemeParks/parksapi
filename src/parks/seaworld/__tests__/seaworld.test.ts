@@ -15,6 +15,8 @@ import {
   SeaworldSanDiego,
   BuschGardensTampa,
   BuschGardensWilliamsburg,
+  SesamePlacePhiladelphia,
+  SesamePlaceSanDiego,
 } from '../seaworld.js';
 
 // ---------------------------------------------------------------------------
@@ -43,6 +45,14 @@ const MOCK_PARK_DETAIL_SWO = {
         Coordinate: {Latitude: 28.412, Longitude: -81.462},
       },
     ],
+    Pools: [
+      {
+        Id: 'pool-001',
+        Name: 'Roa’s Rapids',
+        Type: 'Pools',
+        Coordinate: {Latitude: 28.415, Longitude: -81.465},
+      },
+    ],
     Shows: [
       {
         Id: 'show-001',
@@ -66,6 +76,17 @@ const MOCK_PARK_DETAIL_SWO = {
     AnimalExperiences: [
       {Id: 'ae-001', Name: 'Dolphin Encounter', Type: 'Animal Experiences'},
     ],
+    // Water-park amenities that sit alongside Pools/Slides and must NOT be
+    // promoted to attractions when Pools is.
+    Cabanas: [
+      {Id: 'cab-001', Name: 'Private Cabana 12', Type: 'Cabanas'},
+    ],
+    Restrooms: [
+      {Id: 'wc-001', Name: 'Restroom', Type: 'Restrooms'},
+    ],
+    Shops: [
+      {Id: 'shop-001', Name: 'Gift Shop', Type: 'Shops'},
+    ],
   },
   open_hours: [
     {
@@ -81,14 +102,53 @@ const MOCK_PARK_DETAIL_SWO = {
   ],
 };
 
+/**
+ * Stamps are US Eastern wall time with no zone suffix — that is the real shape
+ * for readings and closures (the fractional `…Z` form only ever appears on
+ * no-reading rows). These sit a few minutes before CLOCK_PARK_OPEN, which is
+ * 14:00 Eastern, matching the 3-minute median age measured in the wild.
+ */
+const FRESH_STAMP = '2026-08-15T13:57:00';
+/** Same shape, but hours old — the frozen-value case. */
+const STALE_STAMP = '2026-08-15T09:30:00';
+/**
+ * Fresh against CLOCK_PARK_SHUT (23:00 Eastern) rather than the open clock.
+ * Models the two things that actually happen after close: the feed refreshing a
+ * 0 every few minutes, and a genuinely live reading during an unlisted event.
+ */
+const FRESH_STAMP_NIGHT = '2026-08-15T22:57:00';
+/**
+ * 30 minutes before CLOCK_PARK_SHUT. Well inside the window but nowhere near
+ * the 3-minute mark every other fixture sits at — without a fixture in this
+ * band, inverting the age subtraction passes the whole suite, and the freshness
+ * constant itself is pinned only to a range hundreds of minutes wide.
+ */
+const AGEING_STAMP = '2026-08-15T22:30:00';
+/** 4 hours before CLOCK_PARK_SHUT — outside the window, must not vouch. */
+const TOO_OLD_STAMP = '2026-08-15T19:00:00';
+/** 2 minutes AFTER CLOCK_PARK_SHUT — operator clock skew, must still vouch. */
+const SKEWED_STAMP = '2026-08-15T23:02:00';
+
+// Field shapes match the five combinations seen across a 41-round census
+// (5002 observations, 2026-08-15). Note measured rows carry StatusDisplay: ''
+// while no-reading rows carry null — the API distinguishes them, so the
+// fixture does too:
+//   Status non-empty          -> genuinely closed        (842 obs)
+//   Minutes >= 0, Display ''  -> operating with a reading (1890 obs)
+//   Minutes < 0, Display null -> no current reading       (2270 obs, 45%)
 const MOCK_AVAILABILITY_SWO = {
   WaitTimes: [
     // Normal wait time
-    {Id: 'ride-001', Minutes: 30, Status: '', StatusDisplay: null, Title: 'Ice Breaker', LastUpDateTime: '2026-04-01T10:00:00Z'},
-    // Closed ride (negative minutes)
-    {Id: 'ride-002', Minutes: -1, Status: '', StatusDisplay: null, Title: 'Closed Ride', LastUpDateTime: '2026-04-01T10:00:00Z'},
+    {Id: 'ride-001', Minutes: 30, Status: '', StatusDisplay: '', Title: 'Ice Breaker', LastUpDateTime: FRESH_STAMP},
+    // No current reading: -1 sentinel with a blank status. NOT a closure.
+    {Id: 'ride-002', Minutes: -1, Status: '', StatusDisplay: null, Title: 'Unmeasured Ride', LastUpDateTime: FRESH_STAMP},
     // Zero wait time (walk-on)
-    {Id: 'ride-003', Minutes: 0, Status: '', StatusDisplay: null, Title: 'Walk On Ride', LastUpDateTime: '2026-04-01T10:00:00Z'},
+    {Id: 'ride-003', Minutes: 0, Status: '', StatusDisplay: '', Title: 'Walk On Ride', LastUpDateTime: FRESH_STAMP},
+    // Genuinely closed, with the closure reason in both status fields
+    {Id: 'ride-004', Minutes: -1, Status: 'Closed Temporarily', StatusDisplay: 'Closed Temporarily', Title: 'Closed Ride', LastUpDateTime: FRESH_STAMP},
+    // Closure string that did not exist when this park was first implemented —
+    // guards against anyone reintroducing a hardcoded list of known strings
+    {Id: 'ride-005', Minutes: -1, Status: 'Closed Due To Weather', StatusDisplay: 'Closed Due To Weather', Title: 'Weathered Ride', LastUpDateTime: FRESH_STAMP},
   ],
   ShowTimes: [
     // Show with actual times
@@ -109,6 +169,36 @@ const MOCK_AVAILABILITY_SWO = {
 };
 
 // ---------------------------------------------------------------------------
+// Operating-hours helpers
+//
+// An unmeasured ride reads as open or closed depending on whether the park is
+// operating, so those tests pin BOTH the hours and the clock. An earlier
+// version derived the window from Date.now(), which failed for the 60 minutes
+// of the DST fall-back when the ambiguous wall clock resolved to the earlier
+// offset and the window stopped bracketing now. Gate tests must never be flaky,
+// so the clock is injected instead.
+// ---------------------------------------------------------------------------
+
+/** Local 09:00-21:00 on 2026-08-15, in "fake UTC" (local wall time with a Z). */
+const HOURS_TODAY = [
+  {opens_at: '2026-08-15T09:00:00.0000000Z', closes_at: '2026-08-15T21:00:00.0000000Z', date: '08/15/2026'},
+];
+
+/** 14:00 America/New_York — inside HOURS_TODAY. */
+const CLOCK_PARK_OPEN = new Date('2026-08-15T18:00:00Z');
+/**
+ * 23:00 America/New_York on the same local day — after the 21:00 close, which
+ * is the window this whole change is about. Still the same calendar day, so
+ * today's hours are present and the park is simply shut rather than unknown.
+ */
+const CLOCK_PARK_SHUT = new Date('2026-08-16T03:00:00Z');
+
+function pinClock(at: Date) {
+  vi.useFakeTimers({toFake: ['Date']});
+  vi.setSystemTime(at);
+}
+
+// ---------------------------------------------------------------------------
 // Helper to create an instance with mocked HTTP
 // ---------------------------------------------------------------------------
 function createMockedOrlando() {
@@ -116,24 +206,36 @@ function createMockedOrlando() {
 
   // Mock getParkDetail to return our fixture only for the SWO park
   // and a minimal fixture for Aquatica
+  // Each sibling park returns its OWN Id. Returning a shared fixture for every
+  // non-SWO UUID would collapse Aquatica and Discovery Cove onto one entity id
+  // and hide a duplicate-park bug rather than expose it.
+  const SIBLINGS: Record<string, string> = {
+    '4B040706-968A-41B4-9967-D93C7814E665': 'Aquatica Orlando',
+    '1FB04DFC-B6C0-4918-BE36-EE6DD14FE741': 'Discovery Cove Orlando',
+  };
   park.getParkDetail = async (parkId: string) => {
     if (parkId === MOCK_PARK_ID_SWO) {
       return MOCK_PARK_DETAIL_SWO as any;
     }
-    // Aquatica minimal
     return {
-      Id: '4B040706-968A-41B4-9967-D93C7814E665',
-      park_Name: 'Aquatica Orlando',
+      Id: parkId,
+      park_Name: SIBLINGS[parkId] ?? 'Unknown Park',
       TimeZone: 'America/New_York',
       map_center: {Latitude: 28.42, Longitude: -81.47},
-      POIs: {Rides: [], Shows: [], Dining: [], Slides: []},
+      POIs: {Rides: [], Shows: [], Dining: [], Slides: [], Pools: []},
       open_hours: [],
     } as any;
   };
 
-  // Mock getAvailability
-  park.getAvailability = async (_parkId: string, _searchDate: string) => {
-    return MOCK_AVAILABILITY_SWO as any;
+  // Mock getAvailability, per park. Returning the SWO fixture for every resort
+  // id (as this used to) made the wait-time rows get processed three times, and
+  // the last park's verdict overwrote the first two. That silently defanged the
+  // closure tests: deleting closure detection entirely still left them green,
+  // because they were really asserting Discovery Cove's no-hours fallback.
+  // The real feed returns each park's own rides, so mirror that.
+  park.getAvailability = async (parkId: string, _searchDate: string) => {
+    if (parkId === MOCK_PARK_ID_SWO) return MOCK_AVAILABILITY_SWO as any;
+    return {WaitTimes: [], ShowTimes: []} as any;
   };
 
   return park;
@@ -155,11 +257,19 @@ describe('SeaworldOrlando', () => {
       expect(park.timezone).toBe('America/New_York');
     });
 
-    it('has two resort IDs', () => {
+    it('has three resort IDs', () => {
       const park = new SeaworldOrlando();
-      expect(park.resortIds).toHaveLength(2);
+      expect(park.resortIds).toHaveLength(3);
       expect(park.resortIds[0]).toBe('AC3AF402-3C62-4893-8B05-822F19B9D2BC');
       expect(park.resortIds[1]).toBe('4B040706-968A-41B4-9967-D93C7814E665');
+      expect(park.resortIds[2]).toBe('1FB04DFC-B6C0-4918-BE36-EE6DD14FE741');
+    });
+
+    it('keeps SeaWorld Orlando first so the destination pin does not move', () => {
+      // getDestinations() reads map_center off resortIds[0]. A reorder here
+      // would relocate the destination without failing anything else.
+      const park = new SeaworldOrlando();
+      expect(park.resortIds[0]).toBe('AC3AF402-3C62-4893-8B05-822F19B9D2BC');
     });
 
     it('getCacheKeyPrefix returns destination-specific prefix', () => {
@@ -189,17 +299,35 @@ describe('SeaworldOrlando', () => {
   });
 
   describe('buildEntityList', () => {
-    it('includes destination, parks, attractions (rides+slides), shows, restaurants', async () => {
+    it('includes destination, parks, attractions (rides+slides+pools), shows, restaurants', async () => {
       const park = createMockedOrlando();
       const entities = await (park as any).buildEntityList();
 
       const byType = (type: string) => entities.filter((e: any) => e.entityType === type);
 
       expect(byType('DESTINATION')).toHaveLength(1);
-      expect(byType('PARK')).toHaveLength(2); // SWO + Aquatica
-      expect(byType('ATTRACTION')).toHaveLength(2); // 1 ride + 1 slide (SWO only)
+      expect(byType('PARK')).toHaveLength(3); // SWO + Aquatica + Discovery Cove
+      expect(byType('ATTRACTION')).toHaveLength(3); // 1 ride + 1 slide + 1 pool (SWO only)
       expect(byType('SHOW')).toHaveLength(1);
       expect(byType('RESTAURANT')).toHaveLength(1);
+    });
+
+    it('emits one PARK per resort ID with distinct ids', async () => {
+      const park = createMockedOrlando();
+      const entities = await (park as any).buildEntityList();
+      const parkIds = entities.filter((e: any) => e.entityType === 'PARK').map((e: any) => e.id);
+      expect(new Set(parkIds).size).toBe(parkIds.length);
+      expect(parkIds).toEqual(park.resortIds);
+    });
+
+    it('maps Pools as a RIDE attraction (water-park headline items)', async () => {
+      const park = createMockedOrlando();
+      const entities = await (park as any).buildEntityList();
+      const pool = entities.find((e: any) => e.id === 'pool-001');
+      expect(pool).toBeDefined();
+      expect(pool.entityType).toBe('ATTRACTION');
+      expect(pool.attractionType).toBe('RIDE');
+      expect(pool.parentId).toBe(MOCK_PARK_ID_SWO);
     });
 
     it('does not include Services or AnimalExperiences', async () => {
@@ -208,6 +336,17 @@ describe('SeaworldOrlando', () => {
       const ids = entities.map((e: any) => e.id);
       expect(ids).not.toContain('svc-001');
       expect(ids).not.toContain('ae-001');
+    });
+
+    it('does not promote water-park amenities alongside Pools', async () => {
+      // Cabanas outnumber every real attraction at these parks (45 at Adventure
+      // Island). Letting them through would swamp the park with rentals.
+      const park = createMockedOrlando();
+      const entities = await (park as any).buildEntityList();
+      const ids = entities.map((e: any) => e.id);
+      expect(ids).not.toContain('cab-001');
+      expect(ids).not.toContain('wc-001');
+      expect(ids).not.toContain('shop-001');
     });
 
     it('entity IDs are strings (UUIDs preserved)', async () => {
@@ -247,6 +386,11 @@ describe('SeaworldOrlando', () => {
   });
 
   describe('buildLiveData', () => {
+    // A reading is only published when the park is demonstrably operating, so
+    // these need a fixed "now" that the fixture's stamps are fresh against.
+    beforeEach(() => pinClock(CLOCK_PARK_OPEN));
+    afterEach(() => vi.useRealTimers());
+
     it('returns live data for rides with positive wait times', async () => {
       const park = createMockedOrlando();
       const liveData = await (park as any).buildLiveData();
@@ -256,12 +400,40 @@ describe('SeaworldOrlando', () => {
       expect(ride001.queue?.STANDBY?.waitTime).toBe(30);
     });
 
-    it('marks rides with negative minutes as CLOSED', async () => {
+    it('treats a -1 with blank status as "no reading", not a closure', async () => {
+      // Pin the park open: the no-reading state is read against operating hours.
+      pinClock(CLOCK_PARK_OPEN);
       const park = createMockedOrlando();
+      const detail = (park as any).getParkDetail;
+      (park as any).getParkDetail = async (id: string) => ({
+        ...(await detail(id)), open_hours: HOURS_TODAY,
+      });
       const liveData = await (park as any).buildLiveData();
       const ride002 = liveData.find((ld: any) => ld.id === 'ride-002');
       expect(ride002).toBeDefined();
-      expect(ride002.status).toBe('CLOSED');
+      // The ride is open, we simply have no wait time for it. Publishing CLOSED
+      // here mislabelled 59 of 122 rides in a sampled round family-wide and,
+      // worse, meant a ride
+      // already showing CLOSED produced no visible change when it really closed.
+      expect(ride002.status).toBe('OPERATING');
+      expect(ride002.queue?.STANDBY?.waitTime).toBeNull();
+    });
+
+    it('marks a ride carrying a closure status as CLOSED', async () => {
+      const park = createMockedOrlando();
+      const liveData = await (park as any).buildLiveData();
+      const ride004 = liveData.find((ld: any) => ld.id === 'ride-004');
+      expect(ride004).toBeDefined();
+      expect(ride004.status).toBe('CLOSED');
+      expect(ride004.queue?.STANDBY?.waitTime).toBeNull();
+    });
+
+    it('honours a closure string it has never seen before', async () => {
+      const park = createMockedOrlando();
+      const liveData = await (park as any).buildLiveData();
+      const ride005 = liveData.find((ld: any) => ld.id === 'ride-005');
+      expect(ride005).toBeDefined();
+      expect(ride005.status).toBe('CLOSED');
     });
 
     it('handles zero wait time (walk-on) as OPERATING', async () => {
@@ -305,6 +477,718 @@ describe('SeaworldOrlando', () => {
     });
   });
 
+  // -------------------------------------------------------------------------
+  // Regression: the three wait-time states must stay distinct.
+  //
+  // OBSERVED_SEQUENCE below is a real transition from a 41-round census (5002
+  // observations, 2026-08-15). Other rows in this block are deliberately
+  // defensive shapes that the census never produced (blank Status with only
+  // StatusDisplay set, a missing Minutes field, whitespace) — they pin
+  // behaviour the code claims to have rather than behaviour the feed exhibits.
+  // -------------------------------------------------------------------------
+  describe('wait-time state semantics', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function availabilityWith(waitTimes: any[]) {
+      return {WaitTimes: waitTimes, ShowTimes: []};
+    }
+
+    /**
+     * `open` controls whether the pinned clock falls inside published operating
+     * hours, which is what decides how an unmeasured ride is read. `hours` lets
+     * a test supply its own blocks (events, corrupt spans).
+     */
+    function parkReturning(waitTimes: any[], open = true, hours: any[] = HOURS_TODAY) {
+      pinClock(open ? CLOCK_PARK_OPEN : CLOCK_PARK_SHUT);
+      const park = createMockedOrlando();
+      (park as any).getAvailability = async () => availabilityWith(waitTimes) as any;
+      (park as any).getParkDetail = async () => ({
+        ...MOCK_PARK_DETAIL_SWO,
+        open_hours: hours,
+      }) as any;
+      return park;
+    }
+
+    // Observed: Elmo's Choo Choo Train, Slimey's Slider and Sunny Day Carousel
+    // each ran norecord (18:30Z) -> Closed Due To Weather (20:41Z) -> 0 min
+    // (21:52Z). The same ride is unmeasured, then closed, then reporting — so
+    // the states are distinct and none of them is a permanent ride property.
+    const OBSERVED_SEQUENCE = [
+      {
+        label: 'no reading',
+        row: {Id: 'r', Minutes: -1, Status: '', StatusDisplay: null, Title: 'Sunny Day Carousel', LastUpDateTime: 'x'},
+        expected: {status: 'OPERATING', waitTime: null},
+      },
+      {
+        label: 'weather closure',
+        row: {Id: 'r', Minutes: -1, Status: 'Closed Due To Weather', StatusDisplay: 'Closed Due To Weather', Title: 'Sunny Day Carousel', LastUpDateTime: 'x'},
+        expected: {status: 'CLOSED', waitTime: null},
+      },
+      {
+        label: 'reporting a walk-on',
+        row: {Id: 'r', Minutes: 0, Status: '', StatusDisplay: null, Title: 'Sunny Day Carousel', LastUpDateTime: 'x'},
+        expected: {status: 'OPERATING', waitTime: 0},
+      },
+    ];
+
+    for (const step of OBSERVED_SEQUENCE) {
+      it(`maps the observed "${step.label}" state correctly`, async () => {
+        const park = parkReturning([step.row]);
+        const liveData = await (park as any).buildLiveData();
+        const row = liveData.find((ld: any) => ld.id === 'r');
+        expect(row.status).toBe(step.expected.status);
+        expect(row.queue?.STANDBY?.waitTime).toBe(step.expected.waitTime);
+      });
+    }
+
+    it('distinguishes a real closure from an absent reading on the same payload', async () => {
+      // Busch Gardens Tampa is the stress case: 10 genuine closures sitting
+      // beside 12 rides with no reading in a single response.
+      const park = parkReturning([
+        {Id: 'closed', Minutes: -1, Status: 'Closed For The Day', StatusDisplay: 'Closed For The Day', Title: 'A', LastUpDateTime: 'x'},
+        {Id: 'noreading', Minutes: -1, Status: '', StatusDisplay: null, Title: 'B', LastUpDateTime: 'x'},
+      ]);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'closed').status).toBe('CLOSED');
+      expect(liveData.find((ld: any) => ld.id === 'noreading').status).toBe('OPERATING');
+    });
+
+    it('reads the closure from StatusDisplay when Status is blank', async () => {
+      const park = parkReturning([
+        {Id: 'r', Minutes: -1, Status: '', StatusDisplay: 'Closed Temporarily', Title: 'A', LastUpDateTime: 'x'},
+      ]);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+    });
+
+    it('reports unmeasured rides as CLOSED once the park has shut', async () => {
+      // Overnight the feed drops every ride to "no reading" and strips all
+      // closure markers — a 02:16 local sample had all 17 SeaWorld Orlando
+      // rides in that state. Without the operating-hours check this published
+      // a shut park's whole ride list as OPERATING all night.
+      const park = parkReturning([
+        {Id: 'r', Minutes: -1, Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'r');
+      expect(row.status).toBe('CLOSED');
+      expect(row.queue?.STANDBY?.waitTime).toBeNull();
+    });
+
+    it('publishes a live queue during an event the schedule does not list', async () => {
+      // Early entry, a private hire, an extra ticketed hour. The calendar says
+      // shut, the rides are running, and a real queue is being reported. This
+      // must publish: suppressing a live reading is worse than any relic.
+      const park = parkReturning([
+        {Id: 'r', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: FRESH_STAMP_NIGHT},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'r');
+      expect(row.status).toBe('OPERATING');
+      expect(row.queue?.STANDBY?.waitTime).toBe(20);
+    });
+
+    it('carries walk-ons and unmeasured rides through that same event', async () => {
+      // One queue anywhere vouches for the park, so a 0 alongside it is a
+      // genuine walk-on rather than the closed-park 0 — and an unmeasured ride
+      // is presumed running too. Without this, an unlisted event would publish
+      // only the rides that happened to have a queue.
+      const park = parkReturning([
+        {Id: 'queue', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: FRESH_STAMP_NIGHT},
+        {Id: 'walkon', Minutes: 0, Status: '', StatusDisplay: '', Title: 'B', LastUpDateTime: FRESH_STAMP_NIGHT},
+        {Id: 'unmeasured', Minutes: -1, Status: '', StatusDisplay: null, Title: 'C', LastUpDateTime: FRESH_STAMP_NIGHT},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'walkon').status).toBe('OPERATING');
+      expect(liveData.find((ld: any) => ld.id === 'walkon').queue?.STANDBY?.waitTime).toBe(0);
+      expect(liveData.find((ld: any) => ld.id === 'unmeasured').status).toBe('OPERATING');
+    });
+
+    it('closes a walk-on zero once the park has actually shut', async () => {
+      // The mirror of the test above, and the bug this change exists for. At
+      // close the feed drops each ride to 0 and keeps REFRESHING that 0 all
+      // night, so the stamp stays fresh and only the absence of any queue
+      // anywhere distinguishes it. Kraken and Mako showed a walk-on at 3am.
+      const park = parkReturning([
+        {Id: 'a', Minutes: 0, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: FRESH_STAMP_NIGHT},
+        {Id: 'b', Minutes: 0, Status: '', StatusDisplay: '', Title: 'B', LastUpDateTime: FRESH_STAMP_NIGHT},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      for (const id of ['a', 'b']) {
+        const row = liveData.find((ld: any) => ld.id === id);
+        expect(row.status).toBe('CLOSED');
+        expect(row.queue?.STANDBY?.waitTime).toBeNull();
+      }
+    });
+
+    it('closes a frozen positive value once the park has shut', async () => {
+      // The other half: values that freeze rather than dropping to 0. Observed
+      // at 651 minutes old, still being served at midnight.
+      const park = parkReturning([
+        {Id: 'r', Minutes: 45, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: STALE_STAMP},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'r');
+      expect(row.status).toBe('CLOSED');
+      expect(row.queue?.STANDBY?.waitTime).toBeNull();
+    });
+
+    it('a stale positive alone does not vouch for the park', async () => {
+      // Only a FRESH positive counts as evidence. A frozen value must not drag
+      // the rest of the park's rides back to OPERATING with it.
+      const park = parkReturning([
+        {Id: 'frozen', Minutes: 45, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: STALE_STAMP},
+        {Id: 'unmeasured', Minutes: -1, Status: '', StatusDisplay: null, Title: 'B', LastUpDateTime: FRESH_STAMP},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'unmeasured').status).toBe('CLOSED');
+    });
+
+    it('publishes a stale value normally while the park is open', async () => {
+      // Staleness only decides things when the park is otherwise shut. During
+      // opening hours a quiet ride's older number is still the best we have,
+      // and discarding it would be the suppression this design avoids.
+      const park = parkReturning([
+        {Id: 'r', Minutes: 45, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: STALE_STAMP},
+      ], true);
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'r');
+      expect(row.status).toBe('OPERATING');
+      expect(row.queue?.STANDBY?.waitTime).toBe(45);
+    });
+
+    it('reads the stamp as Eastern even for a Pacific park', async () => {
+      // The stamp is US Eastern for EVERY park, not the park's own zone. San
+      // Diego is where that matters: read as Pacific, an Eastern stamp lands
+      // three hours in the future and the reading would be discarded.
+      //
+      // Clock is 20:00 Pacific, an hour after this park's 19:00 close, so the
+      // schedule cannot supply the verdict — only the reading can.
+      vi.useFakeTimers({toFake: ['Date']});
+      vi.setSystemTime(new Date('2026-08-16T03:00:00Z')); // 23:00 ET / 20:00 PT
+
+      const park = new SeaworldSanDiego();
+      (park as any).getParkDetail = async () => ({
+        ...MOCK_PARK_DETAIL_SWO,
+        open_hours: [
+          {opens_at: '2026-08-15T09:00:00.0000000Z', closes_at: '2026-08-15T19:00:00.0000000Z', date: '08/15/2026'},
+        ],
+      }) as any;
+      (park as any).getAvailability = async () => ({
+        // 22:57 Eastern = 19:57 Pacific = 3 minutes ago. Read as Pacific it
+        // would be 22:57 PT, i.e. nearly three hours from now.
+        WaitTimes: [{Id: 'r', Minutes: 25, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: '2026-08-15T22:57:00'}],
+        ShowTimes: [],
+      }) as any;
+
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'r');
+      expect(row.status).toBe('OPERATING');
+      expect(row.queue?.STANDBY?.waitTime).toBe(25);
+    });
+
+    it('does not treat a future-dated stamp as fresh', async () => {
+      // Never observed in 1890 readings, so this only fires on corruption — but
+      // a stamp from tomorrow would look eternally fresh and hold a shut park
+      // open indefinitely.
+      const park = parkReturning([
+        {Id: 'r', Minutes: 30, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: '2026-08-17T12:00:00'},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'r');
+      expect(row.status).toBe('CLOSED');
+    });
+
+    // The freshness window itself. Every other fixture sits 3 minutes old, and
+    // with only that one point the age arithmetic can be inverted, or the
+    // constant moved almost anywhere, without a single test noticing.
+    it('accepts a reading well inside the window as evidence', async () => {
+      const park = parkReturning([
+        {Id: 'r', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: AGEING_STAMP},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('OPERATING');
+    });
+
+    it('rejects a reading beyond the window as evidence', async () => {
+      const park = parkReturning([
+        {Id: 'r', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: TOO_OLD_STAMP},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+    });
+
+    it('tolerates a slightly future stamp from operator clock skew', async () => {
+      // Distinct from the far-future case below: a couple of minutes ahead is
+      // ordinary skew and must not throw away a live reading.
+      const park = parkReturning([
+        {Id: 'r', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: SKEWED_STAMP},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('OPERATING');
+    });
+
+    it('does not let an undatable stamp vouch for a shut park', async () => {
+      // "Undatable vouches for nothing" is a design decision, so pin it. No
+      // valid stamp anywhere in this payload, or .some() would short-circuit
+      // before ever reaching these rows.
+      const park = parkReturning([
+        {Id: 'a', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: 'not-a-date'},
+        {Id: 'b', Minutes: 15, Status: '', StatusDisplay: '', Title: 'B', LastUpDateTime: '2026-08-15'},
+        // Deliberately the SAME wall clock as FRESH_STAMP_NIGHT: if the
+        // lowercase-z guard were dropped this would read as 3 minutes old and
+        // vouch for the park, so the guard is the only thing under test.
+        {Id: 'c', Minutes: 10, Status: '', StatusDisplay: '', Title: 'C', LastUpDateTime: '2026-08-15T22:57:00z'},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      for (const id of ['a', 'b', 'c']) {
+        expect(liveData.find((ld: any) => ld.id === id).status).toBe('CLOSED');
+      }
+    });
+
+    it('does not let a date-only stamp vouch just after midnight', async () => {
+      // A bare date parses to local midnight, so shortly after midnight it
+      // measures as minutes old. Without the time-component guard one such row
+      // would hold a shut park open through the small hours — precisely the
+      // window this whole change exists to fix.
+      vi.useFakeTimers({toFake: ['Date']});
+      vi.setSystemTime(new Date('2026-08-16T04:30:00Z')); // 00:30 Eastern
+
+      const park = createMockedOrlando();
+      (park as any).getParkDetail = async () => ({...MOCK_PARK_DETAIL_SWO, open_hours: HOURS_TODAY}) as any;
+      (park as any).getAvailability = async () => ({
+        WaitTimes: [{Id: 'r', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: '2026-08-16'}],
+        ShowTimes: [],
+      }) as any;
+
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+    });
+
+    it('does not let a ride carrying a closure string vouch for the park', async () => {
+      // A closed ride cannot be proof the park is running, whatever number
+      // happens to sit beside the closure text.
+      const park = parkReturning([
+        {Id: 'r', Minutes: 25, Status: 'Closed Temporarily', StatusDisplay: 'Closed Temporarily', Title: 'A', LastUpDateTime: FRESH_STAMP_NIGHT},
+        {Id: 'other', Minutes: 0, Status: '', StatusDisplay: '', Title: 'B', LastUpDateTime: FRESH_STAMP_NIGHT},
+      ], false);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+      expect(liveData.find((ld: any) => ld.id === 'other').status).toBe('CLOSED');
+    });
+
+    it('publishes readings when the operating hours could not be fetched', async () => {
+      // Not knowing the hours is not the same as knowing the park is shut. The
+      // feed can drop a whole park to stale zeros mid-afternoon — San Antonio
+      // did, for 15 minutes on a Saturday — so absence of evidence must not
+      // black out a park we simply have no schedule for.
+      const park = parkReturning([
+        {Id: 'r', Minutes: 0, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: TOO_OLD_STAMP},
+      ], true);
+      (park as any).getParkDetail = async () => {
+        throw new Error('park detail unavailable');
+      };
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'r');
+      expect(row.status).toBe('OPERATING');
+      expect(row.queue?.STANDBY?.waitTime).toBe(0);
+    });
+
+    it('survives a malformed WaitTimes payload without taking down the park', async () => {
+      for (const bad of [{} as any, 'oops' as any, [null] as any, undefined as any]) {
+        const park = createMockedOrlando();
+        (park as any).getAvailability = async () => ({WaitTimes: bad, ShowTimes: []}) as any;
+        await expect((park as any).buildLiveData()).resolves.toBeInstanceOf(Array);
+      }
+    });
+
+    // --- shows ---------------------------------------------------------
+    // A non-empty ShowTimes array means "scheduled today", not "running now":
+    // the feed serves the whole day's list from midnight. Sampled at 03:46
+    // local, SeaWorld Orlando returned 22 slots from 10:45 to 18:30.
+
+    const SHOW_ROW = {
+      Id: 'show-x',
+      ShowTimes: [{
+        StartDateTime: '2026-08-15T22:00:00Z', EndDateTime: '2026-08-15T22:30:00Z',
+        StartTime: '2026-08-15T18:00:00', EndTime: '2026-08-15T18:30:00',
+      }],
+    };
+
+    function parkWithShows(waitTimes: any[], shows: any[], open: boolean) {
+      pinClock(open ? CLOCK_PARK_OPEN : CLOCK_PARK_SHUT);
+      const park = createMockedOrlando();
+      (park as any).getAvailability = async () => ({WaitTimes: waitTimes, ShowTimes: shows}) as any;
+      (park as any).getParkDetail = async () => ({...MOCK_PARK_DETAIL_SWO, open_hours: HOURS_TODAY}) as any;
+      return park;
+    }
+
+    it('reports a show as OPERATING while the park is open', async () => {
+      const park = parkWithShows([], [SHOW_ROW], true);
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'show-x');
+      expect(row.status).toBe('OPERATING');
+      expect(row.showtimes).toHaveLength(1);
+    });
+
+    it('reports a show as CLOSED once the park has shut, keeping the schedule', async () => {
+      // This was the last thing still showing a shut park as open after the
+      // wait-time fixes landed.
+      const park = parkWithShows([], [SHOW_ROW], false);
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'show-x');
+      expect(row.status).toBe('CLOSED');
+      // The times are still published — a closed park should still show today's
+      // line-up rather than going blank.
+      expect(row.showtimes).toHaveLength(1);
+    });
+
+    it('carries shows through an unlisted event on the same evidence as rides', async () => {
+      // Schedule says shut, a ride reports a live queue, so the park is running
+      // and its shows are running with it.
+      const park = parkWithShows(
+        [{Id: 'r', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: FRESH_STAMP_NIGHT}],
+        [SHOW_ROW], false);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'show-x').status).toBe('OPERATING');
+    });
+
+    it('does not let a schedule overwrite an explicit ride closure', async () => {
+      // No id appears in both arrays today, but if one ever does, the operator
+      // saying "Closed For The Day" must outrank "had performances listed".
+      const park = parkWithShows(
+        [{Id: 'show-x', Minutes: -1, Status: 'Closed For The Day', StatusDisplay: 'Closed For The Day', Title: 'A', LastUpDateTime: FRESH_STAMP}],
+        [SHOW_ROW], true);
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'show-x');
+      expect(row.status).toBe('CLOSED');
+      expect(row.showtimes).toHaveLength(1);
+    });
+
+    it('survives a malformed ShowTimes payload', async () => {
+      for (const bad of [{} as any, 'oops' as any, [null] as any, undefined as any]) {
+        const park = parkWithShows([], bad, true);
+        await expect((park as any).buildLiveData()).resolves.toBeInstanceOf(Array);
+      }
+    });
+
+    it('survives an unparseable timestamp without taking down the park', async () => {
+      // localFromFakeUtc throws on anything it cannot read, and this loop runs
+      // outside the per-park try, so a malformed stamp would otherwise lose
+      // live data for every park in the destination.
+      // Bad rows FIRST. .some() short-circuits, so putting a valid stamp ahead
+      // of them means they are never parsed and the test proves nothing —
+      // which is exactly what an earlier version of it did.
+      const park = parkReturning([
+        {Id: 'bad', Minutes: 10, Status: '', StatusDisplay: '', Title: 'B', LastUpDateTime: 'not-a-date'},
+        {Id: 'worse', Minutes: 10, Status: '', StatusDisplay: '', Title: 'C', LastUpDateTime: 'x'},
+        {Id: 'empty', Minutes: 10, Status: '', StatusDisplay: '', Title: 'D', LastUpDateTime: ''},
+        {Id: 'queue', Minutes: 20, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: FRESH_STAMP},
+      ], true);
+      const liveData = await (park as any).buildLiveData();
+      for (const id of ['bad', 'worse', 'empty']) {
+        expect(liveData.find((ld: any) => ld.id === id).status).toBe('OPERATING');
+      }
+    });
+
+    it('falls back to CLOSED when operating hours cannot be determined', async () => {
+      const park = parkReturning([
+        {Id: 'r', Minutes: -1, Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+      ]);
+      (park as any).getParkDetail = async () => {
+        throw new Error('park detail unavailable');
+      };
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'r');
+      // Conservative: never claim OPERATING on a guess.
+      expect(row.status).toBe('CLOSED');
+    });
+
+    it('keeps live data when only the park detail fetch fails', async () => {
+      // The hours lookup must not cost us the availability data we already have.
+      const park = parkReturning([
+        {Id: 'measured', Minutes: 45, Status: '', StatusDisplay: '', Title: 'A', LastUpDateTime: FRESH_STAMP},
+      ]);
+      (park as any).getParkDetail = async () => {
+        throw new Error('park detail unavailable');
+      };
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'measured')?.queue?.STANDBY?.waitTime).toBe(45);
+    });
+
+    it('does not let a ride fall through to the CLOSED default', async () => {
+      // getOrCreate seeds new entries as CLOSED. A missing Minutes field must
+      // still be classified explicitly rather than inheriting that default.
+      const park = parkReturning([
+        {Id: 'r', Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'} as any,
+      ]);
+      const liveData = await (park as any).buildLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'r');
+      expect(row.status).toBe('OPERATING');
+      expect(row.queue?.STANDBY?.waitTime).toBeNull();
+    });
+
+    // The following pin behaviours that survived deliberate mutation of the
+    // implementation, i.e. the code could be broken in these specific ways with
+    // the rest of the suite still green.
+
+    it('closes on Status alone, while the park is open', async () => {
+      // Status carries the closure in 100% of real observations, yet ignoring
+      // it entirely used to pass. Park pinned OPEN so the hours fallback cannot
+      // produce the CLOSED verdict for us.
+      const park = parkReturning([
+        {Id: 'r', Minutes: -1, Status: 'Closed For The Day', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+      ], true);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+    });
+
+    it('closes on an unseen closure string, while the park is open', async () => {
+      const park = parkReturning([
+        {Id: 'r', Minutes: -1, Status: 'Closed For Private Event', StatusDisplay: 'Closed For Private Event', Title: 'A', LastUpDateTime: 'x'},
+      ], true);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+    });
+
+    it('treats a whitespace-only Status as no reading, not a closure', async () => {
+      // '   ' is truthy, so `Status || StatusDisplay` would pick it and then
+      // trim to empty, throwing away a real closure. Each field is trimmed
+      // separately for this reason.
+      const park = parkReturning([
+        {Id: 'blank', Minutes: -1, Status: '   ', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+        {Id: 'real', Minutes: -1, Status: '   ', StatusDisplay: 'Closed Temporarily', Title: 'B', LastUpDateTime: 'x'},
+      ], true);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'blank').status).toBe('OPERATING');
+      expect(liveData.find((ld: any) => ld.id === 'real').status).toBe('CLOSED');
+    });
+
+    it('does not throw the whole destination on a non-string Status', async () => {
+      // This loop runs outside the per-park try, so a TypeError here would take
+      // down every park in the destination and undo #312's isolation.
+      const park = parkReturning([
+        {Id: 'r', Minutes: -1, Status: 5 as any, StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+      ], true);
+      await expect((park as any).buildLiveData()).resolves.toBeInstanceOf(Array);
+    });
+
+    it('does not invent a walk-on from a null or empty Minutes', async () => {
+      // Number(null) and Number('') are both 0, which is finite and >= 0.
+      const park = parkReturning([
+        {Id: 'nul', Minutes: null as any, Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+        {Id: 'empty', Minutes: '' as any, Status: '', StatusDisplay: null, Title: 'B', LastUpDateTime: 'x'},
+      ], true);
+      const liveData = await (park as any).buildLiveData();
+      for (const id of ['nul', 'empty']) {
+        expect(liveData.find((ld: any) => ld.id === id).queue?.STANDBY?.waitTime).toBeNull();
+      }
+    });
+
+    it('honours an evening event block, not just the first block of the day', async () => {
+      // Real event-day shape: daytime session already over, ticketed evening
+      // session in progress. Only considering open_hours[0] would report closed.
+      const park = parkReturning([
+        {Id: 'r', Minutes: -1, Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+      ], true, [
+        {opens_at: '2026-08-15T09:00:00.0000000Z', closes_at: '2026-08-15T13:00:00.0000000Z', date: '08/15/2026'},
+        {opens_at: '2026-08-15T13:30:00.0000000Z', closes_at: '2026-08-15T23:00:00.0000000Z', date: '08/15/2026'},
+      ]);
+      // Clock is 14:00 local, inside the SECOND block only.
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('OPERATING');
+    });
+
+    it('applies the >25h glitch guard so a mis-dated close does not hold the park open', async () => {
+      // closes_at dated a day late yields a ~34h span. Ungurarded, the park
+      // reads open right through the night and every unmeasured ride flips to
+      // OPERATING. Clock is 08:00 local, before the 09:00 open.
+      const park = parkReturning([
+        {Id: 'r', Minutes: -1, Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+      ], false, [
+        {opens_at: '2026-08-14T09:00:00.0000000Z', closes_at: '2026-08-15T19:00:00.0000000Z', date: '08/14/2026'},
+      ]);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+    });
+
+    it('does not report open for an inverted block whose close precedes its open', async () => {
+      const park = parkReturning([
+        {Id: 'r', Minutes: -1, Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+      ], true, [
+        {opens_at: '2026-08-15T09:00:00.0000000Z', closes_at: '2026-08-14T21:00:00.0000000Z', date: '08/15/2026'},
+      ]);
+      const liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+    });
+
+    it('treats the opening instant as open and the closing instant as shut', async () => {
+      const row = {Id: 'r', Minutes: -1, Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'};
+      // Exactly 09:00 local = 13:00Z.
+      vi.useFakeTimers({toFake: ['Date']});
+      vi.setSystemTime(new Date('2026-08-15T13:00:00Z'));
+      let park = createMockedOrlando();
+      (park as any).getAvailability = async () => availabilityWith([row]) as any;
+      (park as any).getParkDetail = async () => ({...MOCK_PARK_DETAIL_SWO, open_hours: HOURS_TODAY}) as any;
+      let liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('OPERATING');
+
+      // Exactly 21:00 local = 01:00Z next day.
+      vi.setSystemTime(new Date('2026-08-16T01:00:00Z'));
+      park = createMockedOrlando();
+      (park as any).getAvailability = async () => availabilityWith([row]) as any;
+      (park as any).getParkDetail = async () => ({...MOCK_PARK_DETAIL_SWO, open_hours: HOURS_TODAY}) as any;
+      liveData = await (park as any).buildLiveData();
+      expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+    });
+
+    it('survives sanitisation on the public getLiveData path', async () => {
+      // Every other assertion here reads buildLiveData() output, before the base
+      // class sanitises and strips undefined. The null-vs-undefined argument is
+      // about what actually reaches consumers, so check the public path too.
+      const park = parkReturning([
+        {Id: 'ride-001', Minutes: -1, Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+      ], true);
+      const liveData = await park.getLiveData();
+      const row = liveData.find((ld: any) => ld.id === 'ride-001');
+      expect(row).toBeDefined();
+      expect(row!.queue?.STANDBY).toHaveProperty('waitTime');
+      expect(row!.queue?.STANDBY?.waitTime).toBeNull();
+    });
+
+    it('asks for the park-local date, not the UTC date', async () => {
+      // 21:30 on 15 Aug in New York is already 16 Aug in UTC. Asking for the
+      // UTC date fetches TOMORROW's availability while the park is still open,
+      // which is when summer nights and Howl-O-Scream run. The app itself sends
+      // LocalDate.now(), i.e. the device-local date.
+      vi.useFakeTimers({toFake: ['Date']});
+      vi.setSystemTime(new Date('2026-08-16T01:30:00Z'));
+
+      const seen: string[] = [];
+      const park = createMockedOrlando();
+      (park as any).getAvailability = async (_id: string, searchDate: string) => {
+        seen.push(searchDate);
+        return {WaitTimes: [], ShowTimes: []} as any;
+      };
+      await (park as any).buildLiveData();
+
+      expect(seen.length).toBeGreaterThan(0);
+      for (const d of seen) expect(d).toBe('2026-08-15');
+    });
+
+    it('asks for the park-local date in a western timezone too', async () => {
+      // 17:30 on 15 Aug in Los Angeles is likewise 16 Aug in UTC.
+      vi.useFakeTimers({toFake: ['Date']});
+      vi.setSystemTime(new Date('2026-08-16T00:30:00Z'));
+
+      const seen: string[] = [];
+      const park = new SeaworldSanDiego();
+      (park as any).getParkDetail = async () => ({...MOCK_PARK_DETAIL_SWO, open_hours: []}) as any;
+      (park as any).getAvailability = async (_id: string, searchDate: string) => {
+        seen.push(searchDate);
+        return {WaitTimes: [], ShowTimes: []} as any;
+      };
+      await (park as any).buildLiveData();
+
+      expect(seen).toContain('2026-08-15');
+    });
+
+    it('never emits a bare waitTime of undefined', async () => {
+      // `{waitTime: undefined}` serialises to `"STANDBY": {}`, which says
+      // nothing. Every branch must produce an explicit number or null.
+      const park = parkReturning([
+        {Id: 'a', Minutes: 15, Status: '', StatusDisplay: null, Title: 'A', LastUpDateTime: 'x'},
+        {Id: 'b', Minutes: -1, Status: '', StatusDisplay: null, Title: 'B', LastUpDateTime: 'x'},
+        {Id: 'c', Minutes: -1, Status: 'Closed Temporarily', StatusDisplay: 'Closed Temporarily', Title: 'C', LastUpDateTime: 'x'},
+      ]);
+      const liveData = await (park as any).buildLiveData();
+      for (const row of liveData) {
+        if (!row.queue?.STANDBY) continue;
+        expect(row.queue.STANDBY).toHaveProperty('waitTime');
+        expect(row.queue.STANDBY.waitTime).not.toBeUndefined();
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Regression: upstream 403 on one park UUID must not take its siblings down.
+  //
+  // All three Orlando parks share one upstream. src/http.ts treats 4xx as
+  // non-retryable, so a bot-protection block rejects immediately; before the
+  // fix the unguarded `await` in the resortIds loop propagated that rejection
+  // and buildLiveData() emitted nothing for the entire destination.
+  // -------------------------------------------------------------------------
+  describe('per-park failure isolation', () => {
+    beforeEach(() => pinClock(CLOCK_PARK_OPEN));
+    afterEach(() => vi.useRealTimers());
+
+    const DISCOVERY_COVE = '1FB04DFC-B6C0-4918-BE36-EE6DD14FE741';
+
+    // Reject for one park UUID only; the others keep serving the fixture.
+    function failOnePark(park: any, failingParkId: string) {
+      park.getAvailability = async (parkId: string) => {
+        if (parkId === failingParkId) {
+          throw new Error('Request failed with status code 403');
+        }
+        return MOCK_AVAILABILITY_SWO as any;
+      };
+    }
+
+    it('still returns sibling park live data when one park 403s', async () => {
+      const park = createMockedOrlando();
+      failOnePark(park, DISCOVERY_COVE);
+
+      const liveData = await (park as any).buildLiveData();
+
+      // SeaWorld Orlando's own rides must still report.
+      const ride001 = liveData.find((ld: any) => ld.id === 'ride-001');
+      expect(ride001).toBeDefined();
+      expect(ride001.status).toBe('OPERATING');
+      expect(ride001.queue.STANDBY.waitTime).toBe(30);
+    });
+
+    it('returns an empty list rather than throwing when every park 403s', async () => {
+      const park = createMockedOrlando();
+      park.getAvailability = async () => {
+        throw new Error('Request failed with status code 403');
+      };
+
+      // No rows is correct here: emitting a fabricated CLOSED for a park we
+      // cannot see would push invented state to the wiki.
+      await expect((park as any).buildLiveData()).resolves.toEqual([]);
+    });
+
+    // The next two guard the deliberate asymmetry. The collector diffs the
+    // entity list and issues DELETE v1/entity/<id> for anything missing, so
+    // swallowing a failure here would delete the failed park's entities from
+    // the wiki. These must keep throwing.
+    it('buildEntityList still throws when a park fetch fails', async () => {
+      const park = createMockedOrlando();
+      park.getParkDetail = async (parkId: string) => {
+        if (parkId === DISCOVERY_COVE) {
+          throw new Error('Request failed with status code 403');
+        }
+        return MOCK_PARK_DETAIL_SWO as any;
+      };
+
+      await expect((park as any).buildEntityList()).rejects.toThrow(/403/);
+    });
+
+    it('buildSchedules still throws when a park fetch fails', async () => {
+      const park = createMockedOrlando();
+      park.getParkDetail = async (parkId: string) => {
+        if (parkId === DISCOVERY_COVE) {
+          throw new Error('Request failed with status code 403');
+        }
+        return MOCK_PARK_DETAIL_SWO as any;
+      };
+
+      await expect((park as any).buildSchedules()).rejects.toThrow(/403/);
+    });
+  });
+
   describe('buildSchedules', () => {
     it('returns schedule for each park with open_hours', async () => {
       const park = createMockedOrlando();
@@ -341,6 +1225,8 @@ describe('Cache key prefix isolation', () => {
       new SeaworldSanDiego(),
       new BuschGardensTampa(),
       new BuschGardensWilliamsburg(),
+      new SesamePlacePhiladelphia(),
+      new SesamePlaceSanDiego(),
     ];
     const prefixes = parks.map(p => p.getCacheKeyPrefix());
     const uniquePrefixes = new Set(prefixes);
@@ -357,8 +1243,9 @@ describe('Destination subclasses', () => {
     const park = new SeaworldSanAntonio();
     expect(park.destinationId).toBe('seaworldsanantonio');
     expect(park.timezone).toBe('America/Chicago');
-    expect(park.resortIds).toHaveLength(1);
+    expect(park.resortIds).toHaveLength(2);
     expect(park.resortIds[0]).toBe('F4040D22-8B8D-4394-AEC7-D05FA5DEA945');
+    expect(park.resortIds[1]).toBe('04668F50-A57E-4DE6-8E70-D4567D9B46B5'); // Aquatica SA
   });
 
   it('SeaworldSanDiego has correct config', () => {
@@ -372,14 +1259,64 @@ describe('Destination subclasses', () => {
     const park = new BuschGardensTampa();
     expect(park.destinationId).toBe('buschgardenstampa');
     expect(park.timezone).toBe('America/New_York');
+    expect(park.resortIds).toHaveLength(2);
     expect(park.resortIds[0]).toBe('C001866B-555D-4E92-B48E-CC67E195DE96');
+    expect(park.resortIds[1]).toBe('770E691C-E6DA-4264-AF27-863189380D0B'); // Adventure Island
   });
 
   it('BuschGardensWilliamsburg preserves legacy destinationId typo', () => {
     const park = new BuschGardensWilliamsburg();
     // "willamsburg" — one 'l' — matches JS implementation
     expect(park.destinationId).toBe('buschgardenswillamsburg');
+    expect(park.resortIds).toHaveLength(2);
     expect(park.resortIds[0]).toBe('45FE1F31-D4E4-4B1E-90E0-5255111070F2');
+    expect(park.resortIds[1]).toBe('66480532-A73C-4617-9B2D-EDC4430CAB86'); // Water Country USA
+  });
+
+  it('SesamePlacePhiladelphia has correct config', () => {
+    const park = new SesamePlacePhiladelphia();
+    expect(park.destinationId).toBe('sesameplacephiladelphia');
+    expect(park.destinationName).toBe('Sesame Place Philadelphia');
+    expect(park.timezone).toBe('America/New_York');
+    expect(park.resortIds).toEqual(['F7408854-28CB-4B1E-98E5-4449FE600E85']);
+  });
+
+  it('SesamePlaceSanDiego has correct config', () => {
+    const park = new SesamePlaceSanDiego();
+    expect(park.destinationId).toBe('sesameplacesandiego');
+    expect(park.destinationName).toBe('Sesame Place San Diego');
+    expect(park.timezone).toBe('America/Los_Angeles');
+    expect(park.resortIds).toEqual(['A988F4CE-6A81-4527-9535-DDB378689E52']);
+  });
+});
+
+describe('Park UUID assignment across destinations', () => {
+  const ALL = () => [
+    new SeaworldOrlando(),
+    new SeaworldSanAntonio(),
+    new SeaworldSanDiego(),
+    new BuschGardensTampa(),
+    new BuschGardensWilliamsburg(),
+    new SesamePlacePhiladelphia(),
+    new SesamePlaceSanDiego(),
+  ];
+
+  it('assigns every park UUID to exactly one destination', () => {
+    // A UUID pasted into two destinations would publish the same PARK twice
+    // under different parents, and the collector would see it flap between them.
+    const all = ALL().flatMap((p) => p.resortIds);
+    expect(new Set(all).size).toBe(all.length);
+  });
+
+  it('covers all 12 parks the operator publishes', () => {
+    expect(ALL().flatMap((p) => p.resortIds)).toHaveLength(12);
+  });
+
+  it('gives every destination a unique id and at least one park', () => {
+    const parks = ALL();
+    const ids = parks.map((p) => p.destinationId);
+    expect(new Set(ids).size).toBe(parks.length);
+    for (const p of parks) expect(p.resortIds.length).toBeGreaterThan(0);
   });
 });
 

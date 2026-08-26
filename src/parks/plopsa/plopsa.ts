@@ -278,7 +278,31 @@ class PlopsaBase extends Destination {
 
   // ── HTTP methods ──────────────────────────────────────────────
 
-  @http({cacheSeconds: 60 * 60 * 12})
+  /**
+   * The POI feed is mostly cold metadata (titles, images, height specs), but it
+   * is also the *only* carrier of `schedule_info.temporarily_closed` — live
+   * state that flips several times a day. Plopsaland's two splash rides open a
+   * few hours after the park does and are flagged closed until they do; rides
+   * also break down mid-afternoon.
+   *
+   * So this cannot be cached like metadata. It used to sit at 12h, which let a
+   * snapshot taken while a ride was open report OPERATING for the rest of the
+   * day after it closed — `plopsaDecideStatus` reads `!tempClosed` as "open",
+   * so a stale FALSE surfaces as "Open, 0 min". (The reverse, a stale TRUE
+   * after a ride opens, is already rescued by the `hasWait` priority.)
+   *
+   * 5 minutes tracks the flag closely enough while still collapsing the
+   * per-poll fetches of a collector running on a shorter interval. The feed is
+   * ~220 KB per language, and `languages` holds one or two entries per park.
+   *
+   * The shorter TTL puts this fetch on the live path — it now runs on almost
+   * every poll instead of twice a day, and `buildLiveData` awaits it without a
+   * fallback, so a single transient failure would cost the park's entire live
+   * data for that poll. `retries: 3` gives a ~7s exponential-backoff window
+   * (1+2+4, ±10% jitter — see `calculateBackoffDelay` in src/http.ts), same
+   * reasoning as the note on `fetchTodayHours`.
+   */
+  @http({cacheSeconds: 60 * 5, retries: 3})
   async fetchPOI(language: string = this.apiLanguage): Promise<HTTPObj> {
     return {
       method: 'GET',
@@ -731,15 +755,33 @@ class PlopsaBase extends Destination {
 
         for (const day of item.schedule_info?.schedule ?? []) {
           for (const slot of day.timeslots ?? []) {
-            if (slot.type !== 'open') continue;
+            if (slot.type !== 'open' || !slot.start_time) continue;
+            // Show timeslots use HH:MM strings, not full ISO, so the park offset
+            // has to be applied — the same call the live path makes in
+            // plopsaBuildShowtimes. Concatenating the strings instead left the
+            // time with NO offset, which anything parsing it as an instant
+            // resolves in its own timezone rather than the park's.
+            //
+            // constructDateTime throws on anything it cannot parse ('9:30', a
+            // stray space, ''), where concatenation silently published one bad
+            // entry. Catching per slot keeps that blast radius: without it a
+            // single malformed time in one show's feed rejects the whole run and
+            // takes the park's own operating hours with it.
+            let openingTime: string;
+            let closingTime: string;
+            try {
+              openingTime = constructDateTime(day.date, slot.start_time, this.timezone);
+              closingTime = slot.end_time
+                ? constructDateTime(day.date, slot.end_time, this.timezone)
+                : openingTime;
+            } catch {
+              continue;
+            }
             showSchedule.push({
               date: day.date,
               type: 'OPERATING',
-              // Show timeslots use HH:MM strings, not full ISO — build with constructDateTime
-              openingTime: `${day.date}T${slot.start_time}:00`,
-              closingTime: slot.end_time
-                ? `${day.date}T${slot.end_time}:00`
-                : `${day.date}T${slot.start_time}:00`,
+              openingTime,
+              closingTime,
             } as any);
           }
         }

@@ -11,8 +11,9 @@ import {
   LiveData,
   EntitySchedule,
   LanguageCode,
+  TagData,
 } from '@themeparks/typelib';
-import {formatInTimezone, addDays, constructDateTime} from '../../datetime.js';
+import {formatInTimezone, addDays, constructDateTime, shiftDateString} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 // ============================================================================
@@ -28,6 +29,21 @@ const IGNORE_ENTITIES = new Set([
   'P2AC00',
   'armageddon',
   'P2EA02', // Entry to World of Frozen (land-entry pass, not a ride)
+  // Buildings, not attractions. POI types each of these "Attraction" with the
+  // same shape as every ride — empty subType, anyHeight, a Guest Entrance
+  // coordinate — so nothing in the record separates them from Phantom Manor.
+  // They are places you walk through: no schedules, never a wait, and the wait
+  // feed reports only a bare OPERATING row. Same class as P2EA02 above.
+  //
+  // Horse-Drawn Streetcars (P1MA02) shares the shape and deliberately stays:
+  // it is a vehicle you ride, not a building you are inside.
+  'P2FD03', // World Premiere — Disney Adventure World's entrance building
+  'P1MA00', // Discovery Arcade
+  'P1MA03', // Liberty Arcade
+  // The castle itself. What is inside it publishes separately, as
+  // P1NA06 La Galerie de la Belle au Bois Dormant and P1NA12 La Tanière du
+  // Dragon, so dropping the shell loses nothing.
+  'P1NA04', // Sleeping Beauty Castle
 ]);
 
 /** Entities that bypass visibility/hide rules */
@@ -35,14 +51,48 @@ const VISIBILITY_EXCEPTIONS = new Set([
   'P2EA00', // Frozen Ever After
   'P2DA00', // Tangled Spin
   'P1GS93', // Live Your Story – a Disney Princess Celebration (Castle Stage; Disney flags it "Hide from the Service")
+  // Disney flags these "Hide from Web List + Mobile App", which it otherwise uses as a
+  // retirement marker (every old-/-OLD record carries it). Each one is live even so:
+  // the stations report wait times, the meet & greets hold performance times.
+  'P1DA10', // Disneyland Railroad Discoveryland Station
+  'P1NA16', // Disneyland Railroad Fantasyland Station
+  'P2MG31', // Meet Goofy, the Movie Director
+  'P1MG21', // An Encounter with Captain Hook
+  'P1MG05', // Meet Donald Duck or his friends
+  // Also flagged "Hide from the Service", but both run a live virtual queue:
+  // enabled, with booking waves dated to the day being served.
+  'P2MG33', // Spider-Man Heroic Encounter
+  'P2MG43', // MARVEL Super Hero Heroic Encounter
 ]);
 
-/** Hide rules that exclude entities from the POI list */
+/**
+ * DLP splits Mickey's PhilharMagic across two records: published
+ * Entertainment record P1G103 carries the showtimes, while hidden Attraction
+ * twin P1DA13 carries the standby wait and a schedule restating those
+ * showtimes. Live and schedule rows for the twin fold onto the published id.
+ */
+const ID_ALIASES: Record<string, string> = {
+  P1DA13: 'P1G103',
+};
+
+/** Entity types keyed by id, checked ahead of the category mapping. */
+const ENTITY_TYPE_OVERRIDES: Record<string, Entity['entityType']> = {
+  P1G103: 'ATTRACTION', // PhilharMagic is an attraction across Disney resorts
+};
+
+/**
+ * Hide rules that exclude entities from the POI list.
+ *
+ * `Hide from the Mobile App` is deliberately not one of them. Every record
+ * carrying it is an off-site or guest-information page, not a venue in
+ * either park.
+ */
 const HIDE_RULES = new Set([
   'Hide from Web List + Mobile App',
   'Hide from the Service',
-  'Hide from Mobile App',
 ]);
+
+const MEET_AND_GREET_SUBTYPE = 'Character Experience - Meet & Greet';
 
 /** Entertainment subtypes that map to SHOW entity type */
 const SHOW_SUBTYPES = new Set([
@@ -50,7 +100,28 @@ const SHOW_SUBTYPES = new Set([
   'Fireworks',
   'Atmosphere',
   'Parade',
+  MEET_AND_GREET_SUBTYPE,
 ]);
+
+/** How many days ahead buildSchedules publishes. */
+const SCHEDULE_DAYS = 60;
+
+/** Wall-clock time the schedule feed publishes, e.g. `21:30:00`.
+ * `24:00` is a valid midnight close; out-of-range values would reach
+ * constructDateTime and throw. */
+const TIME_OF_DAY = /^(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?|24:00(?::00)?)$/;
+
+/** Plausible band for a rider height restriction; outside it is bad data
+ * (a mixed-unit id like `1_20cm` would otherwise round down to 1cm). */
+const MIN_HEIGHT_CM = 40;
+const MAX_HEIGHT_CM = 200;
+
+/** How long a wait-feed single-rider sighting keeps the queue's overnight
+ * baseline alive while the 12h POI cache lags. */
+const SINGLE_RIDER_RECENT_SECONDS = 48 * 60 * 60;
+
+/** Upper bound for a show length; a slot longer than a day is bad data */
+const MAX_SHOW_DURATION_MINUTES = 24 * 60;
 
 // ============================================================================
 // Types
@@ -80,13 +151,43 @@ type DLPPOIEntity = {
   coordinates?: DLPCoordinate[];
   schedules?: DLPScheduleEntry[];
   subType?: string;
-  // Extended fields from detailed queries
-  height?: Array<{ id: string; value: string; iconFont?: string }>;
-  minimumHeight?: string;
+  duration?: { hours?: number; minutes?: number };
+  // Attraction-only, from the inline fragment in fetchPOI
+  height?: Array<{ id: string }>;
   physicalConsiderations?: Array<{ id: string }>;
   interests?: Array<{ id: string }>;
-  duration?: { hours?: number; minutes?: number };
+  singleRider?: boolean;
 };
+
+/**
+ * Ids of a POI facet list. GraphQL lists may hold nulls, and the whole field
+ * is absent on every type but Attraction, so anything unusable is dropped
+ * rather than allowed to fail the entity build.
+ */
+function facetIds(list: Array<{id?: string}> | undefined): Set<string> {
+  if (!Array.isArray(list)) return new Set();
+  return new Set(
+    list.map((facet) => facet?.id).filter((id): id is string => typeof id === 'string'),
+  );
+}
+
+/**
+ * Parse a height facet id into centimetres: `81cm` → 81, `1_20m` → 120.
+ * Returns undefined for `anyHeight`, for ids in any other shape, and for
+ * values outside a plausible rider height.
+ *
+ * The facet's companion `value` string is localised — the same restriction
+ * reads `1.20 m` in en-gb and `1,20 m` in fr-fr — so the id is the only
+ * market-independent source.
+ */
+function parseHeightCm(facetId: string): number | undefined {
+  const match = /^(\d+(?:_\d+)?)(cm|m)$/.exec(facetId);
+  if (!match) return undefined;
+  const value = Number(match[1].replace('_', '.'));
+  if (!Number.isFinite(value)) return undefined;
+  const cm = Math.round(match[2] === 'm' ? value * 100 : value);
+  return cm >= MIN_HEIGHT_CM && cm <= MAX_HEIGHT_CM ? cm : undefined;
+}
 
 type DLPWaitTimeEntry = {
   entityId: string;
@@ -104,6 +205,19 @@ function parseDLPWait(v: unknown): number | undefined {
   if (v === null || v === undefined || v === '') return undefined;
   const n = typeof v === 'number' ? v : Number(v);
   return Number.isFinite(n) ? n : undefined;
+}
+
+/**
+ * Total length of a show in whole minutes, or 0 when the API omits the
+ * duration or reports something unusable. Callers fall back to the schedule
+ * feed's own end time on 0.
+ */
+function showDurationMinutes(duration: DLPPOIEntity['duration']): number {
+  if (!duration) return 0;
+  const hours = Number(duration.hours ?? 0);
+  const minutes = Number(duration.minutes ?? 0);
+  const total = Math.round(hours * 60 + minutes);
+  return total > 0 && total <= MAX_SHOW_DURATION_MINUTES ? total : 0;
 }
 
 /**
@@ -147,6 +261,15 @@ type DLPVQueueEntry = {
 type DLPVQueueResponse = {
   queues?: DLPVQueueEntry[];
 };
+
+/**
+ * A wave's status, upper-cased: `OPEN`, `CLOSED`, `FULL` or `FINISHED`.
+ * Anything the feed reports in another shape becomes the empty string, which
+ * no caller treats as bookable.
+ */
+function waveStatus(wave: DLPVQueueWave | null | undefined): string {
+  return typeof wave?.status === 'string' ? wave.status.toUpperCase() : '';
+}
 
 type DLPScheduleActivityEntry = {
   id: string;
@@ -201,8 +324,13 @@ export class DisneylandParis extends Destination {
   @config
   timezone: string = 'Europe/Paris';
 
-  /** Cache of show entities with duration data (populated during entity building) */
-  private showDurationMap: Map<string, number> = new Map();
+  /**
+   * A seasonal show's POI and schedule entries disappear entirely once its
+   * run ends — buildLiveData() has nothing to key off, so the row would
+   * otherwise freeze at its last live value forever (parksapi #74). See
+   * Destination.retireMissingLiveEntities for the mechanism.
+   */
+  protected retireMissingLiveEntities = true;
 
   constructor(options?: DestinationConstructor) {
     super(options);
@@ -338,6 +466,18 @@ export class DisneylandParis extends Destination {
         query: `query activities($market: String!) {
           Attraction: activities(market: $market, types: "Attraction") {
             ${this.entityFields}
+            ... on Attraction {
+              height {
+                id
+              }
+              physicalConsiderations {
+                id
+              }
+              interests {
+                id
+              }
+              singleRider
+            }
           }
           DiningEvent: activities(market: $market, types: "DiningEvent") {
             ${this.entityFields}
@@ -347,6 +487,12 @@ export class DisneylandParis extends Destination {
           }
           Entertainment: activities(market: $market, types: "Entertainment") {
             ${this.entityFields}
+            ... on Entertainment {
+              duration {
+                hours
+                minutes
+              }
+            }
           }
           Event: activities(market: $market, types: "Event") {
             ${this.entityFields}
@@ -387,7 +533,7 @@ export class DisneylandParis extends Destination {
   /**
    * Get POI data (cached 12h)
    */
-  @cache({ttlSeconds: 43200, cacheVersion: 2})
+  @cache({ttlSeconds: 43200, cacheVersion: 5})
   async getPOIData(): Promise<Record<string, DLPPOIEntity[]>> {
     const resp = await this.fetchPOI();
     const data = await resp.json();
@@ -622,26 +768,41 @@ export class DisneylandParis extends Destination {
   }
 
   /**
-   * Parse height string into centimeters.
-   * Handles "1.2 m" -> 120, "102 cm" -> 102
+   * Build the tags for an attraction. The caller guards on entity type, so
+   * a record of another type carrying these fields can never grow tags.
    */
-  private parseHeightCm(heightStr: string): number | undefined {
-    const match = /([\d.]+)\s*(\w+)/.exec(heightStr);
-    if (!match) return undefined;
+  private buildTags(poi: DLPPOIEntity): TagData[] {
+    const tags: TagData[] = [];
 
-    const value = parseFloat(match[1]);
-    const unit = match[2].toLowerCase();
+    const heightCm = [...facetIds(poi.height)]
+      .map((id) => parseHeightCm(id))
+      .find((cm) => cm !== undefined);
+    if (heightCm !== undefined) {
+      tags.push(TagBuilder.minimumHeight(heightCm, 'cm'));
+    }
 
-    if (unit === 'm') return Math.round(value * 100);
-    if (unit === 'cm') return Math.round(value);
+    if (facetIds(poi.physicalConsiderations).has('expectantMothersMayNotRide')) {
+      tags.push(TagBuilder.unsuitableForPregnantPeople());
+    }
 
-    return undefined;
+    if (poi.singleRider === true) {
+      tags.push(TagBuilder.singleRider());
+    }
+
+    const interests = facetIds(poi.interests);
+    if (interests.has('disney-premier-access-one')) tags.push(TagBuilder.paidReturnTime());
+    if (interests.has('guestMayGetSplashed')) tags.push(TagBuilder.mayGetWet());
+    if (interests.has('PhotoPass')) tags.push(TagBuilder.onRidePhoto());
+
+    return tags;
   }
 
   /**
    * Map DLP entity type to our entity type
    */
   private mapEntityType(entity: DLPPOIEntity & {category: string}): Entity['entityType'] | undefined {
+    const override = ENTITY_TYPE_OVERRIDES[entity.id];
+    if (override) return override;
     if (entity.category === 'Attraction') return 'ATTRACTION';
     if (entity.category === 'Restaurant') return 'RESTAURANT';
     if (entity.category === 'Entertainment') {
@@ -660,7 +821,102 @@ export class DisneylandParis extends Destination {
   private async getEmittablePOIEntities(): Promise<Array<DLPPOIEntity & {category: string}>> {
     const poiData = await this.getPOIData();
     const allEntities = this.flattenPOI(poiData);
-    return this.filterPOIEntities(allEntities).filter((poi) => this.mapEntityType(poi) !== undefined);
+    const emittable = this.filterPOIEntities(allEntities)
+      .filter((poi) => this.mapEntityType(poi) !== undefined);
+
+    const withData = await this.getMeetAndGreetIdsWithData();
+    if (withData === null) return emittable;
+    return emittable.filter(
+      (poi) => poi.subType !== MEET_AND_GREET_SUBTYPE || withData.has(poi.id),
+    );
+  }
+
+  /**
+   * Meet & greets that have something to publish: a performance somewhere in
+   * the window buildSchedules covers, or a virtual queue Disney has switched
+   * on. Null means "publish all of them" — see getScheduledActivityIds.
+   *
+   * Disney lists 22, and 8 of those carry neither. Publishing them puts bare
+   * records on the wiki with no live data and no schedule day, and because the
+   * entity gate and the schedule window are the same, an entity we publish is
+   * one we can also attach hours to.
+   *
+   * The queue clause is what lets the six virtual-queue meet & greets appear
+   * on their own: they hold no schedule rows at all, so while every queue
+   * reads `enabled: false` they stay out, and the day Disney turns one back on
+   * it returns without a code change.
+   */
+  private async getMeetAndGreetIdsWithData(): Promise<Set<string> | null> {
+    const scheduled = await this.getScheduledActivityIds();
+    if (!scheduled.answered) return null;
+
+    const ids = new Set(scheduled.ids);
+    try {
+      for (const queue of await this.getVirtualQueueData()) {
+        if (queue?.queueContentId && queue.enabled !== false) ids.add(queue.queueContentId);
+      }
+    } catch {
+      // The queue feed is optional; a failure only narrows what we publish.
+    }
+    return ids;
+  }
+
+  /**
+   * Ids the schedule feed carries rows for, across the same window
+   * buildSchedules publishes.
+   *
+   * `answered` is false when no day in that window came back with a single
+   * row. DLP always publishes park hours, so that is an outage rather than a
+   * quiet estate — and a cached empty answer must not be allowed to unpublish
+   * entities, the same trap #296 closed for schedules.
+   *
+   * The outage carries a flag rather than a null return because CacheLib reads
+   * a cached null as a miss: a null here would re-run the 60-day sweep on every
+   * call, from all three public entry points, for as long as the feed is down.
+   */
+  @cache({ttlSeconds: 43200, key: 'dlp:getScheduledActivityIds'})
+  private async getScheduledActivityIds(): Promise<{answered: boolean; ids: string[]}> {
+    const now = new Date();
+    const ids = new Set<string>();
+    let answered = false;
+
+    for (let i = 0; i < SCHEDULE_DAYS; i++) {
+      const [mm, dd, yyyy] = formatInTimezone(addDays(now, i), this.timezone, 'date').split('/');
+      let rows: DLPScheduleActivityEntry[];
+      try {
+        rows = await this.getScheduleForDate(`${yyyy}-${mm}-${dd}`);
+      } catch {
+        continue;
+      }
+      if (!Array.isArray(rows) || rows.length === 0) continue;
+      answered = true;
+      for (const row of rows) {
+        if (row?.id && Array.isArray(row.schedules) && row.schedules.length > 0) ids.add(row.id);
+      }
+    }
+
+    return {answered, ids: [...ids]};
+  }
+
+  /**
+   * Ids the entity list publishes, or null when POI is unavailable — a
+   * GraphQL 200-with-errors body reaches getPOIData as an empty object with
+   * no exception, and 12h of cache would pin it. Callers filtering on the
+   * result must treat null as "do not filter", not "filter everything out".
+   */
+  private async getPublishedEntityIds(): Promise<Set<string> | null> {
+    try {
+      const pois = await this.getEmittablePOIEntities();
+      if (pois.length === 0) return null;
+      const ids = new Set<string>(pois.map((poi) => poi.id));
+      // The parks and the destination are published but are not POI records.
+      ids.add('P1');
+      ids.add('P2');
+      ids.add('dlp');
+      return ids;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -691,7 +947,8 @@ export class DisneylandParis extends Destination {
   protected async buildEntityList(): Promise<Entity[]> {
     const poiData = await this.getPOIData();
     const allEntities = this.flattenPOI(poiData);
-    const filteredEntities = this.filterPOIEntities(allEntities);
+    // The same gate the live and schedule paths use, so the three cannot drift.
+    const filteredEntities = await this.getEmittablePOIEntities();
 
     const destinationId = 'dlp';
 
@@ -722,9 +979,6 @@ export class DisneylandParis extends Destination {
       },
     });
 
-    // Clear show duration map (rebuilt each time)
-    this.showDurationMap.clear();
-
     // Build attraction, show, and restaurant entities
     const entityEntries: Entity[] = [];
     for (const poi of filteredEntities) {
@@ -746,42 +1000,12 @@ export class DisneylandParis extends Destination {
         entity.location = {latitude: coords.lat, longitude: coords.lng};
       }
 
-      // Build tags
-      const tags: any[] = [];
-
-      // Height restriction
-      if (poi.minimumHeight) {
-        const heightCm = this.parseHeightCm(poi.minimumHeight);
-        if (heightCm && heightCm > 0) {
-          tags.push(TagBuilder.minimumHeight(heightCm, 'cm'));
-        }
-      }
-      // Also check height array (older format)
-      if (poi.height) {
-        for (const h of poi.height) {
-          if (h.id === 'anyHeight') continue;
-          const heightCm = this.parseHeightCm(h.value);
-          if (heightCm && heightCm > 0) {
-            tags.push(TagBuilder.minimumHeight(heightCm, 'cm'));
-            break; // Only one height tag
-          }
-        }
+      if (poi.id === 'P1G103') {
+        // 4D cinema — destination.ts otherwise defaults ATTRACTION to RIDE.
+        (entity as Entity & {attractionType?: string}).attractionType = 'SHOW';
       }
 
-      // Pregnancy
-      if (poi.physicalConsiderations?.some((c) => c.id === 'expectantMothersMayNotRide')) {
-        tags.push(TagBuilder.unsuitableForPregnantPeople());
-      }
-
-      entity.tags = tags.filter(Boolean);
-
-      // Store show duration for live data
-      if (entityType === 'SHOW' && poi.duration) {
-        const durationMinutes = (poi.duration.minutes || 0) + ((poi.duration.hours || 0) * 60);
-        if (durationMinutes > 0) {
-          this.showDurationMap.set(poi.id, durationMinutes);
-        }
-      }
+      entity.tags = entityType === 'ATTRACTION' ? this.buildTags(poi) : [];
 
       entityEntries.push(entity);
     }
@@ -829,7 +1053,7 @@ export class DisneylandParis extends Destination {
       if (!wt.entityId || wt.type !== 'Attraction') continue;
       if (IGNORE_ENTITIES.has(wt.entityId)) continue;
 
-      const ld = getOrCreate(wt.entityId);
+      const ld = getOrCreate(ID_ALIASES[wt.entityId] ?? wt.entityId);
       if (!ld) continue;
       ld.status = this.mapStatus(wt.status) as any;
 
@@ -872,54 +1096,110 @@ export class DisneylandParis extends Destination {
     }
 
     // === Virtual Queue (free return time) ===
-    // Each queue's waves array is ordered chronologically by openAt; the
-    // next wave that still has capacity is the one to surface. If all
-    // waves have status FINISHED, the queue's done for the day.
+    // Waves are the day's booking windows, ordered chronologically, with
+    // `nextWaveId` marking the one in play. Only an OPEN wave takes
+    // bookings: CLOSED is scheduled to open later, FULL is that wave's
+    // allocation gone, FINISHED is done with. A return window is therefore
+    // published only for an OPEN wave, and the queue counts as temporarily
+    // full for as long as a CLOSED wave is still to come.
     const vqueueData = await this.getVirtualQueueData();
+    const openedToday = (v: string | null | undefined): boolean => {
+      const d = parseDLPDate(v);
+      if (!d) return false;
+      const [wMM, wDD, wYYYY] = formatInTimezone(d, this.timezone, 'date').split('/');
+      return `${wYYYY}-${wMM}-${wDD}` === todayStr;
+    };
     for (const q of vqueueData) {
-      if (!q.queueContentId || q.enabled === false) continue;
-      const waves = q.waves ?? [];
+      if (!q?.queueContentId || q.enabled === false) continue;
+      const waves = Array.isArray(q.waves) ? q.waves : [];
       if (waves.length === 0) continue;
 
+      // A live OPEN wave wins over `nextWaveId`, which can lag a transition.
+      const pending = waves.filter((w) => waveStatus(w) !== 'FINISHED');
       const activeWave =
-        (q.nextWaveId && waves.find((w) => w.waveId === q.nextWaveId)) ||
-        waves.find((w) => (w.status || '').toUpperCase() !== 'FINISHED');
-
-      const allFinished = waves.every(
-        (w) => (w.status || '').toUpperCase() === 'FINISHED',
-      );
+        waves.find((w) => waveStatus(w) === 'OPEN') ||
+        (q.nextWaveId && waves.find((w) => w?.waveId === q.nextWaveId)) ||
+        pending[0];
 
       const ld = getOrCreate(q.queueContentId);
       if (!ld) continue;
+
+      // Overnight every wave that matters reads CLOSED; publishing TEMP_FULL
+      // there would be wrong, so no RETURN_TIME until a wave has actually
+      // been in play.
+      //
+      // A FINISHED wave only counts as evidence of that while it still holds
+      // an openAt falling on the current park date. The list is not today's
+      // waves: Disney keeps dormant rows in it, FINISHED with openAt and
+      // closedAt nulled, and retires the day's real waves into that same
+      // shape once they have passed. Reading a dateless one as history is
+      // enough to publish "temporarily full, come back later" through a night
+      // when nothing has opened, and a stale dated one would do the same if
+      // the feed ever held yesterday's waves past midnight.
+      const dayStarted = waves.some((w) => {
+        const status = waveStatus(w);
+        if (status === 'OPEN' || status === 'FULL') return true;
+        return status === 'FINISHED' && openedToday(w?.openAt ?? null);
+      });
+      if (!dayStarted) continue;
+
+      const open = waveStatus(activeWave) === 'OPEN';
+      const from = open ? parseDLPDate(activeWave?.openAt ?? null) : null;
+      const until = open ? parseDLPDate(activeWave?.closedAt ?? null) : null;
+
       if (!ld.queue) ld.queue = {};
 
-      if (allFinished || !activeWave) {
-        ld.queue.RETURN_TIME = this.buildReturnTimeQueue('FINISHED', null, null);
+      // AVAILABLE has to carry a window, so a wave that reads open without a
+      // usable one falls back with the rest.
+      if (from && until) {
+        // A bookable window means the experience is running.
+        ld.status = 'OPERATING';
+        ld.queue.RETURN_TIME = this.buildReturnTimeQueue('AVAILABLE', from, until);
+      } else if (waves.some((w) => waveStatus(w) === 'CLOSED')) {
+        // "Full, come back later" says the experience is running too — a
+        // later wave is still scheduled to open.
+        ld.status = 'OPERATING';
+        ld.queue.RETURN_TIME = this.buildReturnTimeQueue('TEMP_FULL', null, null);
       } else {
-        // Wave statuses observed: CLOSED (scheduled, not yet open), FINISHED,
-        // and presumably OPEN/AVAILABLE when actively booking. Anything
-        // non-FINISHED surfaces as AVAILABLE with the wave's window so the
-        // wiki can render the upcoming slot.
-        ld.queue.RETURN_TIME = this.buildReturnTimeQueue(
-          'AVAILABLE',
-          parseDLPDate(activeWave.openAt ?? null),
-          parseDLPDate(activeWave.closedAt ?? null),
-        );
+        // Nothing left to open today, so the seeded CLOSED is the truth.
+        ld.queue.RETURN_TIME = this.buildReturnTimeQueue('FINISHED', null, null);
       }
     }
 
     // === Show Times (from today's schedule) ===
     // `todayStr` (YYYY-MM-DD in park tz) is computed at the top of this method.
-    try {
-      const scheduleData = await this.getScheduleForDate(todayStr);
+    // The payload is shared with the dining block below.
+    let todaySchedules: DLPScheduleActivityEntry[] = [];
 
-      for (const sched of scheduleData) {
+    // Same map buildSchedules uses, so the live and schedule views of a
+    // performance cannot disagree about how long it runs. The POI list is
+    // already in scope here, so hand it over rather than re-deriving it.
+    const showDurations = await this.getShowDurations(emittablePois);
+
+    try {
+      todaySchedules = await this.getScheduleForDate(todayStr);
+    } catch (e) {
+      console.error(`[DLP] Error fetching today's schedule: ${e}`);
+    }
+    try {
+      for (const sched of todaySchedules) {
         if (!sched.schedules) continue;
 
         const performances = sched.schedules.filter((s) => s.status === 'PERFORMANCE_TIME');
         if (performances.length === 0) continue;
 
-        const showDuration = this.showDurationMap.get(sched.id) || 0;
+        // Alias before every lookup, exactly as buildSchedules does. The
+        // ID_ALIASES docblock promises live rows fold onto the published id,
+        // and the wait-time path above honours that, but this block did not:
+        // it read the duration under the raw feed id (finding nothing) and
+        // then handed the raw id to getOrCreate, which drops it for failing
+        // the published-entity gate. Not reachable today — the schedule feed
+        // only requests PERFORMANCE_TIME for Entertainment records and the
+        // aliased twin is an Attraction — but it made the live and schedule
+        // paths disagree by the duration for any alias that ever does carry
+        // showtimes.
+        const liveId = ID_ALIASES[sched.id] ?? sched.id;
+        const showDuration = showDurations.get(liveId) || 0;
 
         const showtimes = performances.map((p) => {
           const startTime = constructDateTime(todayStr, p.startTime, this.timezone);
@@ -938,14 +1218,14 @@ export class DisneylandParis extends Destination {
           };
         });
 
-        const existing = liveDataMap.get(sched.id);
+        const existing = liveDataMap.get(liveId);
         if (existing) {
           existing.showtimes = showtimes;
           if (showtimes.length > 0) {
             existing.status = 'OPERATING' as any;
           }
         } else {
-          const ld = getOrCreate(sched.id);
+          const ld = getOrCreate(liveId);
           if (!ld) continue;
           ld.status = 'OPERATING' as any;
           ld.showtimes = showtimes;
@@ -968,20 +1248,7 @@ export class DisneylandParis extends Destination {
     // publishes in the wait feed. They'd otherwise inherit a misleading
     // synthetic CLOSED + STANDBY:null all day. Instead we emit
     // OPERATING/CLOSED derived from today's POI schedule (or park-hours
-    // fallback) and no queue. Detection is data-driven: persist a 30-day
-    // cache of IDs that have ever appeared in the wait feed, mirroring the
-    // singleRiderCapable pattern below.
-    //
-    // Single-rider eligibility isn't on POI, so remember IDs we've seen
-    // with `singleRider.isAvailable === true` and re-emit SINGLE_RIDER
-    // null for them while the feed is asleep.
-    const srCacheKey = `${this.getCacheKeyPrefix()}:dlp:singleRiderCapable`;
-    const previouslySeenSR = CacheLib.get(srCacheKey) as string[] | null;
-    const seenSR = new Set<string>(Array.isArray(previouslySeenSR) ? previouslySeenSR : []);
-    for (const wt of waitTimes) {
-      if (wt.singleRider?.isAvailable === true && wt.entityId) seenSR.add(wt.entityId);
-    }
-    CacheLib.set(srCacheKey, [...seenSR], 30 * 24 * 60 * 60); // 30 days
+    // fallback) and no queue.
 
     // Wait-feed history: which attractions are queue-bearing? Walkthroughs
     // never appear here. 30-day TTL covers normal refurb cycles.
@@ -991,45 +1258,121 @@ export class DisneylandParis extends Destination {
       Array.isArray(previousHistory) ? previousHistory : [],
     );
     for (const wt of waitTimes) {
-      if (wt.entityId) queueBearingIds.add(wt.entityId);
+      if (wt.entityId) queueBearingIds.add(ID_ALIASES[wt.entityId] ?? wt.entityId);
     }
     CacheLib.set(queueHistoryKey, [...queueBearingIds], 30 * 24 * 60 * 60); // 30 days
+
+    // Recently-seen single-rider ids, OR'd with the POI facet below. Entries
+    // carry their own timestamp rather than being re-seeded, so retirements
+    // actually lapse.
+    const srRecentKey = `${this.getCacheKeyPrefix()}:dlp:singleRiderRecent`;
+    const previousSR = CacheLib.get(srRecentKey) as Record<string, number> | null;
+    const srCutoff = Date.now() - SINGLE_RIDER_RECENT_SECONDS * 1000;
+    const singleRiderRecent: Record<string, number> = {};
+    if (previousSR && typeof previousSR === 'object') {
+      for (const [id, seenAt] of Object.entries(previousSR)) {
+        if (typeof seenAt === 'number' && seenAt > srCutoff) singleRiderRecent[id] = seenAt;
+      }
+    }
+    for (const wt of waitTimes) {
+      if (wt.entityId && wt.singleRider?.isAvailable === true) {
+        singleRiderRecent[wt.entityId] = Date.now();
+      }
+    }
+    CacheLib.set(srRecentKey, singleRiderRecent, SINGLE_RIDER_RECENT_SECONDS);
 
     const attractionPois = emittablePois.filter(
       (poi) => this.mapEntityType(poi) === 'ATTRACTION',
     );
 
-    // Today's park-open window — fallback for walkthroughs whose POI
-    // entry doesn't carry its own schedule (Discovery Arcade etc.).
-    // Derived from queue-bearing rides' POI schedules.
-    const parkScheduleEntries = attractionPois
-      .filter((p) => queueBearingIds.has(p.id))
-      .flatMap((p) => p.schedules || [])
-      .filter((s) => s.date === todayStr && s.status === 'OPERATING' && !s.closed);
-    const parkOpenStr = parkScheduleEntries.length
-      ? parkScheduleEntries.map((s) => s.startTime).sort()[0]
-      : null;
-    const parkCloseStr = parkScheduleEntries.length
-      ? parkScheduleEntries.map((s) => s.endTime).sort().reverse()[0]
-      : null;
+    // Today's guests-on-site window, per park — the fallback for walkthroughs
+    // whose POI entry doesn't carry its own schedule (Discovery Arcade etc.).
+    //
+    // Read from each park's own row in the schedule feed rather than derived
+    // from the attraction estate. The old min-start/max-end across
+    // queue-bearing rides let one early ride move the window: measured, it
+    // opened the parks at 08:19 against a published 09:30. It also read POI
+    // schedules, which only carry the date they were fetched, so after
+    // park-local midnight there was nothing left to derive from.
+    //
+    // EXTRA_MAGIC_HOURS counts. It is hotel-guest-only, but guests are in the
+    // park and the rides publish windows covering it, so excluding it would
+    // report Big Thunder Mountain operating at 08:45 while Sleeping Beauty
+    // Castle, fifty metres away, reads closed.
+    //
+    // Both this and the per-entity lookup below read `todaySchedules`, the
+    // payload the showtimes block already fetched. The POI blob is not a
+    // usable source for either: its `schedules` array only ever carries the
+    // date it was fetched, and it is cached 12h, so past park-local midnight
+    // it holds nothing for the current date.
+    const todayRowsById = new Map<string, DLPScheduleEntry[]>();
+    for (const sched of todaySchedules) {
+      if (sched?.id && Array.isArray(sched.schedules)) todayRowsById.set(sched.id, sched.schedules);
+    }
+
+    const parkHours = new Map<string, {open: string; close: string}>();
+    {
+      for (const sched of todaySchedules) {
+        if (sched.id !== 'P1' && sched.id !== 'P2') continue;
+
+        // Union of every window the feed publishes for the day. A day split
+        // by a private event would otherwise lose whichever half `.find()`
+        // happened to miss.
+        const windows = (sched.schedules || []).filter(
+          (s) => (s.status === 'OPERATING' || s.status === 'EXTRA_MAGIC_HOURS')
+            && s.closed !== true && s.startTime && s.endTime,
+        );
+        if (windows.length === 0) continue;
+
+        parkHours.set(sched.id, {
+          open: windows.map((s) => s.startTime).sort()[0],
+          close: windows.map((s) => s.endTime).sort().reverse()[0],
+        });
+      }
+    }
 
     const nowMs = Date.now();
     const isWithinWindow = (open: string, close: string): boolean => {
+      // The feed types these as plain strings, so a malformed one would reach
+      // constructDateTime and throw out of the whole build.
+      if (!TIME_OF_DAY.test(open) || !TIME_OF_DAY.test(close)) return false;
       const o = new Date(constructDateTime(todayStr, open.slice(0, 5), this.timezone)).getTime();
-      const c = new Date(constructDateTime(todayStr, close.slice(0, 5), this.timezone)).getTime();
+
+      // A window closing after midnight ends tomorrow. Without this a
+      // 09:30-01:00 day reads as closing before it opened, so nothing is ever
+      // inside it.
+      //
+      // shiftDateString anchors at noon UTC; stepping via `new Date(dateStr)`
+      // parses in the host's zone and silently fails to advance on any host
+      // east of Paris.
+      const closeDateStr = close < open ? shiftDateString(todayStr, 1) : todayStr;
+      const c = new Date(constructDateTime(closeDateStr, close.slice(0, 5), this.timezone)).getTime();
+
       return nowMs >= o && nowMs <= c;
     };
 
+    /**
+     * OPERATING or CLOSED for a walkthrough.
+     *
+     * With no hours in hand this answers CLOSED rather than staying silent.
+     * Silence is not the neutral option: the wiki keeps a live-data row until
+     * something replaces it, so emitting nothing leaves a walkthrough last
+     * seen OPERATING reading OPERATING indefinitely. And the query only asks
+     * for OPERATING and EXTRA_MAGIC_HOURS rows, so a park closed all day
+     * cannot produce a row at all — absence is exactly what a genuine closure
+     * looks like, which is the case where CLOSED is most likely right.
+     */
     const deriveWalkthroughStatus = (
       poi: DLPPOIEntity & {category: string},
     ): 'OPERATING' | 'CLOSED' => {
-      const own = (poi.schedules || []).find((s) => s.date === todayStr);
+      const own = (todayRowsById.get(poi.id) || []).find((s) => s.date === todayStr);
       if (own?.closed === true) return 'CLOSED';
       if (own?.status === 'OPERATING' && own.startTime && own.endTime) {
         return isWithinWindow(own.startTime, own.endTime) ? 'OPERATING' : 'CLOSED';
       }
-      if (parkOpenStr && parkCloseStr) {
-        return isWithinWindow(parkOpenStr, parkCloseStr) ? 'OPERATING' : 'CLOSED';
+      const hours = parkHours.get(poi.location?.id ?? '');
+      if (hours) {
+        return isWithinWindow(hours.open, hours.close) ? 'OPERATING' : 'CLOSED';
       }
       return 'CLOSED';
     };
@@ -1048,7 +1391,8 @@ export class DisneylandParis extends Destination {
         }
         if (!ld.queue) ld.queue = {};
         if (!ld.queue.STANDBY) ld.queue.STANDBY = {waitTime: null};
-        if (!ld.queue.SINGLE_RIDER && seenSR.has(id)) {
+        if (!ld.queue.SINGLE_RIDER &&
+          (poi.singleRider === true || singleRiderRecent[id] !== undefined)) {
           ld.queue.SINGLE_RIDER = {waitTime: null};
         }
       } else if (!ld) {
@@ -1061,15 +1405,116 @@ export class DisneylandParis extends Destination {
       // showtimes), leave it — those feeds are authoritative.
     }
 
+    // === Dining (from today's schedule) ===
+    // Sourced from the activity-schedule payload above rather than the POI
+    // blob, whose `schedules` only ever carry the day it was fetched — after
+    // midnight the 12h POI cache would have no row for the new date.
+    // Without published hours a restaurant is skipped, not reported closed.
+    // This feed is authoritative for a restaurant's status, so unlike the
+    // walkthrough block above it overwrites what other feeds set.
+    for (const poi of emittablePois) {
+      if (this.mapEntityType(poi) !== 'RESTAURANT') continue;
+
+      const hours = (todayRowsById.get(poi.id) || []).find((s) => s.date === todayStr);
+      if (!hours || !hours.startTime || !hours.endTime) continue;
+
+      const ld = getOrCreate(poi.id);
+      if (!ld) continue;
+
+      // Unlike the wait feed's, this REFURBISHMENT is a real closure, and the
+      // only signal for it — buildSchedules skips those days entirely.
+      if (hours.status === 'REFURBISHMENT') {
+        ld.status = 'REFURBISHMENT';
+        continue;
+      }
+      if (!TIME_OF_DAY.test(hours.startTime) || !TIME_OF_DAY.test(hours.endTime)) {
+        ld.status = 'CLOSED';
+        continue;
+      }
+
+      const startTime = constructDateTime(todayStr, hours.startTime.slice(0, 5), this.timezone);
+      let endTime = constructDateTime(todayStr, hours.endTime.slice(0, 5), this.timezone);
+      // Midnight crossing, mirroring buildSchedules. shiftDateString anchors
+      // at noon UTC; stepping via `new Date(dateStr)` parses in the host's
+      // zone and silently fails to advance on any host east of Paris.
+      if (hours.endTime.slice(0, 5) < hours.startTime.slice(0, 5)) {
+        endTime = constructDateTime(shiftDateString(todayStr, 1), hours.endTime.slice(0, 5), this.timezone);
+      }
+
+      // Only an explicit OPERATING opens the row; any new status token reads
+      // CLOSED rather than borrowing the wait feed's OPERATING default.
+      const open = hours.closed !== true
+        && hours.status === 'OPERATING'
+        && nowMs >= new Date(startTime).getTime()
+        && nowMs < new Date(endTime).getTime();
+      ld.status = open ? 'OPERATING' : 'CLOSED';
+      ld.operatingHours = [{type: 'OPERATING', startTime, endTime}];
+    }
+
     return liveData;
+  }
+
+  /**
+   * Published show id to advertised running time in minutes, for the shows that
+   * carry one. 16 of 144 emittable POIs do; the rest return 0 and are left with
+   * whatever end time the feed gave.
+   *
+   * Shared by buildLiveData and buildSchedules so the two cannot drift. They did:
+   * the live path applied the duration and the schedule path did not, so
+   * /entity/<id>/live served The Lion King as 12:30-13:00 while
+   * /entity/<id>/schedule served the same performance as 12:30-12:30.
+   */
+  private async getShowDurations(
+    pois?: Array<DLPPOIEntity & {category: string}>,
+  ): Promise<Map<string, number>> {
+    const durations = new Map<string, number>();
+
+    // A caller that already holds the list passes it in. getEmittablePOIEntities
+    // is undecorated, so calling it again re-parses the cached POI blob and
+    // re-runs flatten+filter — no extra HTTP, but wasted work on every live
+    // cycle, where the list is already in scope.
+    //
+    // Fetching it here is guarded for buildSchedules, which is built to publish
+    // unfiltered when POI is unavailable rather than publish nothing: an
+    // unguarded call would turn a degraded day into 60 days of missing
+    // schedules. The guard does nothing for buildLiveData, which already calls
+    // getEmittablePOIEntities unguarded and would have thrown first. Durations
+    // are an enhancement; without them a performance keeps the feed's end time.
+    let source = pois;
+    if (!source) {
+      try {
+        source = await this.getEmittablePOIEntities();
+      } catch (e) {
+        console.error(`[DLP] show durations unavailable, performances keep the feed's end time: ${e}`);
+        return durations;
+      }
+    }
+
+    for (const poi of source) {
+      const minutes = showDurationMinutes(poi.duration);
+      if (minutes > 0) durations.set(poi.id, minutes);
+    }
+    return durations;
   }
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const now = new Date();
     const scheduleMap = new Map<string, any[]>();
 
-    // Fetch 60 days of schedule data
-    for (let i = 0; i < 60; i++) {
+    // Keyed by published id, which is what scheduleId already is — the alias is
+    // applied before the lookup below, so the folded PhilharMagic twin resolves
+    // to the same entry the POI list carries.
+    const showDurations = await this.getShowDurations();
+
+    // The schedule feed reaches well past the POI set we publish — hotel and
+    // Disney Village restaurants, character meets, records the visibility
+    // filter drops. Hours for an entity we never emit can't be attached to
+    // anything, so the published list is the authority on what to keep.
+    // When POI is unavailable, schedules publish unfiltered rather than empty.
+    const publishedIds = await this.getPublishedEntityIds();
+
+    // Fetch SCHEDULE_DAYS of schedule data
+    for (let i = 0; i < SCHEDULE_DAYS; i++) {
       const date = addDays(now, i);
       const dateStr = formatInTimezone(date, this.timezone, 'date');
       // Convert MM/DD/YYYY to YYYY-MM-DD
@@ -1085,22 +1530,31 @@ export class DisneylandParis extends Destination {
       if (!dateData) continue;
 
       for (const entity of dateData) {
-        if (!entity.schedules) continue;
-        if (IGNORE_ENTITIES.has(entity.id)) continue;
+        if (!Array.isArray(entity?.schedules)) continue;
+        // Alias before filtering, not after. The hidden PhilharMagic twin's
+        // rows fold onto a published id, so testing the raw id against the
+        // published set would drop them before the alias could move them.
+        const scheduleId = ID_ALIASES[entity.id] ?? entity.id;
+        if (publishedIds && !publishedIds.has(scheduleId)) continue;
 
         for (const hours of entity.schedules) {
-          if (hours.status === 'REFURBISHMENT' || hours.status === 'CLOSED') continue;
+          if (hours?.status === 'REFURBISHMENT' || hours?.status === 'CLOSED') continue;
+
+          // These arrive as plain GraphQL strings, and constructDateTime throws
+          // on anything it can't parse — which costs every entity all 60 days,
+          // not just this row.
+          if (!TIME_OF_DAY.test(hours?.startTime) || !TIME_OF_DAY.test(hours?.endTime)) continue;
 
           const openTime = constructDateTime(dateString, hours.startTime, this.timezone);
           let closeTime = constructDateTime(dateString, hours.endTime, this.timezone);
 
-          // Handle midnight crossing: if close < open, add 1 day to close
-          if (hours.endTime < hours.startTime) {
-            const nextDay = addDays(new Date(`${dateString}T00:00:00`), 1);
-            const nextDayStr = formatInTimezone(nextDay, this.timezone, 'date');
-            const [nmm, ndd, nyyyy] = nextDayStr.split('/');
-            const nextDayString = `${nyyyy}-${nmm}-${ndd}`;
-            closeTime = constructDateTime(nextDayString, hours.endTime, this.timezone);
+          // Handle midnight crossing: if close < open, add 1 day to close.
+          // Compared on HH:MM so a mixed HH:MM / HH:MM:SS pair can't
+          // fabricate a rollover. shiftDateString anchors at noon UTC;
+          // stepping via `new Date(dateStr)` parses in the host's zone and
+          // silently fails to advance on any host east of Paris.
+          if (hours.endTime.slice(0, 5) < hours.startTime.slice(0, 5)) {
+            closeTime = constructDateTime(shiftDateString(dateString, 1), hours.endTime, this.timezone);
           }
 
           let type: string = 'OPERATING';
@@ -1112,12 +1566,35 @@ export class DisneylandParis extends Destination {
           } else if (hours.status === 'PERFORMANCE_TIME') {
             type = 'INFO';
             description = 'Performance Time';
+
+            // The feed sends endTime === startTime for every performance, so a
+            // schedule entry built straight from it is zero-length and tells a
+            // consumer nothing about how long the show runs. Where the POI
+            // advertises a running time, use it — the same value and the same
+            // arithmetic the live path already applies.
+            //
+            // Note this DISCARDS the feed's own endTime rather than preferring
+            // it, which is only safe because that value is always equal to
+            // startTime: 2765 of 2765 PERFORMANCE_TIME rows over 14 days and 33
+            // ids, zero counterexamples. If the feed ever starts publishing a
+            // real window, this would silently override it, and the tests below
+            // pin the no-duration side of that behaviour rather than this one.
+            // The live path is structurally immune because it only substitutes
+            // startTime when a duration exists; this path has no such fallback.
+            const showDuration = showDurations.get(scheduleId) ?? 0;
+            if (showDuration > 0) {
+              closeTime = formatInTimezone(
+                new Date(new Date(openTime).getTime() + showDuration * 60 * 1000),
+                this.timezone,
+                'iso',
+              );
+            }
           }
 
-          if (!scheduleMap.has(entity.id)) {
-            scheduleMap.set(entity.id, []);
+          if (!scheduleMap.has(scheduleId)) {
+            scheduleMap.set(scheduleId, []);
           }
-          scheduleMap.get(entity.id)!.push({
+          scheduleMap.get(scheduleId)!.push({
             date: dateString,
             openingTime: openTime,
             closingTime: closeTime,

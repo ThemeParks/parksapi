@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+#
+# Gate checks. Deterministic, local, free, and fast enough that nobody wants to
+# skip them — a hook people reach for --no-verify on is worse than no hook.
+#
+# Three layers, roughly 10s total on a typical commit:
+#   1. typecheck        — vitest strips types with esbuild and never typechecks,
+#                         so without this a type error reaches CI unopposed
+#   2. affected tests   — vitest walks the module graph from the staged files,
+#                         so editing a park runs that park (~3s) while editing
+#                         src/datetime.ts correctly pulls in its 59 dependents
+#   3. structural gates — these read the tree from disk rather than importing
+#                         it, so change-detection cannot see them and they have
+#                         to run every time
+#
+# The full suite still runs in CI. This is the fast lane, not a replacement.
+set -uo pipefail
+
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+# Nothing staged that we can check — let non-source commits through untouched.
+if ! git diff --cached --name-only --diff-filter=ACMR | grep -qE '\.(ts|json)$'; then
+  exit 0
+fi
+
+fail () {
+  echo ""
+  echo "  pre-commit: $1"
+  echo "  Fix it and commit again. Do not pass --no-verify."
+  echo ""
+  exit 1
+}
+
+echo "pre-commit: typecheck"
+npx tsc --noEmit || fail "typecheck failed"
+
+echo "pre-commit: tests affected by staged changes"
+npx vitest run --changed HEAD --passWithNoTests || fail "affected tests failed"
+
+# These scan the source tree and the README from disk. Nothing imports them, so
+# --changed will never select them, yet they are exactly the checks that catch
+# drift introduced somewhere unrelated.
+echo "pre-commit: structural gates"
+npx vitest run \
+  src/__tests__/utcDateTrap.test.ts \
+  src/__tests__/readmeDestinations.test.ts \
+  || fail "structural gate failed"
+
+exit 0

@@ -272,6 +272,8 @@ function closeDateAcrossMidnight(date: string, openTime: string, closeTime: stri
   // YYYY-MM-DD → next day. Date.UTC handles month/year rollover correctly.
   const [y, m, d] = date.split('-').map(Number);
   const next = new Date(Date.UTC(y, (m - 1), d + 1));
+  // utc-date-ok: built from a parsed YYYY-MM-DD via Date.UTC, so this is
+  // date-only arithmetic on a supplied calendar day, not on "today".
   return next.toISOString().slice(0, 10);
 }
 

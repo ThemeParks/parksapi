@@ -1,5 +1,10 @@
 /**
- * Integration test demonstrating HTTP request tracing with Destination methods
+ * Integration test demonstrating HTTP request tracing with Destination methods.
+ *
+ * The endpoints are a loopback server, not jsonplaceholder.typicode.com: what
+ * is under test is that `getLiveData()` emits paired start/complete events on
+ * one trace id, which no third party is needed to demonstrate. See
+ * helpers/localHttpServer.ts.
  */
 
 import { Destination } from '../destination';
@@ -8,12 +13,14 @@ import { http } from '../http';
 import { tracing } from '../tracing';
 import { LiveData, Entity } from '@themeparks/typelib';
 import { stopHttpQueue } from '../http';
+import { startLocalServer, LocalServer } from './helpers/localHttpServer';
 
 // Simple test destination with HTTP requests
 @config
 class TestDestination extends Destination {
+  /** Injected per-run: the loopback server picks its own port. */
   @config
-  baseUrl: string = 'https://jsonplaceholder.typicode.com';
+  baseUrl: string = '';
 
   @http({ cacheSeconds: 60 })
   async fetchUsers(): Promise<any> {
@@ -56,13 +63,16 @@ class TestDestination extends Destination {
 
 describe('Tracing Integration', () => {
   let destination: TestDestination;
+  let server: LocalServer;
 
-  beforeAll(() => {
-    destination = new TestDestination();
+  beforeAll(async () => {
+    server = await startLocalServer();
+    destination = new TestDestination({ config: { baseUrl: server.baseURL } });
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     stopHttpQueue();
+    await server.close();
   });
 
   it('should trace HTTP requests during getLiveData call', async () => {
@@ -95,7 +105,7 @@ describe('Tracing Integration', () => {
     expect(traceIds.has(result.traceId)).toBe(true);
 
     tracing.removeListener('http', listener);
-  }, 30000);
+  });
 
   it('should track request durations and status codes', async () => {
     const result = await tracing.trace(() => destination.getLiveData());
@@ -110,7 +120,7 @@ describe('Tracing Integration', () => {
       expect(event.status).toBe(200);
       expect(event.method).toBe('GET');
     });
-  }, 30000);
+  });
 
   it('should indicate cache hits on subsequent calls', async () => {
     // First call - should make real requests
@@ -125,7 +135,7 @@ describe('Tracing Integration', () => {
 
     // At least some requests should be cache hits
     expect(cacheHits.length).toBeGreaterThan(0);
-  }, 30000);
+  });
 
   it('should work with event listeners for real-time monitoring', async () => {
     const requestLog: string[] = [];
@@ -151,7 +161,7 @@ describe('Tracing Integration', () => {
 
     tracing.removeListener('http.request.start', startListener);
     tracing.removeListener('http.request.complete', completeListener);
-  }, 30000);
+  });
 
   it('should return trace summary with duration', async () => {
     const result = await tracing.trace(() => destination.getLiveData());
@@ -160,5 +170,5 @@ describe('Tracing Integration', () => {
     expect(result.duration).toBeGreaterThan(0);
     expect(Array.isArray(result.result)).toBe(true);
     expect(Array.isArray(result.events)).toBe(true);
-  }, 30000);
+  });
 });

@@ -106,6 +106,14 @@ export class ShanghaiDisneylandResort extends Destination {
   @config
   appVersion: string = '';
 
+  /**
+   * A show's facility record and wait-times row disappear entirely once its
+   * run ends — buildLiveData() has nothing to key off, so the row would
+   * otherwise freeze at its last live value forever (parksapi #83). See
+   * Destination.retireMissingLiveEntities for the mechanism.
+   */
+  protected retireMissingLiveEntities = true;
+
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('SHDR');

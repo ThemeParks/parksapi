@@ -205,6 +205,29 @@ export function addDays(date: Date, days: number): Date {
 }
 
 /**
+ * Step a calendar date string by whole days, independent of the host timezone.
+ *
+ * `new Date('2026-08-13T00:00:00')` parses in the *host's* zone, so adding a
+ * day and reformatting in the park's zone silently returns the same date on
+ * any host east of that park. This anchors at noon UTC instead, which no
+ * offset or DST shift can push across a date boundary.
+ *
+ * @param dateStr Date in YYYY-MM-DD format
+ * @param days Whole days to add; may be negative
+ * @returns The resulting date in YYYY-MM-DD format
+ */
+export function shiftDateString(dateStr: string, days: number): string {
+  const anchored = new Date(`${dateStr}T12:00:00Z`);
+  if (!Number.isFinite(anchored.getTime())) {
+    throw new RangeError(`shiftDateString: unparseable date "${dateStr}"`);
+  }
+  anchored.setUTCDate(anchored.getUTCDate() + days);
+  // utc-date-ok: date-only arithmetic on a calendar date the caller supplied,
+  // anchored at noon UTC so no offset can shift the day. Not "today".
+  return anchored.toISOString().slice(0, 10);
+}
+
+/**
  * Construct a full ISO 8601 datetime string from separate date, time, and timezone.
  * Replaces the per-park getXxxOffset() helpers that every park reimplemented.
  *
