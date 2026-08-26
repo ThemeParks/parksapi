@@ -246,7 +246,17 @@ export abstract class Destination {
    * window all leave every timestamp stale, so the first poll to succeed
    * afterwards would retire everything missing from that one sample on the
    * strength of a single observation. Requiring the absence to repeat means
-   * a close always rests on several independent builds.
+   * a close always rests on several builds.
+   *
+   * This also sets how long a collapse must persist before the degraded-feed
+   * guard arms, which couples it to the collector's polling interval across
+   * repo boundaries: `liveEntityRetirementMinMisses × pollInterval` has to
+   * land comfortably inside {@link liveEntityRetirementMs}, or the guard
+   * cannot arm before the age window opens and a mistimed recovery is closed
+   * silently again. Universal is the tightest case at 3 × 45 minutes against
+   * a four hour window, a 1.78x margin; the boundary sits at a 80 minute
+   * poll. Raising the collector's closed-park interval past that, or dropping
+   * a destination's window below 135 minutes, reopens the hole.
    *
    * @default 3
    */
@@ -261,6 +271,19 @@ export abstract class Destination {
    * throws. Retiring on that publishes a confident CLOSED for a park that is
    * open. Mass disappearance is far more often a broken feed than a mass
    * retirement, so past this share the gate declines to act and warns.
+   *
+   * Measured against raw absence rather than against the entities that are
+   * eligible to close, because eligibility needs the age window to elapse and
+   * a guard that waited for it could not see a collapse until the collapse
+   * had already outlived it.
+   *
+   * Known limit: this catches simultaneous collapses, not staggered ones. A
+   * source shedding rows in waves, with a retirement window between them,
+   * keeps every wave under the threshold and is genuinely indistinguishable
+   * from progressive retirement without venue-level grouping. Every
+   * simultaneity-based guard shares this, the collector's own bulk-close
+   * guard included. Grouping the fraction per `parkId` is the refinement if
+   * it ever bites in practice.
    *
    * @default 0.5
    */
@@ -1159,6 +1182,12 @@ export abstract class Destination {
         if (now - state.retiredAt >= this.liveEntityRetirementRepeatMs) {
           delete tracked[id];
         } else if (!currentIds.has(id)) {
+          // Unreachable today: the loop above replaces state wholesale for
+          // anything in currentIds, so a retired id cannot also be present.
+          // Kept because it stops being unreachable the moment someone
+          // preserves fields across that assignment instead of overwriting —
+          // at which point a returning entity would emit a stale CLOSED
+          // alongside its live row.
           repeating.push(id);
         }
         continue;
@@ -1258,6 +1287,9 @@ export abstract class Destination {
    * map rather than inside it so the map stays a plain id-to-state record.
    */
   private readLiveEntityRetirementGuard(key: string): {withheldAt: number | null, streak: number} {
+    // Caches written before this key existed simply have no row: the guard
+    // initialises cold, so a cooldown in flight across a deploy is forgotten
+    // once and re-arms within minMisses degraded builds. Fail-open by design.
     const raw = CacheLib.get(`${key}:guard`) as {withheldAt?: unknown, streak?: unknown} | null;
     return {
       withheldAt: Number.isFinite(raw?.withheldAt as number) ? (raw!.withheldAt as number) : null,
