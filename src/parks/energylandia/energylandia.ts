@@ -507,6 +507,33 @@ export function resolveShowVenueId(slots: ShowSlot[]): string | undefined {
 }
 
 /**
+ * Is this document an Energy Pass entrance marker rather than a real ride?
+ *
+ * "Energy Pass" is the park's paid skip-the-line product: a one-time
+ * fast-track entry per ride, sold separately from admission and valid on 14
+ * named rides. In August 2026 the CMS grew 14 `type: 'attraction'` documents
+ * named "Wejście Energy Pass - <ride>" ("Wejście" = entrance) — map pins
+ * marking the paid-queue entrances, tagged `filterTags: ['energyPass']` for
+ * the app map's Energy Pass filter. They are not rides: descriptions are
+ * empty, `queueTimeId` is the empty string on all 14, and `number` is a
+ * shared 1000 placeholder. Left in, each published as an ATTRACTION entity
+ * reporting OPERATING all day.
+ *
+ * Matched on the NAME, not the filter tag. The tag means "related to Energy
+ * Pass", and the day the park tags the rides the pass covers — a plausible
+ * CMS edit — a tag-based filter would silently drop 14 real coasters from
+ * the entity list, which downstream is a deletion. No real ride will ever
+ * carry the product's own name, so a name match can only catch the pins.
+ * Every locale is checked because `displayNameFor` picks one locale, and the
+ * pin must be recognised regardless of which the collector is running in.
+ */
+export function isEnergyPassEntrance(doc: FsDoc): boolean {
+  const names = fsLocalised(doc.fields?.name);
+  if (!names) return false;
+  return Object.values(names).some((n) => /energy\s*pass/i.test(n));
+}
+
+/**
  * Is the park inside its published operating window right now?
  *
  * Returns undefined when the date is absent from the calendar, which is
@@ -976,7 +1003,12 @@ export class Energylandia extends Destination {
     const docs = await this.getAttractionDocs();
     return docs.filter((d) => {
       const f = d.fields || {};
-      return fsBool(f.active) === true && fsString(f.type) === type;
+      return fsBool(f.active) === true
+        && fsString(f.type) === type
+        // Energy Pass entrance pins are typed 'attraction' but are map
+        // markers for the paid queue, not rides — see isEnergyPassEntrance.
+        // Filtered here so the entity list and live data agree automatically.
+        && !isEnergyPassEntrance(d);
     });
   }
 
