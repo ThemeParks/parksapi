@@ -1,6 +1,6 @@
 # ThemeParks.wiki Park Data Backend
 
-An open-source TypeScript library for fetching real-time theme park data — wait times, schedules, and entity metadata — from <!-- destinations:count -->80<!-- /destinations:count -->+ destinations worldwide.
+An open-source TypeScript library for fetching real-time theme park data — wait times, schedules, and entity metadata — from <!-- destinations:count -->81<!-- /destinations:count -->+ destinations worldwide.
 
 This library powers the free API at [ThemeParks.wiki](https://themeparks.wiki).
 
@@ -116,7 +116,7 @@ make COMPOSE="podman-compose --env-file /dev/null --podman-run-args=--userns=kee
 ## Supported Destinations
 
 <!-- destinations:table -->
-80 destinations across Disney, Universal, Cedar Fair, Six Flags, Merlin, and many more.
+81 destinations across Disney, Universal, Cedar Fair, Six Flags, Merlin, and many more.
 
 Some parks are served through a parent destination rather than an id of their own — Cedar Point and Knott's Berry Farm arrive under the Six Flags controller, for instance — so they are entities in the output rather than rows here.
 
@@ -170,6 +170,7 @@ Run `npm run dev -- --list` for the same list with categories.
 | Mid America Parks | `midamericaparks` |
 | Mirabilandia | `mirabilandia` |
 | Movie Park Germany | `movieparkgermany` |
+| Movieland | `movieland` |
 | Nigloland | `nigloland` |
 | Ocean Park Hong Kong | `oceanparkhongkong` |
 | Paradise Country | `paradisecountry` |
