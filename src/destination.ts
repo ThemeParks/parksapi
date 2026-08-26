@@ -1152,6 +1152,7 @@ export abstract class Destination {
     const repeating: string[] = [];
     const eligible: string[] = [];
     let liveTracked = 0;
+    let absent = 0;
 
     for (const [id, state] of Object.entries(tracked)) {
       if (state.retiredAt !== undefined) {
@@ -1164,29 +1165,47 @@ export abstract class Destination {
       }
       liveTracked += 1;
       if (currentIds.has(id)) continue;
+      absent += 1;
       state.misses += 1;
       if (now - state.seenAt >= this.liveEntityRetirementMs && state.misses >= this.liveEntityRetirementMinMisses) {
         eligible.push(id);
       }
     }
 
-    const bulk = eligible.length >= this.liveEntityRetirementMinBulk
-      && eligible.length > liveTracked * this.liveEntityRetirementMaxFraction;
+    // Judge the feed's health on raw absence, not on the set about to be
+    // closed. Eligibility needs the age window to have elapsed, so a guard
+    // reading `eligible` cannot notice a collapse until the collapse has
+    // outlived that window — and a feed that recovers within a poll of that
+    // moment never gets looked at, leaving whatever is still missing to be
+    // closed on misses accrued entirely inside the outage. Absence is visible
+    // from the first build of a collapse instead.
+    const degraded = absent >= this.liveEntityRetirementMinBulk
+      && absent > liveTracked * this.liveEntityRetirementMaxFraction;
+
+    // Arm the cooldown only once the collapse has held, so a source that
+    // legitimately sheds most of its rows on some builds does not mute the
+    // gate on a single sample. Three builds still arms hours before the age
+    // window opens.
+    const guard = this.readLiveEntityRetirementGuard(key);
+    const streak = degraded ? guard.streak + 1 : 0;
+    let withheldAt = guard.withheldAt;
+    if (streak >= this.liveEntityRetirementMinMisses) withheldAt = now;
+
     // A feed that just failed the trust test does not get to retire anything
     // for a full window afterwards. Without this, whether a partial recovery
     // publishes a wrong CLOSED comes down to which build it lands on: the
     // miss counts reset on the withheld build, so a recovery arriving
     // minMisses builds later finds a fresh, complete-looking set of misses
     // accrued entirely inside the untrusted window.
-    const withheldAt = CacheLib.get(`${key}:withheldAt`) as number | null;
     const cooling = withheldAt != null && now - withheldAt < this.liveEntityRetirementMs;
+    CacheLib.set(`${key}:guard`, {withheldAt, streak}, 400 * 24 * 60 * 60);
 
-    if (bulk || (cooling && eligible.length)) {
+    if ((degraded || cooling) && eligible.length) {
       for (const id of eligible) tracked[id].misses = 0;
-      if (bulk) CacheLib.set(`${key}:withheldAt`, now, 400 * 24 * 60 * 60);
       console.warn(
         `[${this.constructor.name}] withholding ${eligible.length} live-entity retirements ` +
-        `(${liveTracked} tracked) — ${bulk ? 'feed looks degraded, not retired' : 'feed still cooling down after a degraded window'}`,
+        `(${absent} of ${liveTracked} absent) — ` +
+        `${degraded ? 'feed looks degraded, not retired' : 'feed still cooling down after a degraded window'}`,
       );
     } else {
       for (const id of eligible) {
@@ -1231,6 +1250,19 @@ export abstract class Destination {
       }
     }
     return out;
+  }
+
+  /**
+   * Read the degraded-feed guard's own state: when it last withheld, and how
+   * many consecutive builds have looked degraded. Kept beside the tracking
+   * map rather than inside it so the map stays a plain id-to-state record.
+   */
+  private readLiveEntityRetirementGuard(key: string): {withheldAt: number | null, streak: number} {
+    const raw = CacheLib.get(`${key}:guard`) as {withheldAt?: unknown, streak?: unknown} | null;
+    return {
+      withheldAt: Number.isFinite(raw?.withheldAt as number) ? (raw!.withheldAt as number) : null,
+      streak: Number.isFinite(raw?.streak as number) ? (raw!.streak as number) : 0,
+    };
   }
 
   /**

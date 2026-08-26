@@ -314,6 +314,89 @@ describe('live entity retirement gate', () => {
   );
 
   /**
+   * A guard reading the set it is about to close cannot see a collapse until
+   * the collapse has outlived the retirement window, because eligibility
+   * needs that window to elapse first. A feed that recovers within one poll
+   * of that moment therefore never gets looked at, and whatever is still
+   * missing gets closed on misses accrued entirely inside the outage. At
+   * Universal's overnight cadence that vulnerable band is one 45-minute poll
+   * wide, so it is reachable roughly one collapse in five.
+   *
+   * Judging on raw absence instead arms the cooldown from the first build of
+   * the collapse, hours before the age window opens.
+   */
+  test.each(Array.from({length: 14}, (_, i) => i + 1))(
+    'a collapse lasting %i polls never force-closes the stragglers on recovery',
+    async (polls) => {
+      vi.useFakeTimers();
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      vi.spyOn(console, 'log').mockImplementation(() => undefined);
+      const POLL = 45 * 60 * 1000;
+      const all = Array.from({length: 65}, (_, i) => `ride${i}`);
+      const park = new RetiringTestDestination({retire: true, retirementMs: 4 * 60 * 60 * 1000});
+
+      park.liveIds = all;
+      await park.getLiveData();
+
+      // Feed guts itself to a single row and stays there.
+      park.liveIds = ['ride0'];
+      for (let i = 0; i < polls; i++) {
+        vi.setSystemTime(Date.now() + POLL);
+        await park.getLiveData();
+      }
+
+      // Recovers all but three.
+      park.liveIds = all.slice(0, 62);
+      vi.setSystemTime(Date.now() + POLL);
+      const live = await park.getLiveData();
+
+      expect(live.filter((d) => d.status === 'CLOSED')).toEqual([]);
+      vi.restoreAllMocks();
+      void warn;
+    },
+  );
+
+  /**
+   * Arming off a single sample would make the gate hostage to any source that
+   * legitimately sheds most of its rows on the odd build — it would mute
+   * itself for a full window each time, and a real retirement arriving in
+   * that window would be withheld. The collapse has to hold before the
+   * cooldown arms.
+   */
+  test('a one-build blip does not mute the gate against a genuine retirement', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const all = Array.from({length: 10}, (_, i) => `ride${i}`);
+    const park = new RetiringTestDestination({retire: true, retirementMs: 4 * 60 * 60 * 1000});
+
+    park.liveIds = all;
+    await park.getLiveData();
+
+    // ride9 leaves and builds up its misses, but is not eligible yet.
+    vi.setSystemTime(Date.now() + 3.5 * 60 * 60 * 1000);
+    park.liveIds = all.slice(0, 9);
+    await park.getLiveData();
+    await park.getLiveData();
+
+    // A single degraded sample lands here, then the feed recovers. Arming off
+    // one sample would start a cooldown that is still running when ride9
+    // becomes eligible shortly afterwards.
+    park.liveIds = ['ride0'];
+    await park.getLiveData();
+    park.liveIds = all.slice(0, 9);
+    await park.getLiveData();
+
+    // ride9 crosses the window half an hour later, inside that cooldown.
+    vi.setSystemTime(Date.now() + 0.6 * 60 * 60 * 1000);
+    const live = await park.getLiveData();
+
+    expect(live.find((d) => d.id === 'ride9')).toEqual({id: 'ride9', status: 'CLOSED'});
+    vi.restoreAllMocks();
+    void warn;
+  });
+
+  /**
    * A permanently dead id must stop counting as evidence. Otherwise ids
    * accumulated across seasons eventually exceed the degraded-feed threshold
    * on every build, the guard trips for good, and the gate silently stops
