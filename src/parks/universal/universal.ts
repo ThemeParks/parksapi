@@ -493,6 +493,30 @@ class Universal extends Destination {
   @config
   timezone: string = "America/New_York";
 
+  /**
+   * Halloween Horror Nights attractions are absent from
+   * wait-time-attraction-list.json outside the event rather than listed as
+   * closed, so buildLiveData() has nothing to key off and the row freezes at
+   * whatever the last event night reported (parksapi #519). See
+   * Destination.retireMissingLiveEntities for the mechanism.
+   */
+  protected retireMissingLiveEntities = true;
+
+  /**
+   * The shared default is a week, sized for shows that retire at the end of
+   * a run. HHN leaves the feed at closing time and rejoins it the next event
+   * night, so a week would never fire mid-season.
+   *
+   * Four hours sits between the two bounds that matter. The event runs while
+   * the day park is shut, when the collector polls every 45 minutes, so the
+   * window has to clear a gap of that order: four hours spans roughly five
+   * consecutive polls. It also has to fire inside the daytime absence, which
+   * runs from a 01:00-02:00 close to 18:30 doors, and a close at 05:00-06:00
+   * leaves over twelve hours of margin. Eight hours would not: after a peak
+   * weekend it fires at 10:00, and #519 was reported at 10:51.
+   */
+  protected liveEntityRetirementMs = 4 * 60 * 60 * 1000;
+
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('UNIVERSALSTUDIOS');
@@ -791,7 +815,15 @@ class Universal extends Destination {
   async getShowList(): Promise<UniversalShowListEntry[]> {
     const resp = await this.fetchShowList();
     const data = await resp.json();
-    return Array.isArray(data) ? (data as UniversalShowListEntry[]) : [];
+    // Shows are published from this feed alone, so coercing an unexpected
+    // shape to [] would read as "every show ended" rather than "the feed
+    // broke" — and with retirement enabled that difference is a day's worth
+    // of shows force-closed mid-performance. Fail instead: a throw withholds
+    // the whole push and leaves the previous values standing.
+    if (!Array.isArray(data)) {
+      throw new Error(`Universal: show-list.json returned ${typeof data}, expected an array`);
+    }
+    return data as UniversalShowListEntry[];
   }
 
   /**
@@ -839,7 +871,11 @@ class Universal extends Destination {
   async getVirtualQueueStates(): Promise<UniversalVirtualQueueState[]> {
     const resp = await this.fetchVirtualQueueStates();
     const data: any = await resp.json();
-    return data?.Results || [];
+    // An absent Results array is a broken response, not an empty queue list.
+    if (!data || !Array.isArray(data.Results)) {
+      throw new Error('Universal: /Queues returned no Results array');
+    }
+    return data.Results as UniversalVirtualQueueState[];
   }
 
   /**

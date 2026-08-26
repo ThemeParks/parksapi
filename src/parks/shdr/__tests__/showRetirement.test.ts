@@ -37,6 +37,9 @@ describe('SHDR show retirement', () => {
 
     // Run ends: gone from both the facility list and the wait-times feed.
     vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
+    // The gate wants the absence corroborated across consecutive polls.
+    await stubbedPark([], []).getLiveData();
+    await stubbedPark([], []).getLiveData();
     const live = await stubbedPark([], []).getLiveData();
 
     expect(live.find((l) => l.id === 'show-birthday-bash')).toEqual({id: 'show-birthday-bash', status: 'CLOSED'});
