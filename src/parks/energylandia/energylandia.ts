@@ -1196,6 +1196,15 @@ export class Energylandia extends Destination {
    * that is how the ~26 operator-only counter rows in the feed (queue counters,
    * FAST-PASS lanes, spares) are excluded without needing a blocklist: they
    * have no Firestore attraction to attach to, and drop out of the join.
+   *
+   * The FAST-PASS counter rows are NOT a paid-queue signal, so nothing here
+   * publishes PAID_STANDBY. Verified 2026-08-26 by sampling the feed every 10
+   * minutes from before opening through peak midday: every FAST-PASS counter
+   * read exactly 0 for the whole window while the standby counters beside them
+   * climbed to 30-50 minutes, so the counters exist in the operator system but
+   * are not wired to anything. Publishing them would report a permanent
+   * zero-minute paid queue that the park never measured. Revisit only if one
+   * of those rows is ever observed non-zero.
    */
   protected async buildLiveData(): Promise<LiveData[]> {
     const [attractions, shows, waits, periods] = await Promise.all([
