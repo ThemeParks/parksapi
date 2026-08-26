@@ -18,6 +18,9 @@ interface HelpyPoint {
 interface HelpyShow {
   id: string;
   infoPointId?: string;
+  pointId?: string;
+  placeId?: string;
+  parco?: string;
   schedule?: Record<string, string[]>;
 }
 
@@ -35,9 +38,11 @@ export function movielandShowtimes(
   timezone: string,
 ): LiveData[] {
   const result = shows.flatMap(show => {
-    const sourceId = pointIds.has(show.id) ? show.id : show.infoPointId;
-    const id = sourceId && movielandEntityId(sourceId);
-    if (!id || !pointIds.has(id)) return [];
+    const id = [show.id, show.infoPointId]
+      .filter((candidate): candidate is string => !!candidate)
+      .map(movielandEntityId)
+      .find(candidate => pointIds.has(candidate));
+    if (!id) return [];
 
     const showtimes = (show.schedule?.[date] ?? [])
       .filter(time => /^([01]\d|2[0-3]):[0-5]\d$/.test(time))
@@ -45,7 +50,14 @@ export function movielandShowtimes(
 
     return showtimes.length ? [{id, status: 'OPERATING', showtimes} as LiveData] : [];
   });
-  return [...new Map(result.map(entry => [entry.id, entry])).values()];
+  const merged = new Map<string, LiveData>();
+  for (const entry of result) {
+    const existing = merged.get(entry.id);
+    if (existing) existing.showtimes?.push(...entry.showtimes ?? []);
+    else merged.set(entry.id, entry);
+  }
+  for (const entry of merged.values()) entry.showtimes?.sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''));
+  return [...merged.values()];
 }
 
 @destinationController({category: 'Canevaworld'})
@@ -125,7 +137,7 @@ export class Movieland extends Destination {
     const shows = await response.json() as HelpyShow[];
     const today = formatInTimezone(new Date(), this.timezone, 'date').split('/');
     const date = `${today[2]}-${today[0]}-${today[1]}`;
-    return movielandShowtimes(shows, new Set(points.filter(p => p.categoria === 'show').map(p => p.id)), date, this.timezone);
+    return movielandShowtimes(shows.filter(show => show.parco === 'movieland'), new Set(points.filter(p => p.categoria === 'show').map(p => movielandEntityId(p.id))), date, this.timezone);
   }
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
