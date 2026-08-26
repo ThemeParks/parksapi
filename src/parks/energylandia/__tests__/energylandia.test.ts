@@ -15,6 +15,7 @@ import {
   buildShowtimes,
   showStatusFromShowtimes,
   resolveShowVenueId,
+  isEnergyPassEntrance,
   WEEKDAYS,
 } from '../energylandia.js';
 import {CacheLib} from '../../../cache.js';
@@ -342,6 +343,76 @@ describe('Energylandia — live data', () => {
     expect(rows[0].date).toBe('2026-08-09');
     expect(rows[0].openingTime).toContain('2026-08-09T10:00:00');
     expect(rows[0].closingTime).toContain('2026-08-09T20:00:00');
+  });
+});
+
+/**
+ * "Energy Pass" is the park's paid skip-the-line product. In August 2026 the
+ * CMS grew 14 `type: 'attraction'` documents named "Wejście Energy Pass -
+ * <ride>" — map pins for the paid-queue entrances, tagged
+ * `filterTags: ['energyPass']`, with empty descriptions and no queue counter.
+ * Left in, every pin published as a real ATTRACTION reporting OPERATING all
+ * day. They are recognised by NAME, deliberately not by tag: tagging the
+ * *rides* the pass covers is a plausible future CMS edit, and a tag-based
+ * filter would then delete 14 real coasters from the published entity list.
+ */
+describe('Energy Pass entrance pins are not rides', () => {
+  const epTag = {arrayValue: {values: [{stringValue: 'energyPass'}]}};
+
+  test('recognises a pin by name in any locale', () => {
+    expect(isEnergyPassEntrance(doc('ep1', {
+      name: nameMap({PL: 'Wejście Energy Pass - Anaconda'}), filterTags: epTag,
+    }))).toBe(true);
+    // Name alone is enough — the tag is corroborating, not required.
+    expect(isEnergyPassEntrance(doc('ep2', {
+      name: nameMap({EN: 'Wejście Energy Pass - HYPERION'}),
+    }))).toBe(true);
+  });
+
+  test('a real ride is never a pin, even if the park tags it energyPass', () => {
+    expect(isEnergyPassEntrance(doc('a1', {
+      name: nameMap({PL: '141. Pepsi Hyperion'}), filterTags: epTag,
+    }))).toBe(false);
+    expect(isEnergyPassEntrance(doc('a2', {
+      name: nameMap({PL: '97. Anaconda'}),
+    }))).toBe(false);
+    // A ride whose name merely contains "Energy" is not the product's name.
+    expect(isEnergyPassEntrance(doc('a3', {
+      name: nameMap({PL: '23. Śmiejżelki Energuś'}),
+    }))).toBe(false);
+    expect(isEnergyPassEntrance(doc('x', {}))).toBe(false);
+  });
+
+  test('pins are excluded from entities and live data together', async () => {
+    const p: any = new Energylandia({config: {...BLANK_CONFIG, waitTimesUrl: 'https://feed.example/'}});
+    p.getShowDocs = async () => [];
+    p.getAttractionDocs = async () => [
+      doc('ride', {active: bool(true), type: str('attraction'), open: bool(true),
+        name: nameMap({PL: '97. Anaconda'}), queueTimeId: int(196)}),
+      doc('pin', {active: bool(true), type: str('attraction'), open: bool(true),
+        name: nameMap({PL: 'Wejście Energy Pass - Anaconda'}), queueTimeId: str(''),
+        filterTags: epTag}),
+    ];
+    p.fetchWaitTimes = async () => ({text: async () => JSON.stringify([
+      {ID_ATRAKCJI: 196, ATRAKCJA: '97 ANACONDA', CZAS_OCZEKIWANIA: 25},
+    ])});
+    p.getCalendarPeriods = async () => [{openFrom: '10:00', openTo: '20:00', days: ['2026-08-09']}];
+
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-08-09T10:00:00Z')); // 12:00 in Warsaw
+
+      const entities = await p.getEntities();
+      expect(entities.map((e: any) => e.id)).toContain('energylandia-ride');
+      expect(entities.map((e: any) => e.id)).not.toContain('energylandia-pin');
+
+      // The live side must agree, or the pin ships an orphan row on every poll.
+      const live = await p.getLiveData();
+      expect(live.map((l: any) => l.id)).toEqual(['energylandia-ride']);
+      expect(live[0].queue.STANDBY.waitTime).toBe(25);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
