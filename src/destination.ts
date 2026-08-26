@@ -227,6 +227,45 @@ export abstract class Destination {
   protected liveEntityRetirementMs: number = 7 * 24 * 60 * 60 * 1000;
 
   /**
+   * How many consecutive *successful* snapshots an entity must be absent from
+   * before it can retire, on top of {@link liveEntityRetirementMs}.
+   *
+   * Age alone is wall-clock, and nothing advances it while the source is
+   * down: a proxy block, a container stop or a deploy gap longer than the
+   * window all leave every timestamp stale, so the first poll to succeed
+   * afterwards would retire everything missing from that one sample on the
+   * strength of a single observation. Requiring the absence to repeat means
+   * a close always rests on several independent builds.
+   *
+   * @default 3
+   */
+  protected liveEntityRetirementMinMisses: number = 3;
+
+  /**
+   * Fraction of tracked entities that may retire in one snapshot before the
+   * gate assumes the feed is degraded rather than the entities retired.
+   *
+   * A source can return a well-formed but gutted payload — an empty array, a
+   * CDN stub, a partial regeneration — which parses cleanly and so never
+   * throws. Retiring on that publishes a confident CLOSED for a park that is
+   * open. Mass disappearance is far more often a broken feed than a mass
+   * retirement, so past this share the gate declines to act and warns.
+   *
+   * @default 0.5
+   */
+  protected liveEntityRetirementMaxFraction: number = 0.5;
+
+  /**
+   * Floor below which {@link liveEntityRetirementMaxFraction} does not apply.
+   * A destination tracking a handful of entities can legitimately retire most
+   * of them at once; the proportional guard is aimed at collapses measured in
+   * dozens.
+   *
+   * @default 5
+   */
+  protected liveEntityRetirementMinBulk: number = 5;
+
+  /**
    * Optional cache key prefix for all cached methods.
    * When set, this prefix is prepended to all cache keys, preventing cache collisions
    * when multiple instances of the same base class exist (e.g., multiple parks using the same framework).
@@ -1041,35 +1080,93 @@ export abstract class Destination {
   }
 
   /**
-   * Diff a full buildLiveData() snapshot against the last-seen timestamps
-   * recorded on the previous call. Any entity that was live before and has
-   * now been missing for {@link liveEntityRetirementMs} gets a synthetic
-   * `{id, status: 'CLOSED'}` row appended — a genuine value change, so the
-   * collector's hash-dedup actually writes it and clears the frozen row.
-   * Entities that reappear simply update their own timestamp and drop out
-   * of consideration; nothing here mutates entries buildLiveData() already
-   * returned.
+   * Diff a full buildLiveData() snapshot against what previous calls saw.
+   * An entity that was live before and has now been absent both for longer
+   * than {@link liveEntityRetirementMs} and across
+   * {@link liveEntityRetirementMinMisses} consecutive snapshots gets a
+   * synthetic `{id, status: 'CLOSED'}` row appended — a genuine value change,
+   * so the collector's hash-dedup actually writes it and clears the frozen
+   * row. Entities that reappear reset both counters and drop out of
+   * consideration; nothing here mutates entries buildLiveData() returned.
+   *
+   * Two things stop this speaking with more confidence than it has. The
+   * consecutive-miss requirement means no close ever rests on a single
+   * observation, which matters because the age clock keeps running through
+   * an outage while nothing refreshes it. The proportional guard
+   * ({@link liveEntityRetirementMaxFraction}) declines to act at all when so
+   * much of the tracked set has vanished at once that a degraded feed is the
+   * likelier explanation. Both failures are logged rather than silent: a
+   * fabricated CLOSED is indistinguishable from a real one downstream, so
+   * the log line is the only forensic trail.
+   *
+   * A retired id is dropped from tracking once its row is emitted, so the
+   * close is written once rather than re-appended on every subsequent poll.
    */
   private async applyLiveEntityRetirement(data: LiveData[]): Promise<LiveData[]> {
     const key = await this.liveEntityRetirementCacheKey();
     const now = Date.now();
-    const lastSeen: Record<string, number> = (CacheLib.get(key) as Record<string, number> | null) ?? {};
+    const tracked = this.readLiveEntityRetirementState(key);
 
     const currentIds = new Set(data.map((entry) => entry.id));
-    for (const id of currentIds) lastSeen[id] = now;
+    for (const id of currentIds) tracked[id] = {seenAt: now, misses: 0};
 
-    for (const [id, seenAt] of Object.entries(lastSeen)) {
+    const eligible: string[] = [];
+    for (const [id, state] of Object.entries(tracked)) {
       if (currentIds.has(id)) continue;
-      if (now - seenAt >= this.liveEntityRetirementMs) {
+      state.misses += 1;
+      if (now - state.seenAt >= this.liveEntityRetirementMs && state.misses >= this.liveEntityRetirementMinMisses) {
+        eligible.push(id);
+      }
+    }
+
+    const trackedCount = Object.keys(tracked).length;
+    const bulk = eligible.length >= this.liveEntityRetirementMinBulk
+      && eligible.length > trackedCount * this.liveEntityRetirementMaxFraction;
+
+    if (bulk) {
+      // Withhold every close this cycle rather than a subset: a feed that has
+      // shed this much is not evidence about any single entity.
+      console.warn(
+        `[${this.constructor.name}] withholding ${eligible.length} live-entity retirements ` +
+        `(${trackedCount} tracked) — feed looks degraded, not retired`,
+      );
+    } else {
+      for (const id of eligible) {
         data.push({id, status: 'CLOSED'} as LiveData);
+        delete tracked[id];
+      }
+      if (eligible.length) {
+        console.log(
+          `[${this.constructor.name}] force-closed ${eligible.length} live ` +
+          `${eligible.length === 1 ? 'entity' : 'entities'} absent from the feed: ${eligible.join(', ')}`,
+        );
       }
     }
 
     // Long TTL: this tracks "have we ever seen this id live", not a
     // short-lived cache — losing it early just reverts that one id to the
     // pre-fix silent-freeze behaviour until it's next seen live.
-    CacheLib.set(key, lastSeen, 400 * 24 * 60 * 60);
+    CacheLib.set(key, tracked, 400 * 24 * 60 * 60);
     return data;
+  }
+
+  /**
+   * Read the retirement tracking map, tolerating the flat `id -> timestamp`
+   * shape written before consecutive-miss counting existed. Deployed caches
+   * hold that older shape and live for 400 days, so it has to keep working
+   * rather than force every tracked id back to square one.
+   */
+  private readLiveEntityRetirementState(key: string): Record<string, {seenAt: number, misses: number}> {
+    const raw = CacheLib.get(key) as Record<string, number | {seenAt: number, misses: number}> | null;
+    const out: Record<string, {seenAt: number, misses: number}> = {};
+    for (const [id, value] of Object.entries(raw ?? {})) {
+      if (typeof value === 'number') {
+        out[id] = {seenAt: value, misses: 0};
+      } else if (value && Number.isFinite(value.seenAt)) {
+        out[id] = {seenAt: value.seenAt, misses: Number.isFinite(value.misses) ? value.misses : 0};
+      }
+    }
+    return out;
   }
 
   /**

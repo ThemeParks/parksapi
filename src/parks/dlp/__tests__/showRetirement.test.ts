@@ -51,6 +51,9 @@ describe('DLP show retirement', () => {
 
     // The run ended: gone from the POI feed and the schedule feed alike.
     vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
+    // The gate wants the absence corroborated across consecutive polls.
+    await stubbedPark([], []).getLiveData();
+    await stubbedPark([], []).getLiveData();
     const live = await stubbedPark([], []).getLiveData();
 
     expect(live.find((l) => l.id === 'P1GS42')).toEqual({id: 'P1GS42', status: 'CLOSED'});

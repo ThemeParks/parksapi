@@ -81,6 +81,9 @@ describe('live entity retirement gate', () => {
 
     vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000); // 8 days
     park.liveIds = ['show1'];
+    // Absence has to corroborate across consecutive polls, not just age.
+    await park.getLiveData();
+    await park.getLiveData();
     const live = await park.getLiveData();
 
     const retired = live.find((d) => d.id === 'show2');
@@ -142,5 +145,144 @@ describe('live entity retirement gate', () => {
     const live = await park.getLiveData(new Set(['show1']));
 
     expect(live.map((d) => d.id)).toEqual(['show1']);
+  });
+
+  /**
+   * The age clock is wall-clock and nothing advances it while the source is
+   * down, so an outage longer than the window leaves every timestamp stale.
+   * Without corroboration the first poll to succeed afterwards would retire
+   * everything missing from that single sample.
+   */
+  describe('corroboration', () => {
+    test('one poll after a long outage does not retire on its own', async () => {
+      vi.useFakeTimers();
+      const park = new RetiringTestDestination({retire: true, retirementMs: 7 * 24 * 60 * 60 * 1000});
+
+      park.liveIds = ['show1', 'show2'];
+      await park.getLiveData();
+
+      // Collector down for a month, then one successful poll that happens to
+      // be missing show2.
+      vi.setSystemTime(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      park.liveIds = ['show1'];
+      const live = await park.getLiveData();
+
+      expect(live.map((d) => d.id)).toEqual(['show1']);
+    });
+
+    test('a reappearance resets the miss count, so the count must be consecutive', async () => {
+      vi.useFakeTimers();
+      const park = new RetiringTestDestination({retire: true, retirementMs: 7 * 24 * 60 * 60 * 1000});
+
+      park.liveIds = ['show1', 'show2'];
+      await park.getLiveData();
+      vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
+
+      park.liveIds = ['show1'];
+      await park.getLiveData();
+      await park.getLiveData();
+
+      // Blips back into the feed, then goes again: the two misses above are
+      // spent, so this poll is only the first of a fresh run.
+      park.liveIds = ['show1', 'show2'];
+      await park.getLiveData();
+      park.liveIds = ['show1'];
+      const live = await park.getLiveData();
+
+      expect(live.map((d) => d.id)).toEqual(['show1']);
+    });
+  });
+
+  /**
+   * A well-formed but gutted payload parses cleanly and never throws, so the
+   * gate has to recognise a collapse for what it is rather than publishing a
+   * confident CLOSED for every entity at an open park.
+   */
+  describe('degraded-feed guard', () => {
+    test('withholds every retirement when most of the tracked set vanishes at once', async () => {
+      vi.useFakeTimers();
+      const park = new RetiringTestDestination({retire: true, retirementMs: 7 * 24 * 60 * 60 * 1000});
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      park.liveIds = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+      await park.getLiveData();
+
+      vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
+      park.liveIds = ['a'];
+      await park.getLiveData();
+      await park.getLiveData();
+      const live = await park.getLiveData();
+
+      expect(live.map((d) => d.id)).toEqual(['a']);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('withholding 9 live-entity retirements'));
+      warn.mockRestore();
+    });
+
+    test('a minority retiring is still closed normally', async () => {
+      vi.useFakeTimers();
+      const park = new RetiringTestDestination({retire: true, retirementMs: 7 * 24 * 60 * 60 * 1000});
+
+      park.liveIds = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+      await park.getLiveData();
+
+      vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
+      park.liveIds = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+      await park.getLiveData();
+      await park.getLiveData();
+      const live = await park.getLiveData();
+
+      expect(live.filter((d) => d.status === 'CLOSED').map((d) => d.id).sort()).toEqual(['h', 'i', 'j']);
+    });
+
+    test('a small destination can still retire most of its entities', async () => {
+      vi.useFakeTimers();
+      const park = new RetiringTestDestination({retire: true, retirementMs: 7 * 24 * 60 * 60 * 1000});
+
+      park.liveIds = ['show1', 'show2', 'show3'];
+      await park.getLiveData();
+
+      vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
+      park.liveIds = ['show1'];
+      await park.getLiveData();
+      await park.getLiveData();
+      const live = await park.getLiveData();
+
+      expect(live.filter((d) => d.status === 'CLOSED').map((d) => d.id).sort()).toEqual(['show2', 'show3']);
+    });
+  });
+
+  test('a retired entity is closed once, not on every subsequent poll', async () => {
+    vi.useFakeTimers();
+    const park = new RetiringTestDestination({retire: true, retirementMs: 7 * 24 * 60 * 60 * 1000});
+
+    park.liveIds = ['show1', 'show2'];
+    await park.getLiveData();
+
+    vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
+    park.liveIds = ['show1'];
+    await park.getLiveData();
+    await park.getLiveData();
+    const closing = await park.getLiveData();
+    expect(closing.find((d) => d.id === 'show2')).toEqual({id: 'show2', status: 'CLOSED'});
+
+    // Still absent, but the close has already been written.
+    const after = await park.getLiveData();
+    expect(after.map((d) => d.id)).toEqual(['show1']);
+  });
+
+  test('reads the flat id-to-timestamp map written before miss counting existed', async () => {
+    vi.useFakeTimers();
+    const park = new RetiringTestDestination({retire: true, retirementMs: 7 * 24 * 60 * 60 * 1000});
+
+    // Shape a deployed 400-day cache still holds.
+    CacheLib.set('RetiringTestDestination:liveEntityRetirement', {show2: Date.now()}, 400 * 24 * 60 * 60);
+
+    vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
+    park.liveIds = ['show1'];
+    await park.getLiveData();
+    await park.getLiveData();
+    const live = await park.getLiveData();
+
+    expect(live.find((d) => d.id === 'show2')).toEqual({id: 'show2', status: 'CLOSED'});
   });
 });
