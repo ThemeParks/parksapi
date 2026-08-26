@@ -493,6 +493,25 @@ class Universal extends Destination {
   @config
   timezone: string = "America/New_York";
 
+  /**
+   * Halloween Horror Nights attractions are absent from
+   * wait-time-attraction-list.json outside the event rather than listed as
+   * closed, so buildLiveData() has nothing to key off and the row freezes at
+   * whatever the last event night reported (parksapi #519). See
+   * Destination.retireMissingLiveEntities for the mechanism.
+   */
+  protected retireMissingLiveEntities = true;
+
+  /**
+   * The shared default is a week, sized for shows that retire at the end of
+   * a run. HHN leaves the feed at closing time and rejoins it the next event
+   * night, so a week would never fire mid-season. Four hours clears any
+   * plausible gap between two samples of a feed we poll every minute while
+   * still landing inside the roughly sixteen-hour daytime absence, so a house
+   * reads CLOSED by early morning and OPERATING again when doors open.
+   */
+  protected liveEntityRetirementMs = 4 * 60 * 60 * 1000;
+
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('UNIVERSALSTUDIOS');
