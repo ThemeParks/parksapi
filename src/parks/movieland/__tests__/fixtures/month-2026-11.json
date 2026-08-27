@@ -1,0 +1,389 @@
+{
+ "enable_all_days": "0",
+ "double_month": "0",
+ "next_month_preview": "0",
+ "contents_calendars": {
+  "2": {
+   "2026-11-01": {
+    "898": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-02": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-03": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-04": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-05": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-06": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-07": {
+    "1737": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-08": {
+    "1737": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-09": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-10": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-11": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-12": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-13": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-14": {
+    "1737": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-15": {
+    "1737": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-16": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-17": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-18": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-19": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-20": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-21": {
+    "1737": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-22": {
+    "1737": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-23": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-24": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-25": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-26": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-27": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-28": {
+    "1737": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-29": {
+    "1737": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   },
+   "2026-11-30": {
+    "1775": {
+     "content_type_id": 24,
+     "show_html": 1
+    }
+   }
+  }
+ },
+ "prev_month": {
+  "enable_all_days": "0",
+  "double_month": "0",
+  "next_month_preview": "0",
+  "contents_calendars": {
+   "2": {
+    "2026-10-01": {
+     "1775": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-02": {
+     "3715": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-03": {
+     "3066": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-04": {
+     "898": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-05": {
+     "1775": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-06": {
+     "1775": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-07": {
+     "1775": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-08": {
+     "1775": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-09": {
+     "3715": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-10": {
+     "3066": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-11": {
+     "898": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-12": {
+     "1775": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-13": {
+     "1775": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-14": {
+     "1775": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-15": {
+     "1775": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-16": {
+     "3715": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-17": {
+     "3066": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-18": {
+     "898": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-19": {
+     "1775": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-20": {
+     "1775": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-21": {
+     "1775": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-22": {
+     "1775": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-23": {
+     "3715": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-24": {
+     "3066": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-25": {
+     "898": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-26": {
+     "1775": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-27": {
+     "1775": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-28": {
+     "1775": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-29": {
+     "1775": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-30": {
+     "3715": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    },
+    "2026-10-31": {
+     "900": {
+      "content_type_id": 24,
+      "show_html": 1
+     }
+    }
+   }
+  }
+ },
+ "next_month": {
+  "enable_all_days": "0",
+  "double_month": "0",
+  "next_month_preview": "0"
+ }
+}
