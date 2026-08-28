@@ -1,0 +1,1854 @@
+{
+ "Id": "tcm:58-158059-64",
+ "Title": "100 GDS HHN - About",
+ "Filename": "index",
+ "ComponentPresentations": [
+  {
+   "Component": {
+    "LastPublishedDate": "0001-01-01T00:00:00",
+    "RevisionDate": "2026-07-23T20:45:39.085Z",
+    "Schema": {
+     "Folder": {
+      "PublicationId": "tcm:0-58-1",
+      "Id": "tcm:58-18711-2",
+      "Title": "Calendar"
+     },
+     "RootElementName": "GDSCalendar",
+     "Publication": {
+      "Id": "tcm:0-58-1",
+      "Title": "060 UO.com Website (EN-US)"
+     },
+     "Id": "tcm:58-151587-8",
+     "Title": "GDS - Calendar"
+    },
+    "Fields": {
+     "start_date": {
+      "Name": "start_date",
+      "Values": [
+       "8/1/2026 6:30:00 PM"
+      ],
+      "DateTimeValues": [
+       "2026-08-01T18:30:00"
+      ],
+      "FieldType": 9,
+      "KeywordValues": []
+     },
+     "end_date": {
+      "Name": "end_date",
+      "Values": [
+       "11/30/2026 12:00:00 AM"
+      ],
+      "DateTimeValues": [
+       "2026-11-30T00:00:00"
+      ],
+      "FieldType": 9,
+      "KeywordValues": []
+     },
+     "calendarData": {
+      "Name": "calendarData",
+      "Values": [
+       "tcm:58-346637"
+      ],
+      "LinkedComponentValues": [
+       {
+        "LastPublishedDate": "0001-01-01T00:00:00",
+        "RevisionDate": "2026-07-23T20:49:29.914Z",
+        "Schema": {
+         "Folder": {
+          "PublicationId": "tcm:0-58-1",
+          "Id": "tcm:58-18711-2",
+          "Title": "Calendar"
+         },
+         "RootElementName": "GDSCalendarConfiguration",
+         "Publication": {
+          "Id": "tcm:0-58-1",
+          "Title": "060 UO.com Website (EN-US)"
+         },
+         "Id": "tcm:58-151578-8",
+         "Title": "GDS - Calendar Configuration"
+        },
+        "Fields": {
+         "calendarConfig": {
+          "Name": "calendarConfig",
+          "Values": [],
+          "EmbeddedValues": [
+           {
+            "style": {
+             "Name": "style",
+             "Values": [
+              "Style 1 (Default)"
+             ],
+             "FieldType": 3,
+             "CategoryName": "GDS - Calendar Legend",
+             "CategoryId": "tcm:58-18710-512",
+             "KeywordValues": [
+              {
+               "IsRoot": false,
+               "IsAbstract": false,
+               "Description": "Style 1 (Default)",
+               "Key": "style-1",
+               "ParentKeywords": [],
+               "MetadataFields": {},
+               "Id": "tcm:58-151582-1024",
+               "Title": "Style 1 (Default)"
+              }
+             ]
+            },
+            "eventDates": {
+             "Name": "eventDates",
+             "Values": [
+              "8/27/2026 2:36:10 PM",
+              "10/19/2026 11:18:02 AM"
+             ],
+             "DateTimeValues": [
+              "2026-08-27T14:36:10",
+              "2026-10-19T11:18:02.455"
+             ],
+             "FieldType": 9,
+             "KeywordValues": []
+            },
+            "blockData": {
+             "Name": "blockData",
+             "Values": [
+              "tcm:58-279946"
+             ],
+             "LinkedComponentValues": [
+              {
+               "LastPublishedDate": "0001-01-01T00:00:00",
+               "RevisionDate": "2025-06-03T18:36:52.773Z",
+               "Schema": {
+                "Folder": {
+                 "PublicationId": "tcm:0-58-1",
+                 "Id": "tcm:58-18711-2",
+                 "Title": "Calendar"
+                },
+                "RootElementName": "GDSCalendarBlockContainer",
+                "Publication": {
+                 "Id": "tcm:0-58-1",
+                 "Title": "060 UO.com Website (EN-US)"
+                },
+                "Id": "tcm:58-151576-8",
+                "Title": "GDS - Calendar Block Container"
+               },
+               "Fields": {
+                "heading": {
+                 "Name": "heading",
+                 "Values": [
+                  "##LongDateFormat##"
+                 ],
+                 "FieldType": 2,
+                 "KeywordValues": []
+                },
+                "blocksData": {
+                 "Name": "blocksData",
+                 "Values": [
+                  "tcm:58-279945"
+                 ],
+                 "LinkedComponentValues": [
+                  {
+                   "LastPublishedDate": "0001-01-01T00:00:00",
+                   "RevisionDate": "2026-07-28T20:52:39.178Z",
+                   "Schema": {
+                    "Folder": {
+                     "PublicationId": "tcm:0-58-1",
+                     "Id": "tcm:58-18711-2",
+                     "Title": "Calendar"
+                    },
+                    "RootElementName": "GDSCalendarBlock",
+                    "Publication": {
+                     "Id": "tcm:0-58-1",
+                     "Title": "060 UO.com Website (EN-US)"
+                    },
+                    "Id": "tcm:58-151575-8",
+                    "Title": "GDS - Calendar Block"
+                   },
+                   "Fields": {
+                    "iconImage": {
+                     "Name": "iconImage",
+                     "Values": [
+                      "tcm:58-151600"
+                     ],
+                     "LinkedComponentValues": [
+                      {
+                       "LastPublishedDate": "0001-01-01T00:00:00",
+                       "RevisionDate": "2022-05-26T18:22:48.16Z",
+                       "Schema": {
+                        "Folder": {
+                         "PublicationId": "tcm:0-58-1",
+                         "Id": "tcm:58-58-2",
+                         "Title": "Multimedia Schemas"
+                        },
+                        "RootElementName": "undefined",
+                        "Publication": {
+                         "Id": "tcm:0-58-1",
+                         "Title": "060 UO.com Website (EN-US)"
+                        },
+                        "Id": "tcm:58-400-8",
+                        "Title": "Image - Global"
+                       },
+                       "Fields": {},
+                       "MetadataFields": {},
+                       "ComponentType": 0,
+                       "Multimedia": {
+                        "Url": "/uor/en/us/files/Images/pumpkin.png",
+                        "MimeType": "image/png",
+                        "FileName": "pumpkin.png",
+                        "FileExtension": "png",
+                        "Size": 62575,
+                        "Width": 0,
+                        "Height": 0
+                       },
+                       "Version": 1,
+                       "Id": "tcm:58-151600",
+                       "Title": "pumpkin-vergd"
+                      }
+                     ],
+                     "FieldType": 5
+                    },
+                    "eyebrow": {
+                     "Name": "eyebrow",
+                     "Values": [
+                      "6:30 PM \u2013 2:00 AM"
+                     ],
+                     "FieldType": 0,
+                     "KeywordValues": []
+                    },
+                    "heading": {
+                     "Name": "heading",
+                     "Values": [
+                      "Halloween Horror Nights Premium Scream Night"
+                     ],
+                     "FieldType": 0,
+                     "KeywordValues": []
+                    },
+                    "description": {
+                     "Name": "description",
+                     "Values": [
+                      "Be one of the first to scream at Halloween Horror Nights. This exclusive event features shorter wait times and all-you-care-to-enjoy select food and non-alcoholic drinks."
+                     ],
+                     "FieldType": 2,
+                     "KeywordValues": []
+                    },
+                    "ctaButton": {
+                     "Name": "ctaButton",
+                     "Values": [],
+                     "EmbeddedValues": [
+                      {
+                       "label": {
+                        "Name": "label",
+                        "Values": [
+                         "Get Tickets"
+                        ],
+                        "FieldType": 0,
+                        "KeywordValues": []
+                       },
+                       "link": {
+                        "Name": "link",
+                        "Values": [],
+                        "EmbeddedValues": [
+                         {
+                          "External": {
+                           "Name": "External",
+                           "Values": [
+                            "https://store.universalorlando.com/en/us/store/c/uo_ice_default_pb_extras/HHN_PREM_NIGHT_ICE?config=true"
+                           ],
+                           "FieldType": 0,
+                           "KeywordValues": []
+                          }
+                         }
+                        ],
+                        "FieldType": 4,
+                        "KeywordValues": []
+                       },
+                       "type": {
+                        "Name": "type",
+                        "Values": [
+                         "tertiary-small"
+                        ],
+                        "FieldType": 3,
+                        "CategoryName": "GDS - Button Types",
+                        "CategoryId": "tcm:58-6718-512",
+                        "KeywordValues": [
+                         {
+                          "IsRoot": false,
+                          "IsAbstract": false,
+                          "Description": "tertiary-small",
+                          "Key": "tertiary-small",
+                          "ParentKeywords": [],
+                          "MetadataFields": {},
+                          "Id": "tcm:58-137829-1024",
+                          "Title": "tertiary-small"
+                         }
+                        ]
+                       },
+                       "target": {
+                        "Name": "target",
+                        "Values": [
+                         "self"
+                        ],
+                        "FieldType": 3,
+                        "CategoryName": "GDS - Button Target",
+                        "CategoryId": "tcm:58-6719-512",
+                        "KeywordValues": [
+                         {
+                          "IsRoot": false,
+                          "IsAbstract": false,
+                          "Description": "self",
+                          "Key": "self",
+                          "ParentKeywords": [],
+                          "MetadataFields": {},
+                          "Id": "tcm:58-73858-1024",
+                          "Title": "self"
+                         }
+                        ]
+                       }
+                      }
+                     ],
+                     "FieldType": 4,
+                     "KeywordValues": []
+                    }
+                   },
+                   "MetadataFields": {
+                    "contentId": {
+                     "Name": "contentId",
+                     "Values": [
+                      "gds-hhn-2025-premium-scream-night-calendar-block-data"
+                     ],
+                     "NumericValues": [],
+                     "DateTimeValues": [],
+                     "LinkedComponentValues": [],
+                     "FieldType": 0,
+                     "XPath": "tcm:Metadata/custom:Metadata/custom:contentId",
+                     "KeywordValues": []
+                    }
+                   },
+                   "ComponentType": 1,
+                   "Version": 8,
+                   "Id": "tcm:58-279945",
+                   "Title": "GDS - HHN - SHARED - Calendar Block Data - Event - Premium Scream Night"
+                  }
+                 ],
+                 "FieldType": 6
+                }
+               },
+               "MetadataFields": {},
+               "ComponentType": 1,
+               "Version": 5,
+               "Id": "tcm:58-279946",
+               "Title": "GDS - HHN - SHARED - Calendar Block Data Container - Event - Premium Scream Night"
+              }
+             ],
+             "FieldType": 6
+            }
+           },
+           {
+            "style": {
+             "Name": "style",
+             "Values": [
+              "Style 1 (Default)"
+             ],
+             "FieldType": 3,
+             "CategoryName": "GDS - Calendar Legend",
+             "CategoryId": "tcm:58-18710-512",
+             "KeywordValues": [
+              {
+               "IsRoot": false,
+               "IsAbstract": false,
+               "Description": "Style 1 (Default)",
+               "Key": "style-1",
+               "ParentKeywords": [],
+               "MetadataFields": {},
+               "Id": "tcm:58-151582-1024",
+               "Title": "Style 1 (Default)"
+              }
+             ]
+            },
+            "eventDates": {
+             "Name": "eventDates",
+             "Values": [
+              "8/28/2026 1:19:17 PM",
+              "8/29/2026 1:19:17 PM",
+              "8/30/2026 1:19:17 PM",
+              "9/2/2026 1:19:17 PM",
+              "9/3/2026 1:19:17 PM",
+              "9/4/2026 1:19:17 PM",
+              "9/5/2026 1:19:17 PM",
+              "9/6/2026 1:19:17 PM",
+              "9/9/2026 1:19:17 PM",
+              "9/10/2026 1:19:17 PM",
+              "9/11/2026 1:19:17 PM",
+              "9/12/2026 1:19:17 PM",
+              "9/13/2026 1:19:17 PM",
+              "9/16/2026 1:19:17 PM",
+              "9/17/2026 1:19:17 PM",
+              "9/18/2026 1:19:17 PM",
+              "9/19/2026 1:19:17 PM",
+              "9/20/2026 1:19:17 PM",
+              "9/23/2026 1:19:17 PM",
+              "9/24/2026 1:19:17 PM",
+              "9/25/2026 1:19:17 PM",
+              "9/26/2026 1:19:17 PM",
+              "9/27/2026 1:19:17 PM",
+              "9/30/2026 1:19:17 PM",
+              "10/1/2026 1:19:17 PM",
+              "10/2/2026 1:19:17 PM",
+              "10/3/2026 1:19:17 PM",
+              "10/4/2026 1:19:17 PM",
+              "10/7/2026 1:19:17 PM",
+              "10/8/2026 1:19:17 PM",
+              "10/9/2026 1:19:17 PM",
+              "10/10/2026 1:19:17 PM",
+              "10/11/2026 1:19:17 PM",
+              "10/14/2026 1:19:17 PM",
+              "10/15/2026 1:19:17 PM",
+              "10/16/2026 1:19:17 PM",
+              "10/17/2026 1:19:17 PM",
+              "10/18/2026 1:19:17 PM",
+              "10/21/2026 1:19:17 PM",
+              "10/22/2026 1:19:17 PM",
+              "10/23/2026 1:19:17 PM",
+              "10/24/2026 1:19:17 PM",
+              "10/25/2026 1:19:17 PM",
+              "10/28/2026 1:19:17 PM",
+              "10/29/2026 1:19:17 PM",
+              "10/30/2026 1:19:17 PM",
+              "10/31/2026 1:19:17 PM",
+              "11/1/2026 1:19:17 PM",
+              "10/12/2026 12:00:00 AM"
+             ],
+             "DateTimeValues": [
+              "2026-08-28T13:19:17.126",
+              "2026-08-29T13:19:17.126",
+              "2026-08-30T13:19:17.126",
+              "2026-09-02T13:19:17.126",
+              "2026-09-03T13:19:17.126",
+              "2026-09-04T13:19:17.126",
+              "2026-09-05T13:19:17.126",
+              "2026-09-06T13:19:17.126",
+              "2026-09-09T13:19:17.126",
+              "2026-09-10T13:19:17.126",
+              "2026-09-11T13:19:17.126",
+              "2026-09-12T13:19:17.126",
+              "2026-09-13T13:19:17.126",
+              "2026-09-16T13:19:17.126",
+              "2026-09-17T13:19:17.126",
+              "2026-09-18T13:19:17.126",
+              "2026-09-19T13:19:17.126",
+              "2026-09-20T13:19:17.126",
+              "2026-09-23T13:19:17.126",
+              "2026-09-24T13:19:17.126",
+              "2026-09-25T13:19:17.126",
+              "2026-09-26T13:19:17.126",
+              "2026-09-27T13:19:17.126",
+              "2026-09-30T13:19:17.126",
+              "2026-10-01T13:19:17.126",
+              "2026-10-02T13:19:17.126",
+              "2026-10-03T13:19:17.126",
+              "2026-10-04T13:19:17.126",
+              "2026-10-07T13:19:17.126",
+              "2026-10-08T13:19:17.126",
+              "2026-10-09T13:19:17.126",
+              "2026-10-10T13:19:17.126",
+              "2026-10-11T13:19:17.126",
+              "2026-10-14T13:19:17.126",
+              "2026-10-15T13:19:17.126",
+              "2026-10-16T13:19:17.126",
+              "2026-10-17T13:19:17.126",
+              "2026-10-18T13:19:17.126",
+              "2026-10-21T13:19:17.126",
+              "2026-10-22T13:19:17.126",
+              "2026-10-23T13:19:17.126",
+              "2026-10-24T13:19:17.126",
+              "2026-10-25T13:19:17.126",
+              "2026-10-28T13:19:17.126",
+              "2026-10-29T13:19:17.126",
+              "2026-10-30T13:19:17.126",
+              "2026-10-31T13:19:17.126",
+              "2026-11-01T13:19:17.126",
+              "2026-10-12T00:00:00"
+             ],
+             "FieldType": 9,
+             "KeywordValues": []
+            },
+            "blockData": {
+             "Name": "blockData",
+             "Values": [
+              "tcm:58-346640"
+             ],
+             "LinkedComponentValues": [
+              {
+               "LastPublishedDate": "0001-01-01T00:00:00",
+               "RevisionDate": "2026-07-23T20:48:21.732Z",
+               "Schema": {
+                "Folder": {
+                 "PublicationId": "tcm:0-58-1",
+                 "Id": "tcm:58-18711-2",
+                 "Title": "Calendar"
+                },
+                "RootElementName": "GDSCalendarBlockContainer",
+                "Publication": {
+                 "Id": "tcm:0-58-1",
+                 "Title": "060 UO.com Website (EN-US)"
+                },
+                "Id": "tcm:58-151576-8",
+                "Title": "GDS - Calendar Block Container"
+               },
+               "Fields": {
+                "heading": {
+                 "Name": "heading",
+                 "Values": [
+                  "##LongDateFormat##"
+                 ],
+                 "FieldType": 2,
+                 "KeywordValues": []
+                },
+                "blocksData": {
+                 "Name": "blocksData",
+                 "Values": [
+                  "tcm:58-346641"
+                 ],
+                 "LinkedComponentValues": [
+                  {
+                   "LastPublishedDate": "0001-01-01T00:00:00",
+                   "RevisionDate": "2026-07-23T20:47:55.74Z",
+                   "Schema": {
+                    "Folder": {
+                     "PublicationId": "tcm:0-58-1",
+                     "Id": "tcm:58-18711-2",
+                     "Title": "Calendar"
+                    },
+                    "RootElementName": "GDSCalendarBlock",
+                    "Publication": {
+                     "Id": "tcm:0-58-1",
+                     "Title": "060 UO.com Website (EN-US)"
+                    },
+                    "Id": "tcm:58-151575-8",
+                    "Title": "GDS - Calendar Block"
+                   },
+                   "Fields": {
+                    "iconImage": {
+                     "Name": "iconImage",
+                     "Values": [
+                      "tcm:58-151600"
+                     ],
+                     "LinkedComponentValues": [
+                      {
+                       "LastPublishedDate": "0001-01-01T00:00:00",
+                       "RevisionDate": "2022-05-26T18:22:48.16Z",
+                       "Schema": {
+                        "Folder": {
+                         "PublicationId": "tcm:0-58-1",
+                         "Id": "tcm:58-58-2",
+                         "Title": "Multimedia Schemas"
+                        },
+                        "RootElementName": "undefined",
+                        "Publication": {
+                         "Id": "tcm:0-58-1",
+                         "Title": "060 UO.com Website (EN-US)"
+                        },
+                        "Id": "tcm:58-400-8",
+                        "Title": "Image - Global"
+                       },
+                       "Fields": {},
+                       "MetadataFields": {},
+                       "ComponentType": 0,
+                       "Multimedia": {
+                        "Url": "/uor/en/us/files/Images/pumpkin.png",
+                        "MimeType": "image/png",
+                        "FileName": "pumpkin.png",
+                        "FileExtension": "png",
+                        "Size": 62575,
+                        "Width": 0,
+                        "Height": 0
+                       },
+                       "Version": 1,
+                       "Id": "tcm:58-151600",
+                       "Title": "pumpkin-vergd"
+                      }
+                     ],
+                     "FieldType": 5
+                    },
+                    "eyebrow": {
+                     "Name": "eyebrow",
+                     "Values": [
+                      "Halloween Horror Nights"
+                     ],
+                     "FieldType": 0,
+                     "KeywordValues": []
+                    },
+                    "heading": {
+                     "Name": "heading",
+                     "Values": [
+                      "6:30 PM - 2:00 AM"
+                     ],
+                     "FieldType": 0,
+                     "KeywordValues": []
+                    },
+                    "ctaButton": {
+                     "Name": "ctaButton",
+                     "Values": [],
+                     "EmbeddedValues": [
+                      {
+                       "label": {
+                        "Name": "label",
+                        "Values": [
+                         "Get Tickets "
+                        ],
+                        "FieldType": 0,
+                        "KeywordValues": []
+                       },
+                       "link": {
+                        "Name": "link",
+                        "Values": [],
+                        "EmbeddedValues": [
+                         {
+                          "External": {
+                           "Name": "External",
+                           "Values": [
+                            "https://store.universalorlando.com/en/us/store/c/uo_ice_default_pb_extras?query=:recommended:allCategories:uo_ice_default_pb_extras:Recommended%20Extras%20Sort:fvHHN"
+                           ],
+                           "FieldType": 0,
+                           "KeywordValues": []
+                          }
+                         }
+                        ],
+                        "FieldType": 4,
+                        "KeywordValues": []
+                       },
+                       "type": {
+                        "Name": "type",
+                        "Values": [
+                         "tertiary-small"
+                        ],
+                        "FieldType": 3,
+                        "CategoryName": "GDS - Button Types",
+                        "CategoryId": "tcm:58-6718-512",
+                        "KeywordValues": [
+                         {
+                          "IsRoot": false,
+                          "IsAbstract": false,
+                          "Description": "tertiary-small",
+                          "Key": "tertiary-small",
+                          "ParentKeywords": [],
+                          "MetadataFields": {},
+                          "Id": "tcm:58-137829-1024",
+                          "Title": "tertiary-small"
+                         }
+                        ]
+                       },
+                       "target": {
+                        "Name": "target",
+                        "Values": [
+                         "self"
+                        ],
+                        "FieldType": 3,
+                        "CategoryName": "GDS - Button Target",
+                        "CategoryId": "tcm:58-6719-512",
+                        "KeywordValues": [
+                         {
+                          "IsRoot": false,
+                          "IsAbstract": false,
+                          "Description": "self",
+                          "Key": "self",
+                          "ParentKeywords": [],
+                          "MetadataFields": {},
+                          "Id": "tcm:58-73858-1024",
+                          "Title": "self"
+                         }
+                        ]
+                       }
+                      }
+                     ],
+                     "FieldType": 4,
+                     "KeywordValues": []
+                    }
+                   },
+                   "MetadataFields": {
+                    "contentId": {
+                     "Name": "contentId",
+                     "Values": [
+                      "hhn-calendar-data-block-event-about"
+                     ],
+                     "NumericValues": [],
+                     "DateTimeValues": [],
+                     "LinkedComponentValues": [],
+                     "FieldType": 0,
+                     "XPath": "tcm:Metadata/custom:Metadata/custom:contentId",
+                     "KeywordValues": []
+                    }
+                   },
+                   "ComponentType": 1,
+                   "Version": 2,
+                   "Id": "tcm:58-346641",
+                   "Title": "GDS - HHN - About - Calendar Block Data - Event"
+                  }
+                 ],
+                 "FieldType": 6
+                }
+               },
+               "MetadataFields": {},
+               "ComponentType": 1,
+               "Version": 3,
+               "Id": "tcm:58-346640",
+               "Title": "GDS - HHN - About - Calendar Block Data Container - with valid event data"
+              }
+             ],
+             "FieldType": 6
+            }
+           },
+           {
+            "style": {
+             "Name": "style",
+             "Values": [
+              "Style 2"
+             ],
+             "FieldType": 3,
+             "CategoryName": "GDS - Calendar Legend",
+             "CategoryId": "tcm:58-18710-512",
+             "KeywordValues": [
+              {
+               "IsRoot": false,
+               "IsAbstract": false,
+               "Description": "Style 2",
+               "Key": "style-2",
+               "ParentKeywords": [],
+               "MetadataFields": {},
+               "Id": "tcm:58-151581-1024",
+               "Title": "Style 2"
+              }
+             ]
+            },
+            "eventDates": {
+             "Name": "eventDates",
+             "Values": [
+              "8/31/2026 1:19:17 PM",
+              "9/1/2026 1:19:17 PM",
+              "9/7/2026 1:19:17 PM",
+              "9/8/2026 1:19:17 PM",
+              "9/14/2026 1:19:17 PM",
+              "9/15/2026 1:19:17 PM",
+              "9/21/2026 1:19:17 PM",
+              "9/22/2026 1:19:17 PM",
+              "9/28/2026 1:19:17 PM",
+              "9/29/2026 1:19:17 PM",
+              "10/5/2026 1:19:17 PM",
+              "10/6/2026 1:19:17 PM",
+              "10/13/2026 1:19:17 PM",
+              "10/20/2026 1:19:17 PM",
+              "10/26/2026 1:19:17 PM",
+              "10/27/2026 1:19:17 PM"
+             ],
+             "DateTimeValues": [
+              "2026-08-31T13:19:17.126",
+              "2026-09-01T13:19:17.126",
+              "2026-09-07T13:19:17.126",
+              "2026-09-08T13:19:17.126",
+              "2026-09-14T13:19:17.126",
+              "2026-09-15T13:19:17.126",
+              "2026-09-21T13:19:17.126",
+              "2026-09-22T13:19:17.126",
+              "2026-09-28T13:19:17.126",
+              "2026-09-29T13:19:17.126",
+              "2026-10-05T13:19:17.126",
+              "2026-10-06T13:19:17.126",
+              "2026-10-13T13:19:17.126",
+              "2026-10-20T13:19:17.126",
+              "2026-10-26T13:19:17.126",
+              "2026-10-27T13:19:17.126"
+             ],
+             "FieldType": 9,
+             "KeywordValues": []
+            },
+            "blockData": {
+             "Name": "blockData",
+             "Values": [
+              "tcm:58-157869"
+             ],
+             "LinkedComponentValues": [
+              {
+               "LastPublishedDate": "0001-01-01T00:00:00",
+               "RevisionDate": "2022-08-15T21:09:59.01Z",
+               "Schema": {
+                "Folder": {
+                 "PublicationId": "tcm:0-58-1",
+                 "Id": "tcm:58-18711-2",
+                 "Title": "Calendar"
+                },
+                "RootElementName": "GDSCalendarBlockContainer",
+                "Publication": {
+                 "Id": "tcm:0-58-1",
+                 "Title": "060 UO.com Website (EN-US)"
+                },
+                "Id": "tcm:58-151576-8",
+                "Title": "GDS - Calendar Block Container"
+               },
+               "Fields": {
+                "heading": {
+                 "Name": "heading",
+                 "Values": [
+                  "##LongDateFormat##"
+                 ],
+                 "FieldType": 2,
+                 "KeywordValues": []
+                },
+                "blocksData": {
+                 "Name": "blocksData",
+                 "Values": [
+                  "tcm:58-157878"
+                 ],
+                 "LinkedComponentValues": [
+                  {
+                   "LastPublishedDate": "0001-01-01T00:00:00",
+                   "RevisionDate": "2022-08-18T15:34:38.65Z",
+                   "Schema": {
+                    "Folder": {
+                     "PublicationId": "tcm:0-58-1",
+                     "Id": "tcm:58-18711-2",
+                     "Title": "Calendar"
+                    },
+                    "RootElementName": "GDSCalendarBlock",
+                    "Publication": {
+                     "Id": "tcm:0-58-1",
+                     "Title": "060 UO.com Website (EN-US)"
+                    },
+                    "Id": "tcm:58-151575-8",
+                    "Title": "GDS - Calendar Block"
+                   },
+                   "Fields": {
+                    "iconImage": {
+                     "Name": "iconImage",
+                     "Values": [
+                      "tcm:58-151600"
+                     ],
+                     "LinkedComponentValues": [
+                      {
+                       "LastPublishedDate": "0001-01-01T00:00:00",
+                       "RevisionDate": "2022-05-26T18:22:48.16Z",
+                       "Schema": {
+                        "Folder": {
+                         "PublicationId": "tcm:0-58-1",
+                         "Id": "tcm:58-58-2",
+                         "Title": "Multimedia Schemas"
+                        },
+                        "RootElementName": "undefined",
+                        "Publication": {
+                         "Id": "tcm:0-58-1",
+                         "Title": "060 UO.com Website (EN-US)"
+                        },
+                        "Id": "tcm:58-400-8",
+                        "Title": "Image - Global"
+                       },
+                       "Fields": {},
+                       "MetadataFields": {},
+                       "ComponentType": 0,
+                       "Multimedia": {
+                        "Url": "/uor/en/us/files/Images/pumpkin.png",
+                        "MimeType": "image/png",
+                        "FileName": "pumpkin.png",
+                        "FileExtension": "png",
+                        "Size": 62575,
+                        "Width": 0,
+                        "Height": 0
+                       },
+                       "Version": 1,
+                       "Id": "tcm:58-151600",
+                       "Title": "pumpkin-vergd"
+                      }
+                     ],
+                     "FieldType": 5
+                    },
+                    "eyebrow": {
+                     "Name": "eyebrow",
+                     "Values": [
+                      "Halloween Horror Nights"
+                     ],
+                     "FieldType": 0,
+                     "KeywordValues": []
+                    },
+                    "heading": {
+                     "Name": "heading",
+                     "Values": [
+                      "No Event Today"
+                     ],
+                     "FieldType": 0,
+                     "KeywordValues": []
+                    },
+                    "description": {
+                     "Name": "description",
+                     "Values": [
+                      "Please visit our site for more information"
+                     ],
+                     "FieldType": 2,
+                     "KeywordValues": []
+                    },
+                    "ctaButton": {
+                     "Name": "ctaButton",
+                     "Values": [],
+                     "EmbeddedValues": [
+                      {
+                       "type": {
+                        "Name": "type",
+                        "Values": [
+                         "tertiary-small"
+                        ],
+                        "FieldType": 3,
+                        "CategoryName": "GDS - Button Types",
+                        "CategoryId": "tcm:58-6718-512",
+                        "KeywordValues": [
+                         {
+                          "IsRoot": false,
+                          "IsAbstract": false,
+                          "Description": "tertiary-small",
+                          "Key": "tertiary-small",
+                          "ParentKeywords": [],
+                          "MetadataFields": {},
+                          "Id": "tcm:58-137829-1024",
+                          "Title": "tertiary-small"
+                         }
+                        ]
+                       },
+                       "target": {
+                        "Name": "target",
+                        "Values": [
+                         "blank"
+                        ],
+                        "FieldType": 3,
+                        "CategoryName": "GDS - Button Target",
+                        "CategoryId": "tcm:58-6719-512",
+                        "KeywordValues": [
+                         {
+                          "IsRoot": false,
+                          "IsAbstract": false,
+                          "Description": "blank",
+                          "Key": "blank",
+                          "ParentKeywords": [],
+                          "MetadataFields": {},
+                          "Id": "tcm:58-73868-1024",
+                          "Title": "blank"
+                         }
+                        ]
+                       }
+                      }
+                     ],
+                     "FieldType": 4,
+                     "KeywordValues": []
+                    }
+                   },
+                   "MetadataFields": {
+                    "contentId": {
+                     "Name": "contentId",
+                     "Values": [
+                      "no-event-calendar-data-block-1"
+                     ],
+                     "NumericValues": [],
+                     "DateTimeValues": [],
+                     "LinkedComponentValues": [],
+                     "FieldType": 0,
+                     "XPath": "tcm:Metadata/custom:Metadata/custom:contentId",
+                     "KeywordValues": []
+                    }
+                   },
+                   "ComponentType": 1,
+                   "Version": 5,
+                   "Id": "tcm:58-157878",
+                   "Title": "GDS - HHN - SHARED - Calendar Block Data - No Event"
+                  }
+                 ],
+                 "FieldType": 6
+                }
+               },
+               "MetadataFields": {},
+               "ComponentType": 1,
+               "Version": 6,
+               "Id": "tcm:58-157869",
+               "Title": "GDS - HHN - SHARED - Calendar Block Data Container -with no event data"
+              }
+             ],
+             "FieldType": 6
+            }
+           }
+          ],
+          "FieldType": 4,
+          "KeywordValues": []
+         }
+        },
+        "MetadataFields": {
+         "contentId": {
+          "Name": "contentId",
+          "Values": [
+           "hhn-calendar-configuration-2026-about"
+          ],
+          "NumericValues": [],
+          "DateTimeValues": [],
+          "LinkedComponentValues": [],
+          "FieldType": 0,
+          "XPath": "tcm:Metadata/custom:Metadata/custom:contentId",
+          "KeywordValues": []
+         }
+        },
+        "ComponentType": 1,
+        "Version": 2,
+        "Id": "tcm:58-346637",
+        "Title": "GDS - HHN - About - 2026 Calendar Configuration"
+       }
+      ],
+      "FieldType": 6
+     },
+     "legendStyle": {
+      "Name": "legendStyle",
+      "Values": [
+       "tcm:58-157862"
+      ],
+      "LinkedComponentValues": [
+       {
+        "LastPublishedDate": "0001-01-01T00:00:00",
+        "RevisionDate": "2022-08-15T20:55:08.453Z",
+        "Schema": {
+         "Folder": {
+          "PublicationId": "tcm:0-58-1",
+          "Id": "tcm:58-18711-2",
+          "Title": "Calendar"
+         },
+         "RootElementName": "GDSCalendarStyle",
+         "Publication": {
+          "Id": "tcm:0-58-1",
+          "Title": "060 UO.com Website (EN-US)"
+         },
+         "Id": "tcm:58-151585-8",
+         "Title": "GDS - Calendar Style"
+        },
+        "Fields": {
+         "styles": {
+          "Name": "styles",
+          "Values": [],
+          "EmbeddedValues": [
+           {
+            "style": {
+             "Name": "style",
+             "Values": [
+              "Disabled Style"
+             ],
+             "FieldType": 3,
+             "CategoryName": "GDS - Calendar Legend",
+             "CategoryId": "tcm:58-18710-512",
+             "KeywordValues": [
+              {
+               "IsRoot": false,
+               "IsAbstract": false,
+               "Description": "Disabled Style",
+               "Key": "disabled-style",
+               "ParentKeywords": [],
+               "MetadataFields": {},
+               "Id": "tcm:58-151571-1024",
+               "Title": "Disabled Style"
+              }
+             ]
+            }
+           },
+           {
+            "style": {
+             "Name": "style",
+             "Values": [
+              "Selected Style"
+             ],
+             "FieldType": 3,
+             "CategoryName": "GDS - Calendar Legend",
+             "CategoryId": "tcm:58-18710-512",
+             "KeywordValues": [
+              {
+               "IsRoot": false,
+               "IsAbstract": false,
+               "Description": "Selected Style",
+               "Key": "selected-style",
+               "ParentKeywords": [],
+               "MetadataFields": {},
+               "Id": "tcm:58-151574-1024",
+               "Title": "Selected Style"
+              }
+             ]
+            },
+            "image": {
+             "Name": "image",
+             "Values": [
+              "tcm:58-151593"
+             ],
+             "LinkedComponentValues": [
+              {
+               "LastPublishedDate": "0001-01-01T00:00:00",
+               "RevisionDate": "2022-05-26T18:22:46.833Z",
+               "Schema": {
+                "Folder": {
+                 "PublicationId": "tcm:0-58-1",
+                 "Id": "tcm:58-58-2",
+                 "Title": "Multimedia Schemas"
+                },
+                "RootElementName": "undefined",
+                "Publication": {
+                 "Id": "tcm:0-58-1",
+                 "Title": "060 UO.com Website (EN-US)"
+                },
+                "Id": "tcm:58-400-8",
+                "Title": "Image - Global"
+               },
+               "Fields": {},
+               "MetadataFields": {},
+               "ComponentType": 0,
+               "Multimedia": {
+                "Url": "/uor/en/us/files/Images/hhn_texture.png",
+                "MimeType": "image/png",
+                "FileName": "hhn_texture.png",
+                "FileExtension": "png",
+                "Size": 6546,
+                "Width": 0,
+                "Height": 0
+               },
+               "Version": 2,
+               "Id": "tcm:58-151593",
+               "Title": "calendar-icon-texture"
+              }
+             ],
+             "FieldType": 5
+            },
+            "altText": {
+             "Name": "altText",
+             "Values": [
+              "Alternative text field - Selected Style"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "ariaLabel": {
+             "Name": "ariaLabel",
+             "Values": [
+              "ariaLabel field - Selected Style"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "style": {
+             "Name": "style",
+             "Values": [
+              "Style 1 (Default)"
+             ],
+             "FieldType": 3,
+             "CategoryName": "GDS - Calendar Legend",
+             "CategoryId": "tcm:58-18710-512",
+             "KeywordValues": [
+              {
+               "IsRoot": false,
+               "IsAbstract": false,
+               "Description": "Style 1 (Default)",
+               "Key": "style-1",
+               "ParentKeywords": [],
+               "MetadataFields": {},
+               "Id": "tcm:58-151582-1024",
+               "Title": "Style 1 (Default)"
+              }
+             ]
+            },
+            "image": {
+             "Name": "image",
+             "Values": [
+              "tcm:58-151593"
+             ],
+             "LinkedComponentValues": [
+              {
+               "LastPublishedDate": "0001-01-01T00:00:00",
+               "RevisionDate": "2022-05-26T18:22:46.833Z",
+               "Schema": {
+                "Folder": {
+                 "PublicationId": "tcm:0-58-1",
+                 "Id": "tcm:58-58-2",
+                 "Title": "Multimedia Schemas"
+                },
+                "RootElementName": "undefined",
+                "Publication": {
+                 "Id": "tcm:0-58-1",
+                 "Title": "060 UO.com Website (EN-US)"
+                },
+                "Id": "tcm:58-400-8",
+                "Title": "Image - Global"
+               },
+               "Fields": {},
+               "MetadataFields": {},
+               "ComponentType": 0,
+               "Multimedia": {
+                "Url": "/uor/en/us/files/Images/hhn_texture.png",
+                "MimeType": "image/png",
+                "FileName": "hhn_texture.png",
+                "FileExtension": "png",
+                "Size": 6546,
+                "Width": 0,
+                "Height": 0
+               },
+               "Version": 2,
+               "Id": "tcm:58-151593",
+               "Title": "calendar-icon-texture"
+              }
+             ],
+             "FieldType": 5
+            },
+            "altText": {
+             "Name": "altText",
+             "Values": [
+              "Alternative text field - Style 1"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "ariaLabel": {
+             "Name": "ariaLabel",
+             "Values": [
+              "ariaLabel field - Style 1"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "style": {
+             "Name": "style",
+             "Values": [
+              "Style 2"
+             ],
+             "FieldType": 3,
+             "CategoryName": "GDS - Calendar Legend",
+             "CategoryId": "tcm:58-18710-512",
+             "KeywordValues": [
+              {
+               "IsRoot": false,
+               "IsAbstract": false,
+               "Description": "Style 2",
+               "Key": "style-2",
+               "ParentKeywords": [],
+               "MetadataFields": {},
+               "Id": "tcm:58-151581-1024",
+               "Title": "Style 2"
+              }
+             ]
+            },
+            "image": {
+             "Name": "image",
+             "Values": [
+              "tcm:58-151593"
+             ],
+             "LinkedComponentValues": [
+              {
+               "LastPublishedDate": "0001-01-01T00:00:00",
+               "RevisionDate": "2022-05-26T18:22:46.833Z",
+               "Schema": {
+                "Folder": {
+                 "PublicationId": "tcm:0-58-1",
+                 "Id": "tcm:58-58-2",
+                 "Title": "Multimedia Schemas"
+                },
+                "RootElementName": "undefined",
+                "Publication": {
+                 "Id": "tcm:0-58-1",
+                 "Title": "060 UO.com Website (EN-US)"
+                },
+                "Id": "tcm:58-400-8",
+                "Title": "Image - Global"
+               },
+               "Fields": {},
+               "MetadataFields": {},
+               "ComponentType": 0,
+               "Multimedia": {
+                "Url": "/uor/en/us/files/Images/hhn_texture.png",
+                "MimeType": "image/png",
+                "FileName": "hhn_texture.png",
+                "FileExtension": "png",
+                "Size": 6546,
+                "Width": 0,
+                "Height": 0
+               },
+               "Version": 2,
+               "Id": "tcm:58-151593",
+               "Title": "calendar-icon-texture"
+              }
+             ],
+             "FieldType": 5
+            },
+            "altText": {
+             "Name": "altText",
+             "Values": [
+              "Alternative text field - Style 2"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "ariaLabel": {
+             "Name": "ariaLabel",
+             "Values": [
+              "ariaLabel field - Style 2"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           }
+          ],
+          "FieldType": 4,
+          "KeywordValues": []
+         }
+        },
+        "MetadataFields": {
+         "contentId": {
+          "Name": "contentId",
+          "Values": [
+           "hhn-legend-2"
+          ],
+          "NumericValues": [],
+          "DateTimeValues": [],
+          "LinkedComponentValues": [],
+          "FieldType": 0,
+          "XPath": "tcm:Metadata/custom:Metadata/custom:contentId",
+          "KeywordValues": []
+         }
+        },
+        "ComponentType": 1,
+        "Version": 4,
+        "Id": "tcm:58-157862",
+        "Title": "GDS - HHN - SHARED - Calendar Legend"
+       }
+      ],
+      "FieldType": 6
+     },
+     "resources": {
+      "Name": "resources",
+      "Values": [
+       "tcm:58-157863"
+      ],
+      "LinkedComponentValues": [
+       {
+        "LastPublishedDate": "0001-01-01T00:00:00",
+        "RevisionDate": "2022-08-15T20:55:43.267Z",
+        "Schema": {
+         "Folder": {
+          "PublicationId": "tcm:0-58-1",
+          "Id": "tcm:58-103-2",
+          "Title": "Editorial Schemas"
+         },
+         "RootElementName": "ResourceFile",
+         "Publication": {
+          "Id": "tcm:0-58-1",
+          "Title": "060 UO.com Website (EN-US)"
+         },
+         "Id": "tcm:58-568-8",
+         "Title": "Resource File"
+        },
+        "Fields": {
+         "Resource": {
+          "Name": "Resource",
+          "Values": [],
+          "EmbeddedValues": [
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "DaySunLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "Sun"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "DayMonLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "Mon"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "DayTueLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "Tue"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "DayWedLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "Wed"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "DayThrLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "Thur"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "DayFriLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "Fri"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "DaySatLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "Sat"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "sun"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "Sun"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "MonthJanuaryLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "January"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "MonthFebruaryLabe"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "February"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "MonthMarchLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "March"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "MonthAprilLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "April"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "MonthMayLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "May"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "MonthJuneLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "June"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "MonthJulyLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "July"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "MonthAugustLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "August"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "MonthSeptemberLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "September"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "MonthOctoberLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "October"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "MonthNovemberLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "November"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "MonthDecemberLabel"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "December"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           },
+           {
+            "Key": {
+             "Name": "Key",
+             "Values": [
+              "CalendarLongDateFormat"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            },
+            "Value": {
+             "Name": "Value",
+             "Values": [
+              "##LongDateFormat##"
+             ],
+             "FieldType": 0,
+             "KeywordValues": []
+            }
+           }
+          ],
+          "FieldType": 4,
+          "KeywordValues": []
+         }
+        },
+        "MetadataFields": {},
+        "ComponentType": 1,
+        "Version": 2,
+        "Id": "tcm:58-157863",
+        "Title": "GDS - HHN - SHARED - Calendar Resources"
+       }
+      ],
+      "FieldType": 6
+     },
+     "displayDayExceptions": {
+      "Name": "displayDayExceptions",
+      "Values": [
+       "false"
+      ],
+      "FieldType": 3,
+      "CategoryName": "UPR - true/false",
+      "CategoryId": "tcm:58-4798-512",
+      "KeywordValues": [
+       {
+        "IsRoot": false,
+        "IsAbstract": false,
+        "Description": "false",
+        "Key": "false",
+        "ParentKeywords": [],
+        "MetadataFields": {},
+        "Id": "tcm:58-47781-1024",
+        "Title": "false"
+       }
+      ]
+     }
+    },
+    "MetadataFields": {
+     "contentId": {
+      "Name": "contentId",
+      "Values": [
+       "gds-hhn-calendar-2026-about"
+      ],
+      "FieldType": 0,
+      "KeywordValues": []
+     }
+    },
+    "ComponentType": 1,
+    "Categories": [
+     {
+      "Keywords": [
+       {
+        "IsRoot": false,
+        "IsAbstract": false,
+        "Description": "false",
+        "Key": "false",
+        "TaxonomyId": "tcm:58-4798-512",
+        "Path": "\\UPR - true/false\\false",
+        "RelatedKeywords": [],
+        "ParentKeywords": [],
+        "MetadataFields": {},
+        "Id": "tcm:58-47781-1024",
+        "Title": "false"
+       }
+      ],
+      "Id": "tcm:58-4798-512",
+      "Title": "UPR - true/false"
+     },
+     {
+      "Keywords": [],
+      "Id": "tcm:58-7085-512",
+      "Title": "GDS - Page Themes"
+     }
+    ],
+    "Version": 5,
+    "Id": "tcm:58-346636",
+    "Title": "GDS - HHN 2026 - About - Calendar"
+   },
+   "ComponentTemplate": {
+    "RevisionDate": "2023-07-18T18:37:06.667Z",
+    "MetadataFields": {
+     "name": {
+      "Name": "name",
+      "Values": [
+       "gds-event-day-calendar"
+      ],
+      "FieldType": 0,
+      "KeywordValues": []
+     },
+     "schema": {
+      "Name": "schema",
+      "Values": [
+       "GdsEventDayCalendarData"
+      ],
+      "FieldType": 0,
+      "KeywordValues": []
+     },
+     "attributes": {
+      "Name": "attributes",
+      "Values": [],
+      "EmbeddedValues": [
+       {
+        "key": {
+         "Name": "key",
+         "Values": [
+          "type"
+         ],
+         "FieldType": 0,
+         "KeywordValues": []
+        },
+        "value": {
+         "Name": "value",
+         "Values": [
+          "value"
+         ],
+         "FieldType": 0,
+         "KeywordValues": []
+        }
+       }
+      ],
+      "FieldType": 4,
+      "KeywordValues": []
+     }
+    },
+    "Id": "tcm:58-151589-32",
+    "Title": "GDS - Calendar"
+   },
+   "IsDynamic": true,
+   "OrderOnPage": 10
+  }
+ ]
+}
