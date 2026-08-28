@@ -1,8 +1,9 @@
-import { describe, test, expect } from "vitest";
+import { describe, test, expect, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { parseUniversalEventCalendar, UniversalOrlando } from "../universal.js";
+import { parseUniversalEventCalendar, UniversalOrlando, UniversalStudios } from "../universal.js";
+import { CacheLib } from "../../../cache.js";
 
 /**
  * Halloween Horror Nights is absent from every feed parksapi already reads.
@@ -180,5 +181,70 @@ describe("UniversalOrlando.buildSchedules", () => {
     p.eventCalendarPlaceId = "";
     const usf = (await p.getSchedules()).find((s: any) => s.id === "uor.usf");
     expect(usf.schedule.every((e: any) => e.type === "OPERATING")).toBe(true);
+  });
+});
+
+describe("event calendar fetch discipline", () => {
+  // getEventNights is @cache'd on class + method, so entries are shared across
+  // instances and across configs. Each case starts from a clean slate.
+  beforeEach(async () => {
+    await CacheLib.clearByClassName("UniversalOrlando");
+    await CacheLib.clearByClassName("UniversalStudios");
+  });
+
+  const CONFIG = {
+    eventCalendarURL: "https://example.invalid/calendar",
+    eventCalendarPlaceId: "uor.usf",
+  };
+
+  test("Hollywood does not fetch Orlando's calendar", async () => {
+    // Both resorts share addConfigPrefix('UNIVERSALSTUDIOS'), so Hollywood
+    // reads UNIVERSALSTUDIOS_EVENTCALENDARURL as well. buildSchedules() would
+    // never publish those nights, but the fetch and the 285KB parse still ran.
+    const hollywood: any = new UniversalStudios({ config: CONFIG } as any);
+    let fetched = 0;
+    hollywood.fetchEventCalendar = async () => { fetched++; throw new Error("should not fetch"); };
+
+    await expect(hollywood.getEventNights()).resolves.toEqual([]);
+    expect(fetched).toBe(0);
+  });
+
+  test("Orlando does fetch it", async () => {
+    const orlando: any = new UniversalOrlando({ config: CONFIG } as any);
+    let fetched = 0;
+    orlando.fetchEventCalendar = async () => {
+      fetched++;
+      return { text: async () => JSON.stringify(FIXTURE) };
+    };
+
+    await expect(orlando.getEventNights()).resolves.toHaveLength(51);
+    expect(fetched).toBe(1);
+  });
+
+  test("a blocked fetch keeps failing rather than sticking as empty", async () => {
+    // One box's IP is blocked by the site's WAF (2026-08-28). A failure that
+    // cached as [] would mean twelve silent hours of "no events"; it has to
+    // stay loud so the next poll retries and the warning keeps appearing.
+    const orlando: any = new UniversalOrlando({ config: CONFIG } as any);
+    orlando.fetchEventCalendar = async () => { throw new Error("HTTP 403"); };
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await expect(orlando.getEventNights()).rejects.toThrow(/403/);
+    }
+  });
+
+  test("a blocked fetch is reported, not swallowed", async () => {
+    const orlando: any = new UniversalOrlando({ config: CONFIG } as any);
+    orlando.getVenueSchedule = async () => [];
+    orlando.getEventNights = async () => { throw new Error("HTTP 403"); };
+    const warnings: string[] = [];
+    const original = console.warn;
+    console.warn = (...args: unknown[]) => { warnings.push(args.map(String).join(" ")); };
+    try {
+      await orlando.getSchedules();
+    } finally {
+      console.warn = original;
+    }
+    expect(warnings.join("\n")).toMatch(/event calendar unavailable/i);
   });
 });

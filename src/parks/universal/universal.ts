@@ -560,8 +560,20 @@ class Universal extends Destination {
   @cache({ttlSeconds: 43200})
   async getEventNights(): Promise<UniversalEventNight[]> {
     if (!this.eventCalendarURL || !this.eventCalendarPlaceId) return [];
+    // UniversalOrlando and UniversalStudios share addConfigPrefix
+    // ('UNIVERSALSTUDIOS'), so Hollywood reads Orlando's calendar config too.
+    // buildSchedules() would never emit those nights — the place id matches
+    // none of its parks — but without this Hollywood still fetches and parses
+    // a 285KB Orlando document on every schedule build.
+    if (!this.parkPlaceIds().includes(this.eventCalendarPlaceId)) return [];
     const body = await (await this.fetchEventCalendar()).text();
     return parseUniversalEventCalendar(JSON.parse(body));
+  }
+
+  /** Place ids of the parks belonging to this resort. */
+  parkPlaceIds(): string[] {
+    return Object.keys(PARK_PLACE_ID_TO_LEGACY_VENUE_ID)
+      .filter(placeId => placeId.startsWith(`${this.resortKey}.`));
   }
 
   /**
@@ -1295,8 +1307,9 @@ class Universal extends Destination {
     // The legacy schedule endpoint still wants the numeric VenueId; we only
     // relabel the emitted EntitySchedule with the new place_id so it joins
     // up with the park entities from buildEntityList.
+    const parkPlaceIds = new Set(this.parkPlaceIds());
     const parkEntries = Object.entries(PARK_PLACE_ID_TO_LEGACY_VENUE_ID).filter(
-      ([placeId]) => placeId.startsWith(`${this.resortKey}.`),
+      ([placeId]) => parkPlaceIds.has(placeId),
     );
 
     for (const [placeId, legacyVenueId] of parkEntries) {
