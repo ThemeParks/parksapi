@@ -406,6 +406,41 @@ class WalibiBase extends Destination {
 
   // ── Schedules ────────────────────────────────────────────────
 
+  /**
+   * Read a day's `customOpeningHourToDisplay` override.
+   *
+   * The CMS holds two answers for a day's hours. `openingHour`/`closingHour`
+   * carry the season default; `customOpeningHourToDisplay` is the per-day
+   * override, and it is what the calendar widget on every page of the park
+   * site renders. When the two disagree it is the structured pair that is
+   * stale: on 28–31 August 2026 Walibi Belgium was still advertising a summer
+   * `closingHour` of 20:00 while the override, the day's `events` asset
+   * (`open-10-18h`) and that asset's own title all said 18:00.
+   *
+   * Parsed strictly as `HH:MM - HH:MM`, and only that. The field is free text
+   * an editor types, and the event titles alongside it show what free text
+   * does — "Halloween 10:00 - 22:00", and an `open-10-22h` asset titled
+   * "10:00 - 22:30". Anything that is not exactly two times returns null and
+   * leaves the structured hours in place: a shape we half-understand is worse
+   * than the season default we already publish.
+   *
+   * Bellewaerde, Walibi Holland and Walibi Rhône-Alpes send this field empty
+   * on every open day, so today this only ever fires for Walibi Belgium.
+   */
+  private parseDisplayHours(value: unknown): {opening: string; closing: string} | null {
+    if (typeof value !== 'string') return null;
+    const match = /^\s*(\d{1,2}):([0-5]\d)\s*[-\u2013]\s*(\d{1,2}):([0-5]\d)\s*$/.exec(value);
+    if (!match) return null;
+    const [openHour, closeHour] = [Number(match[1]), Number(match[3])];
+    // A park may legitimately close after midnight, so only reject hours no
+    // clock can hold.
+    if (openHour > 23 || closeHour > 23) return null;
+    return {
+      opening: `${String(openHour).padStart(2, '0')}:${match[2]}`,
+      closing: `${String(closeHour).padStart(2, '0')}:${match[4]}`,
+    };
+  }
+
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     let calData: any;
     try {
@@ -435,11 +470,15 @@ class WalibiBase extends Destination {
 
           const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(dayKey).padStart(2, '0')}`;
 
+          const displayed = this.parseDisplayHours(day.customOpeningHourToDisplay);
+          const openingHour = displayed?.opening ?? day.openingHour;
+          const closingHour = displayed?.closing ?? day.closingHour;
+
           schedule.push({
             date: dateStr,
             type: 'OPERATING',
-            openingTime: constructDateTime(dateStr, day.openingHour, this.timezone),
-            closingTime: constructDateTime(dateStr, day.closingHour, this.timezone),
+            openingTime: constructDateTime(dateStr, openingHour, this.timezone),
+            closingTime: constructDateTime(dateStr, closingHour, this.timezone),
           });
         }
       }
