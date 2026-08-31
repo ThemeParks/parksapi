@@ -8,7 +8,11 @@ import { describe, expect, it, vi } from 'vitest';
 // cache gets the fsync-tolerant pragmas, re-import the module against a real
 // on-disk path.
 describe('cache DB fsync pragmas (on-disk)', () => {
-  it('opens the persistent cache in WAL with synchronous=NORMAL', async () => {
+  // Generous timeout on purpose. This re-imports the cache module from scratch
+  // after resetModules() and opens a real on-disk SQLite in WAL, and both are
+  // slow enough on a loaded machine to blow the 5s default. It is slow, not
+  // hanging — a gate test may not fail because something else was running.
+  it('opens the persistent cache in WAL with synchronous=NORMAL', {timeout: 60_000}, async () => {
     const dir = mkdtempSync(join(tmpdir(), 'cache-pragma-'));
     process.env.CACHE_DB_PATH = join(dir, 'cache.sqlite');
     vi.resetModules();
