@@ -559,7 +559,27 @@ export class TokyoDisneyResort extends Destination {
         },
       };
 
-      // Premier Access (paid return time)
+      // Premier Access (paid return time).
+      //
+      // The nulls are a hard limit, not a TODO. `/rest/v7/facilities/
+      // conditions` carries `premierAccessStatus` as SELLING /
+      // NOT_SELLING_NOW and nothing else — no window, no price. The app gets
+      // both from POST endpoints (`/rest/v2/premier-access/available-time/
+      // offer` returns `availableHours[]` and `offer.amount`,
+      // `/rest/v2/priority-pass/offers` returns `startAt`/`endAt`), but every
+      // one of those request bodies requires `encryptTicketNoList` — real
+      // park tickets registered to a signed-in account — and the services
+      // sit behind a `cid:ctoken` credential this client does not hold.
+      // Probed anonymously: `error.invalidAuth` 401 on the GET variants,
+      // 400/415 on the POSTs. The price is a per-purchase quote for a
+      // specific ticket set in any case, not a published per-attraction rate.
+      //
+      // The emitted price reads `{amount: 0, currency: 'JPY', formatted:
+      // 'Unknown'}`. That is the framework's marker for "paid, rate unknown"
+      // (see PaidReturnTimeBuilder), forced by typelib requiring
+      // `price.amount` as a non-null `number`. A consumer reading `amount`
+      // alone will mistake it for free; fixing that properly means widening
+      // PriceData, not changing this call.
       if (attr.premierAccessStatus) {
         ld.queue!.PAID_RETURN_TIME = this.buildPaidReturnTimeQueue(
           attr.premierAccessStatus === 'SELLING' ? 'AVAILABLE' : 'FINISHED',
@@ -585,6 +605,25 @@ export class TokyoDisneyResort extends Destination {
     return liveData;
   }
 
+  /**
+   * Park hours from `/rest/v1/parks/calendars`.
+   *
+   * The output looks wrong and is not: every announced day opens at 09:00,
+   * New Year's Eve included. That is what the resort publishes. Checked
+   * against tokyodisneyresort.jp over 2026-08 → 2027-02 — the site shows
+   * 09:00-21:00 on 303 park-days, 09:00-18:30 on 5 and 09:00-19:00 on 2, and
+   * the exception dates are the same set this endpoint returns. The app has
+   * no other source: `/rest/v3/parks/conditions` carries `earlyEntryFlg` and
+   * `allNightDay` as bare booleans with no times, and `/rest/v2|v3/parks/
+   * calendars` are 404.
+   *
+   * `spOpenTime`/`spCloseTime` are empty on every current row because no
+   * special-hours event is scheduled, so the EXTRA_HOURS branch below is
+   * dormant rather than dead.
+   *
+   * Closed and undecided days are dropped. `CLOSED` is not a typelib
+   * ScheduleType — absence is how a closure is expressed.
+   */
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const calendar = await this.getCalendar();
 
