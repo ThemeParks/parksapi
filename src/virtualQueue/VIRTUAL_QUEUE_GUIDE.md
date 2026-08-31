@@ -430,7 +430,9 @@ if (!result.valid) {
 - All return time rules apply
 - Must have `price` object
 - Currency must be 3-letter code (USD, EUR, GBP, JPY)
-- Amount should be in cents (or 0)
+- Amount is in cents. Use `null` when the provider confirms a paid queue but
+  does not publish a price, and `0` only when the queue is genuinely free —
+  they are different claims and consumers read them differently
 
 **Boarding Group Queues:**
 - PAUSED status should have `nextAllocationTime`

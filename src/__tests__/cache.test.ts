@@ -1228,11 +1228,12 @@ describe('Cache', () => {
   });
 
   describe('SQLite WAL Mode', () => {
-    // Generous timeout for the same reason as cachePragmas.test.ts: opening a
-    // real on-disk SQLite in WAL is slow on a loaded machine and will blow the
-    // 5s default. Unique path alone was not enough — this still timed out at
-    // 6.4s once the collision was fixed.
-    test('WAL and busy_timeout PRAGMAs should be settable on file-based databases', {timeout: 60_000}, () => {
+    // Headroom against worker starvation, not against SQLite. The open plus
+    // three pragmas measures under a second even on a heavily loaded machine;
+    // what blows the 5s default is the whole vitest worker being starved by a
+    // parallel run. 15s is ~20x the worst measured value and still fails fast
+    // if this ever genuinely wedges.
+    test('WAL and busy_timeout PRAGMAs should be settable on file-based databases', {timeout: 15_000}, () => {
       // The test suite uses in-memory database which doesn't support WAL.
       // Verify the PRAGMAs work on a temp file-based database instead.
       //

@@ -1,35 +1,30 @@
-import { DatabaseSync } from 'node:sqlite';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { applyPersistencePragmas } from '../cache.js';
+import { openDatabase } from '../cache.js';
 
 // The shared test setup forces CACHE_DB_PATH=:memory: (vitest.setup.ts), where
-// journal_mode is 'memory' and synchronous is moot. To prove the PERSISTENT
-// cache gets the fsync-tolerant pragmas, apply them to a real on-disk database.
+// journal_mode cannot be WAL. To prove the PERSISTENT cache gets the
+// fsync-tolerant pragmas, open a real on-disk database.
 //
-// Two things were wrong with the previous version of this test and both are
-// fixed here.
+// Test openDatabase(), not applyPersistencePragmas(), and not the module's
+// exported `database`. openDatabase is the only way this module builds a cache
+// database, so covering it covers the wiring as well as the behaviour. An
+// earlier version of this test called the pragma function directly, which
+// passed happily with the module's own call to it deleted — it proved the
+// function body and nothing about what ships.
 //
-// It re-imported the cache module under a mutated CACHE_DB_PATH, needing
-// vi.resetModules() plus a dynamic import, which turned a slow test into a
-// pathological one — 60s timeouts under a loaded worker pool. The module now
-// calls the same exported function this test calls, so the guarantee survives
-// without the module registry games.
-//
-// And the underlying work is genuinely slow: opening an on-disk SQLite and
-// switching it to WAL costs seconds when the disk is busy with a parallel test
-// run, measured at 5.2s with the imports already gone. So it also gets a
-// generous timeout. A gate test may not fail because something else was
-// running.
-describe('cache DB fsync pragmas (on-disk)', () => {
-  it('opens a persistent cache in WAL with synchronous=NORMAL', {timeout: 60_000}, () => {
+// It does NOT re-import the module under a mutated CACHE_DB_PATH. That needs
+// vi.resetModules() plus a dynamic import, which measured 5-7x slower and sat
+// at a 60s timeout under a loaded worker pool. The SQLite work itself is
+// sub-second even on a busy machine, so the timeout below is headroom against
+// worker starvation, not against the database.
+describe('cache database construction', () => {
+  it('opens a persistent cache in WAL with synchronous=NORMAL', {timeout: 15_000}, () => {
     const dir = mkdtempSync(join(tmpdir(), 'cache-pragma-'));
-    const db = new DatabaseSync(join(dir, 'cache.sqlite'));
+    const db = openDatabase(join(dir, 'cache.sqlite'));
     try {
-      applyPersistencePragmas(db);
-
       expect(
         (db.prepare('PRAGMA journal_mode').get() as { journal_mode: string }).journal_mode,
       ).toBe('wal');
@@ -46,10 +41,39 @@ describe('cache DB fsync pragmas (on-disk)', () => {
     }
   });
 
-  it('leaves an in-memory database alone rather than throwing', () => {
-    const db = new DatabaseSync(':memory:');
+  it('creates the schema as well as the pragmas', {timeout: 15_000}, () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cache-schema-'));
+    const db = openDatabase(join(dir, 'cache.sqlite'));
     try {
-      expect(() => applyPersistencePragmas(db)).not.toThrow();
+      const tables = (db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+        .all() as Array<{ name: string }>).map((r) => r.name);
+
+      expect(tables).toContain('cache');
+    } finally {
+      db.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  /**
+   * WAL needs a file, so an in-memory database keeps journal_mode=memory — but
+   * busy_timeout and synchronous do apply, and none of the three throws. Worth
+   * pinning, because the pragma call used to carry a comment claiming this was
+   * the case the try/catch existed for.
+   */
+  it('leaves an in-memory database on its own journal mode without throwing', () => {
+    const db = openDatabase(':memory:', true);
+    try {
+      expect(
+        (db.prepare('PRAGMA journal_mode').get() as { journal_mode: string }).journal_mode,
+      ).toBe('memory');
+      expect(
+        (db.prepare('PRAGMA busy_timeout').get() as { timeout: number }).timeout,
+      ).toBe(5000);
+      expect(
+        (db.prepare('PRAGMA synchronous').get() as { synchronous: number }).synchronous,
+      ).toBe(1);
     } finally {
       db.close();
     }

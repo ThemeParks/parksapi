@@ -93,6 +93,20 @@ export class PaidReturnTimeBuilder extends ReturnTimeBuilder {
    */
   withPrice(currency: string, amountCents: number | null): this {
     this._currency = currency;
+    // A non-finite amount is a caller bug — an unparsed upstream string, or
+    // arithmetic on an absent field. It cannot be published either way:
+    // JSON.stringify renders NaN as null, which since typelib 1.2.0 is a
+    // meaningful value ("paid, price unpublished") rather than obvious
+    // nonsense, so a NaN would arrive looking like a legitimate unknown.
+    // Normalise it to null so the shape is honest, and say so, because
+    // nothing else downstream will.
+    if (amountCents !== null && !Number.isFinite(amountCents)) {
+      console.warn(
+        `[VQueueBuilder] non-finite paid-queue amount (${amountCents}) for ${currency}, publishing as unknown`,
+      );
+      this._amount = null;
+      return this;
+    }
     this._amount = amountCents;
     return this;
   }

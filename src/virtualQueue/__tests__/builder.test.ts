@@ -121,6 +121,24 @@ describe('VQueueBuilder', () => {
       });
     });
 
+    it('should publish a non-finite amount as unknown rather than as nonsense', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        // NaN is what `Math.round(undefined * 100)` and `parseFloat('12,50')`
+        // produce. JSON.stringify renders it as null anyway, so it would
+        // arrive looking exactly like a legitimate unknown price.
+        const queue = VQueueBuilder.paidReturnTime()
+          .available()
+          .withPrice('USD', Math.round((undefined as any) * 100))
+          .build();
+
+        expect(queue.price).toEqual({currency: 'USD', amount: null});
+        expect(warn).toHaveBeenCalledOnce();
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
     it('should default an unset price amount to null, not free', () => {
       const queue = VQueueBuilder.paidReturnTime().available().build();
 
