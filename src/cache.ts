@@ -92,21 +92,36 @@ function initializeDatabase(db: DatabaseSync, skipMigration: boolean = false): v
 // Initialize the default database
 initializeDatabase(database);
 
-// Enable WAL mode and busy timeout for better concurrent access.
-// WAL allows readers and writers to operate simultaneously, and
-// busy_timeout prevents SQLITE_BUSY errors under contention.
-try {
-  database.exec('PRAGMA journal_mode=WAL');
-  database.exec('PRAGMA busy_timeout=5000');
-  // synchronous=NORMAL: with WAL, fsync only at checkpoints, not per commit.
-  // This is the hot HTTP-response cache — hammered during a park's entity/sync
-  // sweep — and DatabaseSync is synchronous, so per-commit fsync on a slow or
-  // saturated disk stalls the caller's event loop. NORMAL only risks losing the
-  // last uncheckpointed cache rows on a hard crash, which are just re-fetched.
-  database.exec('PRAGMA synchronous=NORMAL');
-} catch {
-  // Ignore if PRAGMAs fail (e.g. in-memory databases)
+/**
+ * Enable WAL mode and busy timeout for better concurrent access.
+ *
+ * WAL allows readers and writers to operate simultaneously, and busy_timeout
+ * prevents SQLITE_BUSY errors under contention.
+ *
+ * synchronous=NORMAL: with WAL, fsync only at checkpoints, not per commit.
+ * This is the hot HTTP-response cache — hammered during a park's entity/sync
+ * sweep — and DatabaseSync is synchronous, so per-commit fsync on a slow or
+ * saturated disk stalls the caller's event loop. NORMAL only risks losing the
+ * last uncheckpointed cache rows on a hard crash, which are just re-fetched.
+ *
+ * Exported so a test can prove the behaviour against a real on-disk database.
+ * The alternative — re-importing this module under a mutated CACHE_DB_PATH —
+ * needs `vi.resetModules()` plus a dynamic import, which intermittently hangs
+ * in a loaded vitest worker pool.
+ *
+ * No-ops on an in-memory database, which cannot do WAL.
+ */
+export function applyPersistencePragmas(db: DatabaseSync): void {
+  try {
+    db.exec('PRAGMA journal_mode=WAL');
+    db.exec('PRAGMA busy_timeout=5000');
+    db.exec('PRAGMA synchronous=NORMAL');
+  } catch {
+    // Ignore if PRAGMAs fail (e.g. in-memory databases)
+  }
 }
+
+applyPersistencePragmas(database);
 
 // Cleanup interval reference
 let cleanupIntervalId: ReturnType<typeof setInterval> | null = null;

@@ -1228,7 +1228,11 @@ describe('Cache', () => {
   });
 
   describe('SQLite WAL Mode', () => {
-    test('WAL and busy_timeout PRAGMAs should be settable on file-based databases', () => {
+    // Generous timeout for the same reason as cachePragmas.test.ts: opening a
+    // real on-disk SQLite in WAL is slow on a loaded machine and will blow the
+    // 5s default. Unique path alone was not enough — this still timed out at
+    // 6.4s once the collision was fixed.
+    test('WAL and busy_timeout PRAGMAs should be settable on file-based databases', {timeout: 60_000}, () => {
       // The test suite uses in-memory database which doesn't support WAL.
       // Verify the PRAGMAs work on a temp file-based database instead.
       //
