@@ -80,7 +80,7 @@ export class ReturnTimeBuilder {
  */
 export class PaidReturnTimeBuilder extends ReturnTimeBuilder {
   private _currency: string = 'USD';
-  private _amount: number | null = 0;
+  private _amount: number | null = null;
 
   /**
    * Set price for paid return time.
@@ -88,9 +88,8 @@ export class PaidReturnTimeBuilder extends ReturnTimeBuilder {
    * @param currency - Currency code (e.g., 'USD', 'EUR')
    * @param amountCents - Price in cents (e.g., 1500 for $15.00). Pass `null`
    *   when the API confirms a paid queue exists but does not expose the price
-   *   (e.g. Tokyo Disney Premier Access). The built queue will have
-   *   `amount: 0, formatted: 'Unknown'` so consumers can distinguish unknown
-   *   from free.
+   *   (e.g. Tokyo Disney Premier Access). The built queue carries
+   *   `amount: null`, which is distinct from `amount: 0` meaning free.
    */
   withPrice(currency: string, amountCents: number | null): this {
     this._currency = currency;
@@ -103,15 +102,12 @@ export class PaidReturnTimeBuilder extends ReturnTimeBuilder {
    */
   build(): NonNullable<LiveQueue['PAID_RETURN_TIME']> {
     const baseQueue = super.build();
-    // typelib's PriceData.amount is required as `number`, so we can't
-    // store `null` directly. Use the optional `formatted` field to mark
-    // unknown prices — this is distinct from `amount: 0` which means free.
-    const price = this._amount === null
-      ? {currency: this._currency as any, amount: 0, formatted: 'Unknown'}
-      : {currency: this._currency as any, amount: this._amount};
+    // typelib >=1.2.0 types PriceData.amount as `number | null`, so an
+    // unknown price is published as `null`. `amount: 0` keeps its own
+    // meaning: the queue is genuinely free.
     return {
       ...baseQueue,
-      price,
+      price: {currency: this._currency as any, amount: this._amount},
     };
   }
 }

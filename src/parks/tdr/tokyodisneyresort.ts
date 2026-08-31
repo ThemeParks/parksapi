@@ -574,12 +574,11 @@ export class TokyoDisneyResort extends Destination {
       // 400/415 on the POSTs. The price is a per-purchase quote for a
       // specific ticket set in any case, not a published per-attraction rate.
       //
-      // The emitted price reads `{amount: 0, currency: 'JPY', formatted:
-      // 'Unknown'}`. That is the framework's marker for "paid, rate unknown"
-      // (see PaidReturnTimeBuilder), forced by typelib requiring
-      // `price.amount` as a non-null `number`. A consumer reading `amount`
-      // alone will mistake it for free; fixing that properly means widening
-      // PriceData, not changing this call.
+      // The emitted price is `{currency: 'JPY', amount: null}` — paid, rate
+      // unknown. `amount: 0` would mean genuinely free, which this is not.
+      // Before typelib 1.2.0 the type required a non-null amount and this
+      // published `0` with a `formatted: 'Unknown'` marker, which read as
+      // free to anyone looking at `amount` alone.
       if (attr.premierAccessStatus) {
         ld.queue!.PAID_RETURN_TIME = this.buildPaidReturnTimeQueue(
           attr.premierAccessStatus === 'SELLING' ? 'AVAILABLE' : 'FINISHED',

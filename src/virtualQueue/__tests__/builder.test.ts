@@ -106,21 +106,25 @@ describe('VQueueBuilder', () => {
       });
     });
 
-    it('should mark null price amount as Unknown', () => {
+    it('should publish an unknown price amount as null', () => {
       const queue = VQueueBuilder.paidReturnTime()
         .available()
         .withWindow('2024-10-15T14:30:00-04:00', null)
         .withPrice('EUR', null)
         .build();
 
-      // typelib forces amount to be a number, so null is stored as 0 with
-      // the optional `formatted: 'Unknown'` marker so consumers can
-      // distinguish "price unknown" from "free"
+      // null means "this queue costs money, the provider does not say how
+      // much". The currency survives, which is real information.
       expect(queue.price).toEqual({
         currency: 'EUR',
-        amount: 0,
-        formatted: 'Unknown',
+        amount: null,
       });
+    });
+
+    it('should default an unset price amount to null, not free', () => {
+      const queue = VQueueBuilder.paidReturnTime().available().build();
+
+      expect(queue.price.amount).toBeNull();
     });
 
     it('should not mark zero price as unknown (free is distinct)', () => {

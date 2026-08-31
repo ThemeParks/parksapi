@@ -347,9 +347,9 @@ describe('buildLiveData — Premier Access and Priority Pass', () => {
       state: 'AVAILABLE',
       returnStart: null,
       returnEnd: null,
-      // amount 0 is typelib's floor, not a claim that it is free — `formatted`
-      // is what marks the price unknown.
-      price: {currency: 'JPY', amount: 0, formatted: 'Unknown'},
+      // Premier Access pricing sits behind an authenticated purchase flow, so
+      // the amount is genuinely unknown rather than zero.
+      price: {currency: 'JPY', amount: null},
     });
   });
 
