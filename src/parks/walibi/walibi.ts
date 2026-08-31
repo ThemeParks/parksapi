@@ -417,29 +417,66 @@ class WalibiBase extends Destination {
    * `closingHour` of 20:00 while the override, the day's `events` asset
    * (`open-10-18h`) and that asset's own title all said 18:00.
    *
+   * This is the same precedence the park's own calendar renderer applies —
+   * `clientlib-shared` takes `customOpeningHourToDisplay` outright whenever it
+   * is non-empty and only falls back to the structured pair when it is not.
+   *
    * Parsed strictly as `HH:MM - HH:MM`, and only that. The field is free text
-   * an editor types, and the event titles alongside it show what free text
-   * does — "Halloween 10:00 - 22:00", and an `open-10-22h` asset titled
-   * "10:00 - 22:30". Anything that is not exactly two times returns null and
-   * leaves the structured hours in place: a shape we half-understand is worse
-   * than the season default we already publish.
+   * an editor types, and they do: Walibi Holland's 31 October row carries
+   * "Early bird tickets uitverkocht - binnenkort komen de reguliere tickets
+   * beschikbaar" in it. Anything that is not exactly two times returns null
+   * and leaves the structured hours in place — a shape we half-understand is
+   * worse than the season default we already publish.
+   *
+   * A window that does not move forwards is rejected for the same reason.
+   * Both times are pinned to the same calendar date by the caller, so
+   * "19:00 - 01:00" would publish a close eighteen hours before its own open.
+   * An after-midnight close cannot be told apart from a transposed one
+   * ("18:00 - 10:00") or a half-finished edit ("18:00 - 18:00") — this field
+   * carries no next-day flag, unlike the explicit `closesNextDay` the
+   * Universal and Fantawild night events hang their roll-over on. So we do
+   * not guess: all three fall back.
    *
    * Bellewaerde, Walibi Holland and Walibi Rhône-Alpes send this field empty
    * on every open day, so today this only ever fires for Walibi Belgium.
    */
   private parseDisplayHours(value: unknown): {opening: string; closing: string} | null {
     if (typeof value !== 'string') return null;
-    const match = /^\s*(\d{1,2}):([0-5]\d)\s*[-\u2013]\s*(\d{1,2}):([0-5]\d)\s*$/.exec(value);
+    // Dash class covers the ASCII hyphen plus U+2010–U+2015 and the minus
+    // sign: the CMS stores whatever the editor's keyboard or paste produced.
+    const match = /^\s*(\d{1,2}):([0-5]\d)\s*[-‐-―−]\s*(\d{1,2}):([0-5]\d)\s*$/.exec(value);
     if (!match) return null;
     const [openHour, closeHour] = [Number(match[1]), Number(match[3])];
-    // A park may legitimately close after midnight, so only reject hours no
-    // clock can hold.
     if (openHour > 23 || closeHour > 23) return null;
+    // Compare minutes-of-day, not hours: "10:30 - 10:15" runs backwards while
+    // its hours are equal, and a bare hour compare would let it through.
+    const openMins = openHour * 60 + Number(match[2]);
+    const closeMins = closeHour * 60 + Number(match[4]);
+    if (closeMins <= openMins) return null;
     return {
       opening: `${String(openHour).padStart(2, '0')}:${match[2]}`,
       closing: `${String(closeHour).padStart(2, '0')}:${match[4]}`,
     };
   }
+
+  /**
+   * Warn once per distinct unreadable override.
+   *
+   * The fallback path is silent by design, and it lands on `closingHour` —
+   * the field this whole method exists because it goes stale. A new CMS
+   * shape would therefore revert us to a known-suspect value with nothing to
+   * show for it. One line per distinct string, mirroring
+   * `warnOrphanWaitTimes`: steady state stays quiet.
+   */
+  private warnUnreadableDisplayHours(value: string): void {
+    if (this.warnedDisplayHours.has(value)) return;
+    this.warnedDisplayHours.add(value);
+    console.warn(
+      `[${this.constructor.name}] unreadable customOpeningHourToDisplay, using season default: ${JSON.stringify(value)}`,
+    );
+  }
+
+  private readonly warnedDisplayHours = new Set<string>();
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     let calData: any;
@@ -466,13 +503,20 @@ class WalibiBase extends Destination {
         for (const dayKey of Object.keys(month.days)) {
           const day = month.days[dayKey];
           if (day.closed || day.soldOut) continue;
-          if (!day.openingHour || !day.closingHour) continue;
 
           const dateStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(dayKey).padStart(2, '0')}`;
 
-          const displayed = this.parseDisplayHours(day.customOpeningHourToDisplay);
+          // Resolve the hours before testing them, so an override can carry a
+          // day the structured pair has left empty. The override gives both
+          // times, so it stands on its own.
+          const raw = day.customOpeningHourToDisplay;
+          const displayed = this.parseDisplayHours(raw);
+          if (!displayed && typeof raw === 'string' && raw.trim() !== '') {
+            this.warnUnreadableDisplayHours(raw);
+          }
           const openingHour = displayed?.opening ?? day.openingHour;
           const closingHour = displayed?.closing ?? day.closingHour;
+          if (!openingHour || !closingHour) continue;
 
           schedule.push({
             date: dateStr,
