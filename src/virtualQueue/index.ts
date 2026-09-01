@@ -2,8 +2,8 @@
  * Virtual Queue Framework
  *
  * Utilities for building and managing virtual queue systems across theme parks.
- * Provides builders, validators, and helpers for return time queues, boarding groups,
- * and paid virtual queue systems.
+ * Provides builders and helpers for return time queues, boarding groups,
+ * and paid virtual queue systems. Output is checked by `npm run audit:live`.
  *
  * @module virtualQueue
  */
@@ -18,11 +18,6 @@ export {
   determineReturnTimeState,
   determineBoardingGroupState,
 } from './state.js';
-export {
-  validateReturnTimeQueue,
-  validateBoardingGroupQueue,
-  validatePaidReturnTimeQueue,
-} from './validator.js';
 
 // Re-export types from typelib for convenience
 export type {
