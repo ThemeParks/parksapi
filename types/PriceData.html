@@ -10,7 +10,7 @@
 <ul class="tsd-breadcrumb" aria-label="Breadcrumb">
 <li><a href="" aria-current="page">PriceData</a></li></ul>
 <h1>Type Alias PriceData</h1></div>
-<div class="tsd-signature"><span class="tsd-signature-keyword">type</span> <span class="tsd-kind-type-alias">PriceData</span> <span class="tsd-signature-symbol">=</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#amount">amount</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#currency">currency</a><span class="tsd-signature-symbol">:</span> <a href="CurrencyTypes.html" class="tsd-signature-type tsd-kind-type-alias">CurrencyTypes</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#formatted">formatted</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
+<div class="tsd-signature"><span class="tsd-signature-keyword">type</span> <span class="tsd-kind-type-alias">PriceData</span> <span class="tsd-signature-symbol">=</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#amount">amount</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#currency">currency</a><span class="tsd-signature-symbol">:</span> <a href="CurrencyTypes.html" class="tsd-signature-type tsd-kind-type-alias">CurrencyTypes</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#formatted">formatted</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
 <li>Defined in node_modules/@themeparks/typelib/dist/types/pricedata.types.d.ts:12</li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
@@ -29,8 +29,8 @@
 <section>
 <section class="tsd-panel tsd-member tsd-is-external">
 <h3 class="tsd-anchor-link" id="amount"><span>amount</span><a href="#amount" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-signature"><span class="tsd-kind-property">amount</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
-<div class="tsd-comment tsd-typography"><p>Numerical price amount. Always in the lowest denomination (e.g. cents for USD)</p>
+<div class="tsd-signature"><span class="tsd-kind-property">amount</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span></div>
+<div class="tsd-comment tsd-typography"><p>Numerical price amount. Always in the lowest denomination (e.g. cents for USD). null when the price is unknown, i.e. the item costs money but the provider does not publish an amount; 0 means genuinely free</p>
 </div><aside class="tsd-sources">
 <ul>
 <li>Defined in node_modules/@themeparks/typelib/dist/types/pricedata.types.d.ts:14</li></ul></aside></section>
