@@ -106,21 +106,43 @@ describe('VQueueBuilder', () => {
       });
     });
 
-    it('should mark null price amount as Unknown', () => {
+    it('should publish an unknown price amount as null', () => {
       const queue = VQueueBuilder.paidReturnTime()
         .available()
         .withWindow('2024-10-15T14:30:00-04:00', null)
         .withPrice('EUR', null)
         .build();
 
-      // typelib forces amount to be a number, so null is stored as 0 with
-      // the optional `formatted: 'Unknown'` marker so consumers can
-      // distinguish "price unknown" from "free"
+      // null means "this queue costs money, the provider does not say how
+      // much". The currency survives, which is real information.
       expect(queue.price).toEqual({
         currency: 'EUR',
-        amount: 0,
-        formatted: 'Unknown',
+        amount: null,
       });
+    });
+
+    it('should publish a non-finite amount as unknown rather than as nonsense', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        // NaN is what `Math.round(undefined * 100)` and `parseFloat('12,50')`
+        // produce. JSON.stringify renders it as null anyway, so it would
+        // arrive looking exactly like a legitimate unknown price.
+        const queue = VQueueBuilder.paidReturnTime()
+          .available()
+          .withPrice('USD', Math.round((undefined as any) * 100))
+          .build();
+
+        expect(queue.price).toEqual({currency: 'USD', amount: null});
+        expect(warn).toHaveBeenCalledOnce();
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it('should default an unset price amount to null, not free', () => {
+      const queue = VQueueBuilder.paidReturnTime().available().build();
+
+      expect(queue.price.amount).toBeNull();
     });
 
     it('should not mark zero price as unknown (free is distinct)', () => {

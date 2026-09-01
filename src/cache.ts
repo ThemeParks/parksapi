@@ -9,8 +9,9 @@ const CLEANUP_INTERVAL_MS = parseInt(process.env.CACHE_CLEANUP_INTERVAL_MS || '3
 // Track if we're in temporary mode
 let isTemporaryMode = false;
 
-// Initialize database (can be re-initialized)
-let database = new DatabaseSync(CACHE_DB_PATH);
+// Initialize database (can be re-initialized). Assigned below, once
+// openDatabase() is defined — every cache database is built through it.
+let database: DatabaseSync;
 
 export {database};
 
@@ -89,24 +90,58 @@ function initializeDatabase(db: DatabaseSync, skipMigration: boolean = false): v
   `);
 }
 
-// Initialize the default database
-initializeDatabase(database);
-
-// Enable WAL mode and busy timeout for better concurrent access.
-// WAL allows readers and writers to operate simultaneously, and
-// busy_timeout prevents SQLITE_BUSY errors under contention.
-try {
-  database.exec('PRAGMA journal_mode=WAL');
-  database.exec('PRAGMA busy_timeout=5000');
-  // synchronous=NORMAL: with WAL, fsync only at checkpoints, not per commit.
-  // This is the hot HTTP-response cache — hammered during a park's entity/sync
-  // sweep — and DatabaseSync is synchronous, so per-commit fsync on a slow or
-  // saturated disk stalls the caller's event loop. NORMAL only risks losing the
-  // last uncheckpointed cache rows on a hard crash, which are just re-fetched.
-  database.exec('PRAGMA synchronous=NORMAL');
-} catch {
-  // Ignore if PRAGMAs fail (e.g. in-memory databases)
+/**
+ * Apply the pragmas the cache relies on.
+ *
+ * WAL lets readers and writers work simultaneously, and busy_timeout waits out
+ * a competing writer instead of throwing SQLITE_BUSY.
+ *
+ * synchronous=NORMAL: with WAL, fsync happens at checkpoints rather than per
+ * commit. This is the hot HTTP-response cache — hammered during a park's
+ * entity/sync sweep — and DatabaseSync is synchronous, so per-commit fsync on
+ * a slow or saturated disk stalls the caller's event loop. NORMAL only risks
+ * losing the last uncheckpointed cache rows on a hard crash, and those are
+ * just re-fetched.
+ *
+ * On an in-memory database `journal_mode` stays `memory` — WAL needs a file —
+ * but `busy_timeout` and `synchronous` do apply. None of the three throws
+ * there, so the catch below is not for that case: it is for a real failure
+ * such as another process holding the database, which would otherwise leave us
+ * running on `journal_mode=delete` with `synchronous=FULL` in silence.
+ *
+ * @internal Exported so a test can prove the behaviour against a real on-disk
+ * database. Not part of the supported package surface.
+ */
+export function applyPersistencePragmas(db: DatabaseSync): void {
+  try {
+    db.exec('PRAGMA journal_mode=WAL');
+    db.exec('PRAGMA busy_timeout=5000');
+    db.exec('PRAGMA synchronous=NORMAL');
+  } catch (err) {
+    console.warn('Cache: failed to apply persistence pragmas, continuing on SQLite defaults:', err);
+  }
 }
+
+/**
+ * Open a cache database.
+ *
+ * The single construction path, so a cache database without its pragmas is not
+ * a state this module can reach. Pragmas go on BEFORE the schema deliberately:
+ * `initializeDatabase` runs five DDL statements, and running those under the
+ * default `journal_mode=delete` + `synchronous=FULL` costs roughly eight times
+ * as much on a cold start (p50 2572ms against 324ms, measured on a loaded
+ * machine) — synchronously, at import time, blocking the event loop.
+ *
+ * @internal
+ */
+export function openDatabase(path: string, skipMigration: boolean = false): DatabaseSync {
+  const db = new DatabaseSync(path);
+  applyPersistencePragmas(db);
+  initializeDatabase(db, skipMigration);
+  return db;
+}
+
+database = openDatabase(CACHE_DB_PATH);
 
 // Cleanup interval reference
 let cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -133,9 +168,8 @@ class CacheLib {
     // Stop cleanup if running
     this.stopCleanup();
 
-    // Create new in-memory database
-    database = new DatabaseSync(':memory:');
-    initializeDatabase(database, true); // Skip migration for in-memory DB
+    // Create new in-memory database (skip migration — nothing to migrate)
+    database = openDatabase(':memory:', true);
   }
 
   /**
