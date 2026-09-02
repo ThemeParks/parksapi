@@ -476,10 +476,33 @@ export class TokyoDisneyResort extends Destination {
    *
    * Returns an empty map on any failure. A price is a bonus on top of the
    * queue state, and never a reason to lose it.
+   *
+   * The webBase guard sits here, outside the cache, on purpose. Inside the
+   * cached method it would write an empty map under the same key a configured
+   * run reads, so a build that starts unconfigured and gets its webBase later
+   * keeps serving that empty map until the TTL runs out. That happened once,
+   * on 2026-09-02: the price shipped, the config landed an hour behind it, and
+   * every Premier Access queue published a null price for the rest of the day
+   * with nothing in the logs to say why.
    */
-  @cache({ttlSeconds: 60 * 60 * 12})
   async getPremierAccessPrices(): Promise<Record<string, number>> {
     if (!this.webBase) return {};
+    return this.loadPremierAccessPrices();
+  }
+
+  /**
+   * Fetch and parse the guide page.
+   *
+   * Split from getPremierAccessPrices so only a configured lookup is ever
+   * cached, and given a TTL that depends on what came back: half a day for a
+   * real rate card, five minutes for an empty one. An empty result means the
+   * fetch failed or the page changed shape, and neither deserves to outlive a
+   * fix by twelve hours. The success path is what the long TTL is for — the
+   * rate card changes a few times a year.
+   */
+  @cache({callback: (prices: Record<string, number> | undefined) =>
+    prices && Object.keys(prices).length > 0 ? 60 * 60 * 12 : 60 * 5})
+  async loadPremierAccessPrices(): Promise<Record<string, number>> {
     try {
       const resp = await this.fetchPremierAccessPrices();
       const html = await resp.text();

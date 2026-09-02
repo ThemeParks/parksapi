@@ -1,5 +1,6 @@
 import {describe, test, expect, vi, beforeEach, afterEach} from 'vitest';
 import {mapAttractionStatus, TokyoDisneyResort} from '../tokyodisneyresort.js';
+import {CacheLib} from '../../../cache.js';
 
 const NOON_JST_UTC = '2026-06-17T03:00:00.000Z'; // 12:00 JST = parks open
 
@@ -428,5 +429,96 @@ describe('buildLiveData — Premier Access and Priority Pass', () => {
     vi.spyOn(probe, 'getPremierAccessPrices').mockRejectedValue(new Error('site unavailable'));
 
     await expect(probe.getLiveData()).resolves.toBeDefined();
+  });
+});
+
+/**
+ * The price lookup caches, and what it caches has to be worth keeping.
+ *
+ * Two failure modes this guards, both of which cost a real day of prices on
+ * 2026-09-02. An unconfigured build must not write an empty map under the key
+ * a configured build reads, and a fetch that came back empty must not sit
+ * there for half a day.
+ */
+describe('getPremierAccessPrices caching', () => {
+  const priced = (webBase: string, html: string) => {
+    const probe = new TokyoDisneyResort({});
+    (probe as any).webBase = webBase;
+    const fetchSpy = vi.spyOn(probe, 'fetchPremierAccessPrices')
+      .mockResolvedValue({text: async () => html} as any);
+    return {probe, fetchSpy};
+  };
+
+  const page = `
+    <div class="listTextArea">
+      <p class="heading3">Splash Mountain</p>
+      <strong>1,500 yen per access</strong>
+    </div>`;
+
+  beforeEach(() => {
+    CacheLib.clearByClassName('TokyoDisneyResort');
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    CacheLib.clearByClassName('TokyoDisneyResort');
+  });
+
+  test('with no webBase it returns empty without fetching', async () => {
+    const {probe, fetchSpy} = priced('', page);
+
+    expect(await probe.getPremierAccessPrices()).toEqual({});
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The regression. The guard used to sit inside the cached method, so the
+   * empty map an unconfigured process returned was stored under the key every
+   * later call reads — and configuring webBase afterwards changed nothing
+   * until the twelve hour TTL ran out.
+   */
+  test('an unconfigured call does not poison a later configured one', async () => {
+    const {probe: unconfigured} = priced('', page);
+    expect(await unconfigured.getPremierAccessPrices()).toEqual({});
+
+    const {probe, fetchSpy} = priced('https://example.test', page);
+
+    expect(await probe.getPremierAccessPrices()).toEqual({'Splash Mountain': 1500});
+    expect(fetchSpy).toHaveBeenCalled();
+  });
+
+  test('a rate card is held for half a day', async () => {
+    vi.useFakeTimers();
+    const {probe, fetchSpy} = priced('https://example.test', page);
+
+    await probe.getPremierAccessPrices();
+    vi.advanceTimersByTime(6 * 60 * 1000);
+    expect(await probe.getPremierAccessPrices()).toEqual({'Splash Mountain': 1500});
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * An empty page means the fetch failed or the markup moved. Either way it is
+   * a state a fix should clear in minutes, not one that outlives the deploy.
+   */
+  test('an empty result is retried within minutes', async () => {
+    vi.useFakeTimers();
+    const {probe, fetchSpy} = priced('https://example.test', '<html>nothing</html>');
+
+    expect(await probe.getPremierAccessPrices()).toEqual({});
+    vi.advanceTimersByTime(6 * 60 * 1000);
+    await probe.getPremierAccessPrices();
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  test('a throwing fetch yields empty rather than losing the live data', async () => {
+    const probe = new TokyoDisneyResort({});
+    (probe as any).webBase = 'https://example.test';
+    vi.spyOn(probe, 'fetchPremierAccessPrices').mockRejectedValue(new Error('handshake'));
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    expect(await probe.getPremierAccessPrices()).toEqual({});
   });
 });
