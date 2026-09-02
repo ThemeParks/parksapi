@@ -310,12 +310,20 @@ describe('buildSchedules', () => {
  * Premier Access and Priority Pass reduce to a single boolean each in the
  * anonymous feed, so the emitted queues are deliberately hollow. Pinned
  * because the shape looks like a gap and gets re-reported as one: the return
- * windows and the yen price live behind POST endpoints that want registered
- * park tickets and a `cid:ctoken` credential, so null is the honest value.
+ * windows live behind POST endpoints that want registered park tickets and a
+ * `cid:ctoken` credential, so null is the honest value for those.
+ *
+ * The price is a different matter: the API never carries one, but the rate is
+ * published on the public guide page, so it is filled in when a webBase is
+ * configured and stays null otherwise.
  */
 describe('buildLiveData — Premier Access and Priority Pass', () => {
-  const conditions = (attraction: Record<string, any>) => {
+  const conditions = (attraction: Record<string, any>, prices: Record<string, number> = {}) => {
     const probe = new TokyoDisneyResort({});
+    vi.spyOn(probe, 'getPremierAccessPrices').mockResolvedValue(prices);
+    vi.spyOn(probe, 'getFacilities').mockResolvedValue([
+      {facilityCode: 'A1', name: 'Splash Mountain'} as any,
+    ]);
     vi.spyOn(probe, 'getConditions').mockResolvedValue({
       attractions: [{
         facilityCode: 'A1',
@@ -385,5 +393,40 @@ describe('buildLiveData — Premier Access and Priority Pass', () => {
 
     expect(row.queue!.PAID_RETURN_TIME!.state).toBe('AVAILABLE');
     expect(row.queue!.RETURN_TIME!.state).toBe('FINISHED');
+  });
+
+  /**
+   * The published rate reaches the wire when it is available. Whole yen: JPY
+   * has no minor unit, so the amount is the price rather than a hundredth of
+   * it, unlike the cents every other park reports.
+   */
+  test('a published rate is emitted as the price', async () => {
+    const [row] = await conditions(
+      {premierAccessStatus: 'SELLING'},
+      {'Splash Mountain': 1500},
+    ).getLiveData();
+
+    expect(row.queue!.PAID_RETURN_TIME!.price).toEqual({currency: 'JPY', amount: 1500});
+  });
+
+  test('an experience with no published rate stays null, not zero', async () => {
+    const [row] = await conditions(
+      {premierAccessStatus: 'SELLING'},
+      {'Some Other Ride': 1500},
+    ).getLiveData();
+
+    expect(row.queue!.PAID_RETURN_TIME!.price).toEqual({currency: 'JPY', amount: null});
+  });
+
+  /**
+   * The guide page is a bonus on top of the queue state. If it cannot be read
+   * the queue must still be published — losing a price is acceptable, losing
+   * the live data is not.
+   */
+  test('the queue survives the price lookup failing', async () => {
+    const probe = conditions({premierAccessStatus: 'SELLING'});
+    vi.spyOn(probe, 'getPremierAccessPrices').mockRejectedValue(new Error('site unavailable'));
+
+    await expect(probe.getLiveData()).resolves.toBeDefined();
   });
 });
