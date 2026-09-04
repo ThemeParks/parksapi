@@ -1228,11 +1228,28 @@ describe('Cache', () => {
   });
 
   describe('SQLite WAL Mode', () => {
-    test('WAL and busy_timeout PRAGMAs should be settable on file-based databases', () => {
+    // Headroom against worker starvation, not against SQLite. The open plus
+    // three pragmas measures under a second even on a heavily loaded machine;
+    // what blows the 5s default is the whole vitest worker being starved by a
+    // parallel run. 15s is ~20x the worst measured value and still fails fast
+    // if this ever genuinely wedges.
+    test('WAL and busy_timeout PRAGMAs should be settable on file-based databases', {timeout: 15_000}, () => {
       // The test suite uses in-memory database which doesn't support WAL.
       // Verify the PRAGMAs work on a temp file-based database instead.
+      //
+      // The path has to be unique per run. This used to be a fixed
+      // `/tmp/cache_wal_test.sqlite`, which two overlapping vitest processes
+      // would open, WAL, and unlink from under each other — the test then
+      // failed for reasons that had nothing to do with the change under test.
+      // A gate test may not depend on being the only one running.
       const {DatabaseSync} = require('node:sqlite');
-      const tmpDb = new DatabaseSync('/tmp/cache_wal_test.sqlite');
+      const os = require('os');
+      const path = require('path');
+      const dbPath = path.join(
+        require('fs').mkdtempSync(path.join(os.tmpdir(), 'cache-wal-')),
+        'cache_wal_test.sqlite',
+      );
+      const tmpDb = new DatabaseSync(dbPath);
       try {
         tmpDb.exec('PRAGMA journal_mode=WAL');
         tmpDb.exec('PRAGMA busy_timeout=5000');
@@ -1244,10 +1261,8 @@ describe('Cache', () => {
         expect(busyTimeout.timeout).toBe(5000);
       } finally {
         tmpDb.close();
-        require('fs').unlinkSync('/tmp/cache_wal_test.sqlite');
-        // Clean up WAL/SHM files if they exist
-        try { require('fs').unlinkSync('/tmp/cache_wal_test.sqlite-wal'); } catch {}
-        try { require('fs').unlinkSync('/tmp/cache_wal_test.sqlite-shm'); } catch {}
+        // The whole directory goes, so the WAL/SHM siblings go with it.
+        require('fs').rmSync(path.dirname(dbPath), {recursive: true, force: true});
       }
     });
   });

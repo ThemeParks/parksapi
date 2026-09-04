@@ -32,7 +32,7 @@ const MAX_FUTURE_MINUTES = 5;
 
 // ── Types ────────────────────────────────────────────────────────────
 
-type Issue = {
+export type Issue = {
   level: 'error' | 'warn';
   path: string;
   message: string;
@@ -149,7 +149,7 @@ function validateLiveItem(item: LiveItem, idx: number): Issue[] {
   return issues;
 }
 
-function validateQueueEntry(qType: string, q: unknown, path: string): Issue[] {
+export function validateQueueEntry(qType: string, q: unknown, path: string): Issue[] {
   const issues: Issue[] = [];
   if (typeof q !== 'object' || q === null) {
     issues.push({level: 'error', path, message: `queue entry must be object`});
@@ -186,12 +186,26 @@ function validateQueueEntry(qType: string, q: unknown, path: string): Issue[] {
           issues.push({level: 'warn', path: `${path}.${k}`, message: `${k} "${v}" doesn't look like ISO date`});
         }
       }
+      // A window that runs backwards is always a bug, unlike an absent one —
+      // Tokyo's return windows are login-gated upstream and legitimately null
+      // on every poll, so absence is not checked here.
+      if (typeof qe.returnStart === 'string' && typeof qe.returnEnd === 'string') {
+        const start = Date.parse(qe.returnStart);
+        const end = Date.parse(qe.returnEnd);
+        if (Number.isFinite(start) && Number.isFinite(end) && end <= start) {
+          issues.push({level: 'error', path: `${path}.returnEnd`, message: 'returnEnd must be after returnStart'});
+        }
+      }
       if (qType === 'PAID_RETURN_TIME') {
         const price = qe.price as Record<string, unknown> | undefined;
         if (!price) {
           issues.push({level: 'error', path: `${path}.price`, message: 'paid return time must include price'});
         } else {
-          if (typeof price.currency !== 'string') issues.push({level: 'error', path: `${path}.price.currency`, message: 'currency must be string'});
+          if (typeof price.currency !== 'string') {
+            issues.push({level: 'error', path: `${path}.price.currency`, message: 'currency must be string'});
+          } else if (!/^[A-Z]{3}$/.test(price.currency)) {
+            issues.push({level: 'error', path: `${path}.price.currency`, message: `currency "${price.currency}" must be a 3-letter ISO 4217 code`});
+          }
           if (price.amount !== null && typeof price.amount !== 'number') issues.push({level: 'error', path: `${path}.price.amount`, message: 'amount must be number|null'});
         }
       }
@@ -207,6 +221,16 @@ function validateQueueEntry(qType: string, q: unknown, path: string): Issue[] {
         if (v !== null && v !== undefined && typeof v !== 'number') {
           issues.push({level: 'error', path: `${path}.${k}`, message: `${k} must be number|null`});
         }
+      }
+      // Boarding groups are allocated in ascending order, so a range that runs
+      // backwards is a bug. An absent range is not — plenty of parks publish
+      // the status without the numbers.
+      if (typeof qe.currentGroupStart === 'number' && typeof qe.currentGroupEnd === 'number'
+          && qe.currentGroupEnd < qe.currentGroupStart) {
+        issues.push({level: 'error', path: `${path}.currentGroupEnd`, message: 'currentGroupEnd must be >= currentGroupStart'});
+      }
+      if (typeof qe.estimatedWait === 'number' && qe.estimatedWait < 0) {
+        issues.push({level: 'error', path: `${path}.estimatedWait`, message: 'estimatedWait must not be negative'});
       }
       break;
     }

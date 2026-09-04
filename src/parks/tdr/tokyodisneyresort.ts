@@ -5,6 +5,7 @@ import {inject} from '../../injector.js';
 import config from '../../config.js';
 import {destinationController} from '../../destinationRegistry.js';
 import {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
+import {decodeHtmlEntities, stripHtmlTags} from '../../htmlUtils.js';
 import {constructDateTime} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
@@ -13,6 +14,44 @@ import {TagBuilder} from '../../tags/index.js';
 // ============================================================================
 
 /** Static park data for the two parks in Tokyo Disney Resort */
+/**
+ * Pull the published Premier Access prices out of the guide page.
+ *
+ * The page lists each experience followed by "N,NNN yen per access". Both
+ * parks are in the document at once — one is behind a tab, so it is present in
+ * the markup even when it is not on screen.
+ *
+ * Names are taken verbatim and matched exactly against the facility feed,
+ * which writes them identically. Exact rather than fuzzy on purpose: Tokyo
+ * Disneyland has both "Peter Pan's Flight" and "Peter Pan's Never Land
+ * Adventure", and only the second is sold with Premier Access.
+ */
+export function parsePremierAccessPrices(html: string): Record<string, number> {
+  const prices: Record<string, number> = {};
+  // Each experience is a heading followed by its rate in the same block:
+  //   <p class="heading3">Splash Mountain</p> … <strong>1,500 yen per access</strong>
+  //
+  // Split on the headings and look for a rate inside each one's own span,
+  // rather than flattening the page and scanning it. Stripping the tags leaves
+  // no separator between elements, so a flat scan reads the tail of whatever
+  // precedes a price as part of the name; and pairing a heading with the next
+  // rate anywhere after it lets an experience with no rate borrow the next
+  // one's.
+  const headings = [...html.matchAll(/class="heading3"[^>]*>([\s\S]*?)<\/p>/g)];
+  for (let i = 0; i < headings.length; i++) {
+    const h = headings[i];
+    const from = (h.index ?? 0) + h[0].length;
+    const to = i + 1 < headings.length ? (headings[i + 1].index ?? html.length) : html.length;
+    const rate = /([\d,]{3,7})\s*yen per access/.exec(html.slice(from, to));
+    if (!rate) continue;
+    const name = decodeHtmlEntities(stripHtmlTags(h[1])).replace(/\s+/g, ' ').trim();
+    const yen = Number(rate[1].replace(/,/g, ''));
+    if (!name || !Number.isFinite(yen) || yen <= 0) continue;
+    prices[name] = yen;
+  }
+  return prices;
+}
+
 const PARK_DATA: Record<string, {name: string; lat: number; lng: number}> = {
   tdl: {name: 'Tokyo Disneyland', lat: 35.632896, lng: 139.880394},
   tds: {name: 'Tokyo DisneySea', lat: 35.626411, lng: 139.885099},
@@ -157,6 +196,17 @@ export class TokyoDisneyResort extends Destination {
 
   @config
   fallbackDeviceId: string = '';
+
+  /**
+   * Base of the public guide site, e.g. https://www.tokyodisneyresort.jp.
+   *
+   * Unset by default, which makes the Premier Access price lookup a no-op and
+   * leaves the published price at `amount: null` — the same output as before
+   * this existed. Set it only in a build whose HTTP client the site accepts
+   * (see fetchPremierAccessPrices).
+   */
+  @config
+  webBase: string = '';
 
   @config
   timezone: string = 'Asia/Tokyo';
@@ -374,6 +424,95 @@ export class TokyoDisneyResort extends Destination {
   /**
    * Get calendar data (cached 12h)
    */
+  /**
+   * URL of the Disney Premier Access guide page, which carries the published
+   * price for each experience.
+   *
+   * Public because a caller that has to fetch this with its own HTTP client
+   * (see fetchPremierAccessPrices) must build the same URL rather than keeping
+   * a second copy of the path that can drift from this one.
+   */
+  premierAccessPricesUrl(): string {
+    return `${this.webBase}/en/tdr/guide/app_service/disneypremieraccess.html`;
+  }
+
+  /**
+   * The Premier Access guide page.
+   *
+   * The site refuses parksapi's own HTTP client, so this does not complete
+   * unless the caller supplies a client it accepts (see
+   * premierAccessPricesUrl). With no webBase configured the price lookup is
+   * skipped entirely, so the default build never calls this.
+   */
+  @http({cacheSeconds: 60 * 60 * 12, retries: 1})
+  async fetchPremierAccessPrices(): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: this.premierAccessPricesUrl(),
+      options: {json: false},
+      tags: ['website'],
+    } as HTTPObj;
+  }
+
+  /**
+   * Published Premier Access price per experience, keyed on the experience
+   * name exactly as the guide page writes it.
+   *
+   * The API never carries a price. Every endpoint that does sits behind a
+   * purchase flow requiring park tickets registered to a signed-in account, so
+   * an anonymous client cannot read one — but the rate itself is published, a
+   * flat per-experience figure on the public guide page. That is what this
+   * reads.
+   *
+   * Two things it is not. It is a rate card rather than a live quote, so it
+   * says what an experience costs, not what any particular guest was charged.
+   * And some entries carry an eligibility period ("From September 16 through
+   * October 31"); those are not parsed, because the live feed already tells us
+   * whether Premier Access is being sold for an experience today and that is
+   * the better signal.
+   *
+   * Amounts are whole yen. JPY has no minor unit, so the value is the price
+   * itself rather than a hundredth of it.
+   *
+   * Returns an empty map on any failure. A price is a bonus on top of the
+   * queue state, and never a reason to lose it.
+   *
+   * The webBase guard sits here, outside the cache, on purpose. Inside the
+   * cached method it would write an empty map under the same key a configured
+   * run reads, so a build that starts unconfigured and gets its webBase later
+   * keeps serving that empty map until the TTL runs out. That happened once,
+   * on 2026-09-02: the price shipped, the config landed an hour behind it, and
+   * every Premier Access queue published a null price for the rest of the day
+   * with nothing in the logs to say why.
+   */
+  async getPremierAccessPrices(): Promise<Record<string, number>> {
+    if (!this.webBase) return {};
+    return this.loadPremierAccessPrices();
+  }
+
+  /**
+   * Fetch and parse the guide page.
+   *
+   * Split from getPremierAccessPrices so only a configured lookup is ever
+   * cached, and given a TTL that depends on what came back: half a day for a
+   * real rate card, five minutes for an empty one. An empty result means the
+   * fetch failed or the page changed shape, and neither deserves to outlive a
+   * fix by twelve hours. The success path is what the long TTL is for — the
+   * rate card changes a few times a year.
+   */
+  @cache({callback: (prices: Record<string, number> | undefined) =>
+    prices && Object.keys(prices).length > 0 ? 60 * 60 * 12 : 60 * 5})
+  async loadPremierAccessPrices(): Promise<Record<string, number>> {
+    try {
+      const resp = await this.fetchPremierAccessPrices();
+      const html = await resp.text();
+      return parsePremierAccessPrices(html);
+    } catch (err) {
+      console.warn(`[${this.constructor.name}] Premier Access prices unavailable:`, err);
+      return {};
+    }
+  }
+
   @cache({ttlSeconds: 60 * 60 * 12})
   async getCalendar(): Promise<TDRCalendarEntry[]> {
     const resp = await this.fetchCalendar();
@@ -527,6 +666,14 @@ export class TokyoDisneyResort extends Destination {
 
   protected async buildLiveData(): Promise<LiveData[]> {
     const conditions = await this.getConditions();
+    // Prices are a bonus on top of the queue state. Both of these degrade to
+    // empty rather than throwing, so a guide-page change cannot cost us the
+    // live data.
+    const prices = await this.getPremierAccessPrices().catch(() => ({} as Record<string, number>));
+    const nameByCode = new Map<string, string>(
+      (await this.getFacilities().catch(() => []))
+        .map((f) => [String(f.facilityCode), f.name] as const),
+    );
     const liveData: LiveData[] = [];
 
     if (!conditions?.attractions) {
@@ -559,14 +706,31 @@ export class TokyoDisneyResort extends Destination {
         },
       };
 
-      // Premier Access (paid return time)
+      // Premier Access (paid return time).
+      //
+      // The return WINDOW is genuinely unavailable. /rest/v7/facilities/
+      // conditions carries premierAccessStatus and nothing else; the endpoints
+      // that hold a window all require park tickets registered to a signed-in
+      // account, so an anonymous client cannot read one. Those nulls are a
+      // hard limit, not a TODO.
+      //
+      // The PRICE is not. It is published as a flat per-experience rate on the
+      // public guide page, and getPremierAccessPrices() reads it when a
+      // webBase is configured. Absent that it stays null, which means "paid,
+      // rate unknown" — never 0, which would say the queue is free.
+      //
+      // An earlier version of this comment claimed the price was a
+      // per-purchase quote and therefore unobtainable. That was wrong: the API
+      // not carrying a value is not the same as the value being unpublished.
       if (attr.premierAccessStatus) {
+        const facilityName = nameByCode.get(String(attr.facilityCode));
+        const yen = facilityName ? prices[facilityName] : undefined;
         ld.queue!.PAID_RETURN_TIME = this.buildPaidReturnTimeQueue(
           attr.premierAccessStatus === 'SELLING' ? 'AVAILABLE' : 'FINISHED',
           null,
           null,
           'JPY',
-          null,
+          yen ?? null,
         );
       }
 
@@ -585,6 +749,25 @@ export class TokyoDisneyResort extends Destination {
     return liveData;
   }
 
+  /**
+   * Park hours from `/rest/v1/parks/calendars`.
+   *
+   * The output looks wrong and is not: every announced day opens at 09:00,
+   * New Year's Eve included. That is what the resort publishes. Checked
+   * against tokyodisneyresort.jp over 2026-08 → 2027-02 — the site shows
+   * 09:00-21:00 on 303 park-days, 09:00-18:30 on 5 and 09:00-19:00 on 2, and
+   * the exception dates are the same set this endpoint returns. The app has
+   * no other source: `/rest/v3/parks/conditions` carries `earlyEntryFlg` and
+   * `allNightDay` as bare booleans with no times, and `/rest/v2|v3/parks/
+   * calendars` are 404.
+   *
+   * `spOpenTime`/`spCloseTime` are empty on every current row because no
+   * special-hours event is scheduled, so the EXTRA_HOURS branch below is
+   * dormant rather than dead.
+   *
+   * Closed and undecided days are dropped. `CLOSED` is not a typelib
+   * ScheduleType — absence is how a closure is expressed.
+   */
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const calendar = await this.getCalendar();
 

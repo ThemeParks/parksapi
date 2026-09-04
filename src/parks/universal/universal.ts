@@ -12,7 +12,7 @@ import {
   EntitySchedule,
   QueueTypeEnum,
 } from '@themeparks/typelib';
-import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore, constructDateTime, addMinutes, hostnameFromUrl} from '../../datetime.js';
+import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore, constructDateTime, addMinutes, hostnameFromUrl, shiftDateString} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 import {randomPointInRadius} from '../../geo.js';
 
@@ -546,9 +546,87 @@ class Universal extends Destination {
   @config
   timezone: string = "America/New_York";
 
+  /**
+   * Halloween Horror Nights attractions are absent from
+   * wait-time-attraction-list.json outside the event rather than listed as
+   * closed, so buildLiveData() has nothing to key off and the row freezes at
+   * whatever the last event night reported (parksapi #519). See
+   * Destination.retireMissingLiveEntities for the mechanism.
+   */
+  protected retireMissingLiveEntities = true;
+
+  /**
+   * The shared default is a week, sized for shows that retire at the end of
+   * a run. HHN leaves the feed at closing time and rejoins it the next event
+   * night, so a week would never fire mid-season.
+   *
+   * Four hours sits between the two bounds that matter. The event runs while
+   * the day park is shut, when the collector polls every 45 minutes, so the
+   * window has to clear a gap of that order: four hours spans roughly five
+   * consecutive polls. It also has to fire inside the daytime absence, which
+   * runs from a 01:00-02:00 close to 18:30 doors, and a close at 05:00-06:00
+   * leaves over twelve hours of margin. Eight hours would not: after a peak
+   * weekend it fires at 10:00, and #519 was reported at 10:51.
+   */
+  protected liveEntityRetirementMs = 4 * 60 * 60 * 1000;
+
+  /**
+   * Full URL of the website page payload carrying the ticketed-event calendar
+   * (Halloween Horror Nights). Empty by default: with no URL configured
+   * buildSchedules() emits day-park hours exactly as before and never touches
+   * the site. The whole URL rather than a path because each resort's event
+   * lives on its own microsite.
+   */
+  @config
+  eventCalendarURL: string = '';
+
+  /**
+   * Place id of the park the event runs in, e.g. `uor.usf`. The event calendar
+   * covers one park, not the resort, and without this there is nothing to
+   * attach the schedule to.
+   */
+  @config
+  eventCalendarPlaceId: string = '';
+
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('UNIVERSALSTUDIOS');
+  }
+
+  /**
+   * Fetch the event calendar page payload.
+   *
+   * Served as `text/html` but is JSON throughout, so it is read as text and
+   * parsed here rather than letting the HTTP layer decide by content type.
+   */
+  @http({cacheSeconds: 43200, retries: 1} as any)
+  async fetchEventCalendar(): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: this.eventCalendarURL,
+      options: {json: false},
+      tags: ['website'],
+    } as any as HTTPObj;
+  }
+
+  /** Ticketed-event nights for this resort, or [] when not configured. */
+  @cache({ttlSeconds: 43200})
+  async getEventNights(): Promise<UniversalEventNight[]> {
+    if (!this.eventCalendarURL || !this.eventCalendarPlaceId) return [];
+    // UniversalOrlando and UniversalStudios share addConfigPrefix
+    // ('UNIVERSALSTUDIOS'), so Hollywood reads Orlando's calendar config too.
+    // buildSchedules() would never emit those nights — the place id matches
+    // none of its parks — but without this Hollywood still fetches and parses
+    // a 285KB Orlando document on every schedule build.
+    if (!this.parkPlaceIds().includes(this.eventCalendarPlaceId)) return [];
+    const body = await (await this.fetchEventCalendar()).text();
+    return parseUniversalEventCalendar(JSON.parse(body));
+  }
+
+  /** Place ids of the parks belonging to this resort. */
+  parkPlaceIds(): string[] {
+    return Object.keys(PARK_PLACE_ID_TO_LEGACY_VENUE_ID)
+      .filter(placeId => placeId.startsWith(`${this.resortKey}.`));
   }
 
   /**
@@ -844,7 +922,15 @@ class Universal extends Destination {
   async getShowList(): Promise<UniversalShowListEntry[]> {
     const resp = await this.fetchShowList();
     const data = await resp.json();
-    return Array.isArray(data) ? (data as UniversalShowListEntry[]) : [];
+    // Shows are published from this feed alone, so coercing an unexpected
+    // shape to [] would read as "every show ended" rather than "the feed
+    // broke" — and with retirement enabled that difference is a day's worth
+    // of shows force-closed mid-performance. Fail instead: a throw withholds
+    // the whole push and leaves the previous values standing.
+    if (!Array.isArray(data)) {
+      throw new Error(`Universal: show-list.json returned ${typeof data}, expected an array`);
+    }
+    return data as UniversalShowListEntry[];
   }
 
   /**
@@ -892,7 +978,11 @@ class Universal extends Destination {
   async getVirtualQueueStates(): Promise<UniversalVirtualQueueState[]> {
     const resp = await this.fetchVirtualQueueStates();
     const data: any = await resp.json();
-    return data?.Results || [];
+    // An absent Results array is a broken response, not an empty queue list.
+    if (!data || !Array.isArray(data.Results)) {
+      throw new Error('Universal: /Queues returned no Results array');
+    }
+    return data.Results as UniversalVirtualQueueState[];
   }
 
   /**
@@ -1347,13 +1437,19 @@ class Universal extends Destination {
    */
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const schedules: EntitySchedule[] = [];
+    // Isolated: a website change must not take the day-park hours down with it.
+    const eventNights = await this.getEventNights().catch(err => {
+      console.warn(`[${this.constructor.name}] event calendar unavailable:`, err);
+      return [] as UniversalEventNight[];
+    });
 
     // Iterate the place_id ↔ legacy VenueId map filtered to this resort.
     // The legacy schedule endpoint still wants the numeric VenueId; we only
     // relabel the emitted EntitySchedule with the new place_id so it joins
     // up with the park entities from buildEntityList.
+    const parkPlaceIds = new Set(this.parkPlaceIds());
     const parkEntries = Object.entries(PARK_PLACE_ID_TO_LEGACY_VENUE_ID).filter(
-      ([placeId]) => placeId.startsWith(`${this.resortKey}.`),
+      ([placeId]) => parkPlaceIds.has(placeId),
     );
 
     for (const [placeId, legacyVenueId] of parkEntries) {
@@ -1390,6 +1486,26 @@ class Universal extends Destination {
         }
       }
 
+      // Ticketed events (HHN) run after the day park shuts and are absent from
+      // the venue-hours API entirely — every day of the season comes back
+      // 09:00-17:00 with no event fields set. Without these the API shows
+      // attractions OPERATING hours after the park's published close.
+      if (placeId === this.eventCalendarPlaceId) {
+        for (const night of eventNights) {
+          schedule.push({
+            date: night.date,
+            openingTime: constructDateTime(night.date, night.openingTime, this.timezone),
+            closingTime: constructDateTime(
+              night.closesNextDay ? shiftDateString(night.date, 1) : night.date,
+              night.closingTime,
+              this.timezone,
+            ),
+            type: 'TICKETED_EVENT' as const,
+            description: night.name,
+          });
+        }
+      }
+
       schedules.push({
         // sanitizeId for symmetry with the PARK entity emission in
         // buildEntityList — today's allow-list keys are clean (`uor.usf`
@@ -1407,6 +1523,122 @@ class Universal extends Destination {
 /**
  * Universal Studios Orlando
  */
+/** One night of a ticketed event, resolved from the website's event calendar. */
+export interface UniversalEventNight {
+  /** YYYY-MM-DD in the park's own timezone. */
+  date: string;
+  /** Event name, e.g. "Halloween Horror Nights". */
+  name: string;
+  /** Opening time, HH:mm. */
+  openingTime: string;
+  /** Closing time, HH:mm. Past midnight belongs to the following date. */
+  closingTime: string;
+  /** True when the close falls on the day after `date`. */
+  closesNextDay: boolean;
+}
+
+/**
+ * "6:30 PM - 2:00 AM". The separator is a hyphen in some CMS blocks and an
+ * en dash in others, in the same document, so both are accepted.
+ */
+const EVENT_HOURS = /(\d{1,2}):(\d{2})\s*(AM|PM)\s*[-–—]\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i;
+
+/** 12-hour clock to HH:mm. 12 AM is 00, 12 PM is 12. */
+function to24Hour(hour: string, minute: string, meridiem: string): string {
+  let h = Number(hour) % 12;
+  if (meridiem.toUpperCase() === 'PM') h += 12;
+  return `${String(h).padStart(2, '0')}:${minute}`;
+}
+
+/** Read the single `Values` entry off a Tridion field, if present. */
+function tridionValue(field: unknown): string | undefined {
+  const values = (field as {Values?: unknown[]} | undefined)?.Values;
+  return Array.isArray(values) && typeof values[0] === 'string' ? values[0] : undefined;
+}
+
+/**
+ * Parse the ticketed-event calendar out of the website's page payload.
+ *
+ * The payload is the Tridion CMS document behind the site's event-day
+ * calendar. It is served as `text/html` but is JSON throughout.
+ *
+ * Two things about the CMS authoring drive the shape of this function:
+ *
+ *  1. `heading` and `eyebrow` are used inconsistently between blocks. One
+ *     block puts the event name in `heading` and the hours in `eyebrow`; the
+ *     others do the reverse. Whichever field parses as a time range is the
+ *     hours, and the other is the name — position is never trusted.
+ *  2. A block with no time range in either field is not an event. That is how
+ *     the "No Event Today" block, which lists the nights the event does NOT
+ *     run, is excluded rather than published as a night that it is closed.
+ *
+ * `eventDates` carries authoring timestamps (`2026-08-27T14:36:10`) whose time
+ * component is meaningless, so only the date part is read.
+ */
+export function parseUniversalEventCalendar(payload: unknown): UniversalEventNight[] {
+  const presentations = (payload as {ComponentPresentations?: unknown[]})?.ComponentPresentations;
+  if (!Array.isArray(presentations)) return [];
+
+  const calendar = presentations.find(entry =>
+    (entry as any)?.Component?.Schema?.RootElementName === 'GDSCalendar');
+  if (!calendar) return [];
+
+  const configs = (calendar as any)?.Component?.Fields?.calendarData
+    ?.LinkedComponentValues?.[0]?.Fields?.calendarConfig?.EmbeddedValues;
+  if (!Array.isArray(configs)) return [];
+
+  const nights: UniversalEventNight[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of configs) {
+    const blocks = entry?.blockData?.LinkedComponentValues?.[0]?.Fields
+      ?.blocksData?.LinkedComponentValues?.[0]?.Fields;
+    const heading = tridionValue(blocks?.heading);
+    const eyebrow = tridionValue(blocks?.eyebrow);
+
+    // Match once and carry the result, rather than testing with one call and
+    // re-matching with a non-null assertion in another. The assertion would be
+    // correct today and silently wrong the first time the predicate drifts.
+    const labels = [heading, eyebrow].filter((text): text is string => !!text);
+    const hours = labels
+      .map(text => ({text, match: text.match(EVENT_HOURS)}))
+      .find(candidate => candidate.match !== null);
+    if (!hours?.match) continue;
+    const name = labels.find(text => text !== hours.text);
+    if (!name) continue;
+
+    const [, openHour, openMinute, openMeridiem, closeHour, closeMinute, closeMeridiem] =
+      hours.match;
+    const openingTime = to24Hour(openHour, openMinute, openMeridiem);
+    const closingTime = to24Hour(closeHour, closeMinute, closeMeridiem);
+
+    const dates = entry?.eventDates?.DateTimeValues;
+    if (!Array.isArray(dates)) continue;
+
+    for (const value of dates) {
+      if (typeof value !== 'string') continue;
+      const date = value.slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+      // One night per date. Blocks do not overlap today, but a duplicate would
+      // otherwise publish two schedule entries for the same evening.
+      const key = `${date}:${name}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      nights.push({
+        date,
+        name,
+        openingTime,
+        closingTime,
+        closesNextDay: closingTime <= openingTime,
+      });
+    }
+  }
+
+  nights.sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+  return nights;
+}
+
 @destinationController({category: 'Universal'})
 export class UniversalOrlando extends Universal {
   resortLocation = {latitude: 28.4719, longitude: -81.4685};

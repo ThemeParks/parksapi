@@ -399,24 +399,23 @@ liveData.queue!.RETURN_TIME = this.buildReturnTimeQueue(
 
 ## Validation
 
-Runtime validation helps catch common mistakes:
+Queue output is checked by `npm run audit:live`, which walks a destination's
+real live data and reports anything malformed. Run it against the park you are
+working on:
 
-```typescript
-import { validateReturnTimeQueue, validateBoardingGroupQueue } from './virtualQueue/index.js';
-
-// Validate return time queue
-const errors = validateReturnTimeQueue(queue);
-if (errors.length > 0) {
-  console.error('Invalid queue:', errors);
-}
-
-// Validate with suggestions
-const result = validateReturnTimeQueue(queue, { suggest: true });
-if (!result.valid) {
-  console.error('Errors:', result.errors);
-  console.log('Suggestions:', result.suggestions);
-}
+```bash
+npm run audit:live -- <destinationId>
 ```
+
+It checks the things that are always wrong — a return window that ends before
+it starts, a boarding range that counts backwards, a currency that is not a
+three-letter code, a negative wait — and stays quiet about the things that are
+merely absent. A missing return window is normal: Tokyo's are gated behind a
+login upstream and are null on every poll, and Universal frequently publishes
+a start with no end.
+
+The base class also sanitises output on the way out (see `getLiveData()` in
+`destination.ts`), so a malformed `waitTime` cannot reach the wire regardless.
 
 ### Common Validation Rules
 
@@ -430,7 +429,9 @@ if (!result.valid) {
 - All return time rules apply
 - Must have `price` object
 - Currency must be 3-letter code (USD, EUR, GBP, JPY)
-- Amount should be in cents (or 0)
+- Amount is in cents. Use `null` when the provider confirms a paid queue but
+  does not publish a price, and `0` only when the queue is genuinely free —
+  they are different claims and consumers read them differently
 
 **Boarding Group Queues:**
 - PAUSED status should have `nextAllocationTime`
@@ -638,16 +639,17 @@ it('should fetch and parse virtual queue data', async () => {
     const queue = vqAttraction.queue.RETURN_TIME;
     expect(['AVAILABLE', 'TEMP_FULL', 'FINISHED']).toContain(queue.state);
 
-    // Validate queue data
-    const errors = validateReturnTimeQueue(queue);
-    expect(errors).toEqual([]);
+    // A window, when present, must run forwards.
+    if (queue.returnStart && queue.returnEnd) {
+      expect(Date.parse(queue.returnEnd)).toBeGreaterThan(Date.parse(queue.returnStart));
+    }
   }
 });
 ```
 
 ## Best Practices
 
-1. **Always validate queue data** - Use validation functions in tests to catch issues early
+1. **Audit the live output** - Run `npm run audit:live -- <destinationId>` against the park you are working on; assert shapes in tests only where they are genuinely invariant
 
 2. **Handle timezone correctly** - Use `formatInTimezone()` from datetime utilities
 

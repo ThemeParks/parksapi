@@ -4,11 +4,22 @@ import {reusable} from "./promiseReuse.js";
 import {loadProxyConfig, hasProxyConfig, type ProxyConfig} from "./proxy.js";
 import {inject} from "./injector.js";
 import {type HTTPObj, HttpQueue, http} from "./http.js";
-import {cache} from "./cache.js";
+import {cache, CacheLib} from "./cache.js";
 import {VQueueBuilder} from "./virtualQueue/builder.js";
 import {calculateReturnWindow} from "./virtualQueue/timeWindows.js";
 import {formatInTimezone} from "./datetime.js";
 import {stripHtmlTags, decodeHtmlEntities} from "./htmlUtils.js";
+
+/**
+ * Per-entity bookkeeping for the live-entity retirement gate. `misses` counts
+ * consecutive absences from successful builds; `retiredAt` is set once a close
+ * has been emitted, marking the id as settled rather than fresh evidence.
+ */
+interface LiveEntityRetirementState {
+  seenAt: number;
+  misses: number;
+  retiredAt?: number;
+}
 
 /**
  * Patterns for promotional/status text appended or prepended to entity names.
@@ -188,6 +199,121 @@ export abstract class Destination {
    * @default false
    */
   hasLiveStream: boolean = false;
+
+  /**
+   * Opt-in: force-close a previously-live entity once it has been absent
+   * from a full buildLiveData() snapshot for longer than
+   * {@link liveEntityRetirementMs}.
+   *
+   * The collector is upsert-only with no delete path, so simply omitting a
+   * retired entity from buildLiveData() output achieves nothing — the last
+   * value sits there indefinitely (see nigloland.ts RIDE_RETIREMENT_MS for
+   * the same trap on a wait-time signal). Confirmed independently on two
+   * park modules: a seasonal show run ends, the entity leaves the upstream
+   * feed entirely, and its live row freezes mid-run — 50+ days OPERATING on
+   * one, 17+ days on another (parksapi #74, #83).
+   *
+   * Off by default. A destination whose buildLiveData() legitimately omits
+   * entities for unrelated reasons (a genuinely partial feed, a bug) would
+   * have them wrongly force-closed, so this only applies where the pattern
+   * has actually been confirmed. Only ever applied to a full snapshot
+   * (`scope` undefined) — a partial/streaming build's absentees carry no
+   * meaning and are never gated.
+   *
+   * @default false
+   */
+  protected retireMissingLiveEntities: boolean = false;
+
+  /**
+   * How long an entity may be missing from a full buildLiveData() snapshot
+   * before {@link retireMissingLiveEntities} presumes it retired and
+   * force-closes it. Conservative default: the confirmed real-world cases
+   * were stale 17 and 50+ days, so a week already improves on both by an
+   * order of magnitude while tolerating a normal multi-day show hiatus.
+   * Override per-destination if evidence supports a tighter or looser
+   * window.
+   *
+   * @default 7 days
+   */
+  protected liveEntityRetirementMs: number = 7 * 24 * 60 * 60 * 1000;
+
+  /**
+   * How many consecutive *successful* snapshots an entity must be absent from
+   * before it can retire, on top of {@link liveEntityRetirementMs}.
+   *
+   * Age alone is wall-clock, and nothing advances it while the source is
+   * down: a proxy block, a container stop or a deploy gap longer than the
+   * window all leave every timestamp stale, so the first poll to succeed
+   * afterwards would retire everything missing from that one sample on the
+   * strength of a single observation. Requiring the absence to repeat means
+   * a close always rests on several builds.
+   *
+   * This also sets how long a collapse must persist before the degraded-feed
+   * guard arms, which couples it to the collector's polling interval across
+   * repo boundaries: `liveEntityRetirementMinMisses × pollInterval` has to
+   * land comfortably inside {@link liveEntityRetirementMs}, or the guard
+   * cannot arm before the age window opens and a mistimed recovery is closed
+   * silently again. Universal is the tightest case at 3 × 45 minutes against
+   * a four hour window, a 1.78x margin; the boundary sits at a 80 minute
+   * poll. Raising the collector's closed-park interval past that, or dropping
+   * a destination's window below 135 minutes, reopens the hole.
+   *
+   * @default 3
+   */
+  protected liveEntityRetirementMinMisses: number = 3;
+
+  /**
+   * Fraction of tracked entities that may retire in one snapshot before the
+   * gate assumes the feed is degraded rather than the entities retired.
+   *
+   * A source can return a well-formed but gutted payload — an empty array, a
+   * CDN stub, a partial regeneration — which parses cleanly and so never
+   * throws. Retiring on that publishes a confident CLOSED for a park that is
+   * open. Mass disappearance is far more often a broken feed than a mass
+   * retirement, so past this share the gate declines to act and warns.
+   *
+   * Measured against raw absence rather than against the entities that are
+   * eligible to close, because eligibility needs the age window to elapse and
+   * a guard that waited for it could not see a collapse until the collapse
+   * had already outlived it.
+   *
+   * Known limit: this catches simultaneous collapses, not staggered ones. A
+   * source shedding rows in waves, with a retirement window between them,
+   * keeps every wave under the threshold and is genuinely indistinguishable
+   * from progressive retirement without venue-level grouping. Every
+   * simultaneity-based guard shares this, the collector's own bulk-close
+   * guard included. Grouping the fraction per `parkId` is the refinement if
+   * it ever bites in practice.
+   *
+   * @default 0.5
+   */
+  protected liveEntityRetirementMaxFraction: number = 0.5;
+
+  /**
+   * Floor below which {@link liveEntityRetirementMaxFraction} does not apply.
+   * A destination tracking a handful of entities can legitimately retire most
+   * of them at once; the proportional guard is aimed at collapses measured in
+   * dozens.
+   *
+   * @default 5
+   */
+  protected liveEntityRetirementMinBulk: number = 5;
+
+  /**
+   * How long a retired entity keeps having its CLOSED row re-appended before
+   * the gate forgets it entirely.
+   *
+   * The repeat exists so a close that was built but never delivered is not
+   * lost for good. It cannot run forever, though: a permanently dead id would
+   * otherwise count as fresh evidence of a collapse on every future build, and
+   * enough of them accumulated across seasons would trip
+   * {@link liveEntityRetirementMaxFraction} for good and silently disable the
+   * gate. A few days covers any rejected batch or dead process by orders of
+   * magnitude, and bounds the pile.
+   *
+   * @default 3 days
+   */
+  protected liveEntityRetirementRepeatMs: number = 3 * 24 * 60 * 60 * 1000;
 
   /**
    * Optional cache key prefix for all cached methods.
@@ -963,7 +1089,10 @@ export abstract class Destination {
   @trace()
   async getLiveData(scope?: ReadonlySet<string>): Promise<LiveData[]> {
     await this.init();
-    const data = await this.buildLiveData(scope);
+    let data = await this.buildLiveData(scope);
+    if (this.retireMissingLiveEntities && scope === undefined) {
+      data = await this.applyLiveEntityRetirement(data);
+    }
     // Sanitise waitTime values — must be a finite number or null/undefined.
     // Catches bugs like waitTime:"" which crash downstream integer columns.
     for (const entry of data) {
@@ -981,6 +1110,191 @@ export abstract class Destination {
     }
     for (const entry of data) stripUndefinedDeep(entry);
     return data;
+  }
+
+  /**
+   * Cache key for this destination's {@link retireMissingLiveEntities}
+   * last-seen tracking. Reuses the same prefix resolution the `@cache`
+   * decorator applies, so it lands in the same namespace
+   * `CacheLib.clearByClassName()` already sweeps for this destination.
+   */
+  private async liveEntityRetirementCacheKey(): Promise<string> {
+    let prefix: string;
+    if (typeof this.getCacheKeyPrefix === 'function') {
+      const result = this.getCacheKeyPrefix();
+      prefix = result instanceof Promise ? await result : result;
+    } else {
+      prefix = this.cacheKeyPrefix || this.constructor.name;
+    }
+    return `${prefix}:liveEntityRetirement`;
+  }
+
+  /**
+   * Diff a full buildLiveData() snapshot against what previous calls saw.
+   * An entity that was live before and has now been absent both for longer
+   * than {@link liveEntityRetirementMs} and across
+   * {@link liveEntityRetirementMinMisses} consecutive snapshots gets a
+   * synthetic `{id, status: 'CLOSED'}` row appended — a genuine value change,
+   * so the collector's hash-dedup actually writes it and clears the frozen
+   * row. Entities that reappear reset both counters and drop out of
+   * consideration; nothing here mutates entries buildLiveData() returned.
+   *
+   * Two things stop this speaking with more confidence than it has. The
+   * consecutive-miss requirement means no close ever rests on a single
+   * observation, which matters because the age clock keeps running through
+   * an outage while nothing refreshes it. The proportional guard
+   * ({@link liveEntityRetirementMaxFraction}) declines to act at all when so
+   * much of the tracked set has vanished at once that a degraded feed is the
+   * likelier explanation. Both failures are logged rather than silent: a
+   * fabricated CLOSED is indistinguishable from a real one downstream, so
+   * the log line is the only forensic trail.
+   *
+   * The CLOSED row is re-appended on every subsequent build for as long as
+   * the entity stays absent, rather than emitted once and forgotten. That
+   * looks wasteful and is deliberate: nothing here can observe whether a
+   * build was actually delivered, and the send path holds no retry queue of
+   * its own — it diffs the rows in the *current* build against the last
+   * committed hashes. A close emitted once and dropped (batch rejected, push
+   * skipped, process died between build and POST) would therefore be lost
+   * for good, leaving exactly the frozen row this gate exists to clear. The
+   * repeat costs one hash comparison per build and collapses to a single
+   * write; the alternative costs correctness.
+   */
+  private async applyLiveEntityRetirement(data: LiveData[]): Promise<LiveData[]> {
+    const key = await this.liveEntityRetirementCacheKey();
+    const now = Date.now();
+    const tracked = this.readLiveEntityRetirementState(key);
+
+    const currentIds = new Set(data.map((entry) => entry.id));
+    for (const id of currentIds) tracked[id] = {seenAt: now, misses: 0};
+
+    // Ids closed on an earlier build. Their row is repeated so a close that
+    // was built but never delivered still lands, but they are settled
+    // business: they say nothing about whether the feed is healthy now, so
+    // they are kept out of both the guard's arithmetic and the log line.
+    const repeating: string[] = [];
+    const eligible: string[] = [];
+    let liveTracked = 0;
+    let absent = 0;
+
+    for (const [id, state] of Object.entries(tracked)) {
+      if (state.retiredAt !== undefined) {
+        if (now - state.retiredAt >= this.liveEntityRetirementRepeatMs) {
+          delete tracked[id];
+        } else if (!currentIds.has(id)) {
+          // Unreachable today: the loop above replaces state wholesale for
+          // anything in currentIds, so a retired id cannot also be present.
+          // Kept because it stops being unreachable the moment someone
+          // preserves fields across that assignment instead of overwriting —
+          // at which point a returning entity would emit a stale CLOSED
+          // alongside its live row.
+          repeating.push(id);
+        }
+        continue;
+      }
+      liveTracked += 1;
+      if (currentIds.has(id)) continue;
+      absent += 1;
+      state.misses += 1;
+      if (now - state.seenAt >= this.liveEntityRetirementMs && state.misses >= this.liveEntityRetirementMinMisses) {
+        eligible.push(id);
+      }
+    }
+
+    // Judge the feed's health on raw absence, not on the set about to be
+    // closed. Eligibility needs the age window to have elapsed, so a guard
+    // reading `eligible` cannot notice a collapse until the collapse has
+    // outlived that window — and a feed that recovers within a poll of that
+    // moment never gets looked at, leaving whatever is still missing to be
+    // closed on misses accrued entirely inside the outage. Absence is visible
+    // from the first build of a collapse instead.
+    const degraded = absent >= this.liveEntityRetirementMinBulk
+      && absent > liveTracked * this.liveEntityRetirementMaxFraction;
+
+    // Arm the cooldown only once the collapse has held, so a source that
+    // legitimately sheds most of its rows on some builds does not mute the
+    // gate on a single sample. Three builds still arms hours before the age
+    // window opens.
+    const guard = this.readLiveEntityRetirementGuard(key);
+    const streak = degraded ? guard.streak + 1 : 0;
+    let withheldAt = guard.withheldAt;
+    if (streak >= this.liveEntityRetirementMinMisses) withheldAt = now;
+
+    // A feed that just failed the trust test does not get to retire anything
+    // for a full window afterwards. Without this, whether a partial recovery
+    // publishes a wrong CLOSED comes down to which build it lands on: the
+    // miss counts reset on the withheld build, so a recovery arriving
+    // minMisses builds later finds a fresh, complete-looking set of misses
+    // accrued entirely inside the untrusted window.
+    const cooling = withheldAt != null && now - withheldAt < this.liveEntityRetirementMs;
+    CacheLib.set(`${key}:guard`, {withheldAt, streak}, 400 * 24 * 60 * 60);
+
+    if ((degraded || cooling) && eligible.length) {
+      for (const id of eligible) tracked[id].misses = 0;
+      console.warn(
+        `[${this.constructor.name}] withholding ${eligible.length} live-entity retirements ` +
+        `(${absent} of ${liveTracked} absent) — ` +
+        `${degraded ? 'feed looks degraded, not retired' : 'feed still cooling down after a degraded window'}`,
+      );
+    } else {
+      for (const id of eligible) {
+        data.push({id, status: 'CLOSED'} as LiveData);
+        tracked[id].retiredAt = now;
+      }
+      if (eligible.length) {
+        console.log(
+          `[${this.constructor.name}] force-closing ${eligible.length} live ` +
+          `${eligible.length === 1 ? 'entity' : 'entities'} absent from the feed: ${eligible.join(', ')}`,
+        );
+      }
+    }
+
+    for (const id of repeating) data.push({id, status: 'CLOSED'} as LiveData);
+
+    // Long TTL: this tracks "have we ever seen this id live", not a
+    // short-lived cache — losing it early just reverts that one id to the
+    // pre-fix silent-freeze behaviour until it's next seen live.
+    CacheLib.set(key, tracked, 400 * 24 * 60 * 60);
+    return data;
+  }
+
+  /**
+   * Read the retirement tracking map, tolerating the flat `id -> timestamp`
+   * shape written before consecutive-miss counting existed. Deployed caches
+   * hold that older shape and live for 400 days, so it has to keep working
+   * rather than force every tracked id back to square one.
+   */
+  private readLiveEntityRetirementState(key: string): Record<string, LiveEntityRetirementState> {
+    const raw = CacheLib.get(key) as Record<string, number | LiveEntityRetirementState> | null;
+    const out: Record<string, LiveEntityRetirementState> = {};
+    for (const [id, value] of Object.entries(raw ?? {})) {
+      if (typeof value === 'number') {
+        out[id] = {seenAt: value, misses: 0};
+      } else if (value && Number.isFinite(value.seenAt)) {
+        out[id] = {
+          seenAt: value.seenAt,
+          misses: Number.isFinite(value.misses) ? value.misses : 0,
+          ...(Number.isFinite(value.retiredAt as number) ? {retiredAt: value.retiredAt} : {}),
+        };
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Read the degraded-feed guard's own state: when it last withheld, and how
+   * many consecutive builds have looked degraded. Kept beside the tracking
+   * map rather than inside it so the map stays a plain id-to-state record.
+   */
+  private readLiveEntityRetirementGuard(key: string): {withheldAt: number | null, streak: number} {
+    // Caches written before this key existed simply have no row: the guard
+    // initialises cold, so a cooldown in flight across a deploy is forgotten
+    // once and re-arms within minMisses degraded builds. Fail-open by design.
+    const raw = CacheLib.get(`${key}:guard`) as {withheldAt?: unknown, streak?: unknown} | null;
+    return {
+      withheldAt: Number.isFinite(raw?.withheldAt as number) ? (raw!.withheldAt as number) : null,
+      streak: Number.isFinite(raw?.streak as number) ? (raw!.streak as number) : 0,
+    };
   }
 
   /**

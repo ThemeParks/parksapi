@@ -35,7 +35,8 @@
     "har": "tsx src/tools/har/index.ts",
     "docs": "typedoc",
     "prepare": "tsc && ([ \"$(git rev-parse --show-toplevel 2>/dev/null)\" = \"$(pwd -P)\" ] && git config core.hooksPath .githooks || true)",
-    "readme": "tsx src/tools/readme/destinations.ts"
+    "readme": "tsx src/tools/readme/destinations.ts",
+    "stale": "tsx --env-file=.env src/tools/staleReport.ts"
   },
   "repository": {
     "type": "git",
@@ -64,7 +65,7 @@
     "vitest": "^4.0.16"
   },
   "dependencies": {
-    "@themeparks/typelib": "^1.1.5",
+    "@themeparks/typelib": "^1.2.0",
     "adm-zip": "^0.6.0",
     "ajv": "^8.17.1",
     "sift": "^17.1.3",

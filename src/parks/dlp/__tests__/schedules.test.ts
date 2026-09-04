@@ -1,5 +1,6 @@
 import {describe, it, expect, vi, afterEach} from 'vitest';
 import {DisneylandParis} from '../disneylandparis.js';
+import {formatInTimezone, shiftDateString} from '../../../datetime.js';
 
 /**
  * The schedule feed covers far more than the POI set the park publishes —
@@ -190,6 +191,32 @@ describe('DLP schedules', () => {
       const entry = schedules[0].schedule[0];
       expect(entry.type).toBe('OPERATING');
       expect(entry.closingTime).toContain('T22:00:00');
+    });
+
+    it('rolls a genuinely-published midnight crossing forward whatever timezone the host runs in', async () => {
+      // A real published window (not the duration-derived rollover covered
+      // above) that closes earlier than it opens — e.g. a late-night
+      // attraction open 19:00-01:00. `new Date(`${dateString}T00:00:00`)`
+      // parses in the host's zone, so "add a day, reformat in Europe/Paris"
+      // silently fails to advance on any host east of Paris.
+      const [mm, dd, yyyy] = formatInTimezone(new Date(), 'Europe/Paris', 'date').split('/');
+      const todayStr = `${yyyy}-${mm}-${dd}`;
+      const tomorrowStr = shiftDateString(todayStr, 1);
+
+      const original = process.env.TZ;
+      try {
+        for (const tz of ['UTC', 'Pacific/Kiritimati', 'Pacific/Auckland', 'Asia/Tokyo', 'America/Los_Angeles']) {
+          process.env.TZ = tz;
+          const schedules = await stubbedPark(
+            feedFor(['P1RA00'], {startTime: '19:00:00', endTime: '01:00:00', status: 'OPERATING'}),
+          ).getSchedules();
+          const entry = schedules.find((s) => s.id === 'P1RA00')?.schedule[0];
+          expect(entry?.closingTime, tz).toContain(`${tomorrowStr}T01:00:00`);
+        }
+      } finally {
+        if (original === undefined) delete process.env.TZ;
+        else process.env.TZ = original;
+      }
     });
 
     it('finds the duration through the PhilharMagic alias', async () => {
