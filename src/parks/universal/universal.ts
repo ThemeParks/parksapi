@@ -12,7 +12,7 @@ import {
   EntitySchedule,
   QueueTypeEnum,
 } from '@themeparks/typelib';
-import {formatUTC, parseTimeInTimezone, formatInTimezone, addDays, isBefore, constructDateTime, addMinutes, hostnameFromUrl, shiftDateString} from '../../datetime.js';
+import {formatUTC, parseTimeInTimezone, formatInTimezone, formatDate, addDays, isBefore, constructDateTime, addMinutes, hostnameFromUrl, shiftDateString} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 import {randomPointInRadius} from '../../geo.js';
 
@@ -380,6 +380,8 @@ export type UniversalShowListEntry = {
   land_id?: string;
   name: string;
   show_type?: string;
+  /** Feed category such as `hhn` for ticketed-event-only shows. */
+  category?: string;
   status: string;             // 'OPEN' | …
   show_externally: boolean;
   show_times?: UniversalShowTime[];
@@ -473,6 +475,42 @@ type UniversalScheduleResponse = Array<{
   EarlyEntryString?: string;
   SpecialEntryUnix?: number;
 }>;
+
+/** True while `now` falls inside one of the official ticketed-event windows. */
+export function isUniversalEventOperatingNow(
+  nights: UniversalEventNight[],
+  now: Date,
+  timezone: string,
+): boolean {
+  const nowMs = now.getTime();
+  const validTime = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
+
+  return nights.some((night) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(night.date)
+        || !validTime.test(night.openingTime)
+        || !validTime.test(night.closingTime)) {
+      return false;
+    }
+
+    try {
+      const openingMs = new Date(
+        constructDateTime(night.date, night.openingTime, timezone),
+      ).getTime();
+      const closingDate = night.closesNextDay
+        ? shiftDateString(night.date, 1)
+        : night.date;
+      const closingMs = new Date(
+        constructDateTime(closingDate, night.closingTime, timezone),
+      ).getTime();
+      return Number.isFinite(openingMs)
+        && Number.isFinite(closingMs)
+        && nowMs >= openingMs
+        && nowMs <= closingMs;
+    } catch {
+      return false;
+    }
+  });
+}
 
 @config
 class Universal extends Destination {
@@ -572,10 +610,10 @@ class Universal extends Destination {
 
   /**
    * Full URL of the website page payload carrying the ticketed-event calendar
-   * (Halloween Horror Nights). Empty by default: with no URL configured
-   * buildSchedules() emits day-park hours exactly as before and never touches
-   * the site. The whole URL rather than a path because each resort's event
-   * lives on its own microsite.
+   * (Halloween Horror Nights). The base remains empty so an unconfigured
+   * resort never touches the site; Hollywood supplies its official calendar
+   * as a subclass default. The whole URL rather than a path is used because
+   * each resort's event lives on its own microsite.
    */
   @config
   eventCalendarURL: string = '';
@@ -1068,14 +1106,9 @@ class Universal extends Destination {
    * counts as a confirmed "the park is shut" — that is the ordinary,
    * expected overnight case.
    *
-   * Known gap, not yet acted on: does NOT check `SpecialEntryUnix`. It's a
-   * real field on every returned day (both resorts), but has been 0 on
-   * every day observed so far across ~11 weeks, including deep into a
-   * would-be Halloween Horror Nights window — its meaning is unconfirmed,
-   * so nothing is built on an unverified guess. If a ticketed after-hours
-   * event's showtimes turn out not to be covered by this endpoint at all,
-   * shows tied to that event would be wrongly gated CLOSED; needs a live
-   * check once such an event is actually running.
+   * `SpecialEntryUnix` remains unused: live HHN validation confirmed it is
+   * still zero while the ticketed event is running. Ticketed-event shows are
+   * gated separately against the official event calendar in buildLiveData.
    */
   async isParkOperatingNow(legacyVenueId: string, now: Date): Promise<boolean> {
     try {
@@ -1086,25 +1119,52 @@ class Universal extends Destination {
       }
 
       const nowMs = now.getTime();
+      // The legacy server keys Hollywood rows to Eastern dates even though
+      // their windows represent Pacific wall-clock hours. A malformed row on
+      // either plausible "today" must make the result unknown/fail-open;
+      // otherwise a valid row weeks later would incorrectly turn a partial
+      // response into a confident CLOSED.
+      const relevantDates = new Set([
+        formatDate(now, this.timezone),
+        formatDate(now, 'America/New_York'),
+      ]);
+
       // A day we could make a confident call on — either a real open/close
       // window, or an explicit "Closed" (e.g. Volcano Bay's off-season).
       // Both count. Only a day with neither (garbage / missing fields) does
       // not, so a schedule that is EXPLICITLY closed every day still yields
       // a confident `false` rather than failing open.
       let sawValidDay = false;
+      let sawMalformedRelevantDay = false;
       for (const day of schedule) {
         if (!day) continue;
         if (day.VenueStatus === 'Closed') {
           sawValidDay = true;
           continue;
         }
-        const openMs = new Date(day.EarlyEntryString || day.OpenTimeString || NaN).getTime();
+
+        // A malformed early-entry value must not hide an otherwise valid
+        // general-admission opening time.
+        const regularOpenMs = new Date(day.OpenTimeString || NaN).getTime();
+        const earlyOpenMs = new Date(day.EarlyEntryString || NaN).getTime();
+        const openMs = Number.isFinite(earlyOpenMs) ? earlyOpenMs : regularOpenMs;
         const closeMs = new Date(day.CloseTimeString || NaN).getTime();
-        if (!Number.isFinite(openMs) || !Number.isFinite(closeMs)) continue;
+        if (!Number.isFinite(openMs) || !Number.isFinite(closeMs)) {
+          if (typeof day.Date === 'string' && relevantDates.has(day.Date)) {
+            sawMalformedRelevantDay = true;
+          }
+          continue;
+        }
         sawValidDay = true;
         if (nowMs >= openMs && nowMs <= closeMs) return true;
       }
 
+      if (sawMalformedRelevantDay) {
+        console.warn(
+          `Universal: venue schedule for ${legacyVenueId} had no usable window for the current day, unable to clock-gate shows`,
+        );
+        return true;
+      }
       if (!sawValidDay) {
         console.warn(`Universal: venue schedule for ${legacyVenueId} had no usable day, unable to clock-gate shows`);
         return true;
@@ -1363,10 +1423,50 @@ class Universal extends Destination {
     // empty (see mapUniversalShowStatus doc comment).
     const now = new Date();
     const parkOperatingByVenue = new Map<string, boolean>();
-    for (const [placeId, legacyVenueId] of Object.entries(PARK_PLACE_ID_TO_LEGACY_VENUE_ID)) {
-      if (!placeId.startsWith(`${this.resortKey}.`)) continue;
-      parkOperatingByVenue.set(sanitizeId(placeId), await this.isParkOperatingNow(legacyVenueId, now));
+    await Promise.all(
+      Object.entries(PARK_PLACE_ID_TO_LEGACY_VENUE_ID)
+        .filter(([placeId]) => placeId.startsWith(`${this.resortKey}.`))
+        .map(async ([placeId, legacyVenueId]) => {
+          parkOperatingByVenue.set(
+            sanitizeId(placeId),
+            await this.isParkOperatingNow(legacyVenueId, now),
+          );
+        }),
+    );
+
+    // HHN shows are present only around the event season and carry a stable
+    // `category: "hhn"` marker. Their park is deliberately closed to daytime
+    // guests while they run, so applying the day-park gate would force a live
+    // event show CLOSED. Fetch the official ticketed-event calendar only when
+    // such a show is actually present. A missing/broken calendar is unknown,
+    // not proof of closure, and therefore fails open for event shows only.
+    const hasTicketedEventShows = showList.some(
+      (show) => show.category?.toLowerCase() === 'hhn',
+    );
+    let eventOperating: boolean | null = null;
+    if (hasTicketedEventShows) {
+      try {
+        const eventNights = await this.getEventNights();
+        if (eventNights.length > 0) {
+          eventOperating = isUniversalEventOperatingNow(
+            eventNights,
+            now,
+            this.timezone,
+          );
+        } else {
+          console.warn(
+            'Universal: event shows are present but no event calendar was available; leaving them ungated',
+          );
+        }
+      } catch (err: any) {
+        console.warn(
+          `Universal: event calendar unavailable while event shows are present; leaving them ungated: ${err?.message ?? err}`,
+        );
+      }
     }
+    const eventScheduleVenue = this.eventCalendarPlaceId
+      ? sanitizeId(this.eventCalendarPlaceId)
+      : null;
 
     for (const show of showList) {
       if (!show.show_externally) continue;
@@ -1377,7 +1477,19 @@ class Universal extends Destination {
       const scheduleVenue = resolveScheduleVenue(show.venue_id);
       // No resolvable venue (CityWalk, or a missing/unrecognised venue_id) ->
       // hours unknown -> don't gate, same as a failed schedule lookup.
-      const parkOperating = scheduleVenue ? (parkOperatingByVenue.get(scheduleVenue) ?? true) : true;
+      let parkOperating = scheduleVenue
+        ? (parkOperatingByVenue.get(scheduleVenue) ?? true)
+        : true;
+      if (show.category?.toLowerCase() === 'hhn') {
+        // A known calendar can make a confident event-window decision only
+        // for the configured host park. Any configuration/venue mismatch is
+        // hours-unknown and deliberately retains the feed's old behaviour.
+        parkOperating = eventOperating !== null
+          && eventScheduleVenue !== null
+          && scheduleVenue === eventScheduleVenue
+          ? eventOperating
+          : true;
+      }
       showEntry.status = mapUniversalShowStatus(show.status, times.length > 0, parkOperating);
       if (times.length > 0) {
         showEntry.showtimes = times;
@@ -1562,7 +1674,7 @@ function tridionValue(field: unknown): string | undefined {
  * The payload is the Tridion CMS document behind the site's event-day
  * calendar. It is served as `text/html` but is JSON throughout.
  *
- * Two things about the CMS authoring drive the shape of this function:
+ * Three things about the CMS authoring drive the shape of this function:
  *
  *  1. `heading` and `eyebrow` are used inconsistently between blocks. One
  *     block puts the event name in `heading` and the hours in `eyebrow`; the
@@ -1571,6 +1683,8 @@ function tridionValue(field: unknown): string | undefined {
  *  2. A block with no time range in either field is not an event. That is how
  *     the "No Event Today" block, which lists the nights the event does NOT
  *     run, is excluded rather than published as a night that it is closed.
+ *  3. A date group can contain multiple blocks. Hollywood puts an early-access
+ *     marker first and the bounded event window second, so every block is read.
  *
  * `eventDates` carries authoring timestamps (`2026-08-27T14:36:10`) whose time
  * component is meaningless, so only the date part is read.
@@ -1591,47 +1705,56 @@ export function parseUniversalEventCalendar(payload: unknown): UniversalEventNig
   const seen = new Set<string>();
 
   for (const entry of configs) {
-    const blocks = entry?.blockData?.LinkedComponentValues?.[0]?.Fields
-      ?.blocksData?.LinkedComponentValues?.[0]?.Fields;
-    const heading = tridionValue(blocks?.heading);
-    const eyebrow = tridionValue(blocks?.eyebrow);
-
-    // Match once and carry the result, rather than testing with one call and
-    // re-matching with a non-null assertion in another. The assertion would be
-    // correct today and silently wrong the first time the predicate drifts.
-    const labels = [heading, eyebrow].filter((text): text is string => !!text);
-    const hours = labels
-      .map(text => ({text, match: text.match(EVENT_HOURS)}))
-      .find(candidate => candidate.match !== null);
-    if (!hours?.match) continue;
-    const name = labels.find(text => text !== hours.text);
-    if (!name) continue;
-
-    const [, openHour, openMinute, openMeridiem, closeHour, closeMinute, closeMeridiem] =
-      hours.match;
-    const openingTime = to24Hour(openHour, openMinute, openMeridiem);
-    const closingTime = to24Hour(closeHour, closeMinute, closeMeridiem);
-
     const dates = entry?.eventDates?.DateTimeValues;
     if (!Array.isArray(dates)) continue;
 
-    for (const value of dates) {
-      if (typeof value !== 'string') continue;
-      const date = value.slice(0, 10);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
-      // One night per date. Blocks do not overlap today, but a duplicate would
-      // otherwise publish two schedule entries for the same evening.
-      const key = `${date}:${name}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
+    // Orlando currently has one block per date group. Hollywood puts an
+    // unbounded "Early Access — 5:30pm" block first and the actual
+    // "7:00 PM - 2:00 AM" event window second, so every linked block must be
+    // inspected rather than assuming index zero carries the event hours.
+    const blocks = entry?.blockData?.LinkedComponentValues?.[0]?.Fields
+      ?.blocksData?.LinkedComponentValues;
+    if (!Array.isArray(blocks)) continue;
 
-      nights.push({
-        date,
-        name,
-        openingTime,
-        closingTime,
-        closesNextDay: closingTime <= openingTime,
-      });
+    for (const block of blocks) {
+      const fields = block?.Fields;
+      const heading = tridionValue(fields?.heading);
+      const eyebrow = tridionValue(fields?.eyebrow);
+
+      // Match once and carry the result, rather than testing with one call and
+      // re-matching with a non-null assertion in another. The assertion would
+      // be correct today and silently wrong the first time the predicate drifts.
+      const labels = [heading, eyebrow].filter((text): text is string => !!text);
+      const hours = labels
+        .map(text => ({text, match: text.match(EVENT_HOURS)}))
+        .find(candidate => candidate.match !== null);
+      if (!hours?.match) continue;
+      const name = labels.find(text => text !== hours.text);
+      if (!name) continue;
+
+      const [, openHour, openMinute, openMeridiem, closeHour, closeMinute, closeMeridiem] =
+        hours.match;
+      const openingTime = to24Hour(openHour, openMinute, openMeridiem);
+      const closingTime = to24Hour(closeHour, closeMinute, closeMeridiem);
+
+      for (const value of dates) {
+        if (typeof value !== 'string') continue;
+        const date = value.slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+        // One night per date/name. Blocks do not overlap today, but a
+        // duplicate would otherwise publish the same event twice.
+        const key = `${date}:${name}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        nights.push({
+          date,
+          name,
+          openingTime,
+          closingTime,
+          closesNextDay: closingTime <= openingTime,
+        });
+      }
     }
   }
 
@@ -1678,6 +1801,11 @@ export class UniversalStudios extends Universal {
         timezone: 'America/Los_Angeles',
         parkLatitude: '34.1381',
         parkLongitude: '-118.3534',
+        // Hollywood shares Universal's legacy config prefix with Orlando, so
+        // constructor defaults prevent Orlando's event URL/place id leaking
+        // across resorts. Callers can still override either value explicitly.
+        eventCalendarURL: 'https://www.universalstudioshollywood.com/contentdata/ush/en/us/hhn//about/index.html',
+        eventCalendarPlaceId: 'ush.ush',
         ...options?.config,
       },
     });

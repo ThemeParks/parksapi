@@ -52,6 +52,36 @@ const SHOW: UniversalShowListEntry = {
   ],
 };
 
+const HHN_NIGHTS = [{
+  date: '2026-09-03',
+  name: 'Halloween Horror Nights',
+  openingTime: '19:00',
+  closingTime: '01:00',
+  closesNextDay: true,
+}];
+
+const HHN_SHOW: UniversalShowListEntry = {
+  ...SHOW,
+  show_id: 'ush.upper_lot.events.hhn_2026_show_the_purge',
+  venue_id: 'ush.upper_lot',
+  name: 'The Purge: Dangerous Waters',
+  category: 'hhn',
+  status: 'OPEN',
+  show_times: [
+    {show_time_id: 'hhn-a', status: 'ENABLED', start_time: '2026-09-04T04:00:00.000Z'},
+    {show_time_id: 'hhn-b', status: 'ENABLED', start_time: '2026-09-04T06:00:00.000Z'},
+    {show_time_id: 'hhn-c', status: 'ENABLED', start_time: '2026-09-04T07:30:00.000Z'},
+  ],
+};
+
+const USH_HHN_DAYTIME_SCHEDULE = [{
+  Date: '2026-09-04',
+  OpenTimeString: '2026-09-04T12:00:00-04:00',
+  CloseTimeString: '2026-09-04T21:00:00-04:00',
+  EarlyEntryString: '2026-09-04T11:00:00-04:00',
+  SpecialEntryUnix: 0,
+}];
+
 function stubPark<T extends UniversalStudios | UniversalOrlando>(
   park: T,
   showList: UniversalShowListEntry[],
@@ -73,6 +103,7 @@ function stubPark<T extends UniversalStudios | UniversalOrlando>(
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('Universal buildLiveData — show status clock-gated against park hours', () => {
@@ -252,6 +283,43 @@ describe('Universal buildLiveData — show status clock-gated against park hours
     expect(entry!.status).toBe('OPERATING');
   });
 
+  test('a malformed current day plus a valid future day degrades to ungated', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-18T19:00:00.000Z'));
+
+    const park = stubPark(new UniversalStudios(), [SHOW]);
+    (park as any).getVenueSchedule = async () => [
+      {Date: '2026-08-18', VenueStatus: 'Open'},
+      {
+        Date: '2026-08-19',
+        VenueStatus: 'Open',
+        OpenTimeString: '2026-08-19T09:00:00-07:00',
+        CloseTimeString: '2026-08-19T19:00:00-07:00',
+      },
+    ];
+
+    const liveData = await park.getLiveData();
+    const entry = liveData.find((d) => d.id === SHOW.show_id);
+
+    expect(entry!.status).toBe('OPERATING');
+  });
+
+  test('a malformed EarlyEntryString falls back to the valid general opening', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-18T19:00:00.000Z'));
+
+    const park = stubPark(new UniversalStudios(), [SHOW], {
+      '13825': [{
+        ...USH_SCHEDULE_FIXTURE[0],
+        EarlyEntryString: 'not-a-date',
+      }],
+    });
+    const liveData = await park.getLiveData();
+    const entry = liveData.find((d) => d.id === SHOW.show_id);
+
+    expect(entry!.status).toBe('OPERATING');
+  });
+
   test('a schedule where every day is explicitly Closed is a confident CLOSED, not a fail-open', async () => {
     // Distinguishes "we have real data and it says closed" (Volcano Bay's
     // off-season) from "we have no usable data" (the empty-array case
@@ -335,6 +403,103 @@ describe('Universal buildLiveData — show status clock-gated against park hours
     const entry = liveData.find((d) => d.id === 'ush.cw.entertainment.meet_mario_and_luigi');
 
     expect(entry!.status).toBe('OPERATING');
+  });
+
+  describe('Hollywood HHN — ticketed-event shows use the event window only', () => {
+    function hhnPark(
+      showList: UniversalShowListEntry[],
+      eventNights: typeof HHN_NIGHTS = HHN_NIGHTS,
+    ): UniversalStudios {
+      const park = stubPark(
+        new UniversalStudios(),
+        showList,
+        {'13825': USH_HHN_DAYTIME_SCHEDULE},
+      );
+      (park as any).getEventNights = async () => eventNights;
+      return park;
+    }
+
+    test('live HHN show remains OPERATING while the daytime park is closed', async () => {
+      vi.useFakeTimers();
+      // Live-verified 2026-09-03 at 23:58 PDT: day park closed, HHN open,
+      // The Purge OPEN with a final 00:30 performance still ahead.
+      vi.setSystemTime(new Date('2026-09-04T06:58:00.000Z'));
+
+      const liveData = await hhnPark([HHN_SHOW]).getLiveData();
+      const entry = liveData.find((d) => d.id === HHN_SHOW.show_id);
+
+      expect(entry!.status).toBe('OPERATING');
+      expect(entry!.showtimes).toHaveLength(1);
+    });
+
+    test('ordinary next-day show remains CLOSED during HHN after midnight', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-09-04T06:58:00.000Z'));
+
+      const daytimeShow: UniversalShowListEntry = {
+        ...SHOW,
+        show_id: 'ush.upper_lot.shows.daytime_only',
+        venue_id: 'ush.upper_lot',
+        status: 'OPEN',
+        show_times: [{
+          show_time_id: 'day-a',
+          status: 'ENABLED',
+          start_time: '2026-09-04T18:00:00.000Z',
+        }],
+      };
+      const liveData = await hhnPark([HHN_SHOW, daytimeShow]).getLiveData();
+      const entry = liveData.find((d) => d.id === daytimeShow.show_id);
+
+      expect(entry!.status).toBe('CLOSED');
+    });
+
+    test('HHN show closes after the official event window', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-09-04T08:15:00.000Z')); // 01:15 PDT
+
+      const liveData = await hhnPark([HHN_SHOW]).getLiveData();
+      const entry = liveData.find((d) => d.id === HHN_SHOW.show_id);
+
+      expect(entry!.status).toBe('CLOSED');
+    });
+
+    test('empty event calendar fails open for event shows only', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-09-04T06:58:00.000Z'));
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      const liveData = await hhnPark([HHN_SHOW], []).getLiveData();
+      const entry = liveData.find((d) => d.id === HHN_SHOW.show_id);
+
+      expect(entry!.status).toBe('OPERATING');
+    });
+
+    test('event-calendar fetch failure fails open rather than closing a live event', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-09-04T06:58:00.000Z'));
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      const park = hhnPark([HHN_SHOW]);
+      (park as any).getEventNights = async () => {
+        throw new Error('HTTP 403');
+      };
+      const liveData = await park.getLiveData();
+      const entry = liveData.find((d) => d.id === HHN_SHOW.show_id);
+
+      expect(entry!.status).toBe('OPERATING');
+    });
+
+    test('does not fetch the event calendar when no event show is present', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-09-04T06:58:00.000Z'));
+
+      const park = hhnPark([SHOW]);
+      const getEventNights = vi.fn(async () => HHN_NIGHTS);
+      (park as any).getEventNights = getEventNights;
+      await park.getLiveData();
+
+      expect(getEventNights).not.toHaveBeenCalled();
+    });
   });
 
   // Universal Orlando: 4 parks sharing one buildLiveData call, each with its
