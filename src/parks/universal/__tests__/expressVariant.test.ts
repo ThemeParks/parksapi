@@ -19,6 +19,8 @@ import {
   UniversalStudios,
   isExpressQueueVariant,
   buildExpressVariantMap,
+  isAccessibilityReturnTimeVariant,
+  isNonPoiNamespace,
   type UniversalPlace,
 } from '../universal.js';
 
@@ -219,5 +221,82 @@ describe('Universal buildLiveData — express waits fold onto the maze', () => {
     const rows = await park.getLiveData();
     const maze = rows.find((r: any) => r.id === 'ush.upper_lot.rides.hhn_2026_hellraiser');
     expect(maze.queue.STANDBY.waitTime).toBe(55);
+  });
+});
+
+describe('isAccessibilityReturnTimeVariant', () => {
+  // Orlando publishes each haunted house's accessibility return service as
+  // its own Ride place. All ten houses are already live, so left alone these
+  // surface as ten duplicate rides named after a queue.
+  const HOUSE = 'uor.usf.rides.hhn_haunted_house_sinners';
+  const DAAP = `${HOUSE}_daap`;
+  const known = new Set([HOUSE, DAAP]);
+
+  function daap(placeId: string, name: string): UniversalPlace {
+    return place(placeId, name, 'Ride', 'true');
+  }
+
+  test('drops the variant when its house is in the feed', () => {
+    expect(isAccessibilityReturnTimeVariant(
+      daap(DAAP, 'Sinners Accessibility Return Time'), known,
+    )).toBe(true);
+  });
+
+  test('keeps the house itself', () => {
+    expect(isAccessibilityReturnTimeVariant(place(HOUSE, 'Sinners'), known)).toBe(false);
+  });
+
+  test('a non-breaking space in the name does not defeat the match', () => {
+    // Exactly one of the ten real names separates the suffix with U+00A0
+    // instead of a space ("MADLANDS: Caged Cannibals\u00a0Accessibility
+    // Return Time"). It is invisible in a log and in a diff, and it silently
+    // let that one variant through until the names were compared byte by
+    // byte. Every name-based match in this file normalises first.
+    expect(isAccessibilityReturnTimeVariant(
+      daap(DAAP, 'Sinners\u00a0Accessibility Return Time'), known,
+    )).toBe(true);
+  });
+
+  test('a variant with no house in the feed is kept, not silently dropped', () => {
+    // Sloppy feed data is not a duplicate. Same discipline as
+    // isEventVariantAlias, which keeps a share link pointing at a phantom id.
+    expect(isAccessibilityReturnTimeVariant(
+      daap('uor.usf.rides.hhn_haunted_house_ghost_daap', 'Ghost Accessibility Return Time'),
+      new Set(['uor.usf.rides.hhn_haunted_house_ghost_daap']),
+    )).toBe(false);
+  });
+
+  test('a _daap id without the return-time name is not assumed to be one', () => {
+    expect(isAccessibilityReturnTimeVariant(daap(DAAP, 'Sinners'), known)).toBe(false);
+  });
+});
+
+describe('isNonPoiNamespace', () => {
+  test('drops passholder marketing typed as attractions', () => {
+    // These arrive typed as real POIs: an Express Pass discount as a Ride,
+    // character meet & greets as a Show, menu blurbs as Dining.
+    const ads: UniversalPlace[] = [
+      place('uor.pad.save.30.select.universal.express.passes', 'Save 30% on Select Universal Express Passes'),
+      place('uor.pad.exclusive.menu.items.in.the.parks', 'Exclusive Menu Items in the Parks', 'Dining'),
+      place('uor.pad.exclusive.menu.items.at.citywalk', 'Exclusive Menu Items at CityWalk', 'Dining'),
+      place('uor.pan.character.meet.and.greets', 'Character Meet & Greets', 'Show'),
+      place('uor.pan.exclusive.menu.items', 'Exclusive Passholder Nights Menu Items', 'Dining'),
+    ];
+    for (const ad of ads) expect(isNonPoiNamespace(ad), ad.place_id).toBe(true);
+  });
+
+  test('keeps every real namespace, including resort-wide categories', () => {
+    // A deny-list, so the risk is over-matching. "dining" and "amenities" are
+    // real second segments that must survive.
+    const keep = [
+      'uor.usf.rides.revenge_of_the_mummy',
+      'uor.ioa.shows.darkartsathogwartscastle',
+      'uor.vb.rides.krakatau_aqua_coaster',
+      'ush.dining.panda_express',
+      'ush.upper_lot.rides.hhn_2026_sinners',
+      'uor.cw.dining.vivo_italian_kitchen',
+      'uor.amenities.first_aid',
+    ];
+    for (const id of keep) expect(isNonPoiNamespace(place(id, 'x')), id).toBe(false);
   });
 });

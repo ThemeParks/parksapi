@@ -214,6 +214,76 @@ export function isEventVariantAlias(place: UniversalPlace, knownPlaceIds: Set<st
 }
 
 /**
+ * A place name with every Unicode space folded to a plain one and the ends
+ * trimmed, for matching against.
+ *
+ * The feed mixes them: "MADLANDS: Caged Cannibals\u00a0Accessibility Return
+ * Time" carries a non-breaking space before "Accessibility" where its nine
+ * siblings use an ordinary one. It is invisible in logs and in a diff, and it
+ * silently defeated the suffix test for exactly one of the ten — the kind of
+ * near-miss that looks like a feed change rather than a bug. Normalise before
+ * matching, never match raw.
+ */
+function normalizeName(name: string | undefined): string {
+  return (name ?? '').replace(/\s/g, ' ').trim();
+}
+
+/**
+ * Place-id namespaces that are not points of interest at all.
+ *
+ * Real POIs are keyed under a park or venue (`uor.usf.…`, `ush.upper_lot.…`)
+ * or a resort-wide category (`ush.dining.…`). These two namespaces instead
+ * carry annual-passholder marketing copy, typed as though it were an
+ * attraction — "Save 30% on Select Universal Express Passes" arrives as a
+ * `Ride`, "Character Meet & Greets" as a Show, and the several "Exclusive
+ * Menu Items" entries as Dining. Publishing them puts adverts on the wiki as
+ * rides, so they are dropped by namespace rather than by guessing from copy.
+ *
+ * A deny-list, not a heuristic: everything else is kept. Hollywood uses
+ * neither namespace, and no other second segment overlaps them.
+ */
+const NON_POI_NAMESPACES = new Set(['pad', 'pan']);
+
+/** True for a passholder-marketing entry masquerading as a POI. */
+export function isNonPoiNamespace(place: UniversalPlace): boolean {
+  return NON_POI_NAMESPACES.has(place.place_id?.split('.')[1] ?? '');
+}
+
+/**
+ * True for an Orlando accessibility-return-time POI — the feed publishes each
+ * Halloween Horror Nights house's accessibility return service as its OWN
+ * `Ride` place ("Sinners Accessibility Return Time" beside "Sinners"), the
+ * same shape as Hollywood's express variants.
+ *
+ * All ten houses are already published, so left alone these would surface as
+ * ten duplicate rides named after a queue.
+ *
+ * Unlike the express variants the pairing here is EXACT — dropping the
+ * `_daap` suffix yields the canonical place_id — so the sibling is required
+ * to exist before the variant is discarded. A `_daap` place with no canonical
+ * is sloppy feed data rather than a duplicate, and is kept, matching how
+ * isEventVariantAlias treats a share link pointing at a phantom id.
+ *
+ * The return-time VALUE is deliberately not folded onto the house. Unlike the
+ * express wait, nothing observable carries it: across the wait-time feed, the
+ * virtual-queue feed and the place record itself, these ids produce no live
+ * data outside event hours, so the shape and meaning of the reading are
+ * unconfirmed. Attaching a number whose semantics are a guess is how a wrong
+ * return time reaches a guest who needs an accurate one. Publish the houses
+ * correctly first; fold the value once it can be observed during an event.
+ */
+export function isAccessibilityReturnTimeVariant(
+  place: UniversalPlace,
+  knownPlaceIds: Set<string>,
+): boolean {
+  if (place.place_type?.type !== 'Ride') return false;
+  if (attr(place, 'is_event') !== 'true') return false;
+  if (!/_daap$/.test(place.place_id ?? '')) return false;
+  if (!/ Accessibility Return Time$/.test(normalizeName(place.name))) return false;
+  return knownPlaceIds.has(sanitizeId(place.place_id.replace(/_daap$/, '')));
+}
+
+/**
  * True for a Hollywood express-queue POI — the feed publishes the express
  * line of an HHN maze as its OWN `Ride` place ("Hellraiser - Express"
  * alongside "Hellraiser"), rather than as a queue on the maze.
@@ -233,7 +303,7 @@ export function isEventVariantAlias(place: UniversalPlace, knownPlaceIds: Set<st
 export function isExpressQueueVariant(place: UniversalPlace): boolean {
   return place.place_type?.type === 'Ride'
     && attr(place, 'is_event') === 'true'
-    && / - Express$/.test(place.name ?? '');
+    && / - Express$/.test(normalizeName(place.name));
 }
 
 /** Slug of a place_id with the separators and the season prefix removed. */
@@ -1411,6 +1481,11 @@ class Universal extends Destination {
       // An express queue is a queue on its maze, not an attraction of its
       // own — buildLiveData reattaches its wait as PAID_STANDBY.
       if (isExpressQueueVariant(place)) continue;
+      // An accessibility return time is a service on its house, not an
+      // attraction. Dropped only when the house itself is in the feed.
+      if (isAccessibilityReturnTimeVariant(place, knownPlaceIds)) continue;
+      // Passholder marketing copy typed as a ride/show/dining place.
+      if (isNonPoiNamespace(place)) continue;
       const entity = placeToEntity(place, destinationId, this.timezone);
       if (entity) out.push(entity);
     }
