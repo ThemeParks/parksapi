@@ -477,10 +477,23 @@ type UniversalScheduleResponse = Array<{
 }>;
 
 /**
- * True/false while `now` is inside/outside a fully usable ticketed-event
- * calendar. `null` means the calendar contains a malformed window, so callers
- * must treat it as unknown rather than using it as proof that event shows are
- * closed.
+ * True/false while `now` is inside/outside a ticketed-event calendar. `null`
+ * means the calendar cannot answer the question, so callers must treat it as
+ * unknown rather than as proof that event shows are closed.
+ *
+ * A malformed night is skipped rather than abandoning the whole calendar. The
+ * calendar covers a whole season — Hollywood publishes 42 nights — and one
+ * bad row in November must not disable the gate every night until then. Only
+ * two things make the answer unknown, mirroring isParkOperatingNow:
+ *
+ *  - a malformed night on a date that could still be running right now
+ *    (tonight's, or last night's for a window that crosses midnight), because
+ *    the row that would have answered the question is the broken one; or
+ *  - no usable night anywhere, which is indistinguishable from a fetch that
+ *    returned a document we failed to understand.
+ *
+ * A calendar with usable nights, none of them covering `now`, is the ordinary
+ * off-season/daytime case and answers a confident false.
  */
 export function isUniversalEventOperatingNow(
   nights: UniversalEventNight[],
@@ -488,25 +501,46 @@ export function isUniversalEventOperatingNow(
   timezone: string,
 ): boolean | null {
   const nowMs = now.getTime();
+  const validDate = /^\d{4}-\d{2}-\d{2}$/;
   const validTime = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
 
+  // Nights whose window could plausibly still be open at `now`. A night is
+  // keyed to the date it starts, so an event running past midnight is still
+  // yesterday's row.
+  const today = formatDate(now, timezone);
+  const relevantDates = new Set([today, shiftDateString(today, -1)]);
+
+  let sawUsableNight = false;
+  let sawMalformedRelevantNight = false;
+
   for (const night of nights) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(night.date)
+    const relevant = validDate.test(night.date) && relevantDates.has(night.date);
+    if (!validDate.test(night.date)
         || !validTime.test(night.openingTime)
         || !validTime.test(night.closingTime)) {
-      return null;
+      if (relevant) sawMalformedRelevantNight = true;
+      continue;
     }
+    let openingMs: number;
+    let closingMs: number;
     try {
-      const openingMs = new Date(constructDateTime(night.date, night.openingTime, timezone)).getTime();
+      openingMs = new Date(constructDateTime(night.date, night.openingTime, timezone)).getTime();
       const closingDate = night.closesNextDay ? shiftDateString(night.date, 1) : night.date;
-      const closingMs = new Date(constructDateTime(closingDate, night.closingTime, timezone)).getTime();
-      if (!Number.isFinite(openingMs) || !Number.isFinite(closingMs) || closingMs <= openingMs) return null;
-      if (nowMs >= openingMs && nowMs <= closingMs) return true;
+      closingMs = new Date(constructDateTime(closingDate, night.closingTime, timezone)).getTime();
     } catch {
-      return null;
+      if (relevant) sawMalformedRelevantNight = true;
+      continue;
     }
+    if (!Number.isFinite(openingMs) || !Number.isFinite(closingMs) || closingMs <= openingMs) {
+      if (relevant) sawMalformedRelevantNight = true;
+      continue;
+    }
+    sawUsableNight = true;
+    if (nowMs >= openingMs && nowMs <= closingMs) return true;
   }
-  return false;
+
+  if (sawMalformedRelevantNight) return null;
+  return sawUsableNight ? false : null;
 }
 
 @config
@@ -635,17 +669,26 @@ class Universal extends Destination {
    * parsed here rather than letting the HTTP layer decide by content type.
    */
   @http({cacheSeconds: 43200, retries: 1} as any)
-  async fetchEventCalendar(): Promise<HTTPObj> {
+  async fetchEventCalendar(calendarURL: string): Promise<HTTPObj> {
     return {
       method: 'GET',
-      url: this.eventCalendarURL,
+      url: calendarURL,
       options: {json: false},
       tags: ['website'],
     } as any as HTTPObj;
   }
 
-  /** Ticketed-event nights for this resort, or [] when not configured. */
-  @cache({ttlSeconds: 43200})
+  /**
+   * Ticketed-event nights for this resort, or [] when not configured.
+   *
+   * The "not configured" answers are deliberately resolved OUTSIDE the cache.
+   * Cached, they write [] to the same key a configured run reads back, so a
+   * single unconfigured start silently ungates event shows for the next 12
+   * hours; the empty result is also free to recompute. Only the fetch and
+   * parse are worth caching, and they are keyed by the URL they came from so
+   * repointing the calendar takes effect immediately instead of at the next
+   * TTL expiry.
+   */
   async getEventNights(): Promise<UniversalEventNight[]> {
     if (!this.eventCalendarURL || !this.eventCalendarPlaceId) return [];
     // UniversalOrlando and UniversalStudios share addConfigPrefix
@@ -654,7 +697,19 @@ class Universal extends Destination {
     // none of its parks — but without this Hollywood still fetches and parses
     // a 285KB Orlando document on every schedule build.
     if (!this.parkPlaceIds().includes(this.eventCalendarPlaceId)) return [];
-    const body = await (await this.fetchEventCalendar()).text();
+    return await this.fetchEventNights(this.eventCalendarURL);
+  }
+
+  /**
+   * Fetch and parse the configured event calendar.
+   *
+   * `calendarURL` is passed rather than read from `this` purely so it lands in
+   * the cache key: the same class repointed at a different microsite must not
+   * serve the previous site's nights.
+   */
+  @cache({ttlSeconds: 43200})
+  protected async fetchEventNights(calendarURL: string): Promise<UniversalEventNight[]> {
+    const body = await (await this.fetchEventCalendar(calendarURL)).text();
     return parseUniversalEventCalendar(JSON.parse(body));
   }
 
@@ -1823,11 +1878,22 @@ export class UniversalStudios extends Universal {
         timezone: 'America/Los_Angeles',
         parkLatitude: '34.1381',
         parkLongitude: '-118.3534',
-        // Hollywood shares Universal's legacy config prefix with Orlando, so
-        // constructor defaults prevent Orlando's event URL/place id leaking
-        // across resorts. Callers can still override either value explicitly.
-        eventCalendarURL: 'https://www.universalstudioshollywood.com/contentdata/ush/en/us/hhn//about/index.html',
-        eventCalendarPlaceId: 'ush.ush',
+        // Hollywood's class name IS the shared legacy prefix
+        // ('UNIVERSALSTUDIOS'), so UNIVERSALSTUDIOS_EVENTCALENDAR* — which
+        // in practice configures Orlando — would otherwise be read here and
+        // point Hollywood at Orlando's microsite and host park. Neither the
+        // class-name nor the prefix env lookup can be scoped to one of the
+        // two resorts, so the value is resolved before config exists and
+        // placed in instance config, above every env lookup.
+        //
+        // That leaves nothing for an operator to turn when the microsite
+        // path moves, hence the Hollywood-scoped names read here: they are
+        // unambiguous, cannot collide with Orlando's, and keep a moved URL
+        // a config change rather than a release.
+        eventCalendarURL: process.env.UNIVERSALSTUDIOSHOLLYWOOD_EVENTCALENDARURL
+          || 'https://www.universalstudioshollywood.com/contentdata/ush/en/us/hhn/about/index.html',
+        eventCalendarPlaceId: process.env.UNIVERSALSTUDIOSHOLLYWOOD_EVENTCALENDARPLACEID
+          || 'ush.ush',
         ...options?.config,
       },
     });
