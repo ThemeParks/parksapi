@@ -90,6 +90,9 @@ function stubPark<T extends UniversalStudios | UniversalOrlando>(
   (park as any)._init = async () => undefined;
   (park as any).getWaitTimes = async () => [];
   (park as any).getVirtualQueueStates = async () => [];
+  // buildLiveData reads the place list to fold express-queue POIs onto their
+  // maze; no express variants in these fixtures, so an empty list is exact.
+  (park as any).getPlaces = async () => [];
   (park as any).getShowList = async () => showList;
   // venueId-aware, unlike a fixed return value: needed for UOR (4 distinct
   // legacy venue ids sharing one buildLiveData call) to prove each park
