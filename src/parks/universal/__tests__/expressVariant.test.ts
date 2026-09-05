@@ -21,6 +21,9 @@ import {
   buildExpressVariantMap,
   isAccessibilityReturnTimeVariant,
   isNonPoiNamespace,
+  isNamedEventVariant,
+  canonicalPlaceNames,
+  isEventVariantAlias,
   type UniversalPlace,
 } from '../universal.js';
 
@@ -298,5 +301,80 @@ describe('isNonPoiNamespace', () => {
       'uor.amenities.first_aid',
     ];
     for (const id of keep) expect(isNonPoiNamespace(place(id, 'x')), id).toBe(false);
+  });
+});
+
+describe('isNamedEventVariant', () => {
+  // "Studio Tour - Mandarin"/"- Spanish" are language variants of the Studio
+  // Tour whose share link points at WATERWORLD, an unrelated show. Today that
+  // still resolves to "some other real place" so isEventVariantAlias drops
+  // them — but by luck, not by knowing what they are. The name rule is the
+  // second, independent signal.
+  const TOUR = place('ush.upper_lot.rides.studio_tour', 'Studio Tour');
+  const MANDARIN = place('ush.upper_lot.shows.studio_tour_mandarin', 'Studio Tour - Mandarin', 'Show', 'true');
+  const SPANISH = place('ush.upper_lot.shows.studio_tour_spanish', 'Studio Tour - Spanish', 'Show', 'true');
+
+  test('matches a language variant of a canonical that exists', () => {
+    const names = canonicalPlaceNames([TOUR, MANDARIN, SPANISH]);
+    expect(isNamedEventVariant(MANDARIN, names)).toBe(true);
+    expect(isNamedEventVariant(SPANISH, names)).toBe(true);
+  });
+
+  test('THE POINT: still dropped when the share link stops rescuing them', () => {
+    // The share-link rule keeps a record whose link is missing or points at an
+    // id the feed does not carry (the Epic Universe meets case). Without a
+    // second signal, the day the feed nulls that bad WaterWorld link is the
+    // day the wiki gains two phantom SHOW entities named after a Ride it
+    // already publishes.
+    const orphanLink = {
+      ...MANDARIN,
+      place_type: {type: 'Show', attributes: [
+        {name: 'is_event', value: 'true'},
+        {name: 'social_sharing_link', value: 'https://x/?id=ush.does.not.exist'},
+      ]},
+    } as any;
+    const known = new Set(['ush.upper_lot.rides.studio_tour', 'ush.upper_lot.shows.studio_tour_mandarin']);
+    expect(isEventVariantAlias(orphanLink, known)).toBe(false);   // link rule lets it through
+    expect(isNamedEventVariant(orphanLink, canonicalPlaceNames([TOUR]))).toBe(true); // name rule catches it
+  });
+
+  test('does not match when no canonical of that name exists', () => {
+    expect(isNamedEventVariant(MANDARIN, canonicalPlaceNames([MANDARIN, SPANISH]))).toBe(false);
+  });
+
+  test('two variants cannot validate each other', () => {
+    // Only non-event places count as canonical, so a variant can never make
+    // another variant look legitimate.
+    const names = canonicalPlaceNames([MANDARIN, SPANISH]);
+    expect(names.has('Studio Tour - Mandarin')).toBe(false);
+  });
+
+  test('a non-event place is never a variant', () => {
+    expect(isNamedEventVariant(place('ush.x.y.z', 'Studio Tour - Something'), canonicalPlaceNames([TOUR]))).toBe(false);
+  });
+
+  test('a non-breaking space in either name does not defeat the match', () => {
+    const nbspTour = place('ush.upper_lot.rides.studio_tour', 'Studio\u00a0Tour');
+    const nbspVariant = place('ush.a.b.c', 'Studio Tour\u00a0- Mandarin', 'Show', 'true');
+    expect(isNamedEventVariant(nbspVariant, canonicalPlaceNames([nbspTour]))).toBe(true);
+  });
+
+  test('every " - " boundary is tried', () => {
+    const base = place('ush.a.b.c', 'A - B');
+    const variant = place('ush.a.b.d', 'A - B - C', 'Ride', 'true');
+    expect(isNamedEventVariant(variant, canonicalPlaceNames([base]))).toBe(true);
+  });
+
+  test('real attractions with a dash in their name are never matched', () => {
+    // The counter-examples from both live feeds. None has a canonical named
+    // by the part before the dash, which is what keeps them safe.
+    const feed = [
+      place('uor.ioa.rides.hogwarts_express_-_hogsmeade_station', 'Hogwarts Express™ - Hogsmeade™ Station'),
+      place('uor.usf.rides.hogwarts_express_-_kings_cross_station', "Hogwarts Express™ - King's Cross Station"),
+      place('uor.usf.rides.hogwarts_express_first_train', 'Hogwarts™ Express - First Train', 'Ride', 'true'),
+      place('uor.usf.rides.hogwarts_express_last_train', 'Hogwarts™ Express - Last Train', 'Ride', 'true'),
+    ];
+    const names = canonicalPlaceNames(feed);
+    for (const p of feed) expect(isNamedEventVariant(p, names), p.place_id).toBe(false);
   });
 });

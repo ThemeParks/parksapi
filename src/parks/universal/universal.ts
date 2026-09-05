@@ -358,6 +358,53 @@ export function buildExpressVariantMap(places: UniversalPlace[]): Map<string, st
 }
 
 /**
+ * True for an event-flagged place whose NAME marks it as a variant of a
+ * canonical place that exists in the same feed — "Studio Tour - Mandarin"
+ * beside "Studio Tour".
+ *
+ * This exists because isEventVariantAlias's share-link signal is not
+ * trustworthy on its own. USH's Mandarin and Spanish Studio Tour variants
+ * aim their `social_sharing_link` at WATERWORLD, an unrelated show. Today
+ * that still resolves to "some other real place", so they are dropped and
+ * the answer happens to be right — but the reason is luck. If the feed ever
+ * nulls that link, or repoints it at an id the feed does not carry, both
+ * fall into the branch that deliberately KEEPS a record (the Epic Universe
+ * meets case), and the wiki gains two phantom SHOW entities named after a
+ * ride it already publishes. They are typed `Show` while the real Studio
+ * Tour is a `Ride`, so they would not even sit next to it.
+ *
+ * The name is the sturdier signal: it is what the variant is actually
+ * describing, and it does not depend on the feed getting a cross-reference
+ * right. Both rules run, so neither is load-bearing alone.
+ *
+ * Every " - " boundary is tried, so "A - B - C" matches a canonical "A" or
+ * "A - B". Only non-event places count as canonical, so two variants cannot
+ * validate each other. Names are space-normalised first — the feed mixes
+ * U+00A0 into these strings (see normalizeName).
+ */
+export function isNamedEventVariant(
+  place: UniversalPlace,
+  canonicalNames: Set<string>,
+): boolean {
+  if (attr(place, 'is_event') !== 'true') return false;
+  const name = normalizeName(place.name);
+  for (let i = name.indexOf(' - '); i > 0; i = name.indexOf(' - ', i + 1)) {
+    if (canonicalNames.has(name.slice(0, i))) return true;
+  }
+  return false;
+}
+
+/** Names of places that are not themselves event variants. */
+export function canonicalPlaceNames(places: UniversalPlace[]): Set<string> {
+  return new Set(
+    places
+      .filter((p) => attr(p, 'is_event') !== 'true')
+      .map((p) => normalizeName(p.name))
+      .filter(Boolean),
+  );
+}
+
+/**
  * Map a UniversalPlace to a wiki Entity. Returns null for place types we
  * don't expose (Park is emitted separately by buildEntityList; Shop /
  * Amenity / Hotel / etc. are out of scope for this migration).
@@ -1476,8 +1523,13 @@ class Universal extends Destination {
     // a share link to a non-existent id (sloppy feed data) is NOT treated as a
     // variant.
     const knownPlaceIds = new Set(places.map((p) => sanitizeId(p.place_id)));
+    const canonicalNames = canonicalPlaceNames(places);
     for (const place of places) {
       if (isEventVariantAlias(place, knownPlaceIds)) continue;
+      // Second, independent signal for the same class: the share link is
+      // wrong on the very records it is meant to resolve (see
+      // isNamedEventVariant), so the name has to carry it too.
+      if (isNamedEventVariant(place, canonicalNames)) continue;
       // An express queue is a queue on its maze, not an attraction of its
       // own — buildLiveData reattaches its wait as PAID_STANDBY.
       if (isExpressQueueVariant(place)) continue;
