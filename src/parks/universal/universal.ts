@@ -1826,7 +1826,70 @@ class Universal extends Destination {
       );
     }
 
-    return liveData;
+    return await this.dropUnpublishableRows(liveData);
+  }
+
+  /**
+   * Keep only rows whose entity this destination actually publishes.
+   *
+   * The live feeds and the place feed do not agree on what exists. show-list
+   * and the wait-time feed emit readings for things buildEntityList has no
+   * entity for, in four separate ways seen live at Hollywood:
+   *
+   *  - ids the PLACE feed has never heard of (`ush.mms.minion.dance.party`,
+   *    and `ush.upper.lot.shows.meet_james.henry`, which is dotted where every
+   *    other id is underscored — an older id shape leaking in);
+   *  - event-variant aliases dropped as duplicates (Studio Tour Last Tram, and
+   *    the Mandarin/Spanish variants whose share links point at WaterWorld);
+   *  - children of a venue with no wiki representation (CityWalk);
+   *  - places whose type placeToEntity does not map (an `Events`-typed ride).
+   *
+   * A row keyed to an entity that is never emitted cannot be resolved by any
+   * consumer — it is dropped downstream after being built, pushed and logged.
+   * Filtering here costs one already-cached place list and removes the whole
+   * class rather than the four causes one at a time.
+   *
+   * Derived from buildEntityList itself rather than by re-testing the same
+   * predicates, so the two cannot drift apart as feed shapes are added.
+   *
+   * ISOLATED on purpose: buildEntityList is allowed to fail loudly, but a
+   * failure here must not blank a whole cycle of wait times. If the entity
+   * list cannot be built, every row is published exactly as before.
+   */
+  protected async dropUnpublishableRows(rows: LiveData[]): Promise<LiveData[]> {
+    let publishable: Set<string>;
+    try {
+      publishable = new Set((await this.buildEntityList()).map((e) => e.id));
+    } catch (err: any) {
+      console.warn(
+        `[${this.constructor.name}] entity list unavailable, publishing every live row: ${err?.message ?? err}`,
+      );
+      return rows;
+    }
+    const kept = rows.filter((row) => publishable.has(row.id));
+    const dropped = rows.length - kept.length;
+
+    // A filter that would remove most of the feed is evidence its INPUT is
+    // wrong, not that the rows are. getPlaces coerces any malformed-but-200
+    // response to [] and @caches it for twelve hours, which yields an entity
+    // list holding little more than the destination itself — and would then
+    // silently blank every wait time for half a day. The orphans this exists
+    // to remove are a fraction of a feed (10 of 57 at Hollywood, 0 of 94 at
+    // Orlando); anything near-total is an outage wearing a filter's clothes.
+    // Publish everything and say so, rather than mistaking one for the other.
+    if (dropped > rows.length / 2) {
+      console.warn(
+        `[${this.constructor.name}] entity list would drop ${dropped}/${rows.length} live rows — treating it as unusable and publishing every row`,
+      );
+      return rows;
+    }
+
+    if (dropped > 0) {
+      console.warn(
+        `[${this.constructor.name}] dropped ${dropped} live row(s) keyed to entities that are never published`,
+      );
+    }
+    return kept;
   }
 
   /**
