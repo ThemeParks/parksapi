@@ -44,6 +44,9 @@ function stubbedPark<T extends UniversalOrlando | UniversalStudios>(park: T, wai
   const p = park as any;
   p.getWaitTimes = async () => waitTimes;
   p.getVirtualQueueStates = async () => [];
+  // buildLiveData reads the place list to fold express-queue POIs onto their
+  // maze; no express variants in these fixtures, so an empty list is exact.
+  p.getPlaces = async () => [];
   p.getShowList = async () => [];
   p.getExpressNowOffers = async () => ({});
   return park;

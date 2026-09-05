@@ -214,6 +214,150 @@ export function isEventVariantAlias(place: UniversalPlace, knownPlaceIds: Set<st
 }
 
 /**
+ * A place name with every Unicode space folded to a plain one and the ends
+ * trimmed, for matching against.
+ *
+ * The feed mixes them: "MADLANDS: Caged Cannibals\u00a0Accessibility Return
+ * Time" carries a non-breaking space before "Accessibility" where its nine
+ * siblings use an ordinary one. It is invisible in logs and in a diff, and it
+ * silently defeated the suffix test for exactly one of the ten — the kind of
+ * near-miss that looks like a feed change rather than a bug. Normalise before
+ * matching, never match raw.
+ */
+function normalizeName(name: string | undefined): string {
+  return (name ?? '').replace(/\s/g, ' ').trim();
+}
+
+/**
+ * Place-id namespaces that are not points of interest at all.
+ *
+ * Real POIs are keyed under a park or venue (`uor.usf.…`, `ush.upper_lot.…`)
+ * or a resort-wide category (`ush.dining.…`). These two namespaces instead
+ * carry annual-passholder marketing copy, typed as though it were an
+ * attraction — "Save 30% on Select Universal Express Passes" arrives as a
+ * `Ride`, "Character Meet & Greets" as a Show, and the several "Exclusive
+ * Menu Items" entries as Dining. Publishing them puts adverts on the wiki as
+ * rides, so they are dropped by namespace rather than by guessing from copy.
+ *
+ * A deny-list, not a heuristic: everything else is kept. Hollywood uses
+ * neither namespace, and no other second segment overlaps them.
+ */
+const NON_POI_NAMESPACES = new Set(['pad', 'pan']);
+
+/** True for a passholder-marketing entry masquerading as a POI. */
+export function isNonPoiNamespace(place: UniversalPlace): boolean {
+  return NON_POI_NAMESPACES.has(place.place_id?.split('.')[1] ?? '');
+}
+
+/**
+ * True for an Orlando accessibility-return-time POI — the feed publishes each
+ * Halloween Horror Nights house's accessibility return service as its OWN
+ * `Ride` place ("Sinners Accessibility Return Time" beside "Sinners"), the
+ * same shape as Hollywood's express variants.
+ *
+ * All ten houses are already published, so left alone these would surface as
+ * ten duplicate rides named after a queue.
+ *
+ * Unlike the express variants the pairing here is EXACT — dropping the
+ * `_daap` suffix yields the canonical place_id — so the sibling is required
+ * to exist before the variant is discarded. A `_daap` place with no canonical
+ * is sloppy feed data rather than a duplicate, and is kept, matching how
+ * isEventVariantAlias treats a share link pointing at a phantom id.
+ *
+ * The return-time VALUE is deliberately not folded onto the house. Unlike the
+ * express wait, nothing observable carries it: across the wait-time feed, the
+ * virtual-queue feed and the place record itself, these ids produce no live
+ * data outside event hours, so the shape and meaning of the reading are
+ * unconfirmed. Attaching a number whose semantics are a guess is how a wrong
+ * return time reaches a guest who needs an accurate one. Publish the houses
+ * correctly first; fold the value once it can be observed during an event.
+ */
+export function isAccessibilityReturnTimeVariant(
+  place: UniversalPlace,
+  knownPlaceIds: Set<string>,
+): boolean {
+  if (place.place_type?.type !== 'Ride') return false;
+  if (attr(place, 'is_event') !== 'true') return false;
+  if (!/_daap$/.test(place.place_id ?? '')) return false;
+  if (!/ Accessibility Return Time$/.test(normalizeName(place.name))) return false;
+  return knownPlaceIds.has(sanitizeId(place.place_id.replace(/_daap$/, '')));
+}
+
+/**
+ * True for a Hollywood express-queue POI — the feed publishes the express
+ * line of an HHN maze as its OWN `Ride` place ("Hellraiser - Express"
+ * alongside "Hellraiser"), rather than as a queue on the maze.
+ *
+ * Left alone these surface as duplicate attractions whose express wait is
+ * published as a STANDBY number, so the site shows "Sinners - Express 45"
+ * next to a Sinners that is really 110. buildLiveData folds the value onto
+ * the maze as PAID_STANDBY instead (see buildExpressVariantMap).
+ *
+ * Matched on the `" - Express"` name suffix together with `is_event`, which
+ * is deliberately narrow. Both resorts carry places that must NOT match:
+ * Panda Express (Dining, and no " - " separator), Hogwarts Express and its
+ * two stations (real rides, is_event=false), and "Hogwarts™ Express - First
+ * /Last Train" (is_event=true operational variants, but the suffix is the
+ * train, not Express). Verified against the live feed for both resorts.
+ */
+export function isExpressQueueVariant(place: UniversalPlace): boolean {
+  return place.place_type?.type === 'Ride'
+    && attr(place, 'is_event') === 'true'
+    && / - Express$/.test(normalizeName(place.name));
+}
+
+/** Slug of a place_id with the separators and the season prefix removed. */
+function expressPairKey(placeId: string): string {
+  const leaf = placeId.split('.').pop() ?? placeId;
+  return leaf
+    .replace(/_express$/, '')
+    .replace(/^hhn_\d{4}_/, '')
+    .replace(/[^a-z0-9]/gi, '')
+    .toLowerCase();
+}
+
+/**
+ * Pair each express-queue POI to the maze it belongs to, keyed by sanitized
+ * place_id.
+ *
+ * The feed offers no link to pair on: these records carry no
+ * `social_sharing_link` (which is why isEventVariantAlias never caught them),
+ * no parent and no cross-reference, and two of the eight even sit in a
+ * different lot from their own maze — so venue cannot disambiguate either.
+ * The slug is all there is. Stripping the season prefix and the separators
+ * makes every express stem a prefix of its maze's stem
+ * ("killceanera" -> "killceanera_music_by_slash").
+ *
+ * Because that is a heuristic rather than a key, a stem matching zero or
+ * several mazes is left unpaired: the variant is still dropped from the
+ * entity list, but its wait is discarded rather than risking an express time
+ * published against the wrong maze. Wrong-but-plausible is worse than absent.
+ */
+export function buildExpressVariantMap(places: UniversalPlace[]): Map<string, string> {
+  const variants = places.filter(isExpressQueueVariant);
+  if (variants.length === 0) return new Map();
+
+  const candidates = places
+    .filter((place) => place.place_type?.type === 'Ride' && !isExpressQueueVariant(place))
+    .map((place) => ({id: sanitizeId(place.place_id), key: expressPairKey(place.place_id)}));
+
+  const pairs = new Map<string, string>();
+  for (const variant of variants) {
+    const stem = expressPairKey(variant.place_id);
+    if (!stem) continue;
+    const hits = candidates.filter((c) => c.key.startsWith(stem));
+    if (hits.length !== 1) {
+      console.warn(
+        `Universal: express variant ${variant.place_id} matched ${hits.length} attractions, dropping its wait`,
+      );
+      continue;
+    }
+    pairs.set(sanitizeId(variant.place_id), hits[0].id);
+  }
+  return pairs;
+}
+
+/**
  * Map a UniversalPlace to a wiki Entity. Returns null for place types we
  * don't expose (Park is emitted separately by buildEntityList; Shop /
  * Amenity / Hotel / etc. are out of scope for this migration).
@@ -1334,6 +1478,14 @@ class Universal extends Destination {
     const knownPlaceIds = new Set(places.map((p) => sanitizeId(p.place_id)));
     for (const place of places) {
       if (isEventVariantAlias(place, knownPlaceIds)) continue;
+      // An express queue is a queue on its maze, not an attraction of its
+      // own — buildLiveData reattaches its wait as PAID_STANDBY.
+      if (isExpressQueueVariant(place)) continue;
+      // An accessibility return time is a service on its house, not an
+      // attraction. Dropped only when the house itself is in the feed.
+      if (isAccessibilityReturnTimeVariant(place, knownPlaceIds)) continue;
+      // Passholder marketing copy typed as a ride/show/dining place.
+      if (isNonPoiNamespace(place)) continue;
       const entity = placeToEntity(place, destinationId, this.timezone);
       if (entity) out.push(entity);
     }
@@ -1364,6 +1516,25 @@ class Universal extends Destination {
     const waitTimes = await this.getWaitTimes();
     const vQueueStates = await this.getVirtualQueueStates();
     const showList = await this.getShowList();
+    // Express-queue POIs -> the maze each one belongs to. Their wait is the
+    // express line's, so it is folded onto the maze as PAID_STANDBY rather
+    // than published as a second attraction's STANDBY (see
+    // buildExpressVariantMap). Empty for resorts without the pattern, which
+    // today is everyone except Hollywood.
+    //
+    // Isolated: getPlaces is the entity feed, and a failure there must not
+    // take the whole live build down with it — buildEntityList is the place
+    // that is allowed to fail loudly. Degrading to an empty map costs the
+    // express waits for one cycle and nothing else. In practice it is warm,
+    // since buildEntityList fetches the same @cache'd list every cycle.
+    let expressVariants = new Map<string, string>();
+    try {
+      expressVariants = buildExpressVariantMap(await this.getPlaces());
+    } catch (err: any) {
+      console.warn(
+        `Universal: place list unavailable, express waits will be absent this cycle: ${err?.message ?? err}`,
+      );
+    }
 
     // Process virtual queues
     for (const vQueue of vQueueStates) {
@@ -1422,6 +1593,28 @@ class Universal extends Destination {
         }
 
         if (!rideId) continue;
+
+        // An express-queue POI carries the maze's express wait in its own
+        // STANDBY queue. Fold it onto the maze and emit no row of its own —
+        // the entity no longer exists. Only the number moves: the maze's
+        // status comes from the maze's own queues, never from the state of
+        // its express line.
+        const expressTarget = expressVariants.get(rideId);
+        if (expressTarget) {
+          if (queue.queue_type !== 'STANDBY') continue;
+          if (queue.status !== 'OPEN' && queue.status !== 'RIDE_NOW') continue;
+          const raw = queue.display_wait_time;
+          // 995 is Universal's "not available" sentinel; RIDE_NOW with no
+          // reading is a walk-on, matching the STANDBY branch below.
+          const waitTime = queue.status === 'RIDE_NOW' && raw === undefined ? 0 : raw;
+          if (waitTime === undefined || waitTime === 995) continue;
+          const target = getOrCreateLiveData(expressTarget);
+          if (!target.queue) {
+            target.queue = {};
+          }
+          target.queue.PAID_STANDBY = {waitTime};
+          continue;
+        }
 
         if (!attractionLiveData) {
           attractionLiveData = getOrCreateLiveData(rideId);
