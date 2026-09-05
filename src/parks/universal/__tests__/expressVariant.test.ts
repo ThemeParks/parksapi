@@ -207,6 +207,56 @@ describe('Universal buildLiveData — express waits fold onto the maze', () => {
     expect(maze.queue?.PAID_STANDBY?.waitTime).toBe(5);
   });
 
+  test('a maze carrying its own EXPRESS queue does not null the folded wait', async () => {
+    // Both the fold and the pre-existing `case EXPRESS` branch write
+    // PAID_STANDBY, and which runs last is decided by the wait feed's order
+    // (sorted by place_id — an express twin has no hhn_YYYY_ prefix so it
+    // sorts BEFORE its maze for any maze named before "h"). Every Orlando
+    // house already carries EXPRESS/CLOSED/0, so this is one feed change away
+    // from silently nulling half of Hollywood's folded waits.
+    const park = stub([]);
+    park.getWaitTimes = async () => [
+      // express twin FIRST, as the real feed orders it
+      waitRow('ush.upper_lot.rides.hellraiser_express', 'OPEN', 5),
+      {
+        wait_time_attraction_id: 'ush.upper_lot.rides.hhn_2026_hellraiser',
+        queues: [
+          {queue_type: 'STANDBY', status: 'OPEN', display_wait_time: 55},
+          {queue_type: 'EXPRESS', status: 'CLOSED', display_wait_time: 0},
+        ],
+      },
+    ];
+    const rows = await park.getLiveData();
+    const maze = rows.find((r: any) => r.id === 'ush.upper_lot.rides.hhn_2026_hellraiser');
+    expect(maze.queue.STANDBY.waitTime).toBe(55);
+    expect(maze.queue.PAID_STANDBY.waitTime).toBe(5);   // the real reading, not null
+  });
+
+  test('a null express reading is absent, never published as PAID_STANDBY null', async () => {
+    // PAID_STANDBY:null is what the EXPRESS branch means by "sold, wait
+    // unknown". A null reading folded through would be indistinguishable.
+    const rows = await stub([
+      waitRow('ush.upper_lot.rides.hhn_2026_hellraiser', 'OPEN', 55),
+      {
+        wait_time_attraction_id: 'ush.upper_lot.rides.hellraiser_express',
+        queues: [{queue_type: 'STANDBY', status: 'OPEN', display_wait_time: null}],
+      },
+    ]).getLiveData();
+    const maze = rows.find((r: any) => r.id === 'ush.upper_lot.rides.hhn_2026_hellraiser');
+    expect(maze.queue.PAID_STANDBY).toBeUndefined();
+  });
+
+  test('an express stem cannot pair to an unrelated daytime ride', async () => {
+    // Express lines exist only for the ticketed event, so the maze is always
+    // HHN-namespaced. Without that anchor, "Jurassic World - Express" matched
+    // the real daytime coaster and published an event wait against it.
+    const pairs = buildExpressVariantMap([
+      place('ush.lower_lot.rides.jurassic_world_the_ride', 'Jurassic World - The Ride'),
+      place('ush.lower_lot.rides.jurassic_world_express', 'Jurassic World - Express', 'Ride', 'true'),
+    ]);
+    expect(pairs.size).toBe(0);
+  });
+
   test("Universal's 995 not-available sentinel is not published as a wait", async () => {
     const rows = await stub([
       waitRow('ush.upper_lot.rides.hhn_2026_hellraiser', 'OPEN', 55),
