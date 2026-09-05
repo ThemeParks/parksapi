@@ -109,6 +109,92 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe('Universal buildLiveData — an ordinary show performing inside the event', () => {
+  // Super Nintendo World stays open through Halloween Horror Nights. On
+  // 2026-09-05 "Meet Mario and Luigi", "Meet Toad" and "Meet Princess Peach"
+  // carry ENABLED performances at 19:00-21:30 PT while Hollywood's day park
+  // closed at 18:00 — and they are categorised `general`, not `hhn`. Gated on
+  // day-park hours alone they publish CLOSED beside a showtime happening right
+  // now: the exact contradiction this gate was built to remove, from the other
+  // side of the clock.
+  const NIGHT = [{
+    date: '2026-09-05', name: 'Halloween Horror Nights',
+    openingTime: '19:00', closingTime: '02:00', closesNextDay: true,
+  }];
+  // BOTH days: isParkOperatingNow fails open unless it finds a row for the
+  // current day in either the park's own timezone or Eastern, so a fixture
+  // with only the 5th would leave the gate ungated after midnight and prove
+  // nothing.
+  const DAY_SHUT = [
+    {
+      Date: '2026-09-05', VenueStatus: '',
+      OpenTimeString: '2026-09-05T08:00:00-07:00',
+      CloseTimeString: '2026-09-05T18:00:00-07:00',
+    },
+    {
+      Date: '2026-09-06', VenueStatus: '',
+      OpenTimeString: '2026-09-06T08:00:00-07:00',
+      CloseTimeString: '2026-09-06T18:00:00-07:00',
+    },
+  ];
+
+  // The event calendar is only consulted when an hhn-category show is in the
+  // list, so the ordinary show cannot be ungated by the event without one
+  // present. That is the real shape: The Purge is in tonight's feed.
+  const HHN_SHOW = {
+    show_id: 'ush.upper_lot.events.hhn_2026_show_the_purge',
+    resort_area_code: 'USH', venue_id: 'ush.upper_lot', category: 'hhn',
+    name: 'The Purge: Dangerous Waters', status: 'CLOSED', show_externally: true,
+    show_times: [{show_time_id: 'p', status: 'ENABLED', start_time: '2026-09-06T04:00:00Z'}],
+  } as any;
+
+  function meet(slotsUtc: string[]): UniversalShowListEntry {
+    return {
+      show_id: 'ush.lower_lot.shows.meet_mario_and_luigi',
+      resort_area_code: 'USH', venue_id: 'ush.lower_lot',
+      name: 'Meet Mario and Luigi', status: 'CLOSED', show_externally: true,
+      show_times: slotsUtc.map((t, i) => ({show_time_id: String(i), status: 'ENABLED', start_time: t})),
+    } as any;
+  }
+
+  async function statusAt(iso: string, slots: string[]) {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(iso));
+    const park: any = stubPark(new UniversalStudios(), [meet(slots), HHN_SHOW], {'13825': DAY_SHUT});
+    park.getEventNights = async () => NIGHT;
+    park.getPlaces = async () => [];
+    const rows = await park.getLiveData();
+    vi.useRealTimers();
+    return rows.find((r: any) => r.id === 'ush.lower_lot.shows.meet_mario_and_luigi');
+  }
+
+  test('performs during the event: OPERATING, not CLOSED-with-a-showtime', async () => {
+    // 20:10 PT, day park shut two hours, event running, 21:00 PT slot ahead.
+    const row = await statusAt('2026-09-06T03:10:00Z', ['2026-09-06T04:00:00Z']);
+    expect(row.status).toBe('OPERATING');
+    expect(row.showtimes).toHaveLength(1);
+  });
+
+  test('its slots done for the night: CLOSED even though the event runs on', async () => {
+    // 23:00 PT, event open until 02:00, but this show has finished.
+    const row = await statusAt('2026-09-06T06:00:00Z', ['2026-09-06T04:00:00Z']);
+    expect(row.status).toBe('CLOSED');
+  });
+
+  test('ONLY a next-day slot: still CLOSED, however long the event runs', async () => {
+    // 00:30 PT mid-event with tomorrow's 09:00 PT slot ahead. A bare "the
+    // event is on" check would report OPERATING here and undo the overnight
+    // staleness fix this gate exists for.
+    const row = await statusAt('2026-09-06T07:30:00Z', ['2026-09-06T16:00:00Z']);
+    expect(row.status).toBe('CLOSED');
+  });
+
+  test('after the event closes: CLOSED', async () => {
+    const row = await statusAt('2026-09-06T10:30:00Z', ['2026-09-06T16:00:00Z']);
+    expect(row.status).toBe('CLOSED');
+  });
+});
+
 describe('Universal buildLiveData — show status clock-gated against park hours', () => {
   test('overnight, park shut: show reads CLOSED even though a slot is still hours away', async () => {
     // 03:00 PDT, 2026-08-18 — before EarlyEntryString (08:00 PDT). This is

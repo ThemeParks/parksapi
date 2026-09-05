@@ -337,8 +337,19 @@ export function buildExpressVariantMap(places: UniversalPlace[]): Map<string, st
   const variants = places.filter(isExpressQueueVariant);
   if (variants.length === 0) return new Map();
 
+  // Candidates are HHN rides only. Express queue lines exist solely for the
+  // ticketed event, so the maze is always HHN-namespaced — while the express
+  // twin's OWN id carries no such marker
+  // (`ush.lower_lot.rides.killer_klowns_express`). Matching an open prefix
+  // against every ride in the resort let a stem collide with an unrelated
+  // daytime attraction: a "Jurassic World - Express" line would have resolved
+  // to `jurassic_world_the_ride` and published an event wait on the daytime
+  // coaster. The `hits.length !== 1` guard cannot see that, because a single
+  // WRONG hit is still a single hit.
   const candidates = places
-    .filter((place) => place.place_type?.type === 'Ride' && !isExpressQueueVariant(place))
+    .filter((place) => place.place_type?.type === 'Ride'
+      && !isExpressQueueVariant(place)
+      && /(^|[._])hhn/i.test(place.place_id))
     .map((place) => ({id: sanitizeId(place.place_id), key: expressPairKey(place.place_id)}));
 
   const pairs = new Map<string, string>();
@@ -355,6 +366,75 @@ export function buildExpressVariantMap(places: UniversalPlace[]): Map<string, st
     pairs.set(sanitizeId(variant.place_id), hits[0].id);
   }
   return pairs;
+}
+
+/**
+ * True for an event-flagged place whose NAME marks it as a variant of a
+ * canonical place that exists in the same feed — "Studio Tour - Mandarin"
+ * beside "Studio Tour".
+ *
+ * This exists because isEventVariantAlias's share-link signal is not
+ * trustworthy on its own. USH's Mandarin and Spanish Studio Tour variants
+ * aim their `social_sharing_link` at WATERWORLD, an unrelated show. Today
+ * that still resolves to "some other real place", so they are dropped and
+ * the answer happens to be right — but the reason is luck. If the feed ever
+ * nulls that link, or repoints it at an id the feed does not carry, both
+ * fall into the branch that deliberately KEEPS a record (the Epic Universe
+ * meets case), and the wiki gains two phantom SHOW entities named after a
+ * ride it already publishes. They are typed `Show` while the real Studio
+ * Tour is a `Ride`, so they would not even sit next to it.
+ *
+ * The name is the sturdier signal: it is what the variant is actually
+ * describing, and it does not depend on the feed getting a cross-reference
+ * right. Both rules run, so neither is load-bearing alone.
+ *
+ * Every " - " boundary is tried, so "A - B - C" matches a canonical "A" or
+ * "A - B". Only non-event places count as canonical, so two variants cannot
+ * validate each other. Names are space-normalised first — the feed mixes
+ * U+00A0 into these strings (see normalizeName).
+ */
+export function isNamedEventVariant(
+  place: UniversalPlace,
+  canonicalNames: Set<string>,
+): boolean {
+  if (attr(place, 'is_event') !== 'true') return false;
+  const name = normalizeName(place.name);
+  for (let i = name.indexOf(' - '); i > 0; i = name.indexOf(' - ', i + 1)) {
+    if (canonicalNames.has(name.slice(0, i))) return true;
+  }
+  return false;
+}
+
+/**
+ * Names a variant may legitimately defer to.
+ *
+ * Two exclusions, and the second is the load-bearing one:
+ *
+ *  - a place that is itself event-flagged, so two variants cannot validate
+ *    each other; and
+ *  - a place that does not become an entity at all. LANDS are the danger:
+ *    `ush.lower_lot.jurassic_world` is a Land named exactly "Jurassic World",
+ *    so without this the day the feed sets is_event on
+ *    "Jurassic World - The Ride" — and it already sets that flag on permanent
+ *    rides, `bowser.jr.challenge` among them — a headline coaster would be
+ *    read as a variant of its own land and silently deleted, wait time and
+ *    all. A variant defers to a real POI, never to the ground it stands on.
+ *
+ * Keeping only entity-producing places also keeps the rule honest about what
+ * it is for: collapsing a duplicate onto the thing actually published.
+ */
+export function canonicalPlaceNames(
+  places: UniversalPlace[],
+  destinationId = '',
+  timezone = 'UTC',
+): Set<string> {
+  return new Set(
+    places
+      .filter((p) => attr(p, 'is_event') !== 'true')
+      .filter((p) => placeToEntity(p, destinationId, timezone) !== null)
+      .map((p) => normalizeName(p.name))
+      .filter(Boolean),
+  );
 }
 
 /**
@@ -658,6 +738,25 @@ export function isUniversalEventOperatingNow(
   now: Date,
   timezone: string,
 ): boolean | null {
+  const window = universalEventWindowAt(nights, now, timezone);
+  return window === undefined ? null : window !== null;
+}
+
+/**
+ * The ticketed-event window covering `now`, or `null` when none does, or
+ * `undefined` when the calendar cannot answer (the `null` case of
+ * isUniversalEventOperatingNow — see that function for the rules, which this
+ * implements).
+ *
+ * The window END is what callers need beyond a yes/no: an ordinary show
+ * performing INSIDE the event is operating, while one whose only remaining
+ * slot is tomorrow morning is not, and both look identical to a boolean.
+ */
+export function universalEventWindowAt(
+  nights: UniversalEventNight[],
+  now: Date,
+  timezone: string,
+): {opensAt: number; closesAt: number} | null | undefined {
   const nowMs = now.getTime();
   const validDate = /^\d{4}-\d{2}-\d{2}$/;
   const validTime = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
@@ -703,11 +802,11 @@ export function isUniversalEventOperatingNow(
       continue;
     }
     sawUsableNight = true;
-    if (nowMs >= openingMs && nowMs <= closingMs) return true;
+    if (nowMs >= openingMs && nowMs <= closingMs) return {opensAt: openingMs, closesAt: closingMs};
   }
 
-  if (sawMalformedRelevantNight) return null;
-  return sawUsableNight ? false : null;
+  if (sawMalformedRelevantNight) return undefined;
+  return sawUsableNight ? null : undefined;
 }
 
 @config
@@ -1476,8 +1575,13 @@ class Universal extends Destination {
     // a share link to a non-existent id (sloppy feed data) is NOT treated as a
     // variant.
     const knownPlaceIds = new Set(places.map((p) => sanitizeId(p.place_id)));
+    const canonicalNames = canonicalPlaceNames(places, destinationId, this.timezone);
     for (const place of places) {
       if (isEventVariantAlias(place, knownPlaceIds)) continue;
+      // Second, independent signal for the same class: the share link is
+      // wrong on the very records it is meant to resolve (see
+      // isNamedEventVariant), so the name has to carry it too.
+      if (isNamedEventVariant(place, canonicalNames)) continue;
       // An express queue is a queue on its maze, not an attraction of its
       // own — buildLiveData reattaches its wait as PAID_STANDBY.
       if (isExpressQueueVariant(place)) continue;
@@ -1603,7 +1707,11 @@ class Universal extends Destination {
         if (expressTarget) {
           if (queue.queue_type !== 'STANDBY') continue;
           if (queue.status !== 'OPEN' && queue.status !== 'RIDE_NOW') continue;
-          const raw = queue.display_wait_time;
+          // `?? undefined` because a null reading must be treated as absent,
+          // not published as PAID_STANDBY:null — that is byte-identical to the
+          // EXPRESS branch's "sold, wait unknown" and no consumer could tell
+          // the two provenances apart.
+          const raw = queue.display_wait_time ?? undefined;
           // 995 is Universal's "not available" sentinel; RIDE_NOW with no
           // reading is a walk-on, matching the STANDBY branch below.
           const waitTime = queue.status === 'RIDE_NOW' && raw === undefined ? 0 : raw;
@@ -1678,7 +1786,19 @@ class Universal extends Destination {
               if (!attractionLiveData.queue) {
                 attractionLiveData.queue = {};
               }
-              attractionLiveData.queue.PAID_STANDBY = {waitTime: null};
+              // Never clobber a real number with null. The express-variant
+              // fold writes an actual reading into this same slot, and which
+              // of the two ran last is decided by the wait feed's ordering —
+              // it is sorted by place_id, and an express twin's id carries no
+              // `hhn_YYYY_` prefix, so it sorts BEFORE its maze for any maze
+              // whose name starts before "h". That silently nulled four of
+              // Hollywood's eight folded waits the moment a maze row carried
+              // an EXPRESS queue, which every Orlando house already does.
+              // A known wait always beats "available, wait unknown".
+              const existing: any = attractionLiveData.queue.PAID_STANDBY;
+              if (existing?.waitTime === undefined || existing.waitTime === null) {
+                attractionLiveData.queue.PAID_STANDBY = {waitTime: null};
+              }
             }
             break;
         }
@@ -1726,15 +1846,16 @@ class Universal extends Destination {
       (show) => show.category?.toLowerCase() === 'hhn',
     );
     let eventOperating: boolean | null = null;
+    // When the event is running, the instant it closes. An ordinary show is
+    // only ungated by the event if it actually performs before then.
+    let eventWindowClosesAt: number | null = null;
     if (hasTicketedEventShows) {
       try {
         const eventNights = await this.getEventNights();
         if (eventNights.length > 0) {
-          eventOperating = isUniversalEventOperatingNow(
-            eventNights,
-            now,
-            this.timezone,
-          );
+          const window = universalEventWindowAt(eventNights, now, this.timezone);
+          eventWindowClosesAt = window?.closesAt ?? null;
+          eventOperating = window === undefined ? null : window !== null;
           if (eventOperating === null) {
             console.warn('Universal: event calendar had a malformed window; leaving event shows ungated');
           }
@@ -1774,6 +1895,31 @@ class Universal extends Destination {
           && scheduleVenue === eventScheduleVenue
           ? eventOperating
           : true;
+      } else if (
+        !parkOperating
+        && eventOperating === true
+        && eventWindowClosesAt !== null
+        && eventScheduleVenue !== null
+        && scheduleVenue === eventScheduleVenue
+        && times.some((t) => Date.parse(t.startTime) <= eventWindowClosesAt!)
+      ) {
+        // The park is SHUT to day guests but the ticketed event is running,
+        // and this ordinary show performs INSIDE it. Super Nintendo World
+        // stays open through Halloween Horror Nights: "Meet Mario and Luigi",
+        // "Meet Toad" and "Meet Princess Peach" carry ENABLED performances at
+        // 19:00-21:30 while Hollywood's day park closed at 18:00, and they are
+        // categorised `general`, not `hhn`. Gating those on day-park hours
+        // alone republishes exactly the contradiction this gate was built to
+        // remove — CLOSED beside a showtime happening right now — from the
+        // other side of the clock.
+        //
+        // The performance test is what keeps the original fix intact. A show
+        // whose only remaining slot is tomorrow MORNING is not performing in
+        // tonight's event, and must stay CLOSED however long the event runs —
+        // that is the overnight-staleness case #321 was built for, and a bare
+        // "the event is on" check would have undone it. Only a slot at or
+        // before the event's close counts.
+        parkOperating = true;
       }
       showEntry.status = mapUniversalShowStatus(show.status, times.length > 0, parkOperating);
       if (times.length > 0) {
@@ -1826,7 +1972,70 @@ class Universal extends Destination {
       );
     }
 
-    return liveData;
+    return await this.dropUnpublishableRows(liveData);
+  }
+
+  /**
+   * Keep only rows whose entity this destination actually publishes.
+   *
+   * The live feeds and the place feed do not agree on what exists. show-list
+   * and the wait-time feed emit readings for things buildEntityList has no
+   * entity for, in four separate ways seen live at Hollywood:
+   *
+   *  - ids the PLACE feed has never heard of (`ush.mms.minion.dance.party`,
+   *    and `ush.upper.lot.shows.meet_james.henry`, which is dotted where every
+   *    other id is underscored — an older id shape leaking in);
+   *  - event-variant aliases dropped as duplicates (Studio Tour Last Tram, and
+   *    the Mandarin/Spanish variants whose share links point at WaterWorld);
+   *  - children of a venue with no wiki representation (CityWalk);
+   *  - places whose type placeToEntity does not map (an `Events`-typed ride).
+   *
+   * A row keyed to an entity that is never emitted cannot be resolved by any
+   * consumer — it is dropped downstream after being built, pushed and logged.
+   * Filtering here costs one already-cached place list and removes the whole
+   * class rather than the four causes one at a time.
+   *
+   * Derived from buildEntityList itself rather than by re-testing the same
+   * predicates, so the two cannot drift apart as feed shapes are added.
+   *
+   * ISOLATED on purpose: buildEntityList is allowed to fail loudly, but a
+   * failure here must not blank a whole cycle of wait times. If the entity
+   * list cannot be built, every row is published exactly as before.
+   */
+  protected async dropUnpublishableRows(rows: LiveData[]): Promise<LiveData[]> {
+    let publishable: Set<string>;
+    try {
+      publishable = new Set((await this.buildEntityList()).map((e) => e.id));
+    } catch (err: any) {
+      console.warn(
+        `[${this.constructor.name}] entity list unavailable, publishing every live row: ${err?.message ?? err}`,
+      );
+      return rows;
+    }
+    const kept = rows.filter((row) => publishable.has(row.id));
+    const dropped = rows.length - kept.length;
+
+    // A filter that would remove most of the feed is evidence its INPUT is
+    // wrong, not that the rows are. getPlaces coerces any malformed-but-200
+    // response to [] and @caches it for twelve hours, which yields an entity
+    // list holding little more than the destination itself — and would then
+    // silently blank every wait time for half a day. The orphans this exists
+    // to remove are a fraction of a feed (10 of 57 at Hollywood, 0 of 94 at
+    // Orlando); anything near-total is an outage wearing a filter's clothes.
+    // Publish everything and say so, rather than mistaking one for the other.
+    if (dropped > rows.length / 2) {
+      console.warn(
+        `[${this.constructor.name}] entity list would drop ${dropped}/${rows.length} live rows — treating it as unusable and publishing every row`,
+      );
+      return rows;
+    }
+
+    if (dropped > 0) {
+      console.warn(
+        `[${this.constructor.name}] dropped ${dropped} live row(s) keyed to entities that are never published`,
+      );
+    }
+    return kept;
   }
 
   /**

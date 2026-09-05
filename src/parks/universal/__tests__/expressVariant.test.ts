@@ -21,6 +21,9 @@ import {
   buildExpressVariantMap,
   isAccessibilityReturnTimeVariant,
   isNonPoiNamespace,
+  isNamedEventVariant,
+  canonicalPlaceNames,
+  isEventVariantAlias,
   type UniversalPlace,
 } from '../universal.js';
 
@@ -204,6 +207,56 @@ describe('Universal buildLiveData — express waits fold onto the maze', () => {
     expect(maze.queue?.PAID_STANDBY?.waitTime).toBe(5);
   });
 
+  test('a maze carrying its own EXPRESS queue does not null the folded wait', async () => {
+    // Both the fold and the pre-existing `case EXPRESS` branch write
+    // PAID_STANDBY, and which runs last is decided by the wait feed's order
+    // (sorted by place_id — an express twin has no hhn_YYYY_ prefix so it
+    // sorts BEFORE its maze for any maze named before "h"). Every Orlando
+    // house already carries EXPRESS/CLOSED/0, so this is one feed change away
+    // from silently nulling half of Hollywood's folded waits.
+    const park = stub([]);
+    park.getWaitTimes = async () => [
+      // express twin FIRST, as the real feed orders it
+      waitRow('ush.upper_lot.rides.hellraiser_express', 'OPEN', 5),
+      {
+        wait_time_attraction_id: 'ush.upper_lot.rides.hhn_2026_hellraiser',
+        queues: [
+          {queue_type: 'STANDBY', status: 'OPEN', display_wait_time: 55},
+          {queue_type: 'EXPRESS', status: 'CLOSED', display_wait_time: 0},
+        ],
+      },
+    ];
+    const rows = await park.getLiveData();
+    const maze = rows.find((r: any) => r.id === 'ush.upper_lot.rides.hhn_2026_hellraiser');
+    expect(maze.queue.STANDBY.waitTime).toBe(55);
+    expect(maze.queue.PAID_STANDBY.waitTime).toBe(5);   // the real reading, not null
+  });
+
+  test('a null express reading is absent, never published as PAID_STANDBY null', async () => {
+    // PAID_STANDBY:null is what the EXPRESS branch means by "sold, wait
+    // unknown". A null reading folded through would be indistinguishable.
+    const rows = await stub([
+      waitRow('ush.upper_lot.rides.hhn_2026_hellraiser', 'OPEN', 55),
+      {
+        wait_time_attraction_id: 'ush.upper_lot.rides.hellraiser_express',
+        queues: [{queue_type: 'STANDBY', status: 'OPEN', display_wait_time: null}],
+      },
+    ]).getLiveData();
+    const maze = rows.find((r: any) => r.id === 'ush.upper_lot.rides.hhn_2026_hellraiser');
+    expect(maze.queue.PAID_STANDBY).toBeUndefined();
+  });
+
+  test('an express stem cannot pair to an unrelated daytime ride', async () => {
+    // Express lines exist only for the ticketed event, so the maze is always
+    // HHN-namespaced. Without that anchor, "Jurassic World - Express" matched
+    // the real daytime coaster and published an event wait against it.
+    const pairs = buildExpressVariantMap([
+      place('ush.lower_lot.rides.jurassic_world_the_ride', 'Jurassic World - The Ride'),
+      place('ush.lower_lot.rides.jurassic_world_express', 'Jurassic World - Express', 'Ride', 'true'),
+    ]);
+    expect(pairs.size).toBe(0);
+  });
+
   test("Universal's 995 not-available sentinel is not published as a wait", async () => {
     const rows = await stub([
       waitRow('ush.upper_lot.rides.hhn_2026_hellraiser', 'OPEN', 55),
@@ -298,5 +351,80 @@ describe('isNonPoiNamespace', () => {
       'uor.amenities.first_aid',
     ];
     for (const id of keep) expect(isNonPoiNamespace(place(id, 'x')), id).toBe(false);
+  });
+});
+
+describe('isNamedEventVariant', () => {
+  // "Studio Tour - Mandarin"/"- Spanish" are language variants of the Studio
+  // Tour whose share link points at WATERWORLD, an unrelated show. Today that
+  // still resolves to "some other real place" so isEventVariantAlias drops
+  // them — but by luck, not by knowing what they are. The name rule is the
+  // second, independent signal.
+  const TOUR = place('ush.upper_lot.rides.studio_tour', 'Studio Tour');
+  const MANDARIN = place('ush.upper_lot.shows.studio_tour_mandarin', 'Studio Tour - Mandarin', 'Show', 'true');
+  const SPANISH = place('ush.upper_lot.shows.studio_tour_spanish', 'Studio Tour - Spanish', 'Show', 'true');
+
+  test('matches a language variant of a canonical that exists', () => {
+    const names = canonicalPlaceNames([TOUR, MANDARIN, SPANISH]);
+    expect(isNamedEventVariant(MANDARIN, names)).toBe(true);
+    expect(isNamedEventVariant(SPANISH, names)).toBe(true);
+  });
+
+  test('THE POINT: still dropped when the share link stops rescuing them', () => {
+    // The share-link rule keeps a record whose link is missing or points at an
+    // id the feed does not carry (the Epic Universe meets case). Without a
+    // second signal, the day the feed nulls that bad WaterWorld link is the
+    // day the wiki gains two phantom SHOW entities named after a Ride it
+    // already publishes.
+    const orphanLink = {
+      ...MANDARIN,
+      place_type: {type: 'Show', attributes: [
+        {name: 'is_event', value: 'true'},
+        {name: 'social_sharing_link', value: 'https://x/?id=ush.does.not.exist'},
+      ]},
+    } as any;
+    const known = new Set(['ush.upper_lot.rides.studio_tour', 'ush.upper_lot.shows.studio_tour_mandarin']);
+    expect(isEventVariantAlias(orphanLink, known)).toBe(false);   // link rule lets it through
+    expect(isNamedEventVariant(orphanLink, canonicalPlaceNames([TOUR]))).toBe(true); // name rule catches it
+  });
+
+  test('does not match when no canonical of that name exists', () => {
+    expect(isNamedEventVariant(MANDARIN, canonicalPlaceNames([MANDARIN, SPANISH]))).toBe(false);
+  });
+
+  test('two variants cannot validate each other', () => {
+    // Only non-event places count as canonical, so a variant can never make
+    // another variant look legitimate.
+    const names = canonicalPlaceNames([MANDARIN, SPANISH]);
+    expect(names.has('Studio Tour - Mandarin')).toBe(false);
+  });
+
+  test('a non-event place is never a variant', () => {
+    expect(isNamedEventVariant(place('ush.x.y.z', 'Studio Tour - Something'), canonicalPlaceNames([TOUR]))).toBe(false);
+  });
+
+  test('a non-breaking space in either name does not defeat the match', () => {
+    const nbspTour = place('ush.upper_lot.rides.studio_tour', 'Studio\u00a0Tour');
+    const nbspVariant = place('ush.a.b.c', 'Studio Tour\u00a0- Mandarin', 'Show', 'true');
+    expect(isNamedEventVariant(nbspVariant, canonicalPlaceNames([nbspTour]))).toBe(true);
+  });
+
+  test('every " - " boundary is tried', () => {
+    const base = place('ush.a.b.c', 'A - B');
+    const variant = place('ush.a.b.d', 'A - B - C', 'Ride', 'true');
+    expect(isNamedEventVariant(variant, canonicalPlaceNames([base]))).toBe(true);
+  });
+
+  test('real attractions with a dash in their name are never matched', () => {
+    // The counter-examples from both live feeds. None has a canonical named
+    // by the part before the dash, which is what keeps them safe.
+    const feed = [
+      place('uor.ioa.rides.hogwarts_express_-_hogsmeade_station', 'Hogwarts Express™ - Hogsmeade™ Station'),
+      place('uor.usf.rides.hogwarts_express_-_kings_cross_station', "Hogwarts Express™ - King's Cross Station"),
+      place('uor.usf.rides.hogwarts_express_first_train', 'Hogwarts™ Express - First Train', 'Ride', 'true'),
+      place('uor.usf.rides.hogwarts_express_last_train', 'Hogwarts™ Express - Last Train', 'Ride', 'true'),
+    ];
+    const names = canonicalPlaceNames(feed);
+    for (const p of feed) expect(isNamedEventVariant(p, names), p.place_id).toBe(false);
   });
 });
