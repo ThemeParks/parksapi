@@ -6,8 +6,9 @@
  * format reports every numeric field as a string — drift here would
  * silently produce NaN / wrong-currency-amount, so pinning is worth it.
  */
-import {describe, test, expect} from 'vitest';
-import {parseExpressNowResponse} from '../universal.js';
+import {describe, test, expect, beforeEach} from 'vitest';
+import {parseExpressNowResponse, UniversalOrlando} from '../universal.js';
+import {CacheLib} from '../../../cache.js';
 
 const SAMPLE_PAYLOAD = {
   predictions: [{
@@ -109,5 +110,47 @@ describe('parseExpressNowResponse', () => {
     });
     expect(out['uor.ride.x'].offer_id).toBe('early');
     expect(out['uor.ride.x'].product_price).toBe(15);
+  });
+});
+
+describe('getExpressNowOffers cache discipline', () => {
+  beforeEach(async () => {
+    await CacheLib.clearByClassName('UniversalOrlando');
+  });
+
+  test('an unconfigured instance does not cache {} over a configured one', async () => {
+    // The "not configured" guard used to sit inside @cache, so a single
+    // unconfigured construction wrote {} under the key a configured instance
+    // reads back — blinding it for the full 600s empty-result TTL. Same
+    // defect, and the same fix, as getEventNights.
+    const unconfigured: any = new UniversalOrlando({config: {udxBase: ''}} as any);
+    let unconfiguredFetched = 0;
+    unconfigured.fetchExpressNowOffers = async () => {
+      unconfiguredFetched++;
+      return {json: async () => SAMPLE_PAYLOAD};
+    };
+    await expect(unconfigured.getExpressNowOffers()).resolves.toEqual({});
+    expect(unconfiguredFetched).toBe(0);
+
+    const configured: any = new UniversalOrlando({
+      config: {udxBase: 'https://example.invalid', parkLatitude: '28.4', parkLongitude: '-81.4'},
+    } as any);
+    configured.fetchExpressNowOffers = async () => ({json: async () => SAMPLE_PAYLOAD});
+    const offers = await configured.getExpressNowOffers();
+    expect(Object.keys(offers)).toHaveLength(1);
+  });
+
+  test('a configured instance still caches its result', async () => {
+    const configured: any = new UniversalOrlando({
+      config: {udxBase: 'https://example.invalid', parkLatitude: '28.4', parkLongitude: '-81.4'},
+    } as any);
+    let fetched = 0;
+    configured.fetchExpressNowOffers = async () => {
+      fetched++;
+      return {json: async () => SAMPLE_PAYLOAD};
+    };
+    await configured.getExpressNowOffers();
+    await configured.getExpressNowOffers();
+    expect(fetched).toBe(1);
   });
 });

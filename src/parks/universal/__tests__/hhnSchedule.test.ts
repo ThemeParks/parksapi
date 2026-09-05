@@ -196,20 +196,108 @@ describe("isUniversalEventOperatingNow", () => {
     )).toBe(false);
   });
 
-  test("treats malformed event windows as unknown", () => {
+  // 2026-09-03 23:58 PDT: inside the 03rd's 19:00-01:00 window.
+  const DURING = new Date("2026-09-04T06:58:00.000Z");
+  // 2026-09-04 01:01 PDT: an hour past the same window's close.
+  const AFTER = new Date("2026-09-04T08:01:00.000Z");
+  const farFutureBadNight = {
+    date: "2026-11-01",
+    name: "Halloween Horror Nights",
+    openingTime: "bad",
+    closingTime: "01:00",
+    closesNextDay: true,
+  };
+
+  test("treats a malformed window on a night that could be running as unknown", () => {
     expect(isUniversalEventOperatingNow(
       [{...hollywoodNight[0], openingTime: "bad"}],
-      new Date("2026-09-04T06:58:00.000Z"),
+      DURING,
+      "America/Los_Angeles",
+    )).toBeNull();
+  });
+
+  test("a malformed night elsewhere in the season does not disable the gate", () => {
+    // The calendar covers a whole season — Hollywood publishes 42 nights — so
+    // one bad row in November must not leave every night until then ungated.
+    expect(isUniversalEventOperatingNow(
+      [farFutureBadNight, ...hollywoodNight],
+      DURING,
+      "America/Los_Angeles",
+    )).toBe(true);
+    // Order must not matter: a bad row before the matching one previously
+    // returned early and hid it.
+    expect(isUniversalEventOperatingNow(
+      [...hollywoodNight, farFutureBadNight],
+      DURING,
+      "America/Los_Angeles",
+    )).toBe(true);
+  });
+
+  test("a malformed night elsewhere still allows a confident closed", () => {
+    expect(isUniversalEventOperatingNow(
+      [farFutureBadNight, ...hollywoodNight],
+      AFTER,
+      "America/Los_Angeles",
+    )).toBe(false);
+  });
+
+  test("a malformed night that crossed into today is unknown", () => {
+    // A window running past midnight is keyed to the date it started, so
+    // yesterday's row is still load-bearing for the small hours of today.
+    expect(isUniversalEventOperatingNow(
+      [
+        {...hollywoodNight[0], date: "2026-09-03", closingTime: "nonsense"},
+        {...hollywoodNight[0], date: "2026-09-20"},
+      ],
+      new Date("2026-09-04T07:30:00.000Z"), // 00:30 PDT on the 4th
+      "America/Los_Angeles",
+    )).toBeNull();
+  });
+
+  test("an inverted window on a relevant night is unknown, not closed", () => {
+    expect(isUniversalEventOperatingNow(
+      [{...hollywoodNight[0], closesNextDay: false}], // 19:00 -> 01:00 same day
+      DURING,
+      "America/Los_Angeles",
+    )).toBeNull();
+  });
+
+  test("an unparseable date is unknown, never a confident closed", () => {
+    // A date we cannot read cannot be shown to be irrelevant — its window
+    // might be the one covering now. Returning false here would report every
+    // event show CLOSED on the strength of the OTHER nights parsing.
+    for (const date of ["not-a-date", "2026-09-00", "2026-13-45"]) {
+      expect(isUniversalEventOperatingNow(
+        [{...hollywoodNight[0], date}, {...hollywoodNight[0], date: "2026-11-20"}],
+        DURING,
+        "America/Los_Angeles",
+      )).toBeNull();
+    }
+  });
+
+  test("a calendar with nothing usable is unknown rather than closed", () => {
+    expect(isUniversalEventOperatingNow([], DURING, "America/Los_Angeles")).toBeNull();
+    expect(isUniversalEventOperatingNow(
+      [farFutureBadNight],
+      DURING,
       "America/Los_Angeles",
     )).toBeNull();
   });
 });
 
 describe("UniversalOrlando.buildSchedules", () => {
-  function park(): any {
-    const p: any = new UniversalOrlando();
-    p.eventCalendarURL = "https://example.invalid/calendar";
-    p.eventCalendarPlaceId = "uor.usf";
+  // Configured through constructor config, not plain property assignment:
+  // @config ranks a bare instance value BELOW env (src/config.ts), so an
+  // operator's exported UNIVERSALSTUDIOS_EVENTCALENDAR* would silently
+  // override the assignment and the test would exercise the wrong config.
+  function park(overrides: Record<string, string> = {}): any {
+    const p: any = new UniversalOrlando({
+      config: {
+        eventCalendarURL: "https://example.invalid/calendar",
+        eventCalendarPlaceId: "uor.usf",
+        ...overrides,
+      },
+    } as any);
     // Two day-park days, the second of which is also an HHN night.
     p.getVenueSchedule = async () => [
       {
@@ -289,8 +377,7 @@ describe("UniversalOrlando.buildSchedules", () => {
   });
 
   test("emits nothing extra when no event calendar is configured", async () => {
-    const p = park();
-    p.eventCalendarPlaceId = "";
+    const p = park({ eventCalendarPlaceId: "" });
     const usf = (await p.getSchedules()).find((s: any) => s.id === "uor.usf");
     expect(usf.schedule.every((e: any) => e.type === "OPERATING")).toBe(true);
   });
@@ -309,12 +396,214 @@ describe("event calendar fetch discipline", () => {
     eventCalendarPlaceId: "uor.usf",
   };
 
-  test("Hollywood defaults to its own official calendar and host park", () => {
-    const hollywood: any = new UniversalStudios();
-    expect(hollywood.eventCalendarURL).toBe(
-      "https://www.universalstudioshollywood.com/contentdata/ush/en/us/hhn//about/index.html",
+  const HOLLYWOOD_CALENDAR =
+    "https://www.universalstudioshollywood.com/contentdata/ush/en/us/hhn/about/index.html";
+
+  // Every env name that can influence either resort's calendar config. Tests
+  // that assert a DEFAULT must neutralise all of them: a dev shell or CI
+  // runner with the real operator config exported would otherwise fail the
+  // suite, and the PR that added UNIVERSALSTUDIOSHOLLYWOOD_* made that more
+  // likely, not less.
+  const CALENDAR_ENV = [
+    "UNIVERSALSTUDIOS_EVENTCALENDARURL",
+    "UNIVERSALSTUDIOS_EVENTCALENDARPLACEID",
+    "UNIVERSALORLANDO_EVENTCALENDARURL",
+    "UNIVERSALORLANDO_EVENTCALENDARPLACEID",
+    "UNIVERSALSTUDIOSHOLLYWOOD_EVENTCALENDARURL",
+    "UNIVERSALSTUDIOSHOLLYWOOD_EVENTCALENDARPLACEID",
+  ];
+
+  /**
+   * Run `fn` with exactly `vars` set and every other calendar env name
+   * cleared, then restore. `undefined` in `vars` means "explicitly absent".
+   */
+  /** Async form of withEnv: @config reads resolve lazily, so awaited work
+   *  must stay inside the cleared window. */
+  async function withEnvAsync(
+    vars: Record<string, string | undefined>,
+    fn: () => Promise<void>,
+  ): Promise<void> {
+    const names = new Set([...CALENDAR_ENV, ...Object.keys(vars)]);
+    const before = Object.fromEntries(
+      [...names].map((k) => [k, process.env[k]]),
     );
-    expect(hollywood.eventCalendarPlaceId).toBe("ush.ush");
+    for (const k of names) delete process.env[k];
+    for (const [k, v] of Object.entries(vars)) {
+      if (v !== undefined) process.env[k] = v;
+    }
+    try {
+      await fn();
+    } finally {
+      for (const [k, v] of Object.entries(before)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  }
+
+  function withEnv(vars: Record<string, string | undefined>, fn: () => void) {
+    const names = new Set([...CALENDAR_ENV, ...Object.keys(vars)]);
+    const before = Object.fromEntries(
+      [...names].map((k) => [k, process.env[k]]),
+    );
+    for (const k of names) delete process.env[k];
+    for (const [k, v] of Object.entries(vars)) {
+      if (v !== undefined) process.env[k] = v;
+    }
+    try {
+      fn();
+    } finally {
+      for (const [k, v] of Object.entries(before)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  }
+
+  test("Orlando's shared-prefix calendar config never reaches Hollywood", () => {
+    // 'UNIVERSALSTUDIOS' is BOTH the legacy prefix both resorts register and
+    // Hollywood's own class name, and in practice it configures Orlando.
+    // Neither env lookup can be scoped to one resort, so Hollywood must not
+    // be reachable by either.
+    withEnv(
+      {
+        UNIVERSALSTUDIOS_EVENTCALENDARURL: "https://example.invalid/orlando",
+        UNIVERSALSTUDIOS_EVENTCALENDARPLACEID: "uor.usf",
+      },
+      () => {
+        const hollywood: any = new UniversalStudios();
+        expect(hollywood.eventCalendarURL).toBe(HOLLYWOOD_CALENDAR);
+        expect(hollywood.eventCalendarPlaceId).toBe("ush.ush");
+      },
+    );
+  });
+
+  test("Hollywood defaults to its own official calendar and host park", () => {
+    withEnv({}, () => {
+      const hollywood: any = new UniversalStudios();
+      expect(hollywood.eventCalendarURL).toBe(HOLLYWOOD_CALENDAR);
+      expect(hollywood.eventCalendarPlaceId).toBe("ush.ush");
+    });
+  });
+
+  test("Hollywood's calendar stays reachable under its own env names", () => {
+    // The escape hatch for a moved microsite. Unambiguous, so it cannot be
+    // picked up by Orlando, and it keeps a URL change a config change rather
+    // than a release.
+    withEnv(
+      {
+        UNIVERSALSTUDIOSHOLLYWOOD_EVENTCALENDARURL: "https://example.invalid/moved",
+        // Deliberately NOT the "ush.ush" default: asserting the default value
+        // back would pass whether or not the override is read at all.
+        UNIVERSALSTUDIOSHOLLYWOOD_EVENTCALENDARPLACEID: "ush.moved",
+      },
+      () => {
+        const hollywood: any = new UniversalStudios();
+        expect(hollywood.eventCalendarURL).toBe("https://example.invalid/moved");
+        expect(hollywood.eventCalendarPlaceId).toBe("ush.moved");
+      },
+    );
+    // ...and the defaults are back once the override is gone.
+    withEnv({}, () => {
+      const hollywood: any = new UniversalStudios();
+      expect(hollywood.eventCalendarURL).toBe(HOLLYWOOD_CALENDAR);
+      expect(hollywood.eventCalendarPlaceId).toBe("ush.ush");
+    });
+  });
+
+  test("Orlando still reads the shared legacy prefix", () => {
+    // The suite otherwise only asserts the negative (Hollywood must not see
+    // these). Delete the addConfigPrefix call and Orlando's calendar goes
+    // dark with an otherwise green suite.
+    withEnv(
+      {
+        UNIVERSALSTUDIOS_EVENTCALENDARURL: "https://example.invalid/orlando",
+        UNIVERSALSTUDIOS_EVENTCALENDARPLACEID: "uor.usf",
+      },
+      () => {
+        const orlando: any = new UniversalOrlando();
+        expect(orlando.eventCalendarURL).toBe("https://example.invalid/orlando");
+        expect(orlando.eventCalendarPlaceId).toBe("uor.usf");
+      },
+    );
+  });
+
+  test("an explicit constructor override still wins over both", () => {
+    withEnv({UNIVERSALSTUDIOSHOLLYWOOD_EVENTCALENDARURL: "https://example.invalid/env"}, () => {
+      const hollywood: any = new UniversalStudios({
+        config: {eventCalendarURL: "https://example.invalid/explicit"},
+      } as any);
+      expect(hollywood.eventCalendarURL).toBe("https://example.invalid/explicit");
+    });
+  });
+
+  test("an unconfigured resort does not cache an empty calendar over a configured one", async () => {
+    // The "not configured" early return used to live inside @cache, so a
+    // single unconfigured construction wrote [] to the key a configured
+    // instance of the same class reads back, silently ungating event shows
+    // for the whole 12h TTL.
+    await withEnvAsync({}, async () => {
+      const unconfigured: any = new UniversalOrlando();
+      expect(unconfigured.eventCalendarURL).toBe("");
+      await expect(unconfigured.getEventNights()).resolves.toEqual([]);
+    });
+
+    const configured: any = new UniversalOrlando({ config: CONFIG } as any);
+    configured.fetchEventCalendar = async () => ({
+      text: async () => JSON.stringify(FIXTURE),
+    });
+    await expect(configured.getEventNights()).resolves.toHaveLength(51);
+  });
+
+  test("the parsed calendar is cached, not re-fetched every cycle", async () => {
+    // buildSchedules and buildLiveData both call getEventNights on every
+    // cycle. Without the cache each one re-fetches and re-parses a ~300KB
+    // document; nothing else in the suite asserts the cache exists at all.
+    const orlando: any = new UniversalOrlando({ config: CONFIG } as any);
+    let fetched = 0;
+    orlando.fetchEventCalendar = async () => {
+      fetched++;
+      return { text: async () => JSON.stringify(FIXTURE) };
+    };
+    await expect(orlando.getEventNights()).resolves.toHaveLength(51);
+    await expect(orlando.getEventNights()).resolves.toHaveLength(51);
+    expect(fetched).toBe(1);
+  });
+
+  test("fetchEventCalendar stays inside health-check coverage", async () => {
+    // The health harness skips any @http method whose Function.length is > 0
+    // unless it declares healthCheckArgs (src/harness/health.ts). Making
+    // calendarURL a REQUIRED parameter silently dropped the endpoint the whole
+    // event gate depends on out of endpoint monitoring; the default keeps
+    // length at 0. Asserted on the prototype because @http wraps the method.
+    const orlando: any = new UniversalOrlando({ config: CONFIG } as any);
+    expect(Object.getPrototypeOf(orlando).fetchEventCalendar.length).toBe(0);
+    // The argument is genuinely load-bearing rather than decorative: it
+    // reaches the request, which is what makes both cache layers URL-keyed.
+    // Asserted end to end by "repointing the calendar URL…" above, which the
+    // real method cannot cover here because @http performs the request and
+    // the test sandbox blocks the network.
+  });
+
+  test("repointing the calendar URL does not serve the previous site's nights", async () => {
+    // The fetch is keyed by the URL it came from, so a config change takes
+    // effect immediately rather than at the next TTL expiry.
+    const first: any = new UniversalOrlando({ config: CONFIG } as any);
+    first.fetchEventCalendar = async () => ({
+      text: async () => JSON.stringify(FIXTURE),
+    });
+    await expect(first.getEventNights()).resolves.toHaveLength(51);
+
+    const second: any = new UniversalOrlando({
+      config: { ...CONFIG, eventCalendarURL: "https://example.invalid/other" },
+    } as any);
+    let requested: string | undefined;
+    second.fetchEventCalendar = async (url: string) => {
+      requested = url;
+      return { text: async () => JSON.stringify([]) };
+    };
+    await expect(second.getEventNights()).resolves.toEqual([]);
+    expect(requested).toBe("https://example.invalid/other");
   });
 
   test("Hollywood refuses an explicitly mismatched Orlando calendar", async () => {
