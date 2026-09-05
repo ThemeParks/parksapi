@@ -48,6 +48,7 @@ function stubPark<T extends UniversalStudios | UniversalOrlando>(
   scheduleFixture: any[],
 ): T {
   (park as any).getVenueSchedule = async () => scheduleFixture;
+  (park as any).getEventNights = async () => [];
   (park as any)._init = async () => undefined;
   return park;
 }

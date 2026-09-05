@@ -2,7 +2,12 @@ import { describe, test, expect, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { parseUniversalEventCalendar, UniversalOrlando, UniversalStudios } from "../universal.js";
+import {
+  isUniversalEventOperatingNow,
+  parseUniversalEventCalendar,
+  UniversalOrlando,
+  UniversalStudios,
+} from "../universal.js";
 import { CacheLib } from "../../../cache.js";
 
 /**
@@ -63,6 +68,59 @@ describe("parseUniversalEventCalendar", () => {
     });
   });
 
+  test("finds Hollywood's bounded event window after its early-access block", () => {
+    const hollywood = {
+      ComponentPresentations: [{
+        Component: {
+          Schema: {RootElementName: "GDSCalendar"},
+          Fields: {
+            calendarData: {
+              LinkedComponentValues: [{
+                Fields: {
+                  calendarConfig: {
+                    EmbeddedValues: [{
+                      eventDates: {DateTimeValues: ["2026-09-03T00:00:00"]},
+                      blockData: {
+                        LinkedComponentValues: [{
+                          Fields: {
+                            blocksData: {
+                              LinkedComponentValues: [
+                                {
+                                  Fields: {
+                                    heading: {Values: ["Halloween Horror Nights Early Access"]},
+                                    eyebrow: {Values: ["5:30pm"]},
+                                  },
+                                },
+                                {
+                                  Fields: {
+                                    heading: {Values: ["Halloween Horror Nights"]},
+                                    eyebrow: {Values: ["7:00 PM - 1:00 AM"]},
+                                  },
+                                },
+                              ],
+                            },
+                          },
+                        }],
+                      },
+                    }],
+                  },
+                },
+              }],
+            },
+          },
+        },
+      }],
+    };
+
+    expect(parseUniversalEventCalendar(hollywood)).toEqual([{
+      date: "2026-09-03",
+      name: "Halloween Horror Nights",
+      openingTime: "19:00",
+      closingTime: "01:00",
+      closesNextDay: true,
+    }]);
+  });
+
   test("accepts both dash characters the same document uses", () => {
     // Block 1 uses an en dash, block 2 a hyphen.
     const premium = nights.filter((n) => n.name.includes("Premium"));
@@ -113,6 +171,37 @@ describe("parseUniversalEventCalendar", () => {
       if (f.eyebrow) f.eyebrow.Values = ["Halloween Horror Nights"];
     }
     expect(parseUniversalEventCalendar(broken)).toEqual([]);
+  });
+});
+
+describe("isUniversalEventOperatingNow", () => {
+  const hollywoodNight = [{
+    date: "2026-09-03",
+    name: "Halloween Horror Nights",
+    openingTime: "19:00",
+    closingTime: "01:00",
+    closesNextDay: true,
+  }];
+
+  test("handles a ticketed event that closes after midnight", () => {
+    expect(isUniversalEventOperatingNow(
+      hollywoodNight,
+      new Date("2026-09-04T06:58:00.000Z"),
+      "America/Los_Angeles",
+    )).toBe(true);
+    expect(isUniversalEventOperatingNow(
+      hollywoodNight,
+      new Date("2026-09-04T08:01:00.000Z"),
+      "America/Los_Angeles",
+    )).toBe(false);
+  });
+
+  test("treats malformed event windows as unknown", () => {
+    expect(isUniversalEventOperatingNow(
+      [{...hollywoodNight[0], openingTime: "bad"}],
+      new Date("2026-09-04T06:58:00.000Z"),
+      "America/Los_Angeles",
+    )).toBeNull();
   });
 });
 
@@ -167,6 +256,29 @@ describe("UniversalOrlando.buildSchedules", () => {
     expect(aug31.map((e: any) => e.type)).toEqual(["OPERATING"]);
   });
 
+  test("skips malformed or inverted venue windows without taking schedules down", async () => {
+    const p = park();
+    p.getEventNights = async () => [];
+    p.getVenueSchedule = async () => [
+      {Date: "2026-08-28", OpenTimeString: "not-a-date", CloseTimeString: "2026-08-28T17:00:00-04:00"},
+      {Date: "2026-08-29", OpenTimeString: "2026-08-29T17:00:00-04:00", CloseTimeString: "2026-08-29T09:00:00-04:00"},
+      {
+        Date: "2026-08-30",
+        OpenTimeString: "2026-08-30T09:00:00-04:00",
+        CloseTimeString: "2026-08-30T17:00:00-04:00",
+        EarlyEntryString: "not-a-date",
+      },
+    ];
+
+    const usf = (await p.getSchedules()).find((s: any) => s.id === "uor.usf");
+    expect(usf.schedule).toEqual([expect.objectContaining({
+      date: "2026-08-30",
+      type: "OPERATING",
+      openingTime: "2026-08-30T09:00:00-04:00",
+      closingTime: "2026-08-30T17:00:00-04:00",
+    })]);
+  });
+
   test("still publishes park hours when the event calendar fails", async () => {
     // A website change must not take the day-park schedule down with it.
     const p = park();
@@ -197,10 +309,18 @@ describe("event calendar fetch discipline", () => {
     eventCalendarPlaceId: "uor.usf",
   };
 
-  test("Hollywood does not fetch Orlando's calendar", async () => {
-    // Both resorts share addConfigPrefix('UNIVERSALSTUDIOS'), so Hollywood
-    // reads UNIVERSALSTUDIOS_EVENTCALENDARURL as well. buildSchedules() would
-    // never publish those nights, but the fetch and the 285KB parse still ran.
+  test("Hollywood defaults to its own official calendar and host park", () => {
+    const hollywood: any = new UniversalStudios();
+    expect(hollywood.eventCalendarURL).toBe(
+      "https://www.universalstudioshollywood.com/contentdata/ush/en/us/hhn//about/index.html",
+    );
+    expect(hollywood.eventCalendarPlaceId).toBe("ush.ush");
+  });
+
+  test("Hollywood refuses an explicitly mismatched Orlando calendar", async () => {
+    // Both resorts retain the legacy UNIVERSALSTUDIOS config namespace.
+    // Even an explicit bad override must not fetch a calendar belonging to a
+    // park outside this resort.
     const hollywood: any = new UniversalStudios({ config: CONFIG } as any);
     let fetched = 0;
     hollywood.fetchEventCalendar = async () => { fetched++; throw new Error("should not fetch"); };
