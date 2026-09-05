@@ -484,7 +484,10 @@ type UniversalScheduleResponse = Array<{
  * A malformed night is skipped rather than abandoning the whole calendar. The
  * calendar covers a whole season — Hollywood publishes 42 nights — and one
  * bad row in November must not disable the gate every night until then. Only
- * two things make the answer unknown, mirroring isParkOperatingNow:
+ * two things make the answer unknown, mirroring isParkOperatingNow's
+ * sawValid/sawMalformed shape (though not its relevance rule — that one
+ * compares two timezone projections of the same day and returns a plain
+ * boolean):
  *
  *  - a malformed night on a date that could still be running right now
  *    (tonight's, or last night's for a window that crosses midnight), because
@@ -494,6 +497,17 @@ type UniversalScheduleResponse = Array<{
  *
  * A calendar with usable nights, none of them covering `now`, is the ordinary
  * off-season/daytime case and answers a confident false.
+ *
+ * KNOWN GAP, deliberately not closed here. Those two valves only see rows
+ * that reached this function. parseUniversalEventCalendar already hard-
+ * validates each date and time before building a night, so for calendars it
+ * produces the malformed-row case is close to unreachable — while the failure
+ * that DOES occur upstream, a CMS block dropped for unreadable labels, never
+ * arrives as a row at all. The remaining nights then set sawUsableNight and a
+ * dropped night reads as a confident false, which is the wrong direction. The
+ * fix belongs in the parser (count dropped blocks and surface them), not in
+ * re-validating rows that were validated on the way in. Tracked separately;
+ * behaviour here is unchanged from before this gate existed.
  */
 export function isUniversalEventOperatingNow(
   nights: UniversalEventNight[],
@@ -514,8 +528,17 @@ export function isUniversalEventOperatingNow(
   let sawMalformedRelevantNight = false;
 
   for (const night of nights) {
-    const relevant = validDate.test(night.date) && relevantDates.has(night.date);
-    if (!validDate.test(night.date)
+    // A night can only be ruled out as irrelevant if its DATE is usable —
+    // "2026-13-45" clears the regex but is not a real day, and a date we
+    // cannot place in time might be the very window covering `now`. Such a
+    // night therefore counts as relevant, so it downgrades the answer to
+    // unknown instead of being quietly skipped past into a confident closed.
+    // A usable date with a broken TIME is different: we can still tell it is
+    // months away, and skipping it is the whole point of this loop.
+    const dateUsable = validDate.test(night.date)
+      && Number.isFinite(new Date(`${night.date}T12:00:00Z`).getTime());
+    const relevant = !dateUsable || relevantDates.has(night.date);
+    if (!dateUsable
         || !validTime.test(night.openingTime)
         || !validTime.test(night.closingTime)) {
       if (relevant) sawMalformedRelevantNight = true;
@@ -668,8 +691,14 @@ class Universal extends Destination {
    * Served as `text/html` but is JSON throughout, so it is read as text and
    * parsed here rather than letting the HTTP layer decide by content type.
    */
+  // `calendarURL` defaults rather than being required so that Function.length
+  // stays 0: the health harness skips any @http method with a positive
+  // paramCount and no healthCheckArgs (src/harness/health.ts), and a required
+  // parameter here would quietly drop the event calendar out of endpoint
+  // monitoring. fetchEventNights still passes the URL explicitly, so both the
+  // @http and @cache keys stay URL-derived.
   @http({cacheSeconds: 43200, retries: 1} as any)
-  async fetchEventCalendar(calendarURL: string): Promise<HTTPObj> {
+  async fetchEventCalendar(calendarURL: string = this.eventCalendarURL): Promise<HTTPObj> {
     return {
       method: 'GET',
       url: calendarURL,
@@ -881,10 +910,17 @@ class Universal extends Destination {
    * a stable "nothing for sale" — and re-polling generates a 404 log entry
    * from the http layer each time).
    */
-  @cache({callback: (offers: Record<string, ExpressNowOffer>) => Object.keys(offers).length === 0 ? 600 : 60})
   async getExpressNowOffers(): Promise<Record<string, ExpressNowOffer>> {
+    // Resolved outside the cache, for the same reason getEventNights does it:
+    // an unconfigured instance would otherwise write {} to the key a
+    // configured one reads back and blind it for the full empty-result TTL.
     if (!this.udxBase || !Number.isFinite(this.parkLatitude) || !Number.isFinite(this.parkLongitude)) return {};
+    return await this.fetchExpressNowOfferMap();
+  }
 
+  /** The cached half of getExpressNowOffers: only reached when configured. */
+  @cache({callback: (offers: Record<string, ExpressNowOffer>) => Object.keys(offers).length === 0 ? 600 : 60})
+  protected async fetchExpressNowOfferMap(): Promise<Record<string, ExpressNowOffer>> {
     let resp: HTTPObj;
     try {
       resp = await this.fetchExpressNowOffers();
