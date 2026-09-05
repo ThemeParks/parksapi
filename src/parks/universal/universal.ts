@@ -476,40 +476,37 @@ type UniversalScheduleResponse = Array<{
   SpecialEntryUnix?: number;
 }>;
 
-/** True while `now` falls inside one of the official ticketed-event windows. */
+/**
+ * True/false while `now` is inside/outside a fully usable ticketed-event
+ * calendar. `null` means the calendar contains a malformed window, so callers
+ * must treat it as unknown rather than using it as proof that event shows are
+ * closed.
+ */
 export function isUniversalEventOperatingNow(
   nights: UniversalEventNight[],
   now: Date,
   timezone: string,
-): boolean {
+): boolean | null {
   const nowMs = now.getTime();
   const validTime = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
 
-  return nights.some((night) => {
+  for (const night of nights) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(night.date)
         || !validTime.test(night.openingTime)
         || !validTime.test(night.closingTime)) {
-      return false;
+      return null;
     }
-
     try {
-      const openingMs = new Date(
-        constructDateTime(night.date, night.openingTime, timezone),
-      ).getTime();
-      const closingDate = night.closesNextDay
-        ? shiftDateString(night.date, 1)
-        : night.date;
-      const closingMs = new Date(
-        constructDateTime(closingDate, night.closingTime, timezone),
-      ).getTime();
-      return Number.isFinite(openingMs)
-        && Number.isFinite(closingMs)
-        && nowMs >= openingMs
-        && nowMs <= closingMs;
+      const openingMs = new Date(constructDateTime(night.date, night.openingTime, timezone)).getTime();
+      const closingDate = night.closesNextDay ? shiftDateString(night.date, 1) : night.date;
+      const closingMs = new Date(constructDateTime(closingDate, night.closingTime, timezone)).getTime();
+      if (!Number.isFinite(openingMs) || !Number.isFinite(closingMs) || closingMs <= openingMs) return null;
+      if (nowMs >= openingMs && nowMs <= closingMs) return true;
     } catch {
-      return false;
+      return null;
     }
-  });
+  }
+  return false;
 }
 
 @config
@@ -1129,33 +1126,34 @@ class Universal extends Destination {
         formatDate(now, 'America/New_York'),
       ]);
 
-      // A day we could make a confident call on — either a real open/close
-      // window, or an explicit "Closed" (e.g. Volcano Bay's off-season).
-      // Both count. Only a day with neither (garbage / missing fields) does
-      // not, so a schedule that is EXPLICITLY closed every day still yields
-      // a confident `false` rather than failing open.
-      let sawValidDay = false;
+      // A relevant day we could make a confident call on — either a real
+      // open/close window, or an explicit "Closed" (e.g. Volcano Bay's
+      // off-season). A parseable row for a different date does not establish
+      // that the upstream response included today's hours.
+      let sawValidRelevantDay = false;
       let sawMalformedRelevantDay = false;
       for (const day of schedule) {
         if (!day) continue;
+        const isRelevant = typeof day.Date === 'string' && relevantDates.has(day.Date);
         if (day.VenueStatus === 'Closed') {
-          sawValidDay = true;
+          if (isRelevant) sawValidRelevantDay = true;
           continue;
         }
-
-        // A malformed early-entry value must not hide an otherwise valid
-        // general-admission opening time.
         const regularOpenMs = new Date(day.OpenTimeString || NaN).getTime();
         const earlyOpenMs = new Date(day.EarlyEntryString || NaN).getTime();
-        const openMs = Number.isFinite(earlyOpenMs) ? earlyOpenMs : regularOpenMs;
         const closeMs = new Date(day.CloseTimeString || NaN).getTime();
-        if (!Number.isFinite(openMs) || !Number.isFinite(closeMs)) {
-          if (typeof day.Date === 'string' && relevantDates.has(day.Date)) {
-            sawMalformedRelevantDay = true;
-          }
+        if (!Number.isFinite(regularOpenMs)
+            || !Number.isFinite(closeMs)
+            || closeMs <= regularOpenMs) {
+          if (isRelevant) sawMalformedRelevantDay = true;
           continue;
         }
-        sawValidDay = true;
+        // Early entry only extends the normal opening window; a malformed or
+        // later value falls back to the valid general-admission opening.
+        const openMs = Number.isFinite(earlyOpenMs) && earlyOpenMs < regularOpenMs
+          ? earlyOpenMs
+          : regularOpenMs;
+        if (isRelevant) sawValidRelevantDay = true;
         if (nowMs >= openMs && nowMs <= closeMs) return true;
       }
 
@@ -1165,8 +1163,8 @@ class Universal extends Destination {
         );
         return true;
       }
-      if (!sawValidDay) {
-        console.warn(`Universal: venue schedule for ${legacyVenueId} had no usable day, unable to clock-gate shows`);
+      if (!sawValidRelevantDay) {
+        console.warn(`Universal: venue schedule for ${legacyVenueId} had no usable current day, unable to clock-gate shows`);
         return true;
       }
       return false;
@@ -1453,6 +1451,9 @@ class Universal extends Destination {
             now,
             this.timezone,
           );
+          if (eventOperating === null) {
+            console.warn('Universal: event calendar had a malformed window; leaving event shows ungated');
+          }
         } else {
           console.warn(
             'Universal: event shows are present but no event calendar was available; leaving them ungated',
@@ -1572,14 +1573,22 @@ class Universal extends Destination {
         if (daySchedule.VenueStatus === 'Closed') continue;
         // UOR's real API omits Open/CloseTimeString on some days (e.g. an
         // off-season closure) without necessarily setting VenueStatus —
-        // skip rather than publish an Invalid Date schedule entry.
+        // skip rather than publish an Invalid Date or inverted window.
         if (!daySchedule.OpenTimeString || !daySchedule.CloseTimeString) continue;
 
+        const rawOpen = new Date(daySchedule.OpenTimeString);
+        const rawClose = new Date(daySchedule.CloseTimeString);
+        if (!Number.isFinite(rawOpen.getTime())
+            || !Number.isFinite(rawClose.getTime())
+            || rawClose <= rawOpen) {
+          console.warn(`[${this.constructor.name}] skipping malformed venue hours for ${placeId} on ${daySchedule.Date}`);
+          continue;
+        }
         // The API server lives in Orlando and stamps every entry with the
         // Eastern offset — including Hollywood venues. Re-project into the
         // destination's own timezone so the wall clock matches the park.
-        const open = formatInTimezone(new Date(daySchedule.OpenTimeString), this.timezone, 'iso');
-        const close = formatInTimezone(new Date(daySchedule.CloseTimeString), this.timezone, 'iso');
+        const open = formatInTimezone(rawOpen, this.timezone, 'iso');
+        const close = formatInTimezone(rawClose, this.timezone, 'iso');
 
         schedule.push({
           date: daySchedule.Date,
@@ -1588,10 +1597,11 @@ class Universal extends Destination {
           type: 'OPERATING' as const,
         });
 
-        if (daySchedule.EarlyEntryString) {
+        const rawEarly = new Date(daySchedule.EarlyEntryString || NaN);
+        if (Number.isFinite(rawEarly.getTime()) && rawEarly < rawOpen) {
           schedule.push({
             date: daySchedule.Date,
-            openingTime: formatInTimezone(new Date(daySchedule.EarlyEntryString), this.timezone, 'iso'),
+            openingTime: formatInTimezone(rawEarly, this.timezone, 'iso'),
             closingTime: open,
             type: 'EXTRA_HOURS' as const,
           });
@@ -1604,17 +1614,29 @@ class Universal extends Destination {
       // attractions OPERATING hours after the park's published close.
       if (placeId === this.eventCalendarPlaceId) {
         for (const night of eventNights) {
-          schedule.push({
-            date: night.date,
-            openingTime: constructDateTime(night.date, night.openingTime, this.timezone),
-            closingTime: constructDateTime(
+          try {
+            const openingTime = constructDateTime(night.date, night.openingTime, this.timezone);
+            const closingTime = constructDateTime(
               night.closesNextDay ? shiftDateString(night.date, 1) : night.date,
               night.closingTime,
               this.timezone,
-            ),
-            type: 'TICKETED_EVENT' as const,
-            description: night.name,
-          });
+            );
+            const openingMs = new Date(openingTime).getTime();
+            const closingMs = new Date(closingTime).getTime();
+            if (!Number.isFinite(openingMs) || !Number.isFinite(closingMs) || closingMs <= openingMs) {
+              console.warn(`[${this.constructor.name}] skipping malformed ticketed-event hours for ${placeId} on ${night.date}`);
+              continue;
+            }
+            schedule.push({
+              date: night.date,
+              openingTime,
+              closingTime,
+              type: 'TICKETED_EVENT' as const,
+              description: night.name,
+            });
+          } catch {
+            console.warn(`[${this.constructor.name}] skipping malformed ticketed-event hours for ${placeId} on ${night.date}`);
+          }
         }
       }
 

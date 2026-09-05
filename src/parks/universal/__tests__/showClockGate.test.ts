@@ -304,6 +304,38 @@ describe('Universal buildLiveData — show status clock-gated against park hours
     expect(entry!.status).toBe('OPERATING');
   });
 
+  test('an omitted current day plus a valid future row degrades to ungated', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-18T19:00:00.000Z'));
+
+    const park = stubPark(new UniversalStudios(), [SHOW]);
+    (park as any).getVenueSchedule = async () => [{
+      Date: '2026-08-19',
+      VenueStatus: 'Open',
+      OpenTimeString: '2026-08-19T09:00:00-07:00',
+      CloseTimeString: '2026-08-19T19:00:00-07:00',
+    }];
+
+    const entry = (await park.getLiveData()).find((d) => d.id === SHOW.show_id);
+    expect(entry!.status).toBe('OPERATING');
+  });
+
+  test('an inverted current-day window degrades to ungated', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-18T19:00:00.000Z'));
+
+    const park = stubPark(new UniversalStudios(), [SHOW]);
+    (park as any).getVenueSchedule = async () => [{
+      Date: '2026-08-18',
+      VenueStatus: 'Open',
+      OpenTimeString: '2026-08-18T19:00:00-07:00',
+      CloseTimeString: '2026-08-18T09:00:00-07:00',
+    }];
+
+    const entry = (await park.getLiveData()).find((d) => d.id === SHOW.show_id);
+    expect(entry!.status).toBe('OPERATING');
+  });
+
   test('a malformed EarlyEntryString falls back to the valid general opening', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-08-18T19:00:00.000Z'));
@@ -470,6 +502,18 @@ describe('Universal buildLiveData — show status clock-gated against park hours
 
       const liveData = await hhnPark([HHN_SHOW], []).getLiveData();
       const entry = liveData.find((d) => d.id === HHN_SHOW.show_id);
+
+      expect(entry!.status).toBe('OPERATING');
+    });
+
+    test('a malformed event calendar fails open rather than closing a live event', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-09-04T06:58:00.000Z'));
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      const malformed = [{...HHN_NIGHTS[0], openingTime: 'bad'}];
+      const entry = (await hhnPark([HHN_SHOW], malformed).getLiveData())
+        .find((d) => d.id === HHN_SHOW.show_id);
 
       expect(entry!.status).toBe('OPERATING');
     });

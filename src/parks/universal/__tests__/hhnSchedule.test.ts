@@ -196,12 +196,12 @@ describe("isUniversalEventOperatingNow", () => {
     )).toBe(false);
   });
 
-  test("ignores malformed event windows", () => {
+  test("treats malformed event windows as unknown", () => {
     expect(isUniversalEventOperatingNow(
       [{...hollywoodNight[0], openingTime: "bad"}],
       new Date("2026-09-04T06:58:00.000Z"),
       "America/Los_Angeles",
-    )).toBe(false);
+    )).toBeNull();
   });
 });
 
@@ -254,6 +254,29 @@ describe("UniversalOrlando.buildSchedules", () => {
     const usf = (await park().getSchedules()).find((s: any) => s.id === "uor.usf");
     const aug31 = usf.schedule.filter((e: any) => e.date === "2026-08-31");
     expect(aug31.map((e: any) => e.type)).toEqual(["OPERATING"]);
+  });
+
+  test("skips malformed or inverted venue windows without taking schedules down", async () => {
+    const p = park();
+    p.getEventNights = async () => [];
+    p.getVenueSchedule = async () => [
+      {Date: "2026-08-28", OpenTimeString: "not-a-date", CloseTimeString: "2026-08-28T17:00:00-04:00"},
+      {Date: "2026-08-29", OpenTimeString: "2026-08-29T17:00:00-04:00", CloseTimeString: "2026-08-29T09:00:00-04:00"},
+      {
+        Date: "2026-08-30",
+        OpenTimeString: "2026-08-30T09:00:00-04:00",
+        CloseTimeString: "2026-08-30T17:00:00-04:00",
+        EarlyEntryString: "not-a-date",
+      },
+    ];
+
+    const usf = (await p.getSchedules()).find((s: any) => s.id === "uor.usf");
+    expect(usf.schedule).toEqual([expect.objectContaining({
+      date: "2026-08-30",
+      type: "OPERATING",
+      openingTime: "2026-08-30T09:00:00-04:00",
+      closingTime: "2026-08-30T17:00:00-04:00",
+    })]);
   });
 
   test("still publishes park hours when the event calendar fails", async () => {
