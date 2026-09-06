@@ -39,7 +39,7 @@ class RetiringTestDestination extends Destination {
 
 describe('live entity retirement gate', () => {
   beforeEach(() => {
-    CacheLib.clearByClassName('RetiringTestDestination');
+    CacheLib.clearByClassName('RetiringTestDestination', {includePersistent: true});
   });
 
   afterEach(() => {
@@ -89,6 +89,40 @@ describe('live entity retirement gate', () => {
     const retired = live.find((d) => d.id === 'show2');
     expect(retired).toEqual({id: 'show2', status: 'CLOSED'});
     // show1 is untouched
+    expect(live.find((d) => d.id === 'show1')).toEqual({id: 'show1', status: 'OPERATING'});
+  });
+
+  /**
+   * Regression: a cache flush must not disarm the gate.
+   *
+   * `CacheLib.clearByClassName()` is how a caller forces a fresh upstream
+   * fetch, and it swept this record away with the cached responses. The
+   * record only ever gains entries for ids
+   * PRESENT in the feed, so an id that had ALREADY vanished was absent from
+   * the rebuilt map for good, could never accrue the misses that retire it,
+   * and its stale row froze permanently — precisely the failure those tools
+   * get reached for.
+   */
+  test('a cache flush mid-life does not stop a later absence retiring', async () => {
+    vi.useFakeTimers();
+    const park = new RetiringTestDestination({retire: true, retirementMs: 7 * 24 * 60 * 60 * 1000});
+
+    park.liveIds = ['show1', 'show2'];
+    await park.getLiveData();
+
+    // A decoy upstream entry proves the sweep still does its job, so a green
+    // assertion below cannot come from the flush quietly matching nothing.
+    CacheLib.set('RetiringTestDestination:getPOI:[]', 'upstream');
+    CacheLib.clearByClassName('RetiringTestDestination');
+    expect(CacheLib.has('RetiringTestDestination:getPOI:[]')).toBe(false);
+
+    vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
+    park.liveIds = ['show1'];
+    await park.getLiveData();
+    await park.getLiveData();
+    const live = await park.getLiveData();
+
+    expect(live.find((d) => d.id === 'show2')).toEqual({id: 'show2', status: 'CLOSED'});
     expect(live.find((d) => d.id === 'show1')).toEqual({id: 'show1', status: 'OPERATING'});
   });
 

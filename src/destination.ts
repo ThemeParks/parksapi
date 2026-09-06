@@ -4,7 +4,7 @@ import {reusable} from "./promiseReuse.js";
 import {loadProxyConfig, hasProxyConfig, type ProxyConfig} from "./proxy.js";
 import {inject} from "./injector.js";
 import {type HTTPObj, HttpQueue, http} from "./http.js";
-import {cache, CacheLib} from "./cache.js";
+import {cache, CacheLib, LIVE_ENTITY_RETIREMENT_FRAGMENT} from "./cache.js";
 import {VQueueBuilder} from "./virtualQueue/builder.js";
 import {calculateReturnWindow} from "./virtualQueue/timeWindows.js";
 import {formatInTimezone} from "./datetime.js";
@@ -1115,8 +1115,14 @@ export abstract class Destination {
   /**
    * Cache key for this destination's {@link retireMissingLiveEntities}
    * last-seen tracking. Reuses the same prefix resolution the `@cache`
-   * decorator applies, so it lands in the same namespace
-   * `CacheLib.clearByClassName()` already sweeps for this destination.
+   * decorator applies, so it lands in this destination's namespace.
+   *
+   * Built from {@link LIVE_ENTITY_RETIREMENT_FRAGMENT}, which is also what
+   * makes `CacheLib.clearByClassName()` step over it. This record is not a
+   * cache: it says whether an id has ever been seen live, and a flush that
+   * dropped it would leave every already-absent id unretireable, freezing
+   * exactly the stale rows a flush is usually reached for. One constant owns
+   * both halves so they cannot drift.
    */
   private async liveEntityRetirementCacheKey(): Promise<string> {
     let prefix: string;
@@ -1126,7 +1132,7 @@ export abstract class Destination {
     } else {
       prefix = this.cacheKeyPrefix || this.constructor.name;
     }
-    return `${prefix}:liveEntityRetirement`;
+    return `${prefix}${LIVE_ENTITY_RETIREMENT_FRAGMENT}`;
   }
 
   /**

@@ -68,14 +68,14 @@ async function poll(make: () => UniversalOrlando | UniversalStudios, times = 3) 
 describe('Universal HHN live-entity retirement', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    CacheLib.clearByClassName('UniversalOrlando');
-    CacheLib.clearByClassName('UniversalStudios');
+    CacheLib.clearByClassName('UniversalOrlando', {includePersistent: true});
+    CacheLib.clearByClassName('UniversalStudios', {includePersistent: true});
   });
 
   afterEach(() => {
     vi.useRealTimers();
-    CacheLib.clearByClassName('UniversalOrlando');
-    CacheLib.clearByClassName('UniversalStudios');
+    CacheLib.clearByClassName('UniversalOrlando', {includePersistent: true});
+    CacheLib.clearByClassName('UniversalStudios', {includePersistent: true});
   });
 
   it('is enabled at both resorts that run the event', () => {

@@ -7,6 +7,32 @@ const CLEANUP_INTERVAL_MS = parseInt(process.env.CACHE_CLEANUP_INTERVAL_MS || '3
 // the lock). No application-level retry needed.
 
 // Track if we're in temporary mode
+/**
+ * Key fragment marking a destination's live-entity retirement state.
+ *
+ * Exported so `Destination` builds its key from the same constant that
+ * protects it here, and the two cannot drift apart.
+ */
+const LIVE_ENTITY_RETIREMENT_FRAGMENT = ':liveEntityRetirement';
+
+/**
+ * Key fragments holding persistent operational state rather than cached
+ * upstream data.
+ *
+ * `clearByClassName()` exists to force a fresh upstream fetch. It must never
+ * also mean "forget what we have observed": the retirement map records
+ * whether an id has ever been seen live, and only ever gains entries for ids
+ * PRESENT in the current feed. Wipe it and an id that has already vanished
+ * upstream is absent from the map for good, so it can never accrue the misses
+ * that retire it, and its stale row freezes permanently. That is the opposite
+ * of what the tool flushing the cache was reached for.
+ *
+ * Matched anywhere in the key, so a per-park or per-id suffix is fine. Extend
+ * this list when adding state whose loss changes what we publish rather than
+ * just costing a fetch.
+ */
+const PERSISTENT_KEY_FRAGMENTS = [LIVE_ENTITY_RETIREMENT_FRAGMENT] as const;
+
 let isTemporaryMode = false;
 
 // Initialize database (can be re-initialized). Assigned below, once
@@ -426,11 +452,28 @@ class CacheLib {
    * Delete all cache entries whose key contains the given class name.
    * Matches both plain keys (`ClassName:method:args`) and prefixed keys (`prefix:ClassName:method:args`).
    * Returns the number of deleted entries.
+   *
+   * Keys carrying a {@link PERSISTENT_KEY_FRAGMENTS} fragment are stepped
+   * over: this call means "refetch from upstream", not "forget what we have
+   * observed". Pass `includePersistent` to sweep those too, which is a full
+   * reset of the destination rather than a flush, and is what test setup
+   * wants.
    */
-  static clearByClassName(className: string): number {
+  static clearByClassName(
+    className: string,
+    {includePersistent = false}: {includePersistent?: boolean} = {},
+  ): number {
     try {
-      const stmt = database.prepare("DELETE FROM cache WHERE key LIKE ? OR key LIKE ?");
-      const result = stmt.run(`${className}:%`, `%:${className}:%`);
+      const clauses = ['(key LIKE ? OR key LIKE ?)'];
+      const params: string[] = [`${className}:%`, `%:${className}:%`];
+      if (!includePersistent) {
+        for (const fragment of PERSISTENT_KEY_FRAGMENTS) {
+          clauses.push('key NOT LIKE ?');
+          params.push(`%${fragment}%`);
+        }
+      }
+      const stmt = database.prepare(`DELETE FROM cache WHERE ${clauses.join(' AND ')}`);
+      const result = stmt.run(...params);
       return Number(result.changes || 0);
     } catch (error) {
       console.error("Cache clearByClassName error:", error);
@@ -551,4 +594,4 @@ export default function cacheDecorator({ttlSeconds = 60, callback, key, cacheVer
 }
 
 
-export {CacheLib, cacheDecorator as cache};
+export {CacheLib, cacheDecorator as cache, LIVE_ENTITY_RETIREMENT_FRAGMENT, PERSISTENT_KEY_FRAGMENTS};

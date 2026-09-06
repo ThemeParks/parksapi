@@ -220,6 +220,65 @@ describe('Cache', () => {
       expect(deleted).toBe(0);
       expect(Cache.size()).toBe(1);
     });
+
+    // A flush means "refetch from upstream", never "forget what we have
+    // observed". The retirement record only ever gains entries for ids
+    // PRESENT in a feed, so sweeping it away leaves an already-absent id
+    // untracked for good and its stale row frozen — the opposite of what the
+    // tool doing the flushing was reached for.
+    test('steps over persistent retirement state while clearing real cache keys', () => {
+      Cache.clear();
+      Cache.set('TestPark:getToken:[]', 'tok');
+      Cache.set('TestPark:liveEntityRetirement', {show1: {seenAt: 1, misses: 0}});
+      Cache.set('TestPark:liveEntityRetirement:guard', {withheldAt: null, streak: 0});
+
+      const deleted = Cache.clearByClassName('TestPark');
+
+      expect(deleted).toBe(1);
+      expect(Cache.has('TestPark:getToken:[]')).toBe(false);
+      expect(Cache.has('TestPark:liveEntityRetirement')).toBe(true);
+      expect(Cache.has('TestPark:liveEntityRetirement:guard')).toBe(true);
+    });
+
+    test('includePersistent sweeps the retirement state too', () => {
+      Cache.clear();
+      Cache.set('TestPark:getToken:[]', 'tok');
+      Cache.set('TestPark:liveEntityRetirement', {show1: {seenAt: 1, misses: 0}});
+      Cache.set('TestPark:liveEntityRetirement:guard', {withheldAt: null, streak: 0});
+
+      const deleted = Cache.clearByClassName('TestPark', {includePersistent: true});
+
+      expect(deleted).toBe(3);
+      expect(Cache.has('TestPark:liveEntityRetirement')).toBe(false);
+      expect(Cache.has('TestPark:liveEntityRetirement:guard')).toBe(false);
+    });
+
+    // A destination overriding getCacheKeyPrefix() puts its retirement record
+    // under that prefix, which carries no class name and so falls outside the
+    // LIKE patterns today. Pinned so a future widening of those patterns
+    // cannot start sweeping it.
+    test('leaves prefixed retirement state intact', () => {
+      Cache.clear();
+      Cache.set('attractionsio:1:AttractionsIOV3:getParkConfig:[]', 'cfg');
+      Cache.set('attractionsio:1:liveEntityRetirement', {ride: {seenAt: 1, misses: 0}});
+
+      const deleted = Cache.clearByClassName('AttractionsIOV3');
+
+      expect(deleted).toBe(1);
+      expect(Cache.has('attractionsio:1:liveEntityRetirement')).toBe(true);
+    });
+
+    // Protection is per-fragment, not per-class: an unrelated destination's
+    // record must not be collateral of someone else's flush either.
+    test('does not touch another destination\'s retirement state', () => {
+      Cache.clear();
+      Cache.set('TestPark:getToken:[]', 'tok');
+      Cache.set('OtherPark:liveEntityRetirement', {show9: {seenAt: 1, misses: 0}});
+
+      Cache.clearByClassName('TestPark');
+
+      expect(Cache.has('OtherPark:liveEntityRetirement')).toBe(true);
+    });
   });
 
   describe('clearAll', () => {

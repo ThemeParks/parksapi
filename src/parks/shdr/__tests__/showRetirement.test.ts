@@ -21,7 +21,7 @@ const showWaitEntry = {id: 'show-birthday-bash', waitTime: {status: 'Operating'}
 describe('SHDR show retirement', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    CacheLib.clearByClassName('ShanghaiDisneylandResort');
+    CacheLib.clearByClassName('ShanghaiDisneylandResort', {includePersistent: true});
   });
 
   afterEach(() => vi.useRealTimers());
