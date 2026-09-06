@@ -162,7 +162,7 @@ describe('HTTP Library Integration Tests', () => {
   beforeEach(() => {
     // Clear request log, cache, and in-flight dedup map before each test
     requestLog = [];
-    CacheLib.clear();
+    CacheLib.clear({includePersistent: true});
     clearHttpInflightMap();
   });
 

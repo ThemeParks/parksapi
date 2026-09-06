@@ -32,7 +32,7 @@ const SHOW = {
 describe('DLP show retirement', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    CacheLib.clearByClassName('DisneylandParis');
+    CacheLib.clearByClassName('DisneylandParis', {includePersistent: true});
   });
 
   afterEach(() => vi.useRealTimers());

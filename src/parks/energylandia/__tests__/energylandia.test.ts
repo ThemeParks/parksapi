@@ -221,8 +221,8 @@ describe('Energylandia — live data', () => {
     return p;
   }
 
-  beforeEach(() => CacheLib.clear());
-  afterEach(() => CacheLib.clear());
+  beforeEach(() => CacheLib.clear({includePersistent: true}));
+  afterEach(() => CacheLib.clear({includePersistent: true}));
 
   test('only active rides become ATTRACTIONs — a restaurant is not one, a retired ride is not published', async () => {
     const entities = await park().getEntities();
@@ -491,8 +491,8 @@ describe('Energylandia — attraction locations', () => {
     return p;
   }
 
-  beforeEach(() => CacheLib.clear());
-  afterEach(() => CacheLib.clear());
+  beforeEach(() => CacheLib.clear({includePersistent: true}));
+  afterEach(() => CacheLib.clear({includePersistent: true}));
 
   test('attaches coordinates via proximiioId', async () => {
     const e: any = (await park().getEntities()).find((x: any) => x.name === 'Pepsi Hyperion');
@@ -545,8 +545,8 @@ describe('Energylandia — pinned fallback coordinates', () => {
     return p;
   }
 
-  beforeEach(() => CacheLib.clear());
-  afterEach(() => CacheLib.clear());
+  beforeEach(() => CacheLib.clear({includePersistent: true}));
+  afterEach(() => CacheLib.clear({includePersistent: true}));
 
   test('fills in a ride whose proximiioId resolves to nothing', async () => {
     const e: any = (await parkWith([]).getEntities()).find((x: any) => x.entityType === 'ATTRACTION');
@@ -584,8 +584,8 @@ describe('Energylandia — failures must not be cached', () => {
     }}) as any;
   }
 
-  beforeEach(() => CacheLib.clear());
-  afterEach(() => CacheLib.clear());
+  beforeEach(() => CacheLib.clear({includePersistent: true}));
+  afterEach(() => CacheLib.clear({includePersistent: true}));
 
   test('a Proximiio outage is not persisted, so the next poll recovers', async () => {
     // The regression: the catch used to live INSIDE the @cache'd method, so the
@@ -714,8 +714,8 @@ describe('Energylandia — a wait-feed outage is visible', () => {
 describe('Energylandia — auth reuses one identity', () => {
   const CFG = {...BLANK_CONFIG, apiKey: 'k', projectId: 'p'};
 
-  beforeEach(() => CacheLib.clear());
-  afterEach(() => CacheLib.clear());
+  beforeEach(() => CacheLib.clear({includePersistent: true}));
+  afterEach(() => CacheLib.clear({includePersistent: true}));
 
   test('signs up once, then refreshes — it does not mint an account per token', async () => {
     // Anonymous sign-up creates a PERMANENT account in the park's Firebase
@@ -807,8 +807,8 @@ describe('Energylandia — auth reuses one identity', () => {
 });
 
 describe('Energylandia — an empty Firestore collection is a failure, not an empty park', () => {
-  beforeEach(() => CacheLib.clear());
-  afterEach(() => CacheLib.clear());
+  beforeEach(() => CacheLib.clear({includePersistent: true}));
+  afterEach(() => CacheLib.clear({includePersistent: true}));
 
   test('refuses to publish an empty catalogue', async () => {
     // Firestore answers 200 with {} for both "empty" and "does not exist", so
@@ -1131,12 +1131,12 @@ describe('Energylandia — shows end to end', () => {
   }
 
   beforeEach(() => {
-    CacheLib.clear();
+    CacheLib.clear({includePersistent: true});
     vi.useFakeTimers();
   });
   afterEach(() => {
     vi.useRealTimers();
-    CacheLib.clear();
+    CacheLib.clear({includePersistent: true});
   });
 
   test('publishes a SHOW per active show, and none for a retired one', async () => {

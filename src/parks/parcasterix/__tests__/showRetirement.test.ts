@@ -41,7 +41,7 @@ const ATTRACTIONS = Array.from({length: 20}, (_, i) => latency(String(31303 + i)
 describe('Parc Asterix show retirement', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    CacheLib.clearByClassName('ParcAsterix');
+    CacheLib.clearByClassName('ParcAsterix', {includePersistent: true});
   });
 
   afterEach(() => vi.useRealTimers());

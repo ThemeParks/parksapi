@@ -134,7 +134,7 @@ describe('DLP park-hours fallback for walkthroughs', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
-    CacheLib.clearByClassName('DisneylandParis');
+    CacheLib.clearByClassName('DisneylandParis', {includePersistent: true});
   });
 
   it('reports OPERATING inside its own park\'s published window', async () => {

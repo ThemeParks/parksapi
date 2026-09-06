@@ -401,7 +401,7 @@ app.delete('/api/cache', (req, res) => {
     CacheLib.clear();
     res.json({
       success: true,
-      message: 'Cache cleared successfully',
+      message: 'Cache cleared successfully (persistent operational state retained)',
     });
   } catch (error) {
     console.error('Error clearing cache:', error);

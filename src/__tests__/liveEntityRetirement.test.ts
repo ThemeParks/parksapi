@@ -39,7 +39,7 @@ class RetiringTestDestination extends Destination {
 
 describe('live entity retirement gate', () => {
   beforeEach(() => {
-    CacheLib.clearByClassName('RetiringTestDestination');
+    CacheLib.clearByClassName('RetiringTestDestination', {includePersistent: true});
   });
 
   afterEach(() => {
@@ -90,6 +90,89 @@ describe('live entity retirement gate', () => {
     expect(retired).toEqual({id: 'show2', status: 'CLOSED'});
     // show1 is untouched
     expect(live.find((d) => d.id === 'show1')).toEqual({id: 'show1', status: 'OPERATING'});
+  });
+
+  /**
+   * Regression: a cache flush must not disarm the gate.
+   *
+   * `CacheLib.clearByClassName()` is how a caller forces a fresh upstream
+   * fetch, and it swept this record away with the cached responses. The
+   * record only ever gains entries for ids
+   * PRESENT in the feed, so an id that had ALREADY vanished was absent from
+   * the rebuilt map for good, could never accrue the misses that retire it,
+   * and its stale row froze permanently — precisely the failure those tools
+   * get reached for.
+   */
+  test('a cache flush mid-life does not stop a later absence retiring', async () => {
+    vi.useFakeTimers();
+    const park = new RetiringTestDestination({retire: true, retirementMs: 7 * 24 * 60 * 60 * 1000});
+
+    park.liveIds = ['show1', 'show2'];
+    await park.getLiveData();
+
+    // A decoy upstream entry proves the sweep still does its job, so a green
+    // assertion below cannot come from the flush quietly matching nothing.
+    CacheLib.set('RetiringTestDestination:getPOI:[]', 'upstream');
+    CacheLib.clearByClassName('RetiringTestDestination');
+    expect(CacheLib.has('RetiringTestDestination:getPOI:[]')).toBe(false);
+
+    vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
+    park.liveIds = ['show1'];
+    await park.getLiveData();
+    await park.getLiveData();
+    const live = await park.getLiveData();
+
+    expect(live.find((d) => d.id === 'show2')).toEqual({id: 'show2', status: 'CLOSED'});
+    expect(live.find((d) => d.id === 'show1')).toEqual({id: 'show1', status: 'OPERATING'});
+  });
+
+  /**
+   * The degraded-feed cooldown lives in a SECOND key beside the map
+   * (`…:liveEntityRetirement:guard`), and it is protected only because
+   * `:guard` is appended to a string that already carries the fragment.
+   * Nothing asserted that until now: renaming the guard key to anything
+   * outside the catalogue silently loses its protection, and a lost
+   * `withheldAt` fails OPEN, letting the gate retire inside exactly the
+   * untrusted window it exists to sit out.
+   *
+   * Exercised through behaviour rather than by naming the key, so a rename
+   * that drops the protection fails here.
+   */
+  test('a flush preserves the degraded-feed cooldown, not just the seen map', async () => {
+    vi.useFakeTimers();
+    const week = 7 * 24 * 60 * 60 * 1000;
+    const park = new RetiringTestDestination({retire: true, retirementMs: week});
+    const all = Array.from({length: 12}, (_, i) => `a${i + 1}`);
+
+    park.liveIds = [...all];
+    await park.getLiveData();
+
+    // Collapse the feed: 10 of 12 absent clears both minBulk (5) and
+    // maxFraction (0.5), and three consecutive such builds arm the cooldown.
+    vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
+    park.liveIds = ['a1', 'a2'];
+    await park.getLiveData();
+    await park.getLiveData();
+    await park.getLiveData();
+
+    CacheLib.clearByClassName('RetiringTestDestination');
+
+    // Feed recovers to all but one. That one is old enough and missed enough
+    // to retire, and would, were the cooldown not still running.
+    park.liveIds = all.filter((id) => id !== 'a12');
+    await park.getLiveData();
+    await park.getLiveData();
+    const cooling = await park.getLiveData();
+    expect(cooling.find((d) => d.id === 'a12')).toBeUndefined();
+
+    // Control: once the cooldown genuinely expires the same id does close, so
+    // the assertion above is the cooldown holding rather than a12 having been
+    // ineligible all along.
+    vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
+    await park.getLiveData();
+    await park.getLiveData();
+    const after = await park.getLiveData();
+    expect(after.find((d) => d.id === 'a12')).toEqual({id: 'a12', status: 'CLOSED'});
   });
 
   test('an entity that reappears before retiring is emitted normally, no synthetic row', async () => {

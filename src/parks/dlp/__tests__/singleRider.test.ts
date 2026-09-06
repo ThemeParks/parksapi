@@ -51,7 +51,7 @@ async function queueOf(park: DisneylandParis): Promise<any> {
 describe('DLP single rider', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    CacheLib.clearByClassName('DisneylandParis');
+    CacheLib.clearByClassName('DisneylandParis', {includePersistent: true});
   });
 
   it('emits the queue from the POI facet while the feed is asleep', async () => {
