@@ -8,6 +8,7 @@
 
 import {describe, test, expect, beforeEach} from 'vitest';
 import {database} from '../../../cache.js';
+import {parseOpeningHours} from '../attractionsiov1.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -636,46 +637,6 @@ describe('extractName', () => {
 });
 
 describe('parseOpeningHours', () => {
-  // Same approach — test the equivalent logic inline since it's module-scoped
-
-  function parseOpeningHours(raw: string) {
-    const fmt1 = /^(\d{1,2}):(\d{2})([ap]m)\s*-\s*(\d{1,2})([ap]m)$/i.exec(raw.trim());
-    if (fmt1) {
-      let openH = parseInt(fmt1[1], 10);
-      const openM = parseInt(fmt1[2], 10);
-      let closeH = parseInt(fmt1[4], 10);
-      if (fmt1[3].toLowerCase() === 'pm' && openH !== 12) openH += 12;
-      if (fmt1[5].toLowerCase() === 'pm' && closeH !== 12) closeH += 12;
-      if (fmt1[3].toLowerCase() === 'am' && openH === 12) openH = 0;
-      if (fmt1[5].toLowerCase() === 'am' && closeH === 12) closeH = 0;
-      return {
-        openTime: `${String(openH).padStart(2, '0')}:${String(openM).padStart(2, '0')}`,
-        closeTime: `${String(closeH).padStart(2, '0')}:00`,
-      };
-    }
-    const fmt2 = /^(\d{1,2})([ap]m)\s*-\s*(\d{1,2})([ap]m)$/i.exec(raw.trim());
-    if (fmt2) {
-      let openH = parseInt(fmt2[1], 10);
-      let closeH = parseInt(fmt2[3], 10);
-      if (fmt2[2].toLowerCase() === 'pm' && openH !== 12) openH += 12;
-      if (fmt2[4].toLowerCase() === 'pm' && closeH !== 12) closeH += 12;
-      if (fmt2[2].toLowerCase() === 'am' && openH === 12) openH = 0;
-      if (fmt2[4].toLowerCase() === 'am' && closeH === 12) closeH = 0;
-      return {
-        openTime: `${String(openH).padStart(2, '0')}:00`,
-        closeTime: `${String(closeH).padStart(2, '0')}:00`,
-      };
-    }
-    const fmt3 = /^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/.exec(raw.trim());
-    if (fmt3) {
-      return {
-        openTime: `${String(parseInt(fmt3[1])).padStart(2, '0')}:${fmt3[2]}`,
-        closeTime: `${String(parseInt(fmt3[3])).padStart(2, '0')}:${fmt3[4]}`,
-      };
-    }
-    return null;
-  }
-
   test('parses "9:30am - 7pm"', () => {
     expect(parseOpeningHours('9:30am - 7pm')).toEqual({openTime: '09:30', closeTime: '19:00'});
   });
@@ -704,5 +665,61 @@ describe('parseOpeningHours', () => {
 
   test('handles leading/trailing whitespace', () => {
     expect(parseOpeningHours('  10am - 5pm  ')).toEqual({openTime: '10:00', closeTime: '17:00'});
+  });
+
+  // ── Regressions: half-hour closing times (issue #545) ────────────────────
+  //
+  // Both of these appear verbatim in live Merlin calendar feeds and were
+  // silently dropped, taking the whole operating day with them.
+
+  test('parses "10am - 4:30pm" (LEGOLAND Windsor term-time days)', () => {
+    expect(parseOpeningHours('10am - 4:30pm')).toEqual({openTime: '10:00', closeTime: '16:30'});
+  });
+
+  test('parses "10:30am - 4:30pm" (LEGOLAND California)', () => {
+    expect(parseOpeningHours('10:30am - 4:30pm')).toEqual({openTime: '10:30', closeTime: '16:30'});
+  });
+
+  test('keeps minutes on the closing time of a 12-hour range', () => {
+    // The old format-1 branch hardcoded ":00" for the closing minutes.
+    expect(parseOpeningHours('9:30am - 7:45pm')).toEqual({openTime: '09:30', closeTime: '19:45'});
+  });
+
+  // ── Separator and spacing tolerance ──────────────────────────────────────
+
+  test('accepts a missing space around the separator', () => {
+    expect(parseOpeningHours('10am-5pm')).toEqual({openTime: '10:00', closeTime: '17:00'});
+  });
+
+  test('accepts en dash and em dash separators', () => {
+    expect(parseOpeningHours('10am \u2013 5pm')).toEqual({openTime: '10:00', closeTime: '17:00'});
+    expect(parseOpeningHours('10am \u2014 5pm')).toEqual({openTime: '10:00', closeTime: '17:00'});
+  });
+
+  test('accepts "a.m."/"p.m." punctuation and uppercase', () => {
+    expect(parseOpeningHours('10A.M. - 4:30P.M.')).toEqual({openTime: '10:00', closeTime: '16:30'});
+  });
+
+  test('accepts a mixed 24-hour and 12-hour range', () => {
+    expect(parseOpeningHours('10:00 - 5pm')).toEqual({openTime: '10:00', closeTime: '17:00'});
+  });
+
+  test('accepts an overnight range without reordering it', () => {
+    expect(parseOpeningHours('10am - 1am')).toEqual({openTime: '10:00', closeTime: '01:00'});
+  });
+
+  // ── Out-of-range values must stay null, not wrap into nonsense ───────────
+
+  test('rejects out-of-range hours and minutes', () => {
+    expect(parseOpeningHours('25:00 - 26:00')).toBeNull();
+    expect(parseOpeningHours('10:75 - 17:00')).toBeNull();
+    expect(parseOpeningHours('13pm - 5pm')).toBeNull();
+    expect(parseOpeningHours('0pm - 5pm')).toBeNull();
+  });
+
+  test('rejects ranges with a missing or extra side', () => {
+    expect(parseOpeningHours('10am -')).toBeNull();
+    expect(parseOpeningHours('10am')).toBeNull();
+    expect(parseOpeningHours('10am - 5pm - 9pm')).toBeNull();
   });
 });

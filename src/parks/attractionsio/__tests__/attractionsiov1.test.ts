@@ -98,6 +98,16 @@ class Probe extends AttractionsIOV1 {
   live(): Promise<any[]> {
     return (this as any).buildLiveData();
   }
+
+  _calendar: any = {Locations: [{days: []}]};
+
+  override async fetchCalendar(): Promise<any> {
+    return {json: async () => this._calendar};
+  }
+
+  schedules(): Promise<any[]> {
+    return (this as any)._buildCalendarSchedules();
+  }
 }
 
 beforeEach(() => {
@@ -240,5 +250,67 @@ describe('parseLiveOpeningTimes', () => {
   test('skips a range whose bounds are missing or non-string', () => {
     expect(parseLiveOpeningTimes('{"type":"range","start":123,"end":456}', TZ)).toEqual([]);
     expect(parseLiveOpeningTimes('{"type":"range","start":"bad","end":"also-bad"}', TZ)).toEqual([]);
+  });
+});
+
+
+describe('_buildCalendarSchedules', () => {
+  /** Build a probe whose calendar returns exactly these day rows. */
+  function withDays(days: Array<{key: string; openingHours: string}>) {
+    const p = new Probe();
+    p._calendar = {Locations: [{days}]};
+    return p;
+  }
+
+  test('keeps a day whose closing time carries minutes (issue #545)', async () => {
+    // Verbatim rows from the LEGOLAND Windsor calendar for September 2026.
+    // The "4:30pm" days were previously dropped, so the API returned only
+    // Friday-Sunday for the rest of the month.
+    const [{schedule}] = await withDays([
+      {key: '20260906', openingHours: '10am - 6pm'},
+      {key: '20260907', openingHours: '10am - 4:30pm'},
+      {key: '20260908', openingHours: '10am - 4:30pm'},
+      {key: '20260911', openingHours: '10am - 5pm'},
+    ]).schedules();
+
+    expect(schedule.map((s: any) => s.date)).toEqual([
+      '2026-09-06',
+      '2026-09-07',
+      '2026-09-08',
+      '2026-09-11',
+    ]);
+    const sept7 = schedule.find((s: any) => s.date === '2026-09-07');
+    expect(sept7.type).toBe('OPERATING');
+    expect(sept7.openingTime).toContain('T10:00:00');
+    expect(sept7.closingTime).toContain('T16:30:00');
+  });
+
+  test('still drops a genuinely unparseable day, and warns about it', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const [{schedule}] = await withDays([
+        {key: '20260906', openingHours: '10am - 6pm'},
+        {key: '20260907', openingHours: 'Closed'},
+        {key: '20260908', openingHours: 'Closed'},
+      ]).schedules();
+
+      expect(schedule.map((s: any) => s.date)).toEqual(['2026-09-06']);
+      expect(warn).toHaveBeenCalledTimes(1);
+      const msg = warn.mock.calls[0][0] as string;
+      expect(msg).toContain('dropped 2 calendar day(s)');
+      expect(msg).toContain('2x "Closed"');
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  test('does not warn when every day parses', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await withDays([{key: '20260906', openingHours: '10am - 6pm'}]).schedules();
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

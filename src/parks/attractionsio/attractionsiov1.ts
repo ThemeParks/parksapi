@@ -185,59 +185,61 @@ type InstallationResponse = {
 type TimeParseResult = {openTime: string; closeTime: string} | null;
 
 /**
- * Parse a raw "openingHours" string such as "9:30am - 7pm" or "10:00 - 17:00"
- * into a pair of HH:mm strings.  Returns null when the format is unrecognised.
+ * Parse one side of an opening-hours range ("10am", "4:30pm", "17:00", "9:30")
+ * into minutes-since-midnight.  Returns null when the token is unrecognised or
+ * out of range.
+ *
+ * A token without a meridiem is read as 24-hour clock time.
  */
-function parseOpeningHours(raw: string): TimeParseResult {
-  // Format 1: 9:30am - 7pm
-  const fmt1 = /^(\d{1,2}):(\d{2})([ap]m)\s*-\s*(\d{1,2})([ap]m)$/i.exec(raw.trim());
-  if (fmt1) {
-    let openH = parseInt(fmt1[1], 10);
-    const openM = parseInt(fmt1[2], 10);
-    let closeH = parseInt(fmt1[4], 10);
-    const amPmOpen = fmt1[3].toLowerCase();
-    const amPmClose = fmt1[5].toLowerCase();
-    if (amPmOpen === 'pm' && openH !== 12) openH += 12;
-    if (amPmClose === 'pm' && closeH !== 12) closeH += 12;
-    if (amPmOpen === 'am' && openH === 12) openH = 0;
-    if (amPmClose === 'am' && closeH === 12) closeH = 0;
-    return {
-      openTime: `${String(openH).padStart(2, '0')}:${String(openM).padStart(2, '0')}`,
-      closeTime: `${String(closeH).padStart(2, '0')}:00`,
-    };
+function parseTimeToken(raw: string): {hour: number; minute: number} | null {
+  const m = /^(\d{1,2})(?::(\d{2}))?\s*(?:([ap])\.?m\.?)?$/i.exec(raw.trim());
+  if (!m) return null;
+
+  let hour = parseInt(m[1], 10);
+  const minute = m[2] === undefined ? 0 : parseInt(m[2], 10);
+  const meridiem = m[3]?.toLowerCase();
+
+  if (minute > 59) return null;
+
+  if (meridiem) {
+    // 12-hour clock: only 1-12 are meaningful, so "0pm"/"13pm" are rejected
+    // rather than silently wrapped into a plausible-looking time.
+    if (hour < 1 || hour > 12) return null;
+    if (meridiem === 'p' && hour !== 12) hour += 12;
+    if (meridiem === 'a' && hour === 12) hour = 0;
+  } else if (hour > 23) {
+    return null;
   }
 
-  // Format 2: 10am - 5pm
-  const fmt2 = /^(\d{1,2})([ap]m)\s*-\s*(\d{1,2})([ap]m)$/i.exec(raw.trim());
-  if (fmt2) {
-    let openH = parseInt(fmt2[1], 10);
-    let closeH = parseInt(fmt2[3], 10);
-    const amPmOpen = fmt2[2].toLowerCase();
-    const amPmClose = fmt2[4].toLowerCase();
-    if (amPmOpen === 'pm' && openH !== 12) openH += 12;
-    if (amPmClose === 'pm' && closeH !== 12) closeH += 12;
-    if (amPmOpen === 'am' && openH === 12) openH = 0;
-    if (amPmClose === 'am' && closeH === 12) closeH = 0;
-    return {
-      openTime: `${String(openH).padStart(2, '0')}:00`,
-      closeTime: `${String(closeH).padStart(2, '0')}:00`,
-    };
-  }
+  return {hour, minute};
+}
 
-  // Format 3: 10:00 - 17:00
-  const fmt3 = /^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/.exec(raw.trim());
-  if (fmt3) {
-    const openH = parseInt(fmt3[1], 10);
-    const openM = parseInt(fmt3[2], 10);
-    const closeH = parseInt(fmt3[3], 10);
-    const closeM = parseInt(fmt3[4], 10);
-    return {
-      openTime: `${String(openH).padStart(2, '0')}:${String(openM).padStart(2, '0')}`,
-      closeTime: `${String(closeH).padStart(2, '0')}:${String(closeM).padStart(2, '0')}`,
-    };
-  }
+/**
+ * Parse a raw "openingHours" string such as "9:30am - 7pm", "10am - 4:30pm" or
+ * "10:00 - 17:00" into a pair of HH:mm strings.  Returns null when the format
+ * is unrecognised.
+ *
+ * Each side of the range is parsed independently, so every combination of
+ * 12-hour/24-hour and with/without minutes is accepted. Feeds mix these
+ * freely: LEGOLAND Windsor publishes "10am - 4:30pm" for term-time days and
+ * "10am - 6pm" for weekends, in the same calendar.
+ *
+ * The range is never reordered - a closing time earlier than the opening time
+ * is a legitimate past-midnight close.
+ */
+export function parseOpeningHours(raw: string): TimeParseResult {
+  // Hyphen, en dash or em dash, and exactly two sides.
+  const parts = raw.trim().split(/\s*[-\u2013\u2014]\s*/);
+  if (parts.length !== 2) return null;
 
-  return null;
+  const open = parseTimeToken(parts[0]);
+  const close = parseTimeToken(parts[1]);
+  if (!open || !close) return null;
+
+  const fmt = (t: {hour: number; minute: number}) =>
+    `${String(t.hour).padStart(2, '0')}:${String(t.minute).padStart(2, '0')}`;
+
+  return {openTime: fmt(open), closeTime: fmt(close)};
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1317,12 +1319,22 @@ class AttractionsIOV1 extends Destination {
       closingTime: string;
     }> = [];
 
+    // An unparseable day is dropped, which silently removes a real operating
+    // day from the schedule. Collect the offending formats and warn once, so a
+    // new upstream wording is visible instead of just quietly shrinking the
+    // calendar.
+    const unparsed = new Map<string, number>();
+
     for (const day of days) {
       const dateStr = parseYYYYMMDD(day.key); // "20260330" → "2026-03-30"
       if (!dateStr) continue;
 
       const times = parseOpeningHours(day.openingHours);
-      if (!times) continue;
+      if (!times) {
+        const raw = String(day.openingHours ?? '');
+        unparsed.set(raw, (unparsed.get(raw) ?? 0) + 1);
+        continue;
+      }
 
       schedule.push({
         date: dateStr,
@@ -1330,6 +1342,16 @@ class AttractionsIOV1 extends Destination {
         openingTime: constructDateTime(dateStr, times.openTime, this.timezone),
         closingTime: constructDateTime(dateStr, times.closeTime, this.timezone),
       });
+    }
+
+    if (unparsed.size) {
+      const summary = [...unparsed.entries()]
+        .map(([raw, count]) => `${count}x ${JSON.stringify(raw)}`)
+        .join(', ');
+      console.warn(
+        `[${this.constructor.name}] dropped ${[...unparsed.values()].reduce((a, b) => a + b, 0)} ` +
+        `calendar day(s) with unrecognised openingHours: ${summary}`,
+      );
     }
 
     return [{id: this.parkId, schedule}];
