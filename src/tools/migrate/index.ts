@@ -53,13 +53,26 @@ async function main() {
   const destinations = await instance.getDestinations();
   const entities = await instance.getEntities();
 
-  const newEntities: NewEntity[] = entities.map((e: any) => ({
-    newId: e.id,
-    name: typeof e.name === 'string' ? e.name : (e.name?.en || e.name?.nl || Object.values(e.name || {})[0] || ''),
-    entityType: e.entityType,
-    latitude: e.location?.latitude,
-    longitude: e.location?.longitude,
-  }));
+  const newEntities: NewEntity[] = entities.map((e: any) => {
+    // A LocalisedString name carries every translation the park publishes.
+    // The wiki may be holding any one of them, so keep the rest as alternates
+    // for the matcher rather than throwing them away on the primary pick.
+    const names: string[] =
+      typeof e.name === 'string'
+        ? [e.name]
+        : [e.name?.en, e.name?.nl, ...Object.values(e.name || {})].filter(
+            (n): n is string => typeof n === 'string' && n.length > 0,
+          );
+    const unique = [...new Set(names)];
+    return {
+      newId: e.id,
+      name: unique[0] || '',
+      entityType: e.entityType,
+      latitude: e.location?.latitude,
+      longitude: e.location?.longitude,
+      altNames: unique.slice(1),
+    };
+  });
 
   console.log(`  Found ${newEntities.length} entities (${newEntities.filter(e => e.entityType === 'ATTRACTION').length} attractions, ${newEntities.filter(e => e.entityType === 'SHOW').length} shows, ${newEntities.filter(e => e.entityType === 'RESTAURANT').length} restaurants)`);
 
