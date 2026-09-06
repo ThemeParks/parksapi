@@ -872,7 +872,14 @@ export function universalEventWindowAt(
     let openingMs: number;
     let closingMs: number;
     try {
-      openingMs = new Date(constructDateTime(night.date, night.openingTime, timezone)).getTime();
+      // Admission, not the advertised start: guests are inside during early
+      // access, so an hhn-tagged show performing then is genuinely running.
+      // The published TICKETED_EVENT window is untouched — early access is a
+      // separate INFO entry in buildSchedules.
+      const admitsFrom = night.earlyAccessTime && night.earlyAccessTime < night.openingTime
+        ? night.earlyAccessTime
+        : night.openingTime;
+      openingMs = new Date(constructDateTime(night.date, admitsFrom, timezone)).getTime();
       const closingDate = night.closesNextDay ? shiftDateString(night.date, 1) : night.date;
       closingMs = new Date(constructDateTime(closingDate, night.closingTime, timezone)).getTime();
     } catch {
@@ -2301,6 +2308,33 @@ class Universal extends Destination {
               type: 'TICKETED_EVENT' as const,
               description: night.name,
             });
+            // Early access as its OWN entry, not by widening the window above.
+            // The event genuinely starts when it advertises; early access is a
+            // separately sold perk, and folding it in would tell every
+            // consumer that general admission begins ninety minutes earlier
+            // than it does. INFO because it is an advertised admission time
+            // rather than the park's own operating hours.
+            //
+            // Its close is inferred from the event's opening — the calendar
+            // block carries a start and no end — so it is only emitted when
+            // that produces a real, forward window.
+            if (night.earlyAccessTime) {
+              try {
+                const earlyOpening = constructDateTime(night.date, night.earlyAccessTime, this.timezone);
+                const earlyMs = new Date(earlyOpening).getTime();
+                if (Number.isFinite(earlyMs) && earlyMs < openingMs) {
+                  schedule.push({
+                    date: night.date,
+                    openingTime: earlyOpening,
+                    closingTime: openingTime,
+                    type: 'INFO' as const,
+                    description: `${night.name} Early Access`,
+                  });
+                }
+              } catch {
+                console.warn(`[${this.constructor.name}] skipping malformed early-access hours for ${placeId} on ${night.date}`);
+              }
+            }
           } catch {
             console.warn(`[${this.constructor.name}] skipping malformed ticketed-event hours for ${placeId} on ${night.date}`);
           }
@@ -2336,6 +2370,17 @@ export interface UniversalEventNight {
   closingTime: string;
   /** True when the close falls on the day after `date`. */
   closesNextDay: boolean;
+  /**
+   * Early admission, HH:mm, when the calendar advertises one — HHN sells
+   * early access ahead of the advertised event start.
+   *
+   * Kept separate from `openingTime` rather than folded into it: the event
+   * genuinely starts when it says it does, and widening the published window
+   * would tell every consumer that general admission begins ninety minutes
+   * early. It is published as its own INFO entry and used to decide whether
+   * guests are actually inside, which are two different questions.
+   */
+  earlyAccessTime?: string;
 }
 
 /**
@@ -2343,6 +2388,26 @@ export interface UniversalEventNight {
  * en dash in others, in the same document, so both are accepted.
  */
 const EVENT_HOURS = /(\d{1,2}):(\d{2})\s*(AM|PM)\s*[-–—]\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i;
+
+/**
+ * A LONE time with no range — "5:30pm" — which is how the calendar advertises
+ * early access.
+ *
+ * A date group carries up to three block shapes, and only these two patterns
+ * tell them apart:
+ *
+ *   heading='Halloween Horror Nights Early Access'  eyebrow='5:30pm'
+ *   heading='Halloween Horror Nights'               eyebrow='7:00 PM - 2:00 AM'
+ *   heading='No Event Today'                        eyebrow='Halloween Horror Nights'
+ *
+ * The parser previously required a RANGE and skipped everything else, which
+ * discarded early access and "No Event Today" alike — correct for the second,
+ * wrong for the first, and the reason an hhn-tagged show performing at 17:30
+ * was gated against a 19:00 window and published CLOSED while it ran.
+ *
+ * Anchored at both ends so it cannot match one half of a range.
+ */
+const EVENT_SINGLE_TIME = /^\s*(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\s*$/i;
 
 /** 12-hour clock to HH:mm. 12 AM is 00, 12 PM is 12. */
 function to24Hour(hour: string, minute: string, meridiem: string): string {
@@ -2405,6 +2470,23 @@ export function parseUniversalEventCalendar(payload: unknown): UniversalEventNig
       ?.blocksData?.LinkedComponentValues;
     if (!Array.isArray(blocks)) continue;
 
+    // Early access is advertised in its own block, as a lone time, and applies
+    // to every date in the group. Read it first so the event block below can
+    // carry it — the calendar puts early access FIRST and the real window
+    // second, but do not rely on that ordering.
+    let earlyAccessTime: string | undefined;
+    for (const block of blocks) {
+      const fields = block?.Fields;
+      const labels = [tridionValue(fields?.heading), tridionValue(fields?.eyebrow)]
+        .filter((text): text is string => !!text);
+      // Skip anything carrying a RANGE — that is the event block itself.
+      if (labels.some((text) => EVENT_HOURS.test(text))) continue;
+      const lone = labels
+        .map((text) => text.match(EVENT_SINGLE_TIME))
+        .find((match) => match !== null);
+      if (lone) earlyAccessTime = to24Hour(lone[1], lone[2] ?? '00', lone[3]);
+    }
+
     for (const block of blocks) {
       const fields = block?.Fields;
       const heading = tridionValue(fields?.heading);
@@ -2442,6 +2524,13 @@ export function parseUniversalEventCalendar(payload: unknown): UniversalEventNig
           openingTime,
           closingTime,
           closesNextDay: closingTime <= openingTime,
+          // Only when it genuinely precedes the advertised start. A lone time
+          // at or after the opening is not early access, and a group with a
+          // lone time but no range never reaches here at all — the event block
+          // is what creates the night.
+          ...(earlyAccessTime !== undefined && earlyAccessTime < openingTime
+            ? {earlyAccessTime}
+            : {}),
         });
       }
     }

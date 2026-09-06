@@ -68,7 +68,7 @@ describe("parseUniversalEventCalendar", () => {
     });
   });
 
-  test("finds Hollywood's bounded event window after its early-access block", () => {
+  test("reads the early-access time as well as the bounded event window", () => {
     const hollywood = {
       ComponentPresentations: [{
         Component: {
@@ -118,6 +118,7 @@ describe("parseUniversalEventCalendar", () => {
       openingTime: "19:00",
       closingTime: "01:00",
       closesNextDay: true,
+      earlyAccessTime: "17:30",
     }]);
   });
 
@@ -655,5 +656,100 @@ describe("event calendar fetch discipline", () => {
       console.warn = original;
     }
     expect(warnings.join("\n")).toMatch(/event calendar unavailable/i);
+  });
+});
+
+describe('early access is read and published separately', () => {
+  // Hollywood's calendar carries three block shapes in a date group, and only
+  // a time pattern tells them apart:
+  //   heading='… Early Access'      eyebrow='5:30pm'             <- a lone TIME
+  //   heading='Halloween Horror …'  eyebrow='7:00 PM - 2:00 AM'  <- a RANGE
+  //   heading='No Event Today'      eyebrow='Halloween Horror …' <- NO time
+  // The parser required a range and skipped the rest, discarding early access
+  // and "No Event Today" alike — right for the second, wrong for the first.
+  const group = (blocks: any[], dates = ["2026-09-05T00:00:00"]) => ({
+    ComponentPresentations: [{
+      Component: {
+        Schema: {RootElementName: "GDSCalendar"},
+        Fields: {calendarData: {LinkedComponentValues: [{Fields: {calendarConfig: {
+          EmbeddedValues: [{
+            eventDates: {DateTimeValues: dates},
+            blockData: {LinkedComponentValues: [{Fields: {blocksData: {
+              LinkedComponentValues: blocks.map((b) => ({Fields: {
+                heading: {Values: [b.heading]}, eyebrow: {Values: [b.eyebrow]},
+              }})),
+            }}}]},
+          }],
+        }}}]}},
+      },
+    }],
+  });
+
+  test("a lone time is read as early access, the range stays the event", () => {
+    const [night] = parseUniversalEventCalendar(group([
+      {heading: "Halloween Horror Nights Early Access", eyebrow: "5:30pm"},
+      {heading: "Halloween Horror Nights", eyebrow: "7:00 PM - 2:00 AM"},
+    ]));
+    expect(night.openingTime).toBe("19:00");      // the advertised start, unchanged
+    expect(night.earlyAccessTime).toBe("17:30");
+    expect(night.closingTime).toBe("02:00");
+  });
+
+  test('"No Event Today" is still discarded — it has no time at all', () => {
+    // The skip this change had to preserve: a block with no hours is not an
+    // event, and must not become a night.
+    expect(parseUniversalEventCalendar(group([
+      {heading: "No Event Today", eyebrow: "Halloween Horror Nights"},
+    ]))).toEqual([]);
+  });
+
+  test("a lone time with no event block creates no night", () => {
+    // Early access alone cannot invent an event: the range is what makes a
+    // night, and the early time only rides along on one.
+    expect(parseUniversalEventCalendar(group([
+      {heading: "Halloween Horror Nights Early Access", eyebrow: "5:30pm"},
+    ]))).toEqual([]);
+  });
+
+  test("a lone time at or after the opening is not early access", () => {
+    const [night] = parseUniversalEventCalendar(group([
+      {heading: "Something", eyebrow: "9:00pm"},
+      {heading: "Halloween Horror Nights", eyebrow: "7:00 PM - 2:00 AM"},
+    ]));
+    expect(night.earlyAccessTime).toBeUndefined();
+  });
+
+  test("a range in the same block cannot be read as a lone time", () => {
+    // The pre-pass skips any block carrying a range, so the event block's own
+    // labels can never supply an early-access time. Without that guard a block
+    // holding both shapes would take its early time from itself.
+    const [night] = parseUniversalEventCalendar(group([
+      {heading: "5:30pm", eyebrow: "7:00 PM - 2:00 AM"},
+    ]));
+    expect(night?.earlyAccessTime).toBeUndefined();
+  });
+
+  test("THE POINT OF THIS CHANGE: the gate admits from early access", () => {
+    // An hhn-tagged show is gated on the event calendar, so before this the
+    // 19:00 window made a 17:30 performance read CLOSED while it ran. The
+    // window used for gating now opens at admission.
+    const nights = parseUniversalEventCalendar(group([
+      {heading: "Halloween Horror Nights Early Access", eyebrow: "5:30pm"},
+      {heading: "Halloween Horror Nights", eyebrow: "7:00 PM - 2:00 AM"},
+    ]));
+    const tz = "America/Los_Angeles";
+    const at = (iso: string) => isUniversalEventOperatingNow(nights, new Date(iso), tz);
+    expect(at("2026-09-06T00:20:00.000Z")).toBe(false); // 17:20 PT — before admission
+    expect(at("2026-09-06T00:40:00.000Z")).toBe(true);  // 17:40 PT — early access
+    expect(at("2026-09-06T03:00:00.000Z")).toBe(true);  // 20:00 PT — main event
+    expect(at("2026-09-06T10:00:00.000Z")).toBe(false); // 03:00 PT — closed
+  });
+
+  test("block order does not matter", () => {
+    const [night] = parseUniversalEventCalendar(group([
+      {heading: "Halloween Horror Nights", eyebrow: "7:00 PM - 2:00 AM"},
+      {heading: "Halloween Horror Nights Early Access", eyebrow: "5:30pm"},
+    ]));
+    expect(night.earlyAccessTime).toBe("17:30");
   });
 });
