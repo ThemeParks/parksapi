@@ -18,7 +18,7 @@
  * to match the reported incident directly.
  */
 import {describe, test, expect, vi, afterEach} from 'vitest';
-import {UniversalStudios, UniversalOrlando, type UniversalShowListEntry} from '../universal.js';
+import {UniversalStudios, UniversalOrlando, mapUniversalShowStatus, hasPerformanceUnderway, type UniversalShowListEntry} from '../universal.js';
 
 // Real wall-clock hours from the incident: EXTRA_HOURS 08:00-09:00 PDT,
 // general open 09:00-19:00 PDT. All offsets are -07:00 (Pacific, no DST
@@ -107,6 +107,370 @@ function stubPark<T extends UniversalStudios | UniversalOrlando>(
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+describe('a performance already underway outranks the published windows', () => {
+  // Both published windows are incomplete, in opposite directions, and the
+  // feed found both on the first night the gate ran:
+  //   - Epic Universe's "Universal Celestial Goodnight" has ONE performance at
+  //     20:30 against a 20:00 posted park close.
+  //   - Hollywood's "Meet HamiKuma" performs at 17:30 and 18:30 during HHN
+  //     early access, before the 19:00 ticketed-event window opens.
+  // Each published CLOSED while a performance was on stage.
+  //
+  // The rule looks BACKWARD only. A slot that has begun is evidence; a slot in
+  // the future is a prediction, and this feed's predictions carry phantoms.
+  const show = (slots: string[], status = 'OPEN'): UniversalShowListEntry => ({
+    show_id: 'ush.lower_lot.shows.meet_toad', resort_area_code: 'USH',
+    venue_id: 'ush.lower_lot', name: 'Meet Toad', status, show_externally: true,
+    show_times: slots.map((t, i) => ({show_time_id: String(i), status: 'ENABLED', start_time: t})),
+  } as any);
+  // These cases isolate the "underway" logic, so they hand it an interval that
+  // always contains both the instant and the slot. Whether a performance is
+  // inside an operating session is the anchoring rule, covered by the
+  // buildLiveData tests below.
+  const ANY_SESSION = [{start: -Infinity, end: Infinity}];
+  // parkOperating=false throughout: the park is shut / the event is not open.
+  const verdict = (sh: UniversalShowListEntry, iso: string) =>
+    mapUniversalShowStatus(sh.status, true, false,
+      hasPerformanceUnderway(sh, new Date(iso), ANY_SESSION));
+
+  test('5 minutes after it started: OPERATING', () => {
+    // Celestial Goodnight's shape. parseShowTimes drops a started slot, so
+    // from the parsed list this is indistinguishable from a show that has
+    // finished — it read CLOSED while literally on stage.
+    expect(verdict(show(['2026-09-06T00:30:00.000Z']), '2026-09-06T00:35:00.000Z')).toBe('OPERATING');
+  });
+
+  test('A FUTURE SLOT NEVER COUNTS, however close', () => {
+    // The change from the rejected symmetric version. 20 minutes before a
+    // performance the show has not started; a future slot is also the vector
+    // every phantom arrives on.
+    expect(verdict(show(['2026-09-06T00:30:00.000Z']), '2026-09-06T00:10:00.000Z')).toBe('CLOSED');
+    expect(verdict(show(['2026-09-06T00:30:00.000Z']), '2026-09-06T00:29:59.000Z')).toBe('CLOSED');
+  });
+
+  test('THE WINDOW IS EXACTLY 30 MINUTES, backwards only', () => {
+    const sh = show(['2026-09-06T00:30:00.000Z']);
+    expect(hasPerformanceUnderway(sh, new Date('2026-09-06T00:30:00.000Z'), ANY_SESSION)).toBe(true);  // t+0
+    expect(hasPerformanceUnderway(sh, new Date('2026-09-06T01:00:00.000Z'), ANY_SESSION)).toBe(true);  // t+30 exactly
+    expect(hasPerformanceUnderway(sh, new Date('2026-09-06T01:00:01.000Z'), ANY_SESSION)).toBe(false); // t+30m01s
+    expect(hasPerformanceUnderway(sh, new Date('2026-09-06T00:29:59.000Z'), ANY_SESSION)).toBe(false); // 1s before
+  });
+
+  test('NO TILING: hourly slots leave a real gap', () => {
+    // The reason the forward half was cut. Symmetric, this window was 60
+    // minutes wide and ~80-92% of consecutive slot gaps are 60 minutes or
+    // less, so the union covered a show's entire day and the day gate stopped
+    // working. Backward-only cannot tile.
+    const hourly = show(['2026-09-06T00:30:00.000Z', '2026-09-06T01:30:00.000Z']);
+    expect(verdict(hourly, '2026-09-06T00:45:00.000Z')).toBe('OPERATING'); // 15m into the first
+    expect(verdict(hourly, '2026-09-06T01:15:00.000Z')).toBe('CLOSED');    // between them
+    expect(verdict(hourly, '2026-09-06T01:35:00.000Z')).toBe('OPERATING'); // 5m into the second
+  });
+
+  test('THE #321 CASE SURVIVES: a next-day slot never counts', () => {
+    expect(verdict(show(['2026-09-06T16:00:00.000Z']), '2026-09-06T10:00:00.000Z')).toBe('CLOSED');
+  });
+
+  test('an explicit long closure is not reopened by a stale slot', () => {
+    expect(verdict(show(['2026-09-06T00:30:00.000Z'], 'EXTENDED_CLOSURE'), '2026-09-06T00:35:00.000Z')).toBe('CLOSED');
+  });
+
+  test('a delayed show still reads DOWN, not OPERATING', () => {
+    expect(verdict(show(['2026-09-06T00:30:00.000Z'], 'BRIEF_DELAY'), '2026-09-06T00:35:00.000Z')).toBe('DOWN');
+  });
+
+  test('disabled slots are ignored', () => {
+    const sh: any = show(['2026-09-06T00:30:00.000Z']);
+    sh.show_times[0].status = 'DISABLED';
+    expect(hasPerformanceUnderway(sh, new Date('2026-09-06T00:35:00.000Z'), ANY_SESSION)).toBe(false);
+  });
+
+  test('a show with no show_times at all is never underway', () => {
+    expect(hasPerformanceUnderway({show_id: 'a', name: 'b', status: 'OPEN',
+      show_externally: true, resort_area_code: 'X', venue_id: 'x.y'} as any,
+      new Date('2026-09-06T00:35:00.000Z'), ANY_SESSION)).toBe(false);
+  });
+});
+
+describe('resolveParkDay picks the nearest relevant day, not the last one listed', () => {
+  // Hollywood has TWO relevant dates: its own, and the Eastern one the legacy
+  // server keys rows to. Between 21:00 and midnight Pacific the Eastern date
+  // has already rolled over, so both today's and tomorrow's rows are
+  // "relevant". A last-one-wins rule adopts TOMORROW's window and silently
+  // drops the post-close grace — and makes the answer depend on the upstream
+  // array's ordering, which is not a property worth relying on.
+  const TODAY = {
+    Date: '2026-09-05', VenueStatus: '',
+    OpenTimeString: '2026-09-05T08:00:00-07:00',
+    CloseTimeString: '2026-09-05T22:00:00-07:00',
+  };
+  const TOMORROW = {
+    Date: '2026-09-06', VenueStatus: '',
+    OpenTimeString: '2026-09-06T08:00:00-07:00',
+    CloseTimeString: '2026-09-06T22:00:00-07:00',
+  };
+
+  async function windowAt(iso: string, rows: any[]) {
+    const park: any = stubPark(new UniversalStudios(), [], {'13825': rows});
+    const day = await park.resolveParkDay('13825', new Date(iso));
+    return day.window;
+  }
+
+  test('the nearest day wins whichever order the rows arrive in', async () => {
+    // 22:30 PT on the 5th: half an hour past today's 22:00 close, inside the
+    // grace. Tomorrow's window opens 9.5 hours away.
+    const at = '2026-09-06T05:30:00.000Z';
+    const ascending = await windowAt(at, [TODAY, TOMORROW]);
+    const descending = await windowAt(at, [TOMORROW, TODAY]);
+    expect(ascending).toEqual(descending);
+    expect(new Date(ascending.closesAt).toISOString()).toBe('2026-09-06T05:00:00.000Z'); // 22:00 PT on the 5th
+  });
+
+  test('the operating verdict is unaffected by which window is kept', async () => {
+    const at = '2026-09-06T05:30:00.000Z';
+    for (const rows of [[TODAY, TOMORROW], [TOMORROW, TODAY]]) {
+      const park: any = stubPark(new UniversalStudios(), [], {'13825': rows});
+      expect((await park.resolveParkDay('13825', new Date(at))).operating).toBe(false);
+    }
+  });
+});
+
+describe('Universal buildLiveData — the underway rule is actually wired in', () => {
+  // Every other test above calls the pure functions directly. That leaves the
+  // call site itself unasserted: replacing hasImminentPerformance(show, now)
+  // with `false`, or transposing it with parkOperating (both booleans, so the
+  // compiler stays silent), passes a suite made only of unit tests. These
+  // drive the real buildLiveData -> getLiveData path instead.
+  const DAY_SHUT = [
+    {Date: '2026-09-05', VenueStatus: '', OpenTimeString: '2026-09-05T08:00:00-07:00', CloseTimeString: '2026-09-05T18:00:00-07:00'},
+    {Date: '2026-09-06', VenueStatus: '', OpenTimeString: '2026-09-06T08:00:00-07:00', CloseTimeString: '2026-09-06T18:00:00-07:00'},
+  ];
+
+  async function rowAt(iso: string, slots: string[], status: string) {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(iso));
+    const show: UniversalShowListEntry = {
+      show_id: 'ush.upper_lot.shows.meet.hamikuma',
+      resort_area_code: 'USH', venue_id: 'ush.upper_lot',
+      name: 'Meet HamiKuma', status, show_externally: true,
+      show_times: slots.map((t, i) => ({show_time_id: String(i), status: 'ENABLED', start_time: t})),
+    } as any;
+    const park: any = stubPark(new UniversalStudios(), [show], {'13825': DAY_SHUT});
+    park.getEventNights = async () => [];
+    park.getPlaces = async () => [];
+    const rows = await park.getLiveData();
+    vi.useRealTimers();
+    return rows.find((r: any) => r.id === 'ush.upper_lot.shows.meet.hamikuma');
+  }
+
+  test('just past the close, performance already begun: the row is OPERATING', async () => {
+    // 18:10 PT, ten minutes after the 18:00 close, performance started 18:05 —
+    // Celestial Goodnight's shape. Only the underway rule can produce
+    // OPERATING here: if the call site is unwired, or its argument transposed
+    // with parkOperating (false), this reads CLOSED.
+    const row = await rowAt('2026-09-06T01:10:00.000Z', ['2026-09-06T01:05:00.000Z'], 'OPEN');
+    expect(row.status).toBe('OPERATING');
+  });
+
+  test("status CLOSED — the shape Universal actually reports between appearances", async () => {
+    // Meet-and-greets report CLOSED between slots, which is the DEFAULT branch
+    // of mapUniversalShowStatus, not the OPEN branch every other new test
+    // exercises. Both shows this change was written for are this shape.
+    const row = await rowAt('2026-09-06T01:10:00.000Z', ['2026-09-06T01:05:00.000Z'], 'CLOSED');
+    expect(row.status).toBe('OPERATING');
+    // The slot has begun, so parseShowTimes drops it: no future showtimes at
+    // all, which is the state that distinguishes the two boolean arguments.
+    expect(row.showtimes ?? []).toHaveLength(0);
+  });
+
+  test('park shut and nothing imminent: still CLOSED', async () => {
+    // The control. Same park, same shut hours, slot 14 hours away — the
+    // overnight staleness case, through the full pipeline.
+    const row = await rowAt('2026-09-06T01:10:00.000Z', ['2026-09-06T16:00:00.000Z'], 'CLOSED');
+    expect(row.status).toBe('CLOSED');
+  });
+
+  test('the park-open arm: an unavailable schedule must not lose a live show', async () => {
+    // getVenueSchedule throwing is fail-open: parkOperating=true, window=null.
+    // A show mid-performance then has no future slots and no day window, so
+    // only the parkOperating arm of nearOperatingSession can save it.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-06T01:10:00.000Z'));
+    const show: any = {
+      show_id: 'ush.upper_lot.shows.meet.hamikuma', resort_area_code: 'USH',
+      venue_id: 'ush.upper_lot', name: 'Meet HamiKuma', status: 'CLOSED',
+      show_externally: true,
+      show_times: [{show_time_id: '0', status: 'ENABLED', start_time: '2026-09-06T01:05:00.000Z'}],
+    };
+    const park: any = stubPark(new UniversalStudios(), [show], {});
+    park.getVenueSchedule = async () => { throw new Error('upstream 500'); };
+    park.getEventNights = async () => [];
+    park.getPlaces = async () => [];
+    const rows = await park.getLiveData();
+    vi.useRealTimers();
+    expect(rows.find((r: any) => r.id === 'ush.upper_lot.shows.meet.hamikuma').status).toBe('OPERATING');
+  });
+
+  test('the event arm: an ordinary show mid-performance deep inside the event', async () => {
+    // 23:00 PT — five hours past the day close, so the day window and its
+    // hour of grace are long gone, but HHN runs to 02:00. Only the
+    // eventOperating arm keeps this show alive.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-06T06:00:00.000Z'));
+    const show: any = {
+      show_id: 'ush.lower_lot.shows.meet_toad', resort_area_code: 'USH',
+      venue_id: 'ush.lower_lot', name: 'Meet Toad', status: 'CLOSED',
+      show_externally: true,
+      show_times: [{show_time_id: '0', status: 'ENABLED', start_time: '2026-09-06T05:55:00.000Z'}],
+    };
+    // An hhn-category show must be present: the event calendar is only
+    // fetched when one is, so without it eventOperating stays null and the
+    // arm under test never engages.
+    const hhn: any = {
+      show_id: 'ush.upper_lot.events.hhn_2026_show_the_purge', resort_area_code: 'USH',
+      venue_id: 'ush.upper_lot', category: 'hhn', name: 'The Purge',
+      status: 'OPEN', show_externally: true, show_times: [],
+    };
+    const park: any = stubPark(new UniversalStudios(), [show, hhn], {'13825': DAY_SHUT});
+    park.getEventNights = async () => [{
+      date: '2026-09-05', name: 'Halloween Horror Nights',
+      openingTime: '19:00', closingTime: '02:00', closesNextDay: true,
+    }];
+    park.getPlaces = async () => [];
+    const rows = await park.getLiveData();
+    vi.useRealTimers();
+    expect(rows.find((r: any) => r.id === 'ush.lower_lot.shows.meet_toad').status).toBe('OPERATING');
+  });
+
+  test('THE EVENT ARM IS VENUE-SCOPED: another park hosting HHN does not unlock this one', async () => {
+    // The hhn status branch is deliberately scoped to the configured host
+    // park. Without the same scope on the imminent rule, ONE hhn-category
+    // show anywhere in the feed opened it at EVERY venue for the whole event
+    // night: an Epic Universe show with a 23:30 slot read OPERATING three and
+    // a half hours past Epic's 20:00 close, because Halloween Horror Nights
+    // was running over at Universal Studios Florida.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-06T03:35:00.000Z')); // 23:35 EDT
+    const day = (date: string, venueDate: string) => ([{
+      Date: date, VenueStatus: '',
+      OpenTimeString: `${venueDate}T10:00:00-04:00`,
+      CloseTimeString: `${venueDate}T20:00:00-04:00`,
+    }]);
+    const epicShow: any = {
+      show_id: 'uor.eu.shows.celestialgoodnight', resort_area_code: 'UOR',
+      venue_id: 'uor.eu', name: 'Universal Celestial Goodnight', status: 'CLOSED',
+      show_externally: true,
+      // Started five minutes ago: backward-only, so a future slot would be
+      // rejected whatever the scoping does, and the test would prove nothing.
+      show_times: [{show_time_id: '0', status: 'ENABLED', start_time: '2026-09-06T03:30:00.000Z'}],
+    };
+    const hhnAtUsf: any = {
+      show_id: 'uor.usf.events.hhn_2026_show_the_purge', resort_area_code: 'UOR',
+      venue_id: 'uor.usf', category: 'hhn', name: 'The Purge',
+      status: 'OPEN', show_externally: true, show_times: [],
+    };
+    const park: any = stubPark(
+      new UniversalOrlando({config: {eventCalendarPlaceId: 'uor.usf',
+        eventCalendarURL: 'https://example.invalid/c'}} as any),
+      [epicShow, hhnAtUsf],
+      {
+        '10010': day('2026-09-05', '2026-09-05').concat(day('2026-09-06', '2026-09-06')),
+        '10000': day('2026-09-05', '2026-09-05').concat(day('2026-09-06', '2026-09-06')),
+        '24000': day('2026-09-05', '2026-09-05').concat(day('2026-09-06', '2026-09-06')),
+        '13801': day('2026-09-05', '2026-09-05').concat(day('2026-09-06', '2026-09-06')),
+      },
+    );
+    // HHN is genuinely running at USF, 18:30 -> 02:00.
+    park.getEventNights = async () => [{
+      date: '2026-09-05', name: 'Halloween Horror Nights',
+      openingTime: '18:30', closingTime: '02:00', closesNextDay: true,
+    }];
+    park.getPlaces = async () => [];
+    const rows = await park.getLiveData();
+    vi.useRealTimers();
+    const row = rows.find((r: any) => r.id === 'uor.eu.shows.celestialgoodnight');
+    // Epic closed at 20:00 and its hour of grace expired at 21:00. The event
+    // is at a different park, so it must not reach this show.
+    expect(row.status).toBe('CLOSED');
+  });
+
+  test('MEET HELLO KITTY: a mis-stamped slot cannot resurrect a show at 02:30', async () => {
+    // The real regression the first version shipped. USH's Meet Hello Kitty
+    // carries eleven slots across 09:00-15:00 PDT plus a twelfth at
+    // 2026-09-06T09:30:00.000Z — tomorrow's 09:30 local stamped Z instead of
+    // -07:00, landing at 02:30 PDT. Park shut since 18:00, event over at
+    // 02:00. Unanchored, the imminent rule published OPERATING for a full
+    // hour in the middle of the night off that single row.
+    // Fixture carries the real slot pair: the last good 15:00 PDT slot and
+    // the mis-stamped row. (The helper publishes under the HamiKuma id; what
+    // is under test is the slot shape, not the show's name.)
+    const row = await rowAt(
+      '2026-09-06T09:30:00.000Z',                                   // 02:30 PDT
+      ['2026-09-05T22:00:00.000Z', '2026-09-06T09:30:00.000Z'],     // 15:00 PDT + the bad row
+      'OPEN',
+    );
+    expect(row.status).toBe('CLOSED');
+  });
+
+  test('THE TRANSPOSITION GUARD: a show already ON STAGE past the close', async () => {
+    // The one state that distinguishes the two boolean arguments at the call
+    // site: hasFutureShowtimes=false (parseShowTimes drops a slot that has
+    // already begun), parkOperating=false, performingNow=true. Swap
+    // parkOperating and performingNow and this reads CLOSED — and the
+    // compiler cannot see it, because both are booleans. It is also
+    // Celestial Goodnight's exact shape: one performance, already started,
+    // past the posted close.
+    const row = await rowAt(
+      '2026-09-06T01:10:00.000Z',              // 18:10 PT, ten past the close
+      ['2026-09-06T01:05:00.000Z'],            // 18:05 PT — started, no future slot
+      'CLOSED',
+    );
+    expect(row.status).toBe('OPERATING');
+    expect(row.showtimes ?? []).toHaveLength(0);   // nothing in the future: the point
+  });
+
+  test('THE GRACE IS EXACTLY 60 MINUTES past close', async () => {
+    // Pins POST_CLOSE_GRACE_MS. Without this the constant is free to roam
+    // anywhere in [10m, 100m) with the suite still green.
+    const onTheLimit = await rowAt(
+      '2026-09-06T02:00:00.000Z',              // 19:00 PT = close + 60m exactly
+      ['2026-09-06T02:00:00.000Z'],
+      'OPEN',
+    );
+    expect(onTheLimit.status).toBe('OPERATING');
+    const oneSecondPast = await rowAt(
+      '2026-09-06T02:00:01.000Z',              // close + 60m + 1s
+      ['2026-09-06T02:00:00.000Z'],
+      'OPEN',
+    );
+    expect(oneSecondPast.status).toBe('CLOSED');
+  });
+
+  test('THE SLOT must be in the session too, not just the instant', async () => {
+    // Anchoring only `now` lets a slot stamped BEFORE the park opened fire
+    // from just after opening. Day opens 08:00 PT; the instant 08:20 is
+    // inside the session, the slot at 07:55 is not — and `now` must be
+    // inside too, or the test would pass without ever reaching that check.
+    // status CLOSED and the only slot already past, so there are no future
+    // showtimes: the default branch turns entirely on the underway rule.
+    // With status OPEN this would read OPERATING for ordinary reasons, since
+    // the park is open at 08:20.
+    const row = await rowAt(
+      '2026-09-06T15:20:00.000Z',              // 08:20 PT — inside the session
+      ['2026-09-06T14:55:00.000Z'],            // 07:55 PT — before the 08:00 open
+      'CLOSED',
+    );
+    expect(row.status).toBe('CLOSED');
+  });
+
+  test('an hour past close is the limit, not four hours', async () => {
+    // 19:40 PT with a slot at 20:00: 1h40m past the 18:00 close, beyond the
+    // grace. The rule must not reach here even though a slot is 20 min away.
+    const row = await rowAt('2026-09-06T02:40:00.000Z', ['2026-09-06T03:00:00.000Z'], 'OPEN');
+    expect(row.status).toBe('CLOSED');
+  });
 });
 
 describe('Universal buildLiveData — an ordinary show performing inside the event', () => {
