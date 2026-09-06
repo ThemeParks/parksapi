@@ -541,6 +541,25 @@ export function parseShowTimes(
 const IMMINENT_PERFORMANCE_MS = 30 * 60 * 1000;
 
 /**
+ * How far past a park's posted close the imminent rule may still apply.
+ *
+ * Unbounded, the rule resurrects a show from a single mis-stamped slot. USH's
+ * "Meet Hello Kitty" carries eleven slots across 09:00-15:00 PDT and a twelfth
+ * at `2026-09-06T09:30:00.000Z` — tomorrow's 09:30 local stamped `Z` instead
+ * of `-07:00`, landing at 02:30 PDT. With the park shut since 18:00 and the
+ * event over at 02:00, that one row published OPERATING for a full hour in the
+ * middle of the night: exactly the overnight staleness this gate exists to
+ * stop, reached through one bad slot rather than a stale list.
+ *
+ * No window geometry separates that slot from Celestial Goodnight's — both sit
+ * 30 minutes past their day's last close. What separates them is which
+ * operating session they belong to, so the rule is anchored to the CURRENT
+ * one: it may reach an hour past close (a closing spectacular performs there)
+ * and no further (the small hours are not an operating session).
+ */
+const POST_CLOSE_GRACE_MS = 60 * 60 * 1000;
+
+/**
  * True when the show has an ENABLED performance close enough to now that the
  * show is running whatever the published hours say.
  *
@@ -1483,11 +1502,28 @@ class Universal extends Destination {
    * gated separately against the official event calendar in buildLiveData.
    */
   async isParkOperatingNow(legacyVenueId: string, now: Date): Promise<boolean> {
+    return (await this.resolveParkDay(legacyVenueId, now)).operating;
+  }
+
+  /**
+   * The venue's relevant-day window, alongside the operating verdict.
+   *
+   * Same scan as isParkOperatingNow — deliberately one code path, because the
+   * two answers must never disagree about which day's row is "today". The
+   * window is what bounds the imminent-performance rule: a slot is only
+   * allowed to override the clock NEAR a real operating session, not floating
+   * free in the night. `window` is null whenever the verdict is fail-open,
+   * since there is then no trustworthy boundary to anchor to.
+   */
+  protected async resolveParkDay(
+    legacyVenueId: string,
+    now: Date,
+  ): Promise<{operating: boolean; window: {opensAt: number; closesAt: number} | null}> {
     try {
       const schedule = await this.getVenueSchedule(legacyVenueId);
       if (!Array.isArray(schedule)) {
         console.warn(`Universal: venue schedule for ${legacyVenueId} was not an array, unable to clock-gate shows`);
-        return true;
+        return {operating: true, window: null};
       }
 
       const nowMs = now.getTime();
@@ -1507,6 +1543,7 @@ class Universal extends Destination {
       // that the upstream response included today's hours.
       let sawValidRelevantDay = false;
       let sawMalformedRelevantDay = false;
+      let relevantWindow: {opensAt: number; closesAt: number} | null = null;
       for (const day of schedule) {
         if (!day) continue;
         const isRelevant = typeof day.Date === 'string' && relevantDates.has(day.Date);
@@ -1528,26 +1565,33 @@ class Universal extends Destination {
         const openMs = Number.isFinite(earlyOpenMs) && earlyOpenMs < regularOpenMs
           ? earlyOpenMs
           : regularOpenMs;
-        if (isRelevant) sawValidRelevantDay = true;
-        if (nowMs >= openMs && nowMs <= closeMs) return true;
+        if (isRelevant) {
+          sawValidRelevantDay = true;
+          // Keep the relevant day's boundaries even when `now` sits outside
+          // them — that is precisely the case the grace window is for.
+          relevantWindow = {opensAt: openMs, closesAt: closeMs};
+        }
+        if (nowMs >= openMs && nowMs <= closeMs) {
+          return {operating: true, window: {opensAt: openMs, closesAt: closeMs}};
+        }
       }
 
       if (sawMalformedRelevantDay) {
         console.warn(
           `Universal: venue schedule for ${legacyVenueId} had no usable window for the current day, unable to clock-gate shows`,
         );
-        return true;
+        return {operating: true, window: null};
       }
       if (!sawValidRelevantDay) {
         console.warn(`Universal: venue schedule for ${legacyVenueId} had no usable current day, unable to clock-gate shows`);
-        return true;
+        return {operating: true, window: null};
       }
-      return false;
+      return {operating: false, window: relevantWindow};
     } catch (err: any) {
       console.warn(
         `Universal: venue schedule unavailable for ${legacyVenueId}, unable to clock-gate shows: ${err?.message ?? err}`,
       );
-      return true;
+      return {operating: true, window: null};
     }
   }
 
@@ -1866,14 +1910,16 @@ class Universal extends Destination {
     // empty (see mapUniversalShowStatus doc comment).
     const now = new Date();
     const parkOperatingByVenue = new Map<string, boolean>();
+    // The same lookup also yields each venue's day boundaries, which bound the
+    // imminent-performance rule below.
+    const parkWindowByVenue = new Map<string, {opensAt: number; closesAt: number} | null>();
     await Promise.all(
       Object.entries(PARK_PLACE_ID_TO_LEGACY_VENUE_ID)
         .filter(([placeId]) => placeId.startsWith(`${this.resortKey}.`))
         .map(async ([placeId, legacyVenueId]) => {
-          parkOperatingByVenue.set(
-            sanitizeId(placeId),
-            await this.isParkOperatingNow(legacyVenueId, now),
-          );
+          const day = await this.resolveParkDay(legacyVenueId, now);
+          parkOperatingByVenue.set(sanitizeId(placeId), day.operating);
+          parkWindowByVenue.set(sanitizeId(placeId), day.window);
         }),
     );
 
@@ -1962,18 +2008,30 @@ class Universal extends Destination {
         // before the event's close counts.
         parkOperating = true;
       }
-      // A performance happening right now outranks every published window.
-      // Both windows are incomplete in ways the feed keeps finding: Epic
-      // Universe's closing spectacular performs AFTER the park's posted close,
-      // and HHN early access admits guests BEFORE the ticketed-event window
-      // opens. Enumerating windows loses that race; an ENABLED performance
-      // within half an hour is direct evidence, and a next-day slot — the
-      // staleness this gate was built for — is never within half an hour.
+      // A performance happening right now outranks the published hours, but
+      // only NEAR the current operating session. Both published windows are
+      // incomplete in ways the feed keeps finding — Epic Universe's closing
+      // spectacular performs after the park's posted close, HHN early access
+      // admits guests before the ticketed-event window opens — so an ENABLED
+      // performance within half an hour is better evidence than either.
+      //
+      // Unanchored it is worse than the disease: one mis-stamped slot at
+      // 02:30 published a show OPERATING all through the night (see
+      // POST_CLOSE_GRACE_MS). So the rule applies only from the day's opening
+      // until an hour past its close, or at any point the ticketed event is
+      // actually running. Outside that, the clock wins — which is the
+      // overnight case this gate was built for.
+      const dayWindow = scheduleVenue ? parkWindowByVenue.get(scheduleVenue) ?? null : null;
+      const nearOperatingSession = parkOperating
+        || eventOperating === true
+        || (dayWindow !== null
+          && now.getTime() >= dayWindow.opensAt
+          && now.getTime() <= dayWindow.closesAt + POST_CLOSE_GRACE_MS);
       showEntry.status = mapUniversalShowStatus(
         show.status,
         times.length > 0,
         parkOperating,
-        hasImminentPerformance(show, now),
+        nearOperatingSession && hasImminentPerformance(show, now),
       );
       if (times.length > 0) {
         showEntry.showtimes = times;
