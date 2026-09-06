@@ -126,6 +126,55 @@ describe('live entity retirement gate', () => {
     expect(live.find((d) => d.id === 'show1')).toEqual({id: 'show1', status: 'OPERATING'});
   });
 
+  /**
+   * The degraded-feed cooldown lives in a SECOND key beside the map
+   * (`…:liveEntityRetirement:guard`), and it is protected only because
+   * `:guard` is appended to a string that already carries the fragment.
+   * Nothing asserted that until now: renaming the guard key to anything
+   * outside the catalogue silently loses its protection, and a lost
+   * `withheldAt` fails OPEN, letting the gate retire inside exactly the
+   * untrusted window it exists to sit out.
+   *
+   * Exercised through behaviour rather than by naming the key, so a rename
+   * that drops the protection fails here.
+   */
+  test('a flush preserves the degraded-feed cooldown, not just the seen map', async () => {
+    vi.useFakeTimers();
+    const week = 7 * 24 * 60 * 60 * 1000;
+    const park = new RetiringTestDestination({retire: true, retirementMs: week});
+    const all = Array.from({length: 12}, (_, i) => `a${i + 1}`);
+
+    park.liveIds = [...all];
+    await park.getLiveData();
+
+    // Collapse the feed: 10 of 12 absent clears both minBulk (5) and
+    // maxFraction (0.5), and three consecutive such builds arm the cooldown.
+    vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
+    park.liveIds = ['a1', 'a2'];
+    await park.getLiveData();
+    await park.getLiveData();
+    await park.getLiveData();
+
+    CacheLib.clearByClassName('RetiringTestDestination');
+
+    // Feed recovers to all but one. That one is old enough and missed enough
+    // to retire, and would, were the cooldown not still running.
+    park.liveIds = all.filter((id) => id !== 'a12');
+    await park.getLiveData();
+    await park.getLiveData();
+    const cooling = await park.getLiveData();
+    expect(cooling.find((d) => d.id === 'a12')).toBeUndefined();
+
+    // Control: once the cooldown genuinely expires the same id does close, so
+    // the assertion above is the cooldown holding rather than a12 having been
+    // ineligible all along.
+    vi.setSystemTime(Date.now() + 8 * 24 * 60 * 60 * 1000);
+    await park.getLiveData();
+    await park.getLiveData();
+    const after = await park.getLiveData();
+    expect(after.find((d) => d.id === 'a12')).toEqual({id: 'a12', status: 'CLOSED'});
+  });
+
   test('an entity that reappears before retiring is emitted normally, no synthetic row', async () => {
     vi.useFakeTimers();
     const park = new RetiringTestDestination({retire: true, retirementMs: 7 * 24 * 60 * 60 * 1000});

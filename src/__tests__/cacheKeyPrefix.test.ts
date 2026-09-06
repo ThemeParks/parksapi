@@ -7,11 +7,11 @@ import {Destination} from '../destination';
 
 describe('Cache Key Prefix', () => {
   beforeEach(() => {
-    CacheLib.clear();
+    CacheLib.clear({includePersistent: true});
   });
 
   afterAll(() => {
-    CacheLib.clear();
+    CacheLib.clear({includePersistent: true});
   });
 
   describe('getCacheKeyPrefix() method', () => {

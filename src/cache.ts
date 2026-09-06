@@ -1,4 +1,5 @@
 import {DatabaseSync} from 'node:sqlite';
+import {persistentKeyExclusion} from './cacheKeys.js';
 
 const CACHE_DB_PATH = process.env.CACHE_DB_PATH || './cache.sqlite';
 const MAX_CACHE_ENTRIES = parseInt(process.env.CACHE_MAX_ENTRIES || '50000', 10);
@@ -7,32 +8,6 @@ const CLEANUP_INTERVAL_MS = parseInt(process.env.CACHE_CLEANUP_INTERVAL_MS || '3
 // the lock). No application-level retry needed.
 
 // Track if we're in temporary mode
-/**
- * Key fragment marking a destination's live-entity retirement state.
- *
- * Exported so `Destination` builds its key from the same constant that
- * protects it here, and the two cannot drift apart.
- */
-const LIVE_ENTITY_RETIREMENT_FRAGMENT = ':liveEntityRetirement';
-
-/**
- * Key fragments holding persistent operational state rather than cached
- * upstream data.
- *
- * `clearByClassName()` exists to force a fresh upstream fetch. It must never
- * also mean "forget what we have observed": the retirement map records
- * whether an id has ever been seen live, and only ever gains entries for ids
- * PRESENT in the current feed. Wipe it and an id that has already vanished
- * upstream is absent from the map for good, so it can never accrue the misses
- * that retire it, and its stale row freezes permanently. That is the opposite
- * of what the tool flushing the cache was reached for.
- *
- * Matched anywhere in the key, so a per-park or per-id suffix is fine. Extend
- * this list when adding state whose loss changes what we publish rather than
- * just costing a fetch.
- */
-const PERSISTENT_KEY_FRAGMENTS = [LIVE_ENTITY_RETIREMENT_FRAGMENT] as const;
-
 let isTemporaryMode = false;
 
 // Initialize database (can be re-initialized). Assigned below, once
@@ -291,10 +266,22 @@ class CacheLib {
     }
   }
 
-  static clear(): void {
+  /**
+   * Delete cached entries.
+   *
+   * Like {@link clearByClassName}, this is a re-fetch and steps over
+   * persistent operational state (see cacheKeys.ts). The broad gesture is the
+   * one an operator reaches for when a symptom spans several destinations,
+   * which is exactly when quietly discarding what we have observed does the
+   * most damage. Pass `includePersistent` for a genuine full wipe.
+   */
+  static clear({includePersistent = false}: {includePersistent?: boolean} = {}): void {
     try {
-      const stmt = database.prepare('DELETE FROM cache');
-      stmt.run();
+      const {clauses, params} = includePersistent
+        ? {clauses: [] as string[], params: [] as string[]}
+        : persistentKeyExclusion();
+      const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
+      database.prepare(`DELETE FROM cache${where}`).run(...params);
     } catch (error) {
       console.error("Cache clear error:", error);
     }
@@ -372,12 +359,19 @@ class CacheLib {
       const currentSize = this.size();
       if (currentSize > MAX_CACHE_ENTRIES) {
         const entriesToRemove = currentSize - MAX_CACHE_ENTRIES;
+        // Persistent rows are exempt here too, or the 400-day TTL on the
+        // retirement record would only be as good as the size cap: a
+        // destination that stops being polled ages to the cold end of the LRU
+        // and would be evicted despite never expiring. They are bounded (a
+        // handful per destination) so exempting them cannot starve eviction.
+        const {clauses, params} = persistentKeyExclusion();
+        const filter = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
         const stmt = database.prepare(`
           DELETE FROM cache WHERE key IN (
-            SELECT key FROM cache ORDER BY lastAccess ASC LIMIT ?
+            SELECT key FROM cache${filter} ORDER BY lastAccess ASC LIMIT ?
           )
         `);
-        stmt.run(entriesToRemove);
+        stmt.run(...params, entriesToRemove);
       }
     } catch (error) {
       console.error("Cache size enforcement error:", error);
@@ -467,10 +461,9 @@ class CacheLib {
       const clauses = ['(key LIKE ? OR key LIKE ?)'];
       const params: string[] = [`${className}:%`, `%:${className}:%`];
       if (!includePersistent) {
-        for (const fragment of PERSISTENT_KEY_FRAGMENTS) {
-          clauses.push('key NOT LIKE ?');
-          params.push(`%${fragment}%`);
-        }
+        const exclusion = persistentKeyExclusion();
+        clauses.push(...exclusion.clauses);
+        params.push(...exclusion.params);
       }
       const stmt = database.prepare(`DELETE FROM cache WHERE ${clauses.join(' AND ')}`);
       const result = stmt.run(...params);
@@ -481,10 +474,19 @@ class CacheLib {
     }
   }
 
-  /** Delete every entry in the cache. Returns number deleted. */
-  static clearAll(): number {
+  /**
+   * Delete cached entries across every destination. Returns number deleted.
+   *
+   * Steps over persistent operational state for the same reason
+   * {@link clearByClassName} does; pass `includePersistent` for a full wipe.
+   */
+  static clearAll({includePersistent = false}: {includePersistent?: boolean} = {}): number {
     try {
-      const result = database.prepare("DELETE FROM cache").run();
+      const {clauses, params} = includePersistent
+        ? {clauses: [] as string[], params: [] as string[]}
+        : persistentKeyExclusion();
+      const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : '';
+      const result = database.prepare(`DELETE FROM cache${where}`).run(...params);
       return Number(result.changes || 0);
     } catch (error) {
       console.error("Cache clearAll error:", error);
@@ -594,4 +596,4 @@ export default function cacheDecorator({ttlSeconds = 60, callback, key, cacheVer
 }
 
 
-export {CacheLib, cacheDecorator as cache, LIVE_ENTITY_RETIREMENT_FRAGMENT, PERSISTENT_KEY_FRAGMENTS};
+export {CacheLib, cacheDecorator as cache};

@@ -4,7 +4,8 @@ import {reusable} from "./promiseReuse.js";
 import {loadProxyConfig, hasProxyConfig, type ProxyConfig} from "./proxy.js";
 import {inject} from "./injector.js";
 import {type HTTPObj, HttpQueue, http} from "./http.js";
-import {cache, CacheLib, LIVE_ENTITY_RETIREMENT_FRAGMENT} from "./cache.js";
+import {cache, CacheLib} from "./cache.js";
+import {LIVE_ENTITY_RETIREMENT_FRAGMENT} from "./cacheKeys.js";
 import {VQueueBuilder} from "./virtualQueue/builder.js";
 import {calculateReturnWindow} from "./virtualQueue/timeWindows.js";
 import {formatInTimezone} from "./datetime.js";
@@ -1132,7 +1133,11 @@ export abstract class Destination {
     } else {
       prefix = this.cacheKeyPrefix || this.constructor.name;
     }
-    return `${prefix}${LIVE_ENTITY_RETIREMENT_FRAGMENT}`;
+    // Fall back the way the `cacheKeyPrefix` branch and the @cache decorator
+    // already do. An override returning '' would otherwise yield the bare key
+    // `:liveEntityRetirement`, shared by every destination that did it, and
+    // the gate would close entities belonging to another park.
+    return `${prefix || this.constructor.name}${LIVE_ENTITY_RETIREMENT_FRAGMENT}`;
   }
 
   /**

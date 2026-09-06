@@ -340,9 +340,14 @@ export class DisneylandParis extends Destination {
   /**
    * All cache entries are namespaced under the class name so
    * `CacheLib.clearByClassName('DisneylandParis')` (used by the test
-   * harness `--clear-cache`) sweeps everything for this destination,
+   * harness `--clear-cache`) sweeps this destination's cached upstream data,
    * including methods that opt into a stable named cache key like the
    * `dlp:get*` keys below.
+   *
+   * Not quite everything: keys listed in cacheKeys.ts hold what we have
+   * OBSERVED rather than what we fetched, and a flush steps over them. For
+   * this destination that is the live-entity retirement record and the
+   * queue-bearing / single-rider history below.
    */
   getCacheKeyPrefix(): string {
     return 'DisneylandParis';

@@ -14,12 +14,12 @@ afterEach(() => {
 describe('Cache', () => {
   beforeEach(() => {
     // Clear cache before each test
-    Cache.clear();
+    Cache.clear({includePersistent: true});
   });
 
   afterEach(() => {
     // Clean up after each test
-    Cache.clear();
+    Cache.clear({includePersistent: true});
   });
 
   describe('Basic Operations', () => {
@@ -130,7 +130,7 @@ describe('Cache', () => {
       
       expect(Cache.size()).toBe(3);
       
-      Cache.clear();
+      Cache.clear({includePersistent: true});
       
       expect(Cache.size()).toBe(0);
       expect(Cache.get('key1')).toBeNull();
@@ -159,7 +159,7 @@ describe('Cache', () => {
       Cache.delete('key1');
       expect(Cache.size()).toBe(1);
       
-      Cache.clear();
+      Cache.clear({includePersistent: true});
       expect(Cache.size()).toBe(0);
     });
 
@@ -183,7 +183,7 @@ describe('Cache', () => {
       Cache.set('TestPark:getToken:[]', 'tok1');
       Cache.set('TestPark:fetchPOI:["en"]', 'poi');
       Cache.set('OtherPark:getToken:[]', 'tok2');
-      Cache.clear(); // clear beforeEach leftovers first
+      Cache.clear({includePersistent: true}); // clear beforeEach leftovers first
 
       Cache.set('TestPark:getToken:[]', 'tok1');
       Cache.set('TestPark:fetchPOI:["en"]', 'poi');
@@ -198,7 +198,7 @@ describe('Cache', () => {
     });
 
     test('deletes prefixed prefix:ClassName:method:args keys', () => {
-      Cache.clear();
+      Cache.clear({includePersistent: true});
       Cache.set('attractionsio:1:AttractionsIOV3:getParkConfig:[]', 'cfg');
       Cache.set('attractionsio:2:AttractionsIOV3:getParkConfig:[]', 'cfg2');
       Cache.set('SomethingElse:method:[]', 'other');
@@ -212,7 +212,7 @@ describe('Cache', () => {
     });
 
     test('returns 0 when no matching keys exist', () => {
-      Cache.clear();
+      Cache.clear({includePersistent: true});
       Cache.set('UnrelatedPark:method:[]', 'val');
 
       const deleted = Cache.clearByClassName('NonExistentPark');
@@ -227,7 +227,7 @@ describe('Cache', () => {
     // untracked for good and its stale row frozen — the opposite of what the
     // tool doing the flushing was reached for.
     test('steps over persistent retirement state while clearing real cache keys', () => {
-      Cache.clear();
+      Cache.clear({includePersistent: true});
       Cache.set('TestPark:getToken:[]', 'tok');
       Cache.set('TestPark:liveEntityRetirement', {show1: {seenAt: 1, misses: 0}});
       Cache.set('TestPark:liveEntityRetirement:guard', {withheldAt: null, streak: 0});
@@ -241,7 +241,7 @@ describe('Cache', () => {
     });
 
     test('includePersistent sweeps the retirement state too', () => {
-      Cache.clear();
+      Cache.clear({includePersistent: true});
       Cache.set('TestPark:getToken:[]', 'tok');
       Cache.set('TestPark:liveEntityRetirement', {show1: {seenAt: 1, misses: 0}});
       Cache.set('TestPark:liveEntityRetirement:guard', {withheldAt: null, streak: 0});
@@ -253,37 +253,91 @@ describe('Cache', () => {
       expect(Cache.has('TestPark:liveEntityRetirement:guard')).toBe(false);
     });
 
-    // A destination overriding getCacheKeyPrefix() puts its retirement record
-    // under that prefix, which carries no class name and so falls outside the
-    // LIKE patterns today. Pinned so a future widening of those patterns
-    // cannot start sweeping it.
-    test('leaves prefixed retirement state intact', () => {
-      Cache.clear();
-      Cache.set('attractionsio:1:AttractionsIOV3:getParkConfig:[]', 'cfg');
-      Cache.set('attractionsio:1:liveEntityRetirement', {ride: {seenAt: 1, misses: 0}});
+    // The at-risk prefixed shape is a record whose prefix CONTAINS the class
+    // name, which the `%:ClassName:%` pattern matches. A record keyed under a
+    // prefix carrying no class name (`attractionsiov1:<id>:...`) was never a
+    // deletion candidate, so it proves nothing about the carve-out; this uses
+    // the shape that genuinely was being swept.
+    test('protects a retirement record sitting inside a prefixed key', () => {
+      Cache.clear({includePersistent: true});
+      Cache.set('seaworld:SeaWorldOrlando:getPOI:[]', 'poi');
+      Cache.set('seaworld:SeaWorldOrlando:liveEntityRetirement', {r1: {seenAt: 1, misses: 0}});
 
-      const deleted = Cache.clearByClassName('AttractionsIOV3');
+      const deleted = Cache.clearByClassName('SeaWorldOrlando');
 
       expect(deleted).toBe(1);
-      expect(Cache.has('attractionsio:1:liveEntityRetirement')).toBe(true);
+      expect(Cache.has('seaworld:SeaWorldOrlando:getPOI:[]')).toBe(false);
+      expect(Cache.has('seaworld:SeaWorldOrlando:liveEntityRetirement')).toBe(true);
     });
 
-    // Protection is per-fragment, not per-class: an unrelated destination's
-    // record must not be collateral of someone else's flush either.
-    test('does not touch another destination\'s retirement state', () => {
-      Cache.clear();
-      Cache.set('TestPark:getToken:[]', 'tok');
-      Cache.set('OtherPark:liveEntityRetirement', {show9: {seenAt: 1, misses: 0}});
+    // The catalogue holds more than the retirement record, and the exclusion
+    // is built by looping it. Pins a second, unrelated fragment so the N>1
+    // path is exercised rather than assumed.
+    test('protects a non-retirement fragment from the same catalogue', () => {
+      Cache.clear({includePersistent: true});
+      Cache.set('DisneylandParis:getPOI:[]', 'poi');
+      Cache.set('DisneylandParis:dlp:queueBearingHistory', ['a', 'b']);
+
+      const deleted = Cache.clearByClassName('DisneylandParis');
+
+      expect(deleted).toBe(1);
+      expect(Cache.has('DisneylandParis:dlp:queueBearingHistory')).toBe(true);
+    });
+
+    // SQL LIKE treats `_` as a single-character wildcard, so an unescaped
+    // fragment would protect keys it does not name.
+    test('escapes LIKE metacharacters when matching fragments', () => {
+      Cache.clear({includePersistent: true});
+      Cache.set('TestPark:dlpXqueueBearingHistory', 'decoy');
+      Cache.set('TestPark:dlp:queueBearingHistory', ['real']);
 
       Cache.clearByClassName('TestPark');
 
+      expect(Cache.has('TestPark:dlpXqueueBearingHistory')).toBe(false);
+      expect(Cache.has('TestPark:dlp:queueBearingHistory')).toBe(true);
+    });
+  });
+
+  // The broad flush gestures are the ones an operator reaches for when a
+  // symptom spans several destinations, which is exactly when discarding what
+  // we have observed does the most damage. They carve out the same keys.
+  describe('persistent state across the broad clear paths', () => {
+    test('clear() steps over persistent keys by default', () => {
+      Cache.clear({includePersistent: true});
+      Cache.set('TestPark:getToken:[]', 'tok');
+      Cache.set('TestPark:liveEntityRetirement', {s1: {seenAt: 1, misses: 0}});
+
+      Cache.clear();
+
+      expect(Cache.has('TestPark:getToken:[]')).toBe(false);
+      expect(Cache.has('TestPark:liveEntityRetirement')).toBe(true);
+    });
+
+    test('clearAll() steps over persistent keys by default', () => {
+      Cache.clear({includePersistent: true});
+      Cache.set('TestPark:getToken:[]', 'tok');
+      Cache.set('OtherPark:liveEntityRetirement', {s1: {seenAt: 1, misses: 0}});
+
+      const deleted = Cache.clearAll();
+
+      expect(deleted).toBe(1);
       expect(Cache.has('OtherPark:liveEntityRetirement')).toBe(true);
+    });
+
+    test('both wipe persistent keys when asked explicitly', () => {
+      Cache.clear({includePersistent: true});
+      Cache.set('TestPark:liveEntityRetirement', {s1: {seenAt: 1, misses: 0}});
+      expect(Cache.clearAll({includePersistent: true})).toBe(1);
+
+      Cache.set('TestPark:liveEntityRetirement', {s1: {seenAt: 1, misses: 0}});
+      Cache.clear({includePersistent: true});
+      expect(Cache.has('TestPark:liveEntityRetirement')).toBe(false);
     });
   });
 
   describe('clearAll', () => {
     test('removes all entries and returns count', () => {
-      Cache.clear();
+      Cache.clear({includePersistent: true});
       Cache.set('ParkA:method:[]', 'a');
       Cache.set('ParkB:method:[]', 'b');
       Cache.set('ParkC:method:[]', 'c');
@@ -295,7 +349,7 @@ describe('Cache', () => {
     });
 
     test('returns 0 when cache is already empty', () => {
-      Cache.clear();
+      Cache.clear({includePersistent: true});
       expect(Cache.clearAll()).toBe(0);
     });
   });
@@ -914,7 +968,7 @@ describe('Cache', () => {
       // For a real test, we'd need to mock or reload the module
       // This test demonstrates the concept with enforceSizeLimit() calls
 
-      Cache.clear();
+      Cache.clear({includePersistent: true});
 
       // Manually add entries and test enforceSizeLimit
       for (let i = 0; i < 3; i++) {
@@ -974,7 +1028,7 @@ describe('Cache', () => {
     });
 
     test('should start and stop automatic cleanup', async () => {
-      Cache.clear();
+      Cache.clear({includePersistent: true});
 
       // Start cleanup (note: interval is set at module load time)
       // This test just verifies the methods work without errors
@@ -1003,7 +1057,7 @@ describe('Cache', () => {
 
   describe('Cache Statistics', () => {
     test('should return accurate cache statistics', async () => {
-      Cache.clear();
+      Cache.clear({includePersistent: true});
 
       // Add active entries
       Cache.set('active1', 'value1', 60);
@@ -1022,7 +1076,7 @@ describe('Cache', () => {
     });
 
     test('should return zero stats for empty cache', () => {
-      Cache.clear();
+      Cache.clear({includePersistent: true});
 
       const stats = Cache.stats();
 
@@ -1368,7 +1422,7 @@ describe('Cache', () => {
 
   describe('enforceSizeLimit Behavior', () => {
     test('should evict least-recently-accessed entries when over limit', () => {
-      Cache.clear();
+      Cache.clear({includePersistent: true});
 
       // Insert entries with distinct lastAccess timestamps
       for (let i = 0; i < 5; i++) {
@@ -1401,7 +1455,7 @@ describe('Cache', () => {
     });
 
     test('get() updates lastAccess so entry survives eviction', async () => {
-      Cache.clear();
+      Cache.clear({includePersistent: true});
 
       // Insert entries with explicit lastAccess timestamps to avoid timing issues
       const stmt = database.prepare(
@@ -1429,7 +1483,7 @@ describe('Cache', () => {
 
   describe('Concurrent-like Access Patterns', () => {
     test('many rapid set/get operations should not corrupt data', () => {
-      Cache.clear();
+      Cache.clear({includePersistent: true});
 
       // Simulate rapid concurrent-like writes (sequential but fast)
       const count = 200;
@@ -1448,7 +1502,7 @@ describe('Cache', () => {
     });
 
     test('interleaved set/get/delete should maintain consistency', () => {
-      Cache.clear();
+      Cache.clear({includePersistent: true});
 
       // Write 50 entries
       for (let i = 0; i < 50; i++) {
