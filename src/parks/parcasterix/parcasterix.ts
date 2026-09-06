@@ -166,6 +166,26 @@ export class ParcAsterix extends Destination {
   @config language: LanguageCode = 'en';
   @config packageVersion: string = '1.1.238';
 
+  /**
+   * A show that ends its run leaves `paxSchedules` entirely rather than
+   * reporting no performances, and the offline package drops its POI row in
+   * the same release. buildLiveData() then has nothing to key off and the row
+   * freezes at its last value: four retired Parc Asterix shows were still
+   * reading OPERATING on the wiki 8 to 24 days after their last write, because
+   * the collector is upsert-only and omitting a row achieves nothing. See
+   * Destination.retireMissingLiveEntities for the mechanism.
+   *
+   * The shared 7-day window suits this feed. Shows drop out of `paxSchedules`
+   * on any day they do not perform, so the window has to clear a normal weekly
+   * cadence, and a week does with room to spare. The seasonal winter closure
+   * takes every show out at once for months; force-closing them then is the
+   * right answer, not a false positive, and the attractions are unaffected
+   * because `paxLatencies` keeps listing them with `isOpen` false. A genuinely
+   * broken feed parses to an empty array and takes out far more than half the
+   * tracked entities, which the degraded-feed guard catches.
+   */
+  protected retireMissingLiveEntities = true;
+
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('PARCASTERIX');
