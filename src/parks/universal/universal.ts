@@ -1544,6 +1544,7 @@ class Universal extends Destination {
       let sawValidRelevantDay = false;
       let sawMalformedRelevantDay = false;
       let relevantWindow: {opensAt: number; closesAt: number} | null = null;
+      let relevantWindowDistance = Number.POSITIVE_INFINITY;
       for (const day of schedule) {
         if (!day) continue;
         const isRelevant = typeof day.Date === 'string' && relevantDates.has(day.Date);
@@ -1568,8 +1569,22 @@ class Universal extends Destination {
         if (isRelevant) {
           sawValidRelevantDay = true;
           // Keep the relevant day's boundaries even when `now` sits outside
-          // them — that is precisely the case the grace window is for.
-          relevantWindow = {opensAt: openMs, closesAt: closeMs};
+          // them — that is precisely the case the grace window is for. Keep
+          // the NEAREST such day rather than the last one seen: Hollywood has
+          // two relevant dates (its own and the Eastern one the server keys
+          // rows to), so between 21:00 and midnight Pacific the Eastern date
+          // has already rolled over and a last-one-wins rule silently adopts
+          // TOMORROW's window. That direction is safe — it only ever declines
+          // to rescue a late show, never invents one — but it makes the
+          // result depend on the upstream array's ordering, which is not a
+          // property worth relying on.
+          const distance = nowMs < openMs ? openMs - nowMs
+            : nowMs > closeMs ? nowMs - closeMs
+            : 0;
+          if (relevantWindow === null || distance < relevantWindowDistance) {
+            relevantWindow = {opensAt: openMs, closesAt: closeMs};
+            relevantWindowDistance = distance;
+          }
         }
         if (nowMs >= openMs && nowMs <= closeMs) {
           return {operating: true, window: {opensAt: openMs, closesAt: closeMs}};

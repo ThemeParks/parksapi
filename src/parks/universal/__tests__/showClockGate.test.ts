@@ -195,6 +195,49 @@ describe('a performance happening now outranks the published windows', () => {
   });
 });
 
+describe('resolveParkDay picks the nearest relevant day, not the last one listed', () => {
+  // Hollywood has TWO relevant dates: its own, and the Eastern one the legacy
+  // server keys rows to. Between 21:00 and midnight Pacific the Eastern date
+  // has already rolled over, so both today's and tomorrow's rows are
+  // "relevant". A last-one-wins rule adopts TOMORROW's window and silently
+  // drops the post-close grace — and makes the answer depend on the upstream
+  // array's ordering, which is not a property worth relying on.
+  const TODAY = {
+    Date: '2026-09-05', VenueStatus: '',
+    OpenTimeString: '2026-09-05T08:00:00-07:00',
+    CloseTimeString: '2026-09-05T22:00:00-07:00',
+  };
+  const TOMORROW = {
+    Date: '2026-09-06', VenueStatus: '',
+    OpenTimeString: '2026-09-06T08:00:00-07:00',
+    CloseTimeString: '2026-09-06T22:00:00-07:00',
+  };
+
+  async function windowAt(iso: string, rows: any[]) {
+    const park: any = stubPark(new UniversalStudios(), [], {'13825': rows});
+    const day = await park.resolveParkDay('13825', new Date(iso));
+    return day.window;
+  }
+
+  test('the nearest day wins whichever order the rows arrive in', async () => {
+    // 22:30 PT on the 5th: half an hour past today's 22:00 close, inside the
+    // grace. Tomorrow's window opens 9.5 hours away.
+    const at = '2026-09-06T05:30:00.000Z';
+    const ascending = await windowAt(at, [TODAY, TOMORROW]);
+    const descending = await windowAt(at, [TOMORROW, TODAY]);
+    expect(ascending).toEqual(descending);
+    expect(new Date(ascending.closesAt).toISOString()).toBe('2026-09-06T05:00:00.000Z'); // 22:00 PT on the 5th
+  });
+
+  test('the operating verdict is unaffected by which window is kept', async () => {
+    const at = '2026-09-06T05:30:00.000Z';
+    for (const rows of [[TODAY, TOMORROW], [TOMORROW, TODAY]]) {
+      const park: any = stubPark(new UniversalStudios(), [], {'13825': rows});
+      expect((await park.resolveParkDay('13825', new Date(at))).operating).toBe(false);
+    }
+  });
+});
+
 describe('Universal buildLiveData — the imminent rule is actually wired in', () => {
   // Every other test above calls the pure functions directly. That leaves the
   // call site itself unasserted: replacing hasImminentPerformance(show, now)
