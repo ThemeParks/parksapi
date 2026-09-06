@@ -291,6 +291,58 @@ describe('Universal buildLiveData — the imminent rule is actually wired in', (
     expect(row.status).toBe('CLOSED');
   });
 
+  test('the park-open arm: an unavailable schedule must not lose a live show', async () => {
+    // getVenueSchedule throwing is fail-open: parkOperating=true, window=null.
+    // A show mid-performance then has no future slots and no day window, so
+    // only the parkOperating arm of nearOperatingSession can save it.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-06T01:10:00.000Z'));
+    const show: any = {
+      show_id: 'ush.upper_lot.shows.meet.hamikuma', resort_area_code: 'USH',
+      venue_id: 'ush.upper_lot', name: 'Meet HamiKuma', status: 'CLOSED',
+      show_externally: true,
+      show_times: [{show_time_id: '0', status: 'ENABLED', start_time: '2026-09-06T01:05:00.000Z'}],
+    };
+    const park: any = stubPark(new UniversalStudios(), [show], {});
+    park.getVenueSchedule = async () => { throw new Error('upstream 500'); };
+    park.getEventNights = async () => [];
+    park.getPlaces = async () => [];
+    const rows = await park.getLiveData();
+    vi.useRealTimers();
+    expect(rows.find((r: any) => r.id === 'ush.upper_lot.shows.meet.hamikuma').status).toBe('OPERATING');
+  });
+
+  test('the event arm: an ordinary show mid-performance deep inside the event', async () => {
+    // 23:00 PT — five hours past the day close, so the day window and its
+    // hour of grace are long gone, but HHN runs to 02:00. Only the
+    // eventOperating arm keeps this show alive.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-06T06:00:00.000Z'));
+    const show: any = {
+      show_id: 'ush.lower_lot.shows.meet_toad', resort_area_code: 'USH',
+      venue_id: 'ush.lower_lot', name: 'Meet Toad', status: 'CLOSED',
+      show_externally: true,
+      show_times: [{show_time_id: '0', status: 'ENABLED', start_time: '2026-09-06T05:55:00.000Z'}],
+    };
+    // An hhn-category show must be present: the event calendar is only
+    // fetched when one is, so without it eventOperating stays null and the
+    // arm under test never engages.
+    const hhn: any = {
+      show_id: 'ush.upper_lot.events.hhn_2026_show_the_purge', resort_area_code: 'USH',
+      venue_id: 'ush.upper_lot', category: 'hhn', name: 'The Purge',
+      status: 'OPEN', show_externally: true, show_times: [],
+    };
+    const park: any = stubPark(new UniversalStudios(), [show, hhn], {'13825': DAY_SHUT});
+    park.getEventNights = async () => [{
+      date: '2026-09-05', name: 'Halloween Horror Nights',
+      openingTime: '19:00', closingTime: '02:00', closesNextDay: true,
+    }];
+    park.getPlaces = async () => [];
+    const rows = await park.getLiveData();
+    vi.useRealTimers();
+    expect(rows.find((r: any) => r.id === 'ush.lower_lot.shows.meet_toad').status).toBe('OPERATING');
+  });
+
   test('MEET HELLO KITTY: a mis-stamped slot cannot resurrect a show at 02:30', async () => {
     // The real regression the first version shipped. USH's Meet Hello Kitty
     // carries eleven slots across 09:00-15:00 PDT plus a twelfth at
@@ -298,12 +350,49 @@ describe('Universal buildLiveData — the imminent rule is actually wired in', (
     // -07:00, landing at 02:30 PDT. Park shut since 18:00, event over at
     // 02:00. Unanchored, the imminent rule published OPERATING for a full
     // hour in the middle of the night off that single row.
+    // Fixture carries the real slot pair: the last good 15:00 PDT slot and
+    // the mis-stamped row. (The helper publishes under the HamiKuma id; what
+    // is under test is the slot shape, not the show's name.)
     const row = await rowAt(
       '2026-09-06T09:30:00.000Z',                                   // 02:30 PDT
       ['2026-09-05T22:00:00.000Z', '2026-09-06T09:30:00.000Z'],     // 15:00 PDT + the bad row
       'OPEN',
     );
     expect(row.status).toBe('CLOSED');
+  });
+
+  test('THE TRANSPOSITION GUARD: a show already ON STAGE past the close', async () => {
+    // The one state that distinguishes the two boolean arguments at the call
+    // site: hasFutureShowtimes=false (parseShowTimes drops a slot that has
+    // already begun), parkOperating=false, performingNow=true. Swap
+    // parkOperating and performingNow and this reads CLOSED — and the
+    // compiler cannot see it, because both are booleans. It is also
+    // Celestial Goodnight's exact shape: one performance, already started,
+    // past the posted close.
+    const row = await rowAt(
+      '2026-09-06T01:10:00.000Z',              // 18:10 PT, ten past the close
+      ['2026-09-06T01:05:00.000Z'],            // 18:05 PT — started, no future slot
+      'CLOSED',
+    );
+    expect(row.status).toBe('OPERATING');
+    expect(row.showtimes ?? []).toHaveLength(0);   // nothing in the future: the point
+  });
+
+  test('THE GRACE IS EXACTLY 60 MINUTES past close', async () => {
+    // Pins POST_CLOSE_GRACE_MS. Without this the constant is free to roam
+    // anywhere in [10m, 100m) with the suite still green.
+    const onTheLimit = await rowAt(
+      '2026-09-06T02:00:00.000Z',              // 19:00 PT = close + 60m exactly
+      ['2026-09-06T02:00:00.000Z'],
+      'OPEN',
+    );
+    expect(onTheLimit.status).toBe('OPERATING');
+    const oneSecondPast = await rowAt(
+      '2026-09-06T02:00:01.000Z',              // close + 60m + 1s
+      ['2026-09-06T02:00:00.000Z'],
+      'OPEN',
+    );
+    expect(oneSecondPast.status).toBe('CLOSED');
   });
 
   test('an hour past close is the limit, not four hours', async () => {
