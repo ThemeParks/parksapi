@@ -18,7 +18,7 @@
  * to match the reported incident directly.
  */
 import {describe, test, expect, vi, afterEach} from 'vitest';
-import {UniversalStudios, UniversalOrlando, mapUniversalShowStatus, hasImminentPerformance, type UniversalShowListEntry} from '../universal.js';
+import {UniversalStudios, UniversalOrlando, mapUniversalShowStatus, hasPerformanceUnderway, type UniversalShowListEntry} from '../universal.js';
 
 // Real wall-clock hours from the incident: EXTRA_HOURS 08:00-09:00 PDT,
 // general open 09:00-19:00 PDT. All offsets are -07:00 (Pacific, no DST
@@ -109,95 +109,88 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('a performance happening now outranks the published windows', () => {
+describe('a performance already underway outranks the published windows', () => {
   // Both published windows are incomplete, in opposite directions, and the
   // feed found both on the first night the gate ran:
   //   - Epic Universe's "Universal Celestial Goodnight" has ONE performance at
   //     20:30 against a 20:00 posted park close.
   //   - Hollywood's "Meet HamiKuma" performs at 17:30 and 18:30 during HHN
   //     early access, before the 19:00 ticketed-event window opens.
-  // Each published CLOSED beside a performance that was minutes away or
-  // already on stage. Enumerating windows keeps losing this race.
+  // Each published CLOSED while a performance was on stage.
+  //
+  // The rule looks BACKWARD only. A slot that has begun is evidence; a slot in
+  // the future is a prediction, and this feed's predictions carry phantoms.
   const show = (slots: string[], status = 'OPEN'): UniversalShowListEntry => ({
-    show_id: 'x.y.shows.z', resort_area_code: 'X', venue_id: 'x.y',
-    name: 'A Show', status, show_externally: true,
+    show_id: 'ush.lower_lot.shows.meet_toad', resort_area_code: 'USH',
+    venue_id: 'ush.lower_lot', name: 'Meet Toad', status, show_externally: true,
     show_times: slots.map((t, i) => ({show_time_id: String(i), status: 'ENABLED', start_time: t})),
   } as any);
-  // parkOperating=false throughout: the park is shut / the event is not open.
-  // These cases isolate the +/-30 minute imminence logic, so they hand it an
-  // interval that always contains both the instant and the slot. Whether a
-  // performance is INSIDE an operating session is the anchoring rule, covered
-  // by the buildLiveData tests further down.
+  // These cases isolate the "underway" logic, so they hand it an interval that
+  // always contains both the instant and the slot. Whether a performance is
+  // inside an operating session is the anchoring rule, covered by the
+  // buildLiveData tests below.
   const ANY_SESSION = [{start: -Infinity, end: Infinity}];
-  const verdict = (s: UniversalShowListEntry, iso: string) =>
-    mapUniversalShowStatus(s.status, true, false,
-      hasImminentPerformance(s, new Date(iso), ANY_SESSION));
+  // parkOperating=false throughout: the park is shut / the event is not open.
+  const verdict = (sh: UniversalShowListEntry, iso: string) =>
+    mapUniversalShowStatus(sh.status, true, false,
+      hasPerformanceUnderway(sh, new Date(iso), ANY_SESSION));
 
-  test('a single performance 20 minutes away reads OPERATING', () => {
-    expect(verdict(show(['2026-09-06T00:30:00Z']), '2026-09-06T00:10:00Z')).toBe('OPERATING');
+  test('5 minutes after it started: OPERATING', () => {
+    // Celestial Goodnight's shape. parseShowTimes drops a started slot, so
+    // from the parsed list this is indistinguishable from a show that has
+    // finished — it read CLOSED while literally on stage.
+    expect(verdict(show(['2026-09-06T00:30:00.000Z']), '2026-09-06T00:35:00.000Z')).toBe('OPERATING');
   });
 
-  test('the same performance 5 minutes AFTER it started still reads OPERATING', () => {
-    // parseShowTimes drops anything already begun, so a one-slot show is
-    // otherwise indistinguishable from one that finished for the day —
-    // it would read CLOSED while literally on stage.
-    expect(verdict(show(['2026-09-06T00:30:00Z']), '2026-09-06T00:35:00Z')).toBe('OPERATING');
+  test('A FUTURE SLOT NEVER COUNTS, however close', () => {
+    // The change from the rejected symmetric version. 20 minutes before a
+    // performance the show has not started; a future slot is also the vector
+    // every phantom arrives on.
+    expect(verdict(show(['2026-09-06T00:30:00.000Z']), '2026-09-06T00:10:00.000Z')).toBe('CLOSED');
+    expect(verdict(show(['2026-09-06T00:30:00.000Z']), '2026-09-06T00:29:59.000Z')).toBe('CLOSED');
   });
 
-  test('45 minutes after the last performance it reads CLOSED again', () => {
-    expect(verdict(show(['2026-09-06T00:30:00Z']), '2026-09-06T01:15:00Z')).toBe('CLOSED');
+  test('THE WINDOW IS EXACTLY 30 MINUTES, backwards only', () => {
+    const sh = show(['2026-09-06T00:30:00.000Z']);
+    expect(hasPerformanceUnderway(sh, new Date('2026-09-06T00:30:00.000Z'), ANY_SESSION)).toBe(true);  // t+0
+    expect(hasPerformanceUnderway(sh, new Date('2026-09-06T01:00:00.000Z'), ANY_SESSION)).toBe(true);  // t+30 exactly
+    expect(hasPerformanceUnderway(sh, new Date('2026-09-06T01:00:01.000Z'), ANY_SESSION)).toBe(false); // t+30m01s
+    expect(hasPerformanceUnderway(sh, new Date('2026-09-06T00:29:59.000Z'), ANY_SESSION)).toBe(false); // 1s before
   });
 
-  test('an early-access slot before the event window reads OPERATING', () => {
-    const hamikuma = show(['2026-09-06T00:30:00Z', '2026-09-06T01:30:00Z']);
-    expect(verdict(hamikuma, '2026-09-06T01:05:00Z')).toBe('OPERATING');
+  test('NO TILING: hourly slots leave a real gap', () => {
+    // The reason the forward half was cut. Symmetric, this window was 60
+    // minutes wide and ~80-92% of consecutive slot gaps are 60 minutes or
+    // less, so the union covered a show's entire day and the day gate stopped
+    // working. Backward-only cannot tile.
+    const hourly = show(['2026-09-06T00:30:00.000Z', '2026-09-06T01:30:00.000Z']);
+    expect(verdict(hourly, '2026-09-06T00:45:00.000Z')).toBe('OPERATING'); // 15m into the first
+    expect(verdict(hourly, '2026-09-06T01:15:00.000Z')).toBe('CLOSED');    // between them
+    expect(verdict(hourly, '2026-09-06T01:35:00.000Z')).toBe('OPERATING'); // 5m into the second
   });
 
-  test('a slot 54 minutes away does NOT count — nobody can see it yet', () => {
-    // Meet Mario at 18:06 PT with its next performance at 19:00: park shut,
-    // event not open. CLOSED is the honest answer, and the window must be
-    // tight enough to say so.
-    expect(verdict(show(['2026-09-06T02:00:00Z']), '2026-09-06T01:06:00Z')).toBe('CLOSED');
-  });
-
-  test('THE #321 CASE SURVIVES: a next-day slot never counts as imminent', () => {
-    // 03:00 local, park shut for hours, tomorrow's 09:00 performance listed.
-    // This is the overnight staleness the whole gate was built for; a looser
-    // window would quietly undo it.
-    expect(verdict(show(['2026-09-06T16:00:00Z']), '2026-09-06T10:00:00Z')).toBe('CLOSED');
+  test('THE #321 CASE SURVIVES: a next-day slot never counts', () => {
+    expect(verdict(show(['2026-09-06T16:00:00.000Z']), '2026-09-06T10:00:00.000Z')).toBe('CLOSED');
   });
 
   test('an explicit long closure is not reopened by a stale slot', () => {
-    expect(verdict(show(['2026-09-06T00:30:00Z'], 'EXTENDED_CLOSURE'), '2026-09-06T00:10:00Z')).toBe('CLOSED');
+    expect(verdict(show(['2026-09-06T00:30:00.000Z'], 'EXTENDED_CLOSURE'), '2026-09-06T00:35:00.000Z')).toBe('CLOSED');
   });
 
   test('a delayed show still reads DOWN, not OPERATING', () => {
-    expect(verdict(show(['2026-09-06T00:30:00Z'], 'BRIEF_DELAY'), '2026-09-06T00:10:00Z')).toBe('DOWN');
+    expect(verdict(show(['2026-09-06T00:30:00.000Z'], 'BRIEF_DELAY'), '2026-09-06T00:35:00.000Z')).toBe('DOWN');
   });
 
   test('disabled slots are ignored', () => {
-    const s: any = show(['2026-09-06T00:30:00.000Z']);
-    s.show_times[0].status = 'DISABLED';
-    expect(hasImminentPerformance(s, new Date('2026-09-06T00:10:00.000Z'), ANY_SESSION)).toBe(false);
+    const sh: any = show(['2026-09-06T00:30:00.000Z']);
+    sh.show_times[0].status = 'DISABLED';
+    expect(hasPerformanceUnderway(sh, new Date('2026-09-06T00:35:00.000Z'), ANY_SESSION)).toBe(false);
   });
 
-  test('a show with no show_times at all is not imminent', () => {
-    // show_times is optional on UniversalShowListEntry, so the ?? [] fallback
-    // is load-bearing in production and nothing else exercises it.
-    expect(hasImminentPerformance({show_id: 'a', name: 'b', status: 'OPEN',
+  test('a show with no show_times at all is never underway', () => {
+    expect(hasPerformanceUnderway({show_id: 'a', name: 'b', status: 'OPEN',
       show_externally: true, resort_area_code: 'X', venue_id: 'x.y'} as any,
-      new Date('2026-09-06T00:10:00.000Z'), ANY_SESSION)).toBe(false);
-  });
-
-  test('THE WINDOW IS EXACTLY 30 MINUTES, in both directions', () => {
-    // The constant is sized by Meet HamiKuma's early-access slot, which is
-    // exactly 30 minutes out at the moment it first goes wrong — so inclusive
-    // 30 is load-bearing, not decorative, and retuning it must break a test.
-    const s = show(['2026-09-06T00:30:00.000Z']);
-    expect(hasImminentPerformance(s, new Date('2026-09-06T00:00:00.000Z'), ANY_SESSION)).toBe(true);  // -30m exactly
-    expect(hasImminentPerformance(s, new Date('2026-09-06T01:00:00.000Z'), ANY_SESSION)).toBe(true);  // +30m exactly
-    expect(hasImminentPerformance(s, new Date('2026-09-05T23:59:59.000Z'), ANY_SESSION)).toBe(false); // -30m01s
-    expect(hasImminentPerformance(s, new Date('2026-09-06T01:00:01.000Z'), ANY_SESSION)).toBe(false); // +30m01s
+      new Date('2026-09-06T00:35:00.000Z'), ANY_SESSION)).toBe(false);
   });
 });
 
@@ -244,7 +237,7 @@ describe('resolveParkDay picks the nearest relevant day, not the last one listed
   });
 });
 
-describe('Universal buildLiveData — the imminent rule is actually wired in', () => {
+describe('Universal buildLiveData — the underway rule is actually wired in', () => {
   // Every other test above calls the pure functions directly. That leaves the
   // call site itself unasserted: replacing hasImminentPerformance(show, now)
   // with `false`, or transposing it with parkOperating (both booleans, so the
@@ -272,12 +265,12 @@ describe('Universal buildLiveData — the imminent rule is actually wired in', (
     return rows.find((r: any) => r.id === 'ush.upper_lot.shows.meet.hamikuma');
   }
 
-  test('just past the close, performance 20 minutes out: the row is OPERATING', async () => {
-    // 18:10 PT, ten minutes after the 18:00 close, slot at 18:30 — Celestial
-    // Goodnight's shape. Only the imminent rule can produce OPERATING here: if
-    // the call site is unwired, or its argument transposed with parkOperating
-    // (false), this reads CLOSED.
-    const row = await rowAt('2026-09-06T01:10:00.000Z', ['2026-09-06T01:30:00.000Z'], 'OPEN');
+  test('just past the close, performance already begun: the row is OPERATING', async () => {
+    // 18:10 PT, ten minutes after the 18:00 close, performance started 18:05 —
+    // Celestial Goodnight's shape. Only the underway rule can produce
+    // OPERATING here: if the call site is unwired, or its argument transposed
+    // with parkOperating (false), this reads CLOSED.
+    const row = await rowAt('2026-09-06T01:10:00.000Z', ['2026-09-06T01:05:00.000Z'], 'OPEN');
     expect(row.status).toBe('OPERATING');
   });
 
@@ -285,9 +278,11 @@ describe('Universal buildLiveData — the imminent rule is actually wired in', (
     // Meet-and-greets report CLOSED between slots, which is the DEFAULT branch
     // of mapUniversalShowStatus, not the OPEN branch every other new test
     // exercises. Both shows this change was written for are this shape.
-    const row = await rowAt('2026-09-06T01:10:00.000Z', ['2026-09-06T01:30:00.000Z'], 'CLOSED');
+    const row = await rowAt('2026-09-06T01:10:00.000Z', ['2026-09-06T01:05:00.000Z'], 'CLOSED');
     expect(row.status).toBe('OPERATING');
-    expect(row.showtimes).toHaveLength(1);
+    // The slot has begun, so parseShowTimes drops it: no future showtimes at
+    // all, which is the state that distinguishes the two boolean arguments.
+    expect(row.showtimes ?? []).toHaveLength(0);
   });
 
   test('park shut and nothing imminent: still CLOSED', async () => {
@@ -357,7 +352,7 @@ describe('Universal buildLiveData — the imminent rule is actually wired in', (
     // a half hours past Epic's 20:00 close, because Halloween Horror Nights
     // was running over at Universal Studios Florida.
     vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-09-06T03:25:00.000Z')); // 23:25 EDT
+    vi.setSystemTime(new Date('2026-09-06T03:35:00.000Z')); // 23:35 EDT
     const day = (date: string, venueDate: string) => ([{
       Date: date, VenueStatus: '',
       OpenTimeString: `${venueDate}T10:00:00-04:00`,
@@ -367,6 +362,8 @@ describe('Universal buildLiveData — the imminent rule is actually wired in', (
       show_id: 'uor.eu.shows.celestialgoodnight', resort_area_code: 'UOR',
       venue_id: 'uor.eu', name: 'Universal Celestial Goodnight', status: 'CLOSED',
       show_externally: true,
+      // Started five minutes ago: backward-only, so a future slot would be
+      // rejected whatever the scoping does, and the test would prove nothing.
       show_times: [{show_time_id: '0', status: 'ENABLED', start_time: '2026-09-06T03:30:00.000Z'}],
     };
     const hhnAtUsf: any = {
@@ -452,18 +449,18 @@ describe('Universal buildLiveData — the imminent rule is actually wired in', (
   });
 
   test('THE SLOT must be in the session too, not just the instant', async () => {
-    // Anchoring only `now` leaves the real reach at close+90: at close+50 the
-    // instant is inside the grace, and a slot at close+75 is within half an
-    // hour of it, so a slot mis-stamped past the grace still fires. It is the
-    // same hole that left Meet Hello Kitty's 02:30 phantom blocked by nothing
-    // but the coincidence that the event happens to close at 02:00.
-    //
-    // Day closes 18:00 PT, so the grace ends 19:00. Instant 18:50 (inside),
-    // slot 19:15 (outside).
+    // Anchoring only `now` lets a slot stamped BEFORE the park opened fire
+    // from just after opening. Day opens 08:00 PT; the instant 08:20 is
+    // inside the session, the slot at 07:55 is not — and `now` must be
+    // inside too, or the test would pass without ever reaching that check.
+    // status CLOSED and the only slot already past, so there are no future
+    // showtimes: the default branch turns entirely on the underway rule.
+    // With status OPEN this would read OPERATING for ordinary reasons, since
+    // the park is open at 08:20.
     const row = await rowAt(
-      '2026-09-06T01:50:00.000Z',              // 18:50 PT — inside the grace
-      ['2026-09-06T02:15:00.000Z'],            // 19:15 PT — past it
-      'OPEN',
+      '2026-09-06T15:20:00.000Z',              // 08:20 PT — inside the session
+      ['2026-09-06T14:55:00.000Z'],            // 07:55 PT — before the 08:00 open
+      'CLOSED',
     );
     expect(row.status).toBe('CLOSED');
   });

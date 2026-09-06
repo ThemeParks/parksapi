@@ -527,18 +527,28 @@ export function parseShowTimes(
 }
 
 /**
- * Minutes either side of a performance in which a show counts as running.
+ * How long after a performance begins the show still counts as running.
  *
- * Chosen to separate the two cases that matter, not picked round: Universal
- * Celestial Goodnight's only performance is 20:30 against a 20:00 park close
- * (20 minutes out when it first read CLOSED), and Meet HamiKuma's early-access
- * slot is 18:30 against a 19:00 event open (30 minutes out). Both must count.
- * Meet Mario and Luigi at 18:06 with its next slot at 19:00 must NOT — the
- * park is shut, the event has not opened, and nobody can see it. And the
- * overnight case this whole gate exists for is hours away, so it never
- * qualifies however the window is tuned.
+ * Backward-looking ONLY, and that is the whole design. A slot that has already
+ * started is evidence; a slot in the future is a prediction, and this feed's
+ * predictions cannot be trusted — USH's "Meet Hello Kitty" carries a slot
+ * stamped `2026-09-06T09:30:00.000Z`, tomorrow's 09:30 local written as UTC,
+ * landing at 02:30 in the morning. Anything that treats a future slot as proof
+ * inherits that phantom.
+ *
+ * Looking forward was also self-defeating: a symmetric window is 60 minutes
+ * wide, and ~80% of Hollywood's and ~92% of Orlando's gaps between consecutive
+ * slots are 60 minutes or less, so the union covered a show's ENTIRE day —
+ * nearly four hours unbroken for Meet HamiKuma. It stopped meaning "performing
+ * now" and started meaning "somewhere in this show's day", which is the day
+ * gate switched off. Backward-only at 30 minutes cannot tile: 30 on, 30 off at
+ * hourly cadence.
+ *
+ * What it gives up is the about-to-start case — HamiKuma at 18:05 with an
+ * 18:30 slot now reads CLOSED. That is the honest answer: at 18:05 the show
+ * has not started.
  */
-const IMMINENT_PERFORMANCE_MS = 30 * 60 * 1000;
+const PERFORMANCE_UNDERWAY_MS = 30 * 60 * 1000;
 
 /**
  * How far past a park's posted close the imminent rule may still apply.
@@ -560,20 +570,25 @@ const IMMINENT_PERFORMANCE_MS = 30 * 60 * 1000;
 const POST_CLOSE_GRACE_MS = 60 * 60 * 1000;
 
 /**
- * True when the show has an ENABLED performance close enough to now that the
- * show is running whatever the published hours say.
+ * True when the show has an ENABLED performance that has ALREADY BEGUN within
+ * the last half hour, inside an operating session — so the show is running
+ * whatever the published hours say.
  *
- * Read from the RAW slots rather than parseShowTimes' output, because that
- * drops anything already started — and a single-performance show is at its
- * most obviously "running" during the half hour after it begins. Celestial
- * Goodnight has exactly one slot, so from the parsed list it is
- * indistinguishable at 20:35 from a show that has finished for the day.
+ * Read from the RAW slots rather than parseShowTimes' output, which drops
+ * anything already started. That drop is exactly what hides this case: a
+ * single-performance show is at its most obviously running during the half
+ * hour after it begins, yet from the parsed list Celestial Goodnight at 20:35
+ * is indistinguishable from a show that finished for the day.
+ *
+ * The slot must sit inside an operating session as well as `now`. Anchoring
+ * only the instant left a slot stamped before the park opened able to fire
+ * from just after opening.
  */
-export function hasImminentPerformance(
+export function hasPerformanceUnderway(
   show: UniversalShowListEntry,
   now: Date,
   bounds: ReadonlyArray<{start: number; end: number}>,
-  windowMs: number = IMMINENT_PERFORMANCE_MS,
+  windowMs: number = PERFORMANCE_UNDERWAY_MS,
 ): boolean {
   const nowMs = now.getTime();
   const inside = (ms: number) => bounds.some((b) => ms >= b.start && ms <= b.end);
@@ -581,15 +596,10 @@ export function hasImminentPerformance(
   return (show.show_times ?? []).some((slot) => {
     if (slot.status !== 'ENABLED') return false;
     const start = Date.parse(slot.start_time);
-    // The SLOT must sit inside an operating session too, not merely `now`.
-    // Anchoring only `now` left the reach at close+90 rather than close+60 (a
-    // slot mis-stamped to close+75 is still within half an hour of an instant
-    // that is itself inside the grace), and left Meet Hello Kitty's phantom
-    // 02:30 slot blocked by nothing but the coincidence that the event closes
-    // at 02:00 — move that close to 02:30, as this season's calendar does on
-    // other nights, and the phantom resurrects the show for an hour again.
+    // Started, and not more than windowMs ago. A future slot never counts.
     return Number.isFinite(start)
-      && Math.abs(start - nowMs) <= windowMs
+      && start <= nowMs
+      && nowMs - start <= windowMs
       && inside(start);
   });
 }
@@ -2037,19 +2047,22 @@ class Universal extends Destination {
         // before the event's close counts.
         parkOperating = true;
       }
-      // A performance happening right now outranks the published hours, but
-      // only NEAR the current operating session. Both published windows are
+      // A performance that has ALREADY BEGUN outranks the published hours,
+      // within the current operating session. Both published windows are
       // incomplete in ways the feed keeps finding — Epic Universe's closing
       // spectacular performs after the park's posted close, HHN early access
-      // admits guests before the ticketed-event window opens — so an ENABLED
-      // performance within half an hour is better evidence than either.
+      // admits guests before the ticketed-event window opens — and a show
+      // demonstrably on stage settles it better than either.
       //
-      // Unanchored it is worse than the disease: one mis-stamped slot at
-      // 02:30 published a show OPERATING all through the night (see
-      // POST_CLOSE_GRACE_MS). So the rule applies only from the day's opening
-      // until an hour past its close, or at any point the ticketed event is
-      // actually running. Outside that, the clock wins — which is the
-      // overnight case this gate was built for.
+      // Two limits, each learned from a regression this rule caused:
+      //  - Backward-looking only. A future slot is a prediction, and this
+      //    feed's predictions carry phantoms (see PERFORMANCE_UNDERWAY_MS).
+      //  - Anchored to a session. Unanchored, one mis-stamped 02:30 slot
+      //    published a show OPERATING all through the night (see
+      //    POST_CLOSE_GRACE_MS), so the rule reaches from the day's opening
+      //    to an hour past its close, or across the ticketed event while it
+      //    actually runs, and nowhere else. Outside that the clock wins,
+      //    which is the overnight case this gate was built for.
       // The intervals in which a performance is allowed to override the
       // clock. Both the instant and the slot must fall inside one.
       const dayWindow = scheduleVenue ? parkWindowByVenue.get(scheduleVenue) ?? null : null;
@@ -2073,15 +2086,15 @@ class Universal extends Destination {
       // already on stage has no future showtimes at all.
       if (parkOperating && dayWindow === null) {
         bounds.push({
-          start: now.getTime() - IMMINENT_PERFORMANCE_MS,
-          end: now.getTime() + IMMINENT_PERFORMANCE_MS,
+          start: now.getTime() - PERFORMANCE_UNDERWAY_MS,
+          end: now.getTime(),
         });
       }
       showEntry.status = mapUniversalShowStatus(
         show.status,
         times.length > 0,
         parkOperating,
-        hasImminentPerformance(show, now, bounds),
+        hasPerformanceUnderway(show, now, bounds),
       );
       if (times.length > 0) {
         showEntry.showtimes = times;
