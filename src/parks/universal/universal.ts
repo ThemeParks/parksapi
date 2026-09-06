@@ -527,6 +527,43 @@ export function parseShowTimes(
 }
 
 /**
+ * Minutes either side of a performance in which a show counts as running.
+ *
+ * Chosen to separate the two cases that matter, not picked round: Universal
+ * Celestial Goodnight's only performance is 20:30 against a 20:00 park close
+ * (20 minutes out when it first read CLOSED), and Meet HamiKuma's early-access
+ * slot is 18:30 against a 19:00 event open (30 minutes out). Both must count.
+ * Meet Mario and Luigi at 18:06 with its next slot at 19:00 must NOT — the
+ * park is shut, the event has not opened, and nobody can see it. And the
+ * overnight case this whole gate exists for is hours away, so it never
+ * qualifies however the window is tuned.
+ */
+const IMMINENT_PERFORMANCE_MS = 30 * 60 * 1000;
+
+/**
+ * True when the show has an ENABLED performance close enough to now that the
+ * show is running whatever the published hours say.
+ *
+ * Read from the RAW slots rather than parseShowTimes' output, because that
+ * drops anything already started — and a single-performance show is at its
+ * most obviously "running" during the half hour after it begins. Celestial
+ * Goodnight has exactly one slot, so from the parsed list it is
+ * indistinguishable at 20:35 from a show that has finished for the day.
+ */
+export function hasImminentPerformance(
+  show: UniversalShowListEntry,
+  now: Date,
+  windowMs: number = IMMINENT_PERFORMANCE_MS,
+): boolean {
+  const nowMs = now.getTime();
+  return (show.show_times ?? []).some((slot) => {
+    if (slot.status !== 'ENABLED') return false;
+    const start = Date.parse(slot.start_time);
+    return Number.isFinite(start) && Math.abs(start - nowMs) <= windowMs;
+  });
+}
+
+/**
  * Map a show-list entry's `status` to a wiki live status.
  *
  * Universal reuses its ride operating-state vocabulary for shows. The original
@@ -568,11 +605,12 @@ export function mapUniversalShowStatus(
   status: string | undefined,
   hasFutureShowtimes = false,
   parkOperating = true,
+  performingNow = false,
 ): 'OPERATING' | 'DOWN' | 'CLOSED' {
   switch (status) {
     case 'OPEN':
     case 'RIDE_NOW':
-      return parkOperating ? 'OPERATING' : 'CLOSED';
+      return (parkOperating || performingNow) ? 'OPERATING' : 'CLOSED';
     case 'BRIEF_DELAY':
     case 'WEATHER_DELAY':
     case 'AT_CAPACITY':
@@ -583,8 +621,11 @@ export function mapUniversalShowStatus(
       return 'CLOSED';
     default:
       // CLOSED / CANCELED / unknown: operating today iff it still lists future
-      // ENABLED performances AND the park is actually open right now.
-      return (hasFutureShowtimes && parkOperating) ? 'OPERATING' : 'CLOSED';
+      // ENABLED performances AND the park is actually open right now — or a
+      // performance is happening regardless of what the hours say.
+      return ((hasFutureShowtimes && parkOperating) || performingNow)
+        ? 'OPERATING'
+        : 'CLOSED';
   }
 }
 
@@ -1921,7 +1962,19 @@ class Universal extends Destination {
         // before the event's close counts.
         parkOperating = true;
       }
-      showEntry.status = mapUniversalShowStatus(show.status, times.length > 0, parkOperating);
+      // A performance happening right now outranks every published window.
+      // Both windows are incomplete in ways the feed keeps finding: Epic
+      // Universe's closing spectacular performs AFTER the park's posted close,
+      // and HHN early access admits guests BEFORE the ticketed-event window
+      // opens. Enumerating windows loses that race; an ENABLED performance
+      // within half an hour is direct evidence, and a next-day slot — the
+      // staleness this gate was built for — is never within half an hour.
+      showEntry.status = mapUniversalShowStatus(
+        show.status,
+        times.length > 0,
+        parkOperating,
+        hasImminentPerformance(show, now),
+      );
       if (times.length > 0) {
         showEntry.showtimes = times;
       }

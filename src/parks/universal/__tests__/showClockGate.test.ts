@@ -18,7 +18,7 @@
  * to match the reported incident directly.
  */
 import {describe, test, expect, vi, afterEach} from 'vitest';
-import {UniversalStudios, UniversalOrlando, type UniversalShowListEntry} from '../universal.js';
+import {UniversalStudios, UniversalOrlando, mapUniversalShowStatus, hasImminentPerformance, type UniversalShowListEntry} from '../universal.js';
 
 // Real wall-clock hours from the incident: EXTRA_HOURS 08:00-09:00 PDT,
 // general open 09:00-19:00 PDT. All offsets are -07:00 (Pacific, no DST
@@ -107,6 +107,73 @@ function stubPark<T extends UniversalStudios | UniversalOrlando>(
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+describe('a performance happening now outranks the published windows', () => {
+  // Both published windows are incomplete, in opposite directions, and the
+  // feed found both on the first night the gate ran:
+  //   - Epic Universe's "Universal Celestial Goodnight" has ONE performance at
+  //     20:30 against a 20:00 posted park close.
+  //   - Hollywood's "Meet HamiKuma" performs at 17:30 and 18:30 during HHN
+  //     early access, before the 19:00 ticketed-event window opens.
+  // Each published CLOSED beside a performance that was minutes away or
+  // already on stage. Enumerating windows keeps losing this race.
+  const show = (slots: string[], status = 'OPEN'): UniversalShowListEntry => ({
+    show_id: 'x.y.shows.z', resort_area_code: 'X', venue_id: 'x.y',
+    name: 'A Show', status, show_externally: true,
+    show_times: slots.map((t, i) => ({show_time_id: String(i), status: 'ENABLED', start_time: t})),
+  } as any);
+  // parkOperating=false throughout: the park is shut / the event is not open.
+  const verdict = (s: UniversalShowListEntry, iso: string) =>
+    mapUniversalShowStatus(s.status, true, false, hasImminentPerformance(s, new Date(iso)));
+
+  test('a single performance 20 minutes away reads OPERATING', () => {
+    expect(verdict(show(['2026-09-06T00:30:00Z']), '2026-09-06T00:10:00Z')).toBe('OPERATING');
+  });
+
+  test('the same performance 5 minutes AFTER it started still reads OPERATING', () => {
+    // parseShowTimes drops anything already begun, so a one-slot show is
+    // otherwise indistinguishable from one that finished for the day —
+    // it would read CLOSED while literally on stage.
+    expect(verdict(show(['2026-09-06T00:30:00Z']), '2026-09-06T00:35:00Z')).toBe('OPERATING');
+  });
+
+  test('45 minutes after the last performance it reads CLOSED again', () => {
+    expect(verdict(show(['2026-09-06T00:30:00Z']), '2026-09-06T01:15:00Z')).toBe('CLOSED');
+  });
+
+  test('an early-access slot before the event window reads OPERATING', () => {
+    const hamikuma = show(['2026-09-06T00:30:00Z', '2026-09-06T01:30:00Z']);
+    expect(verdict(hamikuma, '2026-09-06T01:05:00Z')).toBe('OPERATING');
+  });
+
+  test('a slot 54 minutes away does NOT count — nobody can see it yet', () => {
+    // Meet Mario at 18:06 PT with its next performance at 19:00: park shut,
+    // event not open. CLOSED is the honest answer, and the window must be
+    // tight enough to say so.
+    expect(verdict(show(['2026-09-06T02:00:00Z']), '2026-09-06T01:06:00Z')).toBe('CLOSED');
+  });
+
+  test('THE #321 CASE SURVIVES: a next-day slot never counts as imminent', () => {
+    // 03:00 local, park shut for hours, tomorrow's 09:00 performance listed.
+    // This is the overnight staleness the whole gate was built for; a looser
+    // window would quietly undo it.
+    expect(verdict(show(['2026-09-06T16:00:00Z']), '2026-09-06T10:00:00Z')).toBe('CLOSED');
+  });
+
+  test('an explicit long closure is not reopened by a stale slot', () => {
+    expect(verdict(show(['2026-09-06T00:30:00Z'], 'EXTENDED_CLOSURE'), '2026-09-06T00:10:00Z')).toBe('CLOSED');
+  });
+
+  test('a delayed show still reads DOWN, not OPERATING', () => {
+    expect(verdict(show(['2026-09-06T00:30:00Z'], 'BRIEF_DELAY'), '2026-09-06T00:10:00Z')).toBe('DOWN');
+  });
+
+  test('disabled slots are ignored', () => {
+    const s: any = show(['2026-09-06T00:30:00Z']);
+    s.show_times[0].status = 'DISABLED';
+    expect(hasImminentPerformance(s, new Date('2026-09-06T00:10:00Z'))).toBe(false);
+  });
 });
 
 describe('Universal buildLiveData — an ordinary show performing inside the event', () => {
