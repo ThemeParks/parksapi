@@ -11,6 +11,8 @@ import {
   EntitySchedule,
   LanguageCode,
   LiveTimeSlot,
+  LocalisedString,
+  MultilangString,
 } from '@themeparks/typelib';
 import {constructDateTime, hostnameFromUrl, formatDate} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
@@ -67,6 +69,7 @@ interface OfflinePackageInfo {
 interface SqliteAttraction {
   drupal_id: number;
   title: string;
+  title_fr?: string | null;
   experience: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -78,6 +81,7 @@ interface SqliteAttraction {
 interface SqliteRestaurant {
   drupal_id: number;
   title: string;
+  title_fr?: string | null;
   meal_types: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -88,6 +92,7 @@ interface SqliteRestaurant {
 interface SqliteShow {
   drupal_id: number;
   title: string;
+  title_fr?: string | null;
   duration: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -103,9 +108,11 @@ interface SqliteLabel {
   value: string;
 }
 
-interface POIEntry {
+export interface POIEntry {
   drupal_id: number;
   title: string;
+  /** One entry per culture present in the offline package, e.g. {en, fr, es, nl}. */
+  titles: Record<string, string>;
   latitude: number | null;
   longitude: number | null;
   _type: 'attraction' | 'restaurant' | 'show';
@@ -130,6 +137,26 @@ interface ScheduleEntry {
   closingTime: string;
 }
 
+// ── Name building ──────────────────────────────────────────────
+
+/**
+ * Build the entity name from every culture the offline package carries.
+ * Falls back to a plain string when only one culture is available, so a
+ * stripped-down package still produces a valid name.
+ */
+export function buildLocalisedName(item: POIEntry): LocalisedString {
+  const entries = Object.entries(item.titles ?? {}).filter(
+    ([, value]) => typeof value === 'string' && value.length > 0,
+  );
+  if (entries.length <= 1) return item.title;
+
+  const name: MultilangString = {};
+  for (const [code, value] of entries) {
+    name[code as LanguageCode] = value;
+  }
+  return name;
+}
+
 // ── Implementation ─────────────────────────────────────────────
 
 @destinationController({category: 'Parc Asterix'})
@@ -138,6 +165,26 @@ export class ParcAsterix extends Destination {
   @config timezone: string = 'Europe/Paris';
   @config language: LanguageCode = 'en';
   @config packageVersion: string = '1.1.238';
+
+  /**
+   * A show that ends its run leaves `paxSchedules` entirely rather than
+   * reporting no performances, and the offline package drops its POI row in
+   * the same release. buildLiveData() then has nothing to key off and the row
+   * freezes at its last value: four retired Parc Asterix shows were still
+   * reading OPERATING on the wiki 8 to 24 days after their last write, because
+   * the collector is upsert-only and omitting a row achieves nothing. See
+   * Destination.retireMissingLiveEntities for the mechanism.
+   *
+   * The shared 7-day window suits this feed. Shows drop out of `paxSchedules`
+   * on any day they do not perform, so the window has to clear a normal weekly
+   * cadence, and a week does with room to spare. The seasonal winter closure
+   * takes every show out at once for months; force-closing them then is the
+   * right answer, not a false positive, and the attractions are unaffected
+   * because `paxLatencies` keeps listing them with `isOpen` false. A genuinely
+   * broken feed parses to an empty array and takes out far more than half the
+   * tracked entities, which the degraded-feed guard catches.
+   */
+  protected retireMissingLiveEntities = true;
 
   constructor(options?: DestinationConstructor) {
     super(options);
@@ -293,7 +340,11 @@ export class ParcAsterix extends Destination {
 
   // ── SQLite extraction ────────────────────────────────────────
 
-  @cache({ttlSeconds: 43200}) // 12h
+  // cacheVersion 2: POI entries gained a per-culture `titles` map. Old entries
+  // still sit in SQLite until their TTL expires but are no longer looked up,
+  // so a deploy picks up localised names immediately instead of serving
+  // half-a-day of stale single-language ones.
+  @cache({ttlSeconds: 43200, cacheVersion: 2}) // 12h
   async getPOIData(): Promise<{poi: POIEntry[]; calendar: ScheduleEntry[]}> {
     const resp = await this.fetchPackageZip();
     const buffer = await resp.arrayBuffer();
@@ -301,10 +352,21 @@ export class ParcAsterix extends Destination {
     const zip = new AdmZip(Buffer.from(buffer));
     const zipEntries = zip.getEntries();
 
-    // Extract from English database first, then merge French
-    const cultures = ['en', 'fr'] as const;
+    // The package ships one database per culture. The first one drives the POI
+    // list, coordinates and calendar; the rest contribute their translated
+    // titles, so each entity carries every name the park publishes for it.
+    // Those translations are not decoration: the wiki holds whichever name the
+    // park was publishing when the entity was created, and Parc Asterix
+    // switched its whole POI list from French to English in September 2026.
+    // Keeping the French title is what lets an existing wiki entity still be
+    // recognised after a rename.
+    const cultures = [this.language, 'fr', 'en', 'es', 'nl'].filter(
+      (c, i, arr) => arr.indexOf(c) === i,
+    );
     const allPOI: POIEntry[] = [];
+    const byId = new Map<number, POIEntry>();
     let calendar: ScheduleEntry[] = [];
+    let primaryLoaded = false;
 
     for (const culture of cultures) {
       const entry = zipEntries.find(
@@ -313,19 +375,32 @@ export class ParcAsterix extends Destination {
       if (!entry) continue;
 
       const result = this.loadSqliteDatabase(entry.getData(), culture);
-      if (culture === cultures[0]) {
-        // First culture: use all data
-        allPOI.push(...result.poi);
-        calendar = result.calendar;
-      } else {
-        // Merge: add any missing entries from secondary culture
+
+      if (!primaryLoaded) {
+        // First culture present: it owns the shape of the output.
+        primaryLoaded = true;
         for (const item of result.poi) {
-          const existing = allPOI.find(
-            (p) => p.drupal_id === item.drupal_id,
-          );
-          if (!existing) {
-            allPOI.push(item);
-          }
+          allPOI.push(item);
+          byId.set(item.drupal_id, item);
+        }
+        calendar = result.calendar;
+        continue;
+      }
+
+      for (const item of result.poi) {
+        const existing = byId.get(item.drupal_id);
+        if (!existing) {
+          // Present in a secondary culture only — still worth publishing.
+          allPOI.push(item);
+          byId.set(item.drupal_id, item);
+          continue;
+        }
+        // Only fill gaps. Every database carries the French title as well as
+        // its own, so a later culture must not overwrite what an earlier one
+        // already established — that keeps the result the same whichever
+        // subset of databases the package happens to ship.
+        for (const [code, value] of Object.entries(item.titles)) {
+          existing.titles[code] ??= value;
         }
       }
     }
@@ -347,22 +422,32 @@ export class ParcAsterix extends Destination {
     try {
       const db = new DatabaseSync(tmpFile);
 
+      // `title_fr` only appeared with the September 2026 package rebuild.
+      // Select it where the table has it and leave it out where it doesn't,
+      // rather than letting an older package fail the whole query.
+      const hasColumn = (table: string, column: string): boolean =>
+        (db.prepare(`PRAGMA table_info(${table})`).all() as unknown as Array<{
+          name: string;
+        }>).some((c) => c.name === column);
+      const titleFr = (table: string): string =>
+        hasColumn(table, 'title_fr') ? ', title_fr' : '';
+
       // Query entities
       const attractions = db
         .prepare(
-          'SELECT drupal_id, title, experience, latitude, longitude, min_age, min_size, min_size_unaccompanied FROM attractions',
+          `SELECT drupal_id, title${titleFr('attractions')}, experience, latitude, longitude, min_age, min_size, min_size_unaccompanied FROM attractions`,
         )
         .all() as unknown as SqliteAttraction[];
 
       const restaurants = db
         .prepare(
-          'SELECT drupal_id, title, meal_types, latitude, longitude, menu_url, mobile_url FROM restaurants',
+          `SELECT drupal_id, title${titleFr('restaurants')}, meal_types, latitude, longitude, menu_url, mobile_url FROM restaurants`,
         )
         .all() as unknown as SqliteRestaurant[];
 
       const shows = db
         .prepare(
-          'SELECT drupal_id, title, duration, latitude, longitude FROM shows',
+          `SELECT drupal_id, title${titleFr('shows')}, duration, latitude, longitude FROM shows`,
         )
         .all() as unknown as SqliteShow[];
 
@@ -387,11 +472,21 @@ export class ParcAsterix extends Destination {
       // Build calendar entries
       const calendar = this.buildCalendarEntries(calendarItems, hoursMap);
 
-      // Build POI list
+      // Build POI list. Every localised database also carries a `title_fr`
+      // column holding the original French name, so a single database is
+      // enough to recover both names even if the other cultures are missing
+      // from the package.
+      const titlesFor = (row: {title: string; title_fr?: string | null}) => {
+        const titles: Record<string, string> = {[culture]: row.title};
+        if (row.title_fr) titles.fr ??= row.title_fr;
+        return titles;
+      };
+
       const poi: POIEntry[] = [
         ...attractions.map((a) => ({
           drupal_id: a.drupal_id,
           title: a.title,
+          titles: titlesFor(a),
           latitude: a.latitude,
           longitude: a.longitude,
           min_size: a.min_size,
@@ -401,6 +496,7 @@ export class ParcAsterix extends Destination {
         ...restaurants.map((r) => ({
           drupal_id: r.drupal_id,
           title: r.title,
+          titles: titlesFor(r),
           latitude: r.latitude,
           longitude: r.longitude,
           _type: 'restaurant' as const,
@@ -408,6 +504,7 @@ export class ParcAsterix extends Destination {
         ...shows.map((s) => ({
           drupal_id: s.drupal_id,
           title: s.title,
+          titles: titlesFor(s),
           latitude: s.latitude,
           longitude: s.longitude,
           _type: 'show' as const,
@@ -584,7 +681,7 @@ export class ParcAsterix extends Destination {
       poi.filter((p) => p._type === 'attraction'),
       {
         idField: (item) => String(item.drupal_id),
-        nameField: 'title',
+        nameField: (item) => buildLocalisedName(item),
         entityType: 'ATTRACTION',
         parentIdField: () => 'parcasterixpark',
         destinationId: 'parcasterix',
@@ -620,7 +717,7 @@ export class ParcAsterix extends Destination {
       poi.filter((p) => p._type === 'restaurant'),
       {
         idField: (item) => String(item.drupal_id),
-        nameField: 'title',
+        nameField: (item) => buildLocalisedName(item),
         entityType: 'RESTAURANT',
         parentIdField: () => 'parcasterixpark',
         destinationId: 'parcasterix',
@@ -634,7 +731,7 @@ export class ParcAsterix extends Destination {
       poi.filter((p) => p._type === "show"),
       {
         idField: (item) => String(item.drupal_id),
-        nameField: 'title',
+        nameField: (item) => buildLocalisedName(item),
         entityType: "SHOW",
         parentIdField: () => 'parcasterixpark',
         destinationId: 'parcasterix',
