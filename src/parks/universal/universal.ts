@@ -572,13 +572,25 @@ const POST_CLOSE_GRACE_MS = 60 * 60 * 1000;
 export function hasImminentPerformance(
   show: UniversalShowListEntry,
   now: Date,
+  bounds: ReadonlyArray<{start: number; end: number}>,
   windowMs: number = IMMINENT_PERFORMANCE_MS,
 ): boolean {
   const nowMs = now.getTime();
+  const inside = (ms: number) => bounds.some((b) => ms >= b.start && ms <= b.end);
+  if (!inside(nowMs)) return false;
   return (show.show_times ?? []).some((slot) => {
     if (slot.status !== 'ENABLED') return false;
     const start = Date.parse(slot.start_time);
-    return Number.isFinite(start) && Math.abs(start - nowMs) <= windowMs;
+    // The SLOT must sit inside an operating session too, not merely `now`.
+    // Anchoring only `now` left the reach at close+90 rather than close+60 (a
+    // slot mis-stamped to close+75 is still within half an hour of an instant
+    // that is itself inside the grace), and left Meet Hello Kitty's phantom
+    // 02:30 slot blocked by nothing but the coincidence that the event closes
+    // at 02:00 — move that close to 02:30, as this season's calendar does on
+    // other nights, and the phantom resurrects the show for an hour again.
+    return Number.isFinite(start)
+      && Math.abs(start - nowMs) <= windowMs
+      && inside(start);
   });
 }
 
@@ -1951,11 +1963,13 @@ class Universal extends Destination {
     // When the event is running, the instant it closes. An ordinary show is
     // only ungated by the event if it actually performs before then.
     let eventWindowClosesAt: number | null = null;
+    let eventWindow: {opensAt: number; closesAt: number} | null = null;
     if (hasTicketedEventShows) {
       try {
         const eventNights = await this.getEventNights();
         if (eventNights.length > 0) {
           const window = universalEventWindowAt(eventNights, now, this.timezone);
+          eventWindow = window ?? null;
           eventWindowClosesAt = window?.closesAt ?? null;
           eventOperating = window === undefined ? null : window !== null;
           if (eventOperating === null) {
@@ -2036,17 +2050,38 @@ class Universal extends Destination {
       // until an hour past its close, or at any point the ticketed event is
       // actually running. Outside that, the clock wins — which is the
       // overnight case this gate was built for.
+      // The intervals in which a performance is allowed to override the
+      // clock. Both the instant and the slot must fall inside one.
       const dayWindow = scheduleVenue ? parkWindowByVenue.get(scheduleVenue) ?? null : null;
-      const nearOperatingSession = parkOperating
-        || eventOperating === true
-        || (dayWindow !== null
-          && now.getTime() >= dayWindow.opensAt
-          && now.getTime() <= dayWindow.closesAt + POST_CLOSE_GRACE_MS);
+      const bounds: Array<{start: number; end: number}> = [];
+      if (dayWindow !== null) {
+        bounds.push({start: dayWindow.opensAt, end: dayWindow.closesAt + POST_CLOSE_GRACE_MS});
+      }
+      // Scoped to the host venue, exactly as the hhn branch above is. Without
+      // that scope a single hhn show anywhere in the feed opened this rule at
+      // EVERY venue for the whole event night — an Epic Universe show with a
+      // 23:30 slot read OPERATING three and a half hours past Epic's close
+      // because Halloween Horror Nights was running at Universal Studios
+      // Florida.
+      if (eventWindow !== null && eventScheduleVenue !== null && scheduleVenue === eventScheduleVenue) {
+        bounds.push({start: eventWindow.opensAt, end: eventWindow.closesAt});
+      }
+      // A schedule we could not read leaves no interval to anchor to, so the
+      // rule simply does not apply — note this is NOT moot just because the
+      // fail-open path also sets parkOperating true: the default branch is
+      // `(hasFutureShowtimes && parkOperating) || performingNow`, and a show
+      // already on stage has no future showtimes at all.
+      if (parkOperating && dayWindow === null) {
+        bounds.push({
+          start: now.getTime() - IMMINENT_PERFORMANCE_MS,
+          end: now.getTime() + IMMINENT_PERFORMANCE_MS,
+        });
+      }
       showEntry.status = mapUniversalShowStatus(
         show.status,
         times.length > 0,
         parkOperating,
-        nearOperatingSession && hasImminentPerformance(show, now),
+        hasImminentPerformance(show, now, bounds),
       );
       if (times.length > 0) {
         showEntry.showtimes = times;

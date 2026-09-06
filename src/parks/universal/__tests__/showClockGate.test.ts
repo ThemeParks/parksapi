@@ -124,8 +124,14 @@ describe('a performance happening now outranks the published windows', () => {
     show_times: slots.map((t, i) => ({show_time_id: String(i), status: 'ENABLED', start_time: t})),
   } as any);
   // parkOperating=false throughout: the park is shut / the event is not open.
+  // These cases isolate the +/-30 minute imminence logic, so they hand it an
+  // interval that always contains both the instant and the slot. Whether a
+  // performance is INSIDE an operating session is the anchoring rule, covered
+  // by the buildLiveData tests further down.
+  const ANY_SESSION = [{start: -Infinity, end: Infinity}];
   const verdict = (s: UniversalShowListEntry, iso: string) =>
-    mapUniversalShowStatus(s.status, true, false, hasImminentPerformance(s, new Date(iso)));
+    mapUniversalShowStatus(s.status, true, false,
+      hasImminentPerformance(s, new Date(iso), ANY_SESSION));
 
   test('a single performance 20 minutes away reads OPERATING', () => {
     expect(verdict(show(['2026-09-06T00:30:00Z']), '2026-09-06T00:10:00Z')).toBe('OPERATING');
@@ -172,7 +178,7 @@ describe('a performance happening now outranks the published windows', () => {
   test('disabled slots are ignored', () => {
     const s: any = show(['2026-09-06T00:30:00.000Z']);
     s.show_times[0].status = 'DISABLED';
-    expect(hasImminentPerformance(s, new Date('2026-09-06T00:10:00.000Z'))).toBe(false);
+    expect(hasImminentPerformance(s, new Date('2026-09-06T00:10:00.000Z'), ANY_SESSION)).toBe(false);
   });
 
   test('a show with no show_times at all is not imminent', () => {
@@ -180,7 +186,7 @@ describe('a performance happening now outranks the published windows', () => {
     // is load-bearing in production and nothing else exercises it.
     expect(hasImminentPerformance({show_id: 'a', name: 'b', status: 'OPEN',
       show_externally: true, resort_area_code: 'X', venue_id: 'x.y'} as any,
-      new Date('2026-09-06T00:10:00.000Z'))).toBe(false);
+      new Date('2026-09-06T00:10:00.000Z'), ANY_SESSION)).toBe(false);
   });
 
   test('THE WINDOW IS EXACTLY 30 MINUTES, in both directions', () => {
@@ -188,10 +194,10 @@ describe('a performance happening now outranks the published windows', () => {
     // exactly 30 minutes out at the moment it first goes wrong — so inclusive
     // 30 is load-bearing, not decorative, and retuning it must break a test.
     const s = show(['2026-09-06T00:30:00.000Z']);
-    expect(hasImminentPerformance(s, new Date('2026-09-06T00:00:00.000Z'))).toBe(true);  // -30m exactly
-    expect(hasImminentPerformance(s, new Date('2026-09-06T01:00:00.000Z'))).toBe(true);  // +30m exactly
-    expect(hasImminentPerformance(s, new Date('2026-09-05T23:59:59.000Z'))).toBe(false); // -30m01s
-    expect(hasImminentPerformance(s, new Date('2026-09-06T01:00:01.000Z'))).toBe(false); // +30m01s
+    expect(hasImminentPerformance(s, new Date('2026-09-06T00:00:00.000Z'), ANY_SESSION)).toBe(true);  // -30m exactly
+    expect(hasImminentPerformance(s, new Date('2026-09-06T01:00:00.000Z'), ANY_SESSION)).toBe(true);  // +30m exactly
+    expect(hasImminentPerformance(s, new Date('2026-09-05T23:59:59.000Z'), ANY_SESSION)).toBe(false); // -30m01s
+    expect(hasImminentPerformance(s, new Date('2026-09-06T01:00:01.000Z'), ANY_SESSION)).toBe(false); // +30m01s
   });
 });
 
@@ -343,6 +349,56 @@ describe('Universal buildLiveData — the imminent rule is actually wired in', (
     expect(rows.find((r: any) => r.id === 'ush.lower_lot.shows.meet_toad').status).toBe('OPERATING');
   });
 
+  test('THE EVENT ARM IS VENUE-SCOPED: another park hosting HHN does not unlock this one', async () => {
+    // The hhn status branch is deliberately scoped to the configured host
+    // park. Without the same scope on the imminent rule, ONE hhn-category
+    // show anywhere in the feed opened it at EVERY venue for the whole event
+    // night: an Epic Universe show with a 23:30 slot read OPERATING three and
+    // a half hours past Epic's 20:00 close, because Halloween Horror Nights
+    // was running over at Universal Studios Florida.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-06T03:25:00.000Z')); // 23:25 EDT
+    const day = (date: string, venueDate: string) => ([{
+      Date: date, VenueStatus: '',
+      OpenTimeString: `${venueDate}T10:00:00-04:00`,
+      CloseTimeString: `${venueDate}T20:00:00-04:00`,
+    }]);
+    const epicShow: any = {
+      show_id: 'uor.eu.shows.celestialgoodnight', resort_area_code: 'UOR',
+      venue_id: 'uor.eu', name: 'Universal Celestial Goodnight', status: 'CLOSED',
+      show_externally: true,
+      show_times: [{show_time_id: '0', status: 'ENABLED', start_time: '2026-09-06T03:30:00.000Z'}],
+    };
+    const hhnAtUsf: any = {
+      show_id: 'uor.usf.events.hhn_2026_show_the_purge', resort_area_code: 'UOR',
+      venue_id: 'uor.usf', category: 'hhn', name: 'The Purge',
+      status: 'OPEN', show_externally: true, show_times: [],
+    };
+    const park: any = stubPark(
+      new UniversalOrlando({config: {eventCalendarPlaceId: 'uor.usf',
+        eventCalendarURL: 'https://example.invalid/c'}} as any),
+      [epicShow, hhnAtUsf],
+      {
+        '10010': day('2026-09-05', '2026-09-05').concat(day('2026-09-06', '2026-09-06')),
+        '10000': day('2026-09-05', '2026-09-05').concat(day('2026-09-06', '2026-09-06')),
+        '24000': day('2026-09-05', '2026-09-05').concat(day('2026-09-06', '2026-09-06')),
+        '13801': day('2026-09-05', '2026-09-05').concat(day('2026-09-06', '2026-09-06')),
+      },
+    );
+    // HHN is genuinely running at USF, 18:30 -> 02:00.
+    park.getEventNights = async () => [{
+      date: '2026-09-05', name: 'Halloween Horror Nights',
+      openingTime: '18:30', closingTime: '02:00', closesNextDay: true,
+    }];
+    park.getPlaces = async () => [];
+    const rows = await park.getLiveData();
+    vi.useRealTimers();
+    const row = rows.find((r: any) => r.id === 'uor.eu.shows.celestialgoodnight');
+    // Epic closed at 20:00 and its hour of grace expired at 21:00. The event
+    // is at a different park, so it must not reach this show.
+    expect(row.status).toBe('CLOSED');
+  });
+
   test('MEET HELLO KITTY: a mis-stamped slot cannot resurrect a show at 02:30', async () => {
     // The real regression the first version shipped. USH's Meet Hello Kitty
     // carries eleven slots across 09:00-15:00 PDT plus a twelfth at
@@ -393,6 +449,23 @@ describe('Universal buildLiveData — the imminent rule is actually wired in', (
       'OPEN',
     );
     expect(oneSecondPast.status).toBe('CLOSED');
+  });
+
+  test('THE SLOT must be in the session too, not just the instant', async () => {
+    // Anchoring only `now` leaves the real reach at close+90: at close+50 the
+    // instant is inside the grace, and a slot at close+75 is within half an
+    // hour of it, so a slot mis-stamped past the grace still fires. It is the
+    // same hole that left Meet Hello Kitty's 02:30 phantom blocked by nothing
+    // but the coincidence that the event happens to close at 02:00.
+    //
+    // Day closes 18:00 PT, so the grace ends 19:00. Instant 18:50 (inside),
+    // slot 19:15 (outside).
+    const row = await rowAt(
+      '2026-09-06T01:50:00.000Z',              // 18:50 PT — inside the grace
+      ['2026-09-06T02:15:00.000Z'],            // 19:15 PT — past it
+      'OPEN',
+    );
+    expect(row.status).toBe('CLOSED');
   });
 
   test('an hour past close is the limit, not four hours', async () => {
