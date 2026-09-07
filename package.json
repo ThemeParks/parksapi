@@ -62,7 +62,7 @@
     "tsx": "^4.20.5",
     "typedoc": "^0.28.19",
     "typescript": "^6.0.3",
-    "vitest": "^4.0.16"
+    "vitest": "^5.0.0"
   },
   "dependencies": {
     "@themeparks/typelib": "^1.2.0",
