@@ -55,7 +55,7 @@
     "@types/node": "^26.0.0",
     "@types/tz-lookup": "^6.1.2",
     "@vitest/coverage-v8": "^4.0.16",
-    "@vitest/ui": "^4.0.16",
+    "@vitest/ui": "^5.0.0",
     "concurrently": "^10.0.3",
     "cors": "^2.8.5",
     "express": "^5.1.0",
