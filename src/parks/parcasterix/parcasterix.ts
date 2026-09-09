@@ -14,7 +14,7 @@ import {
   LocalisedString,
   MultilangString,
 } from '@themeparks/typelib';
-import {constructDateTime, hostnameFromUrl, formatDate} from '../../datetime.js';
+import {constructDateTime, hostnameFromUrl, formatDate, formatInTimezone} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 import AdmZip from 'adm-zip';
@@ -157,6 +157,17 @@ export function buildLocalisedName(item: POIEntry): LocalisedString {
   return name;
 }
 
+/**
+ * Share of the offline package's attraction list that `paxLatencies` has to
+ * deliver before an absence from `paxSchedules` is read as a show being dark.
+ * Healthy polls carry all of them; half is a wide margin that still refuses a
+ * feed returning a handful.
+ */
+const MIN_ATTRACTION_BILL_FRACTION = 0.5;
+
+/** Local hour at which the previous operating day's after-midnight tail ends. */
+const NIGHT_ENDS_HOUR = 6;
+
 // ── Implementation ─────────────────────────────────────────────
 
 @destinationController({category: 'Parc Asterix'})
@@ -182,6 +193,24 @@ export class ParcAsterix extends Destination {
    * at all is a worse thing to own — so the bill does that work instead.
    */
   protected retireMissingLiveEntities = true;
+
+  /**
+   * Tightened from the 0.5 default because the dark-show closures changed what
+   * the default measures. Every show now appears in every build, so the shows
+   * inflate the gate's denominator while only the attractions can ever be
+   * counted absent — which moved the point at which the gate stops trusting
+   * the feed from 29 missing entities to 32, in the direction of trusting it
+   * more. Silently widening a guard is not a thing to inherit from a change
+   * that was about something else.
+   *
+   * 0.2 puts it back the other way: more than about a fifth of the tracked set
+   * gone at once is distrusted, roughly thirteen attractions. Nothing is lost
+   * by being strict here — `paxLatencies` lists every attraction year-round, so
+   * an attraction going absent is already an anomaly rather than a retirement,
+   * and the absence the gate genuinely exists for (a show losing its POI row)
+   * is one or two entities, well under `liveEntityRetirementMinBulk`.
+   */
+  protected liveEntityRetirementMaxFraction = 0.2;
 
   constructor(options?: DestinationConstructor) {
     super(options);
@@ -239,12 +268,18 @@ export class ParcAsterix extends Destination {
   }
 
   /**
-   * A GraphQL error carries HTTP 200 with an `errors` array and no `data`, so
-   * defaulting the two bills to `[]` turned every server-side failure into a
-   * well-formed park with nothing open and no shows on. buildLiveData() reads
-   * an absent show as dark, so that silent default is now the difference
-   * between skipping a poll and publishing a CLOSED across the whole park.
-   * Fail the poll instead and let the next one stand in.
+   * A GraphQL failure carries HTTP 200, so defaulting the two bills to `[]`
+   * turned every server-side error into a well-formed park with nothing open
+   * and no shows on. buildLiveData() reads an absent show as dark, so that
+   * silent default is the difference between skipping a poll and publishing a
+   * CLOSED across the whole park. Fail the poll and let the next one stand in.
+   *
+   * A populated `errors` array is rejected even when `data` came back with it.
+   * Partial success is ordinary in GraphQL, and the shape that matters here is
+   * a full `paxLatencies` beside an `errors`-truncated empty `paxSchedules`:
+   * that passes every structural check and reads as a park with every show
+   * dark. Both bills come from the one query, so a partial failure is never a
+   * poll worth trusting.
    */
   @cache({ttlSeconds: 60})
   async getPolling(): Promise<{
@@ -254,16 +289,19 @@ export class ParcAsterix extends Destination {
     const resp = await this.fetchPolling();
     const data = (await resp.json()) as any;
 
+    const errors = (Array.isArray(data?.errors) ? data.errors : [])
+      .map((e: any) => e?.message)
+      .filter(Boolean)
+      .join('; ');
     const missing = ['paxLatencies', 'paxSchedules'].filter(
       (field) => !Array.isArray(data?.data?.[field]),
     );
-    if (missing.length) {
-      const errors = Array.isArray(data?.errors)
-        ? data.errors.map((e: any) => e?.message).filter(Boolean).join('; ')
-        : '';
+    if (missing.length || errors) {
+      const fault = missing.length
+        ? `returned no ${missing.join(' or ')}`
+        : 'reported an error';
       throw new Error(
-        `ParcAsterix: paxPolling returned no ${missing.join(' or ')}` +
-          (errors ? ` — ${errors}` : ''),
+        `ParcAsterix: paxPolling ${fault}` + (errors ? ` — ${errors}` : ''),
       );
     }
 
@@ -767,7 +805,22 @@ export class ParcAsterix extends Destination {
 
   protected async buildLiveData(): Promise<LiveData[]> {
     const {latencies, schedules} = await this.getPolling();
-    const {poi} = await this.getPOIData();
+
+    // Only the dark-show pass below needs the POI list, and it is the one
+    // thing here that is worth losing. The rest of this build wants nothing
+    // from the offline package, and letting a 23MB ZIP download stand between
+    // the bill and the wait times would put every attraction's live row behind
+    // a fetch that can fail three separate ways. Degrade to publishing no
+    // closures rather than publishing nothing.
+    let poi: POIEntry[] = [];
+    try {
+      ({poi} = await this.getPOIData());
+    } catch (err) {
+      console.warn(
+        `[${this.constructor.name}] offline package unavailable, ` +
+          `publishing live data without show closures: ${err}`,
+      );
+    }
 
     const liveWaitTimes = latencies.map((entry) => {
       const ld: LiveData = {
@@ -859,6 +912,20 @@ export class ParcAsterix extends Destination {
       return ld;
     });
 
+    // The two bills have never yet named the same id, and if they ever do the
+    // build must still carry one row for it rather than two that contradict
+    // each other and leave array order to decide. `paxLatencies` is a direct
+    // observation of whether the thing is open, so its status wins; the
+    // performances are additional information, so they are carried across
+    // rather than dropped.
+    const waitTimeById = new Map(liveWaitTimes.map((entry) => [entry.id, entry]));
+    const showtimeRows = liveShowtimes.filter((entry) => {
+      const observation = waitTimeById.get(entry.id);
+      if (!observation) return true;
+      if (entry.showtimes) observation.showtimes = entry.showtimes;
+      return false;
+    });
+
     // `paxSchedules` is a same-day bill: one entry per show performing today,
     // nothing at all for the rest. A show that is dark therefore produces no
     // row, and because the collector is upsert-only the wiki went on serving
@@ -867,25 +934,55 @@ export class ParcAsterix extends Destination {
     //
     // Absence needs no window to interpret. A bill that names every
     // performance today, and does not name this show, says it has none today,
-    // which is what CLOSED says. The one thing absence cannot distinguish is a
-    // bill that failed to arrive, so the attractions have to corroborate that
-    // the feed is alive before any of this is read as darkness. getPolling()
-    // now throws on a malformed payload, and paxLatencies lists all 50
-    // attractions year-round — closed ones included, through the winter
-    // shutdown — so an empty one means a broken poll, never a shut park.
+    // which is what CLOSED says. What absence cannot do is speak for a bill
+    // that failed to arrive, so it is only read as darkness when the feed is
+    // corroborated and the day it describes is unambiguous — the two guards
+    // below.
     const scheduled = new Set(schedules.map((entry) => String(entry.drupalId)));
-    const darkShows: LiveData[] = latencies.length === 0
-      ? []
-      : poi
+    // A show has never yet appeared in both bills, but if one ever did, the
+    // observation would have to win over the inference: without this the build
+    // carries an OPERATING row and a CLOSED row for the one id, and which of
+    // them lands is nothing better than array order.
+    const observed = new Set(latencies.map((entry) => String(entry.drupalId)));
+    const attractions = poi.filter((item) => item._type === 'attraction').length;
+
+    // `paxLatencies` carries every attraction year-round, closed ones included
+    // through the winter shutdown, so a short one is a broken poll and never a
+    // shut park. Counting it against the package's own attraction total keeps
+    // that self-calibrating as the park adds and drops rides, and catches the
+    // partial regeneration an emptiness check misses: a bill of one attraction
+    // out of fifty would otherwise close every show in the park.
+    const corroborated = attractions > 0
+      && latencies.length >= attractions * MIN_ATTRACTION_BILL_FRACTION;
+
+    // The bill rolls over at local midnight while the park is still running an
+    // event night — Halloween runs to 01:00 — and `liveShowtimes` above dates
+    // its own sub-06:00 entries into tomorrow for exactly that reason. In that
+    // window a show can be absent from a bill for a day that has not started
+    // yet while it is physically mid-performance, so absence carries no meaning
+    // and nothing is closed until the small hours are over. It costs a retired
+    // show a few more hours of a stale row, overnight, once.
+    // 'iso' is `YYYY-MM-DDTHH:mm:ss±HH:mm`; 'datetime' is `MM/DD/YYYY, HH:mm:ss`
+    // and slicing that one reads the wrong two characters.
+    const localHour = parseInt(
+      formatInTimezone(new Date(), this.timezone, 'iso').slice(11, 13),
+      10,
+    );
+    const daylit = Number.isFinite(localHour) && localHour >= NIGHT_ENDS_HOUR;
+
+    const darkShows: LiveData[] = corroborated && daylit
+      ? poi
           .filter(
             (item) =>
               item._type === 'show' &&
               !!item.drupal_id &&
-              !scheduled.has(String(item.drupal_id)),
+              !scheduled.has(String(item.drupal_id)) &&
+              !observed.has(String(item.drupal_id)),
           )
-          .map((item) => ({id: String(item.drupal_id), status: 'CLOSED'}) as LiveData);
+          .map((item) => ({id: String(item.drupal_id), status: 'CLOSED'}) as LiveData)
+      : [];
 
-    return [...liveWaitTimes, ...liveShowtimes, ...darkShows];
+    return [...liveWaitTimes, ...showtimeRows, ...darkShows];
   }
 
   // ── Schedules ────────────────────────────────────────────────

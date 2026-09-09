@@ -29,13 +29,13 @@ const performance = (drupalId: string) => ({
   times: [{at: '14:00:00', startAt: null, endAt: null}],
 });
 
-const show = (drupalId: number): POIEntry => ({
+const show = (drupalId: number, type: POIEntry['_type'] = 'show'): POIEntry => ({
   drupal_id: drupalId,
   title: `Show ${drupalId}`,
   titles: {en: `Show ${drupalId}`},
   latitude: 49.13675,
   longitude: 2.573816,
-  _type: 'show',
+  _type: type,
 });
 
 /**
@@ -54,7 +54,15 @@ function stubbedPark(
 }
 
 /** Enough attractions that the degraded-feed guard has a real denominator. */
-const ATTRACTIONS = Array.from({length: 20}, (_, i) => latency(String(31303 + i)));
+const ATTRACTION_IDS = Array.from({length: 20}, (_, i) => 31303 + i);
+const ATTRACTIONS = ATTRACTION_IDS.map((id) => latency(String(id)));
+/**
+ * The package rows behind ATTRACTIONS. buildLiveData() only reads the bill as
+ * darkness when the attraction bill corroborates it against these, so a test
+ * that wants the bill to close a show has to supply them — without them the
+ * closure under test would silently be the gate's, not the bill's.
+ */
+const ATTRACTION_POI = ATTRACTION_IDS.map((id) => show(id, 'attraction'));
 
 describe('Parc Asterix show retirement', () => {
   beforeEach(() => {
@@ -84,14 +92,33 @@ describe('Parc Asterix show retirement', () => {
     expect(live.find((l) => l.id === '31483')).toEqual({id: '31483', status: 'CLOSED'});
   });
 
+  // Below the window, a plain absence is not yet evidence of anything. This is
+  // the gate's own boundary, kept isolated from the reset case below so a
+  // regression in either cannot hide behind the other.
+  it('leaves a show alone that has been absent for less than the window', async () => {
+    vi.useFakeTimers();
+
+    await stubbedPark(ATTRACTIONS, [performance('31483')]).getLiveData();
+
+    vi.setSystemTime(Date.now() + 5 * DAY);
+    await stubbedPark(ATTRACTIONS, []).getLiveData();
+    await stubbedPark(ATTRACTIONS, []).getLiveData();
+    const live = await stubbedPark(ATTRACTIONS, []).getLiveData();
+
+    expect(live.find((l) => l.id === '31483')).toBeUndefined();
+  });
+
   // While the package still lists the show, the bill closes it the same day
   // and the gate never sees it absent, so the two cannot both speak for it.
+  // The row alone cannot show which one produced it — either would emit the
+  // same thing — so this watches for the gate's own log line instead.
   it('stays out of the way while the package still lists the show', async () => {
     vi.useFakeTimers();
 
-    const poi = [show(31483)];
+    const poi = [...ATTRACTION_POI, show(31483)];
     await stubbedPark(ATTRACTIONS, [performance('31483')], poi).getLiveData();
 
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.setSystemTime(Date.now() + 30 * DAY);
     await stubbedPark(ATTRACTIONS, [], poi).getLiveData();
     await stubbedPark(ATTRACTIONS, [], poi).getLiveData();
@@ -100,6 +127,31 @@ describe('Parc Asterix show retirement', () => {
     expect(live.filter((l) => l.id === '31483')).toEqual([
       {id: '31483', status: 'CLOSED'},
     ]);
+    expect(
+      log.mock.calls.flat().filter((line) => String(line).includes('force-closing')),
+    ).toEqual([]);
+  });
+
+  // And the same scenario with the package row gone is the gate's to handle,
+  // so the log line proves the two are genuinely split rather than one of them
+  // quietly covering for the other in both tests.
+  it('does the closing itself once the package row goes', async () => {
+    vi.useFakeTimers();
+
+    await stubbedPark(ATTRACTIONS, [performance('31483')], ATTRACTION_POI).getLiveData();
+
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.setSystemTime(Date.now() + 8 * DAY);
+    await stubbedPark(ATTRACTIONS, [], ATTRACTION_POI).getLiveData();
+    await stubbedPark(ATTRACTIONS, [], ATTRACTION_POI).getLiveData();
+    const live = await stubbedPark(ATTRACTIONS, [], ATTRACTION_POI).getLiveData();
+
+    expect(live.filter((l) => l.id === '31483')).toEqual([
+      {id: '31483', status: 'CLOSED'},
+    ]);
+    expect(
+      log.mock.calls.flat().filter((line) => String(line).includes('force-closing')),
+    ).toHaveLength(1);
   });
 
   it('resets the window when the show performs again', async () => {
