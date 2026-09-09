@@ -49,7 +49,23 @@ function stubbedPark(
 ): ParcAsterix {
   const park = new ParcAsterix();
   vi.spyOn(park as any, 'getPolling').mockResolvedValue({latencies, schedules});
-  vi.spyOn(park as any, 'getPOIData').mockResolvedValue({poi, calendar: []});
+  vi.spyOn(park as any, 'getPOIData').mockImplementation(async () => {
+    // An ordinary open day for whatever the fake clock currently says, so the
+    // bill is believed and the gate is being tested against it rather than
+    // against a calendar that quietly silences the bill.
+    const date = new Date().toISOString().slice(0, 10);
+    return {
+      poi,
+      calendar: [
+        {
+          date,
+          type: 'OPERATING',
+          openingTime: `${date}T10:00:00+02:00`,
+          closingTime: `${date}T18:00:00+02:00`,
+        },
+      ],
+    };
+  });
   return park;
 }
 
@@ -64,10 +80,23 @@ const ATTRACTIONS = ATTRACTION_IDS.map((id) => latency(String(id)));
  */
 const ATTRACTION_POI = ATTRACTION_IDS.map((id) => show(id, 'attraction'));
 
+/**
+ * Mid-afternoon on an operating day, and every jump below is a whole number of
+ * days from it, so each build lands inside opening hours too. Pinned rather
+ * than started from the wall clock: buildLiveData() only reads the bill as
+ * darkness once the park has opened, so an unpinned run silences the bill
+ * before ~10:00 and after midnight local, and the gate quietly does the
+ * closing that these tests are asserting the bill does — green in the
+ * afternoon, red overnight and in CI.
+ */
+const DAYTIME = new Date('2026-09-09T12:00:00Z');
+
 describe('Parc Asterix show retirement', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     CacheLib.clearByClassName('ParcAsterix', {includePersistent: true});
+    vi.useFakeTimers();
+    vi.setSystemTime(DAYTIME);
   });
 
   afterEach(() => vi.useRealTimers());
@@ -77,8 +106,6 @@ describe('Parc Asterix show retirement', () => {
   });
 
   it('force-closes a show gone from paxSchedules past the retirement window', async () => {
-    vi.useFakeTimers();
-
     await stubbedPark(ATTRACTIONS, [performance('31483')]).getLiveData();
 
     // The run ended: the show leaves paxSchedules, and the offline package
@@ -96,8 +123,6 @@ describe('Parc Asterix show retirement', () => {
   // the gate's own boundary, kept isolated from the reset case below so a
   // regression in either cannot hide behind the other.
   it('leaves a show alone that has been absent for less than the window', async () => {
-    vi.useFakeTimers();
-
     await stubbedPark(ATTRACTIONS, [performance('31483')]).getLiveData();
 
     vi.setSystemTime(Date.now() + 5 * DAY);
@@ -113,8 +138,6 @@ describe('Parc Asterix show retirement', () => {
   // The row alone cannot show which one produced it — either would emit the
   // same thing — so this watches for the gate's own log line instead.
   it('stays out of the way while the package still lists the show', async () => {
-    vi.useFakeTimers();
-
     const poi = [...ATTRACTION_POI, show(31483)];
     await stubbedPark(ATTRACTIONS, [performance('31483')], poi).getLiveData();
 
@@ -136,8 +159,6 @@ describe('Parc Asterix show retirement', () => {
   // so the log line proves the two are genuinely split rather than one of them
   // quietly covering for the other in both tests.
   it('does the closing itself once the package row goes', async () => {
-    vi.useFakeTimers();
-
     await stubbedPark(ATTRACTIONS, [performance('31483')], ATTRACTION_POI).getLiveData();
 
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -155,8 +176,6 @@ describe('Parc Asterix show retirement', () => {
   });
 
   it('resets the window when the show performs again', async () => {
-    vi.useFakeTimers();
-
     await stubbedPark(ATTRACTIONS, [performance('31483')]).getLiveData();
     vi.setSystemTime(Date.now() + 6 * DAY);
     await stubbedPark(ATTRACTIONS, []).getLiveData();
@@ -177,8 +196,6 @@ describe('Parc Asterix show retirement', () => {
   // hands the gate an empty build by any other route must still not retire on
   // it: a confident CLOSED across an open park is the failure being avoided.
   it('withholds retirement when the whole polling feed comes back empty', async () => {
-    vi.useFakeTimers();
-
     await stubbedPark(ATTRACTIONS, [performance('31483')]).getLiveData();
 
     vi.setSystemTime(Date.now() + 8 * DAY);
@@ -194,8 +211,6 @@ describe('Parc Asterix show retirement', () => {
   // listing the attractions as closed. That is a real closure, not a broken
   // feed, and the shows should close.
   it('still retires shows across a seasonal closure, with attractions unaffected', async () => {
-    vi.useFakeTimers();
-
     const shows = ['31483', '31485', '31502'].map(performance);
     await stubbedPark(ATTRACTIONS, shows).getLiveData();
 
