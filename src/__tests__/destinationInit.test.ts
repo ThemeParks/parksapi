@@ -15,6 +15,10 @@ describe('Destination init() lifecycle', () => {
         initCalled = true;
       }
 
+      // No content on purpose: these doubles exercise init(), not the
+      // entity list, and getEntities() otherwise refuses a collapsed one.
+      protected allowEmptyEntityList = true;
+
       protected async buildEntityList(): Promise<Entity[]> {
         buildEntitiesCalled = true;
         expect(initCalled).toBe(true); // init should be called first
@@ -57,6 +61,10 @@ describe('Destination init() lifecycle', () => {
         initCalled = true;
       }
 
+      // No content on purpose: these doubles exercise init(), not the
+      // entity list, and getEntities() otherwise refuses a collapsed one.
+      protected allowEmptyEntityList = true;
+
       protected async buildEntityList(): Promise<Entity[]> {
         return [];
       }
@@ -92,6 +100,10 @@ describe('Destination init() lifecycle', () => {
         initCalled = true;
       }
 
+      // No content on purpose: these doubles exercise init(), not the
+      // entity list, and getEntities() otherwise refuses a collapsed one.
+      protected allowEmptyEntityList = true;
+
       protected async buildEntityList(): Promise<Entity[]> {
         return [];
       }
@@ -126,6 +138,10 @@ describe('Destination init() lifecycle', () => {
         initCallCount++;
         await new Promise(resolve => setTimeout(resolve, 10));
       }
+
+      // No content on purpose: these doubles exercise init(), not the
+      // entity list, and getEntities() otherwise refuses a collapsed one.
+      protected allowEmptyEntityList = true;
 
       protected async buildEntityList(): Promise<Entity[]> {
         return [
@@ -173,6 +189,10 @@ describe('Destination init() lifecycle', () => {
         initCallCount++;
         await new Promise(resolve => setTimeout(resolve, 50));
       }
+
+      // No content on purpose: these doubles exercise init(), not the
+      // entity list, and getEntities() otherwise refuses a collapsed one.
+      protected allowEmptyEntityList = true;
 
       protected async buildEntityList(): Promise<Entity[]> {
         return [
@@ -222,6 +242,10 @@ describe('Destination init() lifecycle', () => {
         setupValue = 'initialized';
       }
 
+      // No content on purpose: these doubles exercise init(), not the
+      // entity list, and getEntities() otherwise refuses a collapsed one.
+      protected allowEmptyEntityList = true;
+
       protected async buildEntityList(): Promise<Entity[]> {
         // Should have access to initialized state
         expect(this.value).toBe('initialized');
@@ -259,6 +283,10 @@ describe('Destination init() lifecycle', () => {
 
   it('should work when _init() is not overridden', async () => {
     class TestDestination extends Destination {
+      // No content on purpose: these doubles exercise init(), not the
+      // entity list, and getEntities() otherwise refuses a collapsed one.
+      protected allowEmptyEntityList = true;
+
       protected async buildEntityList(): Promise<Entity[]> {
         return [
           {

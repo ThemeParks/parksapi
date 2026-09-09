@@ -202,6 +202,19 @@ export abstract class Destination {
   hasLiveStream: boolean = false;
 
   /**
+   * Opt out of the collapsed-entity-list guard in {@link getEntities}.
+   *
+   * Only for a destination that legitimately publishes no attractions,
+   * restaurants or shows — a listing that exists to carry opening hours, say.
+   * A destination that normally has content and simply lost it upstream must
+   * NOT set this: the whole point of the guard is that losing everything looks
+   * identical to having nothing.
+   *
+   * @default false
+   */
+  protected allowEmptyEntityList: boolean = false;
+
+  /**
    * Opt-in: force-close a previously-live entity once it has been absent
    * from a full buildLiveData() snapshot for longer than
    * {@link liveEntityRetirementMs}.
@@ -1023,6 +1036,8 @@ export abstract class Destination {
     const merged = [...destinations.filter(d => !entityIds.has(d.id)), ...entities];
     const resolved = this.resolveEntityHierarchy(merged);
 
+    this.assertEntityListNotCollapsed(resolved);
+
     // Default attractionType for ATTRACTION entities that don't specify one
     for (const entity of resolved) {
       if (entity.entityType === 'ATTRACTION' && !(entity as any).attractionType) {
@@ -1053,6 +1068,44 @@ export abstract class Destination {
 
     for (const entity of resolved) stripUndefinedDeep(entity);
     return resolved;
+  }
+
+  /**
+   * Refuse to publish an entity list that contains nothing a guest can visit.
+   *
+   * DESTINATION and PARK rows describe the shape of a resort; they are built
+   * from constants in `getDestinations()` and a handful of literals in
+   * `buildEntityList()`, so they survive an upstream failure that took every
+   * real entity with it. What is left parses cleanly, validates, and reports
+   * success — the harness passed a park showing 3 entities and no live data
+   * for weeks, while every ride it could no longer see queued for deletion
+   * downstream. Two destinations reached that state by different routes on
+   * the same day: one whose POI endpoint answered 200 with an empty list, one
+   * whose rides pages began redirecting and were dropped by a scraper that
+   * treats a failed page as an empty one.
+   *
+   * Throwing is the point. The collector is upsert-only with no delete path of
+   * its own, so a truncated list does not quietly under-report — it proposes
+   * deleting everything missing from it. An error means the poll is skipped and
+   * the last good list stands, which is always the better of the two.
+   *
+   * A destination that genuinely has no content sets
+   * {@link allowEmptyEntityList}.
+   */
+  private assertEntityListNotCollapsed(resolved: Entity[]): void {
+    if (this.allowEmptyEntityList) return;
+    const structural = new Set(['DESTINATION', 'PARK']);
+    if (resolved.some((entity) => !structural.has(entity.entityType as string))) return;
+
+    const shape = resolved.length
+      ? resolved.map((e) => e.entityType).sort().join(', ')
+      : 'nothing at all';
+    throw new Error(
+      `${this.constructor.name}: buildEntityList() produced no attractions, ` +
+      `restaurants or shows — only ${shape}. Refusing to publish a list that ` +
+      `would read as every entity having been removed. Set ` +
+      `allowEmptyEntityList if this destination genuinely has no content.`,
+    );
   }
 
   /**

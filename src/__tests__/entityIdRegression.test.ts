@@ -277,6 +277,10 @@ describe('Destination ID patterns', () => {
     }});
     // Stub the live HTTP layer so buildEntityList doesn't network during the test.
     (dest as unknown as {getItems: () => Promise<unknown[]>}).getItems = async () => [];
+    // That stub leaves every park with no rides, which getEntities() otherwise
+    // refuses to publish. This test is about the two surfaces agreeing on
+    // destination IDs, not about the list being publishable.
+    (dest as unknown as {allowEmptyEntityList: boolean}).allowEmptyEntityList = true;
     const [destinations, entities] = await Promise.all([
       dest.getDestinations(),
       dest.getEntities(),

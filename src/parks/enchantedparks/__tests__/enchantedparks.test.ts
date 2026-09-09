@@ -1,5 +1,5 @@
 import {describe, test, expect} from 'vitest';
-import {parseTribeEvents, type TribeEventsResponse, EnchantedParks} from '../enchantedparks.js';
+import {EnchantedParks, parseTribeEvents, scrapeTtl, type TribeEventsResponse} from '../enchantedparks.js';
 import {parseICalFeed} from '../enchantedparks.js';
 import {parseAttractionsPage} from '../enchantedparks.js';
 import {parseShowsPage} from '../enchantedparks.js';
@@ -565,5 +565,44 @@ describe('buildLiveData wiring (stubbed network)', () => {
       {name: 'WOF - Mamba', siteId: 'test-site', operationalStatus: 'Open'},
     ];
     expect(await (park as any).buildLiveData()).toEqual([]);
+  });
+});
+
+describe('scrapeTtl', () => {
+  const DAY = 60 * 60 * 24;
+  const HALF_DAY = 60 * 60 * 12;
+
+  /**
+   * The scrapers swallow a page failure and return `[]` so one missing page
+   * cannot take out a whole destination. Remembering that for a full TTL is
+   * what turned a single failed fetch into Mid-America Parks publishing 3
+   * entities against 76 — and why correcting the host did not take effect
+   * until the cache expired. Observed the same day on the schedule scrape:
+   * the destination served 0 operating days until an empty entry was dropped,
+   * then 60.
+   */
+  it('holds an empty result for minutes, not the full TTL', () => {
+    expect(scrapeTtl(DAY)([])).toBe(60 * 15);
+    expect(scrapeTtl(HALF_DAY)([])).toBe(60 * 15);
+  });
+
+  it('keeps a real listing for the caller\'s own TTL', () => {
+    const rows = [{slug: 'american-thunder', name: 'American Thunder'}];
+    expect(scrapeTtl(DAY)(rows)).toBe(DAY);
+    expect(scrapeTtl(HALF_DAY)(rows)).toBe(HALF_DAY);
+  });
+
+  it('treats a single row as a real answer — one ride is an answer', () => {
+    expect(scrapeTtl(DAY)([{slug: 'a', name: 'A'}])).toBe(DAY);
+  });
+
+  /**
+   * Empty is not always broken: a park out of season publishes no calendar,
+   * and a waterpark has no shows. Verified 2026-09-09 — michigansadventure and
+   * galvestonislandwaterpark both return 0 schedule days from a clean fetch. So an
+   * empty answer is still cached, just briefly.
+   */
+  it('still caches an empty result, rather than refetching every call', () => {
+    expect(scrapeTtl(DAY)([])).toBeGreaterThan(0);
   });
 });
