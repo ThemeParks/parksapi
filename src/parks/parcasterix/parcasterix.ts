@@ -165,6 +165,21 @@ export function buildLocalisedName(item: POIEntry): LocalisedString {
  */
 const MIN_ATTRACTION_BILL_FRACTION = 0.5;
 
+/**
+ * Fraction of the park's attractions that must report open before the live
+ * feed is allowed to veto a calendar that says the park is shut.
+ *
+ * `some(isOpen)` is not enough. Four POIs here — three playgrounds and a
+ * walk-through, none of which take a queue — report `isOpen: true` around the
+ * clock and have never once carried a latency. Measured over 284 samples
+ * spanning a full operating day: out of hours the open count was exactly those
+ * 4 of 50, every time; in hours it ran 37 to 40. A quarter sits in the middle
+ * of that gap with room on both sides, and asking for a quorum rather than a
+ * single vote is what makes the veto mean "the park is evidently busy" instead
+ * of "at least one flag is stuck on".
+ */
+const MIN_OPEN_FRACTION = 0.25;
+
 
 /**
  * What today's calendar lets us say about a show that is missing from
@@ -1047,11 +1062,18 @@ export class ParcAsterix extends Destination {
 
     // Whether the bill is about today at all, and what to publish when it is
     // not. See showBillAuthority.
+    // The feed's own vote on whether the park is actually busy, used only to
+    // veto a calendar that says otherwise. It needs a quorum: see
+    // MIN_OPEN_FRACTION for the four POIs whose open flag never clears.
+    const openCount = latencies.filter((entry) => entry.isOpen).length;
+    const parkIsBusy = attractions > 0
+      && openCount >= attractions * MIN_OPEN_FRACTION;
+
     const authority = showBillAuthority(
       new Date(),
       this.timezone,
       calendar,
-      latencies.some((entry) => entry.isOpen),
+      parkIsBusy,
     );
 
     const showIds = poi

@@ -474,6 +474,60 @@ describe('Parc Asterix polling response', () => {
   });
 });
 
+/**
+ * The live feed's veto over a closed calendar has to mean "the park is
+ * evidently busy", not "at least one open flag is set".
+ *
+ * Four POIs here — three playgrounds and a walk-through, none of which take a
+ * queue — report `isOpen: true` around the clock and have never carried a
+ * latency. Measured over 284 samples spanning a full operating day: out of
+ * hours the open count was exactly those 4 of 50 every time, in hours 37 to 40.
+ * Under a `some(isOpen)` veto those four alone held the veto open permanently,
+ * which made the closed-day branch unreachable for this park — including
+ * through the 40-day November shutdown.
+ */
+describe('the closed-day veto needs a quorum', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    CacheLib.clearByClassName('ParcAsterix', {includePersistent: true});
+    vi.useFakeTimers();
+    vi.setSystemTime(DAYTIME);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  /** The stuck four: open, but never a latency between them. */
+  const stuckOpen = ATTRACTION_IDS.slice(0, 2).map((id) => latency(String(id), true, null));
+  const shut = ATTRACTION_IDS.slice(2).map((id) => latency(String(id), false, null));
+
+  it('closes the shows on a closed day when only the stuck flags are open', async () => {
+    const live = await stubbedPark(
+      [...stuckOpen, ...shut],
+      [performance('31483')],
+      [...ATTRACTION_POI, show(31483), show(31513)],
+      closedToday,
+    ).getLiveData();
+
+    // The bill still lists 31483, but the park is shut today, so it is not
+    // republished — and both shows are closed.
+    expect(live.find((l) => l.id === '31483')).toEqual({id: '31483', status: 'CLOSED'});
+    expect(live.find((l) => l.id === '31513')).toEqual({id: '31513', status: 'CLOSED'});
+  });
+
+  it('still lets a genuinely busy park veto a calendar that says closed', async () => {
+    const busy = ATTRACTION_IDS.map((id) => latency(String(id), true, 15));
+    const live = await stubbedPark(
+      busy,
+      [performance('31483')],
+      [...ATTRACTION_POI, show(31483), show(31513)],
+      closedToday,
+    ).getLiveData();
+
+    // The calendar is the thing to distrust here, so the bill is published.
+    expect(live.find((l) => l.id === '31483')?.status).toBe('OPERATING');
+    expect(live.find((l) => l.id === '31513')).toBeUndefined();
+  });
+});
+
 describe('showBillAuthority', () => {
   const hours = (date: string, open: string, close: string) => ({
     date,
