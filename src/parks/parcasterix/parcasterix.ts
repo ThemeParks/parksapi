@@ -168,6 +168,64 @@ const MIN_ATTRACTION_BILL_FRACTION = 0.5;
 /** Local hour at which the previous operating day's after-midnight tail ends. */
 const NIGHT_ENDS_HOUR = 6;
 
+/**
+ * What today's calendar lets us say about a show that is missing from
+ * `paxSchedules`.
+ *
+ * The bill is not rewritten for the new day at midnight. It goes on serving the
+ * last open day's programme until the morning: on 2026-09-09 the bill served
+ * from local midnight until 09:28 was still 2026-09-06's, two closed days
+ * earlier, and gave itself away by carrying that day's 19:00 close inside a
+ * show window that the 09:28 rewrite corrected to 18:00. Absence from that bill
+ * means "was not on the last open day", which is not the thing we would be
+ * publishing. Today's bill happened to be a subset of it; a day whose programme
+ * is larger than the previous open day's would have closed shows that perform.
+ *
+ * So absence is only read as darkness once the park has opened and the bill has
+ * had to become about today. Before that the calendar still settles the one
+ * case it knows for certain — on a day the park does not operate, no show
+ * performs — and that one matters, because a retained bill means the closed
+ * days are exactly when the stale programme looks most like a live one.
+ *
+ * `parkIsBusy` is the live feed's own vote, and it only ever vetoes: a calendar
+ * claiming today is closed while attractions report themselves open is a
+ * calendar to distrust, not a park to close.
+ *
+ * The four answers separate two things that look alike and are not. `stale`
+ * means the bill is known to be about a day that has passed, so neither its
+ * performances nor its silences may be published — republishing them re-dates
+ * the last open day's programme onto today, which is how a wrong showtime comes
+ * to look freshly confirmed. `unknown` means we cannot tell, and there the only
+ * safe move is to change nothing about what the bill already says.
+ */
+export function showBillAuthority(
+  now: Date,
+  timezone: string,
+  calendar: ScheduleEntry[],
+  parkIsBusy: boolean,
+): 'all-dark' | 'read-bill' | 'stale' | 'unknown' {
+  // An event night runs past midnight — Halloween closes at 01:00 — so the
+  // small hours still belong to the day before. The bill is still that day's
+  // and is still correct, so this is `unknown`, not `stale`: the shows on it
+  // are mid-performance and their times must keep publishing.
+  const localHour = parseInt(formatInTimezone(now, timezone, 'iso').slice(11, 13), 10);
+  if (!Number.isFinite(localHour) || localHour < NIGHT_ENDS_HOUR) return 'unknown';
+
+  if (calendar.length === 0) return 'unknown';
+
+  // Closed days carry no hours and so never reach the calendar at all.
+  const todaysHours = calendar.filter(
+    (entry) => entry.date === formatDate(now, timezone),
+  );
+  if (todaysHours.length === 0) return parkIsBusy ? 'unknown' : 'all-dark';
+
+  const opensAt = Math.min(
+    ...todaysHours.map((entry) => new Date(entry.openingTime).getTime()),
+  );
+  if (!Number.isFinite(opensAt)) return 'unknown';
+  return now.getTime() >= opensAt ? 'read-bill' : 'stale';
+}
+
 // ── Implementation ─────────────────────────────────────────────
 
 @destinationController({category: 'Parc Asterix'})
@@ -813,8 +871,9 @@ export class ParcAsterix extends Destination {
     // a fetch that can fail three separate ways. Degrade to publishing no
     // closures rather than publishing nothing.
     let poi: POIEntry[] = [];
+    let calendar: ScheduleEntry[] = [];
     try {
-      ({poi} = await this.getPOIData());
+      ({poi, calendar} = await this.getPOIData());
     } catch (err) {
       console.warn(
         `[${this.constructor.name}] offline package unavailable, ` +
@@ -955,32 +1014,48 @@ export class ParcAsterix extends Destination {
     const corroborated = attractions > 0
       && latencies.length >= attractions * MIN_ATTRACTION_BILL_FRACTION;
 
-    // The bill rolls over at local midnight while the park is still running an
-    // event night — Halloween runs to 01:00 — and `liveShowtimes` above dates
-    // its own sub-06:00 entries into tomorrow for exactly that reason. In that
-    // window a show can be absent from a bill for a day that has not started
-    // yet while it is physically mid-performance, so absence carries no meaning
-    // and nothing is closed until the small hours are over. It costs a retired
-    // show a few more hours of a stale row, overnight, once.
-    // 'iso' is `YYYY-MM-DDTHH:mm:ss±HH:mm`; 'datetime' is `MM/DD/YYYY, HH:mm:ss`
-    // and slicing that one reads the wrong two characters.
-    const localHour = parseInt(
-      formatInTimezone(new Date(), this.timezone, 'iso').slice(11, 13),
-      10,
+    // Whether the bill is about today at all, and what to publish when it is
+    // not. See showBillAuthority.
+    const authority = showBillAuthority(
+      new Date(),
+      this.timezone,
+      calendar,
+      latencies.some((entry) => entry.isOpen),
     );
-    const daylit = Number.isFinite(localHour) && localHour >= NIGHT_ENDS_HOUR;
 
-    const darkShows: LiveData[] = corroborated && daylit
-      ? poi
-          .filter(
-            (item) =>
-              item._type === 'show' &&
-              !!item.drupal_id &&
-              !scheduled.has(String(item.drupal_id)) &&
-              !observed.has(String(item.drupal_id)),
-          )
-          .map((item) => ({id: String(item.drupal_id), status: 'CLOSED'}) as LiveData)
-      : [];
+    const showIds = poi
+      .filter((item) => item._type === 'show' && !!item.drupal_id)
+      .map((item) => String(item.drupal_id));
+
+    // Morning, before opening, on a day the park does operate: the bill is the
+    // last open day's and has not been rewritten yet. Publishing its
+    // performances would assert a passed day's programme as today's, and
+    // publishing its silences would close shows that are on today's bill once
+    // it arrives. Say nothing about shows either way until it does.
+    if (authority === 'stale') {
+      return liveWaitTimes;
+    }
+
+    if (!corroborated || authority === 'unknown') {
+      return [...liveWaitTimes, ...showtimeRows];
+    }
+
+    // The park is not operating today, so nothing on the bill is about today
+    // either. Publishing its performances would re-date the last open day's
+    // programme onto a day the park is shut, which is how a closed day ends up
+    // looking busier than an open one. The bill's own ids are closed alongside
+    // the package's, so an id the package has never carried is not left
+    // advertising a performance that cannot happen.
+    if (authority === 'all-dark') {
+      const dark = [...new Set([...showIds, ...scheduled])]
+        .filter((id) => !observed.has(id))
+        .map((id) => ({id, status: 'CLOSED'}) as LiveData);
+      return [...liveWaitTimes, ...dark];
+    }
+
+    const darkShows: LiveData[] = showIds
+      .filter((id) => !scheduled.has(id) && !observed.has(id))
+      .map((id) => ({id, status: 'CLOSED'}) as LiveData);
 
     return [...liveWaitTimes, ...showtimeRows, ...darkShows];
   }

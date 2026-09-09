@@ -1,5 +1,5 @@
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
-import {ParcAsterix, type POIEntry} from '../parcasterix.js';
+import {ParcAsterix, showBillAuthority, type POIEntry} from '../parcasterix.js';
 import {CacheLib} from '../../../cache.js';
 
 /**
@@ -52,17 +52,45 @@ const ATTRACTIONS = ATTRACTION_IDS.map((id) => latency(String(id)));
 /** The package rows behind ATTRACTIONS, so the corroboration check has a denominator. */
 const ATTRACTION_POI = ATTRACTION_IDS.map(attraction);
 
-/** Mid-afternoon in Europe/Paris — outside the after-midnight window. */
+/** Mid-afternoon in Europe/Paris — park open, bill already rewritten for today. */
 const DAYTIME = new Date('2026-09-09T12:00:00Z');
+
+/**
+ * An ordinary 10:00-18:00 operating day for whenever the clock currently says
+ * it is. Absence is only read as darkness once the park has opened, so a test
+ * that wants the bill believed has to be standing on an open day inside its
+ * hours — an empty calendar means "say nothing", which is the correct answer
+ * and a silent way to make an assertion vacuous.
+ */
+const openDay = (date: string) => ({
+  date,
+  type: 'OPERATING',
+  openingTime: `${date}T10:00:00+02:00`,
+  closingTime: `${date}T18:00:00+02:00`,
+});
+
+const openToday = () => [openDay(new Date().toISOString().slice(0, 10))];
+
+/**
+ * A real closed day: the calendar is populated, today simply is not in it,
+ * because a day with no hours never reaches the calendar at all. An *empty*
+ * calendar is a different thing — a package that failed to parse — and must
+ * not be read as a park-wide closure.
+ */
+const closedToday = () => [openDay('2026-09-06'), openDay('2026-09-12')];
 
 function stubbedPark(
   latencies: ReturnType<typeof latency>[],
   schedules: ReturnType<typeof performance>[],
   poi: POIEntry[],
+  calendar: () => any[] = openToday,
 ): ParcAsterix {
   const park = new ParcAsterix();
   vi.spyOn(park as any, 'getPolling').mockResolvedValue({latencies, schedules});
-  vi.spyOn(park as any, 'getPOIData').mockResolvedValue({poi, calendar: []});
+  vi.spyOn(park as any, 'getPOIData').mockImplementation(async () => ({
+    poi,
+    calendar: calendar(),
+  }));
   return park;
 }
 
@@ -208,6 +236,18 @@ describe('Parc Asterix dark-show guards', () => {
 
   // A gutted response reaching buildLiveData by any route must not be read as
   // a park where every show is dark.
+  // A package that failed to parse leaves no calendar. That is not a closure.
+  it('says nothing about shows when the calendar is empty', async () => {
+    const live = await stubbedPark(
+      ATTRACTIONS,
+      [],
+      [...ATTRACTION_POI, show(31513)],
+      () => [],
+    ).getLiveData();
+
+    expect(live.filter((l) => l.status === 'CLOSED' && !l.queue)).toEqual([]);
+  });
+
   it('says nothing when the whole polling feed comes back empty', async () => {
     const live = await stubbedPark([], [], [...ATTRACTION_POI, show(31483), show(31513)]).getLiveData();
 
@@ -264,8 +304,40 @@ describe('Parc Asterix dark-show guards', () => {
     expect(live.filter((l) => l.status === 'CLOSED' && !l.queue)).toEqual([]);
   });
 
-  it('resumes closing once the small hours are over', async () => {
-    vi.setSystemTime(new Date('2026-10-18T04:30:00Z')); // 06:30 Europe/Paris
+  // The bill served overnight is the last open day's and is not rewritten for
+  // today until the morning, so being past the small hours is not enough.
+  // Before opening the bill is still the last open day's, so republishing its
+  // performances would assert a passed day's programme as today's — which is
+  // how the wiki came to serve a 19:00-close day's showtimes on an 18:00 day.
+  it('publishes nothing about shows before the park opens', async () => {
+    vi.setSystemTime(new Date('2026-09-09T05:30:00Z')); // 07:30 Europe/Paris
+    const live = await stubbedPark(
+      ATTRACTIONS,
+      [performance('31483')],
+      [...ATTRACTION_POI, show(31483), show(31513)],
+    ).getLiveData();
+
+    expect(live.find((l) => l.id === '31483')).toBeUndefined();
+    expect(live.find((l) => l.id === '31513')).toBeUndefined();
+    expect(live).toHaveLength(ATTRACTIONS.length);
+  });
+
+  // The small hours are different: an event night's bill is still that night's
+  // and still correct, so its performances must keep publishing.
+  it('keeps publishing performances in the after-midnight tail', async () => {
+    vi.setSystemTime(new Date('2026-10-17T23:30:00Z')); // 01:30 Europe/Paris
+    const live = await stubbedPark(
+      ATTRACTIONS,
+      [performance('31483', [{at: '00:45:00', startAt: null, endAt: null}])],
+      [...ATTRACTION_POI, show(31483), show(31513)],
+    ).getLiveData();
+
+    expect(live.find((l) => l.id === '31483')).toMatchObject({status: 'OPERATING'});
+    expect(live.find((l) => l.id === '31513')).toBeUndefined();
+  });
+
+  it('resumes closing once the park has opened', async () => {
+    vi.setSystemTime(new Date('2026-09-09T08:30:00Z')); // 10:30 Europe/Paris
     const live = await stubbedPark(
       ATTRACTIONS,
       [],
@@ -273,6 +345,35 @@ describe('Parc Asterix dark-show guards', () => {
     ).getLiveData();
 
     expect(live.find((l) => l.id === '31513')).toEqual({id: '31513', status: 'CLOSED'});
+  });
+
+  // Closed days never reach the calendar, and the bill keeps serving the last
+  // open day's programme straight through them — so a closed day is exactly
+  // when a stale bill looks most like a live one.
+  it('closes every show, bill included, on a day the park does not operate', async () => {
+    const shut = ATTRACTIONS.map((a) => latency(a.drupalId, false, null));
+    const live = await stubbedPark(
+      shut,
+      [performance('31483')],
+      [...ATTRACTION_POI, show(31483), show(31513)],
+      closedToday,
+    ).getLiveData();
+
+    expect(live.find((l) => l.id === '31483')).toEqual({id: '31483', status: 'CLOSED'});
+    expect(live.find((l) => l.id === '31513')).toEqual({id: '31513', status: 'CLOSED'});
+    expect(live.find((l) => l.id === '31483')?.showtimes).toBeUndefined();
+  });
+
+  it('publishes nothing about shows when a closed calendar meets open rides', async () => {
+    const live = await stubbedPark(
+      ATTRACTIONS,
+      [performance('31483')],
+      [...ATTRACTION_POI, show(31483), show(31513)],
+      closedToday,
+    ).getLiveData();
+
+    expect(live.find((l) => l.id === '31483')).toMatchObject({status: 'OPERATING'});
+    expect(live.find((l) => l.id === '31513')).toBeUndefined();
   });
 
   // The live path never used to touch the offline package. Putting a 23MB ZIP
@@ -370,5 +471,74 @@ describe('Parc Asterix polling response', () => {
     await expect(
       withResponse({data: {paxLatencies: [], paxSchedules: []}, errors: []})['getPolling'](),
     ).resolves.toEqual({latencies: [], schedules: []});
+  });
+});
+
+describe('showBillAuthority', () => {
+  const hours = (date: string, open: string, close: string) => ({
+    date,
+    type: 'OPERATING',
+    openingTime: `${date}T${open}+02:00`,
+    closingTime: `${date}T${close}+02:00`,
+  });
+  const TODAY = hours('2026-09-09', '10:00:00', '18:00:00');
+  const at = (iso: string) => new Date(iso);
+
+  it('reads the bill once the park has opened', () => {
+    expect(showBillAuthority(at('2026-09-09T08:30:00Z'), 'Europe/Paris', [TODAY], true))
+      .toBe('read-bill'); // 10:30 local
+  });
+
+  // The hole the 06:00 guard alone left open: the bill served between midnight
+  // and the morning rewrite is the last open day's, so absence from it means
+  // "was not on that day", not "is not on today".
+  it('calls the bill stale between the small hours and opening', () => {
+    for (const utc of ['2026-09-09T04:30:00Z', '2026-09-09T06:00:00Z', '2026-09-09T07:28:00Z']) {
+      expect(showBillAuthority(at(utc), 'Europe/Paris', [TODAY], false)).toBe('stale');
+    }
+  });
+
+  // The sharp one: a Halloween night runs 19:00 to 01:00 into a day the park
+  // does not operate. Without the night guard the closed-day branch fires at
+  // 00:30 and closes every show while the night is still running.
+  it('stays silent past midnight when the next day is a closed day', () => {
+    const night = {
+      date: '2026-10-17',
+      type: 'TICKETED_EVENT',
+      openingTime: '2026-10-17T19:00:00+02:00',
+      closingTime: '2026-10-18T01:00:00+02:00',
+    };
+    expect(showBillAuthority(at('2026-10-17T22:30:00Z'), 'Europe/Paris', [night], false))
+      .toBe('unknown'); // 00:30 local on the 18th, which carries no hours
+  });
+
+  it('stays silent in the after-midnight tail of an event night', () => {
+    const night = {
+      date: '2026-10-17',
+      type: 'TICKETED_EVENT',
+      openingTime: '2026-10-17T19:00:00+02:00',
+      closingTime: '2026-10-18T01:00:00+02:00',
+    };
+    expect(showBillAuthority(at('2026-10-17T23:30:00Z'), 'Europe/Paris', [night], true))
+      .toBe('unknown'); // 01:30 local on the 18th
+  });
+
+  // Closed days carry no hours, so they never reach the calendar. The bill
+  // keeps serving the last open day's programme straight through them.
+  it('calls every show dark on a day the park does not operate', () => {
+    expect(showBillAuthority(at('2026-09-10T10:00:00Z'), 'Europe/Paris', [TODAY], false))
+      .toBe('all-dark');
+  });
+
+  // A calendar that says closed while the rides say open is a calendar to
+  // distrust, not a park to close.
+  it('defers to the live feed when it contradicts a closed calendar', () => {
+    expect(showBillAuthority(at('2026-09-10T10:00:00Z'), 'Europe/Paris', [TODAY], true))
+      .toBe('unknown');
+  });
+
+  it('admits it cannot tell with no calendar at all', () => {
+    expect(showBillAuthority(at('2026-09-09T10:00:00Z'), 'Europe/Paris', [], false))
+      .toBe('unknown');
   });
 });
