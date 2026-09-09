@@ -167,22 +167,19 @@ export class ParcAsterix extends Destination {
   @config packageVersion: string = '1.1.238';
 
   /**
-   * A show that ends its run leaves `paxSchedules` entirely rather than
-   * reporting no performances, and the offline package drops its POI row in
-   * the same release. buildLiveData() then has nothing to key off and the row
-   * freezes at its last value: four retired Parc Asterix shows were still
-   * reading OPERATING on the wiki 8 to 24 days after their last write, because
-   * the collector is upsert-only and omitting a row achieves nothing. See
+   * A backstop for the one absence buildLiveData() cannot read: a show that
+   * leaves the offline package as well as the bill, taking its POI row with
+   * it. Nothing then names the id, so there is no row to close it against, and
+   * the collector being upsert-only means omitting it achieves nothing — four
+   * retired shows read OPERATING on the wiki for 8 to 24 days that way. See
    * Destination.retireMissingLiveEntities for the mechanism.
    *
-   * The shared 7-day window suits this feed. Shows drop out of `paxSchedules`
-   * on any day they do not perform, so the window has to clear a normal weekly
-   * cadence, and a week does with room to spare. The seasonal winter closure
-   * takes every show out at once for months; force-closing them then is the
-   * right answer, not a false positive, and the attractions are unaffected
-   * because `paxLatencies` keeps listing them with `isOpen` false. A genuinely
-   * broken feed parses to an empty array and takes out far more than half the
-   * tracked entities, which the degraded-feed guard catches.
+   * Everything else is settled the same poll, from `paxSchedules` directly, so
+   * the gate is deliberately the slower and narrower of the two. It has to be:
+   * it can only close ids it has watched go absent, which leaves a show whose
+   * run ended before it was ever observed invisible to it for good. That is
+   * not a hole worth widening — a gate that could close an id on no evidence
+   * at all is a worse thing to own — so the bill does that work instead.
    */
   protected retireMissingLiveEntities = true;
 
@@ -241,6 +238,14 @@ export class ParcAsterix extends Destination {
     } as any as HTTPObj;
   }
 
+  /**
+   * A GraphQL error carries HTTP 200 with an `errors` array and no `data`, so
+   * defaulting the two bills to `[]` turned every server-side failure into a
+   * well-formed park with nothing open and no shows on. buildLiveData() reads
+   * an absent show as dark, so that silent default is now the difference
+   * between skipping a poll and publishing a CLOSED across the whole park.
+   * Fail the poll instead and let the next one stand in.
+   */
   @cache({ttlSeconds: 60})
   async getPolling(): Promise<{
     latencies: PaxLatency[];
@@ -248,9 +253,23 @@ export class ParcAsterix extends Destination {
   }> {
     const resp = await this.fetchPolling();
     const data = (await resp.json()) as any;
+
+    const missing = ['paxLatencies', 'paxSchedules'].filter(
+      (field) => !Array.isArray(data?.data?.[field]),
+    );
+    if (missing.length) {
+      const errors = Array.isArray(data?.errors)
+        ? data.errors.map((e: any) => e?.message).filter(Boolean).join('; ')
+        : '';
+      throw new Error(
+        `ParcAsterix: paxPolling returned no ${missing.join(' or ')}` +
+          (errors ? ` — ${errors}` : ''),
+      );
+    }
+
     return {
-      latencies: data?.data?.paxLatencies || [],
-      schedules: data?.data?.paxSchedules || [],
+      latencies: data.data.paxLatencies as PaxLatency[],
+      schedules: data.data.paxSchedules as PaxSchedule[],
     };
   }
 
@@ -748,6 +767,7 @@ export class ParcAsterix extends Destination {
 
   protected async buildLiveData(): Promise<LiveData[]> {
     const {latencies, schedules} = await this.getPolling();
+    const {poi} = await this.getPOIData();
 
     const liveWaitTimes = latencies.map((entry) => {
       const ld: LiveData = {
@@ -839,7 +859,33 @@ export class ParcAsterix extends Destination {
       return ld;
     });
 
-    return [...liveWaitTimes, ...liveShowtimes];
+    // `paxSchedules` is a same-day bill: one entry per show performing today,
+    // nothing at all for the rest. A show that is dark therefore produces no
+    // row, and because the collector is upsert-only the wiki went on serving
+    // the times of whichever day it last performed, still reading OPERATING —
+    // three shows were 11 days stale when a user reported it.
+    //
+    // Absence needs no window to interpret. A bill that names every
+    // performance today, and does not name this show, says it has none today,
+    // which is what CLOSED says. The one thing absence cannot distinguish is a
+    // bill that failed to arrive, so the attractions have to corroborate that
+    // the feed is alive before any of this is read as darkness. getPolling()
+    // now throws on a malformed payload, and paxLatencies lists all 50
+    // attractions year-round — closed ones included, through the winter
+    // shutdown — so an empty one means a broken poll, never a shut park.
+    const scheduled = new Set(schedules.map((entry) => String(entry.drupalId)));
+    const darkShows: LiveData[] = latencies.length === 0
+      ? []
+      : poi
+          .filter(
+            (item) =>
+              item._type === 'show' &&
+              !!item.drupal_id &&
+              !scheduled.has(String(item.drupal_id)),
+          )
+          .map((item) => ({id: String(item.drupal_id), status: 'CLOSED'}) as LiveData);
+
+    return [...liveWaitTimes, ...liveShowtimes, ...darkShows];
   }
 
   // ── Schedules ────────────────────────────────────────────────

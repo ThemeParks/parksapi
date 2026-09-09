@@ -1,14 +1,17 @@
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
-import {ParcAsterix} from '../parcasterix.js';
+import {ParcAsterix, type POIEntry} from '../parcasterix.js';
 import {CacheLib} from '../../../cache.js';
 
 /**
- * Four retired Parc Asterix shows were still reading OPERATING on the wiki
- * 8 to 24 days after their last write. A show that ends its run leaves
- * `paxSchedules` entirely rather than reporting no performances, so
- * buildLiveData() has nothing to key off, and the collector is upsert-only —
- * dropping the row changes nothing. Parc Asterix opts into the shared
- * retirement gate (destination.ts) to force-close it instead.
+ * A show that leaves `paxSchedules` for the day is closed the same poll from
+ * the bill itself — see showAbsence.test.ts, which is what actually clears a
+ * frozen show row now.
+ *
+ * The gate covers the case the bill cannot see: a show that leaves the offline
+ * package as well, taking its POI row with it. Nothing then names the id at
+ * all, so there is nothing to close it against, and the collector being
+ * upsert-only means dropping the row changes nothing on the wiki. Four retired
+ * shows read OPERATING for 8 to 24 days that way.
  */
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -26,12 +29,27 @@ const performance = (drupalId: string) => ({
   times: [{at: '14:00:00', startAt: null, endAt: null}],
 });
 
+const show = (drupalId: number): POIEntry => ({
+  drupal_id: drupalId,
+  title: `Show ${drupalId}`,
+  titles: {en: `Show ${drupalId}`},
+  latitude: 49.13675,
+  longitude: 2.573816,
+  _type: 'show',
+});
+
+/**
+ * The default empty POI list is the scenario under test: the package has
+ * dropped the show's row, so buildLiveData() cannot close it from the bill.
+ */
 function stubbedPark(
   latencies: ReturnType<typeof latency>[],
   schedules: ReturnType<typeof performance>[],
+  poi: POIEntry[] = [],
 ): ParcAsterix {
   const park = new ParcAsterix();
   vi.spyOn(park as any, 'getPolling').mockResolvedValue({latencies, schedules});
+  vi.spyOn(park as any, 'getPOIData').mockResolvedValue({poi, calendar: []});
   return park;
 }
 
@@ -66,19 +84,22 @@ describe('Parc Asterix show retirement', () => {
     expect(live.find((l) => l.id === '31483')).toEqual({id: '31483', status: 'CLOSED'});
   });
 
-  it('leaves a show alone that simply did not perform this week', async () => {
+  // While the package still lists the show, the bill closes it the same day
+  // and the gate never sees it absent, so the two cannot both speak for it.
+  it('stays out of the way while the package still lists the show', async () => {
     vi.useFakeTimers();
 
-    await stubbedPark(ATTRACTIONS, [performance('31483')]).getLiveData();
+    const poi = [show(31483)];
+    await stubbedPark(ATTRACTIONS, [performance('31483')], poi).getLiveData();
 
-    // Shows drop out of paxSchedules on any day they do not perform, so a few
-    // days of absence is an ordinary weekly cadence, not a retirement.
-    vi.setSystemTime(Date.now() + 5 * DAY);
-    await stubbedPark(ATTRACTIONS, []).getLiveData();
-    await stubbedPark(ATTRACTIONS, []).getLiveData();
-    const live = await stubbedPark(ATTRACTIONS, []).getLiveData();
+    vi.setSystemTime(Date.now() + 30 * DAY);
+    await stubbedPark(ATTRACTIONS, [], poi).getLiveData();
+    await stubbedPark(ATTRACTIONS, [], poi).getLiveData();
+    const live = await stubbedPark(ATTRACTIONS, [], poi).getLiveData();
 
-    expect(live.find((l) => l.id === '31483')).toBeUndefined();
+    expect(live.filter((l) => l.id === '31483')).toEqual([
+      {id: '31483', status: 'CLOSED'},
+    ]);
   });
 
   it('resets the window when the show performs again', async () => {
@@ -100,10 +121,9 @@ describe('Parc Asterix show retirement', () => {
     expect(live.find((l) => l.id === '31483')).toBeUndefined();
   });
 
-  // getPolling() returns `data?.data?.paxLatencies || []`, so a malformed or
-  // gutted GraphQL response parses cleanly into an empty build rather than
-  // throwing. Retiring on that would publish a confident CLOSED for a park
-  // that is open.
+  // getPolling() now throws on a malformed GraphQL payload, but a caller that
+  // hands the gate an empty build by any other route must still not retire on
+  // it: a confident CLOSED across an open park is the failure being avoided.
   it('withholds retirement when the whole polling feed comes back empty', async () => {
     vi.useFakeTimers();
 
