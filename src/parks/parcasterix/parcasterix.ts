@@ -14,7 +14,7 @@ import {
   LocalisedString,
   MultilangString,
 } from '@themeparks/typelib';
-import {constructDateTime, hostnameFromUrl, formatDate, formatInTimezone} from '../../datetime.js';
+import {addDays, constructDateTime, hostnameFromUrl, formatDate} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 import AdmZip from 'adm-zip';
@@ -165,8 +165,6 @@ export function buildLocalisedName(item: POIEntry): LocalisedString {
  */
 const MIN_ATTRACTION_BILL_FRACTION = 0.5;
 
-/** Local hour at which the previous operating day's after-midnight tail ends. */
-const NIGHT_ENDS_HOUR = 6;
 
 /**
  * What today's calendar lets us say about a show that is missing from
@@ -204,19 +202,26 @@ export function showBillAuthority(
   calendar: ScheduleEntry[],
   parkIsBusy: boolean,
 ): 'all-dark' | 'read-bill' | 'stale' | 'unknown' {
-  // An event night runs past midnight — Halloween closes at 01:00 — so the
-  // small hours still belong to the day before. The bill is still that day's
-  // and is still correct, so this is `unknown`, not `stale`: the shows on it
-  // are mid-performance and their times must keep publishing.
-  const localHour = parseInt(formatInTimezone(now, timezone, 'iso').slice(11, 13), 10);
-  if (!Number.isFinite(localHour) || localHour < NIGHT_ENDS_HOUR) return 'unknown';
-
   if (calendar.length === 0) return 'unknown';
 
-  // Closed days carry no hours and so never reach the calendar at all.
-  const todaysHours = calendar.filter(
-    (entry) => entry.date === formatDate(now, timezone),
+  const today = formatDate(now, timezone);
+
+  // An event night runs past midnight — Halloween closes at 01:00 — so the
+  // small hours can still belong to the day before, whose session is still
+  // running and whose bill is therefore still the current one. Ask the
+  // calendar which day we are in rather than guessing at an hour: a fixed
+  // cutoff has to be late enough for the longest event night, and every hour
+  // it buys for that is an hour of re-publishing yesterday's programme as
+  // today's on all the ordinary days. The entry is dated by the day the
+  // session opened, so it sorts before today while running past midnight.
+  const midSession = calendar.some(
+    (entry) =>
+      entry.date < today && new Date(entry.closingTime).getTime() > now.getTime(),
   );
+  if (midSession) return 'unknown';
+
+  // Closed days carry no hours and so never reach the calendar at all.
+  const todaysHours = calendar.filter((entry) => entry.date === today);
   if (todaysHours.length === 0) return parkIsBusy ? 'unknown' : 'all-dark';
 
   const opensAt = Math.min(
@@ -566,12 +571,22 @@ export class ParcAsterix extends Destination {
         )
         .all() as unknown as SqliteShow[];
 
-      // Query calendar
+      // Query calendar.
+      //
+      // From yesterday, not today: an event night that runs past midnight is
+      // stored under the day it opened, so at 00:30 the session actually in
+      // progress is on yesterday's row. Dropping it is what left the small
+      // hours unable to tell a running event night from a finished day.
+      // showBillAuthority reads the extra row; buildSchedules trims it back
+      // off, so what gets published is unchanged.
+      //
+      // The date is the park's own: on a server running ahead of Paris,
+      // formatDate(now) can already be tomorrow and take today's row with it.
       const now = new Date();
-      const today = formatDate(now);
+      const from = formatDate(addDays(now, -1), this.timezone);
       const calendarItems = db
         .prepare('SELECT day, type FROM calendar_items WHERE day >= ?')
-        .all(today) as unknown as SqliteCalendarItem[];
+        .all(from) as unknown as SqliteCalendarItem[];
 
       const labels = db
         .prepare(
@@ -1069,10 +1084,16 @@ export class ParcAsterix extends Destination {
       return [];
     }
 
+    // getPOIData reaches back one day so showBillAuthority can see an event
+    // night still running past midnight. That extra day is not ours to
+    // publish: yesterday's hours are not a forecast.
+    const today = formatDate(new Date(), this.timezone);
+    const upcoming = calendar.filter((entry) => entry.date >= today);
+
     return [
       {
         id: 'parcasterixpark',
-        schedule: calendar.map((entry) => ({
+        schedule: upcoming.map((entry) => ({
           date: entry.date,
           type: entry.type,
           openingTime: entry.openingTime,
