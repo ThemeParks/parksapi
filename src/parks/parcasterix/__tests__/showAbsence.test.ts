@@ -541,4 +541,62 @@ describe('showBillAuthority', () => {
     expect(showBillAuthority(at('2026-09-09T10:00:00Z'), 'Europe/Paris', [], false))
       .toBe('unknown');
   });
+
+  /**
+   * The window a fixed 06:00 cutoff left open. Between local midnight and 06:00
+   * the bill is still the last open day's, and treating that as authoritative
+   * republished a passed day's programme under tonight's date — which is what
+   * the wiki was serving at 00:20 on 2026-09-09, times and all.
+   *
+   * The park's own hours answer it exactly: nothing is running, so there is
+   * nothing to say.
+   */
+  it('calls the bill stale in the small hours of an ordinary open day', () => {
+    // 00:30 and 03:00 local on the 9th, a day that opens at 10:00.
+    for (const utc of ['2026-09-08T22:30:00Z', '2026-09-09T01:00:00Z']) {
+      expect(showBillAuthority(at(utc), 'Europe/Paris', [TODAY], false)).toBe('stale');
+    }
+  });
+
+  /**
+   * The same hours on a closed day. The bill is retained across closures, so
+   * before this the small hours published the last open day's performances
+   * re-dated onto a day the park never opens.
+   */
+  it('calls every show dark from midnight on a closed day', () => {
+    // 00:30 local on the 10th; the calendar has the 9th and stops.
+    expect(showBillAuthority(at('2026-09-09T22:30:00Z'), 'Europe/Paris', [TODAY], false))
+      .toBe('all-dark');
+  });
+
+  it('still lets the live feed veto a closed calendar in the small hours', () => {
+    expect(showBillAuthority(at('2026-09-09T22:30:00Z'), 'Europe/Paris', [TODAY], true))
+      .toBe('unknown');
+  });
+
+  /**
+   * A finished day is not a running one. Yesterday's row is in the calendar
+   * now, so the mid-session test has to key off its closing time rather than
+   * its mere presence.
+   */
+  it('does not treat a day that has already closed as still running', () => {
+    const yesterday = hours('2026-09-08', '10:00:00', '18:00:00');
+    expect(showBillAuthority(at('2026-09-08T22:30:00Z'), 'Europe/Paris', [yesterday, TODAY], false))
+      .toBe('stale'); // 00:30 on the 9th, the 8th shut six hours ago
+  });
+
+  /** The boundary: the session's own closing minute is the last one it owns. */
+  it('stops trusting the bill the moment the night closes', () => {
+    const night = {
+      date: '2026-10-17',
+      type: 'TICKETED_EVENT',
+      openingTime: '2026-10-17T19:00:00+02:00',
+      closingTime: '2026-10-18T01:00:00+02:00',
+    };
+    const nextDayOpen = hours('2026-10-18', '10:00:00', '18:00:00');
+    expect(showBillAuthority(at('2026-10-17T22:59:00Z'), 'Europe/Paris', [night, nextDayOpen], false))
+      .toBe('unknown'); // 00:59 local, one minute of the night left
+    expect(showBillAuthority(at('2026-10-17T23:01:00Z'), 'Europe/Paris', [night, nextDayOpen], false))
+      .toBe('stale');   // 01:01 local, the night is over and the 18th opens at 10:00
+  });
 });
