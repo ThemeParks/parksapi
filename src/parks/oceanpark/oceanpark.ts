@@ -50,7 +50,7 @@ import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
-import {formatInTimezone, formatDate, constructDateTime, hostnameFromUrl} from '../../datetime.js';
+import {formatDate, constructDateTime, hostnameFromUrl} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 import type {Entity, LiveData, EntitySchedule, ScheduleEntry} from '@themeparks/typelib';
 import {AttractionTypeEnum} from '@themeparks/typelib';
@@ -357,6 +357,55 @@ export function parseQueueMinutes(text: string | null | undefined): number | nul
   if (!m) return null;
   const n = Number(m[1]);
   return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/**
+ * Parse one `timeSlot` entry from the daily-schedule feed.
+ *
+ * Nearly every entry is a single start time ("13:00:00"). Event-tab items are
+ * sometimes a continuous window instead ("11:00:00-17:00:00" — the
+ * halloween-2026 tab's Bulu Boo Trick-or-Treat Party), which is a range, not
+ * a start time. Handing that string straight to constructDateTime() built an
+ * Invalid Date and threw a bare RangeError out of buildLiveData(), so one
+ * event item took every attraction wait time down with it on every sync.
+ *
+ * Returns null for anything that is not a valid time or time range, so no
+ * unvalidated feed text ever reaches date construction. A range whose end is
+ * not after its start is nonsense (the park does not run past midnight), so
+ * the end is discarded and only the start kept.
+ */
+export function parseShowTimeSlot(raw: unknown): {start: string; end?: string} | null {
+  if (typeof raw !== 'string') return null;
+
+  const parts = raw.trim().split(/\s*[-\u2013\u2014]\s*/);
+  if (parts.length > 2) return null;
+
+  const start = normaliseClockTime(parts[0]);
+  if (!start) return null;
+  if (parts.length === 1) return {start};
+
+  const end = normaliseClockTime(parts[1]);
+  if (!end) return null;
+  if (end <= start) {
+    console.warn(`[OceanPark] range timeSlot "${raw}" ends at or before it starts; keeping the start only`);
+    return {start};
+  }
+
+  return {start, end};
+}
+
+/** "13:5" style sloppiness is rejected; "13:05" and "13:05:00" both normalise to "13:05:00". */
+function normaliseClockTime(text: string): string | null {
+  const m = text.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) return null;
+
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  const sec = m[3] === undefined ? 0 : Number(m[3]);
+  if (h > 23 || min > 59 || sec > 59) return null;
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(h)}:${pad(min)}:${pad(sec)}`;
 }
 
 /** Parse a "10:00 am - 7:00 pm" style range into 24h HH:mm strings. */
@@ -803,15 +852,30 @@ export class OceanParkHongKong extends Destination {
 
     // Shows — group today's programme entries by slug (same grouping
     // buildEntityList uses, so ids always agree) and emit remaining
-    // showtimes. No explicit end time is published, only a start.
+    // showtimes. Most entries are a bare start time; event-tab entries can be
+    // a start-to-end window instead, which carries a real end time.
     const showGroups = groupShowsBySlug(scheduleItems);
     const now = Date.now();
     for (const [slug, group] of showGroups) {
       const showtimes = group.items
         .flatMap(entry => entry.timeSlot ?? [])
-        .map(t => formatInTimezone(new Date(constructDateTime(today, t, TIMEZONE)), TIMEZONE, 'iso'))
-        .filter(iso => new Date(iso).getTime() >= now)
-        .map(iso => ({type: 'Performance Time', startTime: iso}));
+        .map(raw => {
+          const slot = parseShowTimeSlot(raw);
+          if (!slot) {
+            console.warn(`[OceanPark] show "${group.title}": unrecognised timeSlot ${JSON.stringify(raw)}; dropping that slot`);
+            return null;
+          }
+          return {
+            type: 'Performance Time',
+            startTime: constructDateTime(today, slot.start, TIMEZONE),
+            ...(slot.end ? {endTime: constructDateTime(today, slot.end, TIMEZONE)} : {}),
+          };
+        })
+        .filter((s): s is {type: string; startTime: string; endTime?: string} => s !== null)
+        // A window that has started but not yet finished is still running, so
+        // an all-day event stays listed until its end time instead of
+        // vanishing a second after it opens.
+        .filter(s => new Date(s.endTime ?? s.startTime).getTime() >= now);
 
       const ld: LiveData = {
         id: `show_${slug}`,

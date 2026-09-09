@@ -16,6 +16,7 @@ import {
   slugify,
   groupShowsBySlug,
   parseQueueMinutes,
+  parseShowTimeSlot,
   parseHourRange,
   addDaysToDateString,
   computeAffineTransform,
@@ -262,6 +263,50 @@ describe('parseHourRange', () => {
     // 24h. Rolling the close time to the next calendar date is buildSchedules'
     // responsibility (covered in the buildSchedules describe block below).
     expect(parseHourRange('6:00 pm - 12:30 am')).toEqual({open: '18:00', close: '00:30'});
+  });
+});
+
+describe('parseShowTimeSlot', () => {
+  test('parses a plain HH:MM:SS start time', () => {
+    expect(parseShowTimeSlot('13:00:00')).toEqual({start: '13:00:00'});
+  });
+
+  test('parses a HH:MM start time, padding the seconds', () => {
+    expect(parseShowTimeSlot('13:05')).toEqual({start: '13:05:00'});
+  });
+
+  test('parses the events-tab range shape into a start and an end', () => {
+    // Real payload: the halloween-2026 tab publishes a continuous window
+    // rather than individual performance times.
+    expect(parseShowTimeSlot('11:00:00-17:00:00')).toEqual({start: '11:00:00', end: '17:00:00'});
+  });
+
+  test('tolerates whitespace and dash variants around the range separator', () => {
+    expect(parseShowTimeSlot(' 11:00 - 17:00 ')).toEqual({start: '11:00:00', end: '17:00:00'});
+    expect(parseShowTimeSlot('11:00:00\u201317:00:00')).toEqual({start: '11:00:00', end: '17:00:00'});
+  });
+
+  test('keeps only the start when the range end is not after the start', () => {
+    expect(parseShowTimeSlot('17:00:00-11:00:00')).toEqual({start: '17:00:00'});
+  });
+
+  test('rejects out-of-range clock components rather than passing them on', () => {
+    expect(parseShowTimeSlot('25:00:00')).toBeNull();
+    expect(parseShowTimeSlot('12:60:00')).toBeNull();
+    expect(parseShowTimeSlot('12:00:60')).toBeNull();
+  });
+
+  test('rejects text that is not a time at all', () => {
+    expect(parseShowTimeSlot('')).toBeNull();
+    expect(parseShowTimeSlot('All day')).toBeNull();
+    expect(parseShowTimeSlot('11:00:00-')).toBeNull();
+    expect(parseShowTimeSlot('10:00:00-12:00:00-14:00:00')).toBeNull();
+  });
+
+  test('rejects non-string input', () => {
+    expect(parseShowTimeSlot(null)).toBeNull();
+    expect(parseShowTimeSlot(undefined)).toBeNull();
+    expect(parseShowTimeSlot(1300)).toBeNull();
   });
 });
 
@@ -716,6 +761,57 @@ describe('buildLiveData', () => {
     const attraction = live.find((l) => l.id === 'attraction_node-1');
     expect(attraction.status).toBe('OPERATING');
     expect(attraction.queue.STANDBY.waitTime).toBe(10);
+  });
+
+  test('a range timeSlot does not reject the whole live-data build and take wait times with it', async () => {
+    // Regression: Ocean Park's halloween-2026 tab publishes a window
+    // ("11:00:00-17:00:00") in timeSlot instead of a start time. Handed
+    // straight to constructDateTime() that produced an Invalid Date and a
+    // RangeError that rejected buildLiveData() outright, so one event item
+    // zeroed out every attraction wait time as well as every show.
+    const probe = new Probe({
+      attractions: [mkAttraction({queueTime: {text: ' 10  mins'}})],
+      scheduleItems: [{title: 'Bulu Boo Trick-or-Treat Party', timeSlot: ['11:00:00-17:00:00']}],
+    });
+
+    const live = await probe.liveData();
+    const attraction = live.find((l) => l.id === 'attraction_node-1');
+    expect(attraction.status).toBe('OPERATING');
+    expect(attraction.queue.STANDBY.waitTime).toBe(10);
+  });
+
+  test('a range timeSlot still running is OPERATING with both a start and an end time', async () => {
+    // "now" is noon; the window runs 11:00-17:00, so it is mid-run.
+    const probe = new Probe({
+      scheduleItems: [{title: 'Bulu Boo Trick-or-Treat Party', timeSlot: ['11:00:00-17:00:00']}],
+    });
+    const live = await probe.liveData();
+    const entry = live.find((l) => l.id === 'show_bulu-boo-trick-or-treat-party');
+    expect(entry.status).toBe('OPERATING');
+    expect(entry.showtimes).toHaveLength(1);
+    expect(entry.showtimes[0].startTime.startsWith('2026-07-07T11:00')).toBe(true);
+    expect(entry.showtimes[0].endTime.startsWith('2026-07-07T17:00')).toBe(true);
+  });
+
+  test('a range timeSlot that has already finished is CLOSED', async () => {
+    const probe = new Probe({
+      scheduleItems: [{title: 'Bulu Boo Trick-or-Treat Party', timeSlot: ['09:00:00-10:00:00']}],
+    });
+    const live = await probe.liveData();
+    const entry = live.find((l) => l.id === 'show_bulu-boo-trick-or-treat-party');
+    expect(entry.status).toBe('CLOSED');
+    expect(entry.showtimes).toBeUndefined();
+  });
+
+  test('an unparseable timeSlot is dropped without losing the other slots of the same show', async () => {
+    const probe = new Probe({
+      scheduleItems: [{title: 'All Star Jam', timeSlot: ['Weather permitting', '13:00:00']}],
+    });
+    const live = await probe.liveData();
+    const entry = live.find((l) => l.id === 'show_all-star-jam');
+    expect(entry.status).toBe('OPERATING');
+    expect(entry.showtimes).toHaveLength(1);
+    expect(entry.showtimes[0].startTime.startsWith('2026-07-07T13:00')).toBe(true);
   });
 
   test('an attractions-fetch failure degrades to no attraction wait times without losing show live data', async () => {

@@ -542,6 +542,15 @@ describe('DateTime Utilities', () => {
   });
 
   describe('constructDateTime()', () => {
+    test('throws a message naming the offending input, not a bare "Invalid time value"', () => {
+      // A park feed handing over a range rather than a start time used to
+      // surface as an unattributable RangeError from deep inside Intl.
+      expect(() => constructDateTime('2026-09-10', '11:00:00-17:00:00', 'Asia/Hong_Kong'))
+        .toThrow(/invalid date\/time.*11:00:00-17:00:00.*Asia\/Hong_Kong/);
+      expect(() => constructDateTime('2026-09-10', 'not a time', 'Asia/Hong_Kong'))
+        .toThrow(RangeError);
+    });
+
     test('should construct ISO datetime from date + time + timezone', () => {
       const result = constructDateTime('2024-07-15', '10:00', 'Europe/Amsterdam');
       // Summer CEST = UTC+2
