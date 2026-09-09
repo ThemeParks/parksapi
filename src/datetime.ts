@@ -268,6 +268,16 @@ export function constructDateTime(dateStr: string, timeStr: string, tz: string):
   // (non-existent) input. Park APIs don't report times during gap hours in
   // practice, so this edge case is documented rather than special-cased.
   let ms = new Date(`${target}Z`).getTime();
+  // Park feeds occasionally publish something that isn't a clock time at all
+  // (a range, a note, an empty string). Without this guard the first
+  // formatToParts() below throws a bare "Invalid time value" with no clue
+  // which park, date or field produced it — an expensive thing to diagnose
+  // from a collector log.
+  if (!Number.isFinite(ms)) {
+    throw new RangeError(
+      `constructDateTime: invalid date/time (date="${dateStr}", time="${timeStr}", timezone="${tz}")`,
+    );
+  }
   for (let i = 0; i < 3; i++) {
     const wc = wallClockIn(ms);
     if (wc === target) break;
