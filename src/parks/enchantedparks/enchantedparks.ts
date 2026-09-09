@@ -328,6 +328,34 @@ export type ParkConfig = {
 const LIST_FEATURES_QUERY =
   'query($nextToken:String){ listFeatures(limit:300, nextToken:$nextToken){ nextToken items{ name parentAssignmentId operationalStatus } } }';
 
+/**
+ * How long an empty scrape is worth remembering.
+ *
+ * Long enough to spare a genuinely empty page a refetch on every build, short
+ * enough that recovering from a broken one is a coffee break rather than a
+ * day.
+ */
+const EMPTY_SCRAPE_TTL_SECONDS = 60 * 15;
+
+/**
+ * TTL for a scraped result: the caller's own TTL for a real answer, fifteen
+ * minutes for an empty one.
+ *
+ * Every scraper here swallows a page failure and returns `[]`, so that one
+ * missing page cannot take out a whole destination. Cached at full length,
+ * that turns a single bad fetch into a day of pretending the page is empty.
+ * It is how Mid-America Parks came to publish 3 entities against 76 once its
+ * rides pages began redirecting, and why re-pointing the host did not take
+ * effect until the entries expired — the cache key is built from the method
+ * arguments, so changing the subdomain does not change the key.
+ *
+ * Empty is not always a failure: a park out of season really does publish no
+ * calendar, and a waterpark really does have no shows. So an empty answer is
+ * kept, briefly, and treated as provisional rather than as the day's truth.
+ */
+export const scrapeTtl = (fullTtlSeconds: number) =>
+  (rows: unknown[]) => (rows.length ? fullTtlSeconds : EMPTY_SCRAPE_TTL_SECONDS);
+
 class EnchantedParks extends Destination {
   /** Subdomain root, e.g. `https://valleyfair.enchantedparks.com` (no trailing slash) */
   @config subdomain: string = '';
@@ -470,7 +498,7 @@ class EnchantedParks extends Destination {
    *
    * Cached 1h.
    */
-  @cache({ttlSeconds: 60 * 60 * 12})
+  @cache({callback: scrapeTtl(60 * 60 * 12)})
   async scrapeSchedule(category: string): Promise<ScheduleEntry[]> {
     const today = new Date();
     const end = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
@@ -521,7 +549,7 @@ class EnchantedParks extends Destination {
    * fetch fails so a missing waterpark page doesn't take out the whole
    * destination.
    */
-  @cache({ttlSeconds: 60 * 60 * 24})
+  @cache({callback: scrapeTtl(60 * 60 * 24)})
   async scrapeAttractions(ridesPath: string): Promise<AttractionStub[]> {
     try {
       const resp = await this.fetchAttractionsPage(ridesPath);
@@ -539,7 +567,7 @@ class EnchantedParks extends Destination {
    * dining category and linking back to `/rides-and-experiences/dining/…`
    * detail pages instead of `/attractions/…`.
    */
-  @cache({ttlSeconds: 60 * 60 * 24})
+  @cache({callback: scrapeTtl(60 * 60 * 24)})
   async scrapeDining(diningPath: string): Promise<AttractionStub[]> {
     try {
       const resp = await this.fetchAttractionsPage(diningPath);
@@ -555,7 +583,7 @@ class EnchantedParks extends Destination {
    * {@link parseShowsPage} for why this needs its own parser rather than
    * reusing {@link parseAttractionsPage}.
    */
-  @cache({ttlSeconds: 60 * 60 * 24})
+  @cache({callback: scrapeTtl(60 * 60 * 24)})
   async scrapeShows(showsPath: string): Promise<AttractionStub[]> {
     try {
       const resp = await this.fetchAttractionsPage(showsPath);
