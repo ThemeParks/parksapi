@@ -585,6 +585,56 @@ describe('showBillAuthority', () => {
       .toBe('stale'); // 00:30 on the 9th, the 8th shut six hours ago
   });
 
+  /**
+   * The other end of the same window, and a live regression: on 2026-09-09 the
+   * feed reverted to its default programme at 18:50, fifty minutes after the
+   * 18:00 close. Read as authoritative, it reopened three shows that had not
+   * performed all day — 31497, 31508 and 31519, all correctly closed at 11:51 —
+   * and republished their elapsed times on a shut park.
+   */
+  it('calls the bill stale once the park has closed', () => {
+    // 18:30, 20:00 and 23:45 local on a day that shuts at 18:00.
+    for (const utc of ['2026-09-09T16:30:00Z', '2026-09-09T18:00:00Z', '2026-09-09T21:45:00Z']) {
+      expect(showBillAuthority(at(utc), 'Europe/Paris', [TODAY], true)).toBe('stale');
+    }
+  });
+
+  it('still reads the bill right up to closing', () => {
+    expect(showBillAuthority(at('2026-09-09T15:59:00Z'), 'Europe/Paris', [TODAY], true))
+      .toBe('read-bill'); // 17:59 local, one minute before the 18:00 close
+    expect(showBillAuthority(at('2026-09-09T16:01:00Z'), 'Europe/Paris', [TODAY], true))
+      .toBe('stale');     // 18:01 local
+  });
+
+  /**
+   * A day with two sessions is bounded by the outermost pair, not by whichever
+   * range happens to sort first.
+   */
+  it('spans a split day from its first opening to its last close', () => {
+    const morning = hours('2026-09-09', '10:00:00', '13:00:00');
+    const evening = hours('2026-09-09', '17:00:00', '22:00:00');
+    const split = [morning, evening];
+    expect(showBillAuthority(at('2026-09-09T13:00:00Z'), 'Europe/Paris', split, true))
+      .toBe('read-bill'); // 15:00 local, between the two sessions but inside the day
+    expect(showBillAuthority(at('2026-09-09T20:30:00Z'), 'Europe/Paris', split, true))
+      .toBe('stale');     // 22:30 local, past the last close
+  });
+
+  /**
+   * An event night's close is already rolled to the next day, so the upper
+   * bound must not cut it off at midnight.
+   */
+  it('keeps reading the bill through an event night, past midnight', () => {
+    const night = {
+      date: '2026-10-17',
+      type: 'TICKETED_EVENT',
+      openingTime: '2026-10-17T19:00:00+02:00',
+      closingTime: '2026-10-18T01:00:00+02:00',
+    };
+    expect(showBillAuthority(at('2026-10-17T21:00:00Z'), 'Europe/Paris', [night], true))
+      .toBe('read-bill'); // 23:00 local on the 17th, the night is running
+  });
+
   /** The boundary: the session's own closing minute is the last one it owns. */
   it('stops trusting the bill the moment the night closes', () => {
     const night = {

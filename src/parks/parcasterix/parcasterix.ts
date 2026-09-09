@@ -224,11 +224,27 @@ export function showBillAuthority(
   const todaysHours = calendar.filter((entry) => entry.date === today);
   if (todaysHours.length === 0) return parkIsBusy ? 'unknown' : 'all-dark';
 
+  // The bill is only about today while today is happening. Outside the park's
+  // own hours the feed serves a default programme instead — eight shows in the
+  // shape of a longer day, one of them with a window running an hour past
+  // today's close. Observed on 2026-09-09: today's real bill arrived at 09:28
+  // for a 10:00 open, held all day, and reverted at 18:50, fifty minutes after
+  // the 18:00 close. Read as authoritative, that reverted programme reopened
+  // three shows that had not performed at all and republished their elapsed
+  // times, on a shut park.
+  //
+  // So bound it at both ends. Before opening and after closing the answer is
+  // the same as it has always been for the morning: say nothing about shows
+  // and leave the day's own rows standing.
   const opensAt = Math.min(
     ...todaysHours.map((entry) => new Date(entry.openingTime).getTime()),
   );
-  if (!Number.isFinite(opensAt)) return 'unknown';
-  return now.getTime() >= opensAt ? 'read-bill' : 'stale';
+  const closesAt = Math.max(
+    ...todaysHours.map((entry) => new Date(entry.closingTime).getTime()),
+  );
+  if (!Number.isFinite(opensAt) || !Number.isFinite(closesAt)) return 'unknown';
+  if (now.getTime() < opensAt || now.getTime() > closesAt) return 'stale';
+  return 'read-bill';
 }
 
 // ── Implementation ─────────────────────────────────────────────
