@@ -165,20 +165,6 @@ export function buildLocalisedName(item: POIEntry): LocalisedString {
  */
 const MIN_ATTRACTION_BILL_FRACTION = 0.5;
 
-/**
- * Fraction of the park's attractions that must report open before the live
- * feed is allowed to veto a calendar that says the park is shut.
- *
- * `some(isOpen)` is not enough. Four POIs here — three playgrounds and a
- * walk-through, none of which take a queue — report `isOpen: true` around the
- * clock and have never once carried a latency. Measured over 284 samples
- * spanning a full operating day: out of hours the open count was exactly those
- * 4 of 50, every time; in hours it ran 37 to 40. A quarter sits in the middle
- * of that gap with room on both sides, and asking for a quorum rather than a
- * single vote is what makes the veto mean "the park is evidently busy" instead
- * of "at least one flag is stuck on".
- */
-const MIN_OPEN_FRACTION = 0.25;
 
 
 /**
@@ -200,9 +186,22 @@ const MIN_OPEN_FRACTION = 0.25;
  * performs — and that one matters, because a retained bill means the closed
  * days are exactly when the stale programme looks most like a live one.
  *
- * `parkIsBusy` is the live feed's own vote, and it only ever vetoes: a calendar
- * claiming today is closed while attractions report themselves open is a
- * calendar to distrust, not a park to close.
+ * The ride feed gets no vote on this. It used to: a calendar claiming today is
+ * closed while attractions reported themselves open was treated as a calendar
+ * to distrust. That conflates "the park is busy" with "the bill is about
+ * today", and the two come apart exactly where it matters. On 2026-09-10, a
+ * closed day, eleven real rides came up between 17:42 and 18:03 for what looked
+ * like a private evening event, while `paxConfiguration` still said
+ * `parkOpen: false` and the bill was the same out-of-hours default it had been
+ * serving for twenty-three hours. The rides were genuinely running and the vote
+ * was truthful; it was simply an answer to a different question. Eleven rides
+ * open for a corporate booking is no evidence that the show programme was
+ * rewritten.
+ *
+ * So on a day with no public session the shows are dark, whatever the rides are
+ * doing. A private event's rides still publish as OPERATING from
+ * `paxLatencies`, which is true, while its shows stay CLOSED, which is also
+ * true. Feed health is a separate question and `corroborated` still answers it.
  *
  * The four answers separate two things that look alike and are not. `stale`
  * means the bill is known to be about a day that has passed, so neither its
@@ -215,7 +214,6 @@ export function showBillAuthority(
   now: Date,
   timezone: string,
   calendar: ScheduleEntry[],
-  parkIsBusy: boolean,
 ): 'all-dark' | 'read-bill' | 'stale' | 'unknown' {
   if (calendar.length === 0) return 'unknown';
 
@@ -237,7 +235,7 @@ export function showBillAuthority(
 
   // Closed days carry no hours and so never reach the calendar at all.
   const todaysHours = calendar.filter((entry) => entry.date === today);
-  if (todaysHours.length === 0) return parkIsBusy ? 'unknown' : 'all-dark';
+  if (todaysHours.length === 0) return 'all-dark';
 
   // The bill is only about today while today is happening. Outside the park's
   // own hours the feed serves a default programme instead — eight shows in the
@@ -1062,18 +1060,10 @@ export class ParcAsterix extends Destination {
 
     // Whether the bill is about today at all, and what to publish when it is
     // not. See showBillAuthority.
-    // The feed's own vote on whether the park is actually busy, used only to
-    // veto a calendar that says otherwise. It needs a quorum: see
-    // MIN_OPEN_FRACTION for the four POIs whose open flag never clears.
-    const openCount = latencies.filter((entry) => entry.isOpen).length;
-    const parkIsBusy = attractions > 0
-      && openCount >= attractions * MIN_OPEN_FRACTION;
-
     const authority = showBillAuthority(
       new Date(),
       this.timezone,
       calendar,
-      parkIsBusy,
     );
 
     const showIds = poi
