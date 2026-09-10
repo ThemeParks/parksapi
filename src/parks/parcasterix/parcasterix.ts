@@ -308,10 +308,12 @@ export class ParcAsterix extends Destination {
    *
    * 0.2 puts it back the other way: more than about a fifth of the tracked set
    * gone at once is distrusted, roughly thirteen attractions. Nothing is lost
-   * by being strict here — `paxLatencies` lists every attraction year-round, so
-   * an attraction going absent is already an anomaly rather than a retirement,
-   * and the absence the gate genuinely exists for (a show losing its POI row)
-   * is one or two entities, well under `liveEntityRetirementMinBulk`.
+   * by being strict here. An attraction leaving `paxLatencies` is usually
+   * seasonal rather than a retirement — on 2026-09-10 eight went at once, five
+   * Peur sur le Parc, two Noel Gaulois — and a seasonal departure wants a
+   * CLOSED row anyway, which is what the gate produces. The absence the gate
+   * genuinely exists for (a show losing its POI row) is one or two entities,
+   * well under `liveEntityRetirementMinBulk`.
    */
   protected liveEntityRetirementMaxFraction = 0.2;
 
@@ -1112,12 +1114,19 @@ export class ParcAsterix extends Destination {
     const observed = new Set(latencies.map((entry) => String(entry.drupalId)));
     const attractions = poi.filter((item) => item._type === 'attraction').length;
 
-    // `paxLatencies` carries every attraction year-round, closed ones included
-    // through the winter shutdown, so a short one is a broken poll and never a
-    // shut park. Counting it against the package's own attraction total keeps
-    // that self-calibrating as the park adds and drops rides, and catches the
-    // partial regeneration an emptiness check misses: a bill of one attraction
-    // out of fifty would otherwise close every show in the park.
+    // `paxLatencies` shrinks with the season rather than listing everything
+    // year-round: on 2026-09-10 it went 50 -> 42 in one step as the Halloween
+    // and Christmas attractions left, and a deep-off-season capture from
+    // 2026-03-30, five days before opening, still carried 44 of them. So it
+    // thins, it does not empty, and a *short* bill is still a broken poll
+    // rather than a shut park.
+    //
+    // Counting it against the package's own attraction total is what makes
+    // that safe, because both lists move together — the same day the bill went
+    // to 42, the package went to 41. An absolute floor would have tripped on
+    // an ordinary seasonal transition. The fraction also catches the partial
+    // regeneration an emptiness check misses: a bill of one attraction out of
+    // fifty would otherwise close every show in the park.
     const corroborated = attractions > 0
       && latencies.length >= attractions * MIN_ATTRACTION_BILL_FRACTION;
 
