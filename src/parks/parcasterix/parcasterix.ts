@@ -165,20 +165,6 @@ export function buildLocalisedName(item: POIEntry): LocalisedString {
  */
 const MIN_ATTRACTION_BILL_FRACTION = 0.5;
 
-/**
- * Fraction of the park's attractions that must report open before the live
- * feed is allowed to veto a calendar that says the park is shut.
- *
- * `some(isOpen)` is not enough. Four POIs here — three playgrounds and a
- * walk-through, none of which take a queue — report `isOpen: true` around the
- * clock and have never once carried a latency. Measured over 284 samples
- * spanning a full operating day: out of hours the open count was exactly those
- * 4 of 50, every time; in hours it ran 37 to 40. A quarter sits in the middle
- * of that gap with room on both sides, and asking for a quorum rather than a
- * single vote is what makes the veto mean "the park is evidently busy" instead
- * of "at least one flag is stuck on".
- */
-const MIN_OPEN_FRACTION = 0.25;
 
 
 /**
@@ -200,9 +186,22 @@ const MIN_OPEN_FRACTION = 0.25;
  * performs — and that one matters, because a retained bill means the closed
  * days are exactly when the stale programme looks most like a live one.
  *
- * `parkIsBusy` is the live feed's own vote, and it only ever vetoes: a calendar
- * claiming today is closed while attractions report themselves open is a
- * calendar to distrust, not a park to close.
+ * The ride feed gets no vote on this. It used to: a calendar claiming today is
+ * closed while attractions reported themselves open was treated as a calendar
+ * to distrust. That conflates "the park is busy" with "the bill is about
+ * today", and the two come apart exactly where it matters. On 2026-09-10, a
+ * closed day, eleven real rides came up between 17:42 and 18:03 for what looked
+ * like a private evening event, while `paxConfiguration` still said
+ * `parkOpen: false` and the bill was the same out-of-hours default it had been
+ * serving for twenty-three hours. The rides were genuinely running and the vote
+ * was truthful; it was simply an answer to a different question. Eleven rides
+ * open for a corporate booking is no evidence that the show programme was
+ * rewritten.
+ *
+ * So on a day with no public session the shows are dark, whatever the rides are
+ * doing. A private event's rides still publish as OPERATING from
+ * `paxLatencies`, which is true, while its shows stay CLOSED, which is also
+ * true. Feed health is a separate question and `corroborated` still answers it.
  *
  * The four answers separate two things that look alike and are not. `stale`
  * means the bill is known to be about a day that has passed, so neither its
@@ -215,7 +214,7 @@ export function showBillAuthority(
   now: Date,
   timezone: string,
   calendar: ScheduleEntry[],
-  parkIsBusy: boolean,
+  closedDates: ReadonlySet<string>,
 ): 'all-dark' | 'read-bill' | 'stale' | 'unknown' {
   if (calendar.length === 0) return 'unknown';
 
@@ -237,7 +236,17 @@ export function showBillAuthority(
 
   // Closed days carry no hours and so never reach the calendar at all.
   const todaysHours = calendar.filter((entry) => entry.date === today);
-  if (todaysHours.length === 0) return parkIsBusy ? 'unknown' : 'all-dark';
+  // No hours today, and two very different reasons land here: the park's own
+  // legend said there is no session, or we could not read what it said and
+  // dropped the day. Only the first is evidence about the park.
+  //
+  // The difference matters because `all-dark` is not silence. It closes every
+  // show id, including the ones today's bill names as performing. Asserting
+  // that over a correct bill because a legend was reworded would be a worse
+  // failure than the staleness this whole mechanism exists to prevent.
+  if (todaysHours.length === 0) {
+    return closedDates.has(today) ? 'all-dark' : 'unknown';
+  }
 
   // The bill is only about today while today is happening. Outside the park's
   // own hours the feed serves a default programme instead — eight shows in the
@@ -496,7 +505,7 @@ export class ParcAsterix extends Destination {
   // so a deploy picks up localised names immediately instead of serving
   // half-a-day of stale single-language ones.
   @cache({ttlSeconds: 43200, cacheVersion: 2}) // 12h
-  async getPOIData(): Promise<{poi: POIEntry[]; calendar: ScheduleEntry[]}> {
+  async getPOIData(): Promise<{poi: POIEntry[]; calendar: ScheduleEntry[]; closedDates: string[]}> {
     const resp = await this.fetchPackageZip();
     const buffer = await resp.arrayBuffer();
 
@@ -517,6 +526,7 @@ export class ParcAsterix extends Destination {
     const allPOI: POIEntry[] = [];
     const byId = new Map<number, POIEntry>();
     let calendar: ScheduleEntry[] = [];
+    let closedDates: string[] = [];
     let primaryLoaded = false;
 
     for (const culture of cultures) {
@@ -535,6 +545,9 @@ export class ParcAsterix extends Destination {
           byId.set(item.drupal_id, item);
         }
         calendar = result.calendar;
+        // @cache stores JSON, and a Set does not survive that round trip, so
+        // this travels as an array and is rebuilt where it is used.
+        closedDates = [...result.closedDates];
         continue;
       }
 
@@ -556,7 +569,7 @@ export class ParcAsterix extends Destination {
       }
     }
 
-    return {poi: allPOI, calendar};
+    return {poi: allPOI, calendar, closedDates};
   }
 
   /**
@@ -566,7 +579,7 @@ export class ParcAsterix extends Destination {
   private loadSqliteDatabase(
     data: Buffer,
     culture: string,
-  ): {poi: POIEntry[]; calendar: ScheduleEntry[]} {
+  ): {poi: POIEntry[]; calendar: ScheduleEntry[]; closedDates: Set<string>} {
     const tmpFile = join(tmpdir(), `pax_${culture}_${Date.now()}.sqlite`);
     writeFileSync(tmpFile, data);
 
@@ -627,11 +640,14 @@ export class ParcAsterix extends Destination {
 
       db.close();
 
-      // Parse calendar labels into hours map
-      const hoursMap = this.parseCalendarLabels(labels);
+      // Parse calendar labels into an hours map, plus the day types whose
+      // legend positively states the park is shut.
+      const {hoursMap, closedTypes} = this.parseCalendarLabels(labels);
 
       // Build calendar entries
-      const calendar = this.buildCalendarEntries(calendarItems, hoursMap);
+      const {entries: calendar, closedDates} = this.buildCalendarEntries(
+        calendarItems, hoursMap, closedTypes,
+      );
 
       // Build POI list. Every localised database also carries a `title_fr`
       // column holding the original French name, so a single database is
@@ -672,7 +688,7 @@ export class ParcAsterix extends Destination {
         })),
       ];
 
-      return {poi, calendar};
+      return {poi, calendar, closedDates};
     } finally {
       try {
         unlinkSync(tmpFile);
@@ -721,8 +737,9 @@ export class ParcAsterix extends Destination {
    */
   private parseCalendarLabels(
     labels: SqliteLabel[],
-  ): Record<string, TimeRange[]> {
+  ): {hoursMap: Record<string, TimeRange[]>; closedTypes: Set<string>} {
     const hoursMap: Record<string, TimeRange[]> = {};
+    const closedTypes = new Set<string>();
 
     const connector = '\\s*(?:-|to)\\s*';
     const postfix = '(?:am|pm|a\\.m|p\\.m|h|hr)\\.?';
@@ -740,9 +757,22 @@ export class ParcAsterix extends Destination {
       ),
     ];
 
+    // A legend carrying no clock time at all is the park saying there is no
+    // session that day — type D reads "Theme Park closed". One carrying clock
+    // times we then failed to pair into a range is a legend we could not read,
+    // which is a different thing and must never be published as a closure.
+    // Built from the same tokens as the range patterns, so the two can never
+    // disagree about what a time looks like.
+    const anyTime = new RegExp(`(?:${withMinutes})|(?:${withoutMinutes})`, 'i');
+
     for (const label of labels) {
       const key = label.key.replace('calendar.dateType.legend.', '');
       if (hoursMap[key]) continue;
+
+      if (!anyTime.test(label.value)) {
+        closedTypes.add(key);
+        continue;
+      }
 
       for (const pattern of patterns) {
         const matches = label.value.match(pattern);
@@ -759,7 +789,7 @@ export class ParcAsterix extends Destination {
       }
     }
 
-    return hoursMap;
+    return {hoursMap, closedTypes};
   }
 
   /**
@@ -768,15 +798,34 @@ export class ParcAsterix extends Destination {
   private buildCalendarEntries(
     calendarItems: SqliteCalendarItem[],
     hoursMap: Record<string, TimeRange[]>,
-  ): ScheduleEntry[] {
+    closedTypes: Set<string>,
+  ): {entries: ScheduleEntry[]; closedDates: Set<string>} {
     const entries: ScheduleEntry[] = [];
+    const closedDates = new Set<string>();
+    const unreadable = new Map<string, number>();
 
     for (const item of calendarItems) {
       const hours = hoursMap[item.type];
-      if (!hours) continue;
-
       // SQLite day field may include time portion ("2026-04-04 00:00:00")
       const dateStr = item.day.split(' ')[0];
+
+      // A day with no hours leaves the calendar either way, so its absence
+      // cannot tell the caller whether the park said "closed" or whether we
+      // failed to read what it said. Those two demand opposite behaviour — one
+      // closes every show in the park, the other must publish nothing at all —
+      // so the distinction is carried out rather than inferred from a gap.
+      //
+      // An empty range list is the same case by a quieter route: a legend that
+      // matched a pattern but whose ranges all failed to parse leaves `[]`,
+      // which is truthy and would otherwise sail past a `!hours` check.
+      if (!hours || hours.length === 0) {
+        if (closedTypes.has(item.type)) {
+          closedDates.add(dateStr);
+        } else {
+          unreadable.set(item.type, (unreadable.get(item.type) ?? 0) + 1);
+        }
+        continue;
+      }
 
       for (const range of hours) {
         if (!range.start || !range.end) continue;
@@ -808,7 +857,18 @@ export class ParcAsterix extends Destination {
       }
     }
 
-    return entries;
+    // Loud on purpose. A day type we cannot read is how an operating day comes
+    // to look exactly like a closed one, and the only thing worse than that
+    // happening is it happening quietly.
+    for (const [type, days] of unreadable) {
+      console.warn(
+        `[${this.constructor.name}] calendar day type '${type}' yielded no ` +
+        `readable hours and does not read as closed — ${days} day(s) dropped. ` +
+        `Shows on those days publish nothing rather than closing.`,
+      );
+    }
+
+    return {entries, closedDates};
   }
 
   // ── Entity building ──────────────────────────────────────────
@@ -918,8 +978,9 @@ export class ParcAsterix extends Destination {
     // closures rather than publishing nothing.
     let poi: POIEntry[] = [];
     let calendar: ScheduleEntry[] = [];
+    let closedDates: string[] = [];
     try {
-      ({poi, calendar} = await this.getPOIData());
+      ({poi, calendar, closedDates} = await this.getPOIData());
     } catch (err) {
       console.warn(
         `[${this.constructor.name}] offline package unavailable, ` +
@@ -1062,18 +1123,11 @@ export class ParcAsterix extends Destination {
 
     // Whether the bill is about today at all, and what to publish when it is
     // not. See showBillAuthority.
-    // The feed's own vote on whether the park is actually busy, used only to
-    // veto a calendar that says otherwise. It needs a quorum: see
-    // MIN_OPEN_FRACTION for the four POIs whose open flag never clears.
-    const openCount = latencies.filter((entry) => entry.isOpen).length;
-    const parkIsBusy = attractions > 0
-      && openCount >= attractions * MIN_OPEN_FRACTION;
-
     const authority = showBillAuthority(
       new Date(),
       this.timezone,
       calendar,
-      parkIsBusy,
+      new Set(closedDates),
     );
 
     const showIds = poi
