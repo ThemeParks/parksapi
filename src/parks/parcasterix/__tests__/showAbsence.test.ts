@@ -79,17 +79,31 @@ const openToday = () => [openDay(new Date().toISOString().slice(0, 10))];
  */
 const closedToday = () => [openDay('2026-09-06'), openDay('2026-09-12')];
 
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
+/**
+ * A day carries no hours for two reasons that look identical in the calendar
+ * and demand opposite behaviour: the park's legend said it is shut, or we could
+ * not read the legend and dropped the day. `closedDates` is the park's own
+ * attestation, so a fixture has to say which case it is.
+ */
+const attestedClosed = () => [todayStr()];
+/** The park said nothing we could read about today. Not evidence of anything. */
+const unreadable = () => [];
+
 function stubbedPark(
   latencies: ReturnType<typeof latency>[],
   schedules: ReturnType<typeof performance>[],
   poi: POIEntry[],
   calendar: () => any[] = openToday,
+  closedDates: () => string[] = attestedClosed,
 ): ParcAsterix {
   const park = new ParcAsterix();
   vi.spyOn(park as any, 'getPolling').mockResolvedValue({latencies, schedules});
   vi.spyOn(park as any, 'getPOIData').mockImplementation(async () => ({
     poi,
     calendar: calendar(),
+    closedDates: closedDates(),
   }));
   return park;
 }
@@ -307,6 +321,10 @@ describe('Parc Asterix dark-show guards', () => {
       ATTRACTIONS,
       [],
       [...ATTRACTION_POI, show(31483), show(31513)],
+      openToday,
+      // The 18th is attested closed. Named rather than derived, because the
+      // park's day has already rolled to the 18th while UTC is still the 17th.
+      () => ['2026-10-18'],
     ).getLiveData();
 
     expect(live.find((l) => l.id === '31483')).toEqual({id: '31483', status: 'CLOSED'});
@@ -345,6 +363,8 @@ describe('Parc Asterix dark-show guards', () => {
       ATTRACTIONS,
       [performance('31483', [{at: '00:45:00', startAt: null, endAt: null}])],
       [...ATTRACTION_POI, show(31483), show(31513)],
+      openToday,
+      () => ['2026-10-18'],
     ).getLiveData();
 
     expect(live.find((l) => l.id === '31483')).toEqual({id: '31483', status: 'CLOSED'});
@@ -554,8 +574,139 @@ describe('a closed day closes the shows', () => {
       closedToday,
     ).getLiveData();
 
+    // Full row: a status-only assertion would pass on a row that had lost its
+    // queue, which is the half of the ride data that actually matters.
     const ride = live.find((l) => l.id === String(ATTRACTION_IDS[0]));
-    expect(ride?.status).toBe('OPERATING');
+    expect(ride).toMatchObject({
+      id: String(ATTRACTION_IDS[0]),
+      status: 'OPERATING',
+      queue: {STANDBY: {waitTime: 15}},
+    });
+  });
+});
+
+/**
+ * A day with no hours is not self-explaining.
+ *
+ * The calendar is reconstructed by regex from free-form legend text: type D
+ * reads "Theme Park closed" and yields nothing, while type A reads "10:00 a.m.
+ * to 6:00 p.m." and yields a range. A legend the patterns miss also yields
+ * nothing, so before this distinction existed an unreadable operating day was
+ * indistinguishable from an attested closed one — and `all-dark` does not stay
+ * silent, it closes every show id including the ones the bill names as
+ * performing. That publishes CLOSED over a correct bill.
+ *
+ * Verified against the live package on 2026-09-11: all eight forward day types
+ * parse, and D is the only one with no clock time in its legend.
+ */
+describe('a day with no hours: attested closed vs unreadable', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    CacheLib.clearByClassName('ParcAsterix', {includePersistent: true});
+    vi.useFakeTimers();
+    vi.setSystemTime(DAYTIME);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('closes the shows when the park attests the day is closed', async () => {
+    const live = await stubbedPark(
+      ATTRACTIONS,
+      [performance('31483')],
+      [...ATTRACTION_POI, show(31483), show(31513)],
+      closedToday,
+      attestedClosed,
+    ).getLiveData();
+
+    expect(live.find((l) => l.id === '31483')).toEqual({id: '31483', status: 'CLOSED'});
+    expect(live.find((l) => l.id === '31513')).toEqual({id: '31513', status: 'CLOSED'});
+  });
+
+  /**
+   * The failure this exists to prevent. Same calendar gap, but the park never
+   * said the day was closed — we simply could not read it. The bill names
+   * 31483 as performing, and closing it would contradict a correct upstream.
+   */
+  it('says nothing about shows when the day is merely unreadable', async () => {
+    const live = await stubbedPark(
+      ATTRACTIONS,
+      [performance('31483')],
+      [...ATTRACTION_POI, show(31483), show(31513)],
+      closedToday,
+      unreadable,
+    ).getLiveData();
+
+    expect(live.find((l) => l.id === '31483')?.status).toBe('OPERATING');
+    expect(live.find((l) => l.id === '31513')).toBeUndefined();
+  });
+
+  it('leaves the wait times alone either way', async () => {
+    for (const dates of [attestedClosed, unreadable]) {
+      const live = await stubbedPark(
+        ATTRACTIONS,
+        [],
+        [...ATTRACTION_POI, show(31483)],
+        closedToday,
+        dates,
+      ).getLiveData();
+      expect(live.filter((l) => l.id.startsWith('313')).length).toBeGreaterThan(0);
+    }
+  });
+});
+
+/**
+ * The calendar parser had no tests at all, and it is the sole authority for
+ * closing every show in the park.
+ */
+describe('calendar legend parsing', () => {
+  const park = new ParcAsterix();
+  const parse = (labels: Record<string, string>) =>
+    (park as any).parseCalendarLabels(
+      Object.entries(labels).map(([k, value]) => ({key: `calendar.dateType.legend.${k}`, value})),
+    ) as {hoursMap: Record<string, unknown[]>; closedTypes: Set<string>};
+
+  // Verbatim from the live package, 2026-09-11.
+  const LIVE = {
+    A: '10:00 a.m. to 6:00 p.m.',
+    B: '10:00 a.m. - 7:00 p.m. Peur sur le Parc',
+    C: '10:00 a.m. - 10:00 p.m. Été Gaulois',
+    D: 'Theme Park closed',
+    G: '11:00 a.m. - 8:00 p.m. Noël Gaulois',
+    H: '10:00 a.m. - 7:00 p.m.',
+    I: '10am - 10pm',
+    J: 'Daytime 9:00 a.m. - 6:00 p.m. and Evening 7:00 p.m. - 1:00 a.m. Peur sur le Parc',
+    L: '11:00 a.m. - 7:00 p.m. Noël Gaulois on 24 and 31 December',
+    M: '7pm - 01am',
+  };
+
+  it('reads every day type the park currently publishes', () => {
+    const {hoursMap, closedTypes} = parse(LIVE);
+    for (const type of ['A', 'B', 'C', 'G', 'H', 'I', 'J', 'L', 'M']) {
+      expect(hoursMap[type]?.length, `type ${type}`).toBeGreaterThan(0);
+    }
+    expect(closedTypes.has('D')).toBe(true);
+    expect(hoursMap.D).toBeUndefined();
+  });
+
+  it('keeps both ranges of a two-session day', () => {
+    expect(parse(LIVE).hoursMap.J).toHaveLength(2);
+  });
+
+  /**
+   * A legend that carries a clock time but no readable range is a parser gap,
+   * not a closure. Classing it as closed is what would publish CLOSED over a
+   * performing show — these are the wordings most likely to appear next.
+   */
+  it.each([
+    ['en-dash separator', '10h–18h'],
+    ['French connector', 'de 10h à 18h'],
+    ['open-ended', 'from 7 p.m. until late'],
+  ])('does not read %s as a closed day', (_name, value) => {
+    const {closedTypes} = parse({X: value});
+    expect(closedTypes.has('X')).toBe(false);
+  });
+
+  it('reads a closure worded with a date but no time as closed', () => {
+    expect(parse({X: 'Closed, reopens 12 December'}).closedTypes.has('X')).toBe(true);
   });
 });
 
@@ -570,7 +721,7 @@ describe('showBillAuthority', () => {
   const at = (iso: string) => new Date(iso);
 
   it('reads the bill once the park has opened', () => {
-    expect(showBillAuthority(at('2026-09-09T08:30:00Z'), 'Europe/Paris', [TODAY]))
+    expect(showBillAuthority(at('2026-09-09T08:30:00Z'), 'Europe/Paris', [TODAY], new Set()))
       .toBe('read-bill'); // 10:30 local
   });
 
@@ -579,7 +730,7 @@ describe('showBillAuthority', () => {
   // "was not on that day", not "is not on today".
   it('calls the bill stale between the small hours and opening', () => {
     for (const utc of ['2026-09-09T04:30:00Z', '2026-09-09T06:00:00Z', '2026-09-09T07:28:00Z']) {
-      expect(showBillAuthority(at(utc), 'Europe/Paris', [TODAY])).toBe('stale');
+      expect(showBillAuthority(at(utc), 'Europe/Paris', [TODAY], new Set())).toBe('stale');
     }
   });
 
@@ -593,7 +744,7 @@ describe('showBillAuthority', () => {
       openingTime: '2026-10-17T19:00:00+02:00',
       closingTime: '2026-10-18T01:00:00+02:00',
     };
-    expect(showBillAuthority(at('2026-10-17T22:30:00Z'), 'Europe/Paris', [night]))
+    expect(showBillAuthority(at('2026-10-17T22:30:00Z'), 'Europe/Paris', [night], new Set()))
       .toBe('unknown'); // 00:30 local on the 18th, which carries no hours
   });
 
@@ -609,14 +760,14 @@ describe('showBillAuthority', () => {
       openingTime: '2026-10-17T19:00:00+02:00',
       closingTime: '2026-10-18T01:00:00+02:00',
     };
-    expect(showBillAuthority(at('2026-10-17T23:30:00Z'), 'Europe/Paris', [night]))
+    expect(showBillAuthority(at('2026-10-17T23:30:00Z'), 'Europe/Paris', [night], new Set(['2026-10-18'])))
       .toBe('all-dark'); // 01:30 local on the 18th, half an hour after close
   });
 
   // Closed days carry no hours, so they never reach the calendar. The bill
   // keeps serving the last open day's programme straight through them.
   it('calls every show dark on a day the park does not operate', () => {
-    expect(showBillAuthority(at('2026-09-10T10:00:00Z'), 'Europe/Paris', [TODAY]))
+    expect(showBillAuthority(at('2026-09-10T10:00:00Z'), 'Europe/Paris', [TODAY], new Set(['2026-09-10'])))
       .toBe('all-dark');
   });
 
@@ -626,12 +777,12 @@ describe('showBillAuthority', () => {
    * that veto into eighteen advertised performances on a shut park.
    */
   it('closes the shows on a closed day regardless of ride activity', () => {
-    expect(showBillAuthority(at('2026-09-10T10:00:00Z'), 'Europe/Paris', [TODAY]))
+    expect(showBillAuthority(at('2026-09-10T10:00:00Z'), 'Europe/Paris', [TODAY], new Set(['2026-09-10'])))
       .toBe('all-dark');
   });
 
   it('admits it cannot tell with no calendar at all', () => {
-    expect(showBillAuthority(at('2026-09-09T10:00:00Z'), 'Europe/Paris', []))
+    expect(showBillAuthority(at('2026-09-09T10:00:00Z'), 'Europe/Paris', [], new Set()))
       .toBe('unknown');
   });
 
@@ -647,7 +798,7 @@ describe('showBillAuthority', () => {
   it('calls the bill stale in the small hours of an ordinary open day', () => {
     // 00:30 and 03:00 local on the 9th, a day that opens at 10:00.
     for (const utc of ['2026-09-08T22:30:00Z', '2026-09-09T01:00:00Z']) {
-      expect(showBillAuthority(at(utc), 'Europe/Paris', [TODAY])).toBe('stale');
+      expect(showBillAuthority(at(utc), 'Europe/Paris', [TODAY], new Set())).toBe('stale');
     }
   });
 
@@ -658,12 +809,12 @@ describe('showBillAuthority', () => {
    */
   it('calls every show dark from midnight on a closed day', () => {
     // 00:30 local on the 10th; the calendar has the 9th and stops.
-    expect(showBillAuthority(at('2026-09-09T22:30:00Z'), 'Europe/Paris', [TODAY]))
+    expect(showBillAuthority(at('2026-09-09T22:30:00Z'), 'Europe/Paris', [TODAY], new Set(['2026-09-10'])))
       .toBe('all-dark');
   });
 
   it('closes the shows in the small hours of a closed day too', () => {
-    expect(showBillAuthority(at('2026-09-09T22:30:00Z'), 'Europe/Paris', [TODAY]))
+    expect(showBillAuthority(at('2026-09-09T22:30:00Z'), 'Europe/Paris', [TODAY], new Set(['2026-09-10'])))
       .toBe('all-dark');
   });
 
@@ -674,7 +825,7 @@ describe('showBillAuthority', () => {
    */
   it('does not treat a day that has already closed as still running', () => {
     const yesterday = hours('2026-09-08', '10:00:00', '18:00:00');
-    expect(showBillAuthority(at('2026-09-08T22:30:00Z'), 'Europe/Paris', [yesterday, TODAY]))
+    expect(showBillAuthority(at('2026-09-08T22:30:00Z'), 'Europe/Paris', [yesterday, TODAY], new Set()))
       .toBe('stale'); // 00:30 on the 9th, the 8th shut six hours ago
   });
 
@@ -688,14 +839,14 @@ describe('showBillAuthority', () => {
   it('calls the bill stale once the park has closed', () => {
     // 18:30, 20:00 and 23:45 local on a day that shuts at 18:00.
     for (const utc of ['2026-09-09T16:30:00Z', '2026-09-09T18:00:00Z', '2026-09-09T21:45:00Z']) {
-      expect(showBillAuthority(at(utc), 'Europe/Paris', [TODAY])).toBe('stale');
+      expect(showBillAuthority(at(utc), 'Europe/Paris', [TODAY], new Set())).toBe('stale');
     }
   });
 
   it('still reads the bill right up to closing', () => {
-    expect(showBillAuthority(at('2026-09-09T15:59:00Z'), 'Europe/Paris', [TODAY]))
+    expect(showBillAuthority(at('2026-09-09T15:59:00Z'), 'Europe/Paris', [TODAY], new Set()))
       .toBe('read-bill'); // 17:59 local, one minute before the 18:00 close
-    expect(showBillAuthority(at('2026-09-09T16:01:00Z'), 'Europe/Paris', [TODAY]))
+    expect(showBillAuthority(at('2026-09-09T16:01:00Z'), 'Europe/Paris', [TODAY], new Set()))
       .toBe('stale');     // 18:01 local
   });
 
@@ -724,7 +875,7 @@ describe('showBillAuthority', () => {
       openingTime: '2026-10-17T19:00:00+02:00',
       closingTime: '2026-10-18T01:00:00+02:00',
     };
-    expect(showBillAuthority(at('2026-10-17T21:00:00Z'), 'Europe/Paris', [night]))
+    expect(showBillAuthority(at('2026-10-17T21:00:00Z'), 'Europe/Paris', [night], new Set()))
       .toBe('read-bill'); // 23:00 local on the 17th, the night is running
   });
 
@@ -737,9 +888,9 @@ describe('showBillAuthority', () => {
       closingTime: '2026-10-18T01:00:00+02:00',
     };
     const nextDayOpen = hours('2026-10-18', '10:00:00', '18:00:00');
-    expect(showBillAuthority(at('2026-10-17T22:59:00Z'), 'Europe/Paris', [night, nextDayOpen]))
+    expect(showBillAuthority(at('2026-10-17T22:59:00Z'), 'Europe/Paris', [night, nextDayOpen], new Set()))
       .toBe('unknown'); // 00:59 local, one minute of the night left
-    expect(showBillAuthority(at('2026-10-17T23:01:00Z'), 'Europe/Paris', [night, nextDayOpen]))
+    expect(showBillAuthority(at('2026-10-17T23:01:00Z'), 'Europe/Paris', [night, nextDayOpen], new Set()))
       .toBe('stale');   // 01:01 local, the night is over and the 18th opens at 10:00
   });
 });
