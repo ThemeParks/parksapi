@@ -170,6 +170,130 @@ describe('slugify', () => {
 });
 
 describe('groupShowsBySlug', () => {
+  test.each([
+    'Gala of Lights',
+    'Gala Of Lights: Sanrio characters’ Whimsical Celebration',
+    'Gala Of Lights – Pandastic Birthday Edition',
+    'Gala Of Lights — Pandastic Birthday Edition',
+    'Gala Of Lights – New Year Celebration',
+    'Gala Of Lights - Winter Celebration',
+    'Gala Of Lights -- Panda Birthday Edition',
+  ])('keeps the verified edition %s on the canonical identity', title => {
+    const groups = groupShowsBySlug([{title, locations: [{location: {id: 'aqua-city'}}]}]);
+    expect([...groups.keys()]).toEqual(['gala-of-lights']);
+    expect(groups.get('gala-of-lights')!.title).toBe(title);
+  });
+
+  test('keeps distinct parenthetical shows apart', () => {
+    const titles = ['Animal Fun Talk (Macaw / Owl)', 'Animal Fun Talk (Sloth / Kinkajou)',
+      'Sanrio Meet & Greet (Summit)', 'Sanrio Meet & Greet (Waterfront)'];
+    expect([...groupShowsBySlug(titles.map(title => ({title}))).keys()]).toEqual(titles.map(slugify));
+  });
+
+  test('a bracketed suffix never collapses onto a curated family name', () => {
+    // The real feed ships two different Roving Bands at two different venues
+    // and four different Animal Fun Talks, all distinguished only by their
+    // brackets. Even with those family names curated, they must stay apart.
+    const aliases = [
+      {id: 'roving-band', mapKey: 'rovingband', location: 'aqua-city', titles: ['Roving Band']},
+      {id: 'animal-fun-talk', mapKey: 'aft', location: 'sloth-friends-studio', titles: ['Animal Fun Talk']},
+    ];
+    const titles = ['Roving Band (Near Lagoon Platform)', 'Roving Band (Near Ocean Park Tower)',
+      'Animal Fun Talk (Macaw / Owl)', 'Animal Fun Talk (Sloth / Kinkajou)'];
+    expect([...groupShowsBySlug(titles.map(title => ({title})), aliases).keys()]).toEqual(titles.map(slugify));
+  });
+
+  test('a hyphen inside a word is not a subtitle separator', () => {
+    const aliases = [{id: 'bulu-boo-trick', mapKey: 'x', location: 'waterfront-plaza', titles: ['Bulu Boo Trick']}];
+    const title = 'Bulu Boo Trick-or-Treat Party';
+    expect([...groupShowsBySlug([{title}], aliases).keys()]).toEqual([slugify(title)]);
+  });
+
+  test('does not canonicalize a seasonal edition at an unexpected venue', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const title = 'Gala Of Lights - Winter Celebration';
+      const groups = groupShowsBySlug([{title, locations: [{location: {id: 'old-hong-kong'}}]}]);
+      expect([...groups.keys()]).toEqual([slugify(title)]);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('unexpected location'));
+    } finally { warn.mockRestore(); }
+  });
+
+  test('selects the same full edition title regardless of row order', () => {
+    const items = [{title: 'Gala of Lights'}, {title: 'Gala Of Lights - Winter Celebration'}];
+    expect(groupShowsBySlug(items).get('gala-of-lights')!.title)
+      .toBe(groupShowsBySlug([...items].reverse()).get('gala-of-lights')!.title);
+    expect(groupShowsBySlug(items).get('gala-of-lights')!.title).toBe(items[1].title);
+  });
+  test('keeps two different aliased shows apart instead of merging them', () => {
+    // SHOW_ALIASES ships with one entry, so nothing else exercises a table
+    // with more than one show in it. Two aliases must stay two identities,
+    // each merging only its own editions, once the table grows.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const aliases = [
+        {id: 'gala-of-lights', mapKey: 'galaoflights', location: 'aqua-city', titles: ['Gala of Lights', 'Gala Of Lights - Winter Celebration']},
+        {id: 'neon-lighting-show', mapKey: 'neonls', location: 'old-hong-kong', titles: ['Neon Lighting Show', 'Neon Lighting Show - Lunar Edition']},
+      ];
+      const groups = groupShowsBySlug([
+        {title: 'Gala Of Lights - Winter Celebration'},
+        {title: 'Neon Lighting Show - Lunar Edition'},
+        {title: 'Neon Lighting Show'},
+      ], aliases);
+      expect([...groups.keys()].sort()).toEqual(['gala-of-lights', 'neon-lighting-show']);
+      expect(groups.get('gala-of-lights')!.items).toHaveLength(1);
+      expect(groups.get('neon-lighting-show')!.items).toHaveLength(2);
+      expect(groups.get('neon-lighting-show')!.title).toBe('Neon Lighting Show - Lunar Edition');
+      expect(warn).not.toHaveBeenCalled();
+    } finally { warn.mockRestore(); }
+  });
+
+  test.each([
+    'Gala Of Lights - Lunar Splash Edition',
+    'Gala Of Lights: A Brand New Season',
+    'Gala Of Lights — Some Future Edition',
+    'Gala of Lights -- Another Edition',
+  ])('adopts the canonical id for a title never seen before: %s', title => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const groups = groupShowsBySlug([{title}]);
+      expect([...groups.keys()]).toEqual(['gala-of-lights']);
+      expect(groups.get('gala-of-lights')!.title).toBe(title);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('unlisted edition of "gala-of-lights"'));
+    } finally { warn.mockRestore(); }
+  });
+
+  test('an unlisted edition at the wrong venue is still refused', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const title = 'Gala Of Lights - Lunar Splash Edition';
+      const groups = groupShowsBySlug([{title, locations: [{location: {id: 'old-hong-kong'}}]}]);
+      expect([...groups.keys()]).toEqual([slugify(title)]);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('unexpected location'));
+    } finally { warn.mockRestore(); }
+  });
+
+  test('an unlisted edition merges with the bare title into one identity', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const groups = groupShowsBySlug([
+        {title: 'Gala of Lights', timeSlot: ['19:00:00']},
+        {title: 'Gala Of Lights - Lunar Splash Edition', timeSlot: ['20:00:00']},
+      ]);
+      expect([...groups.keys()]).toEqual(['gala-of-lights']);
+      expect(groups.get('gala-of-lights')!.items).toHaveLength(2);
+      expect(groups.get('gala-of-lights')!.title).toBe('Gala Of Lights - Lunar Splash Edition');
+    } finally { warn.mockRestore(); }
+  });
+
+  test('does not warn for an unrelated show that merely shares no prefix', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      groupShowsBySlug([{title: 'Penguin Feeding Demonstration'}, {title: 'Galaxy Parade'}]);
+      expect(warn).not.toHaveBeenCalled();
+    } finally { warn.mockRestore(); }
+  });
+
   test('groups identical titles together under one slug', () => {
     const groups = groupShowsBySlug([
       {title: 'All Star Jam', timeSlot: ['11:00:00']},
@@ -550,6 +674,39 @@ describe('buildEntityList', () => {
     expect(show.location).toEqual({latitude: 5, longitude: 6});
   });
 
+  test('canonical identity survives missing map data and uses an explicit map key when available', async () => {
+    const scheduleItems = [{title: 'Gala Of Lights - Winter Celebration'}];
+    for (const coordEntries of [[], [['show-key:galaoflights', {latitude: 5, longitude: 6}]]] as CoordEntry[][]) {
+      const show = (await new Probe({scheduleItems, coordEntries}).entities()).find(e => e.entityType === 'SHOW');
+      expect(show.id).toBe('show_gala-of-lights');
+      expect(show.name).toBe(scheduleItems[0].title);
+      expect(show.location.latitude).toBe(coordEntries.length ? 5 : 22.2465);
+    }
+  });
+
+  test('reads coordinates without URLs and excludes ambiguous show names', async () => {
+    const park = new OceanParkHongKong();
+    vi.spyOn(park, 'fetchReferencePoints').mockResolvedValue({json: async () => [
+      {pixelX: 0, pixelY: 0, latitude: 0, longitude: 0},
+      {pixelX: 1, pixelY: 0, latitude: 1, longitude: 0},
+      {pixelX: 0, pixelY: 1, latitude: 0, longitude: 1},
+    ]} as any);
+    vi.spyOn(park, 'fetchMapCategoryData').mockImplementation(async category => ({json: async () => category === 'shows' ? [
+      {name: 'Gala of Lights', api_key: 'galaoflights', x: 5, y: 6},
+      {name: 'Roving Band', api_key: 'rovingband', x: 1, y: 2},
+      {name: 'Roving Band', api_key: 'rovingbandwf', x: 3, y: 4},
+      {name: 'Invalid', x: null, y: 4},
+    ] : []} as any));
+    const coords = new Map(await park.getCoordinateMapEntries());
+    expect(coords.get('show-key:galaoflights')).toEqual({latitude: 5, longitude: 6});
+    expect(coords.get('show-name:gala-of-lights')).toEqual({latitude: 5, longitude: 6});
+    expect(coords.has('show-name:roving-band')).toBe(false);
+    expect(coords.has('show-name:invalid')).toBe(false);
+    const show = (await new Probe({scheduleItems: [{title: 'Gala of Lights'}], coordEntries: [...coords]}).entities())
+      .find(e => e.entityType === 'SHOW');
+    expect(show.location).toEqual({latitude: 5, longitude: 6});
+  });
+
   test('show falls back to the default location when no coordinate match exists', async () => {
     const probe = new Probe({
       scheduleItems: [{title: 'All Star Jam', timeSlot: ['11:00:00']}],
@@ -681,6 +838,35 @@ describe('buildLiveData', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  test('merges verified editions with deduplicated times and matching entity IDs', async () => {
+    const items = [
+      {title: 'Gala of Lights', timeSlot: ['18:00:00', '19:00:00']},
+      {title: 'Gala Of Lights - Winter Celebration', timeSlot: ['19:00:00', '20:00:00', '18:00:00-21:00:00']},
+    ];
+    for (const scheduleItems of [items, [...items].reverse()]) {
+      const probe = new Probe({scheduleItems});
+      const shows = (await probe.entities()).filter(e => e.entityType === 'SHOW');
+      const live = await probe.liveData();
+      expect(shows).toHaveLength(1);
+      expect(live).toHaveLength(1);
+      expect(live[0].id).toBe(shows[0].id);
+      expect(live[0].id).toBe('show_gala-of-lights');
+      expect(live[0].status).toBe('OPERATING');
+      expect(live[0].showtimes).toHaveLength(4);
+      expect(live[0].showtimes.filter((s: any) => s.startTime.endsWith('19:00:00+08:00'))).toHaveLength(1);
+      expect(live[0].showtimes.filter((s: any) => s.endTime)).toHaveLength(1);
+    }
+  });
+
+  test('a map outage does not change canonical IDs or suppress showtimes', async () => {
+    const probe = new Probe({scheduleItems: [{title: 'Gala Of Lights - Winter Celebration', timeSlot: ['19:00:00']}]});
+    vi.spyOn(probe, 'getCoordinateMapEntries').mockRejectedValue(new Error('map offline'));
+    const shows = (await probe.entities()).filter(e => e.entityType === 'SHOW');
+    expect(shows[0].id).toBe('show_gala-of-lights');
+    expect(shows[0].location.latitude).toBe(22.2465);
+    expect((await probe.liveData())[0].showtimes).toHaveLength(1);
   });
 
   test('a numeric queueTime maps to OPERATING with that standby wait', async () => {
