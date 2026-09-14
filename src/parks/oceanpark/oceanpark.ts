@@ -165,7 +165,8 @@ interface ShowGroup {
   mapKey?: string;
 }
 
-// Verified editions at Aqua City Lagoon, not a general subtitle heuristic.
+// Verified editions of the Aqua City Lagoon show (zone id `aqua-city`),
+// not a general subtitle heuristic.
 // Seasonal IDs change once; consumers must migrate historical IDs separately.
 // Sources: Ocean Park's events/{pandastic-summer-birthday-celebration,
 // ocean-park-sanrio-characters-marine-wonders,wondrous-winter-gala-christmas,
@@ -178,7 +179,7 @@ interface ShowAlias {
   titles: string[];
 }
 
-const SHOW_ALIASES: ShowAlias[] = [{
+export const SHOW_ALIASES: ShowAlias[] = [{
   id: 'gala-of-lights', mapKey: 'galaoflights', location: 'aqua-city',
   titles: [
     'Gala of Lights',
@@ -191,75 +192,29 @@ const SHOW_ALIASES: ShowAlias[] = [{
 }];
 
 /**
- * The head of a programme title, i.e. everything before the first subtitle
- * separator. Only a colon, or a dash run with whitespace on both sides,
- * separates a subtitle: "Gala Of Lights - Winter Celebration" has a head of
- * "Gala Of Lights", while "Bulu Boo Trick-or-Treat Party" is all head.
+ * The head of a programme title: everything before the first subtitle
+ * separator. "Gala Of Lights - Winter Celebration" has a head of "Gala Of
+ * Lights"; "Bulu Boo Trick-or-Treat Party" is all head.
  *
- * A parenthetical is deliberately NOT a separator. Ocean Park uses brackets
- * to tell genuinely different shows apart — the two Roving Bands, the four
- * Animal Fun Talks — so stripping them would merge shows that are not the
- * same production. slugify() flattens "(" and "-" to the same character, so
- * this has to run on the raw title, never on the slug.
+ * A separator is a colon, or a dash run with whitespace on both sides. The
+ * dash class carries every form a CMS substitutes for a hyphen, including
+ * U+2010/U+2011, which a word processor emits far more often than the figure
+ * dash. A colon flanked by digits is a clock ("Chill Out Party 19:30
+ * Special"), not a subtitle.
+ *
+ * NFKD first, so the fullwidth punctuation a CJK CMS emits (U+FF1A colon,
+ * U+FF0D hyphen) folds onto the ASCII forms this scans for. slugify()
+ * normalises the same way, so the two agree on what a title says. This runs
+ * on the raw title, never on the slug, because slugify() flattens "(" and
+ * "-" onto the same character and a bracket must not read as a separator.
  */
-// A colon, or a dash run with whitespace on both sides. The dash class
-// carries every form a CMS substitutes for a hyphen, including U+2010/U+2011
-// which a word processor emits far more often than the figure dash. A colon
-// flanked by digits is a clock ("Chill Out Party 19:30 Special"), not a
-// subtitle, so it is excluded.
 const SUBTITLE_SEPARATOR =
-  /^\s*:\s*|^\s+[-\u2010\u2011\u2012\u2013\u2014\u2015\u2212]+\s+/;
-
-function isSeparatorAt(text: string, i: number): boolean {
-  if (!SUBTITLE_SEPARATOR.test(text.slice(i))) return false;
-  const colon = text.indexOf(':', i);
-  if (colon === i && /\d/.test(text[i - 1] ?? '') && /\d/.test(text[i + 1] ?? '')) return false;
-  return true;
-}
-
-/** Index of the first subtitle separator outside brackets, or -1. */
-function separatorIndex(text: string, honourBrackets: boolean): number {
-  let depth = 0;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (honourBrackets && (c === '(' || c === '[')) depth++;
-    else if (honourBrackets && (c === ')' || c === ']')) depth = Math.max(0, depth - 1);
-    else if (depth === 0 && isSeparatorAt(text, i)) return i;
-  }
-  return -1;
-}
+  /(?<!\d):(?!\d)|\s[-\u2010\u2011\u2012\u2013\u2014\u2015\u2212]+\s/;
 
 function titleHead(title: string): string {
-  // NFKD first so the fullwidth punctuation a CJK CMS emits (U+FF1A colon,
-  // U+FF0D hyphen) folds onto the ASCII forms this scans for. slugify()
-  // already normalises the same way, so the two agree on what a title says.
   const text = title.normalize('NFKD').trim();
-  const at = separatorIndex(text, true);
-  if (at >= 0) return text.slice(0, at);
-  // An unclosed bracket would otherwise hide every later separator and
-  // silently mint a new id for a rebranded show — the exact failure this
-  // whole mechanism exists to stop. One typo'd parenthesis is not a reason
-  // to give up, so rescan without the bracket rule.
-  if (/[([]/.test(text) && !isBalanced(text)) {
-    const fallback = separatorIndex(text, false);
-    if (fallback >= 0) return text.slice(0, fallback);
-  }
-  return text;
-}
-
-function isBalanced(text: string): boolean {
-  let depth = 0;
-  for (const c of text) {
-    if (c === '(' || c === '[') depth++;
-    else if (c === ')' || c === ']') depth--;
-    if (depth < 0) return false;
-  }
-  return depth === 0;
-}
-
-/** The part of a title before its first bracket — its family name, if any. */
-function bracketHead(title: string): string {
-  return title.normalize('NFKD').split(/\s*[([]/)[0].trim();
+  const at = text.search(SUBTITLE_SEPARATOR);
+  return at < 0 ? text : text.slice(0, at).trim();
 }
 
 /** Zone ids on a schedule row, tolerating every shape the feed has served. */
@@ -270,92 +225,68 @@ function rowVenues(item: OceanParkScheduleItem): string[] {
     .filter((id): id is string => typeof id === 'string' && id !== '');
 }
 
-function showAlias(
-  item: OceanParkScheduleItem,
-  aliases: ShowAlias[] = SHOW_ALIASES,
-  venuesForTitle?: string[],
-) {
-  // The feed has served a title-less row; slugify() would throw on it and
-  // this runs inside buildEntityList with no catch, so one bad row would
-  // reject the entire entity list.
-  // Defence in depth: groupShowsBySlug already drops title-less rows, so
-  // this is unreachable from the only caller. It stays because slugify()
-  // throws on a non-string and this function is where that would land.
-  if (typeof item?.title !== 'string') return undefined;
+/**
+ * Resolve one schedule row onto a curated show family, or undefined if it
+ * belongs to none.
+ *
+ * The zone a row names is reported, never enforced. Refusing a family
+ * because the zone looked wrong cost three separate defects across two
+ * review rounds — it fragmented curated families, it turned absent metadata
+ * into a refusal once zones were pooled to compensate, and pooling made a
+ * row's id depend on which other rows shared its payload, which two
+ * independently-fetched builders cannot guarantee. The zone is upstream
+ * prose; the title is the identity. A surprising zone is worth a log line
+ * and nothing more.
+ */
+function showAlias(item: OceanParkScheduleItem, aliases: ShowAlias[]) {
   const slug = slugify(item.title);
 
-  // A curated title is an identity a human has already vouched for, so it is
-  // accepted unconditionally, and never second-guessed by the venue check
-  // below: the park moving a show, or upstream refining a zone id, would
-  // otherwise fragment the family into exactly the churn this table exists
-  // to abolish. `a.id === slug` is matched as well as the curated titles so
-  // that a family whose `titles` omits its own bare name cannot reintroduce
-  // that fragmentation — the id IS the bare name by construction.
+  // `a.id === slug` is matched as well as the curated titles, so a family
+  // whose `titles` omits its own bare name still resolves — the id IS the
+  // bare name by construction.
   const curated = aliases.find(a => a.id === slug || a.titles.some(t => slugify(t) === slug));
-  if (curated) {
-    const venues = rowVenues(item);
-    if (venues.length > 0 && !venues.includes(curated.location)) {
-      // Still merged — a curated title outranks a zone — but said out loud,
-      // because the other reading is that the park has recycled a retired
-      // show's name for a different production somewhere else.
-      console.warn(
-        `[OceanPark] curated show "${item.title}" is staged at ${venues.join('/')}, not ${curated.location}; keeping its identity, but check the park has not reused the name`,
-      );
-    }
-    return curated;
-  }
+  const family = curated ?? adoptedFamily(item, aliases, slug);
+  if (!family) return undefined;
 
-  // Ocean Park rebrands these shows every season, so an unlisted title whose
-  // head is a curated show name is the next edition of it. Adopt the
-  // canonical id rather than minting a new one that strands the show's
-  // history.
-  //
-  // This is a heuristic, and the way it can be wrong is a real "X: Y" pair
-  // where Y names a genuinely different production. That risk is bounded:
-  // the head has to exactly match a show already curated here, so a new show
-  // can never be swallowed by a family nobody has vouched for.
+  const venues = rowVenues(item);
+  if (venues.length > 0 && !venues.includes(family.location)) {
+    console.warn(
+      `[OceanPark] show "${item.title}" resolves to "${family.id}" but is staged at ${venues.join('/')}, not ${family.location}; check whether the park has reused the name`,
+    );
+  }
+  return family;
+}
+
+/**
+ * The curated family an UNLISTED title belongs to, by matching its head.
+ *
+ * The park rebrands these shows every season, so a title whose head is a
+ * curated show name is most likely the next edition of it. Adopting the
+ * canonical id beats minting a new one that strands the show's history.
+ *
+ * This is a heuristic, and the way it can be wrong is a real "X: Y" pair
+ * where Y names a genuinely different production. The risk is bounded: the
+ * head has to exactly match a show already curated here, so a new show can
+ * never be swallowed by a family nobody has vouched for.
+ */
+function adoptedFamily(item: OceanParkScheduleItem, aliases: ShowAlias[], slug: string) {
   const headSlug = slugify(titleHead(item.title));
-  // headSlug !== slug is redundant while the curated check above catches
-  // every title whose slug already is a family id; it is kept so narrowing
-  // that check can never silently turn this into a self-match.
-  const alias = aliases.find(a => a.id === headSlug && headSlug !== slug);
+  const alias = headSlug === slug ? undefined : aliases.find(a => a.id === headSlug);
   if (!alias) {
     // A subtitled title belonging to no curated family is how this table goes
-    // stale: the park invents a new show, its editions churn, and nothing
-    // says so. Adopting it would be guessing, so say it instead.
-    //
-    // A bracketed title whose family IS curated is excluded deliberately —
-    // the brackets are what separate the two Roving Bands — so warning about
-    // it would invite a "fix" that merges them.
-    // Only a BALANCED bracket is a deliberate variant. An unclosed one is a
-    // typo, and suppressing the warning for it would hide the very case the
-    // rescan above exists to surface.
-    const bracketed = isBalanced(item.title.normalize('NFKD'))
-      && aliases.some(a => a.id === slugify(bracketHead(item.title)));
-    if (headSlug && headSlug !== slug && !bracketed) {
+    // stale: the park invents a show, its editions churn, and nothing says
+    // so. Adopting it would be guessing, so say it instead. This fires for a
+    // bracketed title too, and truthfully: its id carries the subtitle and
+    // will move when the subtitle does. The remedy is a new curated family,
+    // never folding it into an existing one — brackets are how the park
+    // tells its two Roving Bands apart.
+    if (headSlug && headSlug !== slug) {
       console.warn(
         `[OceanPark] subtitled show "${item.title}" belongs to no curated family; publishing as "show_${slug}", which will change if the subtitle changes`,
       );
     }
     return undefined;
   }
-
-  // The venue guards the heuristic, never the curated list. Missing venue
-  // metadata cannot contradict anything, and a row listing several zones is
-  // refused only when NONE of them is the curated one — a show tagged with
-  // both a zone and a sub-zone is still the same show.
-  //
-  // The zones are pooled across every row sharing this exact title, so one
-  // show listed once per zone resolves the same way for all of its rows and
-  // cannot split into two entities with the same name.
-  const venues = venuesForTitle ?? rowVenues(item);
-  if (venues.length > 0 && !venues.includes(alias.location)) {
-    console.warn(
-      `[OceanPark] unlisted show "${item.title}" heads onto "${alias.id}" but is staged at ${venues.join('/')}, not ${alias.location}; keeping its own identity`,
-    );
-    return undefined;
-  }
-
   console.warn(
     `[OceanPark] show "${item.title}" is an unlisted edition of "${alias.id}"; publishing it under that id — add the full title to SHOW_ALIASES to confirm it`,
   );
@@ -516,8 +447,8 @@ export function slugify(text: string): string {
 function pickEditionTitle(titles: string[], alias: ShowAlias): string {
   const rank = (t: string) => {
     const slug = slugify(t);
-    if (!alias.titles.some(curated => slugify(curated) === slug)) return 2; // unvouched
-    return slug === alias.id ? 1 : 0;                                       // bare : edition
+    if (slug === alias.id) return 1;                                          // the bare name
+    return alias.titles.some(curated => slugify(curated) === slug) ? 0 : 2;   // edition : unvouched
   };
   return [...titles].sort((a, b) => rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0))[0];
 }
@@ -529,7 +460,8 @@ function pickEditionTitle(titles: string[], alias: ShowAlias): string {
  * distinct shows silently share one entity/live-data id and clobber each
  * other. The first title seen for a slug wins; a different title landing on
  * an already-claimed slug is dropped (logged) rather than silently merged,
- * except for explicitly verified seasonal aliases of the same show.
+ * except for rows of the same curated show family, which are merged and
+ * named by pickEditionTitle() rather than by whichever row arrived first.
  * A title that normalizes to an empty slug is dropped the same way.
  *
  * Used by both buildEntityList and buildLiveData so the two always agree on
@@ -541,24 +473,18 @@ export function groupShowsBySlug(
 ): Map<string, ShowGroup> {
   const bySlug = new Map<string, ShowGroup>();
 
-  // Pool every zone the feed gives a title, across all of its rows. The park
-  // lists a roving show once per zone, and judging each row alone let one of
-  // them adopt the family while its twin was refused — two entities, same
-  // name, half the showtimes each.
-  const venuesByTitle = new Map<string, string[]>();
-  for (const item of scheduleItems) {
-    if (typeof item?.title !== 'string') continue;
-    const pooled = venuesByTitle.get(item.title) ?? [];
-    for (const v of rowVenues(item)) if (!pooled.includes(v)) pooled.push(v);
-    venuesByTitle.set(item.title, pooled);
-  }
+  // One resolution per title, so every row of a show agrees and a warning is
+  // logged once rather than once per performance.
+  const aliasByTitle = new Map<string, ShowAlias | undefined>();
 
   for (const item of scheduleItems) {
     if (typeof item?.title !== 'string') {
       console.warn(`[OceanPark] skipping schedule row with no usable title: ${JSON.stringify(item)?.slice(0, 120)}`);
       continue;
     }
-    const alias = showAlias(item, aliases, venuesByTitle.get(item.title));
+    const key = slugify(item.title);
+    if (!aliasByTitle.has(key)) aliasByTitle.set(key, showAlias(item, aliases));
+    const alias = aliasByTitle.get(key);
     const slug = alias?.id ?? slugify(item.title);
     if (!slug) {
       console.warn(`[OceanPark] skipping show with empty slug after normalisation: "${item.title}"`);
@@ -568,10 +494,10 @@ export function groupShowsBySlug(
     const existing = bySlug.get(slug);
     if (!existing) {
       bySlug.set(slug, {title: item.title, items: [item], alias: alias?.id, mapKey: alias?.mapKey});
-      // An identical title always belongs to the same group, whatever the
-      // alias resolution did, so a row can never be dropped for disagreeing
-      // with its own twin. Compare against the rows, not the display title,
-      // which pickEditionTitle may already have rewritten.
+    // An identical title always belongs to the same group, whatever the alias
+    // resolution did, so a row can never be dropped for disagreeing with its
+    // own twin. Compare against the rows, not the display title, which
+    // pickEditionTitle may already have rewritten.
     } else if ((alias && existing.alias === alias.id) || existing.items.some(i => i.title === item.title)) {
       existing.items.push(item);
       if (alias) existing.title = pickEditionTitle(existing.items.map(i => i.title), alias);
@@ -627,7 +553,7 @@ export function parseShowTimeSlot(raw: unknown): {start: string; end?: string} |
   // the end time, it costs the whole slot: the unsplit string fails the clock
   // check and the performance vanishes from live data.
   const parts = raw.normalize('NFKD').trim()
-    .split(/\s*[-\u2010\u2011\u2012\u2013\u2014\u2015\u2212~\u301c\uff5e]\s*/);
+    .split(/\s*[-\u2010\u2011\u2012\u2013\u2014\u2015\u2212~\u301c\uff5e]+\s*/);
   if (parts.length > 2) return null;
 
   const start = normaliseClockTime(parts[0]);
@@ -635,7 +561,15 @@ export function parseShowTimeSlot(raw: unknown): {start: string; end?: string} |
   if (parts.length === 1) return {start};
 
   const end = normaliseClockTime(parts[1]);
-  if (!end) return null;
+  if (!end) {
+    // Keep the start. The end is the optional half, and "18:00:00-24:00:00"
+    // — the ordinary CMS spelling for a midnight close, which the clock
+    // check rejects for h > 23 — would otherwise delete the performance
+    // outright and publish the show as CLOSED while it is running. The
+    // out-of-order-end branch below already makes exactly this trade.
+    console.warn(`[OceanPark] unparseable end in timeSlot ${JSON.stringify(raw)}; keeping the start only`);
+    return {start};
+  }
   if (end <= start) {
     console.warn(`[OceanPark] range timeSlot "${raw}" ends at or before it starts; keeping the start only`);
     return {start};
@@ -883,7 +817,12 @@ export class OceanParkHongKong extends Destination {
   async getDailyScheduleItems(date: string): Promise<OceanParkScheduleItem[]> {
     const resp = await this.fetchDailySchedule(date);
     const body: OceanParkDailyScheduleResponse = await resp.json();
-    return body?.items ?? [];
+    // Array.isArray, not `?? []`: the feed has to be assumed capable of
+    // serving `items` as an object, a number or a bare `0`, and `0 ?? []`
+    // keeps the zero. Both builders iterate this, and buildLiveData does so
+    // after its per-source catch has already run, so a non-array here takes
+    // every attraction wait time down with it.
+    return Array.isArray(body?.items) ? body.items : [];
   }
 
   async getParkOpeningHoursValue(date: string): Promise<string | null> {
@@ -939,22 +878,29 @@ export class OceanParkHongKong extends Destination {
         latitude:  coeffs.a * pixel(e.x) + coeffs.b * pixel(e.y) + coeffs.c,
         longitude: coeffs.d * pixel(e.x) + coeffs.e * pixel(e.y) + coeffs.f,
       });
-      // Both loops below agree on what a coordinate is. The old `!= null`
-      // test admitted NaN and published `latitude: NaN`, which survives JSON
-      // as null; external values get Number.isFinite, never isNaN.
-      // Number() first: the old loop coerced a numeric string and this must
-      // not start rejecting a payload it used to place. A projection that
-      // overflows to Infinity/NaN is dropped too — JSON renders those as
-      // null, which would reach an entity as a null latitude.
+      // A pixel is a number or a non-blank numeric string. Number() alone
+      // would turn null, "", false and [] into 0 — a real position at the
+      // top-left of the map — which is the coercion trap this codebase bans
+      // isNaN() for. The projection is range-checked as well as finite-
+      // checked: Number.isFinite accepts a sentinel pixel that projects to
+      // latitude -934, and nothing downstream validates a lat/lng before it
+      // reaches the wiki.
+      const onEarth = (c: {latitude: number; longitude: number}) =>
+        Math.abs(c.latitude) <= 90 && Math.abs(c.longitude) <= 180;
       const placed = entities.filter(e =>
-        Number.isFinite(pixel(e.x)) && Number.isFinite(pixel(e.y)) &&
-        Number.isFinite(project(e).latitude) && Number.isFinite(project(e).longitude));
+        Number.isFinite(pixel(e.x)) && Number.isFinite(pixel(e.y)) && onEarth(project(e)));
 
       // A key that names more than one DISTINCT position cannot identify a
       // show — the feed really does list two different "Roving Band" entries.
       // Uniqueness is judged after the coordinate filter and after collapsing
       // verbatim duplicate rows, so a coordinate-less or repeated row cannot
       // suppress a perfectly good one.
+      //
+      // Shows only. The other categories keep the long-standing last-wins
+      // behaviour: `animals` and `shops` already ship duplicate URL slugs, so
+      // suppressing them would take a pin away from an attraction the day the
+      // feed duplicates one, and this change has no business touching the
+      // categories it was not written for.
       const claims = new Map<string, Set<string>>();
       const claim = (key: string, e: OceanParkMapEntity) => {
         const at = JSON.stringify(project(e));
@@ -983,9 +929,10 @@ export class OceanParkHongKong extends Destination {
         for (const e of placed) if (typeof e.url === 'string' && e.url) claim(slugFromUrl(e.url), e);
       }
 
+      const ambiguousMayWin = MAP_CATEGORIES[index] !== 'shows';
       for (const [key, positions] of claims) {
-        if (!key || positions.size !== 1) continue;
-        entries.push([key, JSON.parse([...positions][0])]);
+        if (!key || (positions.size !== 1 && !ambiguousMayWin)) continue;
+        entries.push([key, JSON.parse([...positions][positions.size - 1])]);
       }
     }
 
@@ -1102,15 +1049,29 @@ export class OceanParkHongKong extends Destination {
       // it. The canonical slug is tried before the display title: a merged
       // group's title is an edition name the map has never heard of, while
       // the map does know the bare show name.
-      const coords = coordMap.get(`show-name:${slug}`)
-        // The live name match comes first: `mapKey` is a hardcoded upstream
-        // api_key, and surviving upstream key churn is the whole reason the
-        // alias table exists, so a recycled key must not outrank a map row
-        // that literally carries the show's name.
-        ?? (group.mapKey ? coordMap.get(`show-key:${group.mapKey}`) : undefined)
+      // The curated map key wins: a human checked it against the map. A
+      // live name match is the fallback, because upstream owns `name` and a
+      // different production can take a family's name — that is worth a pin
+      // when nothing better exists, but not worth overriding a vouched-for
+      // key. When both exist and disagree, neither order is safe, so say so
+      // rather than picking silently.
+      const byKey = group.mapKey ? coordMap.get(`show-key:${group.mapKey}`) : undefined;
+      const byName = coordMap.get(`show-name:${slug}`);
+      if (byKey && byName && (byKey.latitude !== byName.latitude || byKey.longitude !== byName.longitude)) {
+        console.warn(
+          `[OceanPark] map key "${group.mapKey}" and map name "${slug}" point at different places; using the curated key — check whether the park has reused the name or renumbered the key`,
+        );
+      }
+      const coords = byKey
+        ?? byName
         ?? coordMap.get(`show-name:${slugify(group.title)}`)
         ?? coordMap.get(`show-url:${slug}`)
-        ?? coordMap.get(`show-url:${slugify(group.title)}`);
+        ?? coordMap.get(`show-url:${slugify(group.title)}`)
+        // Last resort, and the only rung that reaches the namespace shared
+        // with the other categories: a show whose sole pin was filed under
+        // attractions or dining is reachable here and nowhere else.
+        ?? coordMap.get(slug)
+        ?? coordMap.get(slugify(group.title));
       return {
         id: `show_${slug}`,
         name: group.title,
@@ -1186,11 +1147,14 @@ export class OceanParkHongKong extends Destination {
         })
         .filter((s): s is {type: string; startTime: string; endTime?: string} => s !== null);
 
-      // Merging a rebranded show joins the programme tab (bare start times)
-      // to the event tab (ranges), and those are two spellings of the same
-      // performance — so dedup on the start alone, keeping whichever entry
-      // carries an end time. Keying on both would publish 19:00 twice and
-      // then drop one of them the second the show began.
+      // Merging a rebranded show can join a bare start time to a range that
+      // describes the same performance — every title in the captured corpus
+      // sits in exactly one tab, so this is a property of merging rather
+      // than something the feed has been seen to do. Dedup on the start
+      // alone, keeping whichever entry carries an end time and, between two
+      // ends, the later one: keying on both would publish 19:00 twice and
+      // drop one of them the second the show began, and first-wins let feed
+      // order decide the window.
       // Scoped per group: two different shows may legitimately start at the
       // same time.
       const byStart = new Map<string, {type: string; startTime: string; endTime?: string}>();

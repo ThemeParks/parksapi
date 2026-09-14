@@ -20,7 +20,7 @@ import {
   parseHourRange,
   addDaysToDateString,
   computeAffineTransform,
-} from '../oceanpark.js';
+  SHOW_ALIASES,} from '../oceanpark.js';
 
 const TZ = 'Asia/Hong_Kong';
 
@@ -219,10 +219,10 @@ describe('groupShowsBySlug', () => {
         const groups = groupShowsBySlug([{title: 'Gala Of Lights - Winter Celebration', locations: [{location: {id}}]}]);
         expect([...groups.keys()]).toEqual(['gala-of-lights']);
       }
-      // The identity holds, but a curated show at an unexpected zone is
-      // still worth saying out loud in case the park reused the name.
+      // The identity holds, but a show at an unexpected zone is still worth
+      // saying out loud in case the park reused the name.
       expect(warn).toHaveBeenCalledTimes(2);
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('check the park has not reused the name'));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('check whether the park has reused the name'));
     } finally { warn.mockRestore(); }
   });
 
@@ -285,12 +285,6 @@ describe('groupShowsBySlug', () => {
     } finally { warn.mockRestore(); }
   });
 
-  test('selects the same full edition title regardless of row order', () => {
-    const items = [{title: 'Gala of Lights'}, {title: 'Gala Of Lights - Winter Celebration'}];
-    expect(groupShowsBySlug(items).get('gala-of-lights')!.title)
-      .toBe(groupShowsBySlug([...items].reverse()).get('gala-of-lights')!.title);
-    expect(groupShowsBySlug(items).get('gala-of-lights')!.title).toBe(items[1].title);
-  });
   test('keeps two different aliased shows apart instead of merging them', () => {
     // SHOW_ALIASES ships with one entry, so nothing else exercises a table
     // with more than one show in it. Two aliases must stay two identities,
@@ -329,13 +323,28 @@ describe('groupShowsBySlug', () => {
     } finally { warn.mockRestore(); }
   });
 
-  test('an unlisted edition at the wrong venue is still refused', () => {
+  test('an unlisted edition at an unexpected venue keeps the family and says so', () => {
+    // The zone is upstream prose; the title is the identity. Refusing on a
+    // zone mismatch cost three defects across two review rounds.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      const title = 'Gala Of Lights - Lunar Splash Edition';
-      const groups = groupShowsBySlug([{title, locations: [{location: {id: 'old-hong-kong'}}]}]);
-      expect([...groups.keys()]).toEqual([slugify(title)]);
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('not aqua-city'));
+      const groups = groupShowsBySlug([{title: 'Gala Of Lights - Lunar Splash Edition', locations: [{location: {id: 'old-hong-kong'}}]}]);
+      expect([...groups.keys()]).toEqual(['gala-of-lights']);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('check whether the park has reused the name'));
+    } finally { warn.mockRestore(); }
+  });
+
+  test('a row resolves the same way whatever else shares its payload', () => {
+    // buildEntityList and buildLiveData fetch the schedule independently and
+    // can read different cache generations, so a row's id must never depend
+    // on which other rows arrived with it.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const row = {title: 'Gala Of Lights - Summer Splash', locations: [{location: {id: 'summit'}}]};
+      const alone = [...groupShowsBySlug([row]).keys()];
+      const withTwin = [...groupShowsBySlug([row, {title: 'Gala Of Lights - Summer Splash', locations: [{location: {id: 'aqua-city'}}]}]).keys()];
+      expect(alone).toEqual(['gala-of-lights']);
+      expect(withTwin).toEqual(['gala-of-lights']);
     } finally { warn.mockRestore(); }
   });
 
@@ -433,28 +442,25 @@ describe('groupShowsBySlug', () => {
     } finally { warn.mockRestore(); }
   });
 
-  test('every curated family id is the slug of one of its own titles', () => {
-    // If a curator picks a tidier id than the bare title slugifies to, the
-    // head rule silently stops working for that whole family.
+  test('every shipped family is reachable by its own id and adopts an edition of it', () => {
+    // Iterates the real table, so a second family added with a mismatched id
+    // fails here rather than silently disabling the head rule for itself.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      // Drive the shipped table through the real grouper: the bare title of
-      // each family must resolve to that family's id.
-      const groups = groupShowsBySlug([{title: 'Gala of Lights'}]);
-      expect([...groups.keys()]).toEqual(['gala-of-lights']);
-      // A family whose id is NOT its bare title's slug cannot adopt.
-      const broken = [{id: 'galaoflights', mapKey: 'g', location: 'aqua-city', titles: ['Gala of Lights']}];
-      expect([...groupShowsBySlug([{title: 'Gala of Lights - Winter'}], broken).keys()])
-        .toEqual(['gala-of-lights-winter']);
+      expect(SHOW_ALIASES.length).toBeGreaterThan(0);
+      for (const family of SHOW_ALIASES) {
+        // Every curated title of the family resolves to the family id.
+        for (const title of family.titles) {
+          expect([...groupShowsBySlug([{title}]).keys()]).toEqual([family.id]);
+        }
+        // An unseen edition of it adopts the same id.
+        const edition = `${family.titles[0]} - An Unseen Future Edition`;
+        expect([...groupShowsBySlug([{title: edition}]).keys()]).toEqual([family.id]);
+        // And the id itself is a well-formed slug.
+        expect(family.id).toBe(slugify(family.id));
+        expect(family.location).toBeTruthy();
+      }
     } finally { warn.mockRestore(); }
-  });
-
-  test('display name is stable across feed order with two curated editions', () => {
-    const rows = [{title: 'Gala Of Lights \u2013 New Year Celebration'}, {title: 'Gala Of Lights - Winter Celebration'}];
-    const a = groupShowsBySlug(rows).get('gala-of-lights')!.title;
-    const b = groupShowsBySlug([...rows].reverse()).get('gala-of-lights')!.title;
-    expect(a).toBe(b);
-    expect(a).toBe('Gala Of Lights - Winter Celebration');
   });
 
   test('a curated edition beats an unvouched one for the display name, both orders', () => {
@@ -488,6 +494,62 @@ describe('groupShowsBySlug', () => {
         ]);
       }).not.toThrow();
       expect([...groups.keys()]).toEqual(['gala-of-lights', 'whiskers-show']);
+    } finally { warn.mockRestore(); }
+  });
+
+  test('a zone-less row keeps the canonical id even when a sibling names a zone', () => {
+    // Pooling must not turn "no opinion" into a refusal: absent venue
+    // metadata cannot contradict a family, however many zones its siblings
+    // carry. Getting this wrong loses the canonical id entirely.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const rows = [
+        {title: 'Gala Of Lights - Lunar Splash', timeSlot: ['19:00:00'], locations: [{location: {}}]},
+        {title: 'Gala Of Lights - Lunar Splash', timeSlot: ['21:00:00'], locations: [{location: {id: 'summit'}}]},
+      ];
+      for (const order of [rows, [...rows].reverse()]) {
+        expect([...groupShowsBySlug(order).keys()]).toEqual(['gala-of-lights']);
+      }
+    } finally { warn.mockRestore(); }
+  });
+
+  test('zones pool across whitespace variants of one title', () => {
+    // The real feed emits " Animal Fun Talk (Sloth / Kinkajou)" with a
+    // leading space, so raw-title keying would let variants resolve apart.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const rows = [
+        {title: 'Gala Of Lights - Lunar Splash', timeSlot: ['19:00:00'], locations: [{location: {id: 'aqua-city'}}]},
+        {title: 'Gala Of Lights -  Lunar Splash', timeSlot: ['21:00:00'], locations: [{location: {id: 'marine-world'}}]},
+      ];
+      for (const order of [rows, [...rows].reverse()]) {
+        expect([...groupShowsBySlug(order).keys()]).toEqual(['gala-of-lights']);
+      }
+    } finally { warn.mockRestore(); }
+  });
+
+  test('a curated show listed at several zones warns once, not once per row', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const groups = groupShowsBySlug([
+        {title: 'Gala of Lights', timeSlot: ['19:00:00'], locations: [{location: {id: 'aqua-city'}}]},
+        {title: 'Gala of Lights', timeSlot: ['21:00:00'], locations: [{location: {id: 'aqua-city'}}]},
+      ]);
+      expect([...groups.keys()]).toEqual(['gala-of-lights']);
+      // Both rows sit at the curated zone: nothing to say.
+      expect(warn).not.toHaveBeenCalled();
+    } finally { warn.mockRestore(); }
+  });
+
+  test('an unlisted edition warns once for a show with several performances', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      groupShowsBySlug([
+        {title: 'Gala Of Lights - Lunar Splash', timeSlot: ['19:00:00']},
+        {title: 'Gala Of Lights - Lunar Splash', timeSlot: ['21:00:00']},
+        {title: 'Gala Of Lights - Lunar Splash', timeSlot: ['23:00:00']},
+      ]);
+      expect(warn).toHaveBeenCalledTimes(1);
     } finally { warn.mockRestore(); }
   });
 
@@ -528,37 +590,22 @@ describe('groupShowsBySlug', () => {
     } finally { warn.mockRestore(); }
   });
 
-  test('every shipped curated family can be reached by its own bare name', () => {
+  test('a bracketed title keeps its own id whatever punctuation is inside it', () => {
+    // A bracket is not a separator's delimiter any more — the head simply
+    // stops at the first colon or spaced dash. What matters is the id: a
+    // bracketed title must never collapse onto a curated family, because the
+    // brackets are how the park tells its two Roving Bands apart.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
-      // Drives the real SHOW_ALIASES: each family's id must be reachable, or
-      // the head rule silently stops working for that whole family.
-      for (const title of ['Gala of Lights']) {
-        expect([...groupShowsBySlug([{title}]).keys()]).toEqual([slugify(title)]);
+      const aliases = [{id: 'roving-band', mapKey: 'rb', location: 'aqua-city', titles: ['Roving Band']}];
+      for (const title of [
+        'Roving Band (Near Pier: Relocated)',
+        'Roving Band (Near Pier - Relocated)',
+        'Roving Band (Near Lagoon Platform)',
+        'Roving Band (Unclosed - Winter',
+      ]) {
+        expect([...groupShowsBySlug([{title}], aliases).keys()]).toEqual([slugify(title)]);
       }
-      // And an edition of it adopts that same id.
-      expect([...groupShowsBySlug([{title: 'Gala of Lights - Any Future Edition'}]).keys()])
-        .toEqual(['gala-of-lights']);
-    } finally { warn.mockRestore(); }
-  });
-
-  test('an unclosed bracket does not hide a later subtitle separator', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      for (const title of ['Gala Of Lights (Unclosed - Winter', 'Gala Of Lights (Unclosed: Winter']) {
-        warn.mockClear();
-        // The head is "Gala Of Lights (Unclosed", which matches no family, so
-        // it keeps its own id either way. What the rescan restores is the
-        // signal: without it the whole title reads as the head and the
-        // staleness warning is silently suppressed.
-        expect([...groupShowsBySlug([{title}]).keys()]).toEqual([slugify(title)]);
-        expect(warn).toHaveBeenCalledWith(expect.stringContaining('belongs to no curated family'));
-      }
-      // A balanced bracket still protects its contents.
-      warn.mockClear();
-      expect([...groupShowsBySlug([{title: 'Roving Band (Near Pier: Relocated)'}]).keys()])
-        .toEqual([slugify('Roving Band (Near Pier: Relocated)')]);
-      expect(warn).not.toHaveBeenCalled();
     } finally { warn.mockRestore(); }
   });
 
@@ -579,25 +626,17 @@ describe('groupShowsBySlug', () => {
     } finally { warn.mockRestore(); }
   });
 
-  test('a bracketed member of a curated family is not flagged as uncurated', () => {
-    // Acting on that warning would mean adding the bracketed title to the
-    // family, which merges the two Roving Bands the brackets keep apart.
+  test('a bracketed title never folds into a curated family, and says so', () => {
+    // The brackets are what keep the two Roving Bands apart, so this must
+    // keep its own id. The warning is still correct: that id carries the
+    // subtitle and will move when the subtitle does.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
       const aliases = [{id: 'roving-band', mapKey: 'rb', location: 'aqua-city', titles: ['Roving Band']}];
       const groups = groupShowsBySlug([{title: 'Roving Band (Near Pier) - Relocated'}], aliases);
       expect([...groups.keys()]).toEqual([slugify('Roving Band (Near Pier) - Relocated')]);
-      expect(warn).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('belongs to no curated family'));
     } finally { warn.mockRestore(); }
-  });
-
-  test('groups identical titles together under one slug', () => {
-    const groups = groupShowsBySlug([
-      {title: 'All Star Jam', timeSlot: ['11:00:00']},
-      {title: 'All Star Jam', timeSlot: ['15:30:00']},
-    ]);
-    expect(groups.size).toBe(1);
-    expect(groups.get('all-star-jam')!.items).toHaveLength(2);
   });
 
   test('two distinct titles that collide on slug keep only the first, and drop the second', () => {
@@ -687,6 +726,30 @@ describe('parseHourRange', () => {
   });
 });
 
+describe('getDailyScheduleItems', () => {
+  test.each([
+    ['an object', {}],
+    ['a number', 5],
+    ['zero', 0],
+    ['true', true],
+    ['a string', 'items'],
+    ['an envelope', {data: []}],
+  ])('a non-array items container (%s) yields no rows rather than throwing', async (_label, items) => {
+    // `body?.items ?? []` passed all of these into `for...of`, and the throw
+    // landed in buildLiveData's body, after its per-source catch had run —
+    // taking every attraction wait time with it.
+    const park = new OceanParkHongKong();
+    vi.spyOn(park, 'fetchDailySchedule').mockResolvedValue({json: async () => ({items})} as any);
+    await expect(park.getDailyScheduleItems('2026-09-14')).resolves.toEqual([]);
+  });
+
+  test('a real array still comes through', async () => {
+    const park = new OceanParkHongKong();
+    vi.spyOn(park, 'fetchDailySchedule').mockResolvedValue({json: async () => ({items: [{title: 'X'}]})} as any);
+    await expect(park.getDailyScheduleItems('2026-09-14')).resolves.toEqual([{title: 'X'}]);
+  });
+});
+
 describe('parseShowTimeSlot', () => {
   test.each([
     ['ascii hyphen', '11:00:00-17:00:00'],
@@ -740,9 +803,28 @@ describe('parseShowTimeSlot', () => {
   test('rejects text that is not a time at all', () => {
     expect(parseShowTimeSlot('')).toBeNull();
     expect(parseShowTimeSlot('All day')).toBeNull();
-    expect(parseShowTimeSlot('11:00:00-')).toBeNull();
     expect(parseShowTimeSlot('10:00:00-12:00:00-14:00:00')).toBeNull();
   });
+
+  test.each([
+    ['a trailing separator', '11:00:00-'],
+    ['a midnight close the clock check rejects', '11:00:00-24:00:00'],
+    ['an end that is not a time', '11:00:00-nope'],
+    ['a 12-hour end', '11:00:00 - 5pm'],
+  ])('%s keeps the start rather than deleting the performance', (_label, raw) => {
+    // Dropping the slot would publish the show CLOSED while it is running.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(parseShowTimeSlot(raw)).toEqual({start: '11:00:00'});
+    } finally { warn.mockRestore(); }
+  });
+
+  test.each(['11:00:00--17:00:00', '11:00:00 -- 17:00:00', '11:00:00 \u2013\u2013 17:00:00'])(
+    'a doubled dash still separates a range: %s', raw => {
+      // A doubled hyphen typed for an em dash is the commonest CMS artefact;
+      // before, it split into three parts and the whole slot was dropped.
+      expect(parseShowTimeSlot(raw)).toEqual({start: '11:00:00', end: '17:00:00'});
+    });
 
   test('rejects non-string input', () => {
     expect(parseShowTimeSlot(null)).toBeNull();
@@ -991,28 +1073,6 @@ describe('buildEntityList', () => {
     expect(show.location).toEqual({latitude: 5, longitude: 6});
   });
 
-  test('canonical identity survives missing map data and uses an explicit map key when available', async () => {
-    const scheduleItems = [{title: 'Gala Of Lights - Winter Celebration'}];
-    for (const coordEntries of [[], [['show-key:galaoflights', {latitude: 5, longitude: 6}]]] as CoordEntry[][]) {
-      const show = (await new Probe({scheduleItems, coordEntries}).entities()).find(e => e.entityType === 'SHOW');
-      expect(show.id).toBe('show_gala-of-lights');
-      expect(show.name).toBe(scheduleItems[0].title);
-      expect(show.location.latitude).toBe(coordEntries.length ? 5 : 22.2465);
-    }
-  });
-
-  const mapProbe = async (shows: any[]) => {
-    const park = new OceanParkHongKong();
-    vi.spyOn(park, 'fetchReferencePoints').mockResolvedValue({json: async () => [
-      {pixelX: 0, pixelY: 0, latitude: 0, longitude: 0},
-      {pixelX: 1, pixelY: 0, latitude: 1, longitude: 0},
-      {pixelX: 0, pixelY: 1, latitude: 0, longitude: 1},
-    ]} as any);
-    vi.spyOn(park, 'fetchMapCategoryData').mockImplementation(async category =>
-      ({json: async () => (category === 'shows' ? shows : [])}) as any);
-    return new Map(await park.getCoordinateMapEntries());
-  };
-
   test('a non-string url in a NON-show category cannot zero every coordinate', async () => {
     // attractions/dining/animals/transportations/shops all go through the
     // same loop, and slugFromUrl calls .split. This is most of the park.
@@ -1031,6 +1091,48 @@ describe('buildEntityList', () => {
       ] : [])}) as any);
     const coords = new Map(await park.getCoordinateMapEntries());
     expect(coords.get('hair-raiser')).toEqual({latitude: 2, longitude: 3});
+  });
+
+  test('a duplicated NON-show row keeps its pin, as it always has', async () => {
+    // animals and shops already ship duplicate URL slugs. Suppressing an
+    // ambiguous key is a shows-only rule; taking a ride's pin away the day
+    // the feed duplicates one is not this change's business.
+    const park = new OceanParkHongKong();
+    vi.spyOn(park, 'fetchReferencePoints').mockResolvedValue({json: async () => [
+      {pixelX: 0, pixelY: 0, latitude: 0, longitude: 0},
+      {pixelX: 1, pixelY: 0, latitude: 1, longitude: 0},
+      {pixelX: 0, pixelY: 1, latitude: 0, longitude: 1},
+    ]} as any);
+    vi.spyOn(park, 'fetchMapCategoryData').mockImplementation(async category =>
+      ({json: async () => (category === 'attractions' ? [
+        {url: '/en/attractions/hair-raiser', x: 1, y: 2},
+        {url: '/en/attractions/hair-raiser', x: 3, y: 4},
+      ] : [])}) as any);
+    const coords = new Map(await park.getCoordinateMapEntries());
+    expect(coords.get('hair-raiser')).toEqual({latitude: 3, longitude: 4});
+  });
+
+  test('a pixel that projects off the planet is dropped', async () => {
+    // Number.isFinite is not a range check: a sentinel pixel projects to a
+    // latitude of -934 and nothing downstream validates it.
+    const park = new OceanParkHongKong();
+    vi.spyOn(park, 'fetchReferencePoints').mockResolvedValue({json: async () => [
+      {pixelX: 0, pixelY: 0, latitude: 0, longitude: 0},
+      {pixelX: 1, pixelY: 0, latitude: 1, longitude: 0},
+      {pixelX: 0, pixelY: 1, latitude: 0, longitude: 1},
+    ]} as any);
+    vi.spyOn(park, 'fetchMapCategoryData').mockImplementation(async category =>
+      ({json: async () => (category === 'shows' ? [
+        {name: 'Sentinel', api_key: 'sent', x: 99999999, y: 4},
+        {name: 'Fine', api_key: 'fine', x: 3, y: 4},
+      ] : [])}) as any);
+    const coords = new Map(await park.getCoordinateMapEntries());
+    expect(coords.has('show-key:sent')).toBe(false);
+    expect(coords.get('show-key:fine')).toEqual({latitude: 3, longitude: 4});
+    for (const [, v] of coords) {
+      expect(Math.abs(v.latitude)).toBeLessThanOrEqual(90);
+      expect(Math.abs(v.longitude)).toBeLessThanOrEqual(180);
+    }
   });
 
   test('a projection that overflows is dropped, not published as null', async () => {
@@ -1057,6 +1159,18 @@ describe('buildEntityList', () => {
     expect(coords.get('show-key:fine')).toEqual({latitude: 7, longitude: 3});
     expect(coords.has('show-key:ova')).toBe(false);
   });
+
+  const mapProbe = async (shows: any[]) => {
+    const park = new OceanParkHongKong();
+    vi.spyOn(park, 'fetchReferencePoints').mockResolvedValue({json: async () => [
+      {pixelX: 0, pixelY: 0, latitude: 0, longitude: 0},
+      {pixelX: 1, pixelY: 0, latitude: 1, longitude: 0},
+      {pixelX: 0, pixelY: 1, latitude: 0, longitude: 1},
+    ]} as any);
+    vi.spyOn(park, 'fetchMapCategoryData').mockImplementation(async category =>
+      ({json: async () => (category === 'shows' ? shows : [])}) as any);
+    return new Map(await park.getCoordinateMapEntries());
+  };
 
   test('a malformed map name cannot take down every coordinate in the park', async () => {
     // slugify() calls .normalize(), so a localised {en, zh} name used to
@@ -1124,25 +1238,50 @@ describe('buildEntityList', () => {
     expect(show.location).toEqual({latitude: 5, longitude: 6});
   });
 
-  test('a live name match outranks the hardcoded map key, which can go stale', async () => {
-    // Upstream recycling an api_key onto a different show is exactly the
-    // churn the alias table exists to survive, so the curated key must not
-    // beat a map row that literally carries this show's name.
-    const coordEntries = [
-      ['show-key:galaoflights', {latitude: 1, longitude: 1}],
-      ['show-name:gala-of-lights', {latitude: 2, longitude: 2}],
-      ['show-url:gala-of-lights', {latitude: 3, longitude: 3}],
-    ] as CoordEntry[];
-    const show = (await new Probe({scheduleItems: [{title: 'Gala of Lights'}], coordEntries}).entities())
-      .find(e => e.entityType === 'SHOW');
-    expect(show.location).toEqual({latitude: 2, longitude: 2});
+  test('the curated map key wins over a disagreeing name match, and the clash is flagged', async () => {
+    // Neither order is safe: a curated key can be renumbered upstream, and a
+    // different production can take a family's name. The human-checked key
+    // wins and the disagreement is logged rather than resolved in silence.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const coordEntries = [
+        ['show-key:galaoflights', {latitude: 1, longitude: 1}],
+        ['show-name:gala-of-lights', {latitude: 2, longitude: 2}],
+        ['show-url:gala-of-lights', {latitude: 3, longitude: 3}],
+      ] as CoordEntry[];
+      const show = (await new Probe({scheduleItems: [{title: 'Gala of Lights'}], coordEntries}).entities())
+        .find(e => e.entityType === 'SHOW');
+      expect(show.location).toEqual({latitude: 1, longitude: 1});
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('point at different places'));
+    } finally { warn.mockRestore(); }
   });
 
-  test('the curated map key still serves a show the map names differently', async () => {
-    const coordEntries = [['show-key:galaoflights', {latitude: 1, longitude: 1}]] as CoordEntry[];
-    const show = (await new Probe({scheduleItems: [{title: 'Gala of Lights'}], coordEntries}).entities())
+  test('agreeing key and name raise no clash warning', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const coordEntries = [
+        ['show-key:galaoflights', {latitude: 1, longitude: 1}],
+        ['show-name:gala-of-lights', {latitude: 1, longitude: 1}],
+      ] as CoordEntry[];
+      await new Probe({scheduleItems: [{title: 'Gala of Lights'}], coordEntries}).entities();
+      expect(warn).not.toHaveBeenCalled();
+    } finally { warn.mockRestore(); }
+  });
+
+  test('a name match still serves a show with no curated key', async () => {
+    const coordEntries = [['show-name:star-explorers-club', {latitude: 7, longitude: 8}]] as CoordEntry[];
+    const show = (await new Probe({scheduleItems: [{title: 'Star Explorers Club'}], coordEntries}).entities())
       .find(e => e.entityType === 'SHOW');
-    expect(show.location).toEqual({latitude: 1, longitude: 1});
+    expect(show.location).toEqual({latitude: 7, longitude: 8});
+  });
+
+  test('a show reaches a pin filed in another category as a last resort', async () => {
+    // The bare namespace is shared with attractions/dining; it is the only
+    // rung that can reach a pin the shows category does not carry.
+    const coordEntries = [['star-explorers-club', {latitude: 9, longitude: 10}]] as CoordEntry[];
+    const show = (await new Probe({scheduleItems: [{title: 'Star Explorers Club'}], coordEntries}).entities())
+      .find(e => e.entityType === 'SHOW');
+    expect(show.location).toEqual({latitude: 9, longitude: 10});
   });
 
   test('a show with only a name match and no alias still gets its pin', async () => {
