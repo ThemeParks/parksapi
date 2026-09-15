@@ -170,18 +170,109 @@ describe('slugify', () => {
 });
 
 describe('groupShowsBySlug', () => {
+  test('every curated title of every shipped family resolves to that family', () => {
+    // Iterates the real table, so a family added with a mismatched id fails
+    // here rather than silently never matching.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(SHOW_ALIASES.length).toBeGreaterThan(0);
+      for (const family of SHOW_ALIASES) {
+        expect(family.id).toBe(slugify(family.id));
+        expect(family.location).toBeTruthy();
+        // The id must be the slug of the show's bare name, or the table
+        // documents one thing and matches another.
+        expect(family.titles.map(slugify)).toContain(family.id);
+        for (const title of family.titles) {
+          expect([...groupShowsBySlug([{title}]).keys()]).toEqual([family.id]);
+        }
+      }
+      expect(warn).not.toHaveBeenCalled();
+    } finally { warn.mockRestore(); }
+  });
+
+  test('curated titles of one family merge into one entity, in any order', () => {
+    const rows = [
+      {title: 'Gala of Lights', timeSlot: ['19:00:00']},
+      {title: 'Gala Of Lights - Winter Celebration', timeSlot: ['20:00:00']},
+    ];
+    for (const order of [rows, [...rows].reverse()]) {
+      const groups = groupShowsBySlug(order);
+      expect([...groups.keys()]).toEqual(['gala-of-lights']);
+      expect(groups.get('gala-of-lights')!.items).toHaveLength(2);
+      // The edition name says more than the bare one.
+      expect(groups.get('gala-of-lights')!.title).toBe('Gala Of Lights - Winter Celebration');
+    }
+  });
+
   test.each([
-    'Gala of Lights',
-    'Gala Of Lights: Sanrio characters’ Whimsical Celebration',
-    'Gala Of Lights – Pandastic Birthday Edition',
-    'Gala Of Lights — Pandastic Birthday Edition',
-    'Gala Of Lights – New Year Celebration',
-    'Gala Of Lights - Winter Celebration',
-    'Gala Of Lights -- Panda Birthday Edition',
-  ])('keeps the verified edition %s on the canonical identity', title => {
-    const groups = groupShowsBySlug([{title, locations: [{location: {id: 'aqua-city'}}]}]);
-    expect([...groups.keys()]).toEqual(['gala-of-lights']);
-    expect(groups.get('gala-of-lights')!.title).toBe(title);
+    ['ascii dash', 'Gala Of Lights - Lunar Splash Edition'],
+    ['colon', 'Gala Of Lights: A Brand New Season'],
+    ['em dash', 'Gala Of Lights \u2014 Some Future Edition'],
+    ['fullwidth colon', 'Gala Of Lights\uff1aAutumn Spectacular'],
+    ['figure dash', 'Gala Of Lights \u2012 Autumn'],
+  ])('an unlisted edition (%s) keeps its own id and names the family it looks like', (_label, title) => {
+    // Identity is the curated list and nothing else. The warning is the
+    // whole mechanism for noticing the table has gone stale, so it has to
+    // name the family a human should add the title to.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect([...groupShowsBySlug([{title}]).keys()]).toEqual([slugify(title)]);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('looks like a new edition of "gala-of-lights"'));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('strand the old id'));
+    } finally { warn.mockRestore(); }
+  });
+
+  test('a subtitled show of no curated family is flagged differently', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect([...groupShowsBySlug([{title: 'Sea Dreams: Lunar Edition'}]).keys()])
+        .toEqual(['sea-dreams-lunar-edition']);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('belongs to no curated family'));
+    } finally { warn.mockRestore(); }
+  });
+
+  test.each([
+    'Penguin Feeding Demonstration',
+    'Bulu Boo Trick-or-Treat Party',
+    'Chill Out Party 19:30 Special',
+    'Gala Of Lights -Lunar Splash',
+    'Roving Band (Near Lagoon Platform)',
+  ])('an ordinary title raises no staleness warning: %s', title => {
+    // An in-word hyphen, a clock, a one-sided dash and a bracketed variant
+    // are not subtitles; warning about them would train the reader to ignore
+    // the one signal that matters.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect([...groupShowsBySlug([{title}]).keys()]).toEqual([slugify(title)]);
+      expect(warn).not.toHaveBeenCalled();
+    } finally { warn.mockRestore(); }
+  });
+
+  test('a row resolves the same way whatever else shares its payload', () => {
+    // buildEntityList and buildLiveData fetch the schedule independently and
+    // can read different cache generations, so a row's id must never depend
+    // on which other rows arrived with it.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const row = {title: 'Gala of Lights', locations: [{location: {id: 'summit'}}]};
+      expect([...groupShowsBySlug([row]).keys()]).toEqual(['gala-of-lights']);
+      expect([...groupShowsBySlug([row, {title: 'Whiskers Show'}]).keys()])
+        .toEqual(['gala-of-lights', 'whiskers-show']);
+    } finally { warn.mockRestore(); }
+  });
+
+  test('a curated show at an unexpected zone keeps its identity and says so once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const groups = groupShowsBySlug([
+        {title: 'Gala of Lights', timeSlot: ['19:00:00'], locations: [{location: {id: 'old-hong-kong'}}]},
+        {title: 'Gala of Lights', timeSlot: ['21:00:00'], locations: [{location: {id: 'old-hong-kong'}}]},
+      ]);
+      expect([...groups.keys()]).toEqual(['gala-of-lights']);
+      expect(groups.get('gala-of-lights')!.items).toHaveLength(2);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('check whether the park has reused the name'));
+    } finally { warn.mockRestore(); }
   });
 
   test('keeps distinct parenthetical shows apart', () => {
@@ -272,19 +363,6 @@ describe('groupShowsBySlug', () => {
     } finally { warn.mockRestore(); }
   });
 
-  test('an unlisted edition is refused only when no listed venue matches', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      const title = 'Gala Of Lights - Lunar Splash Edition';
-      // A row tagged with both a zone and a sub-zone is still the same show.
-      const both = groupShowsBySlug([{title, locations: [{location: {id: 'aqua-city'}}, {location: {id: 'marine-world'}}]}]);
-      expect([...both.keys()]).toEqual(['gala-of-lights']);
-      // Missing venue metadata cannot contradict anything.
-      const none = groupShowsBySlug([{title, locations: [{location: {}}]}]);
-      expect([...none.keys()]).toEqual(['gala-of-lights']);
-    } finally { warn.mockRestore(); }
-  });
-
   test('keeps two different aliased shows apart instead of merging them', () => {
     // SHOW_ALIASES ships with one entry, so nothing else exercises a table
     // with more than one show in it. Two aliases must stay two identities,
@@ -308,60 +386,6 @@ describe('groupShowsBySlug', () => {
     } finally { warn.mockRestore(); }
   });
 
-  test.each([
-    'Gala Of Lights - Lunar Splash Edition',
-    'Gala Of Lights: A Brand New Season',
-    'Gala Of Lights — Some Future Edition',
-    'Gala of Lights -- Another Edition',
-  ])('adopts the canonical id for a title never seen before: %s', title => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      const groups = groupShowsBySlug([{title}]);
-      expect([...groups.keys()]).toEqual(['gala-of-lights']);
-      expect(groups.get('gala-of-lights')!.title).toBe(title);
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('unlisted edition of "gala-of-lights"'));
-    } finally { warn.mockRestore(); }
-  });
-
-  test('an unlisted edition at an unexpected venue keeps the family and says so', () => {
-    // The zone is upstream prose; the title is the identity. Refusing on a
-    // zone mismatch cost three defects across two review rounds.
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      const groups = groupShowsBySlug([{title: 'Gala Of Lights - Lunar Splash Edition', locations: [{location: {id: 'old-hong-kong'}}]}]);
-      expect([...groups.keys()]).toEqual(['gala-of-lights']);
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('check whether the park has reused the name'));
-    } finally { warn.mockRestore(); }
-  });
-
-  test('a row resolves the same way whatever else shares its payload', () => {
-    // buildEntityList and buildLiveData fetch the schedule independently and
-    // can read different cache generations, so a row's id must never depend
-    // on which other rows arrived with it.
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      const row = {title: 'Gala Of Lights - Summer Splash', locations: [{location: {id: 'summit'}}]};
-      const alone = [...groupShowsBySlug([row]).keys()];
-      const withTwin = [...groupShowsBySlug([row, {title: 'Gala Of Lights - Summer Splash', locations: [{location: {id: 'aqua-city'}}]}]).keys()];
-      expect(alone).toEqual(['gala-of-lights']);
-      expect(withTwin).toEqual(['gala-of-lights']);
-    } finally { warn.mockRestore(); }
-  });
-
-  test('an unlisted edition merges with the bare title into one identity', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      const groups = groupShowsBySlug([
-        {title: 'Gala of Lights', timeSlot: ['19:00:00']},
-        {title: 'Gala Of Lights - Lunar Splash Edition', timeSlot: ['20:00:00']},
-      ]);
-      expect([...groups.keys()]).toEqual(['gala-of-lights']);
-      expect(groups.get('gala-of-lights')!.items).toHaveLength(2);
-      // The curated name wins: an unvouched title that merely heads onto the
-      // family must not rename the show.
-      expect(groups.get('gala-of-lights')!.title).toBe('Gala of Lights');
-    } finally { warn.mockRestore(); }
-  });
 
   test('does not warn for an unrelated show that merely shares no prefix', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -390,47 +414,6 @@ describe('groupShowsBySlug', () => {
     } finally { warn.mockRestore(); }
   });
 
-  test('a subtitled show of an UNCURATED family gets its own id and is flagged', () => {
-    // The load-bearing safety property: a head only ever adopts when it
-    // matches a family a human curated. A new show must never be swallowed.
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      const groups = groupShowsBySlug([{title: 'Sea Dreams: Lunar Edition'}, {title: 'Sea Dreams'}]);
-      expect([...groups.keys()]).toEqual(['sea-dreams-lunar-edition', 'sea-dreams']);
-      // ...and it says so, which is the only signal that the table is stale.
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('belongs to no curated family'));
-    } finally { warn.mockRestore(); }
-  });
-
-  test('an unsubtitled unknown show is not flagged as a stale-table candidate', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      groupShowsBySlug([{title: 'Penguin Feeding Demonstration'}, {title: 'Roving Band (Near Pier)'}]);
-      expect(warn).not.toHaveBeenCalled();
-    } finally { warn.mockRestore(); }
-  });
-
-  test.each([
-    ['fullwidth colon', 'Gala Of Lights\uff1aAutumn Spectacular'],
-    ['fullwidth hyphen', 'Gala Of Lights \uff0d Autumn Spectacular'],
-    ['figure dash', 'Gala Of Lights \u2012 Autumn Spectacular'],
-    ['horizontal bar', 'Gala Of Lights \u2015 Autumn Spectacular'],
-    ['minus sign', 'Gala Of Lights \u2212 Autumn Spectacular'],
-  ])('%s separates a subtitle', (_label, title) => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      expect([...groupShowsBySlug([{title}]).keys()]).toEqual(['gala-of-lights']);
-    } finally { warn.mockRestore(); }
-  });
-
-  test('a dash needs whitespace on BOTH sides to separate a subtitle', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      for (const title of ['Gala Of Lights -Lunar Splash', 'Gala Of Lights- Lunar Splash']) {
-        expect([...groupShowsBySlug([{title}]).keys()]).toEqual([slugify(title)]);
-      }
-    } finally { warn.mockRestore(); }
-  });
 
   test('a separator inside brackets does not split the title', () => {
     const aliases = [{id: 'roving-band', mapKey: 'rovingband', location: 'aqua-city', titles: ['Roving Band']}];
@@ -438,27 +421,6 @@ describe('groupShowsBySlug', () => {
     try {
       for (const title of ['Roving Band (Near Pier: Relocated)', 'Roving Band (Near Pier - Relocated)']) {
         expect([...groupShowsBySlug([{title}], aliases).keys()]).toEqual([slugify(title)]);
-      }
-    } finally { warn.mockRestore(); }
-  });
-
-  test('every shipped family is reachable by its own id and adopts an edition of it', () => {
-    // Iterates the real table, so a second family added with a mismatched id
-    // fails here rather than silently disabling the head rule for itself.
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      expect(SHOW_ALIASES.length).toBeGreaterThan(0);
-      for (const family of SHOW_ALIASES) {
-        // Every curated title of the family resolves to the family id.
-        for (const title of family.titles) {
-          expect([...groupShowsBySlug([{title}]).keys()]).toEqual([family.id]);
-        }
-        // An unseen edition of it adopts the same id.
-        const edition = `${family.titles[0]} - An Unseen Future Edition`;
-        expect([...groupShowsBySlug([{title: edition}]).keys()]).toEqual([family.id]);
-        // And the id itself is a well-formed slug.
-        expect(family.id).toBe(slugify(family.id));
-        expect(family.location).toBeTruthy();
       }
     } finally { warn.mockRestore(); }
   });
@@ -497,37 +459,6 @@ describe('groupShowsBySlug', () => {
     } finally { warn.mockRestore(); }
   });
 
-  test('a zone-less row keeps the canonical id even when a sibling names a zone', () => {
-    // Pooling must not turn "no opinion" into a refusal: absent venue
-    // metadata cannot contradict a family, however many zones its siblings
-    // carry. Getting this wrong loses the canonical id entirely.
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      const rows = [
-        {title: 'Gala Of Lights - Lunar Splash', timeSlot: ['19:00:00'], locations: [{location: {}}]},
-        {title: 'Gala Of Lights - Lunar Splash', timeSlot: ['21:00:00'], locations: [{location: {id: 'summit'}}]},
-      ];
-      for (const order of [rows, [...rows].reverse()]) {
-        expect([...groupShowsBySlug(order).keys()]).toEqual(['gala-of-lights']);
-      }
-    } finally { warn.mockRestore(); }
-  });
-
-  test('zones pool across whitespace variants of one title', () => {
-    // The real feed emits " Animal Fun Talk (Sloth / Kinkajou)" with a
-    // leading space, so raw-title keying would let variants resolve apart.
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      const rows = [
-        {title: 'Gala Of Lights - Lunar Splash', timeSlot: ['19:00:00'], locations: [{location: {id: 'aqua-city'}}]},
-        {title: 'Gala Of Lights -  Lunar Splash', timeSlot: ['21:00:00'], locations: [{location: {id: 'marine-world'}}]},
-      ];
-      for (const order of [rows, [...rows].reverse()]) {
-        expect([...groupShowsBySlug(order).keys()]).toEqual(['gala-of-lights']);
-      }
-    } finally { warn.mockRestore(); }
-  });
-
   test('a curated show listed at several zones warns once, not once per row', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
@@ -538,36 +469,6 @@ describe('groupShowsBySlug', () => {
       expect([...groups.keys()]).toEqual(['gala-of-lights']);
       // Both rows sit at the curated zone: nothing to say.
       expect(warn).not.toHaveBeenCalled();
-    } finally { warn.mockRestore(); }
-  });
-
-  test('an unlisted edition warns once for a show with several performances', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      groupShowsBySlug([
-        {title: 'Gala Of Lights - Lunar Splash', timeSlot: ['19:00:00']},
-        {title: 'Gala Of Lights - Lunar Splash', timeSlot: ['21:00:00']},
-        {title: 'Gala Of Lights - Lunar Splash', timeSlot: ['23:00:00']},
-      ]);
-      expect(warn).toHaveBeenCalledTimes(1);
-    } finally { warn.mockRestore(); }
-  });
-
-  test('one unlisted show listed once per zone stays one entity', () => {
-    // The park lists a roving show once per zone. Judging each row alone let
-    // one adopt the family while its twin was refused: two entities, same
-    // name, half the showtimes each.
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      const rows = [
-        {title: 'Gala Of Lights - Spring Edition', timeSlot: ['19:00:00'], locations: [{location: {id: 'aqua-city'}}]},
-        {title: 'Gala Of Lights - Spring Edition', timeSlot: ['21:00:00'], locations: [{location: {id: 'summit'}}]},
-      ];
-      for (const order of [rows, [...rows].reverse()]) {
-        const groups = groupShowsBySlug(order);
-        expect([...groups.keys()]).toEqual(['gala-of-lights']);
-        expect(groups.get('gala-of-lights')!.items).toHaveLength(2);
-      }
     } finally { warn.mockRestore(); }
   });
 
@@ -606,23 +507,6 @@ describe('groupShowsBySlug', () => {
       ]) {
         expect([...groupShowsBySlug([{title}], aliases).keys()]).toEqual([slugify(title)]);
       }
-    } finally { warn.mockRestore(); }
-  });
-
-  test.each(['\u2010', '\u2011'])('a %s hyphen separates a subtitle', dash => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      expect([...groupShowsBySlug([{title: `Gala Of Lights ${dash} Winter Edition`}]).keys()])
-        .toEqual(['gala-of-lights']);
-    } finally { warn.mockRestore(); }
-  });
-
-  test('a clock time in a title is not a subtitle separator', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      const title = 'Chill Out Party 19:30 Special';
-      expect([...groupShowsBySlug([{title}]).keys()]).toEqual([slugify(title)]);
-      expect(warn).not.toHaveBeenCalled();
     } finally { warn.mockRestore(); }
   });
 

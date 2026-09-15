@@ -165,8 +165,19 @@ interface ShowGroup {
   mapKey?: string;
 }
 
-// Verified editions of the Aqua City Lagoon show (zone id `aqua-city`),
-// not a general subtitle heuristic.
+// Every title the park has published for one physical show, so that a
+// seasonal rename keeps the show's entity id instead of minting a new one
+// and stranding its history (#561).
+//
+// This is data, not a heuristic: a title belongs to a family only if it is
+// listed here. When the park invents a new edition name, the feed publishes
+// it under its own id and warnIfTableLooksStale() says so in the logs; the
+// fix is to add the new title to `titles` below. `id` must be the slug of
+// the show's bare name — a test asserts it for every family.
+//
+// `location` is the zone id the feed tags the show with (`aqua-city`, not
+// the display name "Aqua City Lagoon"); it is only ever used to log that a
+// show turned up somewhere unexpected.
 // Seasonal IDs change once; consumers must migrate historical IDs separately.
 // Sources: Ocean Park's events/{pandastic-summer-birthday-celebration,
 // ocean-park-sanrio-characters-marine-wonders,wondrous-winter-gala-christmas,
@@ -192,21 +203,12 @@ export const SHOW_ALIASES: ShowAlias[] = [{
 }];
 
 /**
- * The head of a programme title: everything before the first subtitle
- * separator. "Gala Of Lights - Winter Celebration" has a head of "Gala Of
- * Lights"; "Bulu Boo Trick-or-Treat Party" is all head.
- *
- * A separator is a colon, or a dash run with whitespace on both sides. The
- * dash class carries every form a CMS substitutes for a hyphen, including
- * U+2010/U+2011, which a word processor emits far more often than the figure
- * dash. A colon flanked by digits is a clock ("Chill Out Party 19:30
- * Special"), not a subtitle.
- *
- * NFKD first, so the fullwidth punctuation a CJK CMS emits (U+FF1A colon,
- * U+FF0D hyphen) folds onto the ASCII forms this scans for. slugify()
- * normalises the same way, so the two agree on what a title says. This runs
- * on the raw title, never on the slug, because slugify() flattens "(" and
- * "-" onto the same character and a bracket must not read as a separator.
+ * Everything before a title's first subtitle separator. Used ONLY to decide
+ * whether to log that SHOW_ALIASES looks stale — it can never change an
+ * entity id. A separator is a colon, or a dash run with whitespace on both
+ * sides; a colon flanked by digits is a clock ("Chill Out Party 19:30
+ * Special"), not a subtitle. NFKD first so the fullwidth punctuation a CJK
+ * CMS emits folds onto the ASCII forms this scans for.
  */
 const SUBTITLE_SEPARATOR =
   /(?<!\d):(?!\d)|\s[-\u2010\u2011\u2012\u2013\u2014\u2015\u2212]+\s/;
@@ -229,14 +231,18 @@ function rowVenues(item: OceanParkScheduleItem): string[] {
  * Resolve one schedule row onto a curated show family, or undefined if it
  * belongs to none.
  *
- * The zone a row names is reported, never enforced. Refusing a family
- * because the zone looked wrong cost three separate defects across two
- * review rounds — it fragmented curated families, it turned absent metadata
- * into a refusal once zones were pooled to compensate, and pooling made a
- * row's id depend on which other rows shared its payload, which two
- * independently-fetched builders cannot guarantee. The zone is upstream
- * prose; the title is the identity. A surprising zone is worth a log line
- * and nothing more.
+ * Identity comes from the curated list and nothing else. A title is this
+ * show if a human wrote that title down here; otherwise it is its own show.
+ * There is deliberately no rule that infers a family from a title nobody has
+ * vouched for: the park renames these shows about twice a year, so the cost
+ * of getting it wrong — silently folding a genuinely new production into an
+ * existing entity, or renaming one — outweighs the cost of a two-line edit
+ * to the table each season. What this does instead is say, loudly, when the
+ * table looks stale, so the edit actually gets made.
+ *
+ * The zone a row names is reported, never enforced. Refusing a family on a
+ * zone mismatch cost three separate defects across two review rounds. The
+ * zone is upstream prose; the title is the identity.
  */
 function showAlias(item: OceanParkScheduleItem, aliases: ShowAlias[]) {
   const slug = slugify(item.title);
@@ -244,9 +250,11 @@ function showAlias(item: OceanParkScheduleItem, aliases: ShowAlias[]) {
   // `a.id === slug` is matched as well as the curated titles, so a family
   // whose `titles` omits its own bare name still resolves — the id IS the
   // bare name by construction.
-  const curated = aliases.find(a => a.id === slug || a.titles.some(t => slugify(t) === slug));
-  const family = curated ?? adoptedFamily(item, aliases, slug);
-  if (!family) return undefined;
+  const family = aliases.find(a => a.id === slug || a.titles.some(t => slugify(t) === slug));
+  if (!family) {
+    warnIfTableLooksStale(item, aliases, slug);
+    return undefined;
+  }
 
   const venues = rowVenues(item);
   if (venues.length > 0 && !venues.includes(family.location)) {
@@ -258,39 +266,22 @@ function showAlias(item: OceanParkScheduleItem, aliases: ShowAlias[]) {
 }
 
 /**
- * The curated family an UNLISTED title belongs to, by matching its head.
+ * Log-only. A title whose head names a curated family, but which is not
+ * itself listed, is almost always that show's next seasonal edition — which
+ * means it is about to publish under a new entity id and strand the old
+ * one's history. That is issue #561 recurring, and the whole reason this
+ * table exists, so it must not happen quietly.
  *
- * The park rebrands these shows every season, so a title whose head is a
- * curated show name is most likely the next edition of it. Adopting the
- * canonical id beats minting a new one that strands the show's history.
- *
- * This is a heuristic, and the way it can be wrong is a real "X: Y" pair
- * where Y names a genuinely different production. The risk is bounded: the
- * head has to exactly match a show already curated here, so a new show can
- * never be swallowed by a family nobody has vouched for.
+ * This deliberately does not act on the guess. Adding the title to
+ * SHOW_ALIASES is a human's call, and a two-line edit.
  */
-function adoptedFamily(item: OceanParkScheduleItem, aliases: ShowAlias[], slug: string) {
+function warnIfTableLooksStale(item: OceanParkScheduleItem, aliases: ShowAlias[], slug: string): void {
   const headSlug = slugify(titleHead(item.title));
-  const alias = headSlug === slug ? undefined : aliases.find(a => a.id === headSlug);
-  if (!alias) {
-    // A subtitled title belonging to no curated family is how this table goes
-    // stale: the park invents a show, its editions churn, and nothing says
-    // so. Adopting it would be guessing, so say it instead. This fires for a
-    // bracketed title too, and truthfully: its id carries the subtitle and
-    // will move when the subtitle does. The remedy is a new curated family,
-    // never folding it into an existing one — brackets are how the park
-    // tells its two Roving Bands apart.
-    if (headSlug && headSlug !== slug) {
-      console.warn(
-        `[OceanPark] subtitled show "${item.title}" belongs to no curated family; publishing as "show_${slug}", which will change if the subtitle changes`,
-      );
-    }
-    return undefined;
-  }
-  console.warn(
-    `[OceanPark] show "${item.title}" is an unlisted edition of "${alias.id}"; publishing it under that id — add the full title to SHOW_ALIASES to confirm it`,
-  );
-  return alias;
+  if (!headSlug || headSlug === slug) return;
+  const family = aliases.find(a => a.id === headSlug);
+  console.warn(family
+    ? `[OceanPark] show "${item.title}" looks like a new edition of "${family.id}" but is not in SHOW_ALIASES; it will publish as "show_${slug}" and strand the old id until the title is added`
+    : `[OceanPark] subtitled show "${item.title}" belongs to no curated family; publishing as "show_${slug}", which will change if the subtitle changes`);
 }
 
 // ── Pure Functions ──────────────────────────────────────────────────────────
@@ -437,20 +428,18 @@ export function slugify(text: string): string {
 }
 
 /**
- * Choose the display title for a merged show. A curated edition title ("Gala
- * Of Lights - Winter Celebration") says more than the bare name the id is
- * built from, so it wins, then the bare name, and only then a title nobody
- * has vouched for — otherwise a members' backstage tour that merely heads
- * onto the family could rename the flagship show. Ties break lexically so the
- * same set of rows always yields the same name regardless of feed order.
+ * Choose the display title for a merged show. An edition title ("Gala Of
+ * Lights - Winter Celebration") says more than the bare name the id is built
+ * from, so it wins. Ties break lexically, so the same set of rows always
+ * yields the same name regardless of the order the feed listed them in.
  */
 function pickEditionTitle(titles: string[], alias: ShowAlias): string {
-  const rank = (t: string) => {
-    const slug = slugify(t);
-    if (slug === alias.id) return 1;                                          // the bare name
-    return alias.titles.some(curated => slugify(curated) === slug) ? 0 : 2;   // edition : unvouched
-  };
-  return [...titles].sort((a, b) => rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0))[0];
+  // Every row in a family's group is a curated title, so the only choice is
+  // between the bare name and an edition of it.
+  const isBare = (t: string) => slugify(t) === alias.id;
+  return [...titles].sort((a, b) =>
+    Number(isBare(a)) - Number(isBare(b)) || (a < b ? -1 : a > b ? 1 : 0),
+  )[0];
 }
 
 /**
