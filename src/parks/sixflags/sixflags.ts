@@ -19,8 +19,8 @@ import {http, type HTTPObj} from '../../http.js';
 import {cache} from '../../cache.js';
 import {reusable} from '../../promiseReuse.js';
 import {destinationController} from '../../destinationRegistry.js';
-import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import {formatInTimezone, addMinutes, constructDateTime} from '../../datetime.js';
+import type {Entity, LiveData, EntitySchedule, ScheduleEntry} from '@themeparks/typelib';
+import {formatInTimezone, addMinutes, constructDateTime, shiftDateString} from '../../datetime.js';
 import {decodeHtmlEntities, stripHtmlTags} from '../../htmlUtils.js';
 import tzLookup from 'tz-lookup';
 
@@ -184,6 +184,40 @@ const EXCLUDED_PARK_IDS = new Set<number>([6, 12, 14, 27, 903, 924, 969]);
 /** Default show duration in minutes when not otherwise specified */
 const DEFAULT_SHOW_DURATION_MINUTES = 30;
 
+/**
+ * Venue identifiers used throughout the vendor's POI, venue-status,
+ * wait-times and operating-hours responses. The same numbering is shared by
+ * every park in the estate.
+ *
+ * Venue 3 ("MAZE") holds the seasonal haunt attractions — Knott's Scary Farm
+ * mazes, Fright Fest / HalloWeekends / Halloween Haunt houses. They are
+ * walk-through attractions that queue and post a standby wait exactly the
+ * way a ride does, and the vendor publishes them in all four feeds, but
+ * nothing here consumed venue 3 until now.
+ *
+ * Venues we deliberately do not publish: 5 (restrooms), 6 (retail),
+ * 7 (guest services), 8 (parking), 9 (water-park cabanas), 10 (in-app AR
+ * experiences) and the venue-less EVENT rows.
+ */
+const RIDE_VENUE_ID = 1;
+const SHOW_VENUE_ID = 2;
+const MAZE_VENUE_ID = 3;
+const RESTAURANT_VENUE_ID = 4;
+
+/**
+ * Venues whose rows carry a standby queue, so they enumerate from the union
+ * of venue-status and wait-times and map their status the same way.
+ */
+const QUEUEING_VENUE_IDS: readonly number[] = [RIDE_VENUE_ID, MAZE_VENUE_ID];
+
+/**
+ * `operatings[].operatingTypeId` for the seasonal haunt event. The vendor
+ * publishes it alongside the regular `Park` window (id 24) on event nights
+ * and it is the only place Knott's exposes Scary Farm hours — its maze
+ * detailHours are empty all season.
+ */
+const HAUNT_OPERATING_TYPE_ID = 25;
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -193,6 +227,153 @@ const DEFAULT_SHOW_DURATION_MINUTES = 30;
  */
 function cleanHtmlName(name: string): string {
   return decodeHtmlEntities(stripHtmlTags(name));
+}
+
+/**
+ * Seasonal badges the vendor staples onto maze names for the current year
+ * ("NEW! Inked", "NEW: Metal Massacre", "RETURNING! Necropolis"). They are
+ * marketing chrome, not part of the attraction's identity: the same maze
+ * loses the badge next season and the rename churns the entity on the wiki
+ * for no reason. Strip it once, here.
+ *
+ * Also normalises the ragged whitespace venue 3 ships — Kings Dominion pads
+ * every maze name with runs of tabs, and a stripped badge can leave a double
+ * space behind ("NEW!  Finklestein's House of Fun") — and drops the literal
+ * "N/A" Frontier City appends to one name.
+ */
+function cleanMazeName(name: string): string {
+  return cleanHtmlName(name)
+    .replace(/^(?:new|returning|back)\s*[!:]\s*/i, '')
+    .replace(/\s+N\/A$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Venue 3 is not purely mazes. The vendor also files the haunt event's
+ * *entrance pin* there — a zero-coordinate row named for the gate it sits on
+ * (Canada's Wonderland publishes "Front Gate"). It is wayfinding furniture,
+ * never an attraction, and it would otherwise surface on the wiki as a
+ * permanently-closed ride.
+ *
+ * Matched on the whole name so a real maze that merely mentions a gate
+ * ("Gates of Terror" at Canada's Wonderland) is untouched.
+ */
+function isEventEntrancePin(name: string): boolean {
+  return /^(?:front|main|park)?\s*(?:gate|entrance|entry)$/i.test(name.trim());
+}
+
+/**
+ * The other venue-3 stowaway: character meet-and-greets run as part of the
+ * haunt event (Six Flags Over Georgia files "Looney Tunes Meet and Greet"
+ * and "Monster Mansion Meet and Greet" under venue 3). These are real guest
+ * offerings, so they are published — but as MEET_AND_GREET, not as a maze.
+ */
+function isMeetAndGreet(name: string): boolean {
+  return /\bmeet\s*(?:and|&|'n'?|n)\s*greet\b/i.test(name);
+}
+
+/**
+ * True for a vendor wall-clock string this module can safely turn into a
+ * timestamp. The operating-hours feed uses "" for "no window today", but a
+ * malformed value would otherwise reach constructDateTime() and produce a
+ * nonsense schedule entry rather than no entry at all.
+ */
+function isWallClockTime(value: string | undefined): value is string {
+  return typeof value === 'string' && /^\d{1,2}:\d{2}$/.test(value);
+}
+
+/**
+ * True when a closing time lands on the calendar day after its opening time.
+ *
+ * Both values are vendor "HH:mm" wall-clock strings with no date attached, so
+ * the only signal that a window crossed midnight is the close not being after
+ * the open. Equality counts as a rollover too: a 19:00-19:00 window is a full
+ * day, never a zero-length one.
+ */
+function closeTimeCrossesMidnight(openTime: string, closeTime: string): boolean {
+  return closeTime <= openTime;
+}
+
+/**
+ * Extract the seasonal haunt window for one calendar date, or null if the
+ * vendor published none.
+ *
+ * Two upstream shapes, both observed on 2026-09-16:
+ *
+ *   (a) PARK-LEVEL — an `operatings` block of type 25 ("Haunt") alongside the
+ *       regular "Park" block. Knott's Berry Farm publishes Scary Farm this
+ *       way (19:00-01:00 weeknights, 19:00-02:00 weekends) and leaves every
+ *       maze's detailHours empty, so this is the only Scary Farm window that
+ *       exists anywhere in the feed.
+ *
+ *   (b) PER-MAZE — no Haunt operatings block, but venue 3's detailHours carry
+ *       real per-maze hours. Magic Mountain (19:00-23:00 Fright Fest nights),
+ *       Cedar Point, Kings Island and Canada's Wonderland all do this. The
+ *       envelope of those hours is the event window.
+ *
+ * Prefer (a): it is the vendor's own statement of the event window, whereas
+ * the envelope in (b) is inferred from whatever mazes happen to be scheduled.
+ */
+function hauntWindowForDate(
+  dateObj: SixFlagsOperatingHours['dates'][0],
+): {open: string; close: string; description: string} | null {
+  const hauntOperatings = (dateObj.operatings || []).filter(op =>
+    op.operatingTypeId === HAUNT_OPERATING_TYPE_ID || /haunt/i.test(op.operatingTypeName || ''),
+  );
+
+  for (const op of hauntOperatings) {
+    const items = (op.items || []).filter(i => isWallClockTime(i.timeFrom) && isWallClockTime(i.timeTo));
+    if (items.length === 0) continue;
+    return {
+      open: items.map(i => i.timeFrom).sort()[0],
+      close: latestClosingTime(items.map(i => ({from: i.timeFrom, to: i.timeTo}))),
+      description: op.operatingTypeName || 'Haunt',
+    };
+  }
+
+  const mazeVenue = dateObj.venues?.find(v => v.venueId === MAZE_VENUE_ID);
+  const mazeHours = (mazeVenue?.detailHours || [])
+    .filter(h => isWallClockTime(h.operatingTimeFrom) && isWallClockTime(h.operatingTimeTo));
+  if (mazeHours.length === 0) return null;
+
+  return {
+    open: mazeHours.map(h => h.operatingTimeFrom).sort()[0],
+    close: latestClosingTime(mazeHours.map(h => ({from: h.operatingTimeFrom, to: h.operatingTimeTo}))),
+    description: 'Haunt',
+  };
+}
+
+/**
+ * Latest closing time across a set of windows, treating any close that does
+ * not follow its own open as belonging to the next day.
+ *
+ * A plain string sort gets this backwards on haunt nights: Cedar Point
+ * schedules mazes 20:00-23:00 and 20:00-00:00 on the same night, and "23:00"
+ * sorts after "00:00", so the naive maximum would close the event an hour
+ * before its real end.
+ */
+function latestClosingTime(windows: Array<{from: string; to: string}>): string {
+  let best = '';
+  let bestRank = -1;
+  for (const w of windows) {
+    // Same-day closes rank by their own clock time; next-day closes all rank
+    // above every same-day close, and among themselves by clock time.
+    const rank = closeTimeCrossesMidnight(w.from, w.to)
+      ? 24 * 60 + timeToMinutes(w.to)
+      : timeToMinutes(w.to);
+    if (rank > bestRank) {
+      bestRank = rank;
+      best = w.to;
+    }
+  }
+  return best;
+}
+
+/** Minutes since midnight for an "HH:mm" wall-clock string. */
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(':');
+  return Number(hours) * 60 + Number(minutes);
 }
 
 /**
@@ -708,8 +889,20 @@ export class SixFlags extends Destination {
     if (s === 'temp closed' || s === 'temp closed due weather') return 'DOWN';
     if (s === 'not scheduled') return 'CLOSED';
     if (s === '') {
-      // No status from venue - use wait time as fallback
-      return (waitTime !== null && waitTime >= 0) ? 'OPERATING' : 'CLOSED';
+      // No status from venue — the only evidence left is the posted wait,
+      // and it has to be a *positive* one.
+      //
+      // The wait-times feed is not gated on park hours: it serves a roster
+      // of zeros around the clock. Sampled 2026-09-16 at 03:20 Pacific /
+      // 06:20 Eastern, with every park in the estate shut, all 1,000-plus
+      // wait-times rows across 26 parks read exactly 0 — so treating 0 as
+      // evidence of operation reported 21 rides open in the middle of the
+      // night. In this feed 0 is the absence of a reading, not a walk-on.
+      //
+      // Rides the union exists to recover carry a real number: Canada's
+      // Wonderland's "The Daredeviler" was serving 60 minutes when it was
+      // missing from venue-status. Those are unaffected.
+      return (waitTime !== null && waitTime > 0) ? 'OPERATING' : 'CLOSED';
     }
     // Unknown status - default to operating
     return 'OPERATING';
@@ -795,15 +988,19 @@ export class SixFlags extends Destination {
       // already fetched above for location calculation.
       if (Array.isArray(poiData)) {
         // Rides (venueId: 1)
-        const rides = poiData.filter(poi => poi.venueId === 1 && poi.parkId === park.parkId);
+        const rides = poiData.filter(poi => poi.venueId === RIDE_VENUE_ID && poi.parkId === park.parkId);
         entities.push(...this.mapPOIEntities(rides, mainParkId, destinationId, tz, 'ATTRACTION', parkLocation));
 
         // Shows (venueId: 2)
-        const shows = poiData.filter(poi => poi.venueId === 2 && poi.parkId === park.parkId);
+        const shows = poiData.filter(poi => poi.venueId === SHOW_VENUE_ID && poi.parkId === park.parkId);
         entities.push(...this.mapPOIEntities(shows, mainParkId, destinationId, tz, 'SHOW', parkLocation));
 
+        // Haunt mazes (venueId: 3)
+        const mazes = poiData.filter(poi => poi.venueId === MAZE_VENUE_ID && poi.parkId === park.parkId);
+        entities.push(...this.mapMazeEntities(mazes, mainParkId, destinationId, tz, parkLocation));
+
         // Restaurants (venueId: 4)
-        const restaurants = poiData.filter(poi => poi.venueId === 4 && poi.parkId === park.parkId);
+        const restaurants = poiData.filter(poi => poi.venueId === RESTAURANT_VENUE_ID && poi.parkId === park.parkId);
         entities.push(...this.mapPOIEntities(restaurants, mainParkId, destinationId, tz, 'RESTAURANT', parkLocation));
 
         // Water-park children. Two upstream patterns exist:
@@ -830,13 +1027,16 @@ export class SixFlags extends Destination {
 
           const wpLocation = parkCentroidFromPOI(wpPoi, wp.parkId) ?? parkLocation;
 
-          const wpRides = wpPoi.filter(poi => poi.venueId === 1);
+          const wpRides = wpPoi.filter(poi => poi.venueId === RIDE_VENUE_ID);
           entities.push(...this.mapPOIEntities(wpRides, wpParkEntityId, destinationId, wpTz, 'ATTRACTION', wpLocation));
 
-          const wpShows = wpPoi.filter(poi => poi.venueId === 2);
+          const wpShows = wpPoi.filter(poi => poi.venueId === SHOW_VENUE_ID);
           entities.push(...this.mapPOIEntities(wpShows, wpParkEntityId, destinationId, wpTz, 'SHOW', wpLocation));
 
-          const wpRestaurants = wpPoi.filter(poi => poi.venueId === 4);
+          const wpMazes = wpPoi.filter(poi => poi.venueId === MAZE_VENUE_ID);
+          entities.push(...this.mapMazeEntities(wpMazes, wpParkEntityId, destinationId, wpTz, wpLocation));
+
+          const wpRestaurants = wpPoi.filter(poi => poi.venueId === RESTAURANT_VENUE_ID);
           entities.push(...this.mapPOIEntities(wpRestaurants, wpParkEntityId, destinationId, wpTz, 'RESTAURANT', wpLocation));
         }
       }
@@ -880,6 +1080,54 @@ export class SixFlags extends Destination {
         // Fall back to the park's centroid when the POI didn't carry
         // coordinates. Shows and outdoor restaurants are the main offenders;
         // without this they'd have no location at all.
+        if (!(entity as any).location && fallbackLocation) {
+          (entity as any).location = fallbackLocation;
+        }
+        return entity;
+      },
+    });
+  }
+
+  /**
+   * Map venue-3 POI rows to ATTRACTION entities.
+   *
+   * Separate from {@link mapPOIEntities} because venue 3 needs its own name
+   * cleanup (season badges, padded whitespace) and because two kinds of
+   * non-maze row live in the venue: the event entrance pin, which is dropped,
+   * and character meet-and-greets, which are published as MEET_AND_GREET
+   * rather than as a walk-through attraction.
+   */
+  private mapMazeEntities(
+    pois: SixFlagsPOI[],
+    parkEntityId: string,
+    destinationId: string,
+    tz: string,
+    fallbackLocation: {latitude: number; longitude: number} | null,
+  ): Entity[] {
+    return this.mapEntities(pois, {
+      idField: 'fimsId',
+      nameField: (poi) => cleanMazeName(poi.name),
+      entityType: 'ATTRACTION',
+      parentIdField: () => parkEntityId,
+      destinationId,
+      timezone: tz,
+      filter: (poi: SixFlagsPOI) => !isEventEntrancePin(cleanMazeName(poi.name)),
+      locationFields: {
+        lat: (poi: SixFlagsPOI) => parseCoordinates(poi)?.latitude,
+        lng: (poi: SixFlagsPOI) => parseCoordinates(poi)?.longitude,
+      },
+      transform: (entity, poi) => {
+        // A maze is a walk-through attraction with a standby queue, so it
+        // rides under the same attractionType as everything else that posts
+        // a wait time. This matches how Halloween Horror Nights houses are
+        // already published from the Universal module.
+        (entity as any).attractionType = isMeetAndGreet(cleanMazeName(poi.name))
+          ? 'MEET_AND_GREET'
+          : 'RIDE';
+
+        // Roughly a third of maze rows ship (0, 0) — parseCoordinates
+        // rejects the placeholder, so fall back to the park centroid the
+        // same way shows and outdoor restaurants do.
         if (!(entity as any).location && fallbackLocation) {
           (entity as any).location = fallbackLocation;
         }
@@ -953,7 +1201,15 @@ export class SixFlags extends Destination {
       }
     }
 
-    // Process rides (venueId: 1) from the union of venue-status and wait-times.
+    // Process rides (venueId: 1) and haunt mazes (venueId: 3) from the union
+    // of venue-status and wait-times.
+    //
+    // Mazes queue and post a standby wait exactly the way a ride does, and
+    // the union matters more for them than it does for rides: on a day
+    // before the haunt season opens several parks publish maze waits with no
+    // maze roster in venue-status at all (Kings Island 0/7, Discovery
+    // Kingdom 0/5, observed 2026-09-16), so enumerating venue-status alone
+    // would drop every maze at those parks.
     //
     // Venue-status is the ride roster, but the vendor sometimes publishes a
     // live wait for a ride it has dropped from that roster. Enumerating
@@ -973,11 +1229,12 @@ export class SixFlags extends Destination {
     // is still publishing live data for. Wait-times-only rides carry no status
     // string; mapStatus('') falls back to the wait time, which is exactly the
     // signal we have for them.
-    const ridesVenue = venueStatus.venues.find(v => v.venueId === 1);
-    const venueStatusRides = ridesVenue?.details ?? [];
+    const venueStatusRides = venueStatus.venues
+      .filter(v => QUEUEING_VENUE_IDS.includes(v.venueId))
+      .flatMap(v => v.details ?? []);
     const rosteredIds = new Set(venueStatusRides.map(r => r.fimsId));
     const waitTimesOnlyRides = (waitTimesData?.venues ?? [])
-      .filter(v => v.venueId === 1)
+      .filter(v => QUEUEING_VENUE_IDS.includes(v.venueId))
       .flatMap(v => v.details ?? [])
       .filter(d => d.fimsId && !rosteredIds.has(d.fimsId))
       .map(d => ({fimsId: d.fimsId, status: ''}));
@@ -1026,7 +1283,7 @@ export class SixFlags extends Destination {
     }
 
     // Process shows (venueId: 2) from venue status
-    const showsVenue = venueStatus.venues.find(v => v.venueId === 2);
+    const showsVenue = venueStatus.venues.find(v => v.venueId === SHOW_VENUE_ID);
     if (showsVenue?.details) {
       const tz = await this.getTimezoneForPark(parkId);
 
@@ -1178,8 +1435,8 @@ export class SixFlags extends Destination {
     parkId: number,
     tz: string,
     months: string[],
-  ): Promise<Array<{date: string; type: string; openingTime: string; closingTime: string}>> {
-    const scheduleEntries: Array<{date: string; type: string; openingTime: string; closingTime: string}> = [];
+  ): Promise<ScheduleEntry[]> {
+    const scheduleEntries: ScheduleEntry[] = [];
 
     for (const month of months) {
       const hoursData = await this.getOperatingHours(parkId, month);
@@ -1230,6 +1487,23 @@ export class SixFlags extends Destination {
           openingTime: constructDateTime(dateStr, earliestOpen, tz),
           closingTime: constructDateTime(dateStr, latestClose, tz),
         });
+
+        const hauntWindow = hauntWindowForDate(dateObj);
+        if (hauntWindow) {
+          scheduleEntries.push({
+            date: dateStr,
+            type: 'TICKETED_EVENT',
+            description: hauntWindow.description,
+            openingTime: constructDateTime(dateStr, hauntWindow.open, tz),
+            // Haunt nights routinely run past midnight — Knott's Scary Farm
+            // closes at 02:00 and Cedar Point's mazes at 00:00. Anchoring the
+            // close on the same calendar date would emit a window that ends
+            // seven hours before it starts.
+            closingTime: closeTimeCrossesMidnight(hauntWindow.open, hauntWindow.close)
+              ? constructDateTime(shiftDateString(dateStr, 1), hauntWindow.close, tz)
+              : constructDateTime(dateStr, hauntWindow.close, tz),
+          });
+        }
       }
     }
 
