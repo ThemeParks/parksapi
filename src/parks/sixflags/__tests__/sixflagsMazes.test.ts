@@ -562,3 +562,124 @@ describe('malformed vendor times never reach the schedule', () => {
     expect(day.filter(s => s.type === 'OPERATING')).toHaveLength(1);
   });
 });
+
+describe('park hours that cross midnight', () => {
+  /**
+   * The rollover handling was written for the haunt window but the regular
+   * park window needs it too. Cedar Point runs 11:00-00:00 on HalloWeekends
+   * dates and Six Flags Mexico does it year-round; anchoring the close on the
+   * same calendar date emitted a window that ended before it began — 151 of
+   * 866 rows across 11 parks, observed live on 2026-09-17.
+   */
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-16T12:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function schedulesFor(hours: Record<string, unknown>) {
+    const probe = makeProbe();
+    probe.hours = hours;
+    return probe.schedulesForTest();
+  }
+
+  const day = (date: string, extra: Record<string, unknown>) => ({
+    date, isParkClosed: false, venues: [], ...extra,
+  });
+
+  test('anchors a midnight park close on the next calendar day', async () => {
+    const schedules = await schedulesFor({
+      '202609': {
+        dates: [day('09/18/2026', {
+          operatings: [{
+            operatingTypeId: 24, operatingTypeName: 'Park',
+            items: [{timeFrom: '11:00', timeTo: '00:00'}],
+          }],
+        })],
+      },
+    });
+
+    const e = schedules[0].schedule.find(s => s.date === '2026-09-18' && s.type === 'OPERATING');
+
+    expect(e?.openingTime).toBe('2026-09-18T11:00:00-07:00');
+    expect(e?.closingTime).toBe('2026-09-19T00:00:00-07:00');
+    expect(new Date(e!.closingTime).getTime()).toBeGreaterThan(new Date(e!.openingTime).getTime());
+  });
+
+  test('leaves an ordinary same-day park window alone', async () => {
+    const schedules = await schedulesFor({
+      '202609': {
+        dates: [day('09/19/2026', {
+          operatings: [{
+            operatingTypeId: 24, operatingTypeName: 'Park',
+            items: [{timeFrom: '10:00', timeTo: '17:30'}],
+          }],
+        })],
+      },
+    });
+
+    const e = schedules[0].schedule.find(s => s.date === '2026-09-19' && s.type === 'OPERATING');
+
+    expect(e?.openingTime).toBe('2026-09-19T10:00:00-07:00');
+    expect(e?.closingTime).toBe('2026-09-19T17:30:00-07:00');
+  });
+
+  test('takes the latest close across park windows, counting midnight as next-day', async () => {
+    const schedules = await schedulesFor({
+      '202609': {
+        dates: [day('09/20/2026', {
+          operatings: [{
+            operatingTypeId: 24, operatingTypeName: 'Park',
+            items: [
+              {timeFrom: '11:00', timeTo: '22:00'},
+              {timeFrom: '11:00', timeTo: '00:00'},
+            ],
+          }],
+        })],
+      },
+    });
+
+    const e = schedules[0].schedule.find(s => s.date === '2026-09-20' && s.type === 'OPERATING');
+
+    expect(e?.closingTime).toBe('2026-09-21T00:00:00-07:00');
+  });
+
+  test('applies the same rollover to the per-ride detailHours fallback', async () => {
+    const schedules = await schedulesFor({
+      '202609': {
+        dates: [day('09/21/2026', {
+          venues: [{
+            venueId: 1,
+            detailHours: [
+              {operatingTimeFrom: '11:00', operatingTimeTo: '22:00'},
+              {operatingTimeFrom: '11:00', operatingTimeTo: '00:00'},
+            ],
+          }],
+        })],
+      },
+    });
+
+    const e = schedules[0].schedule.find(s => s.date === '2026-09-21' && s.type === 'OPERATING');
+
+    expect(e?.openingTime).toBe('2026-09-21T11:00:00-07:00');
+    expect(e?.closingTime).toBe('2026-09-22T00:00:00-07:00');
+  });
+
+  test('drops a park window whose times are unparseable rather than inverting it', async () => {
+    const schedules = await schedulesFor({
+      '202609': {
+        dates: [day('09/22/2026', {
+          operatings: [{
+            operatingTypeId: 24, operatingTypeName: 'Park',
+            items: [{timeFrom: 'TBD', timeTo: 'TBD'}],
+          }],
+        })],
+      },
+    });
+
+    expect(schedules[0].schedule.filter(s => s.date === '2026-09-22')).toHaveLength(0);
+  });
+});
