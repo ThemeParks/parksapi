@@ -1458,22 +1458,25 @@ export class SixFlags extends Destination {
         let latestClose: string;
 
         if (parkOperatings.length > 0) {
-          const opens = parkOperatings.map(i => i.timeFrom).sort();
-          const closes = parkOperatings.map(i => i.timeTo).sort();
-          earliestOpen = opens[0];
-          latestClose = closes[closes.length - 1];
+          const windows = parkOperatings
+            .filter(i => isWallClockTime(i.timeFrom) && isWallClockTime(i.timeTo))
+            .map(i => ({from: i.timeFrom, to: i.timeTo}));
+          if (windows.length === 0) continue;
+
+          earliestOpen = windows.map(w => w.from).sort()[0];
+          latestClose = latestClosingTime(windows);
         } else {
           // Fall back to per-ride detailHours.
-          const ridesVenue = dateObj.venues?.find(v => v.venueId === 1);
+          const ridesVenue = dateObj.venues?.find(v => v.venueId === RIDE_VENUE_ID);
           if (!ridesVenue?.detailHours || ridesVenue.detailHours.length === 0) continue;
 
-          const validHours = ridesVenue.detailHours.filter(h => h.operatingTimeFrom && h.operatingTimeTo);
-          if (validHours.length === 0) continue;
+          const windows = ridesVenue.detailHours
+            .filter(h => isWallClockTime(h.operatingTimeFrom) && isWallClockTime(h.operatingTimeTo))
+            .map(h => ({from: h.operatingTimeFrom, to: h.operatingTimeTo}));
+          if (windows.length === 0) continue;
 
-          const opens = validHours.map(h => h.operatingTimeFrom).sort();
-          const closes = validHours.map(h => h.operatingTimeTo).sort();
-          earliestOpen = opens[0];
-          latestClose = closes[closes.length - 1];
+          earliestOpen = windows.map(w => w.from).sort()[0];
+          latestClose = latestClosingTime(windows);
         }
 
         // Parse date from MM/DD/YYYY format
@@ -1485,7 +1488,14 @@ export class SixFlags extends Destination {
           date: dateStr,
           type: 'OPERATING',
           openingTime: constructDateTime(dateStr, earliestOpen, tz),
-          closingTime: constructDateTime(dateStr, latestClose, tz),
+          // Park hours cross midnight too, not just the haunt window. Cedar
+          // Point runs 11:00-00:00 on HalloWeekends dates and Six Flags Mexico
+          // does it year-round. Anchoring the close on the same calendar date
+          // emitted a window that ended before it began — 151 of 866 rows
+          // across 11 parks on 2026-09-17.
+          closingTime: closeTimeCrossesMidnight(earliestOpen, latestClose)
+            ? constructDateTime(shiftDateString(dateStr, 1), latestClose, tz)
+            : constructDateTime(dateStr, latestClose, tz),
         });
 
         const hauntWindow = hauntWindowForDate(dateObj);
