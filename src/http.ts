@@ -242,6 +242,30 @@ const HTTP_MAX_CONCURRENT = Math.max(
 );
 const globalHttpLimiter = new HttpConcurrencyLimiter(HTTP_MAX_CONCURRENT);
 
+// How much of a text response body a trace event carries, in characters.
+// JSON bodies are attached whole. A text body (HTML, XML, CSV) is cut here and
+// marked with a trailing '...'; HTTP_TRACE_TEXT_LIMIT=0 attaches it whole, for
+// a consumer that archives raw responses. Read per request rather than once at
+// import, so a consumer can set it after importing the library.
+const DEFAULT_TRACE_TEXT_LIMIT = 1000;
+
+function traceTextLimit(): number {
+  const raw = process.env.HTTP_TRACE_TEXT_LIMIT;
+  if (raw === undefined || raw === '') return DEFAULT_TRACE_TEXT_LIMIT;
+  const limit = Number(raw);
+  return Number.isInteger(limit) && limit >= 0 ? limit : DEFAULT_TRACE_TEXT_LIMIT;
+}
+
+/**
+ * Cut a text body to the trace limit (see HTTP_TRACE_TEXT_LIMIT above).
+ * Returns the text unchanged when it fits, or when the limit is 0.
+ */
+export function truncateTraceText(text: string): string {
+  const limit = traceTextLimit();
+  if (limit === 0 || text.length <= limit) return text;
+  return text.substring(0, limit) + '...';
+}
+
 // Internal class to handle HTTPRequest with private promise handlers
 class HTTPRequestImpl implements HTTPObj {
   public method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
@@ -401,7 +425,7 @@ class HTTPRequestImpl implements HTTPObj {
           try {
             responseBody = JSON.parse(cachedValue);
           } catch {
-            responseBody = cachedValue.substring(0, 1000); // First 1000 chars if not JSON
+            responseBody = truncateTraceText(cachedValue); // text, not JSON
           }
 
           // Emit trace event for cache hit (use provided context if available).
@@ -503,8 +527,7 @@ class HTTPRequestImpl implements HTTPObj {
         responseBody = await clonedResponse.json();
       } else {
         const text = await clonedResponse.text();
-        // Truncate large text responses to 1000 chars
-        responseBody = text.length > 1000 ? text.substring(0, 1000) + '...' : text;
+        responseBody = truncateTraceText(text);
       }
     } catch (error) {
       // If we can't parse the body, just skip it (don't fail the request)
@@ -873,7 +896,7 @@ async function fireRequest(
           errorBody = await clonedResponse.json();
         } else {
           const text = await clonedResponse.text();
-          errorBody = text.length > 1000 ? text.substring(0, 1000) + '...' : text;
+          errorBody = truncateTraceText(text);
         }
       } catch (bodyError) {
         // Failed to get body, just skip it
