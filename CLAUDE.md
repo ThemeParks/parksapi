@@ -123,6 +123,8 @@ async fetchParks(): Promise<HTTPObj> {
 
 Key: uses `node:http`/`node:https` (not `fetch`), global queue with 100ms interval, 250ms rate limit, request deduplication.
 
+**Trace bodies:** the `tracing.onHttpComplete()` / `onHttpError()` events carry a JSON body whole and a text body cut to 1000 characters. `HTTP_TRACE_TEXT_LIMIT` moves the cut; `0` attaches text bodies whole.
+
 #### **@inject** (`src/injector.ts`)
 Event-based dependency injection using Sift.js (MongoDB-like queries). Used for auth headers, response transforms.
 
