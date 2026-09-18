@@ -236,6 +236,13 @@ Create a `.env` file in the project root. Some destinations share configuration 
 
 Run `npm run dev -- <id> -v` to see which config properties a destination expects.
 
+The cache lifetime of any `@http` or `@cache` method can be set the same way, as `{CLASSNAME}_{METHODNAME}_CACHESECONDS`:
+
+```
+EUROPAPARK_FETCHSEASONS_CACHESECONDS=600   # poll the seasons every 10 minutes instead of 6 hours
+EFTELING_FETCHWAITTIMES_CACHESECONDS=0     # never serve wait times from the cache
+```
+
 ## Architecture
 
 The library uses a **decorator-based design** with TypeScript:
