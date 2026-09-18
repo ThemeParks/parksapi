@@ -59,6 +59,24 @@ export function redactProxyUrlSecrets(rawUrl: string): string {
   }
 }
 
+const DEFAULT_TIMEOUT_MS = 30000;
+
+/**
+ * The request timeout, in milliseconds.
+ *
+ * `HTTP_TIMEOUT_MS` sets it for the whole process; a consumer that polls
+ * every minute wants a hung park API to cost seconds, not the default 30s
+ * per attempt. Only a positive whole number counts, anything else falls back
+ * to the default so a typo in `.env` cannot switch timeouts off or make every
+ * request fail at once. A `timeoutMs` passed to `makeHttpRequest` still wins.
+ */
+export function httpTimeoutMs(): number {
+  const raw = process.env.HTTP_TIMEOUT_MS;
+  if (raw === undefined || raw === '') return DEFAULT_TIMEOUT_MS;
+  const timeout = Number(raw);
+  return Number.isInteger(timeout) && timeout > 0 ? timeout : DEFAULT_TIMEOUT_MS;
+}
+
 export async function makeHttpRequest(options: {
   method: string;
   url: string;
@@ -69,10 +87,10 @@ export async function makeHttpRequest(options: {
   cert?: string;
   /** Client SSL private key (PEM format) for mutual TLS */
   key?: string;
-  /** Request timeout in milliseconds (default 30s) */
+  /** Request timeout in milliseconds (default: `HTTP_TIMEOUT_MS`, else 30s) */
   timeoutMs?: number;
 }): Promise<Response> {
-  const {method, url, headers, body, proxyUrl, cert, key, timeoutMs = 30000} = options;
+  const {method, url, headers, body, proxyUrl, cert, key, timeoutMs = httpTimeoutMs()} = options;
 
   const hdrs: Record<string, string> = {...(headers || {})};
 
