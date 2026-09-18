@@ -9,9 +9,16 @@ import {dirname, resolve, relative} from 'node:path';
  * a private tracker whose numbering means nothing to anyone outside.
  *
  * Four comments had already picked up a private card number, in the form
- * "Regression for <tracker>#86". Harmless-looking, and useless to a reader
+ * "Regression for <tracker>#<n>". Harmless-looking, and useless to a reader
  * who cannot open it, but it advertises that the tracker exists and lets an
- * outsider correlate our internal numbering with dated public commits.
+ * outsider correlate internal numbering with dated public commits.
+ *
+ * The patterns below are deliberately shaped rather than named. A detector
+ * that lists the private repository by name has to write that name into a
+ * public file to do its job, which is the leak it was built to stop. So it
+ * matches the FORM instead — an owner/repo path under this org that is not a
+ * known public one, and a `name#123` cross-repo reference that is not — and
+ * the allowlist carries only names that are already public.
  *
  * The other half is worse and is what this gate mainly exists for: a session
  * trailer. The tooling offers to append a `Claude-Session:` line pointing at a
@@ -27,10 +34,27 @@ import {dirname, resolve, relative} from 'node:path';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SELF = resolve(ROOT, 'src/__tests__/noPrivateRefs.test.ts');
 
+/** Repositories in this org that are already public, so naming them is fine. */
+const PUBLIC_REPOS = [
+  'parksapi',
+  'typelib',
+  'ThemeParks_JavaScript',
+  'ThemeParks_Python',
+];
+
 const FORBIDDEN: Array<{name: string; pattern: RegExp}> = [
-  // A bare card number against the private tracker, e.g. "programme#86".
-  {name: 'private tracker card reference', pattern: /\bprogramme\s*#\s*\d+/i},
-  {name: 'private tracker repository', pattern: /ThemeParks\/programme/i},
+  // A cross-repo card reference, written `name#123` with no space. The space
+  // matters: "PR #567" and "see #12" are same-repo and fine, while `name#123`
+  // names another tracker. PUBLIC_REPOS is the allowlist.
+  {
+    name: 'cross-repo card reference to a non-public tracker',
+    pattern: new RegExp(String.raw`\b(?!(?:${PUBLIC_REPOS.join('|')})#)[A-Za-z][A-Za-z0-9_-]{3,}#\d+`),
+  },
+  // An owner/repo path under this org that is not one of the public repos.
+  {
+    name: 'repository path under this org that is not a public repo',
+    pattern: new RegExp(String.raw`\bThemeParks/(?!(?:${PUBLIC_REPOS.join('|')})\b)[A-Za-z][A-Za-z0-9_-]*`),
+  },
   // GitHub Projects node ids: project, item, single-select field.
   {name: 'project/field id', pattern: /\bPVT(?:I|SSF)?_[A-Za-z0-9]/},
   // Session transcript links, in either the trailer or bare URL form.
