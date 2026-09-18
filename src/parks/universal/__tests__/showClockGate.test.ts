@@ -1,6 +1,6 @@
 /**
- * Regression for programme#86 ("USH: 25 shows never leave OPERATING, so the
- * rows never get written and read as stale").
+ * Regression for the reported USH fault: 25 shows never left OPERATING, so
+ * their rows were never rewritten and read as stale.
  *
  * show-list.json's show_times[] lists the WHOLE day's ENABLED performances
  * from midnight, so `hasFutureShowtimes` (parseShowTimes) stays true all

@@ -455,7 +455,7 @@ describe('mapUniversalShowStatus', () => {
     expect(showtimes).toHaveLength(1);
   });
 
-  // Regression for programme#86 / parksapi USH incident: the feed lists the
+  // Regression for the reported USH fault: the feed lists the
   // whole day's ENABLED slots from midnight, so hasFutureShowtimes stays true
   // all night once the feed rolls to the next operating day. Without a clock
   // gate a show sampled overnight reads OPERATING straight through the
@@ -473,7 +473,7 @@ describe('mapUniversalShowStatus', () => {
     expect(mapUniversalShowStatus('CLOSED', true)).toBe('OPERATING');
   });
 
-  // Live evidence (programme#86, sampled 03:24 PDT with USH's own schedule
+  // Live evidence (sampled 03:24 PDT with USH's own schedule
   // confirming the park shut): 25 of 31 externally-shown entries carried
   // `status: "OPEN"` outright, not just a stray future showtime. The status
   // field is not reliably live either, so an explicit OPEN/RIDE_NOW is
