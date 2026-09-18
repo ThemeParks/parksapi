@@ -236,6 +236,12 @@ Create a `.env` file in the project root. Some destinations share configuration 
 
 Run `npm run dev -- <id> -v` to see which config properties a destination expects.
 
+`HTTP_TIMEOUT_MS` sets the request timeout for the whole process. The default is 30 seconds:
+
+```
+HTTP_TIMEOUT_MS=10000   # give up on a request after 10 seconds
+```
+
 ## Architecture
 
 The library uses a **decorator-based design** with TypeScript:

@@ -57,6 +57,13 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
+  // `/hang` never answers. The timeout tests need a request that only ends
+  // when the client gives up; the socket closes with the client's abort, so
+  // the server still shuts down cleanly afterwards.
+  if (path === '/hang') {
+    return;
+  }
+
   if (/^\/delay\/\d+$/.test(path)) {
     setTimeout(() => {
       res.writeHead(200, {'Content-Type': 'application/json'});
