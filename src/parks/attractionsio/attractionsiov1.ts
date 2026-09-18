@@ -30,6 +30,7 @@ import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import {CacheLib, database} from '../../cache.js';
 import {makeHttpRequest} from '../../httpProxy.js';
+import {tracing} from '../../tracing.js';
 import {constructDateTime, addDays, formatInTimezone, formatDate} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 import type {Entity, LiveData, EntitySchedule, LiveTimeSlot} from '@themeparks/typelib';
@@ -740,13 +741,57 @@ class AttractionsIOV1 extends Destination {
   // ── Entity / POI data (SQLite-backed persistent store) ───────────────────
 
   /**
+   * A request outside the @http queue, reported to tracing like one.
+   *
+   * The two asset-pack requests need the raw response: /data answers 303 with
+   * the ZIP's Location, which the queue path treats as a failure, and the ZIP
+   * is binary. A tracing listener sees start and complete, or start and error,
+   * with the same fields the queue emits. No body is attached: one response is
+   * a redirect with an empty body, the other a ZIP.
+   */
+  private async tracedRequest(
+    methodName: string,
+    options: Parameters<typeof makeHttpRequest>[0],
+  ): Promise<Response> {
+    const startTime = Date.now();
+    const origin = {
+      url: options.url,
+      method: options.method,
+      headers: options.headers,
+      className: this.constructor.name,
+      methodName,
+    };
+    tracing.emitHttpEvent({eventType: 'http.request.start', retryCount: 0, ...origin});
+    try {
+      const response = await makeHttpRequest(options);
+      tracing.emitHttpEvent({
+        eventType: 'http.request.complete',
+        status: response.status,
+        duration: Date.now() - startTime,
+        cacheHit: false,
+        ...origin,
+      });
+      return response;
+    } catch (error) {
+      tracing.emitHttpEvent({
+        eventType: 'http.request.error',
+        duration: Date.now() - startTime,
+        error: error instanceof Error ? error : new Error(String(error)),
+        retryCount: 0,
+        ...origin,
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Download and extract the asset ZIP file from the given URL.
    */
   private async downloadAssetPack(url: string): Promise<{
     manifestData: {version: string};
     recordsData: RecordsData;
   }> {
-    const response = await makeHttpRequest({
+    const response = await this.tracedRequest('downloadAssetPack', {
       method: 'GET',
       url,
       headers: {
@@ -804,7 +849,7 @@ class AttractionsIOV1 extends Destination {
       'user-agent': 'okhttp/4.11.0',
     };
 
-    const response = await makeHttpRequest({
+    const response = await this.tracedRequest('_syncFromAPI', {
       method: 'GET',
       url: `${this.baseURL}data`,
       headers: authHeaders,
