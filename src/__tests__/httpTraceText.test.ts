@@ -51,7 +51,7 @@ describe('truncateTraceText', () => {
   });
 
   it('falls back to the default on a value that is not a whole number', () => {
-    for (const value of ['', 'abc', '-1', '1.5', '1e3']) {
+    for (const value of ['', 'abc', '-1', '1.5', 'Infinity']) {
       process.env[ENV] = value;
       expect(truncateTraceText('c'.repeat(1001)), `value "${value}"`).toBe('c'.repeat(1000) + '...');
     }
