@@ -858,9 +858,9 @@ describe('showBillAuthority', () => {
     const morning = hours('2026-09-09', '10:00:00', '13:00:00');
     const evening = hours('2026-09-09', '17:00:00', '22:00:00');
     const split = [morning, evening];
-    expect(showBillAuthority(at('2026-09-09T13:00:00Z'), 'Europe/Paris', split, true))
+    expect(showBillAuthority(at('2026-09-09T13:00:00Z'), 'Europe/Paris', split, new Set()))
       .toBe('read-bill'); // 15:00 local, between the two sessions but inside the day
-    expect(showBillAuthority(at('2026-09-09T20:30:00Z'), 'Europe/Paris', split, true))
+    expect(showBillAuthority(at('2026-09-09T20:30:00Z'), 'Europe/Paris', split, new Set()))
       .toBe('stale');     // 22:30 local, past the last close
   });
 

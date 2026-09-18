@@ -10,7 +10,7 @@ import {
   getHttpRequesterForClassMethod,
   type HTTPObj,
   stopHttpQueue,
-} from '../http';
+} from '../http.js';
 
 // Stop the HTTP queue processor for tests
 stopHttpQueue();

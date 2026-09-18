@@ -7,7 +7,7 @@ import {
   ReturnTimeBuilder,
   PaidReturnTimeBuilder,
   BoardingGroupBuilder,
-} from '../builder';
+} from '../builder.js';
 
 describe('VQueueBuilder', () => {
   describe('returnTime()', () => {

@@ -227,7 +227,7 @@ describe('parseLiveOpeningTimes', () => {
     const slots = parseLiveOpeningTimes(range('10:00:00', '18:00:00'), TZ);
     expect(slots).toHaveLength(1);
     expect(slots[0].type).toBe('OPERATING');
-    expect(slots[0].startTime.startsWith('2026-07-08T10:00:00')).toBe(true);
+    expect(slots[0].startTime?.startsWith('2026-07-08T10:00:00')).toBe(true);
     expect(slots[0].endTime?.startsWith('2026-07-08T18:00:00')).toBe(true);
   });
 
