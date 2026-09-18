@@ -44,6 +44,7 @@ echo "pre-commit: structural gates"
 npx vitest run \
   src/__tests__/utcDateTrap.test.ts \
   src/__tests__/readmeDestinations.test.ts \
+  src/__tests__/noPrivateRefs.test.ts \
   || fail "structural gate failed"
 
 exit 0

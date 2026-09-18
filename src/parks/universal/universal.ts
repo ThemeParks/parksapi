@@ -624,8 +624,8 @@ export function hasPerformanceUnderway(
  *
  * `parkOperating` clock-gates every path that would otherwise resolve to
  * OPERATING. Two independent things stay stale straight through an
- * overnight closure, and both were observed live at USH (programme#86),
- * not just theorised:
+ * overnight closure, and both were observed live at USH, not just
+ * theorised:
  *   - `show_times` lists the *whole day's* ENABLED performances from
  *     midnight, so "has a future slot" (`hasFutureShowtimes`) stays true
  *     all night once the feed rolls to the next operating day.
