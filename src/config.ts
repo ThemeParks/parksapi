@@ -41,34 +41,48 @@ function getConfigValue(target: any, propertyKey: string): any {
             return target.config[propertyKey];
         }
 
-        // 2. look up environment variable based on class name and property key
-        // Use the real class name (from Proxy newTarget) if available,
-        // falling back to target.constructor.name. This ensures that when
-        // a subclass extends a @config-wrapped base class, the subclass
-        // name is used for env var lookup, not the base class name.
-        const className = (target[REAL_CLASS_NAME] || target.constructor.name).toUpperCase();
-        const envKey = `${className}_${propertyKey.toUpperCase()}`;
-
-        if (process.env.hasOwnProperty(envKey)) {
-            return process.env[envKey];
-        }
-
-        // 3. check configPrefixes as well as class name
-        const configObj = target.config || {};
-        if (configObj.configPrefixes) {
-            const configPrefixes: string[] = Array.isArray(configObj.configPrefixes) ? configObj.configPrefixes : [configObj.configPrefixes];
-            for (const prefix of configPrefixes) {
-                if (prefix) {
-                    const prefixedEnvKey = `${prefix.toUpperCase()}_${propertyKey.toUpperCase()}`;
-                    if (process.env.hasOwnProperty(prefixedEnvKey)) {
-                        return process.env[prefixedEnvKey];
-                    }
-                }
-            }
+        // 2. and 3. look up environment variables by class name, then by prefix
+        const envValue = getEnvConfigValue(target, propertyKey);
+        if (envValue !== undefined) {
+            return envValue;
         }
 
         // otherwise fallback to object's value
     }
+    return undefined;
+}
+
+/**
+ * Look up `{CLASSNAME}_{KEY}` in the environment, then `{PREFIX}_{KEY}` for
+ * each prefix in `instance.config.configPrefixes` (see addConfigPrefix()).
+ * The class name is the real one stored by the @config Proxy when available,
+ * falling back to instance.constructor.name, so a subclass of a @config-wrapped
+ * base class resolves under its own name rather than the base class name.
+ * @param instance Instance whose class name and prefixes to use
+ * @param key Property or method name; upper-cased for the variable name
+ * @returns The variable's value, or undefined when none is set
+ */
+export function getEnvConfigValue(instance: any, key: string): string | undefined {
+    const className = (instance[REAL_CLASS_NAME] || instance.constructor.name).toUpperCase();
+    const envKey = `${className}_${key.toUpperCase()}`;
+
+    if (process.env.hasOwnProperty(envKey)) {
+        return process.env[envKey];
+    }
+
+    const configObj = instance.config || {};
+    if (configObj.configPrefixes) {
+        const configPrefixes: string[] = Array.isArray(configObj.configPrefixes) ? configObj.configPrefixes : [configObj.configPrefixes];
+        for (const prefix of configPrefixes) {
+            if (prefix) {
+                const prefixedEnvKey = `${prefix.toUpperCase()}_${key.toUpperCase()}`;
+                if (process.env.hasOwnProperty(prefixedEnvKey)) {
+                    return process.env[prefixedEnvKey];
+                }
+            }
+        }
+    }
+
     return undefined;
 }
 
