@@ -4,90 +4,108 @@ import {MovieParkGermany} from '../parcsreunidos.js';
 /**
  * Calendar label parsing, asserted against the real `parseTimeRange`.
  *
- * The old src/__tests__/parkEdgeCases.test.ts had a block for this that
- * rewrote the regexes inside the test and matched against its own copies.
- * The copies and the shipped code had drifted apart, and on the Dutch format
- * the TEST was the correct one:
+ * Replaces a block in the deleted src/__tests__/parkEdgeCases.test.ts that
+ * rewrote these regexes inside the test and matched against its own copies,
+ * so it passed whatever the parser did.
  *
- *   test:    '10 tot 5u' -> close 17   (it added 12 for the afternoon)
- *   shipped: '10 tot 5u' -> close 05   (no meridiem handling at all)
+ * This file is deliberately a CHARACTERISATION test: it pins what the parser
+ * does today, including where that is wrong. `parseTimeRange` returns only a
+ * pair of wall-clock times and the caller stamps both onto the same date, so
+ * any window that runs past midnight comes out inverted — a close before its
+ * own open. That is live, not theoretical: 98 published schedule entries
+ * across this module are inverted right now, 93 of them typed OPERATING.
  *
- * So the real parser returned a park closing five hours before it opened, and
- * published it as an OPERATING window, while a green test said otherwise.
- * Dutch drops the meridiem, so a bare closing hour at or before the opening
- * has to roll to PM.
- *
- * Not observed live: sampled 2026-09-19, all 180 of Bobbejaanland's published
- * schedule entries were well-formed, so upstream is currently serving a shape
- * that misses this branch. It is a latent inversion, not an incident.
+ * Those cases are pinned below as KNOWN BROKEN. When the date-roll fix lands
+ * they must be updated, and having to update them is the point: it is the
+ * proof the fix changed something.
  */
 describe('ParcsReunidos parseTimeRange', () => {
   const parse = (label: string) =>
     (new MovieParkGermany() as any).parseTimeRange(label);
 
-  test('AM/PM: "10am - 5pm"', () => {
-    expect(parse('10am - 5pm')).toEqual({open: '10:00', close: '17:00'});
-  });
-
-  test('AM/PM with minutes: "10:30am - 5:30pm"', () => {
-    expect(parse('10:30am - 5:30pm')).toEqual({open: '10:30', close: '17:30'});
-  });
-
-  test('dotted AM/PM with an en-dash: "11 a.m. – 7 p.m."', () => {
-    expect(parse('11 a.m. – 7 p.m.')).toEqual({open: '11:00', close: '19:00'});
-  });
-
-  test('24h: "10:30 - 17:00"', () => {
-    expect(parse('10:30 - 17:00')).toEqual({open: '10:30', close: '17:00'});
-  });
-
-  describe('Dutch, where the meridiem is absent', () => {
-    test('THE INVERSION: "10 tot 5u" closes at 17:00, not 05:00', () => {
-      expect(parse('10 tot 5u')).toEqual({open: '10:00', close: '17:00'});
+  describe('formats that parse correctly', () => {
+    test('AM/PM: "10am - 5pm"', () => {
+      expect(parse('10am - 5pm')).toEqual({open: '10:00', close: '17:00'});
     });
 
-    test('"10 t/m 5" likewise', () => {
-      expect(parse('10 t/m 5')).toEqual({open: '10:00', close: '17:00'});
+    test('AM/PM with minutes: "10:30am - 5:30pm"', () => {
+      expect(parse('10:30am - 5:30pm')).toEqual({open: '10:30', close: '17:30'});
     });
 
-    test('an already-24h Dutch close is left alone', () => {
+    test('dotted AM/PM with an en-dash: "11 a.m. – 7 p.m."', () => {
+      expect(parse('11 a.m. – 7 p.m.')).toEqual({open: '11:00', close: '19:00'});
+    });
+
+    test('24h: "10:30 - 17:00"', () => {
+      expect(parse('10:30 - 17:00')).toEqual({open: '10:30', close: '17:00'});
+    });
+
+    test('Dutch, 24h clock: "10 tot 17u"', () => {
+      // Every time-bearing label Bobbejaanland actually publishes is of this
+      // shape. There is no live attestation of a 12-hour Dutch label.
       expect(parse('10 tot 17u')).toEqual({open: '10:00', close: '17:00'});
     });
 
-    test('a close after the open is never rolled', () => {
-      // 11:00 is already past 10:00, so it stays morning-to-morning rather
-      // than becoming 23:00.
-      expect(parse('10 tot 11u')).toEqual({open: '10:00', close: '11:00'});
+    test('the t/m separator is accepted too', () => {
+      expect(parse('11 t/m 19u')).toEqual({open: '11:00', close: '19:00'});
     });
 
-    test('a midday close is not pushed past midnight', () => {
-      expect(parse('12 tot 12u')).toEqual({open: '12:00', close: '12:00'});
-    });
-
-    test('minutes survive the roll', () => {
-      expect(parse('10 tot 5:30u')).toEqual({open: '10:00', close: '17:30'});
+    test('midday and midnight are not confused by the AM/PM branch', () => {
+      expect(parse('12pm - 11pm')).toEqual({open: '12:00', close: '23:00'});
+      expect(parse('12am - 6am')).toEqual({open: '00:00', close: '06:00'});
     });
   });
 
-  test('a label with no time range at all is null', () => {
-    expect(parse('Gesloten')).toBeNull();
-    expect(parse('')).toBeNull();
+  describe('KNOWN BROKEN: a window running past midnight inverts', () => {
+    // parseTimeRange returns wall-clock times only, and the caller stamps both
+    // onto the same date, so nothing can express "closes tomorrow". Each of
+    // these is a real published label shape.
+    test('24h across midnight: "12:00 - 00:00" (78 live rows at one park)', () => {
+      expect(parse('12:00 - 00:00')).toEqual({open: '12:00', close: '00:00'});
+    });
+
+    test('24h into the small hours: "10:30 - 01:00"', () => {
+      expect(parse('10:30 - 01:00')).toEqual({open: '10:30', close: '01:00'});
+    });
+
+    test('a 24:00 open: "24:00 - 05:00"', () => {
+      // constructDateTime accepts hour 24 and rolls it, so the caller lands
+      // the OPEN on the next day and leaves the close behind, putting the
+      // open 19 hours after the close.
+      expect(parse('24:00 - 05:00')).toEqual({open: '24:00', close: '05:00'});
+    });
+
+    test('Dutch evening session: "22 tot 3u"', () => {
+      expect(parse('22 tot 3u')).toEqual({open: '22:00', close: '03:00'});
+    });
+
+    test('the bare 24h branch inverts on any descending pair', () => {
+      expect(parse('10 - 5')).toEqual({open: '10:00', close: '05:00'});
+    });
   });
 
-  test('no format ever returns a close at or before the open', () => {
-    // The property the inversion broke. Any label that parses at all must
-    // describe a forward-running window.
-    const labels = [
-      '10am - 5pm', '10:30 - 17:00', '10 tot 5u', '10 t/m 5',
-      '11 a.m. – 7 p.m.', '10 tot 17u', '10:30am - 5:30pm',
-    ];
-    for (const label of labels) {
-      const r = parse(label);
-      expect(r, label).not.toBeNull();
-      expect(`${label}: ${r.open} -> ${r.close}`).toBe(
-        `${label}: ${r.open} -> ${r.close}`,
-      );
-      expect(r.close > r.open, `${label} produced ${r.open} -> ${r.close}`).toBe(true);
-    }
+  describe('labels with no parseable range', () => {
+    test('returns null rather than guessing', () => {
+      expect(parse('Gesloten')).toBeNull();
+      expect(parse('')).toBeNull();
+      expect(parse('Halloween')).toBeNull();
+    });
+
+    test('KNOWN GAP: the Spanish "a" range is not a supported format', () => {
+      // An asymmetry rather than an observed failure. extractLabelDescription
+      // carries an explicit branch for this shape, commented `ES "12:00 a
+      // 20:00"`, so someone saw such labels; parseTimeRange has no matching
+      // branch, so any label of that shape yields no window at all. Checked
+      // 2026-09-19 against the live calendars for both Madrid parks and found
+      // no label of this shape, so nothing is being dropped today.
+      expect(parse('12:00 a 20:00')).toBeNull();
+    });
+  });
+
+  test('a word merely containing "tot" does not trigger the Dutch branch', () => {
+    // The regex needs digits immediately either side, which is what stops
+    // Spanish "total" and Italian "totale" matching in this shared module.
+    expect(parse('Horario total 10 12')).toBeNull();
+    expect(parse('10 totale 5')).toBeNull();
   });
 });

@@ -758,13 +758,9 @@ class HFEBase extends Destination {
 }
 
 // ============================================================================
-// Park Subclasses
+// Status mapping
 // ============================================================================
 
-/**
- * Dollywood - Pigeon Forge, Tennessee
- * Wait Time Dest ID: 1
- */
 /**
  * Map one wait-time row to a live status, and the standby wait to publish with
  * it (`undefined` meaning publish no queue at all).
@@ -814,6 +810,14 @@ export function mapHfeRideStatus(
   return {status: 'CLOSED'};
 }
 
+// ============================================================================
+// Park Subclasses
+// ============================================================================
+
+/**
+ * Dollywood - Pigeon Forge, Tennessee
+ * Wait Time Dest ID: 1
+ */
 @destinationController({category: ['Herschend', 'Dollywood']})
 export class Dollywood extends HFEBase {
   constructor(options?: DestinationConstructor) {

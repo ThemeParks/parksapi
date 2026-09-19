@@ -34,15 +34,24 @@ describe('mapHfeRideStatus', () => {
 
     test('matching is case-insensitive', () => {
       expect(mapHfeRideStatus('closed for the day', '', null, OPEN).status).toBe('CLOSED');
+      // The discriminating case. A lowercase closure still lands on CLOSED
+      // via the final fallthrough even with toUpperCase() removed, so it
+      // proves nothing on its own; a lowercase DELAY does.
+      expect(mapHfeRideStatus('temporarily closed', '', null, OPEN).status).toBe('DOWN');
     });
 
-    test('an explicit closure beats a posted wait time', () => {
-      // The feed can serve both. The stated closure wins, and no queue is
-      // published alongside it.
-      const v = mapHfeRideStatus('CLOSED', '', 25, OPEN);
-      expect(v.status).toBe('CLOSED');
-      expect(v.waitTime).toBeUndefined();
-    });
+    test.each(['CLOSED', 'CLOSED FOR THE DAY', 'UNKNOWN'])(
+      '%s beats a posted wait time',
+      (status) => {
+        // The feed can serve both. The stated closure wins, and no queue is
+        // published alongside it. All three are covered rather than just
+        // CLOSED: with a wait present, dropping any one of them from this
+        // branch turns a shut ride into OPERATING with a queue.
+        const v = mapHfeRideStatus(status, '', 25, OPEN);
+        expect(v.status).toBe('CLOSED');
+        expect(v.waitTime).toBeUndefined();
+      },
+    );
   });
 
   describe('THE CASE THE OLD TABLE GOT WRONG: delays are clock-gated', () => {
@@ -120,5 +129,45 @@ describe('mapHfeRideStatus', () => {
   test('nothing at all is CLOSED', () => {
     expect(mapHfeRideStatus(undefined, undefined, null, OPEN).status).toBe('CLOSED');
     expect(mapHfeRideStatus('', '', null, OPEN).status).toBe('CLOSED');
+  });
+
+  describe('sharp edges, pinned because they are load bearing', () => {
+    test('the status is NOT trimmed, so a stray space falls through everything', () => {
+      // 'CLOSED ' matches no closure branch and lands on the wait-time branch,
+      // turning a shut ride into OPERATING with a published queue. Preserved
+      // from the original chain rather than fixed here, because changing it is
+      // a behaviour change and this extraction is code motion. Pinned so the
+      // next person sees it rather than discovering it from a wrong row.
+      const v = mapHfeRideStatus('CLOSED ', '', 10, OPEN);
+      expect(v.status).toBe('OPERATING');
+      expect(v.waitTime).toBe(10);
+    });
+
+    test('"UNDER" is a SUBSTRING match, so a name containing it opens the ride', () => {
+      // Dollywood has a coaster called Thunderhead. No live waitTimeDisplay
+      // carries a ride name today, so this is latent — but the substring test
+      // is exactly the kind of thing a later reader tidies into equality.
+      expect(mapHfeRideStatus('', 'Thunderhead', null, OPEN).status).toBe('OPERATING');
+    });
+
+    test('a delay outranks the UNDER display, not the other way round', () => {
+      // Branch ORDER, which no other test pins: the delay check sits above
+      // the display check, so a delayed ride still advertising "Under 15
+      // minutes" reads DOWN rather than OPERATING with a 15-minute queue.
+      const open = mapHfeRideStatus('TEMPORARILY CLOSED', 'UNDER 15 MINUTES', null, OPEN);
+      expect(open.status).toBe('DOWN');
+      expect(open.waitTime).toBeUndefined();
+      expect(mapHfeRideStatus('TEMPORARILY CLOSED', 'UNDER 15 MINUTES', null, SHUT).status)
+        .toBe('CLOSED');
+    });
+
+    test('a non-finite wait is passed through, and the base class nulls it', () => {
+      // The declared return type says number; the branch passes the feed's
+      // value straight out. Left alone deliberately — getLiveData() in
+      // destination.ts sanitises a non-finite waitTime on the way out, which
+      // is the documented safety net, and changing it here would make this
+      // extraction more than code motion.
+      expect(mapHfeRideStatus('OPEN', '', '15' as any, OPEN).waitTime).toBe('15' as any);
+    });
   });
 });

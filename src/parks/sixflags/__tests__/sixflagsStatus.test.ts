@@ -19,6 +19,11 @@ describe('Six Flags mapStatus', () => {
   const mapStatus = (status: string, waitTime: number | null = null): string =>
     (new SixFlags() as any).mapStatus(status, waitTime);
 
+  // Note on the OPERATING rows below: the fall-through default is also
+  // OPERATING, so deleting the `open`/`opened` branch entirely leaves them
+  // green. They pin the observable contract, which is the right thing to pin,
+  // but they buy no protection for the branch they name. The rows that do
+  // discriminate are the DOWN and CLOSED ones and the wait-time fallback.
   test.each([
     ['open', 'OPERATING'],
     ['opened', 'OPERATING'],
