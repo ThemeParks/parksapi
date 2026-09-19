@@ -272,6 +272,16 @@ describe('DateTime Utilities', () => {
   });
 
   describe('addDays()', () => {
+    test('crossing a DST boundary preserves the UTC time of day', () => {
+      // 2024-03-09 + 2 days crosses the US spring forward. addDays is
+      // absolute-time arithmetic, so the UTC hour is unchanged; anything
+      // that drifted here would shift every date-keyed query by an hour.
+      const before = new Date('2024-03-09T12:00:00Z');
+      const after = addDays(before, 2);
+      expect(after.getUTCHours()).toBe(12);
+    });
+
+
     test('should add positive days', () => {
       const date = new Date('2025-03-15T12:00:00Z');
       const result = addDays(date, 5);
@@ -481,6 +491,16 @@ describe('DateTime Utilities', () => {
       addMinutes(date, 30);
 
       expect(date.getTime()).toBe(originalTime);
+    });
+
+    test('crossing a DST spring-forward adds real elapsed time, not wall time', () => {
+      // US spring forward 2024-03-10: local 02:00 jumps to 03:00. These
+      // helpers work in absolute time, so an hour is an hour across it. The
+      // bug this guards is a helper that reconstructs a local wall clock and
+      // silently returns 0 or 120 minutes here.
+      const beforeDST = new Date('2024-03-10T06:30:00Z'); // 01:30 EST
+      const after = addMinutes(beforeDST, 60);
+      expect(after.getTime() - beforeDST.getTime()).toBe(60 * 60 * 1000);
     });
 
     test('should handle negative minutes', () => {

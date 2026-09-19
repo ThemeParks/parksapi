@@ -585,7 +585,17 @@ class ParcsReunidosDestination extends Destination {
     const dutchMatch = label.match(/(\d{1,2}(?::\d{2})?)\s*(?:tot|t\/m)\s*(\d{1,2}(?::\d{2})?)u?/i);
     if (dutchMatch) {
       const open = this.normalize24hTime(dutchMatch[1]);
-      const close = this.normalize24hTime(dutchMatch[2]);
+      let close = this.normalize24hTime(dutchMatch[2]);
+      // "10 tot 5u" is ten until five in the AFTERNOON. Dutch drops the
+      // meridiem entirely, so a bare closing hour that lands at or before the
+      // opening is a 12-hour clock reading and rolls to PM. Without this the
+      // range inverts: 10:00 to 05:00, a park closing five hours before it
+      // opens, published as an OPERATING window.
+      const [openH] = open.split(':').map(Number);
+      const [closeH, closeM] = close.split(':').map(Number);
+      if (closeH <= openH && closeH < 12) {
+        close = `${String(closeH + 12).padStart(2, '0')}:${String(closeM).padStart(2, '0')}`;
+      }
       return {open, close};
     }
 
