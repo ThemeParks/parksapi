@@ -541,28 +541,12 @@ class HFEBase extends Destination {
       const entityId = this.resolveEntityId(wt, rideIdLookup, nameLookup);
       if (!entityId) continue;
 
-      const ld: LiveData = {id: entityId, status: 'CLOSED'} as LiveData;
-      const statusUpper = (wt.operationStatus || '').toUpperCase();
-      const displayUpper = (wt.waitTimeDisplay || '').toUpperCase();
-
-      if (statusUpper === 'CLOSED' || statusUpper === 'CLOSED FOR THE DAY' || statusUpper === 'UNKNOWN') {
-        ld.status = 'CLOSED' as any;
-      } else if (statusUpper === 'TEMPORARILY CLOSED' || statusUpper === 'TEMPORARILY DELAYED') {
-        ld.status = (parkIsOpen ? 'DOWN' : 'CLOSED') as any;
-      } else if (displayUpper.includes('UNDER')) {
-        // "Under XX minutes" pattern
-        ld.status = 'OPERATING' as any;
-        const waitMatch = displayUpper.match(/UNDER\s+(\d+)/);
-        if (waitMatch) {
-          ld.queue = {STANDBY: {waitTime: parseInt(waitMatch[1], 10)}};
-        }
-      } else if (statusUpper === 'OPEN' || (wt.waitTime != null && wt.waitTime >= 0)) {
-        ld.status = 'OPERATING' as any;
-        if (wt.waitTime != null && wt.waitTime > 0) {
-          ld.queue = {STANDBY: {waitTime: wt.waitTime}};
-        }
-      } else {
-        ld.status = 'CLOSED' as any;
+      const verdict = mapHfeRideStatus(
+        wt.operationStatus, wt.waitTimeDisplay, wt.waitTime, parkIsOpen,
+      );
+      const ld: LiveData = {id: entityId, status: verdict.status} as LiveData;
+      if (verdict.waitTime !== undefined) {
+        ld.queue = {STANDBY: {waitTime: verdict.waitTime}};
       }
 
       liveData.push(ld);
@@ -771,6 +755,59 @@ class HFEBase extends Destination {
     return result;
   }
 
+}
+
+// ============================================================================
+// Status mapping
+// ============================================================================
+
+/**
+ * Map one wait-time row to a live status, and the standby wait to publish with
+ * it (`undefined` meaning publish no queue at all).
+ *
+ * Exported and pure so the mapping can be asserted directly. It used to be an
+ * if/else chain inside buildLiveData, which meant the only way to test it was
+ * to stand up the whole park — so nobody did, and a test elsewhere in the repo
+ * asserted a table claiming TEMPORARILY CLOSED maps to DOWN unconditionally.
+ * It does not, and that is the whole point of `parkIsOpen` below.
+ *
+ * `parkIsOpen` gates the delay states for the same reason the Universal and
+ * SeaWorld show gates exist: the feed keeps serving its last reading after the
+ * park shuts, and "temporarily closed" read overnight means closed for the
+ * night, not a ride that is briefly broken. DOWN claims something is wrong
+ * with the attraction; outside operating hours nothing is wrong, it is shut.
+ */
+export function mapHfeRideStatus(
+  operationStatus: string | undefined,
+  waitTimeDisplay: string | undefined,
+  waitTime: number | null | undefined,
+  parkIsOpen: boolean,
+): {status: 'OPERATING' | 'DOWN' | 'CLOSED'; waitTime?: number} {
+  const statusUpper = (operationStatus || '').toUpperCase();
+  const displayUpper = (waitTimeDisplay || '').toUpperCase();
+
+  if (statusUpper === 'CLOSED' || statusUpper === 'CLOSED FOR THE DAY' || statusUpper === 'UNKNOWN') {
+    return {status: 'CLOSED'};
+  }
+  if (statusUpper === 'TEMPORARILY CLOSED' || statusUpper === 'TEMPORARILY DELAYED') {
+    return {status: parkIsOpen ? 'DOWN' : 'CLOSED'};
+  }
+  if (displayUpper.includes('UNDER')) {
+    // "Under XX minutes" pattern.
+    const waitMatch = displayUpper.match(/UNDER\s+(\d+)/);
+    return waitMatch
+      ? {status: 'OPERATING', waitTime: parseInt(waitMatch[1], 10)}
+      : {status: 'OPERATING'};
+  }
+  if (statusUpper === 'OPEN' || (waitTime != null && waitTime >= 0)) {
+    // A zero wait is a real reading here, unlike the Six Flags feed: it is
+    // published alongside an explicit status rather than as a roster of zeros
+    // served around the clock. Only a positive one is worth a queue entry.
+    return (waitTime != null && waitTime > 0)
+      ? {status: 'OPERATING', waitTime}
+      : {status: 'OPERATING'};
+  }
+  return {status: 'CLOSED'};
 }
 
 // ============================================================================
