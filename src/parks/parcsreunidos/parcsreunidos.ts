@@ -448,7 +448,15 @@ class ParcsReunidosDestination extends Destination {
    * Parse calendar HTML to extract schedule entries.
    * Cached for 24 hours.
    */
-  @cache({ttlSeconds: 86400})
+  // cacheVersion 2: the closing time of any window running past midnight
+  // changed meaning. It used to be stamped onto the opening day, which made
+  // the entry close before it opened; it is now stamped onto the following
+  // day. The shape is identical, so nothing detects the difference — an entry
+  // cached by the old code is silently still wrong, and at a 24h TTL that is
+  // a full day of an already-deployed fix doing nothing. Observed exactly
+  // that on the first deploy: the collector synced with the corrected build
+  // and republished the same inverted rows straight out of this cache.
+  @cache({ttlSeconds: 86400, cacheVersion: 2})
   async parseCalendar(): Promise<Array<{date: string; type: string; openingTime: string; closingTime: string}>> {
     const resp = await this.fetchCalendarHTML();
     const html = await resp.text();
