@@ -1,5 +1,5 @@
-import {TagBuilder} from '../tagBuilder';
-import {TagType, StandardLocationId} from '../tagTypes';
+import {TagBuilder} from '../tagBuilder.js';
+import {TagType, StandardLocationId} from '../tagTypes.js';
 
 describe('TagBuilder', () => {
   describe('Simple tags', () => {

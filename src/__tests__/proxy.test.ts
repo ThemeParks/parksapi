@@ -1,10 +1,10 @@
 // Tests for proxy injection system
-import {loadProxyConfig, hasProxyConfig, type ProxyConfig} from '../proxy';
-import {Destination} from '../destination';
-import {HTTPObj, redactProxyUrlSecrets} from '../http';
-import {broadcast} from '../injector';
+import {loadProxyConfig, hasProxyConfig, type ProxyConfig} from '../proxy.js';
+import {Destination} from '../destination.js';
+import {HTTPObj, redactProxyUrlSecrets} from '../http.js';
+import {broadcast} from '../injector.js';
 import {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import config from '../config';
+import config from '../config.js';
 
 // Mock destination for testing proxy injection
 @config

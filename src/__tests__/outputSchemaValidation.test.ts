@@ -165,6 +165,7 @@ describe('Entity schema validation', () => {
       id: 'ride1',
       name: 'Test Ride',
       entityType: 'ATTRACTION',
+      attractionType: 'RIDE',
       timezone: 'America/New_York',
     };
     expect(validateEntity(entity)).toEqual([]);
@@ -175,6 +176,7 @@ describe('Entity schema validation', () => {
       id: 'ride1',
       name: { en: 'Test Ride', nl: 'Test Rit' },
       entityType: 'ATTRACTION',
+      attractionType: 'RIDE',
       timezone: 'Europe/Amsterdam',
     };
     expect(validateEntity(entity)).toEqual([]);

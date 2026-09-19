@@ -1,4 +1,4 @@
-import { reusable, getActivePromiseCount, clearActivePromises } from '../promiseReuse';
+import { reusable, getActivePromiseCount, clearActivePromises } from '../promiseReuse.js';
 
 describe('Promise Reuse Decorator', () => {
   beforeEach(() => {
@@ -328,7 +328,7 @@ describe('Promise Reuse Decorator', () => {
 
       try {
         await instance.fetchData();
-        fail('Should have thrown error');
+        expect.unreachable('Should have thrown error');
       } catch (error: any) {
         expect(error.message).toBe('Fetch failed');
       }
@@ -343,7 +343,7 @@ describe('Promise Reuse Decorator', () => {
       // Next call should try again
       try {
         await instance.fetchData();
-        fail('Should have thrown error');
+        expect.unreachable('Should have thrown error');
       } catch (error: any) {
         expect(error.message).toBe('Fetch failed');
       }
@@ -367,7 +367,7 @@ describe('Promise Reuse Decorator', () => {
 
       try {
         await instance.init();
-        fail('Should have thrown error');
+        expect.unreachable('Should have thrown error');
       } catch (error: any) {
         expect(error.message).toBe('Init failed');
       }
@@ -381,7 +381,7 @@ describe('Promise Reuse Decorator', () => {
       // Should be able to retry
       try {
         await instance.init();
-        fail('Should have thrown error');
+        expect.unreachable('Should have thrown error');
       } catch (error: any) {
         expect(error.message).toBe('Init failed');
       }

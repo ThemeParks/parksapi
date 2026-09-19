@@ -98,32 +98,13 @@ describe('HFE/Herschend status mapping', () => {
   }
 });
 
-describe('Parcs Reunidos wait time sentinels', () => {
-  test('waitingTime -2 means DOWN', () => {
-    const waitTime = -2;
-    const status = waitTime === -2 ? 'DOWN' : waitTime === -3 ? 'CLOSED' : waitTime < 0 ? 'CLOSED' : 'OPERATING';
-    expect(status).toBe('DOWN');
-  });
-
-  test('waitingTime -3 means CLOSED', () => {
-    const waitTime = -3;
-    const status = waitTime === -2 ? 'DOWN' : waitTime === -3 ? 'CLOSED' : waitTime < 0 ? 'CLOSED' : 'OPERATING';
-    expect(status).toBe('CLOSED');
-  });
-
-  test('waitingTime 0 means OPERATING', () => {
-    const waitTime = 0;
-    const status = waitTime === -2 ? 'DOWN' : waitTime === -3 ? 'CLOSED' : waitTime < 0 ? 'CLOSED' : 'OPERATING';
-    expect(status).toBe('OPERATING');
-  });
-
-  test('other negative values mean CLOSED', () => {
-    for (const wt of [-1, -4, -99]) {
-      const status = wt === -2 ? 'DOWN' : wt === -3 ? 'CLOSED' : wt < 0 ? 'CLOSED' : 'OPERATING';
-      expect(status).toBe('CLOSED');
-    }
-  });
-});
+// The 'Parcs Reunidos wait time sentinels' block was removed here. Every test
+// in it computed the sentinel mapping inline and asserted on its own copy, so
+// it never touched a park module and could not fail. It also asserted the
+// opposite of the shipped behaviour: it claimed waitingTime -2 means DOWN,
+// while parcsreunidos.ts maps -2 to CLOSED and its own suite asserts that no
+// live entry is ever emitted as DOWN. The real coverage lives in
+// src/parks/parcsreunidos/__tests__/parcsreunidos.test.ts.
 
 // ============================================================================
 // Timezone correctness tests

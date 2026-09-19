@@ -9,10 +9,10 @@
  * - Missing STANDARD_LOCATIONS helper methods
  */
 
-import {TagType, TAG_NAMES, SIMPLE_TAG_TYPES, STANDARD_LOCATIONS, StandardLocationId} from '../tagTypes';
-import {TagBuilder} from '../tagBuilder';
-import {validateTagValue} from '../validators';
-import {getSimpleTagRegistry, getComplexTagRegistry} from '../tagMetadata';
+import {TagType, TAG_NAMES, SIMPLE_TAG_TYPES, STANDARD_LOCATIONS, StandardLocationId} from '../tagTypes.js';
+import {TagBuilder} from '../tagBuilder.js';
+import {validateTagValue} from '../validators.js';
+import {getSimpleTagRegistry, getComplexTagRegistry} from '../tagMetadata.js';
 
 describe('Tag System Completeness', () => {
   describe('TagType enum coverage', () => {

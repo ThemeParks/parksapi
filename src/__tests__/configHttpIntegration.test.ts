@@ -233,7 +233,7 @@ describe('@config property resolution inside @http methods', () => {
     expect(entry).toBeDefined();
 
     const instance = new entry!.DestinationClass();
-    expect(instance.apiBase).toBe('https://api.registry.com');
+    expect((instance as any).apiBase).toBe('https://api.registry.com');
 
     // Now test through the full chain
     try {
