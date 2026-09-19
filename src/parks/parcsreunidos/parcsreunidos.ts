@@ -15,7 +15,7 @@ import {cache, CacheLib} from '../../cache.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import {constructDateTime} from '../../datetime.js';
+import {constructDateTime, shiftDateString} from '../../datetime.js';
 import {decodeHtmlEntities} from '../../htmlUtils.js';
 
 // ============================================================================
@@ -517,7 +517,14 @@ class ParcsReunidosDestination extends Destination {
 
             emitted.push({
               openingTime: constructDateTime(dateStr, hours.open, this.timezone),
-              closingTime: constructDateTime(dateStr, hours.close, this.timezone),
+              // A window running past midnight closes on the NEXT calendar
+              // day. Without this both ends were stamped onto the same date
+              // and the entry came out inverted — a close before its own open.
+              closingTime: constructDateTime(
+                hours.closesNextDay ? shiftDateString(dateStr, 1) : dateStr,
+                hours.close,
+                this.timezone,
+              ),
               description: this.extractLabelDescription(timeLabel),
             });
           }
@@ -564,7 +571,37 @@ class ParcsReunidosDestination extends Destination {
    * 3. "10 tot 5u" (Dutch)
    * 4. "11 a.m. – 7 p.m." (with dots and en-dash)
    */
-  private parseTimeRange(label: string): {open: string; close: string} | null {
+  private parseTimeRange(
+    label: string,
+  ): {open: string; close: string; closesNextDay: boolean} | null {
+    const range = this.parseTimeRangeParts(label);
+    if (range === null) return null;
+    // ONE rule for every format, rather than a roll per branch. A close
+    // strictly before its own open cannot be on the same day, whichever
+    // notation produced it:
+    //
+    //   "12:00 - 00:00"        a midnight close, 91 of the 98 live cases
+    //   "10:30 - 01:00"        into the small hours
+    //   "22:00 - 03:00"        a Halloween event night
+    //   "24:00 - 05:00"        constructDateTime already rolls a 24:00 OPEN,
+    //                          so the close has to follow it or the entry
+    //                          lands 19 hours backwards
+    //
+    // Equal times are deliberately NOT rolled. No live label produces one,
+    // and a zero-length window is a visible oddity where a fabricated
+    // 24-hour one would not be.
+    const minutes = (time: string): number => {
+      const [h, m] = time.split(':');
+      return Number(h) * 60 + Number(m ?? 0);
+    };
+    return {...range, closesNextDay: minutes(range.close) < minutes(range.open)};
+  }
+
+  /**
+   * The format branches. Returns wall-clock times only; whether the close
+   * belongs to the next day is decided once, by parseTimeRange above.
+   */
+  private parseTimeRangeParts(label: string): {open: string; close: string} | null {
     // Format 4: "11 a.m. – 7 p.m." (dots in am/pm, en-dash or hyphen)
     const dotAmPmMatch = label.match(/(\d{1,2}(?::\d{2})?)\s*a\.m\.\s*[–\-]\s*(\d{1,2}(?::\d{2})?)\s*p\.m\./i);
     if (dotAmPmMatch) {
