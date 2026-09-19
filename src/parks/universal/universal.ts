@@ -2019,6 +2019,9 @@ class Universal extends Destination {
       let parkOperating = scheduleVenue
         ? (parkOperatingByVenue.get(scheduleVenue) ?? true)
         : true;
+      // The day-park verdict, kept before the event branch can overwrite it.
+      const dayOperating = parkOperating;
+      const dayWindow = scheduleVenue ? parkWindowByVenue.get(scheduleVenue) ?? null : null;
       if (show.category?.toLowerCase() === 'hhn') {
         // A known calendar can make a confident event-window decision only
         // for the configured host park. Any configuration/venue mismatch is
@@ -2028,6 +2031,33 @@ class Universal extends Destination {
           && scheduleVenue === eventScheduleVenue
           ? eventOperating
           : true;
+        if (
+          !parkOperating
+          && dayOperating
+          && dayWindow !== null
+          && times.some((t) => {
+            const start = Date.parse(t.startTime);
+            return start >= dayWindow.opensAt && start <= dayWindow.closesAt;
+          })
+        ) {
+          // `category: hhn` says a show BELONGS TO the event, not that it only
+          // ever runs during it, and replacing the day-park verdict with the
+          // event verdict treated those as the same claim. Hollywood's "Meet
+          // HamiKuma" is tagged hhn and performs from 13:30 PT, five slots
+          // before the event admits at 17:00, with the day park open around it
+          // — so it was gated on an event that had not started and published
+          // CLOSED between appearances. The union is the honest question: a
+          // guest can reach this show if EITHER the day park is open or the
+          // event is admitting.
+          //
+          // The performance test is what keeps the original design intact, and
+          // it is the exact mirror of the `general`-show rule below. A maze has
+          // no daytime slot — Death Eaters Encounter carries no show_times at
+          // all — so an open day park says nothing about it and it stays gated
+          // on the event alone, which is the regression that replacing the
+          // verdict was avoiding.
+          parkOperating = true;
+        }
       } else if (
         !parkOperating
         && eventOperating === true
@@ -2072,7 +2102,6 @@ class Universal extends Destination {
       //    which is the overnight case this gate was built for.
       // The intervals in which a performance is allowed to override the
       // clock. Both the instant and the slot must fall inside one.
-      const dayWindow = scheduleVenue ? parkWindowByVenue.get(scheduleVenue) ?? null : null;
       const bounds: Array<{start: number; end: number}> = [];
       if (dayWindow !== null) {
         bounds.push({start: dayWindow.opensAt, end: dayWindow.closesAt + POST_CLOSE_GRACE_MS});

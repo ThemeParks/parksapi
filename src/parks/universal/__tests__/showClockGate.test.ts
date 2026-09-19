@@ -1080,3 +1080,151 @@ describe('Universal buildLiveData — show status clock-gated against park hours
     });
   });
 });
+
+describe('Universal buildLiveData — an hhn-tagged show that also performs in the daytime', () => {
+  // The mirror of the block above, from the daytime side.
+  //
+  // `category: hhn` says a show BELONGS TO the event, not that it only ever
+  // runs during it. Hollywood's "Meet HamiKuma" is tagged hhn and, sampled
+  // live on 2026-09-17, carried ENABLED performances from 13:30 PT — five
+  // slots before HHN admits at 17:00 — straight through to 20:25 PT:
+  //
+  //   13:30  15:00  15:30  16:00  16:30 | 17:00 admission | 17:30 … 20:25
+  //
+  // The hhn branch REPLACED the day-park verdict with the event verdict, so
+  // every one of those daytime slots was gated on an event that had not
+  // started, with the day park open around it. The only thing standing
+  // between that and a visible contradiction was the 30-minute
+  // performance-underway rule tiling a run of slots spaced exactly 30 minutes
+  // apart — an accident of this season's scheduling, not a guarantee. The
+  // 13:30 slot has no successor for 90 minutes, and the gap published CLOSED.
+  const NIGHT = [{
+    date: '2026-09-18', name: 'Halloween Horror Nights',
+    openingTime: '19:00', closingTime: '02:00', closesNextDay: true,
+    earlyAccessTime: '17:00',
+  }];
+  const DAY_OPEN = [
+    {
+      Date: '2026-09-18', VenueStatus: '',
+      OpenTimeString: '2026-09-18T08:00:00-07:00',
+      CloseTimeString: '2026-09-18T18:00:00-07:00',
+    },
+    {
+      Date: '2026-09-19', VenueStatus: '',
+      OpenTimeString: '2026-09-19T08:00:00-07:00',
+      CloseTimeString: '2026-09-19T18:00:00-07:00',
+    },
+  ];
+
+  // Real slots, as sampled: a lone early one, then the 30-minute run, then
+  // the evening inside the event.
+  const HAMIKUMA_SLOTS = [
+    '2026-09-18T20:30:00Z', // 13:30 PT  — day park, long before admission
+    '2026-09-18T22:00:00Z', // 15:00 PT
+    '2026-09-18T22:30:00Z', // 15:30 PT
+    '2026-09-18T23:00:00Z', // 16:00 PT
+    '2026-09-18T23:30:00Z', // 16:30 PT
+    '2026-09-19T00:30:00Z', // 17:30 PT  — inside early access
+    '2026-09-19T03:25:00Z', // 20:25 PT  — inside the event proper
+  ];
+
+  const hhnShow = (slotsUtc: string[], showId = 'ush.upper_lot.shows.meet.hamikuma') => ({
+    show_id: showId, resort_area_code: 'USH', venue_id: 'ush.upper_lot',
+    category: 'hhn', name: 'Meet HamiKuma', status: 'OPEN', show_externally: true,
+    show_times: slotsUtc.map((t, i) => ({show_time_id: String(i), status: 'ENABLED', start_time: t})),
+  }) as any;
+
+  // A maze: hhn-categorised, and genuinely event-only. Never performs in the
+  // daytime, so the day park being open must not unlock it.
+  const MAZE = {
+    show_id: 'ush.lower_lot.events.hhn_2026_street_experiences_death_eaters',
+    resort_area_code: 'USH', venue_id: 'ush.lower_lot', category: 'hhn',
+    name: 'Death Eaters Encounter', status: 'OPEN', show_externally: true,
+    show_times: [],
+  } as any;
+
+  async function rowsAt(iso: string, shows: any[]) {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(iso));
+    const park: any = stubPark(new UniversalStudios(), shows, {'13825': DAY_OPEN});
+    park.getEventNights = async () => NIGHT;
+    park.getPlaces = async () => [];
+    const rows = await park.getLiveData();
+    vi.useRealTimers();
+    return rows;
+  }
+
+  const hamikumaAt = async (iso: string, slots = HAMIKUMA_SLOTS) =>
+    (await rowsAt(iso, [hhnShow(slots), MAZE]))
+      .find((r: any) => r.id === 'ush.upper_lot.shows.meet.hamikuma');
+
+  test('THE #221 GAP: mid-afternoon between slots, day park open — OPERATING', async () => {
+    // 14:30 PT. The 13:30 slot finished an hour ago, the next is at 15:00, so
+    // the underway rule cannot help. The day park is open and this show
+    // performs in it five more times today.
+    const row = await hamikumaAt('2026-09-18T21:30:00Z');
+    expect(row.status).toBe('OPERATING');
+  });
+
+  test('the whole daytime run reads OPERATING, not just the tiled part', async () => {
+    for (const iso of [
+      '2026-09-18T20:45:00Z', // 13:45 PT — just after the lone early slot
+      '2026-09-18T21:30:00Z', // 14:30 PT — the gap
+      '2026-09-18T22:15:00Z', // 15:15 PT — inside the 30-minute run
+      '2026-09-18T23:45:00Z', // 16:45 PT — after the run, before admission
+    ]) {
+      const row = await hamikumaAt(iso);
+      expect(`${iso} -> ${row.status}`).toBe(`${iso} -> OPERATING`);
+    }
+  });
+
+  test('A MAZE IS NOT UNLOCKED BY DAYLIGHT: no daytime performance, stays CLOSED', async () => {
+    // The regression the original replace-the-verdict design was avoiding.
+    // Death Eaters has no show_times at all, so the day park being open says
+    // nothing about it.
+    const rows = await rowsAt('2026-09-18T21:30:00Z', [hhnShow(HAMIKUMA_SLOTS), MAZE]);
+    const maze = rows.find((r: any) => r.id === 'ush.lower_lot.events.hhn_2026_street_experiences_death_eaters');
+    expect(maze.status).toBe('CLOSED');
+  });
+
+  test('an hhn show whose slots are ALL inside the event is not unlocked at noon', async () => {
+    // The other half of the same guard: it performs, but never in the day, so
+    // an open day park must not reach it.
+    const row = await hamikumaAt('2026-09-18T19:00:00Z', [ // 12:00 PT
+      '2026-09-19T03:25:00Z', // 20:25 PT only
+    ]);
+    expect(row.status).toBe('CLOSED');
+  });
+
+  test('THE EARLY-ACCESS ARM SURVIVES (#542): 17:30 PT reads OPERATING', async () => {
+    // Day park still open at 17:30, so this one is now carried by both arms.
+    // Kept so the early-access admission cannot regress unnoticed.
+    const row = await hamikumaAt('2026-09-19T00:30:00Z');
+    expect(row.status).toBe('OPERATING');
+  });
+
+  test('THE EVENT ARM SURVIVES: 20:10 PT, day park shut two hours, event running', async () => {
+    const row = await hamikumaAt('2026-09-19T03:10:00Z');
+    expect(row.status).toBe('OPERATING');
+  });
+
+  test('THE #321 CASE SURVIVES: 03:00 PT, day park shut and the event over — CLOSED', async () => {
+    // Both arms shut. This is the overnight staleness case the whole gate
+    // exists for, and neither the day arm nor the event arm may reopen it.
+    const row = await hamikumaAt('2026-09-19T10:00:00Z');
+    expect(row.status).toBe('CLOSED');
+  });
+
+  test('the day arm is venue-scoped to a park whose hours we actually read', async () => {
+    // A CityWalk-venued hhn show has no schedule-bearing venue, so there is no
+    // day window to perform inside; it keeps the old ungated behaviour rather
+    // than being force-closed by a lookup that never happened.
+    const cw = {
+      ...hhnShow(HAMIKUMA_SLOTS, 'ush.cw.shows.meet.something'),
+      venue_id: 'ush.cw',
+    };
+    const rows = await rowsAt('2026-09-18T21:30:00Z', [cw, MAZE]);
+    const row = rows.find((r: any) => r.id === 'ush.cw.shows.meet.something');
+    expect(row.status).toBe('OPERATING');
+  });
+});
