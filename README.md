@@ -236,6 +236,15 @@ Create a `.env` file in the project root. Some destinations share configuration 
 
 Run `npm run dev -- <id> -v` to see which config properties a destination expects.
 
+`includeRaw` is a per-destination opt-in for a consumer that stores the data itself and wants the upstream original next to each mapped element. When on, every entity, live-data row and schedule entry carries a `raw` object holding the slice of the upstream response it was built from, keyed by the request that delivered it (the park module's `fetch` method name without the prefix). It is off by default and nothing in the output changes unless it is set. The pieces are the upstream response as it came, so leave it off on an instance that hands elements on to third parties.
+
+```typescript
+const park = new Phantasialand();
+park.includeRaw = true;
+const live = await park.getLiveData();
+// live[0].raw => { signage: { poiId: '12', waitTime: 25, open: true, ... } }
+```
+
 ## Architecture
 
 The library uses a **decorator-based design** with TypeScript:
