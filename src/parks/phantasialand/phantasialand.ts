@@ -414,6 +414,7 @@ export class Phantasialand extends Destination {
       apiTags: string[];
       minSize?: number;
       maxSize?: number;
+      poi: any;
     }> = [];
 
     for (const poi of pois) {
@@ -462,6 +463,7 @@ export class Phantasialand extends Destination {
         apiTags: Array.isArray(poi.tags) ? poi.tags : [],
         minSize: poi.minSize,
         maxSize: poi.maxSize,
+        poi,
       });
     }
 
@@ -487,7 +489,7 @@ export class Phantasialand extends Destination {
         if (item.minSize) tags.push(TagBuilder.minimumHeight(item.minSize, 'cm'));
         if (item.maxSize) tags.push(TagBuilder.maximumHeight(item.maxSize, 'cm'));
         if (tags.length > 0) entity.tags = tags;
-        return entity;
+        return this.addRaw(entity, 'poi', item.poi);
       },
     });
 
@@ -520,7 +522,7 @@ export class Phantasialand extends Destination {
       const age = signageRowAge(entry, nowMs);
       if (age !== null && age > MAX_SIGNAGE_AGE_MS) {
         staleRows++;
-        liveData.push({id: entityId, status: 'CLOSED'} as LiveData);
+        liveData.push(this.addRaw({id: entityId, status: 'CLOSED'} as LiveData, 'signage', entry));
         continue;
       }
       const ld: LiveData = {id: entityId, status: 'CLOSED'} as LiveData;
@@ -553,7 +555,7 @@ export class Phantasialand extends Destination {
         ld.status = (entry.open ? 'OPERATING' : 'CLOSED') as any;
       }
 
-      liveData.push(ld);
+      liveData.push(this.addRaw(ld, 'signage', entry));
     }
 
     // Every row going stale at once means the feed stopped, not that the
@@ -609,12 +611,12 @@ export class Phantasialand extends Destination {
         const openingTime = constructDateTime(dateStr, hours.open, this.timezone);
         const closingTime = constructDateTime(dateStr, hours.close, this.timezone);
 
-        scheduleEntries.push({
+        scheduleEntries.push(this.addRaw({
           date: dateStr,
           type: 'OPERATING',
           openingTime,
           closingTime,
-        });
+        }, 'scheduleHTML', event));
       }
     }
 
@@ -630,6 +632,7 @@ export class Phantasialand extends Destination {
           // Only override if live closing is after the calendar opening
           if (liveClose > scheduleEntries[todayIdx].openingTime) {
             scheduleEntries[todayIdx].closingTime = liveClose;
+            this.addRaw(scheduleEntries[todayIdx], 'parkInfos', parkInfos);
           }
         }
       }
