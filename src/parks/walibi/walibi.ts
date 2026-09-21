@@ -311,7 +311,7 @@ class WalibiBase extends Destination {
             longitude: Number(a.longitude),
           };
         }
-        return entity;
+        return this.addRaw(entity, 'attractions', a);
       })
       .filter((e): e is Entity => e !== null);
 
@@ -333,7 +333,7 @@ class WalibiBase extends Destination {
             longitude: Number(r.longitude),
           };
         }
-        return entity;
+        return this.addRaw(entity, 'restaurants', r);
       });
 
     return [parkEntity, ...attrEntities, ...diningEntities];
@@ -376,7 +376,7 @@ class WalibiBase extends Destination {
           };
         }
 
-        return ld;
+        return this.addRaw(ld, 'waitTimes', entry);
       })
       .filter((x): x is LiveData => x !== null);
 
@@ -518,12 +518,12 @@ class WalibiBase extends Destination {
           const closingHour = displayed?.closing ?? day.closingHour;
           if (!openingHour || !closingHour) continue;
 
-          schedule.push({
+          schedule.push(this.addRaw({
             date: dateStr,
             type: 'OPERATING',
             openingTime: constructDateTime(dateStr, openingHour, this.timezone),
             closingTime: constructDateTime(dateStr, closingHour, this.timezone),
-          });
+          }, 'calendar', day));
         }
       }
     }

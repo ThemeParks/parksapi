@@ -644,11 +644,11 @@ export class ParcAsterix extends Destination {
 
       // Parse calendar labels into an hours map, plus the day types whose
       // legend positively states the park is shut.
-      const {hoursMap, closedTypes} = this.parseCalendarLabels(labels);
+      const {hoursMap, closedTypes, labelByType} = this.parseCalendarLabels(labels);
 
       // Build calendar entries
       const {entries: calendar, closedDates} = this.buildCalendarEntries(
-        calendarItems, hoursMap, closedTypes,
+        calendarItems, hoursMap, closedTypes, labelByType,
       );
 
       // Build POI list. Every localised database also carries a `title_fr`
@@ -739,9 +739,11 @@ export class ParcAsterix extends Destination {
    */
   private parseCalendarLabels(
     labels: SqliteLabel[],
-  ): {hoursMap: Record<string, TimeRange[]>; closedTypes: Set<string>} {
+  ): {hoursMap: Record<string, TimeRange[]>; closedTypes: Set<string>; labelByType: Record<string, SqliteLabel>} {
     const hoursMap: Record<string, TimeRange[]> = {};
     const closedTypes = new Set<string>();
+    // The legend row each day type's hours were read from.
+    const labelByType: Record<string, SqliteLabel> = {};
 
     const connector = '\\s*(?:-|to)\\s*';
     const postfix = '(?:am|pm|a\\.m|p\\.m|h|hr)\\.?';
@@ -786,12 +788,13 @@ export class ParcAsterix extends Destination {
               end: this.parseTimeString(parts[1].trim())!,
             };
           }).filter((r) => r.start && r.end);
+          labelByType[key] = label;
           break;
         }
       }
     }
 
-    return {hoursMap, closedTypes};
+    return {hoursMap, closedTypes, labelByType};
   }
 
   /**
@@ -801,6 +804,7 @@ export class ParcAsterix extends Destination {
     calendarItems: SqliteCalendarItem[],
     hoursMap: Record<string, TimeRange[]>,
     closedTypes: Set<string>,
+    labelByType: Record<string, SqliteLabel>,
   ): {entries: ScheduleEntry[]; closedDates: Set<string>} {
     const entries: ScheduleEntry[] = [];
     const closedDates = new Set<string>();
@@ -829,6 +833,10 @@ export class ParcAsterix extends Destination {
         continue;
       }
 
+      // Both rows of the package are behind every day this item produces: the
+      // calendar row names the day, the legend row carries its hours.
+      const piece = [item, labelByType[item.type]];
+
       for (const range of hours) {
         if (!range.start || !range.end) continue;
 
@@ -850,12 +858,12 @@ export class ParcAsterix extends Destination {
           openingType = "TICKETED_EVENT"; // If park is open until next day, it's 99% probably a Halloween night
         }
 
-        entries.push({
+        entries.push(this.addRaw({
           date: dateStr,
           type: openingType,
           openingTime,
           closingTime,
-        });
+        }, 'packageZip', piece));
       }
     }
 
@@ -911,6 +919,7 @@ export class ParcAsterix extends Destination {
         timezone: this.timezone,
         locationFields: {lat: 'latitude', lng: 'longitude'},
         filter: (item) => !!item.drupal_id,
+        rawSource: 'packageZip',
         transform: (entity, item) => {
           const tags = [];
           if (item.min_size && item.min_size > 0) {
@@ -947,6 +956,7 @@ export class ParcAsterix extends Destination {
         timezone: this.timezone,
         locationFields: {lat: 'latitude', lng: 'longitude'},
         filter: (item) => !!item.drupal_id,
+        rawSource: 'packageZip',
       },
     );
 
@@ -961,6 +971,7 @@ export class ParcAsterix extends Destination {
         timezone: this.timezone,
         locationFields: {lat: 'latitude', lng: 'longitude'},
         filter: (item) => !!item.drupal_id,
+        rawSource: 'packageZip',
       },
     );
 
@@ -1021,7 +1032,7 @@ export class ParcAsterix extends Destination {
         }
       }
 
-      return ld;
+      return this.addRaw(ld, 'pollingLatencies', entry);
     });
 
     const liveShowtimes = schedules.map((entry) => {
@@ -1077,7 +1088,7 @@ export class ParcAsterix extends Destination {
         ld.showtimes = showtimes;
       }
 
-      return ld;
+      return this.addRaw(ld, 'pollingSchedules', entry);
     });
 
     // The two bills have never yet named the same id, and if they ever do the
@@ -1087,10 +1098,14 @@ export class ParcAsterix extends Destination {
     // performances are additional information, so they are carried across
     // rather than dropped.
     const waitTimeById = new Map(liveWaitTimes.map((entry) => [entry.id, entry]));
+    const scheduleById = new Map(schedules.map((entry) => [String(entry.drupalId), entry]));
     const showtimeRows = liveShowtimes.filter((entry) => {
       const observation = waitTimeById.get(entry.id);
       if (!observation) return true;
-      if (entry.showtimes) observation.showtimes = entry.showtimes;
+      if (entry.showtimes) {
+        observation.showtimes = entry.showtimes;
+        this.addRaw(observation, 'pollingSchedules', scheduleById.get(entry.id));
+      }
       return false;
     });
 
@@ -1194,12 +1209,9 @@ export class ParcAsterix extends Destination {
     return [
       {
         id: 'parcasterixpark',
-        schedule: upcoming.map((entry) => ({
-          date: entry.date,
-          type: entry.type,
-          openingTime: entry.openingTime,
-          closingTime: entry.closingTime,
-        })),
+        // The copy keeps every field, so a day keeps the package rows it was
+        // read from.
+        schedule: upcoming.map((entry) => ({...entry})),
       } as EntitySchedule,
     ];
   }

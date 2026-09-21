@@ -142,6 +142,10 @@ type NormalizedStatusEntry = {
   id: string;
   isOpen: boolean;
   waitTime: number | null;
+  /** Name of the request this entry was read from: `rideStatus` or `poiStatus`. */
+  source: string;
+  /** That response's entry for this id, unchanged. */
+  entry: unknown;
 };
 
 // ============================================================================
@@ -404,8 +408,11 @@ class TE2Destination extends Destination {
    * If rideStatusUrl is configured, fetches from the external endpoint
    * (which provides richer queue data). Otherwise falls back to the
    * standard POI status endpoint.
+   *
+   * Each entry keeps the response entry it was read from, and the name of the
+   * request that delivered it; `cacheVersion` rises with that shape.
    */
-  @cache({ttlSeconds: 60})
+  @cache({ttlSeconds: 60, cacheVersion: 2})
   async getLiveStatus(): Promise<NormalizedStatusEntry[]> {
     if (this.rideStatusUrl) {
       return this.parseRideStatusEndpoint();
@@ -434,6 +441,8 @@ class TE2Destination extends Destination {
         id: String(item.id),
         isOpen: item.status.isOpen === true,
         waitTime,
+        source: 'poiStatus',
+        entry: item,
       });
     }
     return entries;
@@ -465,6 +474,8 @@ class TE2Destination extends Destination {
         id: te2Id,
         isOpen,
         waitTime,
+        source: 'rideStatus',
+        entry: ride,
       });
     }
     return entries;
@@ -591,13 +602,13 @@ class TE2Destination extends Destination {
     const location = this.getVenueLocation(venue);
 
     const destId = `${this.destinationId}_destination`;
-    return [{
+    return [this.addRaw({
       id: destId,
       name: venue.name || venue.label || destId,
       entityType: 'DESTINATION',
       timezone: this.timezone,
       location,
-    } as Entity];
+    } as Entity, 'venue', venue)];
   }
 
   protected async buildEntityList(): Promise<Entity[]> {
@@ -609,7 +620,7 @@ class TE2Destination extends Destination {
     const parkId = this.destinationId;
 
     // Park entity
-    const parkEntity: Entity = {
+    const parkEntity: Entity = this.addRaw({
       id: parkId,
       name: venue.name || venue.label || parkId,
       entityType: 'PARK',
@@ -617,7 +628,7 @@ class TE2Destination extends Destination {
       destinationId: destId,
       timezone: this.timezone,
       location,
-    } as Entity;
+    } as Entity, 'venue', venue);
 
     // Get category-based POI membership from displayCategories API
     const categories = await this.getDisplayCategories();
@@ -704,7 +715,7 @@ class TE2Destination extends Destination {
         location,
       } as Entity;
 
-      entities.push(entity);
+      entities.push(this.addRaw(entity, 'poiAll', poi));
     }
 
     return entities;
@@ -759,7 +770,7 @@ class TE2Destination extends Destination {
         location,
       } as Entity;
 
-      entities.push(entity);
+      entities.push(this.addRaw(entity, 'eventCalendarEvents', event));
       existingShowIds.add(String(event.id));
     }
 
@@ -795,7 +806,7 @@ class TE2Destination extends Destination {
         };
       }
 
-      liveDataMap.set(entry.id, ld);
+      liveDataMap.set(entry.id, this.addRaw(ld, entry.source, entry.entry));
     }
 
     // Process show schedule (event calendar for today)
@@ -823,8 +834,9 @@ class TE2Destination extends Destination {
     const now = new Date();
     const todayStr = formatInTimezone(now, this.timezone, 'iso').slice(0, 10);
 
-    // Group schedules by event, filter to today
-    const showtimesByEvent = new Map<string, Array<{startTime: string; endTime: string}>>();
+    // Group schedules by event, filter to today. Each showtime keeps the slot
+    // it was built from, so the row can name every slot behind it.
+    const showtimesByEvent = new Map<string, Array<{startTime: string; endTime: string; slot: unknown}>>();
 
     for (const slot of schedules) {
       if (!slot?.eventId || !slot.start) continue;
@@ -848,6 +860,7 @@ class TE2Destination extends Destination {
       const showtime = {
         startTime: formatInTimezone(startDate, this.timezone, 'iso'),
         endTime: formatInTimezone(endDate || startDate, this.timezone, 'iso'),
+        slot,
       };
 
       if (!showtimesByEvent.has(slot.eventId)) {
@@ -870,7 +883,9 @@ class TE2Destination extends Destination {
         endTime: st.endTime,
       }));
       ld.status = 'OPERATING' as any;
-      liveDataMap.set(eventId, ld);
+      // Several slots of one list feed one row, so they go in as a list. The
+      // list name tells the two lists of the calendar response apart.
+      liveDataMap.set(eventId, this.addRaw(ld, 'eventCalendarSchedules', showtimes.map(st => st.slot)));
     }
   }
 
@@ -915,13 +930,13 @@ class TE2Destination extends Destination {
         const startFormatted = formatInTimezone(startDate, this.timezone, 'iso');
         const endFormatted = formatInTimezone(endDate, this.timezone, 'iso');
 
-        scheduleEntries.push({
+        scheduleEntries.push(this.addRaw({
           date: startFormatted.slice(0, 10),
           type: scheduleType,
           description: normalizedLabel === 'park' ? undefined : (label || undefined),
           openingTime: startFormatted,
           closingTime: endFormatted,
-        });
+        }, 'schedule', [day, hour]));
       }
     }
 

@@ -634,6 +634,7 @@ export class TokyoDisneyResort extends Destination {
         entity.tags = tags.filter(Boolean);
         return entity;
       },
+      rawSource: 'facilities',
     });
 
     // Filter and build show entities
@@ -652,6 +653,7 @@ export class TokyoDisneyResort extends Destination {
         lat: 'latitude',
         lng: 'longitude',
       },
+      rawSource: 'facilities',
     });
 
     // Restaurants: return empty array (not surfaced)
@@ -732,6 +734,7 @@ export class TokyoDisneyResort extends Destination {
           'JPY',
           yen ?? null,
         );
+        if (yen !== undefined) this.addRaw(ld, 'premierAccessPrices', yen);
       }
 
       // Priority Pass (free return time)
@@ -743,7 +746,7 @@ export class TokyoDisneyResort extends Destination {
         );
       }
 
-      liveData.push(ld);
+      liveData.push(this.addRaw(ld, 'conditions', attr));
     }
 
     return liveData;
@@ -787,23 +790,23 @@ export class TokyoDisneyResort extends Destination {
 
       // Operating hours
       if (entry.openTime && entry.closeTime) {
-        scheduleMap.get(parkId)!.push({
+        scheduleMap.get(parkId)!.push(this.addRaw({
           date: dateStr,
           openingTime: constructDateTime(dateStr, entry.openTime, this.timezone),
           closingTime: constructDateTime(dateStr, entry.closeTime, this.timezone),
           type: 'OPERATING',
-        });
+        }, 'calendar', entry));
       }
 
       // Special hours (Extra Hours)
       if (entry.spOpenTime && entry.spCloseTime) {
-        scheduleMap.get(parkId)!.push({
+        scheduleMap.get(parkId)!.push(this.addRaw({
           date: dateStr,
           openingTime: constructDateTime(dateStr, entry.spOpenTime, this.timezone),
           closingTime: constructDateTime(dateStr, entry.spCloseTime, this.timezone),
           type: 'EXTRA_HOURS',
           description: 'Special Hours',
-        });
+        }, 'calendar', entry));
       }
     }
 

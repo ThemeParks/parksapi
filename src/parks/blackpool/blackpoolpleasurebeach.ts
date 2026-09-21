@@ -282,6 +282,7 @@ export class BlackpoolPleasureBeach extends Destination {
         destinationId: DESTINATION_ID,
         timezone: this.timezone,
       } as Entity;
+      this.addRaw(entity, 'queueTimes', r);
 
       if (marker) {
         const lat = Number(marker.lat);
@@ -289,6 +290,7 @@ export class BlackpoolPleasureBeach extends Destination {
         if (Number.isFinite(lat) && Number.isFinite(lng)) {
           entity.location = {latitude: lat, longitude: lng};
         }
+        this.addRaw(entity, 'markers', marker);
       }
 
       const tags: ReturnType<typeof TagBuilder.minimumHeight>[] = [];
@@ -332,7 +334,7 @@ export class BlackpoolPleasureBeach extends Destination {
       if (Number.isFinite(lat) && Number.isFinite(lng)) {
         entity.location = {latitude: lat, longitude: lng};
       }
-      restaurants.push(entity);
+      restaurants.push(this.addRaw(entity, 'markers', m));
     }
 
     return [parkEntity, ...attractions, ...restaurants];
@@ -370,7 +372,7 @@ export class BlackpoolPleasureBeach extends Destination {
         }
       }
 
-      out.push(ld);
+      out.push(this.addRaw(ld, 'queueTimes', r));
     }
 
     return out;
@@ -387,12 +389,12 @@ export class BlackpoolPleasureBeach extends Destination {
       const openHm = this.parseTimeOfDay(d.time_from);
       const closeHm = this.parseTimeOfDay(d.time_to);
       if (!openHm || !closeHm) continue;
-      schedule.push({
+      schedule.push(this.addRaw({
         date: d.open_date,
         type: 'OPERATING',
         openingTime: constructDateTime(d.open_date, openHm, this.timezone),
         closingTime: constructDateTime(d.open_date, closeHm, this.timezone),
-      } as any);
+      } as any, 'openingTimesHtml', d));
     }
 
     return [{id: PARK_ID, schedule} as EntitySchedule];

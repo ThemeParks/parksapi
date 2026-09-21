@@ -190,6 +190,7 @@ export class UniversalStudiosBeijing extends Destination {
         lat: (item) => item.position?.latitude != null ? Number(item.position.latitude) : undefined,
         lng: (item) => item.position?.longitude != null ? Number(item.position.longitude) : undefined,
       },
+      rawSource: 'attractionData',
     });
 
     const showEntities = this.mapEntities(shows, {
@@ -203,6 +204,7 @@ export class UniversalStudiosBeijing extends Destination {
         lat: (item) => item.position?.latitude != null ? Number(item.position.latitude) : undefined,
         lng: (item) => item.position?.longitude != null ? Number(item.position.longitude) : undefined,
       },
+      rawSource: 'showData',
     });
 
     return [parkEntity, ...attractionEntities, ...showEntities];
@@ -236,7 +238,7 @@ export class UniversalStudiosBeijing extends Destination {
         };
       }
 
-      liveData.push(ld);
+      liveData.push(this.addRaw(ld, 'attractionData', attraction));
     }
 
     // Show times
@@ -267,7 +269,7 @@ export class UniversalStudiosBeijing extends Destination {
         }
       }
 
-      liveData.push(ld);
+      liveData.push(this.addRaw(ld, 'showData', show));
     }
 
     return liveData;
@@ -293,11 +295,13 @@ export class UniversalStudiosBeijing extends Destination {
 
     // Find open dates from month overviews
     const datesToFetch: string[] = [];
+    const monthOverviewByDate = new Map<string, any>();
     for (const {year, month} of monthsToFetch) {
       const dateList = await this.getMonthOverview(year, month);
       for (const day of dateList) {
         if (day.status) {
           datesToFetch.push(day.date);
+          monthOverviewByDate.set(day.date, day);
         }
       }
     }
@@ -312,12 +316,13 @@ export class UniversalStudiosBeijing extends Destination {
 
       if (!parkData.open || !parkData.close) continue;
 
-      schedule.push({
+      const entry = this.addRaw({
         date,
         type: 'OPERATING',
         openingTime: constructDateTime(date, parkData.open, this.timezone),
         closingTime: constructDateTime(date, parkData.close, this.timezone),
-      });
+      }, 'monthOverview', monthOverviewByDate.get(date));
+      schedule.push(this.addRaw(entry, 'dailySchedule', parkData));
     }
 
     return [{id: 'universalstudiosbeijing', schedule} as EntitySchedule];

@@ -76,6 +76,12 @@ type USSScheduleMonth = {
   Days: USSScheduleDay[];
 };
 
+/**
+ * One day's published opening hours. `day` is the day object the hours were
+ * read out of, carried along only when a caller asked for it.
+ */
+type USSDayHours = {start: string; end: string; day?: USSScheduleDay};
+
 type USSAuthResponse = {
   StatusCode: number;
   Result: {
@@ -104,9 +110,12 @@ function nowTimestamp(): string {
  * The page embeds Sitecore JSS state containing:
  * "months":{"Months":[{Value, Name, Year, Days:[{Number, StartHour, EndHour}]}]}
  * Returns a map of "YYYY-MM-DD" → {start, end} for efficient lookup.
+ *
+ * With `includeRaw` on, each entry also carries the day object it was read
+ * from, so the schedule entry built from it can publish that object unchanged.
  */
-function parseMonthsFromHtml(html: string): Map<string, {start: string; end: string}> {
-  const map = new Map<string, {start: string; end: string}>();
+function parseMonthsFromHtml(html: string, includeRaw = false): Map<string, USSDayHours> {
+  const map = new Map<string, USSDayHours>();
   const marker = '"months":{"Months":';
   const markerIdx = html.indexOf(marker);
   if (markerIdx === -1) return map;
@@ -131,7 +140,11 @@ function parseMonthsFromHtml(html: string): Map<string, {start: string; end: str
       const mm = String(month.Value).padStart(2, '0');
       for (const day of month.Days) {
         const dd = String(day.Number).padStart(2, '0');
-        map.set(`${month.Year}-${mm}-${dd}`, {start: day.StartHour, end: day.EndHour});
+        map.set(`${month.Year}-${mm}-${dd}`, {
+          start: day.StartHour,
+          end: day.EndHour,
+          ...(includeRaw ? {day} : {}),
+        });
       }
     }
   } catch {
@@ -408,11 +421,11 @@ export class UniversalSingapore extends Destination {
   }
 
   /** Hours lookup map from embedded page data — refreshed every 24 hours. */
-  @cache({ttlSeconds: 60 * 60 * 24})
-  async getHoursMap(): Promise<[string, {start: string; end: string}][]> {
+  @cache({ttlSeconds: 60 * 60 * 24, cacheVersion: 2})
+  async getHoursMap(): Promise<[string, USSDayHours][]> {
     const resp = await this.fetchWebsitePage();
     const html = await resp.text();
-    return Array.from(parseMonthsFromHtml(html).entries());
+    return Array.from(parseMonthsFromHtml(html, this.includeRaw).entries());
   }
 
   /** Fetch attractions for a given category. Timestamp is a cache-buster. */
@@ -498,7 +511,7 @@ export class UniversalSingapore extends Destination {
         const loc = parseLatLng(attr.LatLng);
         if (loc) entity.location = loc;
 
-        attractionEntities.push(entity);
+        attractionEntities.push(this.addRaw(entity, 'attractionList', attr));
       }
     }
 
@@ -561,7 +574,7 @@ export class UniversalSingapore extends Destination {
         }
       }
 
-      results.push(ld);
+      results.push(this.addRaw(ld, 'attractionList', attr));
     }
 
     return results;
@@ -588,23 +601,29 @@ export class UniversalSingapore extends Destination {
     const hoursMap = new Map(hoursEntries);
 
     // Build availability map from calendar API (undefined = not covered, assume open)
-    const availabilityMap = new Map<string, boolean>();
+    const availabilityMap = new Map<string, USSCalendarEntry>();
     for (const entry of [...window1, ...window2]) {
-      availabilityMap.set(entry.Date, entry.IsAvailable);
+      availabilityMap.set(entry.Date, entry);
     }
 
     const scheduleEntries: object[] = [];
 
     for (const [date, hours] of hoursMap) {
       // Skip days explicitly marked unavailable; include days not yet in the API window
-      if (availabilityMap.get(date) === false) continue;
+      const availability = availabilityMap.get(date);
+      if (availability?.IsAvailable === false) continue;
 
-      scheduleEntries.push({
+      const entry = {
         date,
         type: 'PARK_OPEN',
         openingTime: constructDateTime(date, hours.start, TIMEZONE),
         closingTime: constructDateTime(date, hours.end, TIMEZONE),
-      });
+      };
+
+      if (hours.day) this.addRaw(entry, 'websitePage', hours.day);
+      if (availability) this.addRaw(entry, 'calendarApi', availability);
+
+      scheduleEntries.push(entry);
     }
 
     // Sort chronologically

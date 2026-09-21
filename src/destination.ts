@@ -86,6 +86,39 @@ function stripUndefinedDeep(value: unknown): void {
   }
 }
 
+/**
+ * Raw upstream pieces an element was built from, keyed by the name of the
+ * request that delivered each one: the park module's `fetch` method name
+ * without the prefix, in lowerCamelCase (`fetchWaitingTimes` -> `waitingTimes`).
+ * A request that carries several lists gets the list name appended
+ * (`pollingLatencies`, `pollingSchedules`).
+ */
+export type RawSources = Record<string, unknown>;
+
+/** An element that may carry its raw upstream pieces under `raw`. */
+export type WithRaw<T> = T & {raw?: RawSources};
+
+/**
+ * Attach one raw upstream piece to an element, keyed by the request it came
+ * from. Merges into an existing `raw`, so an element assembled from several
+ * requests gets one call per request. The piece is stored as is: no copy, no
+ * cleaning, only the slice of the response that concerns this element.
+ *
+ * Park classes use {@link Destination.addRaw}, which sits behind the
+ * destination's `includeRaw` flag. Module-level helpers that build elements
+ * outside a class take an `includeRaw` parameter and call this directly.
+ */
+export function attachRaw<T extends object>(element: T, source: string, piece: unknown): T {
+  const target = element as WithRaw<T>;
+  target.raw = {...(target.raw ?? {}), [source]: piece};
+  return element;
+}
+
+/** Remove `raw` from an element. Safety net for the public getters when `includeRaw` is off. */
+function stripRaw(element: object): void {
+  delete (element as WithRaw<object>).raw;
+}
+
 export type DestinationConstructor = {
   config?: {[key: string]: string | string[]};
 };
@@ -123,6 +156,13 @@ export type EntityMapperConfig<T> = {
 
   /** Optional transform function for post-processing */
   transform?: (entity: Entity, sourceItem: T) => Entity;
+
+  /**
+   * Optional request name under which each source item is attached to its
+   * entity as a raw upstream piece (see {@link attachRaw}). Only takes effect
+   * when the destination's `includeRaw` flag is on.
+   */
+  rawSource?: string;
 };
 
 // Base class for all destinations
@@ -200,6 +240,23 @@ export abstract class Destination {
    * @default false
    */
   hasLiveStream: boolean = false;
+
+  /**
+   * Opt-in: carry the raw upstream pieces each element was built from, under
+   * `raw`, keyed by request name (see {@link attachRaw}). Applies to entities,
+   * live data and every schedule entry alike. Off by default, and when off the
+   * public getters strip any `raw` a park set anyway, so the default output
+   * does not change by a byte.
+   *
+   * Meant for a consumer that stores and analyses the data itself and wants
+   * the upstream original next to the mapped element. The pieces are the
+   * upstream response as it came, uncleaned, so an instance that hands
+   * elements on to third parties leaves this off. Set by the consumer after
+   * construction, like `proxyConfig`.
+   *
+   * @default false
+   */
+  includeRaw: boolean = false;
 
   /**
    * Opt out of the collapsed-entity-list guard in {@link getEntities}.
@@ -691,8 +748,35 @@ export abstract class Destination {
         }
 
         // Apply custom transform if provided
-        return config.transform ? config.transform(entity, item) : entity;
+        const result = config.transform ? config.transform(entity, item) : entity;
+
+        // Attach the source item as the raw upstream piece if requested
+        if (config.rawSource !== undefined) {
+          this.addRaw(result, config.rawSource, item);
+        }
+        return result;
       });
+  }
+
+  /**
+   * {@link attachRaw} behind the {@link includeRaw} flag: the one-liner park
+   * code uses wherever it builds an element from a piece of an upstream
+   * response. Returns the element either way, so it can wrap a `push`.
+   *
+   * @param element The entity, live data or schedule entry being built
+   * @param source Name of the request the piece came from (`waitTimes`, `signage`)
+   * @param piece The slice of that response this element was built from, unchanged
+   *
+   * @example
+   * ```typescript
+   * for (const entry of waitTimes) {
+   *   const ld: LiveData = {id: String(entry.id), status: this.mapStatus(entry.state)} as LiveData;
+   *   live.push(this.addRaw(ld, 'waitTimes', entry));
+   * }
+   * ```
+   */
+  protected addRaw<T extends object>(element: T, source: string, piece: unknown): T {
+    return this.includeRaw ? attachRaw(element, source, piece) : element;
   }
 
   /**
@@ -1066,7 +1150,10 @@ export abstract class Destination {
       }
     }
 
-    for (const entity of resolved) stripUndefinedDeep(entity);
+    for (const entity of resolved) {
+      if (!this.includeRaw) stripRaw(entity);
+      stripUndefinedDeep(entity);
+    }
     return resolved;
   }
 
@@ -1162,7 +1249,10 @@ export abstract class Destination {
         }
       }
     }
-    for (const entry of data) stripUndefinedDeep(entry);
+    for (const entry of data) {
+      if (!this.includeRaw) stripRaw(entry);
+      stripUndefinedDeep(entry);
+    }
     return data;
   }
 
@@ -1379,7 +1469,12 @@ export abstract class Destination {
    */
   async *streamLiveData(): AsyncGenerator<LiveData[]> {
     await this.init();
-    yield* this.buildLiveDataStream();
+    for await (const batch of this.buildLiveDataStream()) {
+      if (!this.includeRaw) {
+        for (const entry of batch) stripRaw(entry);
+      }
+      yield batch;
+    }
   }
 
   /**
@@ -1433,7 +1528,12 @@ export abstract class Destination {
   async getSchedules(): Promise<EntitySchedule[]> {
     await this.init();
     const schedules = await this.buildSchedules();
-    for (const s of schedules) stripUndefinedDeep(s);
+    for (const s of schedules) {
+      if (!this.includeRaw) {
+        for (const entry of s.schedule ?? []) stripRaw(entry);
+      }
+      stripUndefinedDeep(s);
+    }
     return schedules;
   }
 

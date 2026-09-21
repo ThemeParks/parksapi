@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {attachRaw, Destination, DestinationConstructor} from '../../destination.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
@@ -145,6 +145,7 @@ export function buildTodayScheduleFromDashboard(
   dashboard: QiddiyaDashboardResponse['data'] | undefined,
   today: Date,
   timezone: string,
+  includeRaw = false,
 ): Array<{date: string; type: string; openingTime: string; closingTime: string}> {
   if (dashboard?.parkInfo?.isOpen === false) return [];
 
@@ -154,12 +155,14 @@ export function buildTodayScheduleFromDashboard(
   const dateStr = formatDate(today, timezone);
   const closingDate = closesNextDay(hours.open, hours.close) ? formatDate(addDays(today, 1), timezone) : dateStr;
 
-  return [{
+  const entry = {
     date: dateStr,
     type: 'OPERATING',
     openingTime: constructDateTime(dateStr, hours.open, timezone),
     closingTime: constructDateTime(closingDate, hours.close, timezone),
-  }];
+  };
+  if (includeRaw) attachRaw(entry, 'dashboard', dashboard);
+  return [entry];
 }
 
 /** Shape of the megaMenu locationWeatherSchedule fields the weekly parser reads. */
@@ -390,8 +393,8 @@ export class QiddiyaCity extends Destination {
 
   /**
    * Scrape weekly schedule from the website's megaMenu svelte component.
-   * Returns a map of day index (0=Sun..6=Sat) → {open, close} in HH:mm,
-   * or absent for closed days.
+   * Returns `hours`, a map of day index (0=Sun..6=Sat) → {open, close} in
+   * HH:mm, absent for closed days.
    *
    * sixflagsqiddiyacity.com sits behind Cloudflare Bot Management, which
    * can 403 this fetch independently of the api.* subdomain used for
@@ -399,16 +402,20 @@ export class QiddiyaCity extends Destination {
    * bot-management blocks are fingerprint/reputation-based, not header-
    * based). When that happens this returns {} and buildSchedules() falls
    * back to buildTodayScheduleFromDashboard() for a same-day-only schedule.
+   *
+   * The megaMenu schedule fields the hours were parsed from come back as
+   * `source`, the raw upstream piece behind every day the weekly pattern
+   * produces. The cache version steps over entries in the earlier shape.
    */
-  @cache({ttlSeconds: 43200}) // 12h
-  async getWebsiteSchedule(): Promise<Record<number, {open: string; close: string}>> {
+  @cache({ttlSeconds: 43200, cacheVersion: 2}) // 12h
+  async getWebsiteSchedule(): Promise<{hours: Record<number, {open: string; close: string}>; source: MegaMenuSchedule | null}> {
     try {
       const resp = await this.fetchWebsite();
       const html = await resp.text();
 
       // Extract the megaMenu component's data-json-content
       const match = html.match(/data-component="megaMenu"[^>]*data-json-content="([^"]+)"/);
-      if (!match) return {};
+      if (!match) return {hours: {}, source: null};
 
       // Decode HTML entities in the attribute value
       const decoded = match[1]
@@ -418,10 +425,11 @@ export class QiddiyaCity extends Destination {
         .replace(/&apos;/g, "'");
 
       const data = JSON.parse(decoded);
-      return buildWeeklyScheduleFromMegaMenu(data?.locationWeatherSchedule);
+      const source: MegaMenuSchedule | undefined = data?.locationWeatherSchedule;
+      return {hours: buildWeeklyScheduleFromMegaMenu(source), source: source ?? null};
     } catch (err) {
       console.warn('QiddiyaCity: failed to scrape website schedule:', err);
-      return {};
+      return {hours: {}, source: null};
     }
   }
 
@@ -510,6 +518,7 @@ export class QiddiyaCity extends Destination {
         if (tags.length > 0) entity.tags = tags;
         return entity;
       },
+      rawSource: 'activities',
     });
   }
 
@@ -538,18 +547,22 @@ export class QiddiyaCity extends Destination {
     // heuristic; defaults to CLOSED until the park opens and starts publishing.
     const aquaRabiaOpen = aquaRabiaRides.some((r) => r.waitTime != null && r.waitTime > 0);
 
-    const toLiveData = (ride: QiddiyaActivity, parkOpen: boolean): LiveData => {
+    // parkOpenSource is the piece that decided parkOpen for this ride (the
+    // dashboard for Six Flags, nothing for Aqua Rabia, which has none yet).
+    const toLiveData = (ride: QiddiyaActivity, parkOpen: boolean, parkOpenSource?: QiddiyaDashboardResponse['data']): LiveData => {
       const isRideOperating = parkOpen && ride.waitTime != null && ride.waitTime >= 0;
       const status: LiveData['status'] = isRideOperating ? 'OPERATING' : 'CLOSED';
       const ld: LiveData = {id: ride.id, status} as LiveData;
       if (status === 'OPERATING' && ride.waitTime != null && ride.waitTime > 0) {
         ld.queue = {STANDBY: {waitTime: ride.waitTime}};
       }
+      this.addRaw(ld, 'activities', ride);
+      if (parkOpenSource) this.addRaw(ld, 'dashboard', parkOpenSource);
       return ld;
     };
 
     return [
-      ...sixFlagsRides.map((r) => toLiveData(r, sixFlagsOpen)),
+      ...sixFlagsRides.map((r) => toLiveData(r, sixFlagsOpen, dashboard)),
       ...aquaRabiaRides.map((r) => toLiveData(r, aquaRabiaOpen)),
     ];
   }
@@ -557,7 +570,7 @@ export class QiddiyaCity extends Destination {
   // ─── Schedules ───────────────────────────────────────────────────────────
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
-    const weeklyHours = await this.getWebsiteSchedule();
+    const {hours: weeklyHours, source: websiteSchedule} = await this.getWebsiteSchedule();
 
     // Six Flags schedule from sixflagsqiddiyacity.com. Aqua Rabia's dedicated
     // schedule isn't available yet; return an empty schedule for it until we
@@ -566,7 +579,7 @@ export class QiddiyaCity extends Destination {
 
     if (Object.keys(weeklyHours).length === 0) {
       const dashboard = await this.getDashboard();
-      const todaySchedule = buildTodayScheduleFromDashboard(dashboard, new Date(), this.timezone);
+      const todaySchedule = buildTodayScheduleFromDashboard(dashboard, new Date(), this.timezone, this.includeRaw);
       return [{id: SIX_FLAGS_PARK_ID, schedule: todaySchedule} as EntitySchedule, aquaRabia];
     }
 
@@ -585,12 +598,12 @@ export class QiddiyaCity extends Destination {
       // Handle overnight closing (e.g. "12 AM" or "1 AM" = next day)
       const closingDate = closesNextDay(hours.open, hours.close) ? formatDate(addDays(date, 1), this.timezone) : dateStr;
 
-      schedule.push({
+      schedule.push(this.addRaw({
         date: dateStr,
         type: 'OPERATING',
         openingTime: constructDateTime(dateStr, hours.open, this.timezone),
         closingTime: constructDateTime(closingDate, hours.close, this.timezone),
-      });
+      }, 'website', websiteSchedule));
     }
 
     return [{id: SIX_FLAGS_PARK_ID, schedule} as EntitySchedule, aquaRabia];

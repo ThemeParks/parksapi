@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import crypto from 'crypto';
 
 import {cache} from '../../cache.js';
@@ -441,11 +441,15 @@ export function canonicalPlaceNames(
  * Map a UniversalPlace to a wiki Entity. Returns null for place types we
  * don't expose (Park is emitted separately by buildEntityList; Shop /
  * Amenity / Hotel / etc. are out of scope for this migration).
+ *
+ * With `includeRaw` on, the place is attached to the entity as its raw
+ * upstream piece under the name of the request that delivered it.
  */
 export function placeToEntity(
   place: UniversalPlace,
   destinationId: string,
   timezone: string,
+  includeRaw = false,
 ): Entity | null {
   const entityType = PLACE_TYPE_TO_ENTITY[place.place_type.type];
   if (!entityType) return null;
@@ -494,6 +498,8 @@ export function placeToEntity(
     }
     if (tags.length > 0) entity.tags = tags;
   }
+
+  if (includeRaw) attachRaw(entity, 'places', place);
 
   return entity;
 }
@@ -707,6 +713,12 @@ export type ExpressNowOffer = {
   inventory_time_minutes: number; // window length
   product_price: number;          // USD, decimal
   vl_inventory: number;           // remaining inventory
+  /**
+   * The prediction this offer was parsed from, carried through so the live
+   * row it feeds can publish it as its raw upstream piece. Only set when
+   * {@link parseExpressNowResponse} was asked for it.
+   */
+  prediction?: unknown;
 };
 
 /**
@@ -717,6 +729,9 @@ export type ExpressNowOffer = {
  * Exported for unit testing — the reference payload is the first real
  * sample that came back from the live endpoint (Spider-Man, Mardi Gras
  * late-close window).
+ *
+ * With `includeRaw` on, each parsed offer also carries the prediction it came
+ * from, so the live row it feeds can publish it unchanged.
  */
 // Required `inventory_time_slot` format. Must be enforced at parse time —
 // downstream emission feeds the value into `parseTimeInTimezone` and `new
@@ -724,7 +739,7 @@ export type ExpressNowOffer = {
 // anything else, then `formatInTimezone` would throw mid-buildLiveData.
 const SLOT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
 
-export function parseExpressNowResponse(data: unknown): Record<string, ExpressNowOffer> {
+export function parseExpressNowResponse(data: unknown, includeRaw = false): Record<string, ExpressNowOffer> {
   const predictions: any[] = Array.isArray((data as any)?.predictions) ? (data as any).predictions : [];
   const grouped: Record<string, ExpressNowOffer> = {};
 
@@ -741,6 +756,7 @@ export function parseExpressNowResponse(data: unknown): Record<string, ExpressNo
       inventory_time_minutes: parseInt(raw.inventory_time_minutes, 10),
       product_price: parseFloat(raw.product_price),
       vl_inventory: parseInt(raw.vl_inventory, 10),
+      ...(includeRaw ? {prediction: raw} : {}),
     };
 
     if (!Number.isFinite(parsed.product_price)
@@ -1251,7 +1267,7 @@ class Universal extends Destination {
   }
 
   /** The cached half of getExpressNowOffers: only reached when configured. */
-  @cache({callback: (offers: Record<string, ExpressNowOffer>) => Object.keys(offers).length === 0 ? 600 : 60})
+  @cache({callback: (offers: Record<string, ExpressNowOffer>) => Object.keys(offers).length === 0 ? 600 : 60, cacheVersion: 2})
   protected async fetchExpressNowOfferMap(): Promise<Record<string, ExpressNowOffer>> {
     let resp: HTTPObj;
     try {
@@ -1269,7 +1285,7 @@ class Universal extends Destination {
       throw err;
     }
 
-    return parseExpressNowResponse(await resp.json());
+    return parseExpressNowResponse(await resp.json(), this.includeRaw);
   }
 
   // ─── Legacy API (services.universalorlando.com) ─────────────────────────
@@ -1695,7 +1711,7 @@ class Universal extends Destination {
       if (parkLoc?.lat_lng) {
         park.location = {latitude: parkLoc.lat_lng.lat, longitude: parkLoc.lat_lng.lng};
       }
-      out.push(park);
+      out.push(this.addRaw(park, 'places', place));
     }
 
     // Non-park entities (rides, shows, restaurants). Drop event-flagged variants
@@ -1719,7 +1735,7 @@ class Universal extends Destination {
       if (isAccessibilityReturnTimeVariant(place, knownPlaceIds)) continue;
       // Passholder marketing copy typed as a ride/show/dining place.
       if (isNonPoiNamespace(place)) continue;
-      const entity = placeToEntity(place, destinationId, this.timezone);
+      const entity = placeToEntity(place, destinationId, this.timezone, this.includeRaw);
       if (entity) out.push(entity);
     }
 
@@ -1807,8 +1823,21 @@ class Universal extends Destination {
           returnEnd: nextSlot ? parseTimeInTimezone(nextSlot.endTime.toISOString(), this.timezone) : null,
           state: nextSlot ? 'AVAILABLE' : 'TEMP_FULL',
         };
+
+        this.addRaw(liveDataEntry, 'virtualQueueStates', vQueue);
+        this.addRaw(liveDataEntry, 'virtualQueueDetails', vQueueDetails);
       }
     }
+
+    // Queue objects each row was built from, keyed by entity id. A maze also
+    // collects the queue of its express-queue POI, which is a row of its own in
+    // this feed, so one row can hold queues from more than one attraction.
+    const rawQueuesById = new Map<string, UniversalWaitTimeResponse[0]['queues']>();
+    const addRawQueue = (id: string, queue: UniversalWaitTimeResponse[0]['queues'][0]) => {
+      const queues = rawQueuesById.get(id) ?? [];
+      queues.push(queue);
+      rawQueuesById.set(id, queues);
+    };
 
     // Process wait times
     for (const attraction of waitTimes) {
@@ -1850,12 +1879,14 @@ class Universal extends Destination {
             target.queue = {};
           }
           target.queue.PAID_STANDBY = {waitTime};
+          addRawQueue(expressTarget, queue);
           continue;
         }
 
         if (!attractionLiveData) {
           attractionLiveData = getOrCreateLiveData(rideId);
         }
+        addRawQueue(rideId, queue);
 
         switch (queue.queue_type) {
           case 'STANDBY':
@@ -1942,6 +1973,11 @@ class Universal extends Destination {
           attractionLiveData.status = 'CLOSED';
         }
       }
+    }
+
+    for (const [id, queues] of rawQueuesById) {
+      const entry = liveDataMap.get(id);
+      if (entry) this.addRaw(entry, 'waitTimes', queues.length === 1 ? queues[0] : queues);
     }
 
     // Process show times from the CDN show-list.json (place_id-keyed).
@@ -2135,6 +2171,7 @@ class Universal extends Destination {
       if (times.length > 0) {
         showEntry.showtimes = times;
       }
+      this.addRaw(showEntry, 'showList', show);
     }
 
     // Layer Express Now (paid return time) offers from the UDX API. Only
@@ -2180,6 +2217,8 @@ class Universal extends Destination {
         'USD',
         Math.round(offer.product_price * 100), // dollars → cents
       );
+
+      if (offer.prediction !== undefined) this.addRaw(entry, 'expressNowOffers', offer.prediction);
     }
 
     return await this.dropUnpublishableRows(liveData);
@@ -2293,21 +2332,21 @@ class Universal extends Destination {
         const open = formatInTimezone(rawOpen, this.timezone, 'iso');
         const close = formatInTimezone(rawClose, this.timezone, 'iso');
 
-        schedule.push({
+        schedule.push(this.addRaw({
           date: daySchedule.Date,
           openingTime: open,
           closingTime: close,
           type: 'OPERATING' as const,
-        });
+        }, 'venueSchedule', daySchedule));
 
         const rawEarly = new Date(daySchedule.EarlyEntryString || NaN);
         if (Number.isFinite(rawEarly.getTime()) && rawEarly < rawOpen) {
-          schedule.push({
+          schedule.push(this.addRaw({
             date: daySchedule.Date,
             openingTime: formatInTimezone(rawEarly, this.timezone, 'iso'),
             closingTime: open,
             type: 'EXTRA_HOURS' as const,
-          });
+          }, 'venueSchedule', daySchedule));
         }
       }
 
@@ -2330,13 +2369,13 @@ class Universal extends Destination {
               console.warn(`[${this.constructor.name}] skipping malformed ticketed-event hours for ${placeId} on ${night.date}`);
               continue;
             }
-            schedule.push({
+            schedule.push(this.addRaw({
               date: night.date,
               openingTime,
               closingTime,
               type: 'TICKETED_EVENT' as const,
               description: night.name,
-            });
+            }, 'eventCalendar', night));
             // Early access as its OWN entry, not by widening the window above.
             // The event genuinely starts when it advertises; early access is a
             // separately sold perk, and folding it in would tell every
@@ -2352,13 +2391,13 @@ class Universal extends Destination {
                 const earlyOpening = constructDateTime(night.date, night.earlyAccessTime, this.timezone);
                 const earlyMs = new Date(earlyOpening).getTime();
                 if (Number.isFinite(earlyMs) && earlyMs < openingMs) {
-                  schedule.push({
+                  schedule.push(this.addRaw({
                     date: night.date,
                     openingTime: earlyOpening,
                     closingTime: openingTime,
                     type: 'INFO' as const,
                     description: `${night.name} Early Access`,
-                  });
+                  }, 'eventCalendar', night));
                 }
               } catch {
                 console.warn(`[${this.constructor.name}] skipping malformed early-access hours for ${placeId} on ${night.date}`);

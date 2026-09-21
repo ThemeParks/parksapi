@@ -430,6 +430,8 @@ export class SeaworldDestination extends Destination {
           longitude: parkDetail.map_center.Longitude,
         };
       }
+      // The park document is the whole park, every child's row included, so
+      // the park entity carries no piece.
       entities.push(parkEntity);
 
       // --- ATTRACTIONs (Rides + Slides + Pools) ---
@@ -456,7 +458,7 @@ export class SeaworldDestination extends Destination {
             longitude: poi.Coordinate.Longitude,
           };
         }
-        entities.push(entity);
+        entities.push(this.addRaw(entity, 'parkDetail', poi));
       }
 
       // --- SHOWs ---
@@ -476,7 +478,7 @@ export class SeaworldDestination extends Destination {
             longitude: poi.Coordinate.Longitude,
           };
         }
-        entities.push(entity);
+        entities.push(this.addRaw(entity, 'parkDetail', poi));
       }
 
       // --- RESTAURANTs (Dining) ---
@@ -496,7 +498,7 @@ export class SeaworldDestination extends Destination {
             longitude: poi.Coordinate.Longitude,
           };
         }
-        entities.push(entity);
+        entities.push(this.addRaw(entity, 'parkDetail', poi));
       }
     }
 
@@ -543,6 +545,7 @@ export class SeaworldDestination extends Destination {
       // comment on their loops.
       let availability: SeaworldAvailabilityResponse;
       let parkIsOpen: boolean | null = null;
+      let openHours: SeaworldParkDetail['open_hours'] | undefined;
       try {
         availability = await this.getAvailability(parkId, searchDate);
         // Operating hours decide how to read the "no reading" state below.
@@ -550,7 +553,9 @@ export class SeaworldDestination extends Destination {
         // the live data we already have: fall back to parkIsOpen = null, which
         // takes the conservative branch.
         try {
-          parkIsOpen = this.isParkOpenNow(await this.getParkDetail(parkId));
+          const parkDetail = await this.getParkDetail(parkId);
+          openHours = parkDetail.open_hours;
+          parkIsOpen = this.isParkOpenNow(parkDetail);
         } catch (err: any) {
           console.warn(
             `[${this.constructor.name}] operating hours unavailable for park ${parkId}, ` +
@@ -653,6 +658,10 @@ export class SeaworldDestination extends Destination {
       for (const wt of waitRows) {
         if (!wt?.Id) continue;
         const entry = getOrCreate(wt.Id);
+        this.addRaw(entry, 'availabilityWaitTimes', wt);
+        // The published hours are what the reading is read against, so they
+        // are a piece behind every row of this park.
+        if (openHours) this.addRaw(entry, 'parkDetail', openHours);
 
         // Either field carries the closure text; StatusDisplay is null when
         // absent. Coerce with String() before trimming: a non-string here would
@@ -733,6 +742,8 @@ export class SeaworldDestination extends Destination {
       for (const st of showRows) {
         if (!st?.Id) continue;
         const entry = getOrCreate(st.Id);
+        this.addRaw(entry, 'availabilityShowTimes', st);
+        if (openHours) this.addRaw(entry, 'parkDetail', openHours);
 
         if (st.ShowTimes && st.ShowTimes.length > 0) {
           // An explicit closure outranks a schedule. No id currently appears in
@@ -810,7 +821,7 @@ export class SeaworldDestination extends Destination {
       // by time of day: the block overlapping core midday IS the operating
       // session; every other same-date block is a TICKETED_EVENT. Robust to
       // events that open before OR after normal hours (unlike "earliest block").
-      const byDate = new Map<string, Array<{openingTime: string; closingTime: string}>>();
+      const byDate = new Map<string, Array<{openingTime: string; closingTime: string; hours: SeaworldParkDetail['open_hours'][number]}>>();
       for (const oh of parkDetail.open_hours) {
         const openingTime = localFromFakeUtc(oh.opens_at, this.timezone);
         let closingTime = localFromFakeUtc(oh.closes_at, this.timezone);
@@ -823,8 +834,8 @@ export class SeaworldDestination extends Destination {
         }
         const date = openingTime.slice(0, 10);
         const entries = byDate.get(date);
-        if (entries) entries.push({openingTime, closingTime});
-        else byDate.set(date, [{openingTime, closingTime}]);
+        if (entries) entries.push({openingTime, closingTime, hours: oh});
+        else byDate.set(date, [{openingTime, closingTime, hours: oh}]);
       }
 
       // Local minutes-since-midnight from a "…THH:MM…" ISO string.
@@ -851,13 +862,16 @@ export class SeaworldDestination extends Destination {
           operating = [spans.reduce((a, b) => (b.close - b.open > a.close - a.open ? b : a))];
         }
         const operatingSet = new Set(operating);
+        // Every block of the day takes part in that classification, so each
+        // entry of the day carries all of them.
+        const blocks = spans.map((s) => s.hours);
         for (const s of spans) {
-          schedule.push({
+          schedule.push(this.addRaw({
             date,
             openingTime: s.openingTime,
             closingTime: s.closingTime,
             type: operatingSet.has(s) ? ('OPERATING' as const) : ('TICKETED_EVENT' as const),
-          });
+          }, 'parkDetail', blocks.length > 1 ? blocks : blocks[0]));
         }
       }
 

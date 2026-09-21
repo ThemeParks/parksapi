@@ -961,7 +961,9 @@ export class DisneylandParis extends Destination {
     const parks = allEntities.filter((e) => e.category === 'ThemePark');
 
     // Inject P2 manually if missing (DLP API sometimes drops it)
+    let injectedP2 = false;
     if (!parks.find((p) => p.id === 'P2')) {
+      injectedP2 = true;
       parks.push({
         id: 'P2',
         name: 'Walt Disney Studios Park',
@@ -982,6 +984,10 @@ export class DisneylandParis extends Destination {
         lat: (item) => this.getCoordinates(item)?.lat,
         lng: (item) => this.getCoordinates(item)?.lng,
       },
+      // The injected P2 is a literal, not a POI record, so it carries nothing.
+      transform: (entity, item) => (
+        injectedP2 && item.id === 'P2' ? entity : this.addRaw(entity, 'poi', item)
+      ),
     });
 
     // Build attraction, show, and restaurant entities
@@ -1012,7 +1018,7 @@ export class DisneylandParis extends Destination {
 
       entity.tags = entityType === 'ATTRACTION' ? this.buildTags(poi) : [];
 
-      entityEntries.push(entity);
+      entityEntries.push(this.addRaw(entity, 'poi', poi));
     }
 
     return [
@@ -1060,6 +1066,7 @@ export class DisneylandParis extends Destination {
 
       const ld = getOrCreate(ID_ALIASES[wt.entityId] ?? wt.entityId);
       if (!ld) continue;
+      this.addRaw(ld, 'waitTimes', wt);
       ld.status = this.mapStatus(wt.status) as any;
 
       // Standby queue
@@ -1086,6 +1093,7 @@ export class DisneylandParis extends Destination {
 
       const ld = getOrCreate(pa.attractionId);
       if (!ld) continue;
+      this.addRaw(ld, 'premierAccess', pa);
       if (!ld.queue) ld.queue = {};
 
       // DLP emits `2026-04-25T21:35:00.000+0200` (millis, no offset colon).
@@ -1128,6 +1136,7 @@ export class DisneylandParis extends Destination {
 
       const ld = getOrCreate(q.queueContentId);
       if (!ld) continue;
+      this.addRaw(ld, 'vQueueActivity', q);
 
       // Overnight every wave that matters reads CLOSED; publishing TEMP_FULL
       // there would be wrong, so no RETURN_TIME until a wave has actually
@@ -1225,6 +1234,7 @@ export class DisneylandParis extends Destination {
 
         const existing = liveDataMap.get(liveId);
         if (existing) {
+          this.addRaw(existing, 'scheduleForDate', performances);
           existing.showtimes = showtimes;
           if (showtimes.length > 0) {
             existing.status = 'OPERATING' as any;
@@ -1232,6 +1242,7 @@ export class DisneylandParis extends Destination {
         } else {
           const ld = getOrCreate(liveId);
           if (!ld) continue;
+          this.addRaw(ld, 'scheduleForDate', performances);
           ld.status = 'OPERATING' as any;
           ld.showtimes = showtimes;
         }
@@ -1316,6 +1327,9 @@ export class DisneylandParis extends Destination {
     }
 
     const parkHours = new Map<string, {open: string; close: string}>();
+    // The windows each park's hours were read from, the piece behind a
+    // walkthrough that falls back to them.
+    const parkWindows = new Map<string, DLPScheduleEntry[]>();
     {
       for (const sched of todaySchedules) {
         if (sched.id !== 'P1' && sched.id !== 'P2') continue;
@@ -1333,6 +1347,7 @@ export class DisneylandParis extends Destination {
           open: windows.map((s) => s.startTime).sort()[0],
           close: windows.map((s) => s.endTime).sort().reverse()[0],
         });
+        parkWindows.set(sched.id, windows);
       }
     }
 
@@ -1357,7 +1372,9 @@ export class DisneylandParis extends Destination {
     };
 
     /**
-     * OPERATING or CLOSED for a walkthrough.
+     * OPERATING or CLOSED for a walkthrough, with the schedule rows the
+     * answer was read from: the entity's own row for today, else the park's
+     * windows, else nothing.
      *
      * With no hours in hand this answers CLOSED rather than staying silent.
      * Silence is not the neutral option: the wiki keeps a live-data row until
@@ -1369,17 +1386,18 @@ export class DisneylandParis extends Destination {
      */
     const deriveWalkthroughStatus = (
       poi: DLPPOIEntity & {category: string},
-    ): 'OPERATING' | 'CLOSED' => {
+    ): {status: 'OPERATING' | 'CLOSED'; rows?: DLPScheduleEntry | DLPScheduleEntry[]} => {
       const own = (todayRowsById.get(poi.id) || []).find((s) => s.date === todayStr);
-      if (own?.closed === true) return 'CLOSED';
+      if (own?.closed === true) return {status: 'CLOSED', rows: own};
       if (own?.status === 'OPERATING' && own.startTime && own.endTime) {
-        return isWithinWindow(own.startTime, own.endTime) ? 'OPERATING' : 'CLOSED';
+        return {status: isWithinWindow(own.startTime, own.endTime) ? 'OPERATING' : 'CLOSED', rows: own};
       }
-      const hours = parkHours.get(poi.location?.id ?? '');
+      const parkId = poi.location?.id ?? '';
+      const hours = parkHours.get(parkId);
       if (hours) {
-        return isWithinWindow(hours.open, hours.close) ? 'OPERATING' : 'CLOSED';
+        return {status: isWithinWindow(hours.open, hours.close) ? 'OPERATING' : 'CLOSED', rows: parkWindows.get(parkId)};
       }
-      return 'CLOSED';
+      return {status: 'CLOSED'};
     };
 
     for (const poi of attractionPois) {
@@ -1390,7 +1408,7 @@ export class DisneylandParis extends Destination {
         // Queue-bearing ride — STANDBY:null baseline so consumers can
         // render `wait: null` while the feed is silent.
         if (!ld) {
-          ld = {id, status: 'CLOSED'} as LiveData;
+          ld = this.addRaw({id, status: 'CLOSED'} as LiveData, 'poi', poi);
           liveDataMap.set(id, ld);
           liveData.push(ld);
         }
@@ -1402,7 +1420,9 @@ export class DisneylandParis extends Destination {
         }
       } else if (!ld) {
         // Walkthrough — status from schedule, no queue.
-        const walkthrough = {id, status: deriveWalkthroughStatus(poi)} as LiveData;
+        const {status, rows} = deriveWalkthroughStatus(poi);
+        const walkthrough = this.addRaw({id, status} as LiveData, 'poi', poi);
+        if (rows) this.addRaw(walkthrough, 'scheduleForDate', rows);
         liveDataMap.set(id, walkthrough);
         liveData.push(walkthrough);
       }
@@ -1425,6 +1445,7 @@ export class DisneylandParis extends Destination {
 
       const ld = getOrCreate(poi.id);
       if (!ld) continue;
+      this.addRaw(ld, 'scheduleForDate', hours);
 
       // Unlike the wait feed's, this REFURBISHMENT is a real closure, and the
       // only signal for it — buildSchedules skips those days entirely.
@@ -1599,13 +1620,13 @@ export class DisneylandParis extends Destination {
           if (!scheduleMap.has(scheduleId)) {
             scheduleMap.set(scheduleId, []);
           }
-          scheduleMap.get(scheduleId)!.push({
+          scheduleMap.get(scheduleId)!.push(this.addRaw({
             date: dateString,
             openingTime: openTime,
             closingTime: closeTime,
             type,
             description,
-          });
+          }, 'scheduleForDate', hours));
         }
       }
     }

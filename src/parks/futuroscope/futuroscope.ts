@@ -268,6 +268,7 @@ export class Futuroscope extends Destination {
           },
         },
         filter: (item) => !!item.id && !!item.title,
+        rawSource: 'poiData',
       },
     );
 
@@ -294,6 +295,7 @@ export class Futuroscope extends Destination {
           },
         },
         filter: (item) => !!item.id && !!item.title,
+        rawSource: 'poiData',
       },
     );
 
@@ -373,7 +375,7 @@ export class Futuroscope extends Destination {
         }
       }
 
-      results.push(liveDataObj);
+      results.push(this.addRaw(liveDataObj, 'liveData', data));
     }
 
     return results;
@@ -489,12 +491,12 @@ export class Futuroscope extends Destination {
       const closeHour = String(scheduleItem.close[0]).padStart(2, '0');
       const closeMin = String(scheduleItem.close[1] ?? 0).padStart(2, '0');
 
-      schedule.push({
+      schedule.push(this.addRaw({
         date: dateStr,
         openingTime: constructDateTime(dateStr, `${openHour}:${openMin}`, this.timezone),
         closingTime: constructDateTime(dateStr, `${closeHour}:${closeMin}`, this.timezone),
         type: 'OPERATING',
-      });
+      }, 'calendarHTML', scheduleItem));
     }
 
     return [

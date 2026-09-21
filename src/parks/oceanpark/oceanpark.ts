@@ -1002,6 +1002,7 @@ export class OceanParkHongKong extends Destination {
       } as Entity;
 
       if (tags.length > 0) built.tags = tags;
+      this.addRaw(built, 'attractionsPage', item);
       return built;
     });
 
@@ -1016,7 +1017,7 @@ export class OceanParkHongKong extends Destination {
       .map(item => {
         const slug = slugFromUrl(item.nodeUrl.url);
         const coords = coordMap.get(slug);
-        return {
+        const entity: Entity = {
           id: `restaurant_${slug}`,
           name: item.nodeUrl.label,
           entityType: 'RESTAURANT',
@@ -1025,6 +1026,8 @@ export class OceanParkHongKong extends Destination {
           timezone: TIMEZONE,
           location: coords ?? {latitude: DEFAULT_LAT, longitude: DEFAULT_LNG},
         } as Entity;
+        this.addRaw(entity, 'diningPage', item);
+        return entity;
       });
 
     // Shows have no id/URL from the website at all — only a title, via the
@@ -1061,7 +1064,7 @@ export class OceanParkHongKong extends Destination {
         // attractions or dining is reachable here and nowhere else.
         ?? coordMap.get(slug)
         ?? coordMap.get(slugify(group.title));
-      return {
+      const entity: Entity = {
         id: `show_${slug}`,
         name: group.title,
         entityType: 'SHOW',
@@ -1070,6 +1073,8 @@ export class OceanParkHongKong extends Destination {
         timezone: TIMEZONE,
         location: coords ?? {latitude: DEFAULT_LAT, longitude: DEFAULT_LNG},
       } as Entity;
+      this.addRaw(entity, 'dailySchedule', group.items);
+      return entity;
     });
 
     return [park, ...attractionEntities, ...restaurantEntities, ...showEntities];
@@ -1110,7 +1115,7 @@ export class OceanParkHongKong extends Destination {
       } as LiveData;
 
       if (wt !== null) ld.queue = {STANDBY: {waitTime: wt}};
-      liveData.push(ld);
+      liveData.push(this.addRaw(ld, 'attractionsPage', item));
     }
 
     // Shows — group today's programme entries by slug (same grouping
@@ -1171,7 +1176,7 @@ export class OceanParkHongKong extends Destination {
       } as LiveData;
       if (showtimes.length > 0) ld.showtimes = showtimes;
 
-      liveData.push(ld);
+      liveData.push(this.addRaw(ld, 'dailySchedule', group.items));
     }
 
     return liveData;
@@ -1217,12 +1222,12 @@ export class OceanParkHongKong extends Destination {
       // following calendar day, not before it opened the same day.
       const closeDate = range.close <= range.open ? addDaysToDateString(dates[i], 1) : dates[i];
 
-      scheduleEntries.push({
+      scheduleEntries.push(this.addRaw({
         date: dates[i],
         type: 'OPERATING',
         openingTime: constructDateTime(dates[i], range.open, TIMEZONE),
         closingTime: constructDateTime(closeDate, range.close, TIMEZONE),
-      });
+      }, 'parkOpeningHours', hoursText));
     }
 
     if (failedCount > 0) {

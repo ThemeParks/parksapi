@@ -357,7 +357,7 @@ export class UniversalStudiosJapan extends Destination {
         entity.location = {latitude: lat, longitude: lng};
       }
 
-      attractionEntities.push(entity);
+      attractionEntities.push(this.addRaw(entity, 'places', place));
     }
 
     return [parkEntity, ...attractionEntities];
@@ -418,7 +418,7 @@ export class UniversalStudiosJapan extends Destination {
             ld.queue = {STANDBY: {waitTime: queue.display_wait_time}};
           }
 
-          results.push(ld);
+          results.push(this.addRaw(ld, 'waitTimes', queue));
           break; // one STANDBY queue per attraction
         }
       }
@@ -449,7 +449,7 @@ export class UniversalStudiosJapan extends Destination {
         ld.showtimes = showTimes;
       }
 
-      results.push(ld);
+      results.push(this.addRaw(ld, 'showList', show));
     }
 
     return results;
@@ -495,12 +495,12 @@ export class UniversalStudiosJapan extends Destination {
 
         for (const h of hours) {
           if (!h.OpenTimeString || !h.CloseTimeString || !h.Date) continue;
-          schedule.push({
+          schedule.push(this.addRaw({
             date: h.Date,
             type: 'OPERATING',
             openingTime: h.OpenTimeString,
             closingTime: h.CloseTimeString,
-          });
+          }, 'venueHoursForMonth', h));
         }
       } catch {
         // Skip months that fail

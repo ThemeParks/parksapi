@@ -237,7 +237,7 @@ export class PortAventuraWorld extends Destination {
     // Build park entities
     for (const park of parks) {
       const attrs = park.attributes || park;
-      entities.push({
+      entities.push(this.addRaw({
         id: `park_${park.id}`,
         name: attrs.name || `Park ${park.id}`,
         entityType: 'PARK',
@@ -245,7 +245,7 @@ export class PortAventuraWorld extends Destination {
         destinationId,
         timezone: this.timezone,
         location: {latitude: 41.0986786, longitude: 1.151773},
-      } as Entity);
+      } as Entity, 'parks', park));
     }
 
     // Build attraction entities
@@ -277,6 +277,7 @@ export class PortAventuraWorld extends Destination {
           return attrs.longitude ? parseFloat(attrs.longitude) : undefined;
         },
       },
+      rawSource: 'attractions',
     });
 
     return [...entities, ...mappedAttractions];
@@ -312,7 +313,7 @@ export class PortAventuraWorld extends Destination {
         };
       }
 
-      liveData.push(ld);
+      liveData.push(this.addRaw(ld, 'waitTimes', entry));
     }
 
     return liveData;
@@ -351,12 +352,12 @@ export class PortAventuraWorld extends Destination {
         if (openingTime === '00:00:00' || closingTime === '00:00:00') continue;
         if (openingTime === closingTime) continue;
 
-        scheduleEntries.push({
+        scheduleEntries.push(this.addRaw({
           date,
           type: 'OPERATING',
           openingTime: constructDateTime(date, openingTime, this.timezone),
           closingTime: constructDateTime(date, closingTime, this.timezone),
-        });
+        }, 'schedules', entry));
       }
 
       schedules.push({

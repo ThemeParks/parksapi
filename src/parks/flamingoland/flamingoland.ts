@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import {cache, CacheLib} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
@@ -174,6 +174,11 @@ export function decideRideStatus(flags: {
 // inclusive. Today's close uses the scraped value; future days fall back to
 // `defaultClose`. The `<=` on endMs keeps the season-end day in the list. The
 // `maxDays` cap is a safety net.
+//
+// With `includeRaw`, every day carries the season window it came from under
+// `webshopOverview` — the same object on each day — and a day that took its
+// closing time from the homepage banner also carries that time under
+// `homepage`.
 export function iterateScheduleDays(opts: {
   todayStr: string;
   season: SeasonWindow;
@@ -181,7 +186,7 @@ export function iterateScheduleDays(opts: {
   defaultClose: string;
   timezone: string;
   maxDays?: number;
-}): Array<{date: string; type: 'OPERATING'; openingTime: string; closingTime: string}> {
+}, includeRaw = false): Array<{date: string; type: 'OPERATING'; openingTime: string; closingTime: string}> {
   const out: Array<{date: string; type: 'OPERATING'; openingTime: string; closingTime: string}> = [];
   const startStr = opts.season.start > opts.todayStr ? opts.season.start : opts.todayStr;
   const cursor = new Date(`${startStr}T00:00:00Z`);
@@ -190,13 +195,19 @@ export function iterateScheduleDays(opts: {
   const openTime = `${String(opts.season.openHour).padStart(2, '0')}:00`;
   for (let i = 0; i < max && cursor.getTime() <= endMs; i++) {
     const dateStr = `${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth() + 1).padStart(2, '0')}-${String(cursor.getUTCDate()).padStart(2, '0')}`;
-    const closeTime = dateStr === opts.todayStr && opts.todayClose ? opts.todayClose : opts.defaultClose;
-    out.push({
+    const usesTodayClose = dateStr === opts.todayStr && !!opts.todayClose;
+    const closeTime = usesTodayClose ? opts.todayClose! : opts.defaultClose;
+    const entry = {
       date: dateStr,
-      type: 'OPERATING',
+      type: 'OPERATING' as const,
       openingTime: constructDateTime(dateStr, openTime, opts.timezone),
       closingTime: constructDateTime(dateStr, closeTime, opts.timezone),
-    });
+    };
+    if (includeRaw) {
+      attachRaw(entry, 'webshopOverview', opts.season);
+      if (usesTodayClose) attachRaw(entry, 'homepage', opts.todayClose);
+    }
+    out.push(entry);
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return out;
@@ -492,6 +503,7 @@ export class FlamingoLand extends Destination {
       const marker = findMarkerForRide(decodeHtmlEntities(title), markerId || undefined, markers);
       if (marker) {
         (entity as any).location = {latitude: marker.lat, longitude: marker.lng};
+        this.addRaw(entity, 'mapPage', marker);
       }
 
       // The `restrictions` field on each ride doc carries the minimum height in cm
@@ -501,7 +513,7 @@ export class FlamingoLand extends Destination {
         (entity as any).tags = [TagBuilder.minimumHeight(Math.round(minHeightCm), 'cm')];
       }
 
-      attractions.push(entity);
+      attractions.push(this.addRaw(entity, 'rides', doc));
     }
 
     return [parkEntity, ...attractions];
@@ -549,7 +561,7 @@ export class FlamingoLand extends Destination {
         }
       }
 
-      out.push(ld);
+      out.push(this.addRaw(ld, 'rides', doc));
     }
     return out;
   }
@@ -575,7 +587,7 @@ export class FlamingoLand extends Destination {
       todayClose,
       defaultClose: '17:00',
       timezone: this.timezone,
-    });
+    }, this.includeRaw);
     return [{id: PARK_ID, schedule} as EntitySchedule];
   }
 }

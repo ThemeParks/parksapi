@@ -375,6 +375,7 @@ export class ShanghaiDisneylandResort extends Destination {
         lat: (item) => this.getPrimaryLocation(item)?.lat,
         lng: (item) => this.getPrimaryLocation(item)?.lng,
       },
+      rawSource: 'facilities',
     });
 
     // Build attraction entities (type === 'Attraction', excluding non-ride items)
@@ -437,6 +438,7 @@ export class ShanghaiDisneylandResort extends Destination {
         entity.tags = tags.filter(Boolean);
         return entity;
       },
+      rawSource: 'facilities',
     });
 
     // Build show entities (type === 'Entertainment', excluding DSP/DPA duplicates)
@@ -458,6 +460,7 @@ export class ShanghaiDisneylandResort extends Destination {
         lat: (item) => this.getPrimaryLocation(item)?.lat,
         lng: (item) => this.getPrimaryLocation(item)?.lng,
       },
+      rawSource: 'facilities',
     });
 
     // Restaurants: empty array (match JS implementation)
@@ -525,6 +528,15 @@ export class ShanghaiDisneylandResort extends Destination {
       }
     }
 
+    // Raw wait-times rows contributing to each element's live data, keyed by
+    // id. An attraction with its own row plus a standby-pass row gets both.
+    const rawEntriesById = new Map<string, SHDRWaitTimeEntry[]>();
+    const addRawEntry = (id: string, entry: SHDRWaitTimeEntry) => {
+      const entries = rawEntriesById.get(id) ?? [];
+      entries.push(entry);
+      rawEntriesById.set(id, entries);
+    };
+
     for (const entry of waitTimes) {
       if (!entry.id) continue;
 
@@ -544,6 +556,7 @@ export class ShanghaiDisneylandResort extends Destination {
             null,
             null,
           );
+          addRawEntry(parentId, entry);
         }
         continue;
       }
@@ -555,6 +568,7 @@ export class ShanghaiDisneylandResort extends Destination {
       const status = this.mapStatus(entry.waitTime?.status);
       const ld = getOrCreate(cleanId);
       ld.status = status as any;
+      addRawEntry(cleanId, entry);
 
       // Standby waitTime only makes sense for rides — shows use showtimes (schedules).
       // SHDR's API sometimes emits sentinel values (e.g. 310 min) for character meet-greets
@@ -573,6 +587,12 @@ export class ShanghaiDisneylandResort extends Destination {
         if (!ld.queue) ld.queue = {};
         ld.queue.SINGLE_RIDER = {waitTime: null};
       }
+    }
+
+    for (const ld of liveData) {
+      const entries = rawEntriesById.get(ld.id);
+      if (!entries || entries.length === 0) continue;
+      this.addRaw(ld, 'waitTimes', entries.length === 1 ? entries[0] : entries);
     }
 
     return liveData;
@@ -598,12 +618,12 @@ export class ShanghaiDisneylandResort extends Destination {
           scheduleMap.set(cleanId, []);
         }
 
-        scheduleMap.get(cleanId)!.push({
+        scheduleMap.get(cleanId)!.push(this.addRaw({
           date: dateStr,
           openingTime,
           closingTime,
           type: 'OPERATING',
-        });
+        }, 'schedules', sched));
       }
     }
 

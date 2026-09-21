@@ -271,16 +271,23 @@ export function parseWaitMinutes(raw: unknown): number | undefined {
  * overwriting an earlier one is not a real case. Periods carrying no days are
  * unused CMS placeholders and are skipped, as are `00:00`–`00:00` entries,
  * which mark a closed period rather than a midnight-to-midnight opening.
+ *
+ * With `includeRaw`, every day also carries the period it came from, the same
+ * object on each of that period's days, so the day and the live rows it governs
+ * can name the piece they were built from.
  */
-export function buildScheduleIndex(periods: CalendarPeriod[]): Map<string, {open: string; close: string}> {
-  const index = new Map<string, {open: string; close: string}>();
+export function buildScheduleIndex(
+  periods: CalendarPeriod[],
+  includeRaw = false,
+): Map<string, {open: string; close: string; period?: CalendarPeriod}> {
+  const index = new Map<string, {open: string; close: string; period?: CalendarPeriod}>();
   for (const period of periods) {
     const open = period.openFrom;
     const close = period.openTo;
     if (!open || !close) continue;
     if (open === '00:00' && close === '00:00') continue;
     for (const day of period.days || []) {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(day)) index.set(day, {open, close});
+      if (/^\d{4}-\d{2}-\d{2}$/.test(day)) index.set(day, includeRaw ? {open, close, period} : {open, close});
     }
   }
   return index;
@@ -938,14 +945,15 @@ export class Energylandia extends Destination {
   }
 
   /**
-   * Current wait times keyed by `queueTimeId`.
+   * Current wait times keyed by `queueTimeId`, each alongside the feed row it
+   * was read from.
    *
    * Returns an empty map rather than throwing when the feed is unreachable, so
    * a wait-time outage degrades to status-only live data instead of taking the
    * whole park's emission down.
    */
-  async getWaitTimes(): Promise<Map<string, number>> {
-    const out = new Map<string, number>();
+  async getWaitTimes(): Promise<Map<string, {minutes: number; row: EnergylandiaWaitRow}>> {
+    const out = new Map<string, {minutes: number; row: EnergylandiaWaitRow}>();
     if (!this.waitTimesUrl) return out;
 
     let rows: EnergylandiaWaitRow[];
@@ -970,7 +978,7 @@ export class Energylandia extends Destination {
       if (!id) continue;
       const minutes = parseWaitMinutes(row.CZAS_OCZEKIWANIA);
       if (minutes === undefined) continue;
-      out.set(id, minutes);
+      out.set(id, {minutes, row});
     }
     return out;
   }
@@ -1119,7 +1127,7 @@ export class Energylandia extends Destination {
 
       // A ride with no location is still emitted — it is real and still reports
       // wait times, it just has no coordinates.
-      rides.push({
+      rides.push(this.addRaw({
         id: entityIdFromDoc(doc),
         name,
         entityType: 'ATTRACTION',
@@ -1128,14 +1136,14 @@ export class Energylandia extends Destination {
         parkId: PARK_ID,
         timezone: this.timezone,
         location: this.locationForDoc(doc, locations),
-      } as Entity);
+      } as Entity, 'attractions', doc));
     }
 
     const dining: Entity[] = [];
     for (const doc of restaurants) {
       const name = nameFor(doc);
       if (!name) continue;
-      dining.push({
+      dining.push(this.addRaw({
         id: entityIdFromDoc(doc),
         name,
         entityType: 'RESTAURANT',
@@ -1144,7 +1152,7 @@ export class Energylandia extends Destination {
         parkId: PARK_ID,
         timezone: this.timezone,
         location: this.locationForDoc(doc, locations),
-      } as Entity);
+      } as Entity, 'attractions', doc));
     }
 
     // Shows are located via the venue they play at, since a show document has no
@@ -1163,7 +1171,7 @@ export class Energylandia extends Destination {
       const venueId = resolveShowVenueId(weeklySlots);
       const venueDoc = venueId ? attractionsById.get(venueId) : undefined;
 
-      performances.push({
+      performances.push(this.addRaw({
         id: showEntityIdFromDoc(doc),
         name,
         entityType: 'SHOW',
@@ -1172,7 +1180,7 @@ export class Energylandia extends Destination {
         parkId: PARK_ID,
         timezone: this.timezone,
         location: venueDoc ? this.locationForDoc(venueDoc, locations) : undefined,
-      } as Entity);
+      } as Entity, 'shows', doc));
     }
 
     return [parkEntity, ...rides, ...dining, ...performances];
@@ -1216,7 +1224,7 @@ export class Energylandia extends Destination {
 
     const now = new Date();
     const {date, time} = parkLocalDateTime(now, this.timezone);
-    const schedule = buildScheduleIndex(periods);
+    const schedule = buildScheduleIndex(periods, this.includeRaw);
     const parkOpen = isWithinOperatingWindow(schedule, date, time);
 
     // The park's published hours are the only live open/closed signal it has.
@@ -1271,36 +1279,53 @@ export class Energylandia extends Destination {
       );
     }
 
+    // The period covering today is what `outsideOperatingHours` and
+    // `operatesToday` were read from, so it is a piece behind every row of this
+    // build. A date the calendar does not publish has no period and no piece.
+    const todayPeriod = schedule.get(date)?.period;
+
     const out: LiveData[] = [];
     for (const doc of attractions) {
       const f = doc.fields || {};
       const id = entityIdFromDoc(doc);
 
       if (outsideOperatingHours || fsBool(f.open) !== true) {
-        out.push({id, status: 'CLOSED'} as LiveData);
+        out.push(this.addLivePieces({id, status: 'CLOSED'} as LiveData, 'attractions', doc, todayPeriod));
         continue;
       }
 
       const queueTimeId = fsId(f.queueTimeId);
-      const minutes = queueTimeId !== undefined ? waits.get(queueTimeId) : undefined;
+      const wait = queueTimeId !== undefined ? waits.get(queueTimeId) : undefined;
 
-      if (minutes === undefined) {
+      if (wait === undefined) {
         // Open per the CMS but no usable counter reading: report OPERATING
         // without a queue rather than inventing a zero-minute wait.
-        out.push({id, status: 'OPERATING'} as LiveData);
+        out.push(this.addLivePieces({id, status: 'OPERATING'} as LiveData, 'attractions', doc, todayPeriod));
         continue;
       }
 
-      out.push({
+      const ld = {
         id,
         status: 'OPERATING',
-        queue: {STANDBY: {waitTime: minutes}},
-      } as LiveData);
+        queue: {STANDBY: {waitTime: wait.minutes}},
+      } as LiveData;
+      this.addLivePieces(ld, 'attractions', doc, todayPeriod);
+      out.push(this.addRaw(ld, 'waitTimes', wait.row));
     }
 
-    out.push(...this.buildShowLiveData(shows, date, now, operatesToday, outsideOperatingHours));
+    out.push(...this.buildShowLiveData(shows, date, now, operatesToday, outsideOperatingHours, todayPeriod));
 
     return out;
+  }
+
+  /**
+   * The pieces behind a live row: the document it was built from, under the
+   * name of the collection it was read from, and the calendar period whose
+   * hours decided whether the park counts as open at all.
+   */
+  private addLivePieces(ld: LiveData, source: string, doc: FsDoc, period?: CalendarPeriod): LiveData {
+    this.addRaw(ld, source, doc);
+    return period ? this.addRaw(ld, 'calendarPeriods', period) : ld;
   }
 
   /**
@@ -1342,6 +1367,7 @@ export class Energylandia extends Destination {
     now: Date,
     operatesToday: boolean,
     outsideOperatingHours: boolean,
+    todayPeriod?: CalendarPeriod,
   ): LiveData[] {
     const weekday = parkLocalWeekday(now, this.timezone);
     const nowMs = now.getTime();
@@ -1353,7 +1379,7 @@ export class Energylandia extends Destination {
 
       const slots = operatesToday ? parseShowSlots(doc.fields?.timetable, weekday) : [];
       if (slots.length === 0) {
-        out.push({id, status: 'CLOSED'} as LiveData);
+        out.push(this.addLivePieces({id, status: 'CLOSED'} as LiveData, 'shows', doc, todayPeriod));
         continue;
       }
 
@@ -1363,11 +1389,11 @@ export class Energylandia extends Destination {
       const duration = parseDurationMinutes(fsId(doc.fields?.duration));
       const showtimes = buildShowtimes(slots, date, this.timezone, duration);
 
-      out.push({
+      out.push(this.addLivePieces({
         id,
         status: outsideOperatingHours ? 'CLOSED' : showStatusFromShowtimes(showtimes, nowMs),
         showtimes,
-      } as LiveData);
+      } as LiveData, 'shows', doc, todayPeriod));
     }
 
     return out;
@@ -1379,16 +1405,19 @@ export class Energylandia extends Destination {
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const periods = await this.getCalendarPeriods();
-    const index = buildScheduleIndex(periods);
+    const index = buildScheduleIndex(periods, this.includeRaw);
 
     const schedule = [...index.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, hours]) => ({
-        date,
-        type: 'OPERATING',
-        openingTime: constructDateTime(date, hours.open, this.timezone),
-        closingTime: constructDateTime(date, hours.close, this.timezone),
-      }));
+      .map(([date, hours]) => {
+        const entry = {
+          date,
+          type: 'OPERATING',
+          openingTime: constructDateTime(date, hours.open, this.timezone),
+          closingTime: constructDateTime(date, hours.close, this.timezone),
+        };
+        return hours.period ? this.addRaw(entry, 'calendarPeriods', hours.period) : entry;
+      });
 
     return [{id: PARK_ID, schedule} as EntitySchedule];
   }

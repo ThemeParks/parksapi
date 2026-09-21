@@ -313,7 +313,7 @@ class ParcsReunidosDestination extends Destination {
     const establishment = await this.getEstablishment();
     const destinationId = `parquesreunidos_${this.appId}`;
 
-    return [{
+    return [this.addRaw({
       id: destinationId,
       name: establishment.name || destinationId,
       entityType: 'DESTINATION',
@@ -321,7 +321,7 @@ class ParcsReunidosDestination extends Destination {
       location: establishment.coordinates
         ? {latitude: establishment.coordinates.latitude, longitude: establishment.coordinates.longitude}
         : undefined,
-    } as Entity];
+    } as Entity, 'establishment', establishment)];
   }
 
   protected async buildEntityList(): Promise<Entity[]> {
@@ -331,7 +331,7 @@ class ParcsReunidosDestination extends Destination {
     const destinationId = `parquesreunidos_${this.appId}`;
     const parkId = `parquesreunidos_${this.appId}_park`;
 
-    const parkEntity: Entity = {
+    const parkEntity: Entity = this.addRaw({
       id: parkId,
       name: establishment.name || parkId,
       entityType: 'PARK',
@@ -341,7 +341,7 @@ class ParcsReunidosDestination extends Destination {
       location: establishment.coordinates
         ? {latitude: establishment.coordinates.latitude, longitude: establishment.coordinates.longitude}
         : undefined,
-    } as Entity;
+    } as Entity, 'establishment', establishment);
 
     const attractionEntities = this.mapEntities(attractions, {
       idField: (item) => String(item.id),
@@ -354,6 +354,7 @@ class ParcsReunidosDestination extends Destination {
         lat: (item: StayAppAttraction) => item.place?.point?.latitude,
         lng: (item: StayAppAttraction) => item.place?.point?.longitude,
       },
+      rawSource: 'attractions',
     });
 
     return [parkEntity, ...attractionEntities];
@@ -419,7 +420,7 @@ class ParcsReunidosDestination extends Destination {
         };
       }
 
-      liveData.push(ld);
+      liveData.push(this.addRaw(ld, 'attractions', attraction));
     }
 
     return liveData;
@@ -514,7 +515,7 @@ class ParcsReunidosDestination extends Destination {
           const keys = String(labelKey).split(',').map(k => k.trim()).filter(Boolean);
           const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-          const emitted: Array<{openingTime: string; closingTime: string; description?: string}> = [];
+          const emitted: Array<{openingTime: string; closingTime: string; description?: string; piece: {day: string; label: string; timeLabel: string}}> = [];
           for (const k of keys) {
             const timeLabel = labelMap.get(k);
             if (!timeLabel) continue;
@@ -524,6 +525,7 @@ class ParcsReunidosDestination extends Destination {
             if (!hours) continue;
 
             emitted.push({
+              piece: {day: dayStr, label: k, timeLabel},
               openingTime: constructDateTime(dateStr, hours.open, this.timezone),
               // A window running past midnight closes on the NEXT calendar
               // day. Without this both ends were stamped onto the same date
@@ -543,12 +545,12 @@ class ParcsReunidosDestination extends Destination {
           // consumers see the extra windows (parallel venues, evening
           // extensions, after-hours events).
           if (emitted.length === 1) {
-            scheduleEntries.push({
+            scheduleEntries.push(this.addRaw({
               date: dateStr,
               type: 'OPERATING',
               openingTime: emitted[0].openingTime,
               closingTime: emitted[0].closingTime,
-            });
+            }, 'calendarHTML', emitted[0].piece));
           } else {
             for (let i = 0; i < emitted.length; i++) {
               const entry: {date: string; type: string; openingTime: string; closingTime: string; description?: string} = {
@@ -560,7 +562,7 @@ class ParcsReunidosDestination extends Destination {
               if (i > 0 && emitted[i].description) {
                 entry.description = emitted[i].description;
               }
-              scheduleEntries.push(entry);
+              scheduleEntries.push(this.addRaw(entry, 'calendarHTML', emitted[i].piece));
             }
           }
         }
@@ -889,8 +891,13 @@ export class Mirabilandia extends ParcsReunidosDestination {
     }
 
     const liveData: LiveData[] = [];
-    const push = (entityIds: readonly string[], build: (id: string) => LiveData) => {
-      for (const id of entityIds) liveData.push(build(id));
+    // Both requests are behind every row: the attraction entry carries the
+    // value, the park-level flag decides whether any of them counts.
+    const push = (entityIds: readonly string[], item: CodeattrAttraction, build: (id: string) => LiveData) => {
+      for (const id of entityIds) {
+        const ld = this.addRaw(build(id), 'waitTimes', item);
+        liveData.push(this.addRaw(ld, 'waitTimesInfo', info));
+      }
     };
 
     for (const [key, entityIds] of Object.entries(MIRABILANDIA_WAIT_TIME_ENTITY_IDS)) {
@@ -901,7 +908,7 @@ export class Mirabilandia extends ParcsReunidosDestination {
       // observation and not a stale one, so say so rather than going quiet and
       // letting the entities rot on the dashboard.
       if (info?.isopen === false) {
-        push(entityIds, (id) => ({id, status: 'CLOSED'}) as LiveData);
+        push(entityIds, item, (id) => ({id, status: 'CLOSED'}) as LiveData);
         continue;
       }
 
@@ -910,7 +917,7 @@ export class Mirabilandia extends ParcsReunidosDestination {
       // at all today). Still CLOSED rather than skipped: we know its current
       // state, and skipping would strand its last live value.
       if (item.closed === 1) {
-        push(entityIds, (id) => ({id, status: 'CLOSED'}) as LiveData);
+        push(entityIds, item, (id) => ({id, status: 'CLOSED'}) as LiveData);
         continue;
       }
 
@@ -919,7 +926,7 @@ export class Mirabilandia extends ParcsReunidosDestination {
       const note = item.note_en || item.note_it;
       if (note && note.trim()) {
         const status = classifyMirabilandiaNote(note);
-        push(entityIds, (id) => ({id, status}) as LiveData);
+        push(entityIds, item, (id) => ({id, status}) as LiveData);
         continue;
       }
 
@@ -933,7 +940,7 @@ export class Mirabilandia extends ParcsReunidosDestination {
       const waitTime = Number(item.wait_time);
       if (!Number.isFinite(waitTime) || waitTime < 0) continue;
 
-      push(entityIds, (id) => ({
+      push(entityIds, item, (id) => ({
         id,
         status: 'OPERATING',
         queue: {STANDBY: {waitTime}},

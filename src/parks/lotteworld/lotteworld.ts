@@ -166,7 +166,7 @@ export class LotteWorld extends Destination {
     for (const attr of attractions) {
       if (!attr.shopSysCd || !attr.atrctNm) continue;
 
-      entities.push({
+      entities.push(this.addRaw({
         id: String(attr.shopSysCd),
         name: attr.atrctNm,
         entityType: 'ATTRACTION',
@@ -175,7 +175,7 @@ export class LotteWorld extends Destination {
         destinationId: DESTINATION_ID,
         timezone: TIMEZONE,
         location: {latitude: LAT, longitude: LNG},
-      } as Entity);
+      } as Entity, 'allList', attr));
     }
 
     return entities;
@@ -209,7 +209,7 @@ export class LotteWorld extends Destination {
         }
       }
 
-      liveData.push(ld);
+      liveData.push(this.addRaw(ld, 'allList', attr));
     }
 
     return liveData;
@@ -237,12 +237,12 @@ export class LotteWorld extends Destination {
         const openingTime = constructDateTime(dateStr, operTime.bgnTmFmt, TIMEZONE);
         const closingTime = constructDateTime(dateStr, operTime.endTmFmt, TIMEZONE);
 
-        schedule.push({
+        schedule.push(this.addRaw({
           date: dateStr,
           type: 'OPERATING',
           openingTime,
           closingTime,
-        });
+        }, 'closedList', operTime));
       } catch {
         // Skip days that fail (e.g. beyond available range)
       }

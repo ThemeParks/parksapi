@@ -250,6 +250,8 @@ export class Efteling extends Destination {
         lng,
         properties: en.properties || [],
         hasAlternateSingleRider: en.alternatetype === 'singlerider',
+        poiEnglish: enMap.get(id),
+        poiDutch: nlMap.get(id),
       });
     }
 
@@ -278,7 +280,7 @@ export class Efteling extends Destination {
         locationFields: { lat: 'lat', lng: 'lng' },
         transform: (entity, item) => {
           entity.tags = this.buildTags(item);
-          return entity;
+          return this.addPOIRaw(entity, item);
         },
       }
     );
@@ -295,7 +297,7 @@ export class Efteling extends Destination {
         locationFields: { lat: 'lat', lng: 'lng' },
         transform: (entity, item) => {
           entity.tags = this.buildTags(item);
-          return entity;
+          return this.addPOIRaw(entity, item);
         },
       }
     );
@@ -310,10 +312,21 @@ export class Efteling extends Destination {
         destinationId,
         timezone: 'Europe/Amsterdam',
         locationFields: { lat: 'lat', lng: 'lng' },
+        transform: (entity, item) => this.addPOIRaw(entity, item),
       }
     );
 
     return [parkEntity, ...attractions, ...shows, ...restaurants];
+  }
+
+  /**
+   * Attach the POI entries of both language responses an entity was built
+   * from. An entity only one of the two responses lists carries only that key.
+   */
+  private addPOIRaw(entity: Entity, item: any): Entity {
+    if (item.poiEnglish) this.addRaw(entity, 'poiEnglish', item.poiEnglish);
+    if (item.poiDutch) this.addRaw(entity, 'poiDutch', item.poiDutch);
+    return entity;
   }
 
   /**
@@ -413,7 +426,7 @@ export class Efteling extends Destination {
     // WIS returns separate entries for single rider queues using the alternate ID.
     // Each single rider entry carries its OWN State (open/gesloten), independent of
     // the parent attraction, so capture it alongside the wait time.
-    const singleRiderData = new Map<string, {status: string; waitTime: number | null}>();
+    const singleRiderData = new Map<string, {status: string; waitTime: number | null; entry: any}>();
     for (const entry of waitTimes) {
       if (!entry.Id) continue;
       // If this ID is NOT a known POI but IS a single rider alternate ID
@@ -423,6 +436,7 @@ export class Efteling extends Destination {
         singleRiderData.set(parentId, {
           status: this.mapState(entry.State),
           waitTime: Number.isFinite(waitTime) ? waitTime : null,
+          entry,
         });
       }
     }
@@ -488,6 +502,11 @@ export class Efteling extends Destination {
             ld.queue.RETURN_TIME = this.buildReturnTimeQueue('TEMP_FULL', null, null);
           }
         }
+
+        // The single-rider row is a second row of the same response feeding
+        // this element, so both rows go in under the one request name.
+        const singleRiderEntry = singleRiderData.get(entityId)?.entry;
+        this.addRaw(ld, 'waitTimes', singleRiderEntry ? [entry, singleRiderEntry] : entry);
       } else if (type === 'Shows en Entertainment') {
         const ld = getOrCreate(entityId);
 
@@ -502,6 +521,8 @@ export class Efteling extends Destination {
             type: time.Edition || 'Showtime',
           }));
         }
+
+        this.addRaw(ld, 'waitTimes', entry);
       } else if (type === 'Eten en Drinken') {
         const ld = getOrCreate(entityId);
         const state = entry.State?.toLowerCase();
@@ -517,6 +538,8 @@ export class Efteling extends Destination {
             type: 'OPERATING',
           }));
         }
+
+        this.addRaw(ld, 'waitTimes', entry);
       }
     }
 
@@ -552,13 +575,13 @@ export class Efteling extends Destination {
           const openingTime = constructDateTime(day.Date, h.Open, this.timezone);
           const closingTime = constructDateTime(day.Date, h.Close, this.timezone);
 
-          scheduleEntries.push({
+          scheduleEntries.push(this.addRaw({
             date: day.Date,
             type: j === 0 ? 'OPERATING' : 'INFO',
             description: j === 0 ? undefined : 'Evening Hours',
             openingTime,
             closingTime,
-          });
+          }, 'calendar', day));
         }
       }
     }

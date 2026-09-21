@@ -138,6 +138,7 @@ export class Hersheypark extends Destination {
         },
       } : {}),
     } as Entity;
+    if (parkData) this.addRaw(parkEntity, 'poi', parkData);
 
     const rides = poi.rides || [];
 
@@ -152,6 +153,7 @@ export class Hersheypark extends Destination {
         lat: (item: any) => item.latitude ? Number(item.latitude) : undefined,
         lng: (item: any) => item.longitude ? Number(item.longitude) : undefined,
       },
+      rawSource: 'poi',
     });
 
     return [parkEntity, ...attractions];
@@ -175,7 +177,7 @@ export class Hersheypark extends Destination {
         };
       }
 
-      liveData.push(ld);
+      liveData.push(this.addRaw(ld, 'status', entry));
     }
 
     return liveData;
@@ -208,12 +210,12 @@ export class Hersheypark extends Destination {
       const openingTime = constructDateTime(date, openTime, this.timezone);
       const closingTime = constructDateTime(date, closeTime, this.timezone);
 
-      scheduleEntries.push({
+      scheduleEntries.push(this.addRaw({
         date,
         type: 'OPERATING',
         openingTime,
         closingTime,
-      });
+      }, 'poi', parkHours));
     }
 
     return [{
