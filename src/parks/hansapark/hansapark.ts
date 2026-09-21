@@ -96,36 +96,36 @@ export class HansaPark extends Destination {
 
     const attractions = allPois
       .filter(p => this.hasCategory(p, 'Attractions') && !this.hasCategory(p, 'Shows'))
-      .map(p => ({
+      .map(p => this.addRaw({
         id: String(p.id),
         name: p.name,
         entityType: 'ATTRACTION',
         parentId: parkId,
         destinationId: destId,
         timezone: this.timezone,
-      } as Entity));
+      } as Entity, 'attractions', p));
 
     const shows = allPois
       .filter(p => this.hasCategory(p, 'Shows'))
-      .map(p => ({
+      .map(p => this.addRaw({
         id: String(p.id),
         name: p.name,
         entityType: 'SHOW',
         parentId: parkId,
         destinationId: destId,
         timezone: this.timezone,
-      } as Entity));
+      } as Entity, 'attractions', p));
 
     const restaurants = allPois
       .filter(p => this.hasCategory(p, 'Restaurants'))
-      .map(p => ({
+      .map(p => this.addRaw({
         id: String(p.id),
         name: p.name,
         entityType: 'RESTAURANT',
         parentId: parkId,
         destinationId: destId,
         timezone: this.timezone,
-      } as Entity));
+      } as Entity, 'attractions', p));
 
     return [parkEntity, ...attractions, ...shows, ...restaurants];
   }
@@ -155,6 +155,7 @@ export class HansaPark extends Destination {
         end: new Date(s.seasonEnd * 1000),
         openTime: s.parkOpeningHoursFrom as string,
         closeTime: s.parkOpeningHoursTo as string,
+        season: s,
       }));
 
     const schedule: Array<{date: string; type: string; openingTime: string; closingTime: string}> = [];
@@ -170,12 +171,12 @@ export class HansaPark extends Destination {
       );
       if (!season) continue;
 
-      schedule.push({
+      schedule.push(this.addRaw({
         date: dateStr,
         type: 'OPERATING',
         openingTime: constructDateTime(dateStr, season.openTime, this.timezone),
         closingTime: constructDateTime(dateStr, season.closeTime, this.timezone),
-      });
+      }, 'seasons', season.season));
     }
 
     return [{id: 'hansa-park', schedule} as EntitySchedule];
