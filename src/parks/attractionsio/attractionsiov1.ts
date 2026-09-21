@@ -22,7 +22,7 @@
  * @module attractionsio/v1
  */
 
-import {Destination, type DestinationConstructor} from '../../destination.js';
+import {Destination, attachRaw, type DestinationConstructor} from '../../destination.js';
 import config from '../../config.js';
 import {http, type HTTPObj} from '../../http.js';
 import {cache} from '../../cache.js';
@@ -1134,7 +1134,7 @@ class AttractionsIOV1 extends Destination {
     const loc = parseLocation(resort.DirectionsLocation || resort.Location);
     if (loc) entity.location = loc;
 
-    return [entity];
+    return [this.addRaw(entity, 'poiData', resort)];
   }
 
   protected async buildEntityList(): Promise<Entity[]> {
@@ -1160,22 +1160,24 @@ class AttractionsIOV1 extends Destination {
     const parkLoc = parseLocation(resort.DirectionsLocation || resort.Location);
     if (parkLoc) parkEntity.location = parkLoc;
 
+    this.addRaw(parkEntity, 'poiData', resort);
+
     // Attractions
     const attractionItems = await this.getItemsForCategories(ATTRACTION_CATEGORIES);
     const attractionEntities = attractionItems.map(item =>
-      buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'ATTRACTION')
+      buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'ATTRACTION', this.includeRaw)
     );
 
     // Shows
     const showItems = await this.getItemsForCategories(this.getShowCategories());
     const showEntities = showItems.map(item =>
-      buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'SHOW')
+      buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'SHOW', this.includeRaw)
     );
 
     // Restaurants
     const restaurantItems = await this.getItemsForCategories(RESTAURANT_CATEGORIES);
     const restaurantEntities = restaurantItems.map(item =>
-      buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'RESTAURANT')
+      buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'RESTAURANT', this.includeRaw)
     );
 
     return [
@@ -1251,7 +1253,7 @@ class AttractionsIOV1 extends Destination {
           };
         }
 
-        liveData.push(entry);
+        liveData.push(this.addRaw(entry, 'liveData', record));
         continue;
       }
 
@@ -1275,7 +1277,7 @@ class AttractionsIOV1 extends Destination {
         const entry: LiveData = {id, status};
         if (hours.length > 0) entry.operatingHours = hours;
 
-        liveData.push(entry);
+        liveData.push(this.addRaw(entry, 'liveData', record));
         continue;
       }
     }
@@ -1318,7 +1320,7 @@ class AttractionsIOV1 extends Destination {
           status: hasUpcoming ? 'OPERATING' : 'CLOSED',
         };
         if (showtimes.length > 0) entry.showtimes = showtimes;
-        liveData.push(entry);
+        liveData.push(this.addRaw(entry, 'poiData', item));
       }
     }
 
@@ -1381,12 +1383,12 @@ class AttractionsIOV1 extends Destination {
         continue;
       }
 
-      schedule.push({
+      schedule.push(this.addRaw({
         date: dateStr,
         type: 'OPERATING',
         openingTime: constructDateTime(dateStr, times.openTime, this.timezone),
         closingTime: constructDateTime(dateStr, times.closeTime, this.timezone),
-      });
+      }, 'calendar', day));
     }
 
     if (unparsed.size) {
@@ -1427,13 +1429,19 @@ function parseYYYYMMDD(raw: string): string | null {
   return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
 }
 
-/** Build a full Entity from a records.json Item. */
+/**
+ * Build a full Entity from a records.json Item.
+ *
+ * With `includeRaw` on, the item is attached to the entity as its raw upstream
+ * piece under the name of the request that delivered it.
+ */
 function buildItemEntity(
   item: RecordItem,
   parkId: string,
   destinationId: string,
   timezone: string,
-  entityType: 'ATTRACTION' | 'SHOW' | 'RESTAURANT'
+  entityType: 'ATTRACTION' | 'SHOW' | 'RESTAURANT',
+  includeRaw = false
 ): Entity {
   const entity: Entity = {
     id: String(item._id),
@@ -1476,6 +1484,8 @@ function buildItemEntity(
   if (tags.length > 0) {
     entity.tags = tags;
   }
+
+  if (includeRaw) attachRaw(entity, 'poiData', item);
 
   return entity;
 }
@@ -1731,12 +1741,12 @@ class HeideParkBase extends AttractionsIOV1 {
       if (entry.status !== 'open') continue;
       if (!entry.openingTimes?.open || !entry.openingTimes?.close) continue;
 
-      schedule.push({
+      schedule.push(this.addRaw({
         date: entry.date,
         type: 'OPERATING',
         openingTime: constructDateTime(entry.date, entry.openingTimes.open, this.timezone),
         closingTime: constructDateTime(entry.date, entry.openingTimes.close, this.timezone),
-      });
+      }, 'heideParkSchedule', entry));
     }
 
     return [{id: this.parkId, schedule}];
@@ -1923,7 +1933,7 @@ class DjursSommerlandBase extends AttractionsIOV1 {
 
         if (description) entry.description = description;
 
-        schedule.push(entry);
+        schedule.push(this.addRaw(entry, 'calendarHTML', event));
       }
     }
 
