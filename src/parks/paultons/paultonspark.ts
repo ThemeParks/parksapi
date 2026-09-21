@@ -186,7 +186,7 @@ export class PaultonsPark extends Destination {
           timezone: this.timezone,
         } as Entity;
         if (loc) (entity as any).location = loc;
-        return entity;
+        return this.addRaw(entity, 'poiData', poi);
       });
 
     return [parkEntity, ...entities];
@@ -241,7 +241,7 @@ export class PaultonsPark extends Destination {
           }
         }
 
-        return ld;
+        return this.addRaw(ld, 'liveData', entry);
       })
       .filter((x): x is LiveData => x !== null);
   }
@@ -267,12 +267,12 @@ export class PaultonsPark extends Destination {
 
       const dateStr = formatDate(startDate, this.timezone);
 
-      return {
+      return this.addRaw({
         date: dateStr,
         type: 'OPERATING',
         openingTime: formatInTimezone(startDate, this.timezone, 'iso'),
         closingTime: formatInTimezone(endDate, this.timezone, 'iso'),
-      };
+      }, 'openingHours', entry);
     });
 
     return [{id: 'paultonspark', schedule} as EntitySchedule];
