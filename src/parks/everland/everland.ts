@@ -185,7 +185,7 @@ export class Everland extends Destination {
           };
         }
 
-        entities.push(entity);
+        entities.push(this.addRaw(entity, 'facilities', fac));
       }
     }
 
@@ -214,7 +214,7 @@ export class Everland extends Destination {
           };
         }
 
-        liveData.push(ld);
+        liveData.push(this.addRaw(ld, 'facilities', fac));
       }
     }
 
@@ -244,12 +244,12 @@ export class Everland extends Destination {
 
           if (hours) {
             const dateStr = formatDate(day);
-            schedule.push({
+            schedule.push(this.addRaw({
               date: dateStr,
               type: 'OPERATING',
               openingTime: constructDateTime(dateStr, hours.openTime, TIMEZONE),
               closingTime: constructDateTime(dateStr, hours.closeTime, TIMEZONE),
-            });
+            }, 'parkOpenTime', hours));
           }
         } catch {
           // Skip days that fail
