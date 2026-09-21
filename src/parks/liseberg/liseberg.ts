@@ -119,6 +119,7 @@ export class Liseberg extends Destination {
         lat: (item: any) => item.coordinates?.latitude,
         lng: (item: any) => item.coordinates?.longitude,
       },
+      rawSource: 'attractions',
     });
 
     return [parkEntity, ...entities];
@@ -144,7 +145,7 @@ export class Liseberg extends Destination {
         }
       }
 
-      liveData.push(ld);
+      liveData.push(this.addRaw(ld, 'attractions', item));
     }
 
     return liveData;
@@ -179,12 +180,12 @@ export class Liseberg extends Destination {
         const openingTime = constructDateTime(dateStr, `${openHour}:00:00`, this.timezone);
         const closingTime = constructDateTime(dateStr, `${closeHour}:00:00`, this.timezone);
 
-        scheduleEntries.push({
+        scheduleEntries.push(this.addRaw({
           date: dateStr,
           type: 'OPERATING',
           openingTime,
           closingTime,
-        });
+        }, 'calendar', day));
 
         // Check for evening entrance hours
         if (day.eveningEntranceFrom) {
@@ -204,13 +205,13 @@ export class Liseberg extends Destination {
 
               const eveningOpeningTime = constructDateTime(dateStr, `${eveningTime}:00`, this.timezone);
 
-              scheduleEntries.push({
+              scheduleEntries.push(this.addRaw({
                 date: dateStr,
                 type: 'INFO',
                 description: 'Evening Hours',
                 openingTime: eveningOpeningTime,
                 closingTime,
-              });
+              }, 'calendar', day));
             }
           }
         }
