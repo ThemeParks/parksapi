@@ -115,6 +115,9 @@ type EuropaParkEntity = {
   longitude?: number;
   minHeight?: number;
   maxHeight?: number;
+  /** The POI entry this record was read from: a catalogue POI, or a
+   * showlocation's nested show. */
+  poi: EuropaParkPOI | EuropaParkShow;
 };
 
 // ─── Park config ──────────────────────────────────────────────────────────────
@@ -433,7 +436,12 @@ class EuropaParkBase extends Destination {
     const poiData = await this.getPOIs();
     const entities: EuropaParkEntity[] = [];
 
-    const addPoiData = (poi: EuropaParkPOI & {entityType?: string}): void => {
+    // `poi` is flattened for the sub-shows of a showlocation, so `source`
+    // carries the entry as the feed published it.
+    const addPoiData = (
+      poi: EuropaParkPOI & {entityType?: string},
+      source: EuropaParkPOI | EuropaParkShow,
+    ): void => {
       // Some shows (e.g. Rulantica 133 "TALENT ACADEMY on Stage") publish an
       // empty public `name` with the title only in `analyticsName`. Fall back
       // to it so the entity still surfaces; skip only when both are empty.
@@ -455,7 +463,7 @@ class EuropaParkBase extends Destination {
             longitude: poi.longitude,
             scopes: poi.scopes,
             type: 'shows',
-          } as any);
+          } as any, show);
         });
         return;
       }
@@ -500,11 +508,12 @@ class EuropaParkBase extends Destination {
         longitude: poi.longitude,
         minHeight: poi.minHeight,
         maxHeight: poi.maxHeight,
+        poi: source,
       });
     };
 
     poiData.forEach((poi) => {
-      addPoiData({...poi, entityType: poi.type});
+      addPoiData({...poi, entityType: poi.type}, poi);
     });
 
     return entities;
@@ -556,7 +565,7 @@ class EuropaParkBase extends Destination {
         parkEntity.location = {latitude: 48.2661, longitude: 7.7225};
       }
 
-      result.push(parkEntity);
+      result.push(this.addRaw(parkEntity, 'pois', park));
     }
 
     // ── Attractions (non-show entities scoped to each park) ────────────────
@@ -601,7 +610,7 @@ class EuropaParkBase extends Destination {
         }
         if (tags.length) attraction.tags = tags;
 
-        result.push(attraction);
+        result.push(this.addRaw(attraction, 'pois', entity.poi));
       }
     }
 
@@ -630,7 +639,7 @@ class EuropaParkBase extends Destination {
           show.location = {latitude: 48.2661, longitude: 7.7225};
         }
 
-        result.push(show);
+        result.push(this.addRaw(show, 'pois', entity.poi));
         collectedShowIds.add(entity.id);
       }
     }
@@ -658,7 +667,7 @@ class EuropaParkBase extends Destination {
         show.location = {latitude: 48.2661, longitude: 7.7225};
       }
 
-      result.push(show);
+      result.push(this.addRaw(show, 'pois', entity.poi));
     }
 
     // ── Restaurants (gastronomy POIs per park) ─────────────────────────────
@@ -684,7 +693,7 @@ class EuropaParkBase extends Destination {
           restaurant.location = {latitude: 48.2661, longitude: 7.7225};
         }
 
-        result.push(restaurant);
+        result.push(this.addRaw(restaurant, 'pois', poi));
       }
     }
 
@@ -775,6 +784,7 @@ class EuropaParkBase extends Destination {
       returnStart: string | null;
       returnEnd: string | null;
       state: 'AVAILABLE' | 'TEMP_FULL' | 'FINISHED';
+      wait: EuropaParkWaitTime;
     };
     const vQueueData: VQueueEntry[] = [];
 
@@ -802,6 +812,7 @@ class EuropaParkBase extends Destination {
             returnStart: wait.startAt ?? null,
             returnEnd: wait.endAt ?? null,
             state,
+            wait,
           });
         }
       }
@@ -816,6 +827,9 @@ class EuropaParkBase extends Destination {
       if (!entityId) continue;
 
       const live = getOrCreate(entityId);
+      // Rows of this feed behind the element: its own, plus the virtual-queue
+      // dummy when one hands it a return time.
+      const rows: EuropaParkWaitTime[] = [wait];
 
       // Map time codes to status
       switch (wait.time) {
@@ -847,8 +861,11 @@ class EuropaParkBase extends Destination {
             vq.returnStart,
             vq.returnEnd,
           );
+          rows.push(vq.wait);
         }
       }
+
+      this.addRaw(live, 'waitingTimes', rows.length === 1 ? rows[0] : rows);
     }
 
     // ── Show times ────────────────────────────────────────────────────────
@@ -860,6 +877,7 @@ class EuropaParkBase extends Destination {
       if (!showEntity) continue;
 
       const live = getOrCreate(showEntityId);
+      this.addRaw(live, 'showTimes', showEntry);
 
       const showtimes = showEntry.today.map((startTimeStr) => {
         const startTime = new Date(startTimeStr);
@@ -918,13 +936,13 @@ class EuropaParkBase extends Destination {
    * than "feed unreachable".
    */
   protected _buildExpressLiveData(expressWaits: EuropaParkExpressWait[]): LiveData[] {
-    const etasByStation = new Map<number, number[]>();
+    const etasByStation = new Map<number, Array<{minutes: number; wait: EuropaParkExpressWait}>>();
     for (const wait of expressWaits) {
       const minutes = Number(wait.waitingMinutes);
       if (!Number.isFinite(minutes) || minutes < 0) continue;
       const list = etasByStation.get(wait.station);
-      if (list) list.push(minutes);
-      else etasByStation.set(wait.station, [minutes]);
+      if (list) list.push({minutes, wait});
+      else etasByStation.set(wait.station, [{minutes, wait}]);
     }
 
     const result: LiveData[] = [];
@@ -933,7 +951,10 @@ class EuropaParkBase extends Destination {
       const ld: LiveData = {id: `pois_${poiId}`, status: 'CLOSED'} as LiveData;
       if (etas && etas.length > 0) {
         ld.status = 'OPERATING';
-        ld.queue = {STANDBY: {waitTime: Math.min(...etas)}};
+        ld.queue = {STANDBY: {waitTime: Math.min(...etas.map((e) => e.minutes))}};
+        // A station is served by several trains, so every row that reported an
+        // ETA for it is part of the answer.
+        this.addRaw(ld, 'expressWaitTimes', etas.map((e) => e.wait));
       }
       result.push(ld);
     }
@@ -1039,17 +1060,19 @@ class EuropaParkBase extends Destination {
         // Covers both the special-day and the regular branch above.
         closingTime = this._rollClosingPastMidnight(openingTime, closingTime);
 
-        times.push({date: isoDate, openingTime, closingTime, type: 'OPERATING'});
+        times.push(this.addRaw(
+          {date: isoDate, openingTime, closingTime, type: 'OPERATING'}, 'seasons', season,
+        ));
 
         // Hotel extra hours
         if (season.hotelStartAt && season.hotelEndAt) {
-          times.push({
+          times.push(this.addRaw({
             date: isoDate,
             openingTime: this._applyDateToTime(season.hotelStartAt, isoDate),
             closingTime: this._applyDateToTime(season.hotelEndAt, isoDate),
             type: 'EXTRA_HOURS',
             description: 'Open To Hotel Guests',
-          });
+          }, 'seasons', season));
         }
 
         current = addDays(current, 1);
@@ -1081,6 +1104,7 @@ class EuropaParkBase extends Destination {
               liveData.today.start,
               liveData.today.end,
             );
+            this.addRaw(entry, 'liveCalendar', liveData.today);
           }
         }
       }
