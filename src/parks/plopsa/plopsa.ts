@@ -500,7 +500,7 @@ class PlopsaBase extends Destination {
           if (coords) {
             (entity as any).location = coords;
           }
-          entities.push(entity);
+          entities.push(this.addRaw(entity, 'poi', item));
         }
       }
     }
@@ -530,7 +530,7 @@ class PlopsaBase extends Destination {
           (entity as any).location = {latitude: this.parkLat, longitude: this.parkLng};
         }
 
-        entities.push(entity);
+        entities.push(this.addRaw(entity, 'entertainments', item));
       }
     }
 
@@ -553,18 +553,18 @@ class PlopsaBase extends Destination {
 
     const hoursData = hoursResp ? (await hoursResp.json()) as PlopsaTodayHours : null;
 
-    // Per-attraction temporarily-closed flag from POI, merged across
-    // languages (first language wins, same preference order as
+    // Per-attraction POI entry, carrier of the temporarily-closed flag,
+    // merged across languages (first language wins, same preference order as
     // buildEntityList) so a ride missing from the primary-language feed
     // still gets its closed flag from whichever language does carry it.
-    const closedById = new Map<string, boolean>();
+    const closedById = new Map<string, PlopsaContainsItem>();
     for (const poiData of poiByLanguage) {
       for (const poi of poiData?.items ?? []) {
         for (const item of poi.contains ?? []) {
           if (item.type !== 'attraction') continue;
           const id = this.entityId(item);
           if (closedById.has(id)) continue;
-          closedById.set(id, !!item.schedule_info?.temporarily_closed);
+          closedById.set(id, item);
         }
       }
     }
@@ -611,7 +611,8 @@ class PlopsaBase extends Destination {
     // Attraction live data, keyed off the wait-times feed.
     const rideLiveData = Object.entries(waitTimes ?? {}).map(([attractionId, waitTime]) => {
       const id = String(attractionId);
-      const tempClosed = closedById.get(id) === true;
+      const poiItem = closedById.get(id);
+      const tempClosed = poiItem?.schedule_info?.temporarily_closed === true;
       // A raw `0` is the feed's default/no-signal value — it shows up for
       // every ride, even ones POI marks temporarily_closed — so only a
       // strictly positive reading counts as live evidence the ride is open.
@@ -619,17 +620,23 @@ class PlopsaBase extends Destination {
       const hasWait = rawWait !== null && rawWait > 0;
       const status = plopsaDecideStatus(parkOpenNow, tempClosed, hasWait);
 
-      if (status !== 'OPERATING') {
-        return {id, status, lastUpdated} as unknown as LiveData;
-      }
-      return {
-        id,
-        status: 'OPERATING',
-        queue: {
-          STANDBY: {waitTime: rawWait},
-        },
-        lastUpdated,
-      } as unknown as LiveData;
+      const ld = status !== 'OPERATING'
+        ? {id, status, lastUpdated} as unknown as LiveData
+        : {
+          id,
+          status: 'OPERATING',
+          queue: {
+            STANDBY: {waitTime: rawWait},
+          },
+          lastUpdated,
+        } as unknown as LiveData;
+
+      // The reading, the POI flag and today's hours are the three inputs the
+      // status came out of, so each one is a piece behind this row.
+      this.addRaw(ld, 'waitTimes', waitTime);
+      if (poiItem) this.addRaw(ld, 'poi', poiItem);
+      if (hoursData) this.addRaw(ld, 'todayHours', hoursData);
+      return ld;
     });
 
     // Show / meet-and-greet live data. The entertainments fetch is gated by its
@@ -659,7 +666,7 @@ class PlopsaBase extends Destination {
         if (showtimes.length > 0) {
           (ld as {showtimes?: LiveTimeSlot[]}).showtimes = showtimes;
         }
-        showLiveData.push(ld);
+        showLiveData.push(this.addRaw(ld, 'entertainments', item));
       }
     }
 
@@ -713,13 +720,13 @@ class PlopsaBase extends Destination {
           if (slot.type !== 'open') continue;
           if (!slot.start_time || !slot.end_time) continue;
 
-          schedule.push({
+          schedule.push(this.addRaw({
             date: dateKey,
             type: 'OPERATING',
             // Slots already have full ISO timestamps with correct offsets
             openingTime: slot.start_time,
             closingTime: slot.end_time,
-          } as any);
+          } as any, 'calendar', slot));
         }
       }
     }
@@ -777,12 +784,14 @@ class PlopsaBase extends Destination {
             } catch {
               continue;
             }
-            showSchedule.push({
+            // The day, not the slot: the slot carries HH:MM only, the date
+            // the entry is filed under comes from the day around it.
+            showSchedule.push(this.addRaw({
               date: day.date,
               type: 'OPERATING',
               openingTime,
               closingTime,
-            } as any);
+            } as any, 'entertainments', day));
           }
         }
 
