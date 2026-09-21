@@ -921,13 +921,13 @@ export class SixFlags extends Destination {
       const poi = await this.getPOI(park.parkId);
       const location = parkCentroidFromPOI(poi, park.parkId);
 
-      destinations.push({
+      destinations.push(this.addRaw({
         id: `sixflags_destination_${park.code}`,
         name: park.name,
         entityType: 'DESTINATION',
         timezone: tz,
         ...(location ? {location} : {}),
-      } as Entity);
+      } as Entity, 'firebaseConfig', park));
     }
 
     return destinations;
@@ -947,16 +947,16 @@ export class SixFlags extends Destination {
       const parkLocation = parkCentroidFromPOI(poiData, park.parkId);
 
       // Destination entity
-      entities.push({
+      entities.push(this.addRaw({
         id: destinationId,
         name: park.name,
         entityType: 'DESTINATION',
         timezone: tz,
         ...(parkLocation ? {location: parkLocation} : {}),
-      } as Entity);
+      } as Entity, 'firebaseConfig', park));
 
       // Main park entity
-      entities.push({
+      entities.push(this.addRaw({
         id: mainParkId,
         name: park.name,
         entityType: 'PARK',
@@ -964,7 +964,7 @@ export class SixFlags extends Destination {
         destinationId,
         timezone: tz,
         ...(parkLocation ? {location: parkLocation} : {}),
-      } as Entity);
+      } as Entity, 'firebaseConfig', park));
 
       // Water park entities (share parent's destination). The sister water
       // park's own /poi/park/{id} 404s on the Six Flags API, but the sister
@@ -973,7 +973,7 @@ export class SixFlags extends Destination {
         const wpTz = await this.getTimezoneForPark(wp.parkId);
         const wpLocation = parkCentroidFromPOI(poiData, wp.parkId) ?? parkLocation;
 
-        entities.push({
+        entities.push(this.addRaw({
           id: `sixflags_park_${wp.code}`,
           name: wp.name,
           entityType: 'PARK',
@@ -981,7 +981,7 @@ export class SixFlags extends Destination {
           destinationId,
           timezone: wpTz,
           ...(wpLocation ? {location: wpLocation} : {}),
-        } as Entity);
+        } as Entity, 'firebaseConfig', wp));
       }
 
       // Emit main-park attractions/shows/restaurants from the POI data we
@@ -1085,6 +1085,7 @@ export class SixFlags extends Destination {
         }
         return entity;
       },
+      rawSource: 'poi',
     });
   }
 
@@ -1133,6 +1134,7 @@ export class SixFlags extends Destination {
         }
         return entity;
       },
+      rawSource: 'poi',
     });
   }
 
@@ -1238,7 +1240,12 @@ export class SixFlags extends Destination {
       .flatMap(v => v.details ?? [])
       .filter(d => d.fimsId && !rosteredIds.has(d.fimsId))
       .map(d => ({fimsId: d.fimsId, status: ''}));
-    const rideEntries = [...venueStatusRides, ...waitTimesOnlyRides];
+    // The union carries the venue-status row a rostered ride came from; a ride
+    // recovered from wait-times alone has none, only the placeholder status.
+    const rideEntries: Array<{fimsId: string; status: string; venueStatusEntry?: {fimsId: string; status: string}}> = [
+      ...venueStatusRides.map(detail => ({...detail, venueStatusEntry: detail})),
+      ...waitTimesOnlyRides,
+    ];
 
     if (rideEntries.length > 0) {
       for (const ride of rideEntries) {
@@ -1277,6 +1284,9 @@ export class SixFlags extends Destination {
             ld.queue!.PAID_STANDBY = {waitTime: flWait};
           }
         }
+
+        if (ride.venueStatusEntry) this.addRaw(ld, 'venueStatus', ride.venueStatusEntry);
+        if (waitInfo) this.addRaw(ld, 'waitTimes', waitInfo);
 
         liveData.push(ld);
       }
@@ -1325,6 +1335,8 @@ export class SixFlags extends Destination {
         // Parse show times
         const showTimeEntries = showTimesMap.get(show.fimsId);
         if (showTimeEntries) {
+          this.addRaw(ld, 'operatingHours', showTimeEntries.length === 1 ? showTimeEntries[0] : showTimeEntries);
+
           const showtimes: Array<{startTime: string; endTime: string; type: string}> = [];
 
           for (const entry of showTimeEntries) {
@@ -1353,7 +1365,7 @@ export class SixFlags extends Destination {
           }
         }
 
-        liveData.push(ld);
+        liveData.push(this.addRaw(ld, 'venueStatus', show));
       }
     }
   }
@@ -1484,7 +1496,7 @@ export class SixFlags extends Destination {
         if (dateParts.length !== 3) continue;
         const dateStr = `${dateParts[2]}-${dateParts[0]}-${dateParts[1]}`;
 
-        scheduleEntries.push({
+        scheduleEntries.push(this.addRaw({
           date: dateStr,
           type: 'OPERATING',
           openingTime: constructDateTime(dateStr, earliestOpen, tz),
@@ -1496,11 +1508,11 @@ export class SixFlags extends Destination {
           closingTime: closeTimeCrossesMidnight(earliestOpen, latestClose)
             ? constructDateTime(shiftDateString(dateStr, 1), latestClose, tz)
             : constructDateTime(dateStr, latestClose, tz),
-        });
+        }, 'operatingHours', dateObj));
 
         const hauntWindow = hauntWindowForDate(dateObj);
         if (hauntWindow) {
-          scheduleEntries.push({
+          scheduleEntries.push(this.addRaw({
             date: dateStr,
             type: 'TICKETED_EVENT',
             description: hauntWindow.description,
@@ -1512,7 +1524,7 @@ export class SixFlags extends Destination {
             closingTime: closeTimeCrossesMidnight(hauntWindow.open, hauntWindow.close)
               ? constructDateTime(shiftDateString(dateStr, 1), hauntWindow.close, tz)
               : constructDateTime(dateStr, hauntWindow.close, tz),
-          });
+          }, 'operatingHours', dateObj));
         }
       }
     }
