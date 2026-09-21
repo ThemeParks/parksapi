@@ -256,6 +256,7 @@ export class FujiQHighland extends Destination {
         destinationId: DESTINATION_ID,
         timezone: this.timezone,
       } as Entity;
+      this.addRaw(entity, 'facilities', f);
 
       const lat = Number(f.lat);
       const lon = Number(f.lon);
@@ -301,7 +302,7 @@ export class FujiQHighland extends Destination {
         ld.queue = {STANDBY: {waitTime}};
       }
 
-      out.push(ld);
+      out.push(this.addRaw(ld, 'crawler', c));
     }
 
     return out;
@@ -325,12 +326,12 @@ export class FujiQHighland extends Destination {
     for (let i = 0; i < months; i++) {
       const monthDays = await this.getMonthSchedule(year, month).catch(() => []);
       for (const d of monthDays) {
-        days.push({
+        days.push(this.addRaw({
           date: d.date,
           type: 'OPERATING',
           openingTime: constructDateTime(d.date, d.open, this.timezone),
           closingTime: constructDateTime(d.date, d.close, this.timezone),
-        } as any);
+        } as any, 'scheduleHtml', d));
       }
       // Roll forward one month.
       month += 1;
@@ -354,20 +355,22 @@ export class FujiQHighland extends Destination {
       }).format(new Date());
       let earliestOpen: string | null = null;
       let latestClose: string | null = null;
+      const contributingSchedules: string[] = [];
       for (const f of facilities) {
         if (f.type !== 'attraction') continue;
         const parsed = this.parseScheduleToday(f.scheduleToday);
         if (!parsed) continue;
+        contributingSchedules.push(f.scheduleToday as string);
         if (!earliestOpen || parsed.open < earliestOpen) earliestOpen = parsed.open;
         if (!latestClose || parsed.close > latestClose) latestClose = parsed.close;
       }
       if (earliestOpen && latestClose) {
-        days.push({
+        days.push(this.addRaw({
           date: todayParts,
           type: 'OPERATING',
           openingTime: constructDateTime(todayParts, earliestOpen, this.timezone),
           closingTime: constructDateTime(todayParts, latestClose, this.timezone),
-        } as any);
+        } as any, 'facilities', contributingSchedules));
       }
     }
 
