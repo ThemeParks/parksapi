@@ -252,11 +252,26 @@ export class Nigloland extends Destination {
   }
 
   /**
-   * True iff the park calendar says today is operating AND the current
-   * Paris-time clock is within today's open/close window for the given
-   * hours field. Used as the primary OPERATING signal — `Indéterminé` is
-   * the upstream's idle state and never flips after hours, so `statusName`
-   * alone always over-emits.
+   * Find today's calendar entry (Paris time). Callers pass `now` so the
+   * parkOpenNow / ridesOpenNow pair in buildLiveData() can't straddle a
+   * Paris-time midnight rollover.
+   */
+  private findTodayEntry(
+    calendar: NiglolandCalendarDate[],
+    now: Date,
+  ): NiglolandCalendarDate | undefined {
+    const todayParis = formatDate(now, this.timezone);
+    return calendar.find(
+      (e) => typeof e.date === 'string' && e.date.slice(0, 10) === todayParis,
+    );
+  }
+
+  /**
+   * True iff today's calendar entry says the park is operating AND the
+   * current Paris-time clock is within today's open/close window for the
+   * given hours field. Used as the primary OPERATING signal — `Indéterminé`
+   * is the upstream's idle state and never flips after hours, so
+   * `statusName` alone always over-emits.
    *
    * `hoursPark` and `hoursRides` can differ on fireworks/special days: the
    * park can stay open for a late programme while rides progressively wind
@@ -267,16 +282,10 @@ export class Nigloland extends Destination {
    * same regardless of which field the upstream populates.
    */
   private isOpenNow(
-    calendar: NiglolandCalendarDate[],
+    entry: NiglolandCalendarDate | undefined,
     hoursField: 'hoursPark' | 'hoursRides',
     now: Date,
   ): boolean {
-    // Caller passes `now` so the parkOpenNow / ridesOpenNow pair in
-    // buildLiveData() can't straddle a Paris-time midnight rollover.
-    const todayParis = formatDate(now, this.timezone);
-    const entry = calendar.find(
-      (e) => typeof e.date === 'string' && e.date.slice(0, 10) === todayParis,
-    );
     if (!entry) return false;
     const primary = this.parseCalendarHours(entry.calendarType?.[hoursField]);
     const fallback =
@@ -376,7 +385,7 @@ export class Nigloland extends Destination {
         } as Entity;
         const tags = this.buildRideTags(ride);
         if (tags.length) entity.tags = tags;
-        return entity;
+        return this.addRaw(entity, 'pointsOfInterest', ride);
       })
       .filter((e): e is Entity => e !== null);
 
@@ -385,14 +394,14 @@ export class Nigloland extends Destination {
       .map(show => {
         const id = this.entityId(show.idNiglo);
         if (!id || !show.title) return null;
-        return {
+        return this.addRaw({
           id,
           name: show.title,
           entityType: 'SHOW',
           parentId: PARK_ID,
           destinationId: DESTINATION_ID,
           timezone: this.timezone,
-        } as Entity;
+        } as Entity, 'pointsOfInterest', show);
       })
       .filter((e): e is Entity => e !== null);
 
@@ -400,14 +409,14 @@ export class Nigloland extends Destination {
       .map(food => {
         const id = this.entityId(food.idNiglo);
         if (!id || !food.title) return null;
-        return {
+        return this.addRaw({
           id,
           name: food.title,
           entityType: 'RESTAURANT',
           parentId: PARK_ID,
           destinationId: DESTINATION_ID,
           timezone: this.timezone,
-        } as Entity;
+        } as Entity, 'pointsOfInterest', food);
       })
       .filter((e): e is Entity => e !== null);
 
@@ -437,8 +446,9 @@ export class Nigloland extends Destination {
     // against a single `now` snapshot so the two checks can't disagree on
     // which day it is.
     const now = new Date();
-    const parkOpenNow = this.isOpenNow(calendar, 'hoursPark', now);
-    const ridesOpenNow = this.isOpenNow(calendar, 'hoursRides', now);
+    const todayEntry = this.findTodayEntry(calendar, now);
+    const parkOpenNow = this.isOpenNow(todayEntry, 'hoursPark', now);
+    const ridesOpenNow = this.isOpenNow(todayEntry, 'hoursRides', now);
     const liveData: LiveData[] = [];
 
     for (const ride of rides) {
@@ -463,6 +473,10 @@ export class Nigloland extends Destination {
           ld.queue = {STANDBY: {waitTime}};
         }
       }
+
+      this.addRaw(ld, 'pointsOfInterest', ride);
+      // Today's calendar entry feeds the open-now flags every status is mapped with.
+      if (todayEntry) this.addRaw(ld, 'calendarDates', todayEntry);
 
       liveData.push(ld);
     }
@@ -490,6 +504,9 @@ export class Nigloland extends Destination {
         }));
       }
 
+      this.addRaw(ld, 'pointsOfInterest', show);
+      if (todayEntry) this.addRaw(ld, 'calendarDates', todayEntry);
+
       liveData.push(ld);
     }
 
@@ -515,20 +532,20 @@ export class Nigloland extends Destination {
       const park = this.parseCalendarHours(entry.calendarType?.hoursPark);
       const ride = this.parseCalendarHours(entry.calendarType?.hoursRides);
       if (park && park !== 'closed') {
-        parkSchedule.push({
+        parkSchedule.push(this.addRaw({
           date,
           type: 'OPERATING',
           openingTime: constructDateTime(date, park.open, this.timezone),
           closingTime: constructDateTime(date, park.close, this.timezone),
-        });
+        }, 'calendarDates', entry));
       }
       if (ride && ride !== 'closed') {
-        rideSchedule.push({
+        rideSchedule.push(this.addRaw({
           date,
           type: 'OPERATING',
           openingTime: constructDateTime(date, ride.open, this.timezone),
           closingTime: constructDateTime(date, ride.close, this.timezone),
-        });
+        }, 'calendarDates', entry));
       }
     }
 
