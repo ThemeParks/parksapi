@@ -244,7 +244,7 @@ export class Chimelong extends Destination {
     for (const entry of waitTimes) {
       if (!entry.code || !entry.name) continue;
       const destinationId = PARK_TO_DESTINATION[entry.parkId];
-      entities.push({
+      entities.push(this.addRaw({
         id: `attraction_${entry.code}`,
         name: entry.name,
         entityType: 'ATTRACTION',
@@ -252,7 +252,7 @@ export class Chimelong extends Destination {
         parentId: `park_${entry.parkId}`,
         destinationId,
         timezone: TIMEZONE,
-      } as Entity);
+      } as Entity, 'waitTimes', entry));
     }
 
     return entities;
@@ -281,7 +281,7 @@ export class Chimelong extends Destination {
         };
       }
 
-      liveData.push(ld);
+      liveData.push(this.addRaw(ld, 'waitTimes', entry));
     }
 
     return liveData;
@@ -352,6 +352,7 @@ export class Chimelong extends Destination {
       startMonth: number, startDay: number,
       endMonth: number, endDay: number,
       open: string, close: string,
+      piece: Record<string, string>,
       allowedDays?: number[],
     ) => {
       let startDate = new Date(`${year}-${String(startMonth).padStart(2, '0')}-${String(startDay).padStart(2, '0')}T00:00:00`);
@@ -369,12 +370,12 @@ export class Chimelong extends Destination {
         if (!allowedDays || allowedDays.includes(dow)) {
           if (!seen.has(dateStr)) {
             seen.add(dateStr);
-            results.push({
+            results.push(this.addRaw({
               date: dateStr,
               type: 'OPERATING',
               openingTime: constructDateTime(dateStr, open, TIMEZONE),
               closingTime: constructDateTime(dateStr, close, TIMEZONE),
-            });
+            }, 'calendarPage', piece));
           }
         }
         cur = addDays(cur, 1);
@@ -389,11 +390,13 @@ export class Chimelong extends Destination {
       foundMatches = true;
       const parsed = parseDateRange(m[1]);
       if (!parsed) continue;
+      const [from, to] = m[1].split('-');
       addDatesInRange(
         parsed.startMonth, parsed.startDay,
         parsed.endMonth, parsed.endDay,
         normalizeTime(m[2]),
         normalizeTime(m[3]),
+        {from, to, open: m[2], close: m[3]},
       );
     }
 
@@ -410,11 +413,13 @@ export class Chimelong extends Destination {
       foundMatches = true;
       const parsed = parseDateRange(m[1]);
       if (!parsed) continue;
+      const [from, to] = m[1].split('-');
       addDatesInRange(
         parsed.startMonth, parsed.startDay,
         parsed.endMonth, parsed.endDay,
         normalizeTime(m[3]),
         normalizeTime(m[4]),
+        {from, to, days: m[2], open: m[3], close: m[4]},
         dayOfWeekMap[m[2]],
       );
     }
@@ -427,12 +432,12 @@ export class Chimelong extends Destination {
         const m = after.match(/(\d{1,2}:\d{1,2})-(\d{1,2}:\d{1,2})/);
         if (m) {
           const dateStr = formatDate(now, TIMEZONE);
-          results.push({
+          results.push(this.addRaw({
             date: dateStr,
             type: 'OPERATING',
             openingTime: constructDateTime(dateStr, normalizeTime(m[1]), TIMEZONE),
             closingTime: constructDateTime(dateStr, normalizeTime(m[2]), TIMEZONE),
-          });
+          }, 'calendarPage', {open: m[1], close: m[2]}));
         }
       }
     }
