@@ -1,4 +1,4 @@
-import {Destination, type DestinationConstructor} from '../../destination.js';
+import {Destination, attachRaw, type DestinationConstructor} from '../../destination.js';
 import {http, type HTTPObj} from '../../http.js';
 import {cache} from '../../cache.js';
 import config from '../../config.js';
@@ -24,11 +24,15 @@ export type TribeEventsResponse = {
  * Filter Tribe events to those tagged with `categoryName` and convert to
  * operating-hours schedule entries. Skips all-day events (those are
  * marketing/group events, not operating hours).
+ *
+ * With `includeRaw`, every entry carries the event it was built from under
+ * `tribeEvents`.
  */
 export function parseTribeEvents(
   json: TribeEventsResponse,
   categoryName: string,
   timezone: string,
+  includeRaw = false,
 ): ScheduleEntry[] {
   const out: ScheduleEntry[] = [];
   for (const ev of json.events ?? []) {
@@ -39,7 +43,7 @@ export function parseTribeEvents(
     if (!date || !startTime) continue;
     const [endDate, endTime] = ev.end_date.split(' ');
     if (!endDate || !endTime) continue;
-    out.push({
+    const entry: ScheduleEntry = {
       date,
       type: 'OPERATING' as const,
       openingTime: constructDateTime(date, startTime.slice(0, 5), timezone),
@@ -47,7 +51,9 @@ export function parseTribeEvents(
       // ending after 00:00 the next day) doesn't fold the closing time back
       // before opening.
       closingTime: constructDateTime(endDate, endTime.slice(0, 5), timezone),
-    });
+    };
+    if (includeRaw) attachRaw(entry, 'tribeEvents', ev);
+    out.push(entry);
   }
   return out;
 }
@@ -55,11 +61,15 @@ export function parseTribeEvents(
 /**
  * Fallback parser for the iCal/.ics feed. Extracts VEVENT blocks whose
  * CATEGORIES line includes `categoryName` and converts to operating hours.
+ *
+ * With `includeRaw`, every entry carries the VEVENT block it was built from
+ * under `iCalFeed`, as the string it is in the feed.
  */
 export function parseICalFeed(
   text: string,
   categoryName: string,
   timezone: string,
+  includeRaw = false,
 ): ScheduleEntry[] {
   const out: ScheduleEntry[] = [];
   // Split into VEVENT blocks. The text uses CRLF or LF; normalise to LF first.
@@ -81,12 +91,14 @@ export function parseICalFeed(
       ? `${end[1].slice(0,4)}-${end[1].slice(4,6)}-${end[1].slice(6,8)}`
       : startDateStr;
     const endHm = end ? `${end[2].slice(0,2)}:${end[2].slice(2,4)}` : startHm;
-    out.push({
+    const entry: ScheduleEntry = {
       date: startDateStr,
       type: 'OPERATING' as const,
       openingTime: constructDateTime(startDateStr, startHm, timezone),
       closingTime: constructDateTime(endDateStr, endHm, timezone),
-    });
+    };
+    if (includeRaw) attachRaw(entry, 'iCalFeed', body);
+    out.push(entry);
   }
   return out;
 }
@@ -230,6 +242,12 @@ export type LiveFeature = {
   siteId: string;
   /** Free-text operational status, e.g. "Open", "Temporarily Closed". */
   operationalStatus: string;
+  /**
+   * The feed item this record was read from, unchanged
+   * (`{name, parentAssignmentId, operationalStatus}`), so a live row can carry
+   * the feed's own field names rather than the renamed ones above.
+   */
+  feature?: unknown;
 };
 
 /**
@@ -277,30 +295,37 @@ export function normalizeFeatureName(name: string): string {
  * same-named ride at a sibling park can't bleed across. Features with no
  * matching ride entity (POS registers, gates, retail carts, points offers) are
  * dropped — the ride roster is the scraped entity list, not the feed.
+ *
+ * With `includeRaw`, every row carries the feed item its status came from
+ * under `features`, so the name-matching index keeps the item alongside the
+ * status it mapped to.
  */
 export function matchFeaturesToLiveData(
   features: LiveFeature[],
   siteIds: string[],
   rides: Array<{id: string; name: string}>,
+  includeRaw = false,
 ): LiveData[] {
   if (!siteIds.length) return [];
   const siteSet = new Set(siteIds);
-  const statusByName = new Map<string, string>();
+  const statusByName = new Map<string, {status: string; feature: unknown}>();
   for (const f of features) {
     if (!siteSet.has(f.siteId)) continue;
     const key = normalizeFeatureName(f.name);
     if (!key) continue;
-    statusByName.set(key, mapFeatureStatus(f.operationalStatus));
+    statusByName.set(key, {status: mapFeatureStatus(f.operationalStatus), feature: f.feature});
   }
 
   const out: LiveData[] = [];
   const emitted = new Set<string>();
   for (const r of rides) {
     if (emitted.has(r.id)) continue;
-    const status = statusByName.get(normalizeRideName(r.name));
-    if (!status) continue;
+    const match = statusByName.get(normalizeRideName(r.name));
+    if (!match) continue;
     emitted.add(r.id);
-    out.push({id: r.id, status} as LiveData);
+    const ld = {id: r.id, status: match.status} as LiveData;
+    if (includeRaw) attachRaw(ld, 'features', match.feature);
+    out.push(ld);
   }
   return out;
 }
@@ -520,7 +545,7 @@ class EnchantedParks extends Destination {
       while (page <= MAX_PAGES) {
         const resp = await this.fetchTribeEvents(startStr, endStr, page);
         const json = await resp.json() as TribeEventsResponse;
-        const pageEntries = parseTribeEvents(json, category, this.timezone);
+        const pageEntries = parseTribeEvents(json, category, this.timezone, this.includeRaw);
         all.push(...pageEntries);
         const totalPages = json.total_pages ?? 1;
         if (page >= totalPages) break;
@@ -536,7 +561,7 @@ class EnchantedParks extends Destination {
     try {
       const resp = await this.fetchICalFeed();
       const text = await resp.text();
-      return parseICalFeed(text, category, this.timezone);
+      return parseICalFeed(text, category, this.timezone, this.includeRaw);
     } catch {
       return [];
     }
@@ -643,7 +668,7 @@ class EnchantedParks extends Destination {
         } as Entity;
         const loc = this.lookupAttractionLocation(r.name);
         if (loc) (entity as any).location = loc;
-        attractions.push(entity);
+        attractions.push(this.addRaw(entity, 'attractionsPage', r));
       }
     }
 
@@ -677,7 +702,7 @@ class EnchantedParks extends Destination {
         } as Entity;
         const loc = this.lookupAttractionLocation(r.name);
         if (loc) (entity as any).location = loc;
-        attractions.push(entity);
+        attractions.push(this.addRaw(entity, 'attractionsPage', r));
       }
 
       if (this.themePark.diningPath) {
@@ -694,7 +719,7 @@ class EnchantedParks extends Destination {
           } as Entity;
           const loc = this.lookupAttractionLocation(d.name);
           if (loc) (entity as any).location = loc;
-          attractions.push(entity);
+          attractions.push(this.addRaw(entity, 'attractionsPage', d));
         }
       }
 
@@ -712,7 +737,7 @@ class EnchantedParks extends Destination {
           } as Entity;
           const loc = this.lookupAttractionLocation(s.name);
           if (loc) (entity as any).location = loc;
-          attractions.push(entity);
+          attractions.push(this.addRaw(entity, 'attractionsPage', s));
         }
       }
     }
@@ -748,9 +773,10 @@ class EnchantedParks extends Destination {
    * All live attraction records across every site, following pagination.
    * Cached 2min so the feed is fetched once and reused by every park for the
    * window. Returns [] on any failure so live-data build degrades to "no
-   * update" rather than throwing.
+   * update" rather than throwing. Each record keeps the feed item it was read
+   * from; `cacheVersion` rises with that shape.
    */
-  @cache({ttlSeconds: 120})
+  @cache({ttlSeconds: 120, cacheVersion: 2})
   async getFeatures(): Promise<LiveFeature[]> {
     if (!this.liveStatusEndpoint || !this.liveStatusApiKey) return [];
     const out: LiveFeature[] = [];
@@ -768,6 +794,7 @@ class EnchantedParks extends Destination {
             name: it.name,
             siteId: it.parentAssignmentId ?? '',
             operationalStatus: it.operationalStatus ?? '',
+            feature: it,
           });
         }
         nextToken = box.nextToken ?? null;
@@ -817,7 +844,7 @@ class EnchantedParks extends Destination {
     if (!features.length) return [];
 
     const rides = await this.getAttractionStubs();
-    return matchFeaturesToLiveData(features, this.liveStatusSiteIds, rides);
+    return matchFeaturesToLiveData(features, this.liveStatusSiteIds, rides, this.includeRaw);
   }
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
