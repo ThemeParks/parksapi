@@ -2,7 +2,7 @@
 //  Methods decorated with @http must return an HTTPRequest object
 //  The HTTP library will then execute the request and return an HTTPResponse object
 
-import {CacheLib} from "./cache.js";
+import {CacheLib, cacheSecondsFromEnv} from "./cache.js";
 import {broadcast} from "./injector.js";
 import {tracing} from "./tracing.js";
 import Ajv, {type DefinedError} from "ajv";
@@ -678,9 +678,10 @@ function httpDecoratorFactory(options?: {
             internalRequest.cacheKey = `${instance.constructor.name}:${options.cacheKey}`;
           }
 
-          // set cache TTL if provided
-          if (options?.cacheSeconds !== undefined) {
-            internalRequest.cacheTtlSeconds = options.cacheSeconds;
+          // set cache TTL if provided; the environment can replace it per method
+          const cacheSeconds = cacheSecondsFromEnv(instance, propertyKey) ?? options?.cacheSeconds;
+          if (cacheSeconds !== undefined) {
+            internalRequest.cacheTtlSeconds = cacheSeconds;
           }
 
           // Optionally set earliest execute time based on delayMs

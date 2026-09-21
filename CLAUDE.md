@@ -70,6 +70,8 @@ async getParks() { ... }
 async getAPIKey() { ... }
 ```
 
+**Lifetime from the environment:** `{CLASSNAME}_{METHODNAME}_CACHESECONDS` (or `{PREFIX}_{METHODNAME}_CACHESECONDS` for a registered prefix) replaces `ttlSeconds` here and `cacheSeconds` on `@http` at call time. `EUROPAPARK_FETCHSEASONS_CACHESECONDS=600` polls the seasons every 10 minutes instead of 6 hours; `0` stops caching. A `callback` lifetime is not replaced.
+
 **Direct access:** `CacheLib.get()`, `CacheLib.set()`, `CacheLib.wrap()`, `CacheLib.delete()`, `CacheLib.clearByClassName()`, `CacheLib.clearAll()`
 
 **In-flight deduplication:** `CacheLib.wrap()` deduplicates concurrent cache misses — only one caller executes the function, others wait for the result.

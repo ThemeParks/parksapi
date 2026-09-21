@@ -146,6 +146,7 @@ async getPOI(): Promise<any[]> {
 - Live wait times: 1min (`60`)
 - Schedules/calendar: 12h (`43200`)
 - Auth tokens: dynamic via callback
+- Any fixed lifetime can be replaced at runtime by `{CLASSNAME}_{METHODNAME}_CACHESECONDS`, e.g. `MYPARK_FETCHCALENDAR_CACHESECONDS=600`; do not lower a TTL in code for one consumer
 
 **Cache serialization:** Only JSON-safe types survive caching. Do NOT cache `Set`, `Map`, or `Date` objects — use arrays, `Record<string, true>`, or ISO strings instead.
 
