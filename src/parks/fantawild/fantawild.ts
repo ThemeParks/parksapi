@@ -26,7 +26,7 @@
  * the FANTAWILD_PARKS array inside getDestinations/buildEntityList/etc.
  */
 
-import {Destination, type DestinationConstructor} from '../../destination.js';
+import {Destination, attachRaw, type DestinationConstructor} from '../../destination.js';
 import {http, type HTTPObj} from '../../http.js';
 import {cache, CacheLib} from '../../cache.js';
 import config from '../../config.js';
@@ -287,10 +287,15 @@ function closeDateAcrossMidnight(date: string, openTime: string, closeTime: stri
  * own startTime/endTime, and the night session (e.g. fireworks/dark-ride
  * event) is layered on top. Closing times at or before opening (e.g.
  * 18:00–00:30 or 22:00–01:00) roll the close date to the next day.
+ *
+ * With `includeRaw`, every entry carries the BusinessTime entry it was built
+ * from under `businessTime` — the same entry on both entries of a day that
+ * has a night session.
  */
 export function parseBusinessTime(
   json: FantawildBusinessTimeResponse | null | undefined,
   timezone: string,
+  includeRaw = false,
 ): ScheduleEntry[] {
   const out: ScheduleEntry[] = [];
   for (const ev of json?.value ?? []) {
@@ -302,22 +307,26 @@ export function parseBusinessTime(
     // malformed entry would otherwise throw and abort the whole sweep.
     if (ev.startTime && ev.endTime && isValidHHMM(ev.startTime) && isValidHHMM(ev.endTime)) {
       const closeDate = closeDateAcrossMidnight(date, ev.startTime, ev.endTime);
-      out.push({
+      const entry: ScheduleEntry = {
         date,
         type: 'OPERATING' as const,
         openingTime: constructDateTime(date, ev.startTime, timezone),
         closingTime: constructDateTime(closeDate, ev.endTime, timezone),
-      });
+      };
+      if (includeRaw) attachRaw(entry, 'businessTime', ev);
+      out.push(entry);
     }
     if (ev.isNight && ev.nightStartTime && ev.nightEndTime
         && isValidHHMM(ev.nightStartTime) && isValidHHMM(ev.nightEndTime)) {
       const nightCloseDate = closeDateAcrossMidnight(date, ev.nightStartTime, ev.nightEndTime);
-      out.push({
+      const entry: ScheduleEntry = {
         date,
         type: 'EXTRA_HOURS' as const,
         openingTime: constructDateTime(date, ev.nightStartTime, timezone),
         closingTime: constructDateTime(nightCloseDate, ev.nightEndTime, timezone),
-      });
+      };
+      if (includeRaw) attachRaw(entry, 'businessTime', ev);
+      out.push(entry);
     }
   }
   return out;
@@ -515,7 +524,7 @@ export class Fantawild extends Destination {
     try {
       const resp = await this.fetchBusinessTime(parkId);
       const json = await resp.json() as FantawildBusinessTimeResponse;
-      return parseBusinessTime(json, timezone);
+      return parseBusinessTime(json, timezone, this.includeRaw);
     } catch {
       return [];
     }
@@ -631,6 +640,9 @@ export class Fantawild extends Destination {
       // entity list from upstream roster shrinkage (overnight CMS prune,
       // slow-API timeouts, scheduled day-closures) — see getStableRoster.
       const items = await this.getStableRoster(park.parkId, park.timezone);
+      // A roster item this tick's response still carries is the piece behind
+      // its entity; one the roster cache alone kept alive has no piece.
+      const freshIds = new Set((await this.getItems(park.parkId, park.timezone)).map(f => f.id));
       for (const item of items) {
         if (!item.id) continue;
         const cleanName = stripFantawildStars(item.itemName || '');
@@ -656,7 +668,7 @@ export class Fantawild extends Destination {
             longitude: item.longitude!,
           };
         }
-        entities.push(entity);
+        entities.push(freshIds.has(item.id) ? this.addRaw(entity, 'itemBusinessList', item) : entity);
       }
       return entities;
     }));
@@ -724,7 +736,7 @@ export class Fantawild extends Destination {
             STANDBY: {waitTime: item.waitTime},
           };
         }
-        out.push(ld);
+        out.push(this.addRaw(ld, 'itemBusinessList', item));
       }
       return out;
     }));
