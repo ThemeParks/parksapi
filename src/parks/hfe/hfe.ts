@@ -425,6 +425,7 @@ class HFEBase extends Destination {
           }
           return entity;
         },
+        rawSource: 'activities',
       },
     );
 
@@ -441,6 +442,7 @@ class HFEBase extends Destination {
           lat: (item: HFEActivity) => this.parseCoord(item.latitudeForDirections),
           lng: (item: HFEActivity) => this.parseCoord(item.longitudeForDirections),
         },
+        rawSource: 'activities',
       },
     );
 
@@ -453,11 +455,18 @@ class HFEBase extends Destination {
     const shows: Entity[] = [];
     if (this.showCategoryListId) {
       let scheduledIds: Set<string | undefined> = new Set();
+      const scheduleActivitiesByCmsKey = new Map<string, HFEScheduleActivity[]>();
       try {
         const scheduleDays = await this.getSchedule();
-        scheduledIds = new Set(
-          scheduleDays.flatMap(day => (day.activities ?? []).map(a => a.cmsKey)),
-        );
+        for (const day of scheduleDays) {
+          for (const activity of day.activities ?? []) {
+            if (!activity.cmsKey) continue;
+            scheduledIds.add(activity.cmsKey);
+            const entries = scheduleActivitiesByCmsKey.get(activity.cmsKey) ?? [];
+            entries.push(activity);
+            scheduleActivitiesByCmsKey.set(activity.cmsKey, entries);
+          }
+        }
       } catch {
         // Schedule API totally unavailable — proceed with category-only filter
       }
@@ -479,6 +488,12 @@ class HFEBase extends Destination {
         locationFields: {
           lat: (item: HFEActivity) => this.parseCoord(item.latitudeForDirections),
           lng: (item: HFEActivity) => this.parseCoord(item.longitudeForDirections),
+        },
+        rawSource: 'activities',
+        transform: (entity, activity) => {
+          const scheduleActivities = scheduleActivitiesByCmsKey.get(activity.id);
+          if (scheduleActivities) this.addRaw(entity, 'schedule', scheduleActivities);
+          return entity;
         },
       }));
     }
@@ -514,7 +529,7 @@ class HFEBase extends Destination {
     // Pre-opening rides return "Temporarily Closed" — without context we can't tell
     // that apart from a genuine in-operation breakdown. The schedule-derived flag
     // disambiguates: DOWN only during operating hours, CLOSED otherwise.
-    const parkIsOpen = await this.isParkCurrentlyOpen();
+    const {open: parkIsOpen, today: todaySchedule} = await this.isParkCurrentlyOpen();
 
     // Build lookup maps for joining wait times to entities
     // 1. rideWaitTimeRideId -> activity ID (primary, more reliable)
@@ -549,6 +564,10 @@ class HFEBase extends Destination {
         ld.queue = {STANDBY: {waitTime: verdict.waitTime}};
       }
 
+      this.addRaw(ld, 'waitTimes', wt);
+      // Today's schedule day feeds the park-open flag every status is mapped with.
+      if (todaySchedule) this.addRaw(ld, 'schedule', todaySchedule);
+
       liveData.push(ld);
     }
 
@@ -559,21 +578,23 @@ class HFEBase extends Destination {
    * Check whether the park is currently within its scheduled operating hours.
    * Used by buildLiveData to map "Temporarily Closed/Delayed" — DOWN during
    * operating hours (genuine breakdown), CLOSED outside them (pre-opening or
-   * post-closing pseudo-state the API reports for every ride).
-   * Returns false when schedule data is unavailable, biasing toward CLOSED.
+   * post-closing pseudo-state the API reports for every ride). Also returns
+   * today's schedule day, the piece that decided the verdict.
+   * Returns closed with no day when schedule data is unavailable, biasing
+   * toward CLOSED.
    */
-  private async isParkCurrentlyOpen(): Promise<boolean> {
+  private async isParkCurrentlyOpen(): Promise<{open: boolean; today?: HFEScheduleDay}> {
     let schedule: HFEScheduleDay[];
     try {
       schedule = await this.getSchedule();
     } catch {
-      return false;
+      return {open: false};
     }
 
     const now = new Date();
     const todayStr = formatInTimezone(now, this.timezone, 'iso').split('T')[0];
     const today = schedule.find(d => (d.date || '').startsWith(todayStr));
-    if (!today) return false;
+    if (!today) return {open: false};
 
     for (const hours of (today.parkHours || [])) {
       if (hours.closedToPublic || hours.isAllDay) continue;
@@ -585,9 +606,9 @@ class HFEBase extends Destination {
       const opening = new Date(constructDateTime(todayStr, fromTime, this.timezone));
       const closing = new Date(constructDateTime(todayStr, toTime, this.timezone));
 
-      if (now >= opening && now <= closing) return true;
+      if (now >= opening && now <= closing) return {open: true, today};
     }
-    return false;
+    return {open: false, today};
   }
 
   /**
@@ -672,12 +693,12 @@ class HFEBase extends Destination {
         const openingTime = constructDateTime(dateStr, fromTime, this.timezone);
         const closingTime = constructDateTime(dateStr, toTime, this.timezone);
 
-        scheduleEntries.push({
+        scheduleEntries.push(this.addRaw({
           date: dateStr,
           type: 'OPERATING',
           openingTime,
           closingTime,
-        });
+        }, 'schedule', hours));
       }
     }
 
@@ -720,6 +741,7 @@ class HFEBase extends Destination {
             const openingTime = constructDateTime(dateStr, fromTime, this.timezone);
 
             let closingTime: string | undefined;
+            let closingFromDuration = false;
             if (event.to) {
               const toTime = event.to.split('T')[1] || '00:00:00';
               closingTime = constructDateTime(dateStr, toTime, this.timezone);
@@ -729,6 +751,7 @@ class HFEBase extends Destination {
               if (match) {
                 const durationMs = parseInt(match[1], 10) * 60 * 1000;
                 closingTime = formatInTimezone(new Date(new Date(openingTime).getTime() + durationMs), this.timezone, 'iso');
+                closingFromDuration = true;
               }
             }
 
@@ -737,12 +760,14 @@ class HFEBase extends Destination {
             if (!showSchedules.has(show.id)) {
               showSchedules.set(show.id, []);
             }
-            showSchedules.get(show.id)!.push({
+            const scheduleEntry = this.addRaw({
               date: dateStr,
               type: 'OPERATING',
               openingTime,
               closingTime,
-            });
+            }, 'schedule', event);
+            if (closingFromDuration) this.addRaw(scheduleEntry, 'activities', show);
+            showSchedules.get(show.id)!.push(scheduleEntry);
           }
         }
       }
