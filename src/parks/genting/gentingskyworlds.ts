@@ -299,7 +299,7 @@ export class GentingSkyworlds extends Destination {
       if (tags.length) (entity as any).tags = tags;
     }
 
-    return entity;
+    return this.addRaw(entity, 'all', poi);
   }
 
   // ── Destination / Park ───────────────────────────────────────
@@ -364,6 +364,9 @@ export class GentingSkyworlds extends Destination {
         id: String(ride.id),
         status: 'CLOSED',
       } as LiveData;
+      this.addRaw(ld, 'all', ride);
+      // The window every status below is decided against.
+      if (wait.operationHour) this.addRaw(ld, 'waitTimesOperationHour', wait.operationHour);
 
       if (parkOpenNow === false) {
         // Outside hours — closed, no queue. Don't trust the frozen snapshot.
@@ -374,6 +377,7 @@ export class GentingSkyworlds extends Destination {
       const queue: Record<string, any> = {};
 
       if (w) {
+        this.addRaw(ld, 'waitTimes', w);
         if (w.status === 'UP') {
           ld.status = 'OPERATING';
           if (Number.isFinite(w.waitTime) && w.waitTime >= 0 && w.waitTime < 600) {
@@ -399,6 +403,7 @@ export class GentingSkyworlds extends Destination {
         queue.RETURN_TIME = vq.fullVqReservation
           ? VQueueBuilder.returnTime().finished().withWindow(null, null).build()
           : VQueueBuilder.returnTime().available().withWindow(null, null).build();
+        this.addRaw(ld, 'desireItinerary', vq);
       }
 
       if (Object.keys(queue).length) (ld as any).queue = queue;
@@ -410,10 +415,12 @@ export class GentingSkyworlds extends Destination {
     // is closed, the upstream show status is also frozen, so force CLOSED.
     for (const show of data.shows ?? []) {
       const open = parkOpenNow !== false && show.operationStatus?.title === 'OPEN';
-      out.push({
+      const ld = this.addRaw({
         id: String(show.id),
         status: open ? 'OPERATING' : 'CLOSED',
-      } as LiveData);
+      } as LiveData, 'all', show);
+      if (wait.operationHour) this.addRaw(ld, 'waitTimesOperationHour', wait.operationHour);
+      out.push(ld);
     }
 
     return out;
@@ -486,12 +493,12 @@ export class GentingSkyworlds extends Destination {
         const endLocalDate = formatDate(endDate, this.timezone);
         const localHHmm = (d: Date) =>
           formatInTimezone(d, this.timezone, 'iso').slice(11, 16);
-        const entry = {
+        const entry = this.addRaw({
           date: startLocalDate,
           type: 'OPERATING',
           openingTime: constructDateTime(startLocalDate, localHHmm(startDate), this.timezone),
           closingTime: constructDateTime(endLocalDate, localHHmm(endDate), this.timezone),
-        };
+        }, 'waitTimesOperationHour', live);
         const idx = schedule.findIndex(s => s.date === startLocalDate);
         if (idx >= 0) schedule[idx] = entry;
         else schedule.unshift(entry);
