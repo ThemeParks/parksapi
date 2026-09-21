@@ -137,6 +137,7 @@ export class Toverland extends Destination {
       destinationId: destId,
       timezone: this.timezone,
       locationFields: {lat: 'latitude', lng: 'longitude'},
+      rawSource: 'rideData',
     });
 
     const showEntities = this.mapEntities(shows, {
@@ -147,6 +148,7 @@ export class Toverland extends Destination {
       destinationId: destId,
       timezone: this.timezone,
       locationFields: {lat: 'latitude', lng: 'longitude'},
+      rawSource: 'showData',
     });
 
     const diningEntities = this.mapEntities(dining, {
@@ -157,6 +159,7 @@ export class Toverland extends Destination {
       destinationId: destId,
       timezone: this.timezone,
       locationFields: {lat: 'latitude', lng: 'longitude'},
+      rawSource: 'diningData',
     });
 
     return [parkEntity, ...rideEntities, ...showEntities, ...diningEntities];
@@ -195,10 +198,10 @@ export class Toverland extends Destination {
       });
 
       if (!todayHours) {
-        return {
+        return this.addRaw({
           id: String(entry.id),
           status: 'CLOSED',
-        } as LiveData;
+        } as LiveData, 'rideData', entry);
       }
 
       const mappedStatus = mapStatus(statusName);
@@ -215,7 +218,7 @@ export class Toverland extends Destination {
         };
       }
 
-      return ld;
+      return this.addRaw(ld, 'rideData', entry);
     }).filter((x): x is LiveData => x !== null);
   }
 
@@ -244,12 +247,12 @@ export class Toverland extends Destination {
           const openTime = day.openingHoursFrom.substring(0, 5); // HH:mm from HH:mm:ss
           const closeTime = day.openingHoursTo.substring(0, 5);
 
-          schedule.push({
+          schedule.push(this.addRaw({
             date: dateStr,
             type: 'OPERATING',
             openingTime: constructDateTime(dateStr, openTime, this.timezone),
             closingTime: constructDateTime(dateStr, closeTime, this.timezone),
-          });
+          }, 'calendar', day));
         }
       } catch {
         // Skip months that fail (e.g., past months returning errors)
