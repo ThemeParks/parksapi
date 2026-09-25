@@ -81,6 +81,8 @@ type SixFlagsPOI = {
 
 /** Venue status API response */
 type SixFlagsVenueStatus = {
+  /** Park-local wall clock the snapshot was generated, e.g. "Sep 24, 2026 22:31:00" */
+  parkDateTime?: string;
   parkName: string;
   lat: string;
   lng: string;
@@ -95,6 +97,7 @@ type SixFlagsVenueStatus = {
 
 /** Wait times API response */
 type SixFlagsWaitTimes = {
+  parkDateTime?: string;
   venues: Array<{
     venueId: number;
     details: Array<{
@@ -185,6 +188,21 @@ const EXCLUDED_PARK_IDS = new Set<number>([6, 12, 14, 27, 903, 924, 969]);
 const DEFAULT_SHOW_DURATION_MINUTES = 30;
 
 /**
+ * How far a live feed's `parkDateTime` may trail the park's wall clock before
+ * the snapshot is treated as frozen and withheld.
+ *
+ * The vendor stamps venue-status and wait-times with the park-local minute it
+ * was generated, and refreshes both every minute. An API host that stops
+ * refreshing keeps answering 200 with its last snapshot, so nothing else in
+ * the response reveals it. Observed 2026-09-24: every park in the estate
+ * served a snapshot stamped the previous Monday lunchtime for three and a half
+ * days, and Cedar Point opened for the evening with all 88 rides reading
+ * "Not Scheduled". Thirty minutes is thirty missed refreshes, well clear of
+ * one minute of feed cadence plus a minute of CDN caching.
+ */
+const LIVE_FEED_MAX_AGE_MINUTES = 30;
+
+/**
  * Venue identifiers used throughout the vendor's POI, venue-status,
  * wait-times and operating-hours responses. The same numbering is shared by
  * every park in the estate.
@@ -221,6 +239,44 @@ const HAUNT_OPERATING_TYPE_ID = 25;
 // ============================================================================
 // Helpers
 // ============================================================================
+
+const MONTHS: Record<string, string> = {
+  jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+  jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+};
+
+/**
+ * Parse a live feed's `parkDateTime` ("Sep 24, 2026 22:31:00", park-local
+ * wall clock with no offset) into epoch milliseconds. Returns null for
+ * anything that does not match that shape, so an unfamiliar value never
+ * reads as a timestamp.
+ */
+export function parseParkDateTime(value: unknown, tz: string): number | null {
+  if (typeof value !== 'string') return null;
+  const m = /^([A-Za-z]{3})[a-z]* (\d{1,2}), (\d{4}) (\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(value.trim());
+  if (!m) return null;
+  const month = MONTHS[m[1].toLowerCase()];
+  if (!month) return null;
+  const date = `${m[3]}-${month}-${m[2].padStart(2, '0')}`;
+  const time = `${m[4].padStart(2, '0')}:${m[5]}:${m[6] ?? '00'}`;
+  try {
+    const ms = new Date(constructDateTime(date, time, tz)).getTime();
+    return Number.isFinite(ms) ? ms : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True when a feed's `parkDateTime` shows the snapshot is older than
+ * LIVE_FEED_MAX_AGE_MINUTES. A missing or unparseable stamp is not evidence
+ * of staleness and returns false.
+ */
+export function isFrozenSnapshot(parkDateTime: unknown, tz: string, now: Date = new Date()): boolean {
+  const stamped = parseParkDateTime(parkDateTime, tz);
+  if (stamped === null) return false;
+  return now.getTime() - stamped > LIVE_FEED_MAX_AGE_MINUTES * 60 * 1000;
+}
 
 /**
  * Strip HTML tags and decode common HTML entities from POI names.
@@ -1178,6 +1234,15 @@ export class SixFlags extends Destination {
     const venueStatus = await this.getVenueStatus(parkId);
     if (!venueStatus?.venues) return;
 
+    // A frozen snapshot is not a current observation. Publishing it would
+    // stamp the wiki with Monday's statuses as if they were read just now,
+    // so withhold the park entirely and let staleness monitoring see it.
+    const tz = await this.getTimezoneForPark(parkId);
+    if (isFrozenSnapshot(venueStatus.parkDateTime, tz)) {
+      console.warn(`[SixFlags] park ${parkId} venue-status is frozen at "${venueStatus.parkDateTime}", withholding live data`);
+      return;
+    }
+
     // Build venue status lookup
     const statusMap = new Map<string, string>();
     for (const venue of venueStatus.venues) {
@@ -1189,7 +1254,12 @@ export class SixFlags extends Destination {
     }
 
     // Fetch wait times (may be null for some parks)
-    const waitTimesData = await this.getWaitTimes(parkId);
+    const fetchedWaitTimes = await this.getWaitTimes(parkId);
+    // Venue-status is the authority for status; a frozen wait-times feed
+    // alone only loses the waits, so drop it rather than the whole park.
+    const waitTimesData = fetchedWaitTimes && isFrozenSnapshot(fetchedWaitTimes.parkDateTime, tz)
+      ? null
+      : fetchedWaitTimes;
     const waitTimesMap = new Map<string, {regularWaittime?: {waitTime: number}; isFastLane?: boolean; fastlaneWaittime?: {waitTime: number}}>();
     if (waitTimesData?.venues) {
       for (const venue of waitTimesData.venues) {
@@ -1285,7 +1355,6 @@ export class SixFlags extends Destination {
     // Process shows (venueId: 2) from venue status
     const showsVenue = venueStatus.venues.find(v => v.venueId === SHOW_VENUE_ID);
     if (showsVenue?.details) {
-      const tz = await this.getTimezoneForPark(parkId);
 
       // Fetch today's show times from operating hours
       const todayFormatted = formatInTimezone(new Date(), tz, 'date'); // MM/DD/YYYY
