@@ -506,7 +506,10 @@ export class ParcAsterix extends Destination {
   // still sit in SQLite until their TTL expires but are no longer looked up,
   // so a deploy picks up localised names immediately instead of serving
   // half-a-day of stale single-language ones.
-  @cache({ttlSeconds: 43200, cacheVersion: 2}) // 12h
+  // cacheVersion 3: the calendar reads day types written as sentences. An
+  // entry cached before that fix holds an empty calendar for up to 12h, so
+  // the fix would otherwise not take effect until it expired.
+  @cache({ttlSeconds: 43200, cacheVersion: 3}) // 12h
   async getPOIData(): Promise<{poi: POIEntry[]; calendar: ScheduleEntry[]; closedDates: string[]}> {
     const resp = await this.fetchPackageZip();
     const buffer = await resp.arrayBuffer();
