@@ -480,6 +480,74 @@ describe('haunt event schedules', () => {
     expect(event?.closingTime).toBe('2026-09-20T20:00:00-07:00');
   });
 
+  test('ignores maze hours that open before the park itself opens', async () => {
+    // Fiesta Texas shape, every Friday of the 2026 season: the park opens
+    // 17:00, eight mazes open 19:15, and six are filed as 06:00-23:00. A
+    // haunt maze cannot admit guests eleven hours before the park does, and
+    // taking the earliest start published the whole event from 06:00.
+    const schedules = await schedulesFor({
+      '202609': {
+        dates: [parkDay('09/25/2026', {
+          operatings: [{operatingTypeId: 24, operatingTypeName: 'Park', items: [{timeFrom: '17:00', timeTo: '23:00'}]}],
+          venues: [{
+            venueId: 3,
+            detailHours: [
+              ...Array.from({length: 6}, () => ({operatingTimeFrom: '06:00', operatingTimeTo: '23:00'})),
+              ...Array.from({length: 8}, () => ({operatingTimeFrom: '19:15', operatingTimeTo: '23:00'})),
+            ],
+          }],
+        })],
+      },
+    });
+
+    const event = schedules[0].schedule.find(s => s.date === '2026-09-25' && s.type === 'TICKETED_EVENT');
+
+    expect(event?.openingTime).toBe('2026-09-25T19:15:00-07:00');
+    expect(event?.closingTime).toBe('2026-09-25T23:00:00-07:00');
+  });
+
+  test('opens the event with the park when every maze is filed before it', async () => {
+    // The mazes still say the event runs tonight; only their start is wrong.
+    const schedules = await schedulesFor({
+      '202609': {
+        dates: [parkDay('09/26/2026', {
+          operatings: [{operatingTypeId: 24, operatingTypeName: 'Park', items: [{timeFrom: '19:00', timeTo: '01:00'}]}],
+          venues: [{
+            venueId: 3,
+            detailHours: [
+              {operatingTimeFrom: '18:00', operatingTimeTo: '01:00'},
+              {operatingTimeFrom: '18:00', operatingTimeTo: '00:00'},
+            ],
+          }],
+        })],
+      },
+    });
+
+    const event = schedules[0].schedule.find(s => s.date === '2026-09-26' && s.type === 'TICKETED_EVENT');
+
+    expect(event?.openingTime).toBe('2026-09-26T19:00:00-07:00');
+    expect(event?.closingTime).toBe('2026-09-27T01:00:00-07:00');
+  });
+
+  test('leaves a vendor-stated Haunt block alone even when it starts before the park', async () => {
+    // A stated block is the vendor's own event window, not an inference, so
+    // it is published as given.
+    const schedules = await schedulesFor({
+      '202609': {
+        dates: [parkDay('09/27/2026', {
+          operatings: [
+            {operatingTypeId: 24, operatingTypeName: 'Park', items: [{timeFrom: '19:00', timeTo: '23:00'}]},
+            {operatingTypeId: 25, operatingTypeName: 'Haunt', items: [{timeFrom: '18:30', timeTo: '23:00'}]},
+          ],
+        })],
+      },
+    });
+
+    const event = schedules[0].schedule.find(s => s.date === '2026-09-27' && s.type === 'TICKETED_EVENT');
+
+    expect(event?.openingTime).toBe('2026-09-27T18:30:00-07:00');
+  });
+
   test('prefers the vendor-stated Haunt block over the inferred maze envelope', async () => {
     const schedules = await schedulesFor({
       '202609': {

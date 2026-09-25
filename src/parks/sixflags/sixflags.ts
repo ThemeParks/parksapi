@@ -314,9 +314,19 @@ function closeTimeCrossesMidnight(openTime: string, closeTime: string): boolean 
  *
  * Prefer (a): it is the vendor's own statement of the event window, whereas
  * the envelope in (b) is inferred from whatever mazes happen to be scheduled.
+ *
+ * In (b), a maze filed as opening before the park itself opens is not
+ * evidence of an earlier event: guests cannot reach a maze before the gates
+ * do. Fiesta Texas files six of its fourteen mazes as 06:00-23:00 on every
+ * Friday of the 2026 season, against a 17:00 park open and a 19:15 start for
+ * the other eight, and taking the earliest start published the event from
+ * 06:00. So the inferred open is the earliest maze start at or after
+ * `parkOpen`, or `parkOpen` itself when every maze is filed before it. The
+ * close still spans every maze: only the start is implausible.
  */
 function hauntWindowForDate(
   dateObj: SixFlagsOperatingHours['dates'][0],
+  parkOpen: string,
 ): {open: string; close: string; description: string} | null {
   const hauntOperatings = (dateObj.operatings || []).filter(op =>
     op.operatingTypeId === HAUNT_OPERATING_TYPE_ID || /haunt/i.test(op.operatingTypeName || ''),
@@ -337,8 +347,9 @@ function hauntWindowForDate(
     .filter(h => isWallClockTime(h.operatingTimeFrom) && isWallClockTime(h.operatingTimeTo));
   if (mazeHours.length === 0) return null;
 
+  const plausibleStarts = mazeHours.map(h => h.operatingTimeFrom).filter(from => from >= parkOpen).sort();
   return {
-    open: mazeHours.map(h => h.operatingTimeFrom).sort()[0],
+    open: plausibleStarts[0] ?? parkOpen,
     close: latestClosingTime(mazeHours.map(h => ({from: h.operatingTimeFrom, to: h.operatingTimeTo}))),
     description: 'Haunt',
   };
@@ -1498,7 +1509,7 @@ export class SixFlags extends Destination {
             : constructDateTime(dateStr, latestClose, tz),
         });
 
-        const hauntWindow = hauntWindowForDate(dateObj);
+        const hauntWindow = hauntWindowForDate(dateObj, earliestOpen);
         if (hauntWindow) {
           scheduleEntries.push({
             date: dateStr,
