@@ -194,13 +194,17 @@ const DEFAULT_SHOW_DURATION_MINUTES = 30;
  * The vendor stamps venue-status and wait-times with the park-local minute it
  * was generated, and refreshes both every minute. An API host that stops
  * refreshing keeps answering 200 with its last snapshot, so nothing else in
- * the response reveals it. Observed 2026-09-24: every park in the estate
- * served a snapshot stamped the previous Monday lunchtime for three and a half
- * days, and Cedar Point opened for the evening with all 88 rides reading
- * "Not Scheduled". Thirty minutes is thirty missed refreshes, well clear of
- * one minute of feed cadence plus a minute of CDN caching.
+ * the response reveals it. Observed 2026-09-24: every Six Flags park served a
+ * snapshot stamped the previous Monday lunchtime for three and a half days.
+ *
+ * Two hours rather than a few minutes because the comparison runs through a
+ * timezone derived from GPS, and that can be an hour out: Hurricane Harbor
+ * Oaxtepec stamps in UTC-5 while its coordinates resolve to UTC-6, and a
+ * stamp inside the repeated hour on a DST fall-back night resolves to the
+ * earlier reading. A one-hour error must never withhold a healthy park, and a
+ * genuine freeze lasts far longer than two hours.
  */
-const LIVE_FEED_MAX_AGE_MINUTES = 30;
+export const LIVE_FEED_MAX_AGE_MINUTES = 120;
 
 /**
  * Venue identifiers used throughout the vendor's POI, venue-status,
@@ -276,6 +280,20 @@ export function isFrozenSnapshot(parkDateTime: unknown, tz: string, now: Date = 
   const stamped = parseParkDateTime(parkDateTime, tz);
   if (stamped === null) return false;
   return now.getTime() - stamped > LIVE_FEED_MAX_AGE_MINUTES * 60 * 1000;
+}
+
+/**
+ * True when every queueing row in a venue-status snapshot reads "Not
+ * Scheduled". A stale snapshot of that shape only asserts the park is shut,
+ * which is what a seasonal park's feed looks like once it stops refreshing
+ * for the off-season (Knott's Soak City, observed 2026-09-25, stamped that
+ * morning with all seven rides "Not Scheduled").
+ */
+export function isAllNotScheduled(venues: Array<{venueId: number; details?: Array<{status?: string}>}>): boolean {
+  const rows = venues
+    .filter(v => QUEUEING_VENUE_IDS.includes(v.venueId))
+    .flatMap(v => v.details ?? []);
+  return rows.length > 0 && rows.every(r => (r.status ?? '').toLowerCase() === 'not scheduled');
 }
 
 /**
@@ -577,6 +595,22 @@ export class SixFlags extends Destination {
    */
   getCacheKeyPrefix(): string {
     return 'sixflags';
+  }
+
+  /** Parks already warned about an unparseable stamp, so it logs once, not every poll. */
+  private unparseableStampParks = new Set<number>();
+
+  /**
+   * An unparseable stamp is treated as fresh, which switches the frozen-feed
+   * guard off for that park. Say so once, so a vendor format change is
+   * visible instead of silent.
+   */
+  private warnIfUnparseableStamp(parkId: number, stamp: unknown): void {
+    if (stamp === undefined || stamp === null) return;
+    if (parseParkDateTime(stamp, 'UTC') !== null) return;
+    if (this.unparseableStampParks.has(parkId)) return;
+    this.unparseableStampParks.add(parkId);
+    console.warn(`[SixFlags] park ${parkId} parkDateTime "${String(stamp)}" is not in the expected format; frozen-feed check is off for this park`);
   }
 
   // ============================================================================
@@ -908,6 +942,16 @@ export class SixFlags extends Destination {
    * per park — water parks return 404 on their own POI endpoint.
    */
   private async getTimezoneForPark(parkId: number): Promise<string> {
+    return (await this.resolveTimezoneForPark(parkId)).tz;
+  }
+
+  /**
+   * As getTimezoneForPark, but also says whether the zone came from the
+   * park's coordinates or from the instance fallback. getPOI swallows fetch
+   * errors and caches the empty result, so one failed POI fetch can leave a
+   * Pacific park on the Eastern fallback for a day.
+   */
+  private async resolveTimezoneForPark(parkId: number): Promise<{tz: string; fromCoords: boolean}> {
     // Find which main-park this parkId belongs to (itself, or a sister water park).
     const parks = await this.getParkData();
     const owner = parks.find((p) =>
@@ -928,8 +972,8 @@ export class SixFlags extends Destination {
       coords = parkCentroidFromPOI(standalonePoi, parkId);
     }
 
-    if (coords) return timezoneFromCoords(coords.latitude, coords.longitude);
-    return this.timezone;
+    if (coords) return {tz: timezoneFromCoords(coords.latitude, coords.longitude), fromCoords: true};
+    return {tz: this.timezone, fromCoords: false};
   }
 
   // ============================================================================
@@ -1234,13 +1278,22 @@ export class SixFlags extends Destination {
     const venueStatus = await this.getVenueStatus(parkId);
     if (!venueStatus?.venues) return;
 
-    // A frozen snapshot is not a current observation. Publishing it would
-    // stamp the wiki with Monday's statuses as if they were read just now,
-    // so withhold the park entirely and let staleness monitoring see it.
-    const tz = await this.getTimezoneForPark(parkId);
-    if (isFrozenSnapshot(venueStatus.parkDateTime, tz)) {
-      console.warn(`[SixFlags] park ${parkId} venue-status is frozen at "${venueStatus.parkDateTime}", withholding live data`);
-      return;
+    // A frozen snapshot is not a current observation: emitting it would
+    // present an old reading as if it were taken just now, so the park is
+    // withheld. Two exceptions, both so the guard can never blank a healthy
+    // park:
+    //  - The zone came from the fallback, not the park's coordinates. The
+    //    stamp would be read in the wrong zone, and a Pacific park's fresh
+    //    stamp would look three hours old.
+    //  - Every ride reads "Not Scheduled". A stale snapshot that only says
+    //    the park is shut is how a seasonal park looks off-season.
+    const {tz, fromCoords} = await this.resolveTimezoneForPark(parkId);
+    if (fromCoords) {
+      this.warnIfUnparseableStamp(parkId, venueStatus.parkDateTime);
+      if (isFrozenSnapshot(venueStatus.parkDateTime, tz) && !isAllNotScheduled(venueStatus.venues)) {
+        console.warn(`[SixFlags] park ${parkId} venue-status is frozen at "${venueStatus.parkDateTime}", withholding live data`);
+        return;
+      }
     }
 
     // Build venue status lookup
@@ -1257,7 +1310,7 @@ export class SixFlags extends Destination {
     const fetchedWaitTimes = await this.getWaitTimes(parkId);
     // Venue-status is the authority for status; a frozen wait-times feed
     // alone only loses the waits, so drop it rather than the whole park.
-    const waitTimesData = fetchedWaitTimes && isFrozenSnapshot(fetchedWaitTimes.parkDateTime, tz)
+    const waitTimesData = fetchedWaitTimes && fromCoords && isFrozenSnapshot(fetchedWaitTimes.parkDateTime, tz)
       ? null
       : fetchedWaitTimes;
     const waitTimesMap = new Map<string, {regularWaittime?: {waitTime: number}; isFastLane?: boolean; fastlaneWaittime?: {waitTime: number}}>();
