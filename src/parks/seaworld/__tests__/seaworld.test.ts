@@ -17,6 +17,9 @@ import {
   BuschGardensWilliamsburg,
   SesamePlacePhiladelphia,
   SesamePlaceSanDiego,
+  aslBaseName,
+  mapAslShowsToBase,
+  ASL_SHOWTIME_TYPE,
 } from '../seaworld.js';
 
 // ---------------------------------------------------------------------------
@@ -1450,5 +1453,147 @@ describe('SeaworldDestination.buildSchedules — event hours vs normal hours', (
     expect(day[0].type).toBe('OPERATING');
     // Rolled back one day: 09:00–19:00 same day, not 34h.
     expect(day[0].closingTime).toContain('2026-09-18T19:00:00');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ASL-interpreted performances
+// ---------------------------------------------------------------------------
+//
+// The operator lists an interpreted performance as its own Shows POI with its
+// own ShowTimes row, next to the regular show. Observed 2026-09-26 at Busch
+// Gardens Williamsburg ("ASL - Fiends" beside "Fiends") and Sesame Place San
+// Diego ("Storytime with Friends with ASL Interpretation"). ShowTimes rows carry
+// only {Id, ShowTimes}: the name is only on the POI.
+
+describe('ASL-interpreted performances', () => {
+  describe('aslBaseName', () => {
+    it.each([
+      ['ASL - Fiends', 'Fiends'],
+      ['ASL - Skeletones In Your Closet', 'Skeletones In Your Closet'],
+      ['ASL \u2013 Monster Street Party', 'Monster Street Party'],
+      ['Storytime with Friends with ASL Interpretation', 'Storytime with Friends'],
+      ['Welcome to Our Street with ASL Interpretation!', 'Welcome to Our Street'],
+      ['Orca Encounter - ASL Saturday', 'Orca Encounter'],
+      ['Sea Lions: Flippers, Facts & Fun - ASL Saturday', 'Sea Lions: Flippers, Facts & Fun'],
+    ])('reads %s as an ASL listing of %s', (name, base) => {
+      expect(aslBaseName(name)).toBe(base);
+    });
+
+    it.each(['Fiends', 'Basle Express', 'Flash', 'Tasl', 'ASL', 'ASL - ', ''])('does not treat %j as an ASL listing', (name) => {
+      expect(aslBaseName(name)).toBeNull();
+    });
+  });
+
+  describe('mapAslShowsToBase', () => {
+    it('pairs an ASL listing with its base show and ignores punctuation', () => {
+      expect(mapAslShowsToBase([
+        {Id: 'base', Name: 'Welcome to Our Street!'},
+        {Id: 'asl', Name: 'Welcome to Our Street with ASL Interpretation!'},
+      ])).toEqual({asl: 'base'});
+    });
+
+    it('leaves an ASL listing with no base show unmapped', () => {
+      expect(mapAslShowsToBase([
+        {Id: 'a', Name: 'Fiends'},
+        {Id: 'b', Name: 'ASL - Something Else'},
+      ])).toEqual({});
+    });
+  });
+
+  // One Busch Gardens Williamsburg park with two ASL pairs and one orphan.
+  const BGW_SHOWS = [
+    {Id: 'fiends', Name: 'Fiends', Type: 'Shows'},
+    {Id: 'asl-fiends', Name: 'ASL - Fiends', Type: 'Shows'},
+    {Id: 'msp', Name: 'Monster Street Party', Type: 'Shows'},
+    {Id: 'asl-msp', Name: 'ASL - Monster Street Party', Type: 'Shows'},
+    {Id: 'asl-orphan', Name: 'ASL - A Show Not Listed', Type: 'Shows'},
+  ];
+  const slot = (start: string, end: string) => ({
+    StartDateTime: `${start}-04:00`, EndDateTime: `${end}-04:00`, StartTime: start, EndTime: end,
+  });
+
+  function bgw(showRows: any[], waitRows: any[] = []) {
+    const park = new BuschGardensWilliamsburg();
+    const resortIds: string[] = (park as any).resortIds;
+    const mainId = resortIds[0];
+    (park as any).getParkDetail = async (id: string) => ({
+      Id: id,
+      park_Name: id === mainId ? 'Busch Gardens Williamsburg' : 'Water Country USA',
+      TimeZone: 'America/New_York',
+      POIs: id === mainId ? {Shows: BGW_SHOWS} : {Shows: []},
+      open_hours: [],
+    }) as any;
+    (park as any).getAvailability = async (id: string) =>
+      (id === mainId ? {WaitTimes: waitRows, ShowTimes: showRows} : {WaitTimes: [], ShowTimes: []}) as any;
+    return park;
+  }
+
+  it('does not emit an ASL listing whose base show exists, but keeps an orphan', async () => {
+    const ids = (await (bgw([]) as any).buildEntityList()).map((e: any) => e.id);
+    expect(ids).toEqual(expect.arrayContaining(['fiends', 'msp', 'asl-orphan']));
+    expect(ids).not.toContain('asl-fiends');
+    expect(ids).not.toContain('asl-msp');
+  });
+
+  it('folds interpreted performances into the base show, marked and in time order', async () => {
+    const live = await (bgw([
+      {Id: 'fiends', ShowTimes: [slot('2026-09-26T15:00:00', '2026-09-26T15:25:00'), slot('2026-09-26T19:30:00', '2026-09-26T19:55:00')]},
+      {Id: 'asl-fiends', ShowTimes: [slot('2026-09-26T17:00:00', '2026-09-26T17:25:00')]},
+    ]) as any).buildLiveData();
+
+    expect(live.find((r: any) => r.id === 'asl-fiends')).toBeUndefined();
+    const fiends = live.find((r: any) => r.id === 'fiends');
+    expect(fiends.showtimes.map((t: any) => [t.startTime.slice(11, 16), t.type])).toEqual([
+      ['15:00', 'Performance'],
+      ['17:00', ASL_SHOWTIME_TYPE],
+      ['19:30', 'Performance'],
+    ]);
+  });
+
+  it('gives the base show its interpreted performances even on a day it has no regular ones', async () => {
+    // Row order is the operator's, not ours: the ASL row may come first.
+    const live = await (bgw([
+      {Id: 'asl-msp', ShowTimes: [slot('2026-09-26T13:30:00', '2026-09-26T13:55:00')]},
+      {Id: 'msp', ShowTimes: []},
+    ]) as any).buildLiveData();
+    const msp = live.find((r: any) => r.id === 'msp');
+    expect(msp.showtimes).toHaveLength(1);
+    expect(msp.showtimes[0].type).toBe(ASL_SHOWTIME_TYPE);
+  });
+
+  it('leaves an orphan ASL listing on its own entity with ordinary performances', async () => {
+    const live = await (bgw([
+      {Id: 'asl-orphan', ShowTimes: [slot('2026-09-26T12:00:00', '2026-09-26T12:25:00')]},
+    ]) as any).buildLiveData();
+    expect(live.find((r: any) => r.id === 'asl-orphan').showtimes[0].type).toBe('Performance');
+  });
+
+  it('does not double a schedule when the same row arrives twice', async () => {
+    const row = {Id: 'fiends', ShowTimes: [slot('2026-09-26T15:00:00', '2026-09-26T15:25:00')]};
+    const asl = {Id: 'asl-fiends', ShowTimes: [slot('2026-09-26T17:00:00', '2026-09-26T17:25:00')]};
+    const live = await (bgw([row, asl, row, asl]) as any).buildLiveData();
+    expect(live.find((r: any) => r.id === 'fiends').showtimes).toHaveLength(2);
+  });
+
+  it('never creates a live row for a folded ASL listing from WaitTimes', async () => {
+    const live = await (bgw([], [
+      {Id: 'asl-fiends', Minutes: 0, Status: 'Closed For The Day', StatusDisplay: null, Title: 'ASL - Fiends', LastUpDateTime: '2026-09-26T08:00:00'},
+    ]) as any).buildLiveData();
+    expect(live.find((r: any) => r.id === 'asl-fiends')).toBeUndefined();
+  });
+
+  it('without park detail, ASL rows fall back to their own ids rather than being lost', async () => {
+    // ShowTimes rows carry no name, so nothing can be folded. The rows keep
+    // their own ids; those are not in the entity list, so consumers that match
+    // live data to entities ignore them. The base show is unaffected.
+    const park = bgw([
+      {Id: 'fiends', ShowTimes: [slot('2026-09-26T15:00:00', '2026-09-26T15:25:00')]},
+      {Id: 'asl-fiends', ShowTimes: [slot('2026-09-26T17:00:00', '2026-09-26T17:25:00')]},
+    ]);
+    (park as any).getParkDetail = async () => { throw new Error('park detail unavailable'); };
+    const live = await (park as any).buildLiveData();
+    expect(live.find((r: any) => r.id === 'fiends').showtimes).toHaveLength(1);
+    expect(live.find((r: any) => r.id === 'asl-fiends').showtimes[0].type).toBe('Performance');
   });
 });

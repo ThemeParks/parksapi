@@ -58,6 +58,66 @@ const SEAWORLD_STAMP_TIMEZONE = 'America/New_York';
  */
 const SEAWORLD_FRESH_READING_MINUTES = 90;
 
+/**
+ * ASL-interpreted performances.
+ *
+ * The operator publishes an interpreted performance as its own `Shows` POI,
+ * with its own id and its own ShowTimes row, next to the regular show:
+ * "ASL - Fiends" beside "Fiends" (Busch Gardens Williamsburg), "Storytime with
+ * Friends with ASL Interpretation" beside "Storytime with Friends" (Sesame
+ * Place San Diego). Older SeaWorld Orlando listings used a suffix instead:
+ * "Orca Encounter - ASL Saturday".
+ *
+ * Emitted as-is, each becomes a second entity for the same show, with none of
+ * the base show's history and no link to it. Instead the interpreted
+ * performances are folded into the base show as showtimes of type
+ * ASL_SHOWTIME_TYPE, so one entity carries the whole schedule and a guest can
+ * still see which performances are interpreted.
+ *
+ * Only when the base show exists in the same park: an ASL listing with no
+ * matching show stays an entity of its own, so nothing is ever dropped.
+ */
+export const ASL_SHOWTIME_TYPE = 'Performance - ASL';
+
+const ASL_NAME_PATTERNS: RegExp[] = [
+  /^\s*ASL\s*[-\u2013\u2014:]\s*(.+?)\s*$/i,          // "ASL - Fiends"
+  /^(.+?)\s+with\s+ASL\s+Interpretation!?\s*$/i,        // "... with ASL Interpretation!"
+  /^(.+?)\s*[-\u2013\u2014]\s*ASL\b.*$/i,              // "Orca Encounter - ASL Saturday"
+];
+
+/** The base show name an ASL listing refers to, or null if the name is not an ASL listing. */
+export function aslBaseName(name: string): string | null {
+  for (const re of ASL_NAME_PATTERNS) {
+    const m = re.exec(name ?? '');
+    if (m && m[1].trim()) return m[1].trim();
+  }
+  return null;
+}
+
+/** Case- and punctuation-insensitive key, so "Welcome to Our Street!" matches "Welcome to Our Street". */
+function showNameKey(name: string): string {
+  return String(name ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+/**
+ * For one park's show POIs: ASL listing id -> base show id, for every ASL
+ * listing whose base show is in the same list. JSON-safe (plain object).
+ */
+export function mapAslShowsToBase(shows: Array<{Id: string; Name: string}>): Record<string, string> {
+  const byKey = new Map<string, string>();
+  for (const s of shows) {
+    if (aslBaseName(s.Name) === null) byKey.set(showNameKey(s.Name), s.Id);
+  }
+  const out: Record<string, string> = {};
+  for (const s of shows) {
+    const base = aslBaseName(s.Name);
+    if (base === null) continue;
+    const baseId = byKey.get(showNameKey(base));
+    if (baseId && baseId !== s.Id) out[s.Id] = baseId;
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // API response types
 // ---------------------------------------------------------------------------
@@ -461,7 +521,11 @@ export class SeaworldDestination extends Destination {
 
       // --- SHOWs ---
       const shows = this.getAllPoisOfTypes(parkDetail, ['Shows']);
+      // Interpreted performances are folded into their base show's showtimes in
+      // buildLiveData, so they are not entities of their own. See aslBaseName().
+      const aslToBase = mapAslShowsToBase(shows);
       for (const poi of shows) {
+        if (aslToBase[poi.Id]) continue;
         const entity: Entity = {
           id: poi.Id,
           name: poi.Name,
@@ -520,6 +584,12 @@ export class SeaworldDestination extends Destination {
     // overwrite a real closure with a schedule.
     const closedByStatus = new Set<string>();
 
+    // Showtimes per target entity, keyed by the ShowTimes row they came from.
+    // A base show and its ASL listing are two rows landing on one entity; a row
+    // seen again (the same id in two parks' payloads) replaces itself rather
+    // than doubling the schedule.
+    const showtimesBySource = new Map<string, Map<string, NonNullable<LiveData['showtimes']>>>();
+
     const getOrCreate = (id: string): LiveData => {
       let entry = liveDataMap.get(id);
       if (!entry) {
@@ -543,6 +613,13 @@ export class SeaworldDestination extends Destination {
       // comment on their loops.
       let availability: SeaworldAvailabilityResponse;
       let parkIsOpen: boolean | null = null;
+      // ASL listing id -> base show id. Empty only if park detail is unavailable
+      // (it is cached 12h, so that means no successful fetch at all). ASL rows
+      // then come out under their own ids, which are not in the entity list, so
+      // a consumer that matches live rows to entities ignores them. The ShowTimes
+      // rows carry only an Id, no name, so they cannot be recognised without
+      // the park detail.
+      let aslToBase: Record<string, string> = {};
       try {
         availability = await this.getAvailability(parkId, searchDate);
         // Operating hours decide how to read the "no reading" state below.
@@ -550,7 +627,9 @@ export class SeaworldDestination extends Destination {
         // the live data we already have: fall back to parkIsOpen = null, which
         // takes the conservative branch.
         try {
-          parkIsOpen = this.isParkOpenNow(await this.getParkDetail(parkId));
+          const parkDetail = await this.getParkDetail(parkId);
+          parkIsOpen = this.isParkOpenNow(parkDetail);
+          aslToBase = mapAslShowsToBase(this.getAllPoisOfTypes(parkDetail, ['Shows']));
         } catch (err: any) {
           console.warn(
             `[${this.constructor.name}] operating hours unavailable for park ${parkId}, ` +
@@ -652,6 +731,9 @@ export class SeaworldDestination extends Destination {
       // To Weather"), and the newest was the most frequent — the set is open.
       for (const wt of waitRows) {
         if (!wt?.Id) continue;
+        // An ASL listing is not an entity (it is folded into its base show), so
+        // a row for it must not create one here.
+        if (aslToBase[wt.Id]) continue;
         const entry = getOrCreate(wt.Id);
 
         // Either field carries the closure text; StatusDisplay is null when
@@ -732,17 +814,19 @@ export class SeaworldDestination extends Destination {
       const showRows = Array.isArray(availability?.ShowTimes) ? availability.ShowTimes : [];
       for (const st of showRows) {
         if (!st?.Id) continue;
-        const entry = getOrCreate(st.Id);
+        const baseId = aslToBase[st.Id];
+        const targetId = baseId ?? st.Id;
+        const entry = getOrCreate(targetId);
 
         if (st.ShowTimes && st.ShowTimes.length > 0) {
           // An explicit closure outranks a schedule. No id currently appears in
           // both arrays (checked across five parks), but if one ever does, the
           // operator saying "Closed For The Day" must not be overwritten by the
           // fact that performances were listed this morning.
-          if (!closedByStatus.has(st.Id)) {
+          if (!closedByStatus.has(targetId)) {
             entry.status = parkOperating ? 'OPERATING' : 'CLOSED';
           }
-          entry.showtimes = st.ShowTimes.map((time) => {
+          const times = st.ShowTimes.map((time) => {
             // StartTime/EndTime are local datetime strings without a timezone
             // suffix (e.g. "2026-04-01T12:00:00").  Use constructDateTime to
             // attach the correct offset for this destination's timezone.
@@ -751,9 +835,18 @@ export class SeaworldDestination extends Destination {
             return {
               startTime: startLocal,
               endTime: endLocal,
-              type: 'Performance',
+              type: baseId ? ASL_SHOWTIME_TYPE : 'Performance',
             };
           });
+          let sources = showtimesBySource.get(targetId);
+          if (!sources) {
+            sources = new Map();
+            showtimesBySource.set(targetId, sources);
+          }
+          sources.set(st.Id, times);
+          // Same park, same offset, so the ISO strings sort chronologically.
+          entry.showtimes = [...sources.values()].flat()
+            .sort((a, b) => String(a.startTime).localeCompare(String(b.startTime)));
         }
       }
     }
