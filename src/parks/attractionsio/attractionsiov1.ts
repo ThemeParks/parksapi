@@ -1178,12 +1178,28 @@ class AttractionsIOV1 extends Destination {
       buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'RESTAURANT')
     );
 
+    // Scheduled performances under a category none of the lists name. Seasonal
+    // content lives in categories no fixed list can anticipate (Chessington's
+    // top-level "Howl’o’ween " / "Summer ", Legoland Korea's "Season Content",
+    // Legoland California's "Brick or Treat" > "SHOWS"), but the item's own
+    // ShowTimes schedule marks it as a performance. There is no equivalent
+    // signal for rides: a height requirement also sits on Thorpe Park's
+    // per-ride "Ride Access Pass" duplicates, so unlisted items without a
+    // schedule stay unclassified.
+    const classified = new Set(
+      [...attractionItems, ...showItems, ...restaurantItems].map(item => item._id),
+    );
+    const scheduledShowEntities = data.Item
+      .filter(item => !classified.has(item._id) && parseShowTimes(item.ShowTimes) !== null)
+      .map(item => buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'SHOW'));
+
     return [
       ...await this.getDestinations(),
       parkEntity,
       ...attractionEntities,
       ...showEntities,
       ...restaurantEntities,
+      ...scheduledShowEntities,
     ];
   }
 
