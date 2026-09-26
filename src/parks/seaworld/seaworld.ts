@@ -584,6 +584,13 @@ export class SeaworldDestination extends Destination {
     // overwrite a real closure with a schedule.
     const closedByStatus = new Set<string>();
 
+    // ASL listings the operator closed this cycle. Kept apart from
+    // closedByStatus because the closure belongs to the interpreted
+    // performances only: the base show itself may still be running, so its
+    // status must not follow. The show loop drops these listings' slots instead
+    // of folding cancelled performances into the base show.
+    const closedAslListings = new Set<string>();
+
     // Showtimes per target entity, keyed by the ShowTimes row they came from.
     // A base show and its ASL listing are two rows landing on one entity; a row
     // seen again (the same id in two parks' payloads) replaces itself rather
@@ -731,11 +738,6 @@ export class SeaworldDestination extends Destination {
       // To Weather"), and the newest was the most frequent — the set is open.
       for (const wt of waitRows) {
         if (!wt?.Id) continue;
-        // An ASL listing is not an entity (it is folded into its base show), so
-        // a row for it must not create one here.
-        if (aslToBase[wt.Id]) continue;
-        const entry = getOrCreate(wt.Id);
-
         // Either field carries the closure text; StatusDisplay is null when
         // absent. Coerce with String() before trimming: a non-string here would
         // throw, and this loop sits outside the per-park try above, so one
@@ -746,6 +748,16 @@ export class SeaworldDestination extends Destination {
         // Status is truthy, so it would win the || and then trim to empty,
         // discarding a real closure sitting in StatusDisplay.
         const closureText = String(wt.Status ?? '').trim() || String(wt.StatusDisplay ?? '').trim();
+
+        // An ASL listing is not an entity (it is folded into its base show), so
+        // a row for it must not create one here. Its closure still matters: it
+        // cancels the interpreted performances, which the show loop would
+        // otherwise fold into the base show as if they were going ahead.
+        if (aslToBase[wt.Id]) {
+          if (closureText) closedAslListings.add(wt.Id);
+          continue;
+        }
+        const entry = getOrCreate(wt.Id);
 
         // Only trust an actual number. Number() maps null, '', '  ' and [] to 0,
         // which is finite and >= 0, so coercing here would invent a walk-on out
@@ -815,6 +827,10 @@ export class SeaworldDestination extends Destination {
       for (const st of showRows) {
         if (!st?.Id) continue;
         const baseId = aslToBase[st.Id];
+        // A closed ASL listing's slots are cancelled. Skip the row before
+        // getOrCreate so it neither adds slots to the base show nor creates a
+        // base row on a day the base show has no row of its own.
+        if (baseId && closedAslListings.has(st.Id)) continue;
         const targetId = baseId ?? st.Id;
         const entry = getOrCreate(targetId);
 
