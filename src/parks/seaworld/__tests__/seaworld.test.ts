@@ -1513,7 +1513,7 @@ describe('ASL-interpreted performances', () => {
     StartDateTime: `${start}-04:00`, EndDateTime: `${end}-04:00`, StartTime: start, EndTime: end,
   });
 
-  function bgw(showRows: any[], waitRows: any[] = []) {
+  function bgw(showRows: any[], waitRows: any[] = [], hours: any[] = []) {
     const park = new BuschGardensWilliamsburg();
     const resortIds: string[] = (park as any).resortIds;
     const mainId = resortIds[0];
@@ -1522,7 +1522,7 @@ describe('ASL-interpreted performances', () => {
       park_Name: id === mainId ? 'Busch Gardens Williamsburg' : 'Water Country USA',
       TimeZone: 'America/New_York',
       POIs: id === mainId ? {Shows: BGW_SHOWS} : {Shows: []},
-      open_hours: [],
+      open_hours: id === mainId ? hours : [],
     }) as any;
     (park as any).getAvailability = async (id: string) =>
       (id === mainId ? {WaitTimes: waitRows, ShowTimes: showRows} : {WaitTimes: [], ShowTimes: []}) as any;
@@ -1581,6 +1581,57 @@ describe('ASL-interpreted performances', () => {
       {Id: 'asl-fiends', Minutes: 0, Status: 'Closed For The Day', StatusDisplay: null, Title: 'ASL - Fiends', LastUpDateTime: '2026-09-26T08:00:00'},
     ]) as any).buildLiveData();
     expect(live.find((r: any) => r.id === 'asl-fiends')).toBeUndefined();
+  });
+
+  describe('closures, with the park open', () => {
+    // Every test above runs with no operating hours, so the park never reads as
+    // open and every show is CLOSED regardless of the closure logic. These pin
+    // the clock inside HOURS_TODAY so a closure is the only thing that can
+    // make a show CLOSED.
+    beforeEach(() => pinClock(CLOCK_PARK_OPEN));
+    afterEach(() => vi.useRealTimers());
+
+    const closedRow = (id: string, title: string) => ({
+      Id: id, Minutes: 0, Status: 'Closed For The Day', StatusDisplay: null, Title: title,
+      LastUpDateTime: '2026-08-15T08:00:00',
+    });
+
+    it('keeps a closed base show CLOSED when its ASL listing still lists slots', async () => {
+      const live = await (bgw(
+        [{Id: 'asl-fiends', ShowTimes: [slot('2026-08-15T17:00:00', '2026-08-15T17:25:00')]}],
+        [closedRow('fiends', 'Fiends')],
+        HOURS_TODAY,
+      ) as any).buildLiveData();
+      expect(live.find((r: any) => r.id === 'fiends').status).toBe('CLOSED');
+    });
+
+    it('drops the slots of a closed ASL listing without closing the base show', async () => {
+      const live = await (bgw(
+        [
+          {Id: 'fiends', ShowTimes: [slot('2026-08-15T15:00:00', '2026-08-15T15:25:00')]},
+          {Id: 'asl-fiends', ShowTimes: [slot('2026-08-15T17:00:00', '2026-08-15T17:25:00')]},
+        ],
+        [closedRow('asl-fiends', 'ASL - Fiends')],
+        HOURS_TODAY,
+      ) as any).buildLiveData();
+
+      expect(live.find((r: any) => r.id === 'asl-fiends')).toBeUndefined();
+      const fiends = live.find((r: any) => r.id === 'fiends');
+      expect(fiends.status).toBe('OPERATING');
+      expect(fiends.showtimes.map((t: any) => [t.startTime.slice(11, 16), t.type])).toEqual([
+        ['15:00', 'Performance'],
+      ]);
+    });
+
+    it('does not publish a base show from a closed ASL listing alone', async () => {
+      const live = await (bgw(
+        [{Id: 'asl-msp', ShowTimes: [slot('2026-08-15T13:30:00', '2026-08-15T13:55:00')]}],
+        [closedRow('asl-msp', 'ASL - Monster Street Party')],
+        HOURS_TODAY,
+      ) as any).buildLiveData();
+      expect(live.find((r: any) => r.id === 'msp')).toBeUndefined();
+      expect(live.find((r: any) => r.id === 'asl-msp')).toBeUndefined();
+    });
   });
 
   it('without park detail, ASL rows fall back to their own ids rather than being lost', async () => {
