@@ -232,25 +232,28 @@ const QUEUEING_VENUE_IDS: readonly number[] = [RIDE_VENUE_ID, MAZE_VENUE_ID];
  * a stage show at Canada's Wonderland), so the list is explicit. Add a row
  * here when a park files another walk-through in its show venue.
  *
- * `OTHER` is used rather than `RIDE`: these rows post no wait time and are
- * neither rides nor transport. There is no walk-through value in the enum.
+ * typelib has no walk-through value. Walk-throughs (mazes, trails) take
+ * `RIDE`, the type every other walk-through in parksapi carries, including
+ * the venue-3 haunt mazes in this module. Rows that are not walk-throughs
+ * (a pumpkin patch, a foam pit) take `OTHER`. The type is always set, since
+ * an ATTRACTION without one falls back to `RIDE` in the base class.
  */
 const SHOW_VENUE_ATTRACTIONS: ReadonlyMap<string, AttractionType> = new Map<string, AttractionType>([
   // Six Flags Over Texas
-  ['SHOW-901-00051', 'OTHER'], // Hay Bale Maze
-  ['SHOW-901-00056', 'OTHER'], // Tricks & Treats Trail
+  ['SHOW-901-00051', 'RIDE'], // Hay Bale Maze
+  ['SHOW-901-00056', 'RIDE'], // Tricks & Treats Trail
   // Six Flags Over Georgia
   ['SHOW-902-00047', 'OTHER'], // Farmer Jordan's Pumpkin Patch
-  ['SHOW-902-00048', 'OTHER'], // Inflatable Corn Maze
-  ['SHOW-902-00050', 'OTHER'], // Trick-or-Treat Trail
+  ['SHOW-902-00048', 'RIDE'], // Inflatable Corn Maze
+  ['SHOW-902-00050', 'RIDE'], // Trick-or-Treat Trail
   // Six Flags Magic Mountain
   ['SHOW-906-00030', 'OTHER'], // Phantom Foam Pit
-  ['SHOW-906-00033', 'OTHER'], // The Spellbound Harvest Trail
-  ['SHOW-906-00034', 'OTHER'], // Trick or Treat Trail
+  ['SHOW-906-00033', 'RIDE'], // The Spellbound Harvest Trail
+  ['SHOW-906-00034', 'RIDE'], // Trick or Treat Trail
   // Six Flags Great America
-  ['SHOW-910-00040', 'OTHER'], // Pumpkin Hollow's Corn Maize
+  ['SHOW-910-00040', 'RIDE'], // Pumpkin Hollow's Corn Maize
   // Six Flags Discovery Kingdom
-  ['SHOW-936-00024', 'OTHER'], // Hay Maze
+  ['SHOW-936-00024', 'RIDE'], // Hay Maze
 ]);
 
 /**

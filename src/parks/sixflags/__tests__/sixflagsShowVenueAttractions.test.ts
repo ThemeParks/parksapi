@@ -57,6 +57,13 @@ const WALK_THROUGHS: Row[] = [
 ];
 
 /**
+ * The two rows that are play areas rather than walk-throughs. They take
+ * attractionType OTHER; the eight mazes and trails take RIDE, like every
+ * other walk-through in parksapi.
+ */
+const NOT_WALK_THROUGHS = new Set(['SHOW-902-00047', 'SHOW-906-00030']);
+
+/**
  * Real performances in the same venues, with the same "Interactive"
  * showType, including ones whose names share words with the walk-throughs.
  */
@@ -105,14 +112,14 @@ async function entityMap(): Promise<Map<string, Entity>> {
 }
 
 describe('show-venue walk-throughs', () => {
-  test.each(WALK_THROUGHS.map(r => [r.fimsId, r.name.trim()]))(
-    '%s (%s) publishes as an ATTRACTION with attractionType OTHER',
-    async (id) => {
+  test.each(WALK_THROUGHS.map(r => [r.fimsId, r.name.trim(), NOT_WALK_THROUGHS.has(r.fimsId) ? 'OTHER' : 'RIDE']))(
+    '%s (%s) publishes as an ATTRACTION with attractionType %s',
+    async (id, _name, attractionType) => {
       const entity = (await entityMap()).get(id);
 
       expect(entity).toBeDefined();
       expect(entity!.entityType).toBe('ATTRACTION');
-      expect((entity as any).attractionType).toBe('OTHER');
+      expect((entity as any).attractionType).toBe(attractionType);
     },
   );
 
