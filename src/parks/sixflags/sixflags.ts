@@ -19,7 +19,7 @@ import {http, type HTTPObj} from '../../http.js';
 import {cache} from '../../cache.js';
 import {reusable} from '../../promiseReuse.js';
 import {destinationController} from '../../destinationRegistry.js';
-import type {Entity, LiveData, EntitySchedule, ScheduleEntry} from '@themeparks/typelib';
+import type {Entity, LiveData, EntitySchedule, ScheduleEntry, AttractionType} from '@themeparks/typelib';
 import {formatInTimezone, addMinutes, constructDateTime, shiftDateString} from '../../datetime.js';
 import {decodeHtmlEntities, stripHtmlTags} from '../../htmlUtils.js';
 import tzLookup from 'tz-lookup';
@@ -209,6 +209,49 @@ const RESTAURANT_VENUE_ID = 4;
  * of venue-status and wait-times and map their status the same way.
  */
 const QUEUEING_VENUE_IDS: readonly number[] = [RIDE_VENUE_ID, MAZE_VENUE_ID];
+
+/**
+ * Venue-2 rows that are walk-throughs or play areas, not performances.
+ *
+ * The vendor files seasonal hay mazes, trick-or-treat trails, pumpkin
+ * patches and a foam pit in the show venue, so they would otherwise publish
+ * as SHOW entities. They have no performances, so they are published as
+ * ATTRACTION instead. The id is unchanged, so the entity keeps its identity
+ * downstream and only its type moves.
+ *
+ * Keyed by fimsId, grouped by park, because the POI feed carries no field
+ * that separates these rows from real shows:
+ *  - `showType` is "Interactive" on all of them, and equally on character
+ *    meet-and-greets, costume contests, dance parties, magic acts and
+ *    animal talks.
+ *  - `poiSubcategory` is "daytime.activity" on only two of the ten (Hay Bale
+ *    Maze, The Spellbound Harvest Trail). Great America's Corn Maize reads
+ *    "daytime.show", most of the rest carry no subcategory at all, and one
+ *    (Magic Mountain's Trick or Treat Trail) has no showType either.
+ * A name pattern would also catch real shows ("Trick or Treat Adventure" is
+ * a stage show at Canada's Wonderland), so the list is explicit. Add a row
+ * here when a park files another walk-through in its show venue.
+ *
+ * `OTHER` is used rather than `RIDE`: these rows post no wait time and are
+ * neither rides nor transport. There is no walk-through value in the enum.
+ */
+const SHOW_VENUE_ATTRACTIONS: ReadonlyMap<string, AttractionType> = new Map<string, AttractionType>([
+  // Six Flags Over Texas
+  ['SHOW-901-00051', 'OTHER'], // Hay Bale Maze
+  ['SHOW-901-00056', 'OTHER'], // Tricks & Treats Trail
+  // Six Flags Over Georgia
+  ['SHOW-902-00047', 'OTHER'], // Farmer Jordan's Pumpkin Patch
+  ['SHOW-902-00048', 'OTHER'], // Inflatable Corn Maze
+  ['SHOW-902-00050', 'OTHER'], // Trick-or-Treat Trail
+  // Six Flags Magic Mountain
+  ['SHOW-906-00030', 'OTHER'], // Phantom Foam Pit
+  ['SHOW-906-00033', 'OTHER'], // The Spellbound Harvest Trail
+  ['SHOW-906-00034', 'OTHER'], // Trick or Treat Trail
+  // Six Flags Great America
+  ['SHOW-910-00040', 'OTHER'], // Pumpkin Hollow's Corn Maize
+  // Six Flags Discovery Kingdom
+  ['SHOW-936-00024', 'OTHER'], // Hay Maze
+]);
 
 /**
  * `operatings[].operatingTypeId` for the seasonal haunt event. The vendor
@@ -1087,6 +1130,14 @@ export class SixFlags extends Destination {
       transform: (entity, poi) => {
         if (entityType === 'ATTRACTION') {
           (entity as any).attractionType = 'RIDE';
+        }
+        // A walk-through filed in the show venue is an attraction, not a show.
+        const showVenueAttraction = entityType === 'SHOW'
+          ? SHOW_VENUE_ATTRACTIONS.get(String(poi.fimsId))
+          : undefined;
+        if (showVenueAttraction) {
+          entity.entityType = 'ATTRACTION';
+          (entity as any).attractionType = showVenueAttraction;
         }
         // Fall back to the park's centroid when the POI didn't carry
         // coordinates. Shows and outdoor restaurants are the main offenders;
