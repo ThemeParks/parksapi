@@ -296,10 +296,39 @@ export function normalizeRideName(name: string): string {
  * Normalize a live-feed feature name. Same as {@link normalizeRideName} but
  * first strips the uppercase park-code prefix ("WOF - ", "OOF - ", "SSA - ")
  * that the feed carries and the scraped ride names don't. The prefix strip is
- * uppercase-only so it can't eat a leading word from a scraped name.
+ * uppercase-only so it can't eat a leading word from a scraped name. Some
+ * sites add a zone code after it; see {@link normalizeFeatureNameWithoutZone}.
  */
 export function normalizeFeatureName(name: string): string {
-  return normalizeRideName(name.replace(/^[A-Z]{2,5}\s*-\s*/, ''));
+  return normalizeRideName(stripParkCode(name));
+}
+
+/** The uppercase park-code prefix ("WOF - ", "SL - "), case-sensitive. */
+function stripParkCode(name: string): string {
+  return name.replace(/^[A-Z]{2,5}\s*-\s*/, '');
+}
+
+/**
+ * A zone code after the park code, separated by a space, not a dash:
+ * "SL - A4 Colossus", "SL - BBS Taz Twisters", "SL - HH Tornado". One to
+ * three uppercase letters plus an optional digit. Pure numbers ("1904", a
+ * restaurant) and tokens with punctuation ("F&B", "MR.") never match.
+ */
+const ZONE_CODE = /^[A-Z]{1,3}\d?\s+(?=\S)/;
+
+/**
+ * Normalized feature name with a leading zone code removed, or `undefined`
+ * when there is no zone-code-shaped token to remove.
+ *
+ * This is only a second-choice key (see {@link matchFeaturesToLiveData}): a
+ * real ride name can start with a short capitalised word ("THE JOKER…"), so
+ * the zone-less form is used only when the full name matches nothing.
+ */
+export function normalizeFeatureNameWithoutZone(name: string): string | undefined {
+  const rest = stripParkCode(name);
+  if (!ZONE_CODE.test(rest)) return undefined;
+  const key = normalizeRideName(rest.replace(ZONE_CODE, ''));
+  return key || undefined;
 }
 
 /**
@@ -316,19 +345,37 @@ export function matchFeaturesToLiveData(
 ): LiveData[] {
   if (!siteIds.length) return [];
   const siteSet = new Set(siteIds);
+  const rideKeys = new Set(rides.map(r => normalizeRideName(r.name)));
   const statusByName = new Map<string, string>();
+  // Keyed with the zone code removed; consulted only when the full name
+  // matches nothing, so a ride whose own name starts with a short capitalised
+  // word still joins on its full name first. A feature whose full name
+  // already names a ride is spoken for and offers no zone-less key.
+  const statusByZonelessName = new Map<string, string>();
+  // Two features in different zones can reduce to the same zone-less key. If
+  // they disagree on status, feed order would decide which one a ride gets,
+  // so an ambiguous key is dropped instead: better no reading than a guess.
+  const ambiguousZoneless = new Set<string>();
   for (const f of features) {
     if (!siteSet.has(f.siteId)) continue;
+    const status = mapFeatureStatus(f.operationalStatus);
     const key = normalizeFeatureName(f.name);
-    if (!key) continue;
-    statusByName.set(key, mapFeatureStatus(f.operationalStatus));
+    if (key) statusByName.set(key, status);
+    if (key && rideKeys.has(key)) continue;
+    const zoneless = normalizeFeatureNameWithoutZone(f.name);
+    if (!zoneless) continue;
+    const seen = statusByZonelessName.get(zoneless);
+    if (seen !== undefined && seen !== status) ambiguousZoneless.add(zoneless);
+    statusByZonelessName.set(zoneless, status);
   }
+  for (const k of ambiguousZoneless) statusByZonelessName.delete(k);
 
   const out: LiveData[] = [];
   const emitted = new Set<string>();
   for (const r of rides) {
     if (emitted.has(r.id)) continue;
-    const status = statusByName.get(normalizeRideName(r.name));
+    const key = normalizeRideName(r.name);
+    const status = statusByName.get(key) ?? statusByZonelessName.get(key);
     if (!status) continue;
     emitted.add(r.id);
     out.push({id: r.id, status} as LiveData);

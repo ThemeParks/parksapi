@@ -7,6 +7,7 @@ import {
   mapFeatureStatus,
   normalizeRideName,
   normalizeFeatureName,
+  normalizeFeatureNameWithoutZone,
   matchFeaturesToLiveData,
   type LiveFeature,
   type WpPage,
@@ -607,6 +608,135 @@ describe('scrapeTtl', () => {
    */
   it('still caches an empty result, rather than refetching every call', () => {
     expect(scrapeTtl(DAY)([])).toBeGreaterThan(0);
+  });
+});
+
+describe('zone codes after the park code', () => {
+  // Some sites put a zone code between the park code and the ride name,
+  // space-separated: "SL - A4 Colossus". Names below are real feed names.
+  test('removes a letter+digit or short-letter zone code', () => {
+    expect(normalizeFeatureNameWithoutZone('SL - A4 Colossus')).toBe('colossus');
+    expect(normalizeFeatureNameWithoutZone('SL - BBS Taz Twisters')).toBe('taz twisters');
+    expect(normalizeFeatureNameWithoutZone('SL - BBN Tweety Twee House')).toBe('tweety twee house');
+    expect(normalizeFeatureNameWithoutZone('SL - HH Big Kahuna')).toBe('big kahuna');
+    expect(normalizeFeatureNameWithoutZone("SL - A2 Screamin' Eagle")).toBe('screamin eagle');
+    expect(normalizeFeatureNameWithoutZone('SL - A3 SHAZAM!')).toBe('shazam');
+  });
+
+  test('offers no zone-less form when there is no zone-code-shaped token', () => {
+    // Real feed names that must not lose their first word.
+    expect(normalizeFeatureNameWithoutZone('SL - F&B')).toBeUndefined();
+    expect(normalizeFeatureNameWithoutZone('SL - 1904 ')).toBeUndefined();
+    expect(normalizeFeatureNameWithoutZone('SL - 15% Discount')).toBeUndefined();
+    expect(normalizeFeatureNameWithoutZone('VF - PEANUTS Road Rally')).toBeUndefined();
+    expect(normalizeFeatureNameWithoutZone('MA - PEANUTS Trailblazers')).toBeUndefined();
+    expect(normalizeFeatureNameWithoutZone('GL - MASSIV Monster Blaster')).toBeUndefined();
+    expect(normalizeFeatureNameWithoutZone('WOF - Mamba')).toBeUndefined();
+    expect(normalizeFeatureNameWithoutZone('SL - Guest Services')).toBeUndefined();
+  });
+
+  test('a bare code is not a name', () => {
+    expect(normalizeFeatureNameWithoutZone('SL - HH')).toBeUndefined();
+  });
+
+  test('the full-name key is unchanged', () => {
+    expect(normalizeFeatureName('SL - A4 Colossus')).toBe('a4 colossus');
+  });
+
+  const SL = 'site-uuid-sl';
+  test('rides behind a zone code get live data', () => {
+    const out = matchFeaturesToLiveData(
+      [
+        {name: 'SL - A4 Colossus', siteId: SL, operationalStatus: 'Open'},
+        {name: 'SL - HH Big Kahuna', siteId: SL, operationalStatus: 'Closed'},
+        {name: 'SL - BBS Taz Twisters', siteId: SL, operationalStatus: 'Temporarily Closed'},
+        {name: 'SL - Guest Services', siteId: SL, operationalStatus: 'Open'},
+      ],
+      [SL],
+      [
+        {id: 'enchantedparks_attraction_MAP_colossus', name: 'Colossus'},
+        {id: 'enchantedparks_attraction_HH_big-kahuna', name: 'Big Kahuna'},
+        {id: 'enchantedparks_attraction_MAP_taz-twisters', name: 'Taz Twisters'},
+      ],
+    );
+    expect(Object.fromEntries(out.map(l => [l.id, l.status]))).toEqual({
+      'enchantedparks_attraction_MAP_colossus': 'OPERATING',
+      'enchantedparks_attraction_HH_big-kahuna': 'CLOSED',
+      'enchantedparks_attraction_MAP_taz-twisters': 'DOWN',
+    });
+  });
+
+  test('a full-name match wins over a zone-less one', () => {
+    // A ride whose real name starts with a short capitalised word must join
+    // on its full name, even when another feature's zone-less form collides.
+    // Both feature orders, so the answer cannot depend on which is last.
+    const feats: LiveFeature[] = [
+      {name: 'XX - THE Joker', siteId: SL, operationalStatus: 'Open'},
+      {name: 'XX - A1 Joker', siteId: SL, operationalStatus: 'Closed'},
+    ];
+    const reversed = matchFeaturesToLiveData([...feats].reverse(), [SL], [
+      {id: 'the-joker', name: 'THE Joker'},
+      {id: 'joker', name: 'Joker'},
+    ]);
+    expect(Object.fromEntries(reversed.map(l => [l.id, l.status]))).toEqual({
+      'the-joker': 'OPERATING',
+      'joker': 'CLOSED',
+    });
+    const out = matchFeaturesToLiveData(
+      feats,
+      [SL],
+      [
+        {id: 'the-joker', name: 'THE Joker'},
+        {id: 'joker', name: 'Joker'},
+      ],
+    );
+    expect(Object.fromEntries(out.map(l => [l.id, l.status]))).toEqual({
+      'the-joker': 'OPERATING',
+      'joker': 'CLOSED',
+    });
+  });
+
+  test('a full-name match wins over a zone-less one for the same ride', () => {
+    // Both keys reach "Colossus"; the full name must decide, in either feed order.
+    const S = 'site-uuid-sl';
+    const feats = [
+      {name: 'SL - Colossus', siteId: S, operationalStatus: 'Open'},
+      {name: 'SL - A4 Colossus', siteId: S, operationalStatus: 'Closed'},
+    ];
+    for (const order of [feats, [...feats].reverse()]) {
+      const out = matchFeaturesToLiveData(order, [S], [{id: 'colossus', name: 'Colossus'}]);
+      expect(out).toEqual([{id: 'colossus', status: 'OPERATING'}]);
+    }
+  });
+
+  test('zones that disagree on one name give no reading rather than an order-dependent one', () => {
+    const S = 'site-uuid-sl';
+    const feats = [
+      {name: 'SL - A4 Tornado', siteId: S, operationalStatus: 'Open'},
+      {name: 'SL - HH Tornado', siteId: S, operationalStatus: 'Closed'},
+    ];
+    for (const order of [feats, [...feats].reverse()]) {
+      expect(matchFeaturesToLiveData(order, [S], [{id: 'tornado', name: 'Tornado'}])).toEqual([]);
+    }
+  });
+
+  test('zones that agree on one name still match', () => {
+    const S = 'site-uuid-sl';
+    const out = matchFeaturesToLiveData(
+      [{name: 'SL - A4 Tornado', siteId: S, operationalStatus: 'Open'}, {name: 'SL - HH Tornado', siteId: S, operationalStatus: 'Open'}],
+      [S], [{id: 'tornado', name: 'Tornado'}],
+    );
+    expect(out).toEqual([{id: 'tornado', status: 'OPERATING'}]);
+  });
+
+  test('sites without zone codes are unaffected', () => {
+    const W = 'site-uuid-wof';
+    const out = matchFeaturesToLiveData(
+      [{name: 'WOF - Mamba', siteId: W, operationalStatus: 'Open'}, {name: 'VF - PEANUTS 500', siteId: W, operationalStatus: 'Closed'}],
+      [W],
+      [{id: 'mamba', name: 'Mamba'}, {id: 'p500', name: 'PEANUTS™ 500'}, {id: 'five-hundred', name: '500'}],
+    );
+    expect(Object.fromEntries(out.map(l => [l.id, l.status]))).toEqual({mamba: 'OPERATING', p500: 'CLOSED'});
   });
 });
 
