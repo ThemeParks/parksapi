@@ -573,11 +573,12 @@ describe('scrapeTtl', () => {
   const HALF_DAY = 60 * 60 * 12;
 
   /**
-   * The scrapers swallow a page failure and return `[]` so one missing page
-   * cannot take out a whole destination. Remembering that for a full TTL is
+   * The schedule scrape swallows a failure and returns `[]`, and the listing
+   * scrapes used to as well. Remembering an empty answer for a full TTL is
    * what turned a single failed fetch into Mid-America Parks publishing 3
-   * entities against 76 — and why correcting the host did not take effect
-   * until the cache expired. Observed the same day on the schedule scrape:
+   * entities against 76, and why correcting the host did not take effect
+   * until the cache expired. (Listing scrapes now throw instead; see the
+   * water-park tests below.) Observed the same day on the schedule scrape:
    * the destination served 0 operating days until an empty entry was dropped,
    * then 60.
    */
@@ -604,5 +605,179 @@ describe('scrapeTtl', () => {
    */
   it('still caches an empty result, rather than refetching every call', () => {
     expect(scrapeTtl(DAY)([])).toBeGreaterThan(0);
+  });
+});
+
+describe('water-park listing failure (buildEntityList)', () => {
+  // Card markup as served on the parks' `/rides-and-experiences/<path>/`
+  // listings (sanitised, trimmed to a handful of cards). The master
+  // `attractions` page lists every ride, water-park ones included; the
+  // water-park page lists only its own. Water-park membership is decided by
+  // the second page, so if it fails the first must not be read alone.
+  const card = (slug: string, name: string) => `
+<article id="post-1" class="item item-1 parallax-banner">
+      <a href="https://example.test/rides-and-experiences/attractions/${slug}/"><img decoding="async" class="parallax" src="x.webp" alt="${name}" /></a>
+    <div class="overlay"></div>
+  <div class="container">
+    <h3>${name}</h3>
+        <p>Blurb.</p>
+      </div>
+  <div class="more">
+    <a class="cta outline contact" href="https://example.test/rides-and-experiences/attractions/${slug}/">Details</a>
+  </div>
+</article>`;
+  const page = (...cards: string[]) =>
+    `<!doctype html><html><body><div class="col span6">${cards.join('</div><div class="col span6">')}</div></body></html>`;
+  const MASTER = page(
+    card('american-thunder', 'American Thunder'),
+    card('big-kahuna', 'Big Kahuna'),
+    card('hurricane-bay', 'Hurricane Bay'),
+    card('screamin-eagle', 'Screamin&#8217; Eagle'),
+  );
+  const WATER = page(card('big-kahuna', 'Big Kahuna'), card('hurricane-bay', 'Hurricane Bay'));
+  const EMPTY = page();
+
+  let run = 0;
+  /**
+   * A Mid-America Parks instance whose listing fetches are served from
+   * `pages` (path → html, or an Error to throw). Each instance gets its own
+   * cache prefix so one test's cached scrape cannot answer another's.
+   */
+  async function makePark(pages: Record<string, string | Error>): Promise<{park: EnchantedParks; fetched: string[]}> {
+    const mod = await import('../midamericaparks.js');
+    const ParkClass = Object.values(mod)[0] as new () => EnchantedParks;
+    const park = new ParkClass();
+    const prefix = `test-waterpark-${Date.now()}-${run++}`;
+    (park as any).getCacheKeyPrefix = () => prefix;
+    const fetched: string[] = [];
+    (park as any).fetchAttractionsPage = async (path: string) => {
+      fetched.push(path);
+      const body = pages[path];
+      if (body instanceof Error) throw body;
+      if (body === undefined) throw new Error(`HTTP request not OK: 404 Not Found\n  URL: GET /${path}/`);
+      return {text: async () => body};
+    };
+    return {park, fetched};
+  }
+  // Shape of the error the HTTP layer rejects with: the URL leads the first line.
+  const notFound = () => new Error('GET https://example.test/rides-and-experiences/x/: HTTP request not OK: 404 \n  URL: GET https://example.test/rides-and-experiences/x/');
+  const base = {'attractions': MASTER, 'dining': EMPTY, 'live-entertainment': EMPTY};
+
+  test('a failed water-park page rejects the build instead of re-homing its rides', async () => {
+    const {park} = await makePark({...base, 'hurricane-harbor-water-park': notFound()});
+    await expect((park as any).buildEntityList()).rejects.toThrow(/hurricane-harbor-water-park/);
+  });
+
+  test('the rejection names the path but not the host', async () => {
+    const {park} = await makePark({...base, 'hurricane-harbor-water-park': notFound()});
+    const err = await (park as any).buildEntityList().catch((e: Error) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toContain('404');
+    expect(err.message).not.toContain('example.test');
+  });
+
+  test('a water-park page that parses to no rides also rejects', async () => {
+    // A 200 with no cards (page emptied or restyled) would re-home the same
+    // rides as a 404 does.
+    const {park} = await makePark({...base, 'hurricane-harbor-water-park': EMPTY});
+    await expect((park as any).buildEntityList()).rejects.toThrow(/0 rides/);
+  });
+
+  test('a working water-park page claims its slugs, and the theme park keeps only the rest', async () => {
+    const {park} = await makePark({...base, 'hurricane-harbor-water-park': WATER});
+    const entities: any[] = await (park as any).buildEntityList();
+    const ids = entities.map(e => e.id).sort();
+    expect(ids).toEqual([
+      'enchantedparks_attraction_HH_big-kahuna',
+      'enchantedparks_attraction_HH_hurricane-bay',
+      'enchantedparks_attraction_MAP_american-thunder',
+      'enchantedparks_attraction_MAP_screamin-eagle',
+      'enchantedparks_park_HH',
+      'enchantedparks_park_MAP',
+    ]);
+    const hh = entities.filter(e => e.parentId === 'enchantedparks_park_HH');
+    expect(hh.map(e => e.name).sort()).toEqual(['Big Kahuna', 'Hurricane Bay']);
+  });
+
+  test('a failure is not cached: the next build fetches again and succeeds', async () => {
+    const pages: Record<string, string | Error> = {...base, 'hurricane-harbor-water-park': notFound()};
+    const {park, fetched} = await makePark(pages);
+    await expect((park as any).buildEntityList()).rejects.toThrow();
+
+    pages['hurricane-harbor-water-park'] = WATER;
+    const entities: any[] = await (park as any).buildEntityList();
+    expect(fetched.filter(p => p === 'hurricane-harbor-water-park')).toHaveLength(2);
+    expect(entities.filter(e => e.parentId === 'enchantedparks_park_HH')).toHaveLength(2);
+  });
+
+  test('a successful scrape is cached: the next build does not refetch', async () => {
+    // The counterpart to the test above, so it cannot pass just because
+    // nothing is ever cached.
+    const {park, fetched} = await makePark({...base, 'hurricane-harbor-water-park': WATER});
+    await (park as any).buildEntityList();
+    await (park as any).buildEntityList();
+    expect(fetched.filter(p => p === 'hurricane-harbor-water-park')).toHaveLength(1);
+  });
+
+  test('a failed master attractions page rejects the build', async () => {
+    const {park} = await makePark({...base, 'attractions': notFound(), 'hurricane-harbor-water-park': WATER});
+    await expect((park as any).buildEntityList()).rejects.toThrow(/"attractions"/);
+  });
+
+  test('a failed dining page rejects the build instead of dropping every restaurant', async () => {
+    const {park} = await makePark({...base, 'dining': notFound(), 'hurricane-harbor-water-park': WATER});
+    await expect((park as any).buildEntityList()).rejects.toThrow(/"dining"/);
+  });
+
+  test('a failed shows page rejects the build instead of dropping every show', async () => {
+    const {park} = await makePark({...base, 'live-entertainment': notFound(), 'hurricane-harbor-water-park': WATER});
+    await expect((park as any).buildEntityList()).rejects.toThrow(/"live-entertainment"/);
+  });
+
+  test('live data stays isolated: a failed water-park page yields no live data, not a throw', async () => {
+    const {park} = await makePark({...base, 'hurricane-harbor-water-park': notFound()});
+    (park as any).liveStatusEndpoint = 'https://example.invalid/graphql';
+    (park as any).liveStatusApiKey = 'test-key';
+    (park as any).liveStatusSiteIds = ['test-site'];
+    (park as any).getFeatures = async (): Promise<LiveFeature[]> => [
+      {name: 'SFSTL - Big Kahuna', siteId: 'test-site', operationalStatus: 'Open'},
+      {name: 'SFSTL - American Thunder', siteId: 'test-site', operationalStatus: 'Open'},
+    ];
+    const warn = console.warn;
+    console.warn = () => {};
+    try {
+      // Never Big Kahuna under the theme-park id.
+      expect(await (park as any).buildLiveData()).toEqual([]);
+    } finally {
+      console.warn = warn;
+    }
+  });
+
+  test('live data with a working water-park page attaches rides to the right park', async () => {
+    const {park} = await makePark({...base, 'hurricane-harbor-water-park': WATER});
+    (park as any).liveStatusEndpoint = 'https://example.invalid/graphql';
+    (park as any).liveStatusApiKey = 'test-key';
+    (park as any).liveStatusSiteIds = ['test-site'];
+    (park as any).getFeatures = async (): Promise<LiveFeature[]> => [
+      {name: 'SFSTL - Big Kahuna', siteId: 'test-site', operationalStatus: 'Open'},
+      {name: 'SFSTL - American Thunder', siteId: 'test-site', operationalStatus: 'Open'},
+    ];
+    const live: any[] = await (park as any).buildLiveData();
+    expect(live.map(l => l.id).sort()).toEqual([
+      'enchantedparks_attraction_HH_big-kahuna',
+      'enchantedparks_attraction_MAP_american-thunder',
+    ]);
+  });
+});
+
+describe('water-park listing paths', () => {
+  // Michigan's Adventure's old water-park path now 301s to a calendar event
+  // page; the @http layer treats a 3xx as a failure, so the old value would
+  // reject every entity build.
+  test("Michigan's Adventure points at the current water-park listing", async () => {
+    const mod = await import('../michigansadventure.js');
+    const ParkClass = Object.values(mod)[0] as new () => EnchantedParks;
+    const park = new ParkClass();
+    expect(park.waterPark?.ridesPath).toBe('wildwater-adventure-waterpark');
   });
 });

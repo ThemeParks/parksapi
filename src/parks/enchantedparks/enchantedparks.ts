@@ -341,17 +341,19 @@ const EMPTY_SCRAPE_TTL_SECONDS = 60 * 15;
  * TTL for a scraped result: the caller's own TTL for a real answer, fifteen
  * minutes for an empty one.
  *
- * Every scraper here swallows a page failure and returns `[]`, so that one
- * missing page cannot take out a whole destination. Cached at full length,
- * that turns a single bad fetch into a day of pretending the page is empty.
- * It is how Mid-America Parks came to publish 3 entities against 76 once its
- * rides pages began redirecting, and why re-pointing the host did not take
- * effect until the entries expired — the cache key is built from the method
- * arguments, so changing the subdomain does not change the key.
+ * The schedule scrape swallows a failure and returns `[]`, and dining/shows
+ * listings can legitimately be empty. Cached at full length, one bad answer
+ * becomes a day of pretending the page is empty. The cache key is built from
+ * the method arguments, so re-pointing the host does not change the key and a
+ * poisoned entry sits there until it expires.
  *
  * Empty is not always a failure: a park out of season really does publish no
  * calendar, and a waterpark really does have no shows. So an empty answer is
  * kept, briefly, and treated as provisional rather than as the day's truth.
+ *
+ * Listing scrapes that feed the entity list do not return `[]` on failure at
+ * all: they throw, and a rejected call is never cached (see
+ * {@link EnchantedParks.scrapeAttractions}).
  */
 export const scrapeTtl = (fullTtlSeconds: number) =>
   (rows: unknown[]) => (rows.length ? fullTtlSeconds : EMPTY_SCRAPE_TTL_SECONDS);
@@ -543,21 +545,37 @@ class EnchantedParks extends Destination {
   }
 
   // ===== Attraction scraping =====
+  //
+  // Every listing scrape below feeds buildEntityList, so none of them may
+  // turn a failed fetch into an empty answer. An empty answer is a valid
+  // entity list with rows missing, and a consumer diffing entity lists reads
+  // missing rows as deletions. Worse, the water park's listing decides which
+  // rides on the master attractions list belong to it: an empty water-park
+  // answer re-homes every one of its rides under the theme park, with new ids.
+  //
+  // So a failed fetch throws. getEntities() rejects, the consumer's entity
+  // sync aborts, and nothing changes. A rejected @cache call is not stored,
+  // so the next build fetches again rather than replaying the failure.
 
   /**
-   * Fetch and parse the rides listing for one PARK. Returns [] if the
-   * fetch fails so a missing waterpark page doesn't take out the whole
-   * destination.
+   * Fetch and parse the rides listing for one PARK.
+   *
+   * Throws if the page cannot be fetched, and also if it parses to no rides
+   * at all: a rides listing is never legitimately empty (the pages stay up
+   * out of season), so an empty parse means the page moved or its markup
+   * changed, and treating it as "no rides" would drop or re-home them all.
    */
   @cache({callback: scrapeTtl(60 * 60 * 24)})
   async scrapeAttractions(ridesPath: string): Promise<AttractionStub[]> {
-    try {
-      const resp = await this.fetchAttractionsPage(ridesPath);
-      const html = await resp.text();
-      return parseAttractionsPage(html);
-    } catch {
-      return [];
+    const html = await this.fetchListingHtml(ridesPath);
+    const rides = parseAttractionsPage(html);
+    if (!rides.length) {
+      throw new Error(
+        `${this.constructor.name}: rides listing "${ridesPath}" parsed to 0 rides; ` +
+        'refusing to publish a partial entity list',
+      );
     }
+    return rides;
   }
 
   /**
@@ -566,31 +584,50 @@ class EnchantedParks extends Destination {
    * `/rides-and-experiences/<category>/` listing), just pointed at the
    * dining category and linking back to `/rides-and-experiences/dining/…`
    * detail pages instead of `/attractions/…`.
+   *
+   * Throws if the page cannot be fetched, for the same reason as
+   * {@link scrapeAttractions}. An empty parse is allowed through.
    */
   @cache({callback: scrapeTtl(60 * 60 * 24)})
   async scrapeDining(diningPath: string): Promise<AttractionStub[]> {
-    try {
-      const resp = await this.fetchAttractionsPage(diningPath);
-      const html = await resp.text();
-      return parseAttractionsPage(html, 'dining');
-    } catch {
-      return [];
-    }
+    const html = await this.fetchListingHtml(diningPath);
+    return parseAttractionsPage(html, 'dining');
   }
 
   /**
    * Fetch and parse the shows listing for one PARK. See
    * {@link parseShowsPage} for why this needs its own parser rather than
    * reusing {@link parseAttractionsPage}.
+   *
+   * Throws if the page cannot be fetched, for the same reason as
+   * {@link scrapeAttractions}. An empty parse is allowed through: a park can
+   * genuinely have no shows scheduled.
    */
   @cache({callback: scrapeTtl(60 * 60 * 24)})
   async scrapeShows(showsPath: string): Promise<AttractionStub[]> {
+    const html = await this.fetchListingHtml(showsPath);
+    return parseShowsPage(html, showsPath);
+  }
+
+  /**
+   * Fetch one `/rides-and-experiences/<path>/` page as text. Wraps the HTTP
+   * error with the path that failed, minus the origin, so a rejected entity
+   * build names the page to re-point.
+   */
+  private async fetchListingHtml(path: string): Promise<string> {
     try {
-      const resp = await this.fetchAttractionsPage(showsPath);
-      const html = await resp.text();
-      return parseShowsPage(html, showsPath);
-    } catch {
-      return [];
+      const resp = await this.fetchAttractionsPage(path);
+      return await resp.text();
+    } catch (err) {
+      // The HTTP layer's message leads with the full URL; keep the status
+      // and drop the origin, since the subdomain is deployment config.
+      const reason = (err instanceof Error ? err.message.split('\n')[0] : String(err))
+        .replace(/https?:\/\/[^\s/]+/gi, '');
+      throw new Error(
+        `${this.constructor.name}: listing page "${path}" could not be fetched (${reason}); ` +
+        'refusing to publish a partial entity list',
+        {cause: err},
+      );
     }
   }
 
@@ -816,7 +853,19 @@ class EnchantedParks extends Destination {
     const features = await this.getFeatures();
     if (!features.length) return [];
 
-    const rides = await this.getAttractionStubs();
+    // The ride roster comes from the same listing scrapes as the entity list,
+    // which throw when a page is down. Live data is the opposite case from
+    // entities: an empty answer here just means "no update this tick", so a
+    // listing failure is contained rather than propagated. No fallback roster
+    // is guessed at, since without the water-park listing the theme-park ids
+    // for its rides would be wrong.
+    let rides: Array<{id: string; name: string}>;
+    try {
+      rides = await this.getAttractionStubs();
+    } catch (err) {
+      console.warn(`${this.constructor.name}: skipping live data, ${err instanceof Error ? err.message : err}`);
+      return [];
+    }
     return matchFeaturesToLiveData(features, this.liveStatusSiteIds, rides);
   }
 
