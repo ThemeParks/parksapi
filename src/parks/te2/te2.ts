@@ -789,7 +789,10 @@ class TE2Destination extends Destination {
         status: entry.isOpen ? 'OPERATING' : 'CLOSED',
       } as LiveData;
 
-      if (entry.waitTime !== null) {
+      // A closed ride's waitTime counts down to opening (342, 341, ... over
+      // the night) rather than measuring a queue, so only an open ride
+      // gets a standby wait.
+      if (entry.isOpen && entry.waitTime !== null) {
         ld.queue = {
           STANDBY: {waitTime: entry.waitTime},
         };
