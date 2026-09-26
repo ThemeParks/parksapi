@@ -145,6 +145,87 @@ describe('buildEntityList — classification', () => {
   });
 });
 
+/**
+ * Seasonal content is often filed under a category the name lists can never
+ * know in advance: Chessington keeps "Howl’o’ween ", "Summer " and "Winter's
+ * Tail " as top-level categories, Legoland Korea uses "Season Content", and
+ * Legoland California nests "Brick or Treat" > "SHOWS". The feed's own
+ * ShowTimes schedule is what marks a performance, so an otherwise unclassified
+ * item carrying one is a SHOW.
+ */
+function mkSeasonalRecords(): any {
+  const records = mkRecords();
+  records.Category.push(
+    {_id: 50, Name: 'Summer '},                       // top-level, trailing space (Chessington)
+    {_id: 51, Name: 'Brick or Treat'},
+    {_id: 52, Name: 'SHOWS', Parent: 51},             // not in the list (case differs)
+    {_id: 60, Name: 'Ride Access Pass'},              // Thorpe Park's per-ride pass duplicates
+  );
+  records.Item.push(
+    {_id: 500, Name: 'Lands Unite: A Grand Adventure', Category: 50, ShowTimes: pointShow('16:00:00')},
+    {_id: 501, Name: 'Monster Rock Off', Category: 52, ShowTimes: pointShow('13:00:00')},
+    {_id: 502, Name: 'Seasonal Walkthrough', Category: 50},
+    {_id: 503, Name: 'Empty Schedule', Category: 50, ShowTimes: ''},
+    {_id: 504, Name: 'Null Schedule', Category: 50, ShowTimes: null},
+    {_id: 600, Name: 'Big Coaster | Ride Access Pass', Category: 60, MinimumHeightRequirement: 1.4},
+    // A ride that also carries a ShowTimes blob keeps its category's type.
+    {_id: 102, Name: 'Coaster With Schedule', Category: 10, ShowTimes: pointShow('12:00:00')},
+    // Shopping item with a schedule (e.g. a demo): has a performance, so SHOW.
+    {_id: 401, Name: 'Sweet Making Demo', Category: 40, ShowTimes: pointShow('15:30:00')},
+  );
+  return records;
+}
+
+describe('buildEntityList — ShowTimes fallback for unlisted categories', () => {
+  test('an item with ShowTimes under a top-level seasonal category is a SHOW', async () => {
+    const entities = await new Probe(mkSeasonalRecords()).entities();
+    const show = entities.find(e => e.id === '500');
+    expect(show?.entityType).toBe('SHOW');
+    expect(show?.parentId).toBe('probe-park');
+    expect(show?.name).toBe('Lands Unite: A Grand Adventure');
+  });
+
+  test('an item with ShowTimes under an unlisted child category is a SHOW', async () => {
+    const entities = await new Probe(mkSeasonalRecords()).entities();
+    expect(entities.find(e => e.id === '501')?.entityType).toBe('SHOW');
+    expect(entities.find(e => e.id === '401')?.entityType).toBe('SHOW');
+  });
+
+  test('an unlisted item without a schedule is still not emitted', async () => {
+    const entities = await new Probe(mkSeasonalRecords()).entities();
+    for (const id of ['502', '503', '504', '400']) {
+      expect(entities.find(e => e.id === id)).toBeUndefined();
+    }
+  });
+
+  test('a height requirement alone does not make an unlisted item an attraction', async () => {
+    const entities = await new Probe(mkSeasonalRecords()).entities();
+    expect(entities.find(e => e.id === '600')).toBeUndefined();
+  });
+
+  test('an item already classified by category is not emitted a second time', async () => {
+    const entities = await new Probe(mkSeasonalRecords()).entities();
+    const coaster = entities.filter(e => e.id === '102');
+    expect(coaster).toHaveLength(1);
+    expect(coaster[0].entityType).toBe('ATTRACTION');
+    const ids = entities.map(e => e.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test('a fallback SHOW gets its showtimes in live data', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOON);
+    try {
+      const live = await new Probe(mkSeasonalRecords()).live();
+      const entry = live.find(l => l.id === '500');
+      expect(entry?.status).toBe('OPERATING');
+      expect(entry?.showtimes?.[0]?.startTime).toBe(`${DATE}T16:00:00+02:00`);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe('buildLiveData', () => {
   beforeEach(() => {
     vi.useFakeTimers();
