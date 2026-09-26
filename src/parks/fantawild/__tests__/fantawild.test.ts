@@ -289,10 +289,39 @@ describe('isFantawildShow', () => {
     expect(isFantawildShow(baseItem({showTimeList: ['10:30', '11:30', '12:30', '13:30']}))).toBe(true);
   });
 
-  test('respects 真人表演 feature tag even with range-shaped times', () => {
+  test('respects 真人表演 feature tag even with several session windows', () => {
+    // Real shape: a water show at Dreamland Zhuzhou, run in three sessions.
     expect(isFantawildShow(baseItem({
-      showTimeList: ['09:00-21:00'],
-      featureList: ['真人表演', '观赏'],
+      showTimeList: ['10:00-11:45', '13:30-17:30', '18:30-19:30'],
+      featureList: ['真人表演'],
+    }))).toBe(true);
+  });
+
+  test('respects 真人表演 feature tag with discrete showtimes or none', () => {
+    expect(isFantawildShow(baseItem({
+      showTimeList: ['11:30', '14:30', '17:00'],
+      featureList: ['必玩', '真人表演', '观赏'],
+    }))).toBe(true);
+    expect(isFantawildShow(baseItem({
+      showTimeList: [],
+      featureList: ['真人表演', '观赏', '需提前入场'],
+    }))).toBe(true);
+  });
+
+  test('a live-actor item open in one all-day window is a walk-through, not a show', () => {
+    // Real shape (Glorious Orient Jining, item 2016): a haunted-school scare
+    // maze with live actors, published with the park's operating window.
+    expect(isFantawildShow(baseItem({
+      parkId: 87, id: 2016, itemName: '南洋诡校（增值体验）',
+      showTimeList: ['09:30-21:00'],
+      featureList: ['刺激', '惊吓', '真人表演'],
+    }))).toBe(false);
+  });
+
+  test('a parade is a SHOW even with a single window', () => {
+    expect(isFantawildShow(baseItem({
+      showTimeList: ['09:30-21:00'],
+      featureList: ['巡游'],
     }))).toBe(true);
   });
 
@@ -534,3 +563,58 @@ describe('Fantawild.getStableRoster', () => {
   });
 });
 
+
+describe('Fantawild.buildEntityList walk-through classification', () => {
+  // Sanitised from the live Glorious Orient Jining (parkId 87) roster.
+  const JINING = 87;
+  const roster = [
+    {parkId: JINING, id: 2016, itemName: '南洋诡校（增值体验）', waitTime: 0, itemOpened: true, statusStr: null,
+      showTimeList: ['09:30-21:00'], featureList: ['刺激', '惊吓', '真人表演'], latitude: 35.33, longitude: 116.69},
+    {parkId: JINING, id: 1714, itemName: '圆明园【盛世遗韵】', waitTime: 0, itemOpened: true, statusStr: null,
+      showTimeList: ['11:30', '14:30', '17:00'], featureList: ['必玩', '真人表演', '观赏']},
+    {parkId: JINING, id: 2295, itemName: '沪上风云', waitTime: 0, itemOpened: true, statusStr: null,
+      showTimeList: ['18:00'], featureList: ['必玩', '真人表演', '观赏']},
+    {parkId: JINING, id: 2015, itemName: '真人CS（增值体验）', waitTime: 0, itemOpened: true, statusStr: null,
+      showTimeList: ['09:30-21:00'], featureList: ['刺激', '人偶互动']},
+  ];
+
+  async function entities() {
+    const {Fantawild} = await import('../fantawild.js');
+    const d = new Fantawild({config: {
+      baseUrl: 'https://image.fangte.com',
+      apiBaseUrl: 'https://leyou.fangte.com',
+    }});
+    (d as any).getStableRoster = async (parkId: number) => (parkId === JINING ? roster : []);
+    return await (d as any).buildEntityList() as any[];
+  }
+
+  test('the haunted school is an ATTRACTION under its existing id', async () => {
+    const e = (await entities()).find(x => x.id === 'fantawild_attraction_87_2016');
+    expect(e).toMatchObject({
+      id: 'fantawild_attraction_87_2016',
+      name: '南洋诡校（增值体验）',
+      entityType: 'ATTRACTION',
+      attractionType: 'RIDE',
+      parkId: 'fantawild_park_87',
+    });
+  });
+
+  test('scheduled live performances stay SHOW', async () => {
+    const all = await entities();
+    for (const id of ['fantawild_attraction_87_1714', 'fantawild_attraction_87_2295']) {
+      const e = all.find(x => x.id === id);
+      expect(e.entityType).toBe('SHOW');
+      expect(e.attractionType).toBeUndefined();
+    }
+  });
+
+  test('ids are unchanged and nothing is dropped', async () => {
+    const ids = (await entities()).filter(x => x.parkId === 'fantawild_park_87').map(x => x.id).sort();
+    expect(ids).toEqual([
+      'fantawild_attraction_87_1714',
+      'fantawild_attraction_87_2015',
+      'fantawild_attraction_87_2016',
+      'fantawild_attraction_87_2295',
+    ]);
+  });
+});

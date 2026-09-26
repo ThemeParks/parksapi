@@ -216,20 +216,33 @@ export function stripFantawildStars(name: string): string {
 /**
  * Classify an item as SHOW vs RIDE based on showTimeList shape + feature tags.
  *
- * Precedence: explicit `真人表演` (live performance) / `巡游` (parade) tags
- * win unconditionally — even if showTimeList contains an `HH:MM-HH:MM` range
- * (operating-hours pattern for attractions), an item carrying one of those
- * tags is a SHOW. Falls back to showTimeList shape inspection otherwise.
+ * Precedence: an explicit `巡游` (parade) tag always wins. An explicit `真人表演`
+ * (live performance) tag wins too — even when showTimeList holds several
+ * `HH:MM-HH:MM` session windows — with one exception: a live-actor item whose
+ * showTimeList is a single all-day window runs continuously from open to close,
+ * which is how an attraction publishes its operating hours. That is the
+ * walk-through with live actors (a scare maze such as `南洋诡校`), not a
+ * performance, so it falls through to the shape test and is an ATTRACTION.
+ * Otherwise falls back to showTimeList shape inspection.
  */
 export function isFantawildShow(item: FantawildItem): boolean {
   const features = item.featureList ?? [];
-  // Explicit live-performance / parade feature flags (highest priority).
-  if (features.includes('真人表演') || features.includes('巡游')) return true;
   const times = item.showTimeList ?? [];
+  if (features.includes('巡游')) return true;
+  if (features.includes('真人表演') && !isSingleOperatingWindow(times)) return true;
   if (times.length === 0) return false;
   // If every entry is a single time (no dash range) it's a discrete-showtime SHOW.
   // A single "HH:MM-HH:MM" range is the operating-hours pattern used for attractions.
   return times.every(t => /^\d{1,2}:\d{2}$/.test(t.trim()));
+}
+
+/**
+ * True when showTimeList is exactly one `HH:MM-HH:MM` window: the shape the feed
+ * uses for an attraction's operating hours. Several windows (e.g. a water show
+ * run in three sessions) do not count.
+ */
+function isSingleOperatingWindow(times: readonly string[]): boolean {
+  return times.length === 1 && /^\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$/.test(times[0].trim());
 }
 
 /**
