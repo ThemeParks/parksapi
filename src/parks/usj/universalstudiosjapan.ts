@@ -5,7 +5,7 @@ import {inject} from '../../injector.js';
 import config from '../../config.js';
 import {destinationController} from '../../destinationRegistry.js';
 import {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import {hostnameFromUrl, localFromFakeUtc} from '../../datetime.js';
+import {hostnameFromUrl, formatInTimezone} from '../../datetime.js';
 import {createStatusMap} from '../../statusMap.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -467,11 +467,17 @@ export class UniversalStudiosJapan extends Destination {
       // even while they still listed a full day of ENABLED performances.
       const showStatus = mapQueueStatus(show.status);
 
+      // start_time is a real UTC instant ("2026-09-27T02:30:00.000Z" is an
+      // 11:30 JST performance), not park-local time with a Z on it. Parse it
+      // as UTC and render it in the park's zone. Reading it as fake UTC
+      // published every performance nine hours early.
       const showTimes = (show.show_times || [])
         .filter((st) => st.status === 'ENABLED')
-        .map((st) => ({
+        .map((st) => new Date(st.start_time))
+        .filter((start) => Number.isFinite(start.getTime()))
+        .map((start) => ({
           type: 'PERFORMANCE_TIME' as const,
-          startTime: localFromFakeUtc(st.start_time, TIMEZONE),
+          startTime: formatInTimezone(start, TIMEZONE),
           endTime: null,
         }));
 
