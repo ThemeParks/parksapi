@@ -1261,11 +1261,7 @@ export class SixFlags extends Destination {
 
         if (waitInfo?.regularWaittime?.waitTime != null) {
           const wt = Number(waitInfo.regularWaittime.waitTime);
-          // Staff can type any number into the wait board. 666, 777, 900,
-          // 999 and one-off values in the thousands show up between two
-          // zeros, usually on a closed ride. None are minutes, so a reading
-          // of 600 or more counts as no wait reported.
-          if (Number.isFinite(wt) && wt < 600) waitTime = wt;
+          if (Number.isFinite(wt)) waitTime = wt;
         }
 
         const venueStatusStr = ride.status || '';

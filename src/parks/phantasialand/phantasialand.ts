@@ -544,13 +544,8 @@ export class Phantasialand extends Destination {
         // Attraction with wait time
         ld.status = (entry.open ? 'OPERATING' : 'CLOSED') as any;
         if (entry.open) {
-          // The feed occasionally sends integers that cannot be minutes, such
-          // as 13109 (0x3335, the bytes of "35") or 808530737 (the bytes of
-          // "0101"). They arrive as plain JSON numbers with nothing to say how
-          // they were produced, so they are dropped rather than decoded.
-          const wait = entry.waitTime;
           ld.queue = {
-            STANDBY: {waitTime: typeof wait === 'number' && wait < 600 ? wait : null},
+            STANDBY: {waitTime: typeof entry.waitTime === 'number' ? entry.waitTime : null},
           };
         }
       } else if (entry.open !== null && entry.open !== undefined) {

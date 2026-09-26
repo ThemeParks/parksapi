@@ -371,13 +371,8 @@ class WalibiBase extends Destination {
 
         if (status === 'OPERATING' && entry.time !== undefined) {
           const seconds = Number(entry.time || 0);
-          const minutes = seconds > 0 ? Math.floor(seconds / 60) : 0;
-          // The feed sometimes posts values that convert to 444, 999 or 1000
-          // minutes, often on many rides in the same poll, and returns to the
-          // real wait on the next one. Those are placeholders, so publish no
-          // number for 444 or for anything of 600 minutes or more.
           ld.queue = {
-            STANDBY: {waitTime: (minutes === 444 || minutes >= 600) ? null : minutes},
+            STANDBY: {waitTime: seconds > 0 ? Math.floor(seconds / 60) : 0},
           };
         }
 
