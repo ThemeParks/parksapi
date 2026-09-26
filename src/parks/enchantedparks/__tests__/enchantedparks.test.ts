@@ -1,4 +1,4 @@
-import {describe, test, expect} from 'vitest';
+import {describe, test, expect, vi} from 'vitest';
 import {EnchantedParks, parseTribeEvents, scrapeTtl, type TribeEventsResponse} from '../enchantedparks.js';
 import {parseICalFeed} from '../enchantedparks.js';
 import {parseAttractionsPage} from '../enchantedparks.js';
@@ -9,6 +9,8 @@ import {
   normalizeFeatureName,
   matchFeaturesToLiveData,
   type LiveFeature,
+  type WpPage,
+  parseCategoryRideSlugs,
 } from '../enchantedparks.js';
 
 describe('parseTribeEvents', () => {
@@ -573,11 +575,12 @@ describe('scrapeTtl', () => {
   const HALF_DAY = 60 * 60 * 12;
 
   /**
-   * The scrapers swallow a page failure and return `[]` so one missing page
-   * cannot take out a whole destination. Remembering that for a full TTL is
+   * The schedule scrape swallows a failure and returns `[]`, and the listing
+   * scrapes used to as well. Remembering an empty answer for a full TTL is
    * what turned a single failed fetch into Mid-America Parks publishing 3
-   * entities against 76 — and why correcting the host did not take effect
-   * until the cache expired. Observed the same day on the schedule scrape:
+   * entities against 76, and why correcting the host did not take effect
+   * until the cache expired. (Listing scrapes now throw instead; see the
+   * water-park tests below.) Observed the same day on the schedule scrape:
    * the destination served 0 operating days until an empty entry was dropped,
    * then 60.
    */
@@ -604,5 +607,455 @@ describe('scrapeTtl', () => {
    */
   it('still caches an empty result, rather than refetching every call', () => {
     expect(scrapeTtl(DAY)([])).toBeGreaterThan(0);
+  });
+});
+
+describe('water-park listing failure (buildEntityList)', () => {
+  // Card markup as served on the parks' `/rides-and-experiences/<path>/`
+  // listings (sanitised, trimmed to a handful of cards). The master
+  // `attractions` page lists every ride, water-park ones included; the
+  // water-park page lists only its own. Water-park membership is decided by
+  // the second page, so if it fails the first must not be read alone.
+  const card = (slug: string, name: string) => `
+<article id="post-1" class="item item-1 parallax-banner">
+      <a href="https://example.test/rides-and-experiences/attractions/${slug}/"><img decoding="async" class="parallax" src="x.webp" alt="${name}" /></a>
+    <div class="overlay"></div>
+  <div class="container">
+    <h3>${name}</h3>
+        <p>Blurb.</p>
+      </div>
+  <div class="more">
+    <a class="cta outline contact" href="https://example.test/rides-and-experiences/attractions/${slug}/">Details</a>
+  </div>
+</article>`;
+  const page = (...cards: string[]) =>
+    `<!doctype html><html><body><div class="col span6">${cards.join('</div><div class="col span6">')}</div></body></html>`;
+  const MASTER = page(
+    card('american-thunder', 'American Thunder'),
+    card('big-kahuna', 'Big Kahuna'),
+    card('hurricane-bay', 'Hurricane Bay'),
+    card('screamin-eagle', 'Screamin&#8217; Eagle'),
+  );
+  const WATER = page(card('big-kahuna', 'Big Kahuna'), card('hurricane-bay', 'Hurricane Bay'));
+  const EMPTY = page();
+
+  // WP REST shapes, sanitised from the live API:
+  //   categories?slug=hurricane-harbor&_fields=id,slug → [{"id":388,"slug":"hurricane-harbor"}]
+  //   pages?categories=388&_fields=slug,link → [{"slug":…,"link":"…/rides-and-experiences/attractions/<slug>/"}]
+  type WpStub = {category?: unknown[] | Error; pages?: Array<WpPage[] | Error>; totalPages?: number};
+  const wpDown = () => new Error('GET https://example.test/wp-json/wp/v2/categories: HTTP request not OK: 503 ');
+  const CATEGORY = [{id: 388, slug: 'hurricane-harbor'}];
+  const wpPage = (slug: string, segment = 'attractions'): WpPage =>
+    ({slug, link: `https://example.test/rides-and-experiences/${segment}/${slug}/`});
+  const CATEGORY_PAGES = [wpPage('big-kahuna'), wpPage('hurricane-bay')];
+
+  let run = 0;
+  /**
+   * A Mid-America Parks instance whose listing fetches are served from
+   * `pages` (path → html, or an Error to throw). Each instance gets its own
+   * cache prefix so one test's cached scrape cannot answer another's.
+   */
+  async function makePark(
+    pages: Record<string, string | Error>,
+    wp: WpStub = {category: wpDown()},
+  ): Promise<{park: EnchantedParks; fetched: string[]; wpFetched: string[]}> {
+    const mod = await import('../midamericaparks.js');
+    const ParkClass = Object.values(mod)[0] as new () => EnchantedParks;
+    const park = new ParkClass();
+    const prefix = `test-waterpark-${Date.now()}-${run++}`;
+    (park as any).getCacheKeyPrefix = () => prefix;
+    const fetched: string[] = [];
+    (park as any).fetchAttractionsPage = async (path: string) => {
+      fetched.push(path);
+      const body = pages[path];
+      if (body instanceof Error) throw body;
+      if (body === undefined) throw new Error(`HTTP request not OK: 404 Not Found\n  URL: GET /${path}/`);
+      return {text: async () => body};
+    };
+    // WP REST category fallback. `wp` is read at call time so a test can
+    // change what upstream serves between builds.
+    const wpFetched: string[] = [];
+    (park as any).fetchWpCategory = async (slug: string) => {
+      wpFetched.push(`category:${slug}`);
+      if (wp.category instanceof Error) throw wp.category;
+      const body = wp.category;
+      return {json: async () => body};
+    };
+    (park as any).fetchWpCategoryPages = async (id: number, n: number) => {
+      wpFetched.push(`pages:${id}:${n}`);
+      const body = wp.pages?.[n - 1];
+      if (body instanceof Error) throw body;
+      if (body === undefined) throw new Error('HTTP request not OK: 400 (rest_post_invalid_page_number)');
+      const headers = new Headers(wp.totalPages !== undefined ? {'x-wp-totalpages': String(wp.totalPages)} : {});
+      return {json: async () => body, response: {headers}};
+    };
+    return {park, fetched, wpFetched};
+  }
+  // Shape of the error the HTTP layer rejects with: the URL leads the first line.
+  const notFound = () => new Error('GET https://example.test/rides-and-experiences/x/: HTTP request not OK: 404 \n  URL: GET https://example.test/rides-and-experiences/x/');
+  const base = {'attractions': MASTER, 'dining': EMPTY, 'live-entertainment': EMPTY};
+
+  test('a failed water-park page with a failed category fallback rejects instead of re-homing its rides', async () => {
+    const {park} = await makePark({...base, 'hurricane-harbor-water-park': notFound()});
+    await expect((park as any).buildEntityList()).rejects.toThrow(/hurricane-harbor-water-park/);
+  });
+
+  test('the rejection names the path but not the host', async () => {
+    const {park} = await makePark({...base, 'hurricane-harbor-water-park': notFound()});
+    const err = await (park as any).buildEntityList().catch((e: Error) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toContain('404');
+    expect(err.message).not.toContain('example.test');
+  });
+
+  test('a water-park page that parses to no rides, with the category fallback also failing, rejects', async () => {
+    // A 200 with no cards (page emptied or restyled) would re-home the same
+    // rides as a 404 does.
+    const {park} = await makePark({...base, 'hurricane-harbor-water-park': EMPTY});
+    await expect((park as any).buildEntityList()).rejects.toThrow(/0 rides/);
+  });
+
+  test('a working water-park page claims its slugs, and the theme park keeps only the rest', async () => {
+    const {park} = await makePark({...base, 'hurricane-harbor-water-park': WATER});
+    const entities: any[] = await (park as any).buildEntityList();
+    const ids = entities.map(e => e.id).sort();
+    expect(ids).toEqual([
+      'enchantedparks_attraction_HH_big-kahuna',
+      'enchantedparks_attraction_HH_hurricane-bay',
+      'enchantedparks_attraction_MAP_american-thunder',
+      'enchantedparks_attraction_MAP_screamin-eagle',
+      'enchantedparks_park_HH',
+      'enchantedparks_park_MAP',
+    ]);
+    const hh = entities.filter(e => e.parentId === 'enchantedparks_park_HH');
+    expect(hh.map(e => e.name).sort()).toEqual(['Big Kahuna', 'Hurricane Bay']);
+  });
+
+  test('a failure is not cached: the next build fetches again and succeeds', async () => {
+    const pages: Record<string, string | Error> = {...base, 'hurricane-harbor-water-park': notFound()};
+    const {park, fetched} = await makePark(pages);
+    await expect((park as any).buildEntityList()).rejects.toThrow();
+
+    pages['hurricane-harbor-water-park'] = WATER;
+    const entities: any[] = await (park as any).buildEntityList();
+    expect(fetched.filter(p => p === 'hurricane-harbor-water-park')).toHaveLength(2);
+    expect(entities.filter(e => e.parentId === 'enchantedparks_park_HH')).toHaveLength(2);
+  });
+
+  test('a successful scrape is cached: the next build does not refetch', async () => {
+    // The counterpart to the test above, so it cannot pass just because
+    // nothing is ever cached.
+    const {park, fetched} = await makePark({...base, 'hurricane-harbor-water-park': WATER});
+    await (park as any).buildEntityList();
+    await (park as any).buildEntityList();
+    expect(fetched.filter(p => p === 'hurricane-harbor-water-park')).toHaveLength(1);
+  });
+
+  test('a failed master attractions page rejects the build', async () => {
+    const {park} = await makePark({...base, 'attractions': notFound(), 'hurricane-harbor-water-park': WATER});
+    await expect((park as any).buildEntityList()).rejects.toThrow(/"attractions"/);
+  });
+
+  test('a failed dining page rejects the build instead of dropping every restaurant', async () => {
+    const {park} = await makePark({...base, 'dining': notFound(), 'hurricane-harbor-water-park': WATER});
+    await expect((park as any).buildEntityList()).rejects.toThrow(/"dining"/);
+  });
+
+  test('a failed shows page rejects the build instead of dropping every show', async () => {
+    const {park} = await makePark({...base, 'live-entertainment': notFound(), 'hurricane-harbor-water-park': WATER});
+    await expect((park as any).buildEntityList()).rejects.toThrow(/"live-entertainment"/);
+  });
+
+  test('live data stays isolated: listing and category both failing yields no live data, not a throw', async () => {
+    const {park} = await makePark({...base, 'hurricane-harbor-water-park': notFound()});
+    (park as any).liveStatusEndpoint = 'https://example.invalid/graphql';
+    (park as any).liveStatusApiKey = 'test-key';
+    (park as any).liveStatusSiteIds = ['test-site'];
+    (park as any).getFeatures = async (): Promise<LiveFeature[]> => [
+      {name: 'SFSTL - Big Kahuna', siteId: 'test-site', operationalStatus: 'Open'},
+      {name: 'SFSTL - American Thunder', siteId: 'test-site', operationalStatus: 'Open'},
+    ];
+    const warn = console.warn;
+    console.warn = () => {};
+    try {
+      // Never Big Kahuna under the theme-park id.
+      expect(await (park as any).buildLiveData()).toEqual([]);
+    } finally {
+      console.warn = warn;
+    }
+  });
+
+  test('live data with a working water-park page attaches rides to the right park', async () => {
+    const {park} = await makePark({...base, 'hurricane-harbor-water-park': WATER});
+    (park as any).liveStatusEndpoint = 'https://example.invalid/graphql';
+    (park as any).liveStatusApiKey = 'test-key';
+    (park as any).liveStatusSiteIds = ['test-site'];
+    (park as any).getFeatures = async (): Promise<LiveFeature[]> => [
+      {name: 'SFSTL - Big Kahuna', siteId: 'test-site', operationalStatus: 'Open'},
+      {name: 'SFSTL - American Thunder', siteId: 'test-site', operationalStatus: 'Open'},
+    ];
+    const live: any[] = await (park as any).buildLiveData();
+    expect(live.map(l => l.id).sort()).toEqual([
+      'enchantedparks_attraction_HH_big-kahuna',
+      'enchantedparks_attraction_MAP_american-thunder',
+    ]);
+  });
+
+  // ----- WP REST category fallback -----
+
+  /** Run `fn` with console.warn captured; returns what was warned. */
+  async function captureWarn<T>(fn: () => Promise<T>): Promise<{result: T; warnings: string[]}> {
+    const warnings: string[] = [];
+    const warn = console.warn;
+    console.warn = (...args: unknown[]) => { warnings.push(args.map(String).join(' ')); };
+    try {
+      return {result: await fn(), warnings};
+    } finally {
+      console.warn = warn;
+    }
+  }
+  const HH_IDS = ['enchantedparks_attraction_HH_big-kahuna', 'enchantedparks_attraction_HH_hurricane-bay'];
+  const MAP_IDS = ['enchantedparks_attraction_MAP_american-thunder', 'enchantedparks_attraction_MAP_screamin-eagle'];
+  const ridesOf = (entities: any[], parkId: string) =>
+    entities.filter(e => e.entityType === 'ATTRACTION' && e.parentId === parkId).map(e => e.id).sort();
+
+  test('listing 404 + category OK: the water park gets exactly the category rides, the theme park none of them', async () => {
+    const {park} = await makePark(
+      {...base, 'hurricane-harbor-water-park': notFound()},
+      {category: CATEGORY, pages: [CATEGORY_PAGES], totalPages: 1},
+    );
+    const {result: entities} = await captureWarn(() => (park as any).buildEntityList());
+    expect(ridesOf(entities as any[], 'enchantedparks_park_HH')).toEqual(HH_IDS);
+    expect(ridesOf(entities as any[], 'enchantedparks_park_MAP')).toEqual(MAP_IDS);
+    // Names come from the master listing, not the WP page record.
+    const kahuna = (entities as any[]).find(e => e.id === 'enchantedparks_attraction_HH_big-kahuna');
+    expect(kahuna.name).toBe('Big Kahuna');
+  });
+
+  test('the fallback warns once per build with the path and source, but not the host', async () => {
+    const {park} = await makePark(
+      {...base, 'hurricane-harbor-water-park': notFound()},
+      {category: CATEGORY, pages: [CATEGORY_PAGES], totalPages: 1},
+    );
+    const {warnings} = await captureWarn(() => (park as any).buildEntityList());
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('hurricane-harbor-water-park');
+    expect(warnings[0]).toContain('category "hurricane-harbor"');
+    expect(warnings[0]).not.toContain('example.test');
+  });
+
+  test('a dead listing is not re-requested for an hour once the category stands in, and warns once', async () => {
+    // Mid-America's listing is unpublished: without this, every entity build and
+    // every live tick would re-request it and log the failure.
+    vi.useFakeTimers({toFake: ['Date']});
+    vi.setSystemTime(new Date('2026-09-26T16:00:00Z'));
+    try {
+      const {park, fetched} = await makePark(
+        {...base, 'hurricane-harbor-water-park': notFound()},
+        {category: CATEGORY, pages: [CATEGORY_PAGES], totalPages: 1},
+      );
+      const first = await captureWarn(() => (park as any).buildEntityList());
+      const second = await captureWarn(() => (park as any).buildEntityList());
+      expect(fetched.filter(p => p === 'hurricane-harbor-water-park')).toHaveLength(1);
+      expect(first.warnings).toHaveLength(1);
+      expect(second.warnings).toHaveLength(0);
+      expect(ridesOf(second.result as any[], 'enchantedparks_park_HH')).toEqual(HH_IDS);
+
+      // After the hour the listing is tried again.
+      vi.setSystemTime(new Date('2026-09-26T17:00:01Z'));
+      await captureWarn(() => (park as any).buildEntityList());
+      expect(fetched.filter(p => p === 'hurricane-harbor-water-park')).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('a recovered listing is used again as soon as it is retried', async () => {
+    vi.useFakeTimers({toFake: ['Date']});
+    vi.setSystemTime(new Date('2026-09-26T16:00:00Z'));
+    try {
+      const pages: Record<string, string | Error> = {...base, 'hurricane-harbor-water-park': notFound()};
+      const {park} = await makePark(pages, {category: CATEGORY, pages: [CATEGORY_PAGES], totalPages: 1});
+      await captureWarn(() => (park as any).buildEntityList());
+      pages['hurricane-harbor-water-park'] = WATER;
+      vi.setSystemTime(new Date('2026-09-26T17:00:01Z'));
+      const {result} = await captureWarn(() => (park as any).resolveParkRides());
+      expect((result as any).waterSource).toBe('listing');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('a listing is not skipped when the category also failed', async () => {
+    // Nothing stood in, so the next build must try the listing again.
+    const {park, fetched} = await makePark({...base, 'hurricane-harbor-water-park': notFound()});
+    await expect((park as any).buildEntityList()).rejects.toThrow();
+    await expect((park as any).buildEntityList()).rejects.toThrow();
+    expect(fetched.filter(p => p === 'hurricane-harbor-water-park')).toHaveLength(2);
+  });
+
+  test('listing empty + category OK: same result as a 404', async () => {
+    const {park} = await makePark(
+      {...base, 'hurricane-harbor-water-park': EMPTY},
+      {category: CATEGORY, pages: [CATEGORY_PAGES], totalPages: 1},
+    );
+    const {result: entities} = await captureWarn(() => (park as any).buildEntityList());
+    expect(ridesOf(entities as any[], 'enchantedparks_park_HH')).toEqual(HH_IDS);
+    expect(ridesOf(entities as any[], 'enchantedparks_park_MAP')).toEqual(MAP_IDS);
+  });
+
+  test('a working listing never consults the category', async () => {
+    const {park, wpFetched} = await makePark(
+      {...base, 'hurricane-harbor-water-park': WATER},
+      {category: CATEGORY, pages: [CATEGORY_PAGES], totalPages: 1},
+    );
+    await (park as any).buildEntityList();
+    expect(wpFetched).toEqual([]);
+  });
+
+  test('listing and category both failing rejects, naming both', async () => {
+    const {park} = await makePark({...base, 'hurricane-harbor-water-park': notFound()}, {category: wpDown()});
+    const err = await (park as any).buildEntityList().catch((e: Error) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toContain('hurricane-harbor-water-park');
+    expect(err.message).toMatch(/fallback category "hurricane-harbor" could not be resolved/);
+    expect(err.message).not.toContain('example.test');
+  });
+
+  test('an unknown category (empty lookup) counts as a failure', async () => {
+    const {park} = await makePark({...base, 'hurricane-harbor-water-park': notFound()}, {category: []});
+    await expect((park as any).buildEntityList()).rejects.toThrow(/category not found/);
+  });
+
+  test('a category with zero pages counts as a failure', async () => {
+    const {park} = await makePark(
+      {...base, 'hurricane-harbor-water-park': notFound()},
+      {category: CATEGORY, pages: [[]], totalPages: 0},
+    );
+    await expect((park as any).buildEntityList()).rejects.toThrow(/no ride pages tagged/);
+  });
+
+  test('a category whose rides are not on the master list counts as a failure', async () => {
+    const {park} = await makePark(
+      {...base, 'hurricane-harbor-water-park': notFound()},
+      {category: CATEGORY, pages: [[wpPage('not-a-listed-ride')]], totalPages: 1},
+    );
+    await expect(captureWarn(() => (park as any).buildEntityList())).rejects.toThrow(/matched no rides/);
+  });
+
+  test('category pagination follows X-WP-TotalPages', async () => {
+    const {park, wpFetched} = await makePark(
+      {...base, 'hurricane-harbor-water-park': notFound()},
+      {category: CATEGORY, pages: [[wpPage('big-kahuna')], [wpPage('hurricane-bay')]], totalPages: 2},
+    );
+    const {result: entities} = await captureWarn(() => (park as any).buildEntityList());
+    expect(wpFetched).toEqual(['category:hurricane-harbor', 'pages:388:1', 'pages:388:2']);
+    expect(ridesOf(entities as any[], 'enchantedparks_park_HH')).toEqual(HH_IDS);
+  });
+
+  test('without the header, pagination stops on a short page', async () => {
+    const full = Array.from({length: 100}, (_, i) => wpPage(`filler-${i}`));
+    const {park, wpFetched} = await makePark(
+      {...base, 'hurricane-harbor-water-park': notFound()},
+      {category: CATEGORY, pages: [[...full.slice(0, 98), wpPage('big-kahuna'), wpPage('hurricane-bay')], [wpPage('tube-slides')]]},
+    );
+    const {result: entities} = await captureWarn(() => (park as any).buildEntityList());
+    expect(wpFetched).toEqual(['category:hurricane-harbor', 'pages:388:1', 'pages:388:2']);
+    expect(ridesOf(entities as any[], 'enchantedparks_park_HH')).toEqual(HH_IDS);
+  });
+
+  test('a category failure is not cached: the next build retries it and succeeds', async () => {
+    const wp: WpStub = {category: wpDown()};
+    const {park, wpFetched} = await makePark({...base, 'hurricane-harbor-water-park': notFound()}, wp);
+    await expect((park as any).buildEntityList()).rejects.toThrow();
+
+    wp.category = CATEGORY;
+    wp.pages = [CATEGORY_PAGES];
+    wp.totalPages = 1;
+    const {result: entities} = await captureWarn(() => (park as any).buildEntityList());
+    expect(wpFetched.filter(f => f.startsWith('category:'))).toHaveLength(2);
+    expect(ridesOf(entities as any[], 'enchantedparks_park_HH')).toEqual(HH_IDS);
+  });
+
+  test('a resolved category is cached: the next build does not refetch it', async () => {
+    const {park, wpFetched} = await makePark(
+      {...base, 'hurricane-harbor-water-park': notFound()},
+      {category: CATEGORY, pages: [CATEGORY_PAGES], totalPages: 1},
+    );
+    await captureWarn(async () => {
+      await (park as any).buildEntityList();
+      await (park as any).buildEntityList();
+    });
+    expect(wpFetched.filter(f => f.startsWith('category:'))).toHaveLength(1);
+  });
+
+  test('live data uses the fallback instead of blacking out the destination', async () => {
+    const {park} = await makePark(
+      {...base, 'hurricane-harbor-water-park': notFound()},
+      {category: CATEGORY, pages: [CATEGORY_PAGES], totalPages: 1},
+    );
+    (park as any).liveStatusEndpoint = 'https://example.invalid/graphql';
+    (park as any).liveStatusApiKey = 'test-key';
+    (park as any).liveStatusSiteIds = ['test-site'];
+    (park as any).getFeatures = async (): Promise<LiveFeature[]> => [
+      {name: 'SFSTL - Big Kahuna', siteId: 'test-site', operationalStatus: 'Open'},
+      {name: 'SFSTL - American Thunder', siteId: 'test-site', operationalStatus: 'Open'},
+    ];
+    const {result: live} = await captureWarn(() => (park as any).buildLiveData());
+    expect((live as any[]).map(l => l.id).sort()).toEqual([
+      'enchantedparks_attraction_HH_big-kahuna',
+      'enchantedparks_attraction_MAP_american-thunder',
+    ]);
+  });
+});
+
+describe('water-park listing paths', () => {
+  // Michigan's Adventure's old water-park path now 301s to a calendar event
+  // page; the @http layer treats a 3xx as a failure, so the old value would
+  // reject every entity build.
+  test("Michigan's Adventure points at the current water-park listing", async () => {
+    const mod = await import('../michigansadventure.js');
+    const ParkClass = Object.values(mod)[0] as new () => EnchantedParks;
+    const park = new ParkClass();
+    expect(park.waterPark?.ridesPath).toBe('wildwater-adventure-waterpark');
+  });
+});
+
+describe('parseCategoryRideSlugs', () => {
+  test('takes the slug from the attraction link, skipping non-attraction pages', () => {
+    expect(parseCategoryRideSlugs([
+      {slug: 'tube-slides', link: 'https://example.test/rides-and-experiences/attractions/tube-slides/'},
+      {slug: 'beach-bites', link: 'https://example.test/rides-and-experiences/dining/beach-bites/'},
+      {slug: 'hurricane-harbor', link: 'https://example.test/hurricane-harbor/'},
+      {slug: 'tube-slides', link: 'https://example.test/rides-and-experiences/attractions/tube-slides/'},
+    ])).toEqual(['tube-slides']);
+  });
+
+  test('tolerates malformed records', () => {
+    expect(parseCategoryRideSlugs([{slug: 'x'} as any, null as any])).toEqual([]);
+  });
+});
+
+describe('water-park category config', () => {
+  // Category slugs verified against the live WP REST API on 2026-09-26: each
+  // one's attraction pages match the water park's listing slugs. Valleyfair's
+  // category exists but tags nothing, so it is deliberately unset.
+  const load: Record<string, () => Promise<Record<string, unknown>>> = {
+    midamericaparks: () => import('../midamericaparks.js'),
+    michigansadventure: () => import('../michigansadventure.js'),
+    greatescapeparks: () => import('../greatescapeparks.js'),
+    worldsoffun: () => import('../worldsoffun.js'),
+    valleyfair: () => import('../valleyfair.js'),
+  };
+  test.each([
+    ['midamericaparks', 'hurricane-harbor'],
+    ['michigansadventure', 'wildwater'],
+    ['greatescapeparks', undefined],  // category and listing disagree on one ride
+    ['worldsoffun', 'oceans-of-fun'],
+    ['valleyfair', undefined],
+  ])('%s water park ridesCategory is %s', async (file, expected) => {
+    const mod = await load[file]();
+    const ParkClass = Object.values(mod)[0] as new () => EnchantedParks;
+    expect(new ParkClass().waterPark?.ridesCategory).toBe(expected);
   });
 });
