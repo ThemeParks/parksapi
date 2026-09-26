@@ -213,6 +213,19 @@ export class SeaworldDestination extends Destination {
   // IANA timezone for this destination (set by subclasses)
   timezone: string = 'America/New_York';
 
+  /**
+   * `Shows` POIs, by feed Id, that are walk-through attractions rather than
+   * performances. Published as ATTRACTION instead of SHOW; the id is unchanged.
+   *
+   * This is a per-destination list because the feed carries nothing that sets
+   * such an item apart. Every field that could classify one (Type, SubType,
+   * Category, Subcategory, ShowType, FilterTags, Tags) is identical to, or
+   * absent on, dozens of real performances across the family, and an empty
+   * `ShowTimes` array is common to plenty of real shows too. Set by
+   * subclasses; empty by default.
+   */
+  walkThroughShowIds: ReadonlySet<string> = new Set();
+
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('SEAWORLD');
@@ -526,14 +539,29 @@ export class SeaworldDestination extends Destination {
       const aslToBase = mapAslShowsToBase(shows);
       for (const poi of shows) {
         if (aslToBase[poi.Id]) continue;
-        const entity: Entity = {
-          id: poi.Id,
-          name: poi.Name,
-          entityType: 'SHOW',
-          parentId: parkDetail.Id,
-          destinationId: this.destinationId,
-          timezone: this.timezone,
-        };
+        // A walk-through filed under Shows keeps its id and moves to
+        // ATTRACTION. attractionType is set explicitly: RIDE is the type every
+        // other walk-through in this library already carries (haunt mazes,
+        // event houses), and the base class would otherwise default to it
+        // silently.
+        const entity: Entity = this.walkThroughShowIds.has(poi.Id)
+          ? {
+            id: poi.Id,
+            name: poi.Name,
+            entityType: 'ATTRACTION',
+            attractionType: 'RIDE',
+            parentId: parkDetail.Id,
+            destinationId: this.destinationId,
+            timezone: this.timezone,
+          }
+          : {
+            id: poi.Id,
+            name: poi.Name,
+            entityType: 'SHOW',
+            parentId: parkDetail.Id,
+            destinationId: this.destinationId,
+            timezone: this.timezone,
+          };
         if (poi.Coordinate) {
           entity.location = {
             latitude: poi.Coordinate.Latitude,
@@ -1101,6 +1129,11 @@ export class SesamePlacePhiladelphia extends SeaworldDestination {
     this.timezone = 'America/New_York';
     this.destinationName = 'Sesame Place Philadelphia';
     this.destinationId = 'sesameplacephiladelphia';
+    this.walkThroughShowIds = new Set([
+      // Trick-or-Treat Trail: a seasonal trail guests walk through, filed by
+      // the operator under Shows with no subcategory and no performances.
+      '56e4d407-e5ad-4e7c-8fba-40f5734c4747',
+    ]);
   }
 }
 

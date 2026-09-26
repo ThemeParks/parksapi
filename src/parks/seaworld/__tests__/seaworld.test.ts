@@ -1648,3 +1648,92 @@ describe('ASL-interpreted performances', () => {
     expect(live.find((r: any) => r.id === 'asl-fiends').showtimes[0].type).toBe('Performance');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Walk-throughs the operator files under Shows
+// ---------------------------------------------------------------------------
+describe('walk-through attractions filed as Shows', () => {
+  const SPL_PARK_ID = 'F7408854-28CB-4B1E-98E5-4449FE600E85';
+  const TRAIL_ID = '56e4d407-e5ad-4e7c-8fba-40f5734c4747';
+
+  // Sanitised from the live Sesame Place Philadelphia payload. The trail and
+  // the concert share every classifying field: Type, a null SubType, the
+  // top-level Shows category with no Subcategory, empty tags, no showtimes.
+  const showPoi = (Id: string, Name: string, SubcategoryName: string | null) => ({
+    Id,
+    Name,
+    Type: 'Shows',
+    SubType: SubcategoryName,
+    ShowType: null,
+    FilterTags: [],
+    Tags: [],
+    ShowTimes: [],
+    Category: {
+      CategoryName: 'Shows',
+      Subcategory: SubcategoryName ? {SubcategoryName} : null,
+    },
+    Coordinate: {Latitude: 40.18, Longitude: -74.87},
+  });
+
+  const detail = {
+    Id: SPL_PARK_ID,
+    park_Name: 'Sesame Place Langhorne',
+    TimeZone: 'America/New_York',
+    map_center: {Latitude: 40.18, Longitude: -74.87},
+    POIs: {
+      Rides: [{Id: 'ride-1', Name: 'Vapor Trail', Type: 'Rides'}],
+      Shows: [
+        showPoi(TRAIL_ID, 'Trick-or-Treat Trail', null),
+        showPoi('show-concert', 'David Jack Concert', null),
+        showPoi('show-parade', 'The Sesame Street Halloween Parade', 'Presentations'),
+        showPoi('show-meet', 'Meet Elmo', 'Meet-and-Greets'),
+      ],
+      Dining: [],
+    },
+    open_hours: [],
+  };
+
+  async function entitiesFor(park: any) {
+    park.getParkDetail = async () => detail as any;
+    return await park.buildEntityList();
+  }
+
+  it('publishes the Trick-or-Treat Trail as an ATTRACTION under its existing id', async () => {
+    const entities = await entitiesFor(new SesamePlacePhiladelphia());
+    const trail = entities.find((e: any) => e.id === TRAIL_ID);
+    expect(trail).toMatchObject({
+      id: TRAIL_ID,
+      name: 'Trick-or-Treat Trail',
+      entityType: 'ATTRACTION',
+      attractionType: 'RIDE',
+      parentId: SPL_PARK_ID,
+      destinationId: 'sesameplacephiladelphia',
+    });
+  });
+
+  it('leaves real performances, parades and meet & greets as SHOW', async () => {
+    const entities = await entitiesFor(new SesamePlacePhiladelphia());
+    for (const id of ['show-concert', 'show-parade', 'show-meet']) {
+      const e = entities.find((x: any) => x.id === id);
+      expect(e?.entityType).toBe('SHOW');
+      expect((e as any).attractionType).toBeUndefined();
+    }
+  });
+
+  it('changes no ids and drops no entities', async () => {
+    const entities = await entitiesFor(new SesamePlacePhiladelphia());
+    const ids = entities.map((e: any) => e.id).sort();
+    expect(ids).toEqual(
+      ['sesameplacephiladelphia', SPL_PARK_ID, 'ride-1', TRAIL_ID, 'show-concert', 'show-parade', 'show-meet'].sort(),
+    );
+  });
+
+  it('is scoped to the destination that lists the id', async () => {
+    // Same POI id in another destination's payload stays a SHOW: the list is
+    // per destination, not a family-wide rule.
+    const other = new SesamePlaceSanDiego();
+    (other as any).getParkDetail = async () => ({...detail, Id: 'A988F4CE-6A81-4527-9535-DDB378689E52'}) as any;
+    const entities = await (other as any).buildEntityList();
+    expect(entities.find((e: any) => e.id === TRAIL_ID)?.entityType).toBe('SHOW');
+  });
+});
