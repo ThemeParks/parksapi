@@ -34,6 +34,9 @@ export class MidAmericaParks extends EnchantedParks {
       code: 'HH',
       name: 'Hurricane Harbor',
       ridesPath: 'hurricane-harbor-water-park',
+      // The listing page has been unpublished (404) while its ride pages stay
+      // up; membership then comes from this category.
+      ridesCategory: 'hurricane-harbor',
       scheduleCategory: 'Waterpark Hours',
       location: {latitude: 38.5128, longitude: -90.6724},
     };
