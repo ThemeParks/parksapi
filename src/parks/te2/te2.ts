@@ -87,6 +87,7 @@ type TE2POIStatus = {
   status?: {
     isOpen?: boolean;
     waitTime?: number;
+    operationalStatus?: string;
   };
 };
 
@@ -140,7 +141,8 @@ type TE2EventCalendarResponse = {
 /** Normalized status entry used internally */
 type NormalizedStatusEntry = {
   id: string;
-  isOpen: boolean;
+  status: 'OPERATING' | 'CLOSED' | 'DOWN';
+  /** Standby wait to publish, or null when there is none to show. */
   waitTime: number | null;
 };
 
@@ -425,14 +427,22 @@ class TE2Destination extends Destination {
     for (const item of data) {
       if (!item?.id || !item.status) continue;
 
+      // The park's app keys a ride on operationalStatus alone and ignores
+      // isOpen: "OPEN" shows the wait, "DOWN" shows the ride as down, and
+      // anything else as closed. A closed ride's waitTime counts down to
+      // opening and a down ride keeps its last wait, so the app shows a wait
+      // only for OPEN, and so do we.
+      const operational = String(item.status.operationalStatus ?? '').toUpperCase();
+      const status = operational === 'OPEN' ? 'OPERATING' : operational === 'DOWN' ? 'DOWN' : 'CLOSED';
+
       const rawWait = item.status.waitTime;
-      const waitTime = (rawWait !== undefined && rawWait !== null && Number.isFinite(Number(rawWait)))
+      const waitTime = (status === 'OPERATING' && rawWait !== undefined && rawWait !== null && Number.isFinite(Number(rawWait)))
         ? Math.max(0, Math.round(Number(rawWait)))
         : null;
 
       entries.push({
         id: String(item.id),
-        isOpen: item.status.isOpen === true,
+        status,
         waitTime,
       });
     }
@@ -463,7 +473,7 @@ class TE2Destination extends Destination {
 
       entries.push({
         id: te2Id,
-        isOpen,
+        status: isOpen ? 'OPERATING' : 'CLOSED',
         waitTime,
       });
     }
@@ -786,7 +796,7 @@ class TE2Destination extends Destination {
 
       const ld: LiveData = {
         id: entry.id,
-        status: entry.isOpen ? 'OPERATING' : 'CLOSED',
+        status: entry.status,
       } as LiveData;
 
       if (entry.waitTime !== null) {
