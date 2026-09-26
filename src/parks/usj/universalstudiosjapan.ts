@@ -114,6 +114,33 @@ const WANTED_PLACE_TYPES: Record<string, Entity['entityType']> = {
   Dining: 'RESTAURANT',
 };
 
+/**
+ * Places the feed files as a Show that are really walk-through attractions.
+ *
+ * USJ's feed does type its walk-throughs when it knows about them: Ollivanders,
+ * the 4-D films and Hello Kitty's Ribbon Collection come through the places
+ * API as `place_type.type: "Ride"` and the show list as `show_type: "RIDE"`.
+ * Hogwarts Castle Walk is the exception. Both feeds call it a Show, and
+ * nothing in either record separates it from a real performance: its
+ * `categories: ["other"]` is shared with the Snoopy photo opportunity and the
+ * trick-or-treat event, and its single all-day show-list window has the same
+ * shape as Ollivanders' or the photo opportunity's.
+ *
+ * So the correction is pinned to the place id. The pattern accepts the
+ * yearly `_YYYY` suffix USJ adds to seasonal ids (`..._2026`), so a re-run of
+ * the event under a new id keeps its type without a code change. Anything
+ * else stays whatever the feed says.
+ */
+const WALKTHROUGH_SHOW_IDS: RegExp[] = [
+  /^usj\.usj\.shows?\.hogwarts_castle_walk(_\d{4})?$/,
+];
+
+/** Would this Show-typed place be published as a walk-through attraction? */
+export function isWalkthroughShow(place: Pick<USJPlace, 'place_id' | 'place_type'>): boolean {
+  if (place?.place_type?.type !== 'Show') return false;
+  return WALKTHROUGH_SHOW_IDS.some((re) => re.test(place.place_id));
+}
+
 // ─── Implementation ───────────────────────────────────────────────────────────
 
 @destinationController({category: 'Universal'})
@@ -334,8 +361,10 @@ export class UniversalStudiosJapan extends Destination {
 
     for (const place of places) {
       const placeType = place.place_type?.type;
-      const entityType = WANTED_PLACE_TYPES[placeType];
+      let entityType = WANTED_PLACE_TYPES[placeType];
       if (!entityType) continue;
+      const walkthrough = isWalkthroughShow(place);
+      if (walkthrough) entityType = 'ATTRACTION';
 
       // Extract map location
       const mapLoc = place.geometry?.locations?.find(
@@ -355,6 +384,12 @@ export class UniversalStudiosJapan extends Destination {
 
       if (lat != null && lng != null) {
         entity.location = {latitude: lat, longitude: lng};
+      }
+
+      if (walkthrough) {
+        // typelib has no walk-through member. RIDE is what the feed's own
+        // walk-throughs (Ollivanders, `place_type: "Ride"`) are published as.
+        (entity as Entity & {attractionType?: string}).attractionType = 'RIDE';
       }
 
       attractionEntities.push(entity);
