@@ -459,6 +459,41 @@ export function parseShowTimes(raw: string | null | undefined): ShowTimeNode | n
 }
 
 /**
+ * Shortest daily window that still reads as opening hours rather than a
+ * performance. Only consulted inside a park's walk-through categories (see
+ * getWalkThroughCategories), where the alternative is a keeper talk or feed:
+ * those run in short slots, while an animal area open for the day publishes
+ * one multi-hour window. Elsewhere long windows are normal for real shows
+ * (hotel entertainment, all-afternoon programmes), so this is not a general
+ * show/attraction test.
+ */
+const OPENING_WINDOW_MIN_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * True when a ShowTimes tree describes opening hours, not performances: it has
+ * at least one daily `period` (period_length of exactly one day) and every
+ * daily period's window is at least {@link OPENING_WINDOW_MIN_MS} long. A
+ * point-in-time period (no range_length) or a short slot is a performance.
+ * Weekly periods and ranges only pick which days apply, so they are ignored.
+ */
+export function isOpeningWindowSchedule(node: ShowTimeNode | null): boolean {
+  if (!node) return false;
+  const dailyWindows: number[] = [];
+  const walk = (n: ShowTimeNode): void => {
+    if (!n || typeof n !== 'object') return;
+    if (n.type === 'period') {
+      if (showTimeDurationMs(n.period_length) === SHOWTIME_DAY_MS) {
+        dailyWindows.push(showTimeDurationMs(n.range_length));
+      }
+      return;
+    }
+    if ('children' in n && Array.isArray(n.children)) n.children.forEach(walk);
+  };
+  walk(node);
+  return dailyWindows.length > 0 && dailyWindows.every(ms => ms >= OPENING_WINDOW_MIN_MS);
+}
+
+/**
  * Evaluate a ShowTimes node against the window [winStart, winEnd) and return the
  * normalised set of active intervals within that window (naive-local ms).
  */
@@ -1073,6 +1108,39 @@ class AttractionsIOV1 extends Destination {
     return SHOW_CATEGORIES;
   }
 
+  /**
+   * Category names (matched with their immediate children, as for the other
+   * lists) whose scheduled items are walk-through areas when their schedule is
+   * an opening window rather than performances. Empty by default; a park opts
+   * in with the category its own feed uses.
+   */
+  protected getWalkThroughCategories(): string[] {
+    return [];
+  }
+
+  /**
+   * Items published as walk-through ATTRACTIONs: filed under one of this
+   * park's walk-through categories, not claimed by the attraction, show or
+   * restaurant lists, and carrying a ShowTimes schedule that is an opening
+   * window (see isOpeningWindowSchedule). A scheduled keeper talk in the same
+   * category has short slots and stays a SHOW.
+   */
+  private async getWalkThroughItems(): Promise<RecordItem[]> {
+    const categories = this.getWalkThroughCategories();
+    if (categories.length === 0) return [];
+    const listed = new Set(
+      (await this.getItemsForCategories([
+        ...ATTRACTION_CATEGORIES,
+        ...this.getShowCategories(),
+        ...RESTAURANT_CATEGORIES,
+      ])).map(item => item._id),
+    );
+    const items = await this.getItemsForCategories(categories);
+    return items.filter(item =>
+      !listed.has(item._id) && isOpeningWindowSchedule(parseShowTimes(item.ShowTimes)),
+    );
+  }
+
   // ── Live data ─────────────────────────────────────────────────────────────
 
   /**
@@ -1189,6 +1257,20 @@ class AttractionsIOV1 extends Destination {
     const classified = new Set(
       [...attractionItems, ...showItems, ...restaurantItems].map(item => item._id),
     );
+
+    // Walk-through areas the park files in a category of their own with an
+    // opening-hours schedule. Taken before the scheduled-show fallback, which
+    // would otherwise read that schedule as performances. attractionType is
+    // explicit: RIDE is what every other walk-through in this library carries,
+    // and the base class would otherwise default to it silently.
+    const walkThroughItems = await this.getWalkThroughItems();
+    const walkThroughEntities = walkThroughItems.map(item => {
+      const entity = buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'ATTRACTION');
+      (entity as Entity & {attractionType?: string}).attractionType = 'RIDE';
+      return entity;
+    });
+    for (const item of walkThroughItems) classified.add(item._id);
+
     const scheduledShowEntities = data.Item
       .filter(item => !classified.has(item._id) && parseShowTimes(item.ShowTimes) !== null)
       .map(item => buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'SHOW'));
@@ -1197,6 +1279,7 @@ class AttractionsIOV1 extends Destination {
       ...await this.getDestinations(),
       parkEntity,
       ...attractionEntities,
+      ...walkThroughEntities,
       ...showEntities,
       ...restaurantEntities,
       ...scheduledShowEntities,
@@ -1216,8 +1299,17 @@ class AttractionsIOV1 extends Destination {
    */
   protected async buildLiveData(): Promise<LiveData[]> {
     const entities = await this.getEntities();
+    // Walk-through areas publish their hours as a schedule, and the live feed
+    // carries no usable signal for them (Chessington's Wanyama Village sits in
+    // it at IsOperational:false with no OpeningTimes, whatever the time of
+    // day). Their status comes from that schedule instead, as it did while
+    // they were published as shows, so they are kept out of the ride branch.
+    const walkThroughItems = await this.getWalkThroughItems();
+    const walkThroughIds = new Set(walkThroughItems.map(item => String(item._id)));
     const attractionIds = new Set(
-      entities.filter(e => e.entityType === 'ATTRACTION').map(e => e.id),
+      entities
+        .filter(e => e.entityType === 'ATTRACTION' && !walkThroughIds.has(e.id))
+        .map(e => e.id),
     );
     const restaurantIds = new Set(
       entities.filter(e => e.entityType === 'RESTAURANT').map(e => e.id),
@@ -1334,6 +1426,27 @@ class AttractionsIOV1 extends Destination {
           status: hasUpcoming ? 'OPERATING' : 'CLOSED',
         };
         if (showtimes.length > 0) entry.showtimes = showtimes;
+        liveData.push(entry);
+      }
+    }
+
+    // Walk-throughs: OPERATING while "now" sits inside one of today's opening
+    // windows, CLOSED otherwise; today's windows are published as
+    // operatingHours. Only ids that made it into the entity list are emitted.
+    if (walkThroughIds.size > 0) {
+      const today = formatDate(new Date(), this.timezone);
+      const nowMs = Date.now();
+      for (const item of walkThroughItems) {
+        const id = String(item._id);
+        if (!entities.some(e => e.id === id && e.entityType === 'ATTRACTION')) continue;
+        let hours: LiveTimeSlot[];
+        try {
+          hours = showTimesForDate(item.ShowTimes, today, this.timezone, 'OPERATING');
+        } catch {
+          continue;
+        }
+        const entry: LiveData = {id, status: isOpenNow(hours, nowMs) ? 'OPERATING' : 'CLOSED'};
+        if (hours.length > 0) entry.operatingHours = hours;
         liveData.push(entry);
       }
     }
@@ -1557,6 +1670,18 @@ export class ChessingtonWorldOfAdventures extends AttractionsIOV1 {
         ...options?.config,
       },
     });
+  }
+
+  /**
+   * Chessington files its zoo in a top-level "Zoo Encounters" category that
+   * mixes walk-through animal areas (Wanyama Village, Trail of the Kings, the
+   * aquarium) with keeper talks. Its "Zoo Areas" and "Animal Talks" child
+   * categories exist but are empty; every item sits on the parent. The areas
+   * that carry a schedule publish one multi-hour daily window, which is what
+   * separates them from a talk.
+   */
+  protected getWalkThroughCategories(): string[] {
+    return ['Zoo Encounters'];
   }
 }
 
