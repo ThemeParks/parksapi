@@ -46,7 +46,9 @@ const OPERATING_NOTE_PATTERNS: RegExp[] = [
 /** A ride name with any trailing operating note removed. */
 export function stripOperatingNote(name: string): string {
   let out = String(name ?? '');
-  // Notes can stack ("X - Dark Coaster - Closes at 5PM"), so strip until stable.
+  // Notes can stack in either order ("X - Dark Coaster - Closes at 5PM",
+  // "X - Closes at 5PM - Dark Coaster"), and each pattern only sees the tail,
+  // so keep passing over the list until a whole pass removes nothing.
   for (let changed = true; changed;) {
     changed = false;
     for (const re of OPERATING_NOTE_PATTERNS) {
@@ -60,13 +62,18 @@ export function stripOperatingNote(name: string): string {
   return out.trim();
 }
 
+/** Longest window accepted as one day's hours. Anything longer is not a day. */
+const MAX_WINDOW_SECONDS = 24 * 60 * 60;
+
 /**
- * A ride's opening window for today, from the POI record's `statusHours`
+ * A ride's opening window for today, from the index record's `statusHours`
  * ({opens, closes} in epoch seconds), or null.
  *
- * The POI feed is cached for a day, so `statusHours` can describe yesterday.
- * Hours are only returned when they fall on `today` in the park's timezone:
- * yesterday's window must never be published as today's.
+ * A window is today's when it opens on today's date in the park's timezone, or
+ * when `now` falls inside it: an 18:00-01:00 window is still the one running at
+ * 00:30. Anything else (yesterday's finished window, a window longer than a day,
+ * an epoch too large to be a date) is refused, so a stale or malformed record
+ * can never be published as today's hours.
  */
 export function rideOperatingHours(
   statusHours: unknown,
@@ -78,12 +85,18 @@ export function rideOperatingHours(
   const opens = Number(sh.opens);
   const closes = Number(sh.closes);
   if (!Number.isFinite(opens) || !Number.isFinite(closes) || opens <= 0 || closes <= opens) return null;
+  if (closes - opens > MAX_WINDOW_SECONDS) return null;
   const start = new Date(opens * 1000);
-  if (formatDate(start, timezone) !== formatDate(now, timezone)) return null;
+  const end = new Date(closes * 1000);
+  // A finite number of seconds can still be outside the range a Date can hold.
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) return null;
+  const nowMs = now.getTime();
+  const running = nowMs >= start.getTime() && nowMs <= end.getTime();
+  if (!running && formatDate(start, timezone) !== formatDate(now, timezone)) return null;
   return {
     type: 'OPERATING',
     startTime: formatInTimezone(start, timezone, 'iso'),
-    endTime: formatInTimezone(new Date(closes * 1000), timezone, 'iso'),
+    endTime: formatInTimezone(end, timezone, 'iso'),
   };
 }
 
@@ -141,6 +154,43 @@ export class Hersheypark extends Destination {
     const resp = await this.fetchPOI();
     const data = await resp.json();
     return data || {};
+  }
+
+  /**
+   * The same index endpoint, fetched on a short TTL for per-ride hours only.
+   *
+   * getPOI() holds the index for a day, which suits names and locations but not
+   * `statusHours`: the park changes those during the day, and a day-old copy
+   * has no hours at all from midnight until it refills. Ride hours get their
+   * own 30-minute path instead of shortening the entity cache.
+   *
+   * The explicit cacheKey matters: the @http cache is keyed by URL, so without
+   * it this request would be answered from fetchPOI's 24-hour entry.
+   */
+  @http({cacheSeconds: 1800, cacheKey: 'rideHoursIndex'})
+  async fetchRideHoursIndex(): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.baseUrl}/v2/index`,
+      options: {json: true},
+    } as any as HTTPObj;
+  }
+
+  /**
+   * Each ride's raw `statusHours`, keyed by ride id (cached 30 minutes).
+   * A plain object so it survives the JSON cache; validated per ride by
+   * rideOperatingHours() at read time.
+   */
+  @cache({ttlSeconds: 1800})
+  async getRideHours(): Promise<Record<string, unknown>> {
+    const resp = await this.fetchRideHoursIndex();
+    const data = await resp.json();
+    const out: Record<string, unknown> = {};
+    for (const ride of data?.rides || []) {
+      if (ride?.id == null || ride.statusHours == null) continue;
+      out[String(ride.id)] = ride.statusHours;
+    }
+    return out;
   }
 
   /**
@@ -224,17 +274,23 @@ export class Hersheypark extends Destination {
     const statusData = await this.getStatus();
     const liveData: LiveData[] = [];
 
-    // Today's per-ride hours, when the POI feed has them. A failure here must
-    // not cost the wait times, which come from a separate endpoint.
+    // Today's per-ride hours, when the index has them. A failure here must not
+    // cost the wait times, which come from a separate endpoint, and one bad
+    // record must not cost every other ride its hours.
     const hoursByRide = new Map<string, NonNullable<ReturnType<typeof rideOperatingHours>>>();
+    let rawHours: Record<string, unknown> = {};
     try {
-      const poi = await this.getPOI();
-      for (const ride of poi.rides || []) {
-        const hours = rideOperatingHours(ride?.statusHours, this.timezone);
-        if (hours) hoursByRide.set(String(ride.id), hours);
-      }
+      rawHours = await this.getRideHours();
     } catch (err: any) {
       console.warn(`[Hersheypark] ride hours unavailable this cycle: ${err?.message ?? err}`);
+    }
+    for (const [rideId, statusHours] of Object.entries(rawHours || {})) {
+      try {
+        const hours = rideOperatingHours(statusHours, this.timezone);
+        if (hours) hoursByRide.set(rideId, hours);
+      } catch (err: any) {
+        console.warn(`[Hersheypark] skipping hours for ride ${rideId}: ${err?.message ?? err}`);
+      }
     }
 
     for (const entry of statusData) {
