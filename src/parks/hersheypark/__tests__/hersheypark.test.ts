@@ -15,11 +15,8 @@
  * The statusHours epochs are the live feed's own (2026-09-26 12:00-17:00
  * Eastern); the midnight-crossing and malformed windows are constructed.
  */
-import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
-import {createServer, IncomingMessage, Server, ServerResponse} from 'node:http';
-import type {AddressInfo} from 'node:net';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 import {Hersheypark, stripOperatingNote, rideOperatingHours} from '../hersheypark.js';
-import {CacheLib} from '../../../cache.js';
 
 const TZ = 'America/New_York';
 // 2026-09-26 12:00 and 17:00 Eastern, as the feed's statusHours epochs
@@ -114,13 +111,13 @@ describe('rideOperatingHours', () => {
 function park(rides: any[], status: any[]) {
   const p = new Hersheypark();
   (p as any).getPOI = async () => ({explore: [{id: 7, name: 'Hersheypark', isHersheyPark: true}], rides});
-  // Ride hours come from their own short-TTL path, shaped {rideId: statusHours}
-  const hours: Record<string, unknown> = {};
-  for (const r of rides) if (r.statusHours != null) hours[String(r.id)] = r.statusHours;
-  (p as any).getRideHours = vi.fn(async () => hours);
   (p as any).getStatus = async () => status;
   return p;
 }
+
+// /v2/status rows as the live feed shapes them: a ride's hours ride along as `hours`
+const row = (id: number, wait: number, hours?: unknown) =>
+  ({id, status: 1, type: 'rides', wait, ...(hours !== undefined ? {hours} : {})});
 
 describe('Hersheypark destination', () => {
   it('emits ride names without operating notes', async () => {
@@ -133,104 +130,34 @@ describe('Hersheypark destination', () => {
     expect(names.rides_99).toBe("Hershey Triple Tower - Hershey's Tower");
   });
 
-  it('carries today\'s ride hours onto live data', async () => {
+  it('carries today\'s ride hours onto live data from the status feed', async () => {
     vi.useFakeTimers({toFake: ['Date']});
     vi.setSystemTime(NOON_ET);
-    const live = await (park(
-      [{id: 16, name: 'Monorail - Closes at 5PM', statusHours: {opens: OPENS, closes: CLOSES}}, {id: 5, name: 'Fender Bender', statusHours: null}],
-      [{id: 16, status: 1, type: 'rides', wait: 5}, {id: 5, status: 1, type: 'rides', wait: 10}],
-    ) as any).buildLiveData();
+    const live = await (park([], [row(16, 5, {opens: OPENS, closes: CLOSES}), row(5, 10)]) as any).buildLiveData();
     const byId = Object.fromEntries(live.map((r: any) => [r.id, r]));
     expect(byId.rides_16.operatingHours).toEqual([{type: 'OPERATING', startTime: '2026-09-26T12:00:00-04:00', endTime: '2026-09-26T17:00:00-04:00'}]);
     expect(byId.rides_5.operatingHours).toBeUndefined();
     expect(byId.rides_16.queue.STANDBY.waitTime).toBe(5);
   });
 
-  it('reads ride hours from the short-TTL path, not the day-long POI cache', async () => {
+  it('never reads the day-long POI cache for live data', async () => {
     vi.useFakeTimers({toFake: ['Date']});
     vi.setSystemTime(NOON_ET);
-    const p = park([], [{id: 16, status: 1, type: 'rides', wait: 5}]);
-    // The day-long POI copy has no hours; only the short path does.
-    const getPOI = vi.fn(async () => ({rides: [{id: 16, name: 'Monorail'}]}));
+    const p = park([], [row(16, 5, {opens: OPENS, closes: CLOSES})]);
+    const getPOI = vi.fn(async () => ({rides: [{id: 16, name: 'Monorail', statusHours: {opens: 1, closes: 2}}]}));
     (p as any).getPOI = getPOI;
-    (p as any).getRideHours = vi.fn(async () => ({16: {opens: OPENS, closes: CLOSES}}));
     const live = await (p as any).buildLiveData();
-    expect((p as any).getRideHours).toHaveBeenCalledTimes(1);
     expect(getPOI).not.toHaveBeenCalled();
-    expect(live[0].operatingHours).toEqual([{type: 'OPERATING', startTime: '2026-09-26T12:00:00-04:00', endTime: '2026-09-26T17:00:00-04:00'}]);
+    expect(live[0].operatingHours[0].startTime).toBe('2026-09-26T12:00:00-04:00');
   });
 
-  it('one malformed record does not cost the other rides their hours', async () => {
+  it('one malformed record does not cost its own row or the other rides anything', async () => {
     vi.useFakeTimers({toFake: ['Date']});
     vi.setSystemTime(NOON_ET);
-    const live = await (park(
-      [
-        {id: 16, name: 'Monorail', statusHours: {opens: OPENS, closes: CLOSES}},
-        {id: 20, name: 'Trailblazer', statusHours: {opens: 1e14, closes: 2e14}},
-      ],
-      [{id: 16, status: 1, type: 'rides', wait: 5}, {id: 20, status: 1, type: 'rides', wait: 5}],
-    ) as any).buildLiveData();
+    const live = await (park([], [row(16, 5, {opens: OPENS, closes: CLOSES}), row(20, 5, {opens: 1e14, closes: 2e14})]) as any).buildLiveData();
     const byId = Object.fromEntries(live.map((r: any) => [r.id, r]));
     expect(byId.rides_16.operatingHours).toEqual([{type: 'OPERATING', startTime: '2026-09-26T12:00:00-04:00', endTime: '2026-09-26T17:00:00-04:00'}]);
     expect(byId.rides_20.operatingHours).toBeUndefined();
     expect(byId.rides_20.queue.STANDBY.waitTime).toBe(5);
-  });
-
-  it('keeps wait times when the ride hours fetch fails', async () => {
-    const p = park([], [{id: 16, status: 1, type: 'rides', wait: 5}]);
-    (p as any).getRideHours = async () => { throw new Error('index down'); };
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const live = await (p as any).buildLiveData();
-    expect(live).toHaveLength(1);
-    expect(live[0].queue.STANDBY.waitTime).toBe(5);
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
-  });
-});
-
-/**
- * The @http cache is keyed by URL. fetchPOI and fetchRideHoursIndex hit the
- * same URL, so unless the short path has its own key it is answered from the
- * 24-hour entry and the 30-minute TTL does nothing. Drive both through the real
- * HTTP stack against a loopback server to prove they are cached apart.
- */
-describe('Hersheypark ride hours cache', () => {
-  let server: Server;
-  let baseUrl = '';
-  let requests = 0;
-  let statusHours: unknown = null;
-
-  beforeAll(async () => {
-    server = createServer((_req: IncomingMessage, res: ServerResponse) => {
-      requests++;
-      res.writeHead(200, {'Content-Type': 'application/json'});
-      res.end(JSON.stringify({rides: [{id: 16, name: 'Monorail', statusHours}]}));
-    });
-    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
-    baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  });
-
-  afterAll(async () => {
-    await new Promise<void>((resolve, reject) => server.close(err => err ? reject(err) : resolve()));
-  });
-
-  beforeEach(() => {
-    CacheLib.clear();
-    requests = 0;
-  });
-  afterEach(() => CacheLib.clear());
-
-  it('does not answer the hours request from the day-long POI entry', async () => {
-    const p = new Hersheypark();
-    p.baseUrl = baseUrl;
-
-    statusHours = null;
-    const poi = await p.getPOI();
-    expect(poi.rides[0].statusHours).toBeNull();
-
-    // The park publishes hours after the POI copy was cached.
-    statusHours = {opens: OPENS, closes: CLOSES};
-    expect(await p.getRideHours()).toEqual({16: {opens: OPENS, closes: CLOSES}});
-    expect(requests).toBe(2);
   });
 });

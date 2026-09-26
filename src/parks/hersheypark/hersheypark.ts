@@ -31,8 +31,8 @@ const mapStatus = createStatusMap({
  * "Skyrush - Opens at 6PM", "Comet - Dark Coaster" (Dark Nights runs),
  * "Dry Gulch Railroad - Featuring Halloween Overlay". Passed through, every
  * change of note is a rename of a permanent ride. The notes are stripped so the
- * name stays stable; the times survive as operatingHours where the feed also
- * gives them as data (see rideOperatingHours).
+ * name stays stable; the times survive as operatingHours where the status feed
+ * also gives them as data (see rideOperatingHours).
  *
  * Deliberately narrow and anchored at the end: a real two-part name such as
  * "Hershey Triple Tower - Hershey's Tower" must survive untouched.
@@ -66,8 +66,8 @@ export function stripOperatingNote(name: string): string {
 const MAX_WINDOW_SECONDS = 24 * 60 * 60;
 
 /**
- * A ride's opening window for today, from the index record's `statusHours`
- * ({opens, closes} in epoch seconds), or null.
+ * A ride's opening window for today, from the status feed's `hours` (the same
+ * {opens, closes} in epoch seconds that the index carries as `statusHours`), or null.
  *
  * A window is today's when it opens on today's date in the park's timezone, or
  * when `now` falls inside it: an 18:00-01:00 window is still the one running at
@@ -157,43 +157,6 @@ export class Hersheypark extends Destination {
   }
 
   /**
-   * The same index endpoint, fetched on a short TTL for per-ride hours only.
-   *
-   * getPOI() holds the index for a day, which suits names and locations but not
-   * `statusHours`: the park changes those during the day, and a day-old copy
-   * has no hours at all from midnight until it refills. Ride hours get their
-   * own 30-minute path instead of shortening the entity cache.
-   *
-   * The explicit cacheKey matters: the @http cache is keyed by URL, so without
-   * it this request would be answered from fetchPOI's 24-hour entry.
-   */
-  @http({cacheSeconds: 1800, cacheKey: 'rideHoursIndex'})
-  async fetchRideHoursIndex(): Promise<HTTPObj> {
-    return {
-      method: 'GET',
-      url: `${this.baseUrl}/v2/index`,
-      options: {json: true},
-    } as any as HTTPObj;
-  }
-
-  /**
-   * Each ride's raw `statusHours`, keyed by ride id (cached 30 minutes).
-   * A plain object so it survives the JSON cache; validated per ride by
-   * rideOperatingHours() at read time.
-   */
-  @cache({ttlSeconds: 1800})
-  async getRideHours(): Promise<Record<string, unknown>> {
-    const resp = await this.fetchRideHoursIndex();
-    const data = await resp.json();
-    const out: Record<string, unknown> = {};
-    for (const ride of data?.rides || []) {
-      if (ride?.id == null || ride.statusHours == null) continue;
-      out[String(ride.id)] = ride.statusHours;
-    }
-    return out;
-  }
-
-  /**
    * Fetch live ride status data.
    * Cached 2 minutes at HTTP layer.
    */
@@ -274,25 +237,6 @@ export class Hersheypark extends Destination {
     const statusData = await this.getStatus();
     const liveData: LiveData[] = [];
 
-    // Today's per-ride hours, when the index has them. A failure here must not
-    // cost the wait times, which come from a separate endpoint, and one bad
-    // record must not cost every other ride its hours.
-    const hoursByRide = new Map<string, NonNullable<ReturnType<typeof rideOperatingHours>>>();
-    let rawHours: Record<string, unknown> = {};
-    try {
-      rawHours = await this.getRideHours();
-    } catch (err: any) {
-      console.warn(`[Hersheypark] ride hours unavailable this cycle: ${err?.message ?? err}`);
-    }
-    for (const [rideId, statusHours] of Object.entries(rawHours || {})) {
-      try {
-        const hours = rideOperatingHours(statusHours, this.timezone);
-        if (hours) hoursByRide.set(rideId, hours);
-      } catch (err: any) {
-        console.warn(`[Hersheypark] skipping hours for ride ${rideId}: ${err?.message ?? err}`);
-      }
-    }
-
     for (const entry of statusData) {
       // Only support rides
       if (entry.type !== 'rides') continue;
@@ -307,8 +251,15 @@ export class Hersheypark extends Destination {
         };
       }
 
-      const hours = hoursByRide.get(String(entry.id));
-      if (hours) ld.operatingHours = [hours];
+      // The status feed (2-minute cache) carries each ride's `hours`, the same
+      // {opens, closes} the index holds as `statusHours`, so no second fetch is
+      // needed. One bad record must not cost the row, or any other ride, anything.
+      try {
+        const hours = rideOperatingHours(entry.hours, this.timezone);
+        if (hours) ld.operatingHours = [hours];
+      } catch (err: any) {
+        console.warn(`[Hersheypark] skipping hours for ride ${entry.id}: ${err?.message ?? err}`);
+      }
 
       liveData.push(ld);
     }
