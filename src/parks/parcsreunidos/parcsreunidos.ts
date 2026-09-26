@@ -33,6 +33,12 @@ type StayAppEstablishment = {
   };
 };
 
+/**
+ * `waitingTime` values at or above this are placeholders (666, 999, 1000),
+ * not minutes.
+ */
+const PLACEHOLDER_WAIT_MIN = 666;
+
 /** Single attraction from the attractions API */
 type StayAppAttraction = {
   id: number;
@@ -414,8 +420,11 @@ class ParcsReunidosDestination extends Destination {
       // or -3, so there's no reliable DOWN signal here. Default to CLOSED.
       if (Number.isFinite(waitingTime) && waitingTime >= 0) {
         ld.status = 'OPERATING' as any;
+        // 666, 999 and 1000 are placeholders, not minutes: a ride jumps from
+        // a normal wait to one of them and back, often while it is not
+        // running. Real waits stay far below that, so publish no number.
         ld.queue = {
-          STANDBY: {waitTime: waitingTime},
+          STANDBY: {waitTime: waitingTime >= PLACEHOLDER_WAIT_MIN ? null : waitingTime},
         };
       }
 
