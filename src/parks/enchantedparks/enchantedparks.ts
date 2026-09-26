@@ -25,6 +25,10 @@ export type TribeEventsResponse = {
  * operating-hours schedule entries. Skips all-day events (those are
  * marketing/group events, not operating hours).
  */
+
+/** How long a failed water-park listing is skipped when a category can stand in. */
+const LISTING_RETRY_MS = 60 * 60 * 1000;
+
 export function parseTribeEvents(
   json: TribeEventsResponse,
   categoryName: string,
@@ -747,6 +751,10 @@ class EnchantedParks extends Destination {
    * reading the master list alone would re-home every water-park ride under
    * the theme park.
    */
+  /** Water-park listings seen failing, by path: when, and why (instance memory, never cached). */
+  private listingDownAt = new Map<string, number>();
+  private listingDownReason = new Map<string, string>();
+
   protected async resolveParkRides(): Promise<{
     water: AttractionStub[];
     theme: AttractionStub[];
@@ -762,13 +770,24 @@ class EnchantedParks extends Destination {
     };
 
     if (this.waterPark) {
+      const category = this.waterPark.ridesCategory;
+      // A listing known to be down is not re-requested for an hour when a
+      // category can stand in: failures are never cached (so a recovery is seen
+      // on the next try), and a permanently unpublished page would otherwise be
+      // fetched, and logged, on every entity build and every live tick. Without
+      // a category the listing is always tried, so its error still surfaces.
+      const downSince = this.listingDownAt.get(this.waterPark.ridesPath);
+      const skipListing = !!category && !!this.themePark && downSince !== undefined &&
+        Date.now() - downSince < LISTING_RETRY_MS;
       try {
+        if (skipListing) throw new Error(this.listingDownReason.get(this.waterPark.ridesPath) ?? 'listing unavailable');
         water = await this.scrapeAttractions(this.waterPark.ridesPath);
         waterSource = 'listing';
+        this.listingDownAt.delete(this.waterPark.ridesPath);
       } catch (listingErr) {
-        const category = this.waterPark.ridesCategory;
         if (!category || !this.themePark) throw listingErr;
         const listingReason = listingErr instanceof Error ? listingErr.message : String(listingErr);
+        const firstFailure = !skipListing;
         let members: string[];
         try {
           members = await this.scrapeCategoryRides(category);
@@ -787,7 +806,13 @@ class EnchantedParks extends Destination {
           );
         }
         waterSource = 'category';
-        console.warn(
+        // Only a listing whose stand-in actually worked is skipped next time: if
+        // the category failed too, keep trying the listing so a recovery is seen.
+        if (firstFailure) {
+          this.listingDownAt.set(this.waterPark.ridesPath, Date.now());
+          this.listingDownReason.set(this.waterPark.ridesPath, listingReason);
+        }
+        if (firstFailure) console.warn(
           `${this.constructor.name}: water-park listing "${this.waterPark.ridesPath}" unavailable; ` +
           `membership taken from category "${category}" (${water.length} rides)`,
         );

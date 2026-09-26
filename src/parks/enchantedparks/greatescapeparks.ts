@@ -36,7 +36,10 @@ export class GreatEscapeParks extends EnchantedParks {
       code: 'HHGE',
       name: 'Hurricane Harbor',
       ridesPath: 'hurricane-harbor-water-park',
-      ridesCategory: 'hurricane-harbor',
+      // No ridesCategory: the site's water-park category tags one more ride
+      // (wahoo-racer) than the water-park listing, which files it under the
+      // theme park. Falling back to the category would move that ride between
+      // parks whenever the listing blipped, so this park relies on its listing.
       scheduleCategory: 'Waterpark Hours',
       location: {latitude: 43.3506, longitude: -73.6889},
     };

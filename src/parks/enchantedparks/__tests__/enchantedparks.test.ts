@@ -1,4 +1,4 @@
-import {describe, test, expect} from 'vitest';
+import {describe, test, expect, vi} from 'vitest';
 import {EnchantedParks, parseTribeEvents, scrapeTtl, type TribeEventsResponse} from '../enchantedparks.js';
 import {parseICalFeed} from '../enchantedparks.js';
 import {parseAttractionsPage} from '../enchantedparks.js';
@@ -844,6 +844,56 @@ describe('water-park listing failure (buildEntityList)', () => {
     expect(warnings[0]).not.toContain('example.test');
   });
 
+  test('a dead listing is not re-requested for an hour once the category stands in, and warns once', async () => {
+    // Mid-America's listing is unpublished: without this, every entity build and
+    // every live tick would re-request it and log the failure.
+    vi.useFakeTimers({toFake: ['Date']});
+    vi.setSystemTime(new Date('2026-09-26T16:00:00Z'));
+    try {
+      const {park, fetched} = await makePark(
+        {...base, 'hurricane-harbor-water-park': notFound()},
+        {category: CATEGORY, pages: [CATEGORY_PAGES], totalPages: 1},
+      );
+      const first = await captureWarn(() => (park as any).buildEntityList());
+      const second = await captureWarn(() => (park as any).buildEntityList());
+      expect(fetched.filter(p => p === 'hurricane-harbor-water-park')).toHaveLength(1);
+      expect(first.warnings).toHaveLength(1);
+      expect(second.warnings).toHaveLength(0);
+      expect(ridesOf(second.result as any[], 'enchantedparks_park_HH')).toEqual(HH_IDS);
+
+      // After the hour the listing is tried again.
+      vi.setSystemTime(new Date('2026-09-26T17:00:01Z'));
+      await captureWarn(() => (park as any).buildEntityList());
+      expect(fetched.filter(p => p === 'hurricane-harbor-water-park')).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('a recovered listing is used again as soon as it is retried', async () => {
+    vi.useFakeTimers({toFake: ['Date']});
+    vi.setSystemTime(new Date('2026-09-26T16:00:00Z'));
+    try {
+      const pages: Record<string, string | Error> = {...base, 'hurricane-harbor-water-park': notFound()};
+      const {park} = await makePark(pages, {category: CATEGORY, pages: [CATEGORY_PAGES], totalPages: 1});
+      await captureWarn(() => (park as any).buildEntityList());
+      pages['hurricane-harbor-water-park'] = WATER;
+      vi.setSystemTime(new Date('2026-09-26T17:00:01Z'));
+      const {result} = await captureWarn(() => (park as any).resolveParkRides());
+      expect((result as any).waterSource).toBe('listing');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('a listing is not skipped when the category also failed', async () => {
+    // Nothing stood in, so the next build must try the listing again.
+    const {park, fetched} = await makePark({...base, 'hurricane-harbor-water-park': notFound()});
+    await expect((park as any).buildEntityList()).rejects.toThrow();
+    await expect((park as any).buildEntityList()).rejects.toThrow();
+    expect(fetched.filter(p => p === 'hurricane-harbor-water-park')).toHaveLength(2);
+  });
+
   test('listing empty + category OK: same result as a 404', async () => {
     const {park} = await makePark(
       {...base, 'hurricane-harbor-water-park': EMPTY},
@@ -1000,7 +1050,7 @@ describe('water-park category config', () => {
   test.each([
     ['midamericaparks', 'hurricane-harbor'],
     ['michigansadventure', 'wildwater'],
-    ['greatescapeparks', 'hurricane-harbor'],
+    ['greatescapeparks', undefined],  // category and listing disagree on one ride
     ['worldsoffun', 'oceans-of-fun'],
     ['valleyfair', undefined],
   ])('%s water park ridesCategory is %s', async (file, expected) => {
