@@ -32,6 +32,7 @@ export class MichigansAdventure extends EnchantedParks {
       name: 'WildWater Adventure',
       // Was 'wildwater-adventure'; that path now 301s to a calendar event page.
       ridesPath: 'wildwater-adventure-waterpark',
+      ridesCategory: 'wildwater',
       scheduleCategory: 'Waterpark Hours',
       location: {latitude: 43.3411, longitude: -86.2625},
     };

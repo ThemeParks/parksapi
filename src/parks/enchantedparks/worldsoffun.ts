@@ -33,6 +33,7 @@ export class WorldsOfFun extends EnchantedParks {
       code: 'OOF',
       name: 'Oceans of Fun',
       ridesPath: 'oceans-of-fun',
+      ridesCategory: 'oceans-of-fun',
       scheduleCategory: 'Waterpark Hours',
       location: {latitude: 39.1746, longitude: -94.4886},
     };

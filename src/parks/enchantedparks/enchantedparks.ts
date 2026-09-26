@@ -209,6 +209,33 @@ export function parseShowsPage(html: string, categorySlug: string): AttractionSt
   return out;
 }
 
+/** One page record from the WP REST `pages` endpoint (`_fields=slug,link`). */
+export type WpPage = {slug: string; link: string};
+
+/**
+ * Ride slugs from WP REST page records. The slug is taken from the page's
+ * `link` (`…/rides-and-experiences/attractions/{slug}/`), the same URL the
+ * listing cards link to, so it keys exactly like {@link parseAttractionsPage}.
+ * Pages that are not attraction detail pages (dining, landing pages) are
+ * skipped, since a category can tag more than rides.
+ */
+export function parseCategoryRideSlugs(pages: WpPage[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const p of pages ?? []) {
+    const m = typeof p?.link === 'string'
+      ? p.link.match(/\/rides-and-experiences\/attractions\/([a-z0-9][a-z0-9-]*)\/?(?:[?#].*)?$/i)
+      : null;
+    if (!m || seen.has(m[1])) continue;
+    seen.add(m[1]);
+    out.push(m[1]);
+  }
+  return out;
+}
+
+/** Where a water park's ride membership came from on this build. */
+export type WaterParkSource = 'listing' | 'category';
+
 // ===== Live ride status (operator guest-experience API) =====
 //
 // The operator runs a guest-experience platform whose live feed publishes a
@@ -314,6 +341,13 @@ export type ParkConfig = {
   name: string;
   /** Path under `/rides-and-experiences/` whose page lists this park's attractions */
   ridesPath: string;
+  /**
+   * WordPress category slug that tags this park's ride pages (e.g.
+   * `hurricane-harbor`). Water parks only: when the {@link ridesPath} listing
+   * fails or parses empty, membership falls back to this category. Omit when
+   * the site's category is unused (empty).
+   */
+  ridesCategory?: string;
   /** Path under `/rides-and-experiences/` whose page lists this park's dining locations. Omit if not scraped. */
   diningPath?: string;
   /** Path/category under `/rides-and-experiences/` whose page lists this park's shows. Omit if not scraped. */
@@ -323,6 +357,9 @@ export type ParkConfig = {
   /** Park-level geographic location (lat/lng). Required for the harness's anchor-entity check. */
   location?: {latitude: number; longitude: number};
 };
+
+/** WP REST page size for category lookups (the API's maximum). */
+const WP_PER_PAGE = 100;
 
 /** Paginated list of live attraction statuses across every site. */
 const LIST_FEATURES_QUERY =
@@ -490,6 +527,34 @@ class EnchantedParks extends Destination {
     } as any as HTTPObj;
   }
 
+  /**
+   * WP REST category lookup by slug. Not HTTP-cached: the membership built
+   * from it is cached one level up ({@link scrapeCategoryRides}), and only
+   * when it succeeds.
+   */
+  @http({cacheSeconds: 0, retries: 2})
+  async fetchWpCategory(slug: string): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.subdomain}/wp-json/wp/v2/categories?slug=${encodeURIComponent(slug)}&_fields=id,slug`,
+      options: {json: true},
+    } as any as HTTPObj;
+  }
+
+  /**
+   * One page of WP REST pages tagged with a category. Not HTTP-cached, so
+   * the live `X-WP-TotalPages` header is always available for pagination
+   * (a cached response is rebuilt without its headers).
+   */
+  @http({cacheSeconds: 0, retries: 2})
+  async fetchWpCategoryPages(categoryId: number, page: number): Promise<HTTPObj> {
+    return {
+      method: 'GET',
+      url: `${this.subdomain}/wp-json/wp/v2/pages?categories=${categoryId}&per_page=${WP_PER_PAGE}&page=${page}&_fields=slug,link`,
+      options: {json: true},
+    } as any as HTTPObj;
+  }
+
   // ===== Schedule scraping =====
 
   /**
@@ -631,6 +696,112 @@ class EnchantedParks extends Destination {
     }
   }
 
+  /**
+   * Ride slugs tagged with a WP category, via the REST API. Follows
+   * `X-WP-TotalPages`; without the header it stops on a short page.
+   *
+   * Throws if the category is unknown, a page fails, or no ride pages are
+   * tagged: every one of those would otherwise re-home the rides it was
+   * meant to place. A rejected call is not cached.
+   */
+  @cache({ttlSeconds: 60 * 60 * 24})
+  async scrapeCategoryRides(categorySlug: string): Promise<string[]> {
+    try {
+      const catResp = await this.fetchWpCategory(categorySlug);
+      const cats = await catResp.json() as Array<{id?: number; slug?: string}>;
+      const cat = Array.isArray(cats) ? cats.find(c => c?.slug === categorySlug) : undefined;
+      if (!cat || typeof cat.id !== 'number') throw new Error('category not found');
+
+      const pages: WpPage[] = [];
+      const MAX_PAGES = 20;
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const resp = await this.fetchWpCategoryPages(cat.id, page);
+        const batch = await resp.json() as WpPage[];
+        if (!Array.isArray(batch)) throw new Error('unexpected pages response');
+        pages.push(...batch);
+        const totalPages = Number(resp.response?.headers?.get('x-wp-totalpages'));
+        if (Number.isFinite(totalPages) && totalPages > 0) {
+          if (page >= totalPages) break;
+        } else if (batch.length < WP_PER_PAGE) {
+          break;
+        }
+      }
+      const slugs = parseCategoryRideSlugs(pages);
+      if (!slugs.length) throw new Error('no ride pages tagged');
+      return slugs;
+    } catch (err) {
+      const reason = (err instanceof Error ? err.message.split('\n')[0] : String(err))
+        .replace(/https?:\/\/[^\s/]+/gi, '');
+      throw new Error(`category "${categorySlug}" could not be resolved (${reason})`, {cause: err});
+    }
+  }
+
+  /**
+   * Ride rosters for both parks, with water-park membership resolved.
+   *
+   * The master `attractions` listing carries every ride, water-park ones
+   * included; the water park's own listing says which are its. If that
+   * listing fails (or parses empty) and the park has a {@link
+   * ParkConfig.ridesCategory}, membership comes from the WP category instead,
+   * with names still taken from the master list. If both fail this throws:
+   * reading the master list alone would re-home every water-park ride under
+   * the theme park.
+   */
+  protected async resolveParkRides(): Promise<{
+    water: AttractionStub[];
+    theme: AttractionStub[];
+    waterSource?: WaterParkSource;
+  }> {
+    let water: AttractionStub[] = [];
+    let waterSource: WaterParkSource | undefined;
+    let master: AttractionStub[] | undefined;
+    const getMaster = async () => {
+      if (!this.themePark) return [];
+      master ??= await this.scrapeAttractions(this.themePark.ridesPath);
+      return master;
+    };
+
+    if (this.waterPark) {
+      try {
+        water = await this.scrapeAttractions(this.waterPark.ridesPath);
+        waterSource = 'listing';
+      } catch (listingErr) {
+        const category = this.waterPark.ridesCategory;
+        if (!category || !this.themePark) throw listingErr;
+        const listingReason = listingErr instanceof Error ? listingErr.message : String(listingErr);
+        let members: string[];
+        try {
+          members = await this.scrapeCategoryRides(category);
+        } catch (catErr) {
+          throw new Error(
+            `${listingReason}; fallback ${catErr instanceof Error ? catErr.message : catErr}`,
+            {cause: catErr},
+          );
+        }
+        const memberSet = new Set(members);
+        water = (await getMaster()).filter(r => memberSet.has(r.slug));
+        if (!water.length) {
+          throw new Error(
+            `${listingReason}; fallback category "${category}" matched no rides on the ` +
+            `"${this.themePark.ridesPath}" listing`,
+          );
+        }
+        waterSource = 'category';
+        console.warn(
+          `${this.constructor.name}: water-park listing "${this.waterPark.ridesPath}" unavailable; ` +
+          `membership taken from category "${category}" (${water.length} rides)`,
+        );
+      }
+    }
+
+    const claimed = new Set(water.map(r => r.slug));
+    // The master attractions page lists every ride including the waterpark
+    // ones. Skip slugs already claimed by the waterpark so they don't
+    // double-emit.
+    const theme = (await getMaster()).filter(r => !claimed.has(r.slug));
+    return {water, theme, waterSource};
+  }
+
   // ===== Public-API overrides =====
 
   async getDestinations(): Promise<Entity[]> {
@@ -651,11 +822,10 @@ class EnchantedParks extends Destination {
     const parks: Entity[] = [];
     const attractions: Entity[] = [];
 
-    // Resolve waterpark first so we know which slugs belong to it.
-    let waterParkSlugs = new Set<string>();
+    // Resolve water-park membership first so the theme park only gets the rest.
+    const {water: wpRides, theme: tpRides} = await this.resolveParkRides();
+
     if (this.waterPark) {
-      const wpRides = await this.scrapeAttractions(this.waterPark.ridesPath);
-      waterParkSlugs = new Set(wpRides.map(r => r.slug));
       const wpEntity: Entity = {
         id: this.waterPark.id,
         name: this.waterPark.name,
@@ -685,7 +855,6 @@ class EnchantedParks extends Destination {
     }
 
     if (this.themePark) {
-      const tpRides = await this.scrapeAttractions(this.themePark.ridesPath);
       const tpEntity: Entity = {
         id: this.themePark.id,
         name: this.themePark.name,
@@ -699,10 +868,6 @@ class EnchantedParks extends Destination {
       }
       parks.push(tpEntity);
       for (const r of tpRides) {
-        // The master attractions page lists every ride including the waterpark
-        // ones. Skip slugs already claimed by the waterpark page so they don't
-        // double-emit.
-        if (waterParkSlugs.has(r.slug)) continue;
         const entity: Entity = {
           id: `enchantedparks_attraction_${this.themePark.code}_${r.slug}`,
           name: r.name,
@@ -824,19 +989,15 @@ class EnchantedParks extends Destination {
   private async getAttractionStubs(): Promise<Array<{id: string; name: string}>> {
     const stubs: Array<{id: string; name: string}> = [];
 
-    let waterParkSlugs = new Set<string>();
+    const {water, theme} = await this.resolveParkRides();
     if (this.waterPark) {
-      const wpRides = await this.scrapeAttractions(this.waterPark.ridesPath);
-      waterParkSlugs = new Set(wpRides.map(r => r.slug));
-      for (const r of wpRides) {
+      for (const r of water) {
         stubs.push({id: `enchantedparks_attraction_${this.waterPark.code}_${r.slug}`, name: r.name});
       }
     }
 
     if (this.themePark) {
-      const tpRides = await this.scrapeAttractions(this.themePark.ridesPath);
-      for (const r of tpRides) {
-        if (waterParkSlugs.has(r.slug)) continue;
+      for (const r of theme) {
         stubs.push({id: `enchantedparks_attraction_${this.themePark.code}_${r.slug}`, name: r.name});
       }
     }
@@ -853,12 +1014,12 @@ class EnchantedParks extends Destination {
     const features = await this.getFeatures();
     if (!features.length) return [];
 
-    // The ride roster comes from the same listing scrapes as the entity list,
-    // which throw when a page is down. Live data is the opposite case from
-    // entities: an empty answer here just means "no update this tick", so a
-    // listing failure is contained rather than propagated. No fallback roster
-    // is guessed at, since without the water-park listing the theme-park ids
-    // for its rides would be wrong.
+    // The ride roster comes from the same resolution as the entity list
+    // (listing, then category fallback), which throws only when both fail.
+    // Live data is the opposite case from entities: an empty answer here just
+    // means "no update this tick", so that failure is contained rather than
+    // propagated. No roster is guessed at, since without water-park
+    // membership the theme-park ids for its rides would be wrong.
     let rides: Array<{id: string; name: string}>;
     try {
       rides = await this.getAttractionStubs();

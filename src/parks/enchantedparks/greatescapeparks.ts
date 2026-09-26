@@ -36,6 +36,7 @@ export class GreatEscapeParks extends EnchantedParks {
       code: 'HHGE',
       name: 'Hurricane Harbor',
       ridesPath: 'hurricane-harbor-water-park',
+      ridesCategory: 'hurricane-harbor',
       scheduleCategory: 'Waterpark Hours',
       location: {latitude: 43.3506, longitude: -73.6889},
     };
