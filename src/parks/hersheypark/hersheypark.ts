@@ -10,7 +10,7 @@ import {
   LiveData,
   EntitySchedule,
 } from '@themeparks/typelib';
-import {constructDateTime, hostnameFromUrl} from '../../datetime.js';
+import {constructDateTime, formatDate, formatInTimezone, hostnameFromUrl} from '../../datetime.js';
 import {createStatusMap} from '../../statusMap.js';
 
 /**
@@ -23,6 +23,69 @@ const mapStatus = createStatusMap({
   DOWN: ['2'],
   CLOSED: ['0', '3'],
 }, {parkName: 'Hersheypark'});
+
+/**
+ * Temporary operating notes the park appends to ride names.
+ *
+ * Around events the feed renames rides in place: "Monorail - Closes at 5PM",
+ * "Skyrush - Opens at 6PM", "Comet - Dark Coaster" (Dark Nights runs),
+ * "Dry Gulch Railroad - Featuring Halloween Overlay". Passed through, every
+ * change of note is a rename of a permanent ride. The notes are stripped so the
+ * name stays stable; the times survive as operatingHours where the feed also
+ * gives them as data (see rideOperatingHours).
+ *
+ * Deliberately narrow and anchored at the end: a real two-part name such as
+ * "Hershey Triple Tower - Hershey's Tower" must survive untouched.
+ */
+const OPERATING_NOTE_PATTERNS: RegExp[] = [
+  /\s*[-\u2013\u2014]\s*(?:closes?|opens?)\s+at\s+\d{1,2}(?::\d{2})?\s*[ap]\.?\s*m\.?\s*$/i,
+  /\s*[-\u2013\u2014]\s*dark\s+coaster\s*$/i,
+  /\s*[-\u2013\u2014]\s*featuring\s+.*\boverlay\s*$/i,
+];
+
+/** A ride name with any trailing operating note removed. */
+export function stripOperatingNote(name: string): string {
+  let out = String(name ?? '');
+  // Notes can stack ("X - Dark Coaster - Closes at 5PM"), so strip until stable.
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const re of OPERATING_NOTE_PATTERNS) {
+      const next = out.replace(re, '');
+      if (next !== out && next.trim()) {
+        out = next;
+        changed = true;
+      }
+    }
+  }
+  return out.trim();
+}
+
+/**
+ * A ride's opening window for today, from the POI record's `statusHours`
+ * ({opens, closes} in epoch seconds), or null.
+ *
+ * The POI feed is cached for a day, so `statusHours` can describe yesterday.
+ * Hours are only returned when they fall on `today` in the park's timezone:
+ * yesterday's window must never be published as today's.
+ */
+export function rideOperatingHours(
+  statusHours: unknown,
+  timezone: string,
+  now: Date = new Date(),
+): {type: string; startTime: string; endTime: string} | null {
+  const sh = statusHours as {opens?: unknown; closes?: unknown} | null;
+  if (!sh || typeof sh !== 'object') return null;
+  const opens = Number(sh.opens);
+  const closes = Number(sh.closes);
+  if (!Number.isFinite(opens) || !Number.isFinite(closes) || opens <= 0 || closes <= opens) return null;
+  const start = new Date(opens * 1000);
+  if (formatDate(start, timezone) !== formatDate(now, timezone)) return null;
+  return {
+    type: 'OPERATING',
+    startTime: formatInTimezone(start, timezone, 'iso'),
+    endTime: formatInTimezone(new Date(closes * 1000), timezone, 'iso'),
+  };
+}
 
 @destinationController({category: 'Hersheypark'})
 export class Hersheypark extends Destination {
@@ -143,7 +206,7 @@ export class Hersheypark extends Destination {
 
     const attractions = this.mapEntities(rides, {
       idField: (item: any) => `rides_${item.id}`,
-      nameField: 'name',
+      nameField: (item: any) => stripOperatingNote(item.name),
       entityType: 'ATTRACTION',
       parentIdField: () => parkId,
       destinationId,
@@ -161,6 +224,19 @@ export class Hersheypark extends Destination {
     const statusData = await this.getStatus();
     const liveData: LiveData[] = [];
 
+    // Today's per-ride hours, when the POI feed has them. A failure here must
+    // not cost the wait times, which come from a separate endpoint.
+    const hoursByRide = new Map<string, NonNullable<ReturnType<typeof rideOperatingHours>>>();
+    try {
+      const poi = await this.getPOI();
+      for (const ride of poi.rides || []) {
+        const hours = rideOperatingHours(ride?.statusHours, this.timezone);
+        if (hours) hoursByRide.set(String(ride.id), hours);
+      }
+    } catch (err: any) {
+      console.warn(`[Hersheypark] ride hours unavailable this cycle: ${err?.message ?? err}`);
+    }
+
     for (const entry of statusData) {
       // Only support rides
       if (entry.type !== 'rides') continue;
@@ -174,6 +250,9 @@ export class Hersheypark extends Destination {
           STANDBY: {waitTime: entry.wait},
         };
       }
+
+      const hours = hoursByRide.get(String(entry.id));
+      if (hours) ld.operatingHours = [hours];
 
       liveData.push(ld);
     }
