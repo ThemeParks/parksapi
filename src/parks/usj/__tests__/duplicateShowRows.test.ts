@@ -11,17 +11,19 @@ import {CacheLib} from '../../../cache.js';
  * Payloads are the four overlapping entries as served on 2026-09-27 at
  * 18:47 JST: the 4-D films disagree on status (BRIEF_DELAY vs
  * OUT_OF_SERVICE), and SING on Tour / Curious George agree on status but only
- * the show-list copy carries the day's performance.
+ * the show-list copy carries the day's performance. The two 4-D films are now
+ * retired (see retiredShows.test.ts), so their payloads run here under
+ * stand-in ids to keep exercising the conflict rule.
  */
 const WAIT_TIMES = [
   {
-    wait_time_attraction_id: 'usj.usj.show.shrek_4d_adventure',
+    wait_time_attraction_id: 'usj.usj.show.dual_listed_a',
     show_externally: true,
     category: 'general',
     queues: [{queue_id: 'q1', queue_type: 'STANDBY', status: 'BRIEF_DELAY'}],
   },
   {
-    wait_time_attraction_id: 'usj.usj.show.sesame_street_4D_movie_magic',
+    wait_time_attraction_id: 'usj.usj.show.dual_listed_b',
     show_externally: true,
     category: 'general',
     queues: [{queue_id: 'q2', queue_type: 'STANDBY', status: 'BRIEF_DELAY'}],
@@ -48,8 +50,8 @@ const WAIT_TIMES = [
 ];
 
 const SHOW_LIST = [
-  {show_id: 'usj.usj.show.shrek_4d_adventure', name: 'Shrek', status: 'OUT_OF_SERVICE', show_times: []},
-  {show_id: 'usj.usj.show.sesame_street_4D_movie_magic', name: 'Sesame', status: 'OUT_OF_SERVICE', show_times: []},
+  {show_id: 'usj.usj.show.dual_listed_a', name: 'Shrek', status: 'OUT_OF_SERVICE', show_times: []},
+  {show_id: 'usj.usj.show.dual_listed_b', name: 'Sesame', status: 'OUT_OF_SERVICE', show_times: []},
   {
     show_id: 'usj.usj.show.sing_on_tour',
     name: 'SING on Tour',
@@ -99,7 +101,7 @@ describe('USJ live data: one row per entity across both feeds', () => {
 
   test('status conflict: the show list wins (OUT_OF_SERVICE over BRIEF_DELAY)', async () => {
     const rows = await new Probe().live();
-    for (const id of ['usj.usj.show.shrek_4d_adventure', 'usj.usj.show.sesame_street_4D_movie_magic']) {
+    for (const id of ['usj.usj.show.dual_listed_a', 'usj.usj.show.dual_listed_b']) {
       const row = rows.find((r) => r.id === id)!;
       expect(row.status).toBe('CLOSED');
       expect(row.queue).toBeUndefined();
@@ -120,15 +122,15 @@ describe('USJ live data: one row per entity across both feeds', () => {
   test('a show operating in both feeds keeps the wait-time queue', async () => {
     const p = new Probe();
     p.waits = [{
-      wait_time_attraction_id: 'usj.usj.show.shrek_4d_adventure',
+      wait_time_attraction_id: 'usj.usj.show.dual_listed_a',
       show_externally: true,
       category: 'general',
       queues: [{queue_id: 'q1', queue_type: 'STANDBY', status: 'OPEN', display_wait_time: 20}],
     }];
-    p.shows = [{show_id: 'usj.usj.show.shrek_4d_adventure', name: 'Shrek', status: 'OPEN', show_times: []}];
+    p.shows = [{show_id: 'usj.usj.show.dual_listed_a', name: 'Shrek', status: 'OPEN', show_times: []}];
     const [row] = await p.live();
     expect(row).toEqual({
-      id: 'usj.usj.show.shrek_4d_adventure',
+      id: 'usj.usj.show.dual_listed_a',
       status: 'OPERATING',
       queue: {STANDBY: {waitTime: 20}},
     });
