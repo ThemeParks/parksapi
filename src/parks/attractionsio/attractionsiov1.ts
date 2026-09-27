@@ -59,6 +59,19 @@ function extractName(name: string | Record<string, string> | undefined): string 
   return first ? first.trim() : '';
 }
 
+/**
+ * Leading circled map numbers some parks prefix to item names: LEGOLAND Japan
+ * started publishing "⑰Driving School" and "㉒Merlin's Challenge" in September
+ * 2026, keying names to its park-map legend. The number is not part of the
+ * name, and changing it would rename the entity whenever the map is redrawn.
+ * Covers ①-⑳ (U+2460-2473), ㉑-㉟ (U+3251-325F) and ㊱-㊿ (U+32B1-32BF).
+ */
+const CIRCLED_NUMBER_PREFIX = /^[\u2460-\u2473\u3251-\u325F\u32B1-\u32BF]+\s*/u;
+
+export function stripMapNumberPrefix(name: string): string {
+  return name.replace(CIRCLED_NUMBER_PREFIX, '');
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Category names used for entity classification
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1566,7 +1579,7 @@ function buildItemEntity(
 ): Entity {
   const entity: Entity = {
     id: String(item._id),
-    name: extractName(item.Name),
+    name: stripMapNumberPrefix(extractName(item.Name)),
     entityType,
     parentId: parkId,
     parkId,

@@ -94,9 +94,23 @@ export function aslBaseName(name: string): string | null {
   return null;
 }
 
+/**
+ * A leading "ALL-NEW!" marketing tag. SeaWorld's CMS prefixes a season's new
+ * experiences with it ("ALL-NEW! Byte Bar", "ALL NEW! - Expedition Odyssey
+ * Fire & Ice", "All-New! Coral Candy Club"). It is not part of the name, and
+ * dropping it next season would rename every entity that carried it.
+ */
+const MARKETING_PREFIX = /^\s*all[\s-]*new\s*!+\s*(?:[-\u2013\u2014:]\s*)?/i;
+
+/** A POI's display name without the marketing prefix. */
+export function cleanPoiName(name: string): string {
+  const cleaned = String(name ?? '').replace(MARKETING_PREFIX, '').trim();
+  return cleaned || String(name ?? '').trim();
+}
+
 /** Case- and punctuation-insensitive key, so "Welcome to Our Street!" matches "Welcome to Our Street". */
 function showNameKey(name: string): string {
-  return String(name ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  return cleanPoiName(name).toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
 
 /**
@@ -516,7 +530,7 @@ export class SeaworldDestination extends Destination {
       for (const poi of rides) {
         const entity: Entity = {
           id: poi.Id,
-          name: poi.Name,
+          name: cleanPoiName(poi.Name),
           entityType: 'ATTRACTION',
           attractionType: 'RIDE',
           parentId: parkDetail.Id,
@@ -547,7 +561,7 @@ export class SeaworldDestination extends Destination {
         const entity: Entity = this.walkThroughShowIds.has(poi.Id)
           ? {
             id: poi.Id,
-            name: poi.Name,
+            name: cleanPoiName(poi.Name),
             entityType: 'ATTRACTION',
             attractionType: 'RIDE',
             parentId: parkDetail.Id,
@@ -556,7 +570,7 @@ export class SeaworldDestination extends Destination {
           }
           : {
             id: poi.Id,
-            name: poi.Name,
+            name: cleanPoiName(poi.Name),
             entityType: 'SHOW',
             parentId: parkDetail.Id,
             destinationId: this.destinationId,
@@ -576,7 +590,7 @@ export class SeaworldDestination extends Destination {
       for (const poi of dining) {
         const entity: Entity = {
           id: poi.Id,
-          name: poi.Name,
+          name: cleanPoiName(poi.Name),
           entityType: 'RESTAURANT',
           parentId: parkDetail.Id,
           destinationId: this.destinationId,

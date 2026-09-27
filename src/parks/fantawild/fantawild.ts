@@ -210,8 +210,16 @@ const STAR_RE = /(?:⭐️?)+\s*$/u;
 
 /** Strip trailing star-rating glyphs from a Fantawild item name. */
 export function stripFantawildStars(name: string): string {
-  return name.replace(STAR_RE, '').trim();
+  return name.replace(INVISIBLE_FILLER_RE, '').replace(STAR_RE, '').trim();
 }
+
+/**
+ * Invisible characters that render as blank space and that `trim()` does not
+ * remove. Fantawild Oriental Heritage Mianyang began appending U+3164 HANGUL
+ * FILLER to item names in September 2026 ("飞天团子ㅤ"), renaming every one.
+ * Also covers the other Hangul fillers, zero-width characters and the BOM.
+ */
+const INVISIBLE_FILLER_RE = /[\u115F\u1160\u3164\uFFA0\u200B-\u200D\u2060\uFEFF]/gu;
 
 /**
  * Classify an item as SHOW vs RIDE based on showTimeList shape + feature tags.
