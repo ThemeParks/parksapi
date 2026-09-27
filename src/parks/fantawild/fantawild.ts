@@ -535,6 +535,30 @@ export class Fantawild extends Destination {
   }
 
   /**
+   * SHOW vs ATTRACTION for one item, stable across days.
+   *
+   * isFantawildShow() reads the day's `showTimeList`, and the feed changes its
+   * shape from day to day for the same item: a theatre lists discrete
+   * performances one day and a single `11:00-20:00` window the next, or nothing
+   * at all when it is dark. Classified fresh each run, the entity's type
+   * flipped back and forth with the feed.
+   *
+   * Once an item has been seen as a SHOW, that is remembered for 30 days and
+   * it stays a SHOW. Per `feedback_cache_only_true.md` only TRUE is ever
+   * written: a single all-day-window day must not lock a show into ATTRACTION.
+   * Each SHOW sighting refreshes the 30 days, so an item that stops publishing
+   * performances for a month falls back to what the feed says.
+   */
+  protected isStickyShow(parkId: number, item: FantawildItem): boolean {
+    const key = `${this.getCacheKeyPrefix()}:seenAsShow:v1:${parkId}:${item.id}`;
+    if (isFantawildShow(item)) {
+      CacheLib.set(key, true, 60 * 60 * 24 * 30);
+      return true;
+    }
+    return CacheLib.get(key) === true;
+  }
+
+  /**
    * Permissive write-once flag tracking whether a park has EVER returned a
    * `waitTime > 0` in production. Combined with the static `hasLiveWaitTimes`
    * config flag via OR: once we observe a real queue, we mark the park as
@@ -648,7 +672,7 @@ export class Fantawild extends Destination {
         if (!item.id) continue;
         const cleanName = stripFantawildStars(item.itemName || '');
         if (!cleanName) continue;
-        const isShow = isFantawildShow(item);
+        const isShow = this.isStickyShow(park.parkId, item);
         const entity: Entity = {
           id: this.attractionIdFor(park.parkId, item.id),
           name: cleanName,
