@@ -116,20 +116,53 @@ function showNameKey(name: string): string {
 /**
  * For one park's show POIs: ASL listing id -> base show id, for every ASL
  * listing whose base show is in the same list. JSON-safe (plain object).
+ * When the base show itself is duplicated, the listing maps to its canonical id.
  */
 export function mapAslShowsToBase(shows: Array<{Id: string; Name: string}>): Record<string, string> {
-  const byKey = new Map<string, string>();
+  return mapShowAliases(shows).asl;
+}
+
+/**
+ * Show POIs that are not entities of their own, for one park:
+ *
+ * - `asl`: ASL listing id -> base show id (see aslBaseName). Their performances
+ *   are folded into the base show as ASL_SHOWTIME_TYPE.
+ * - `duplicate`: id -> canonical id, for shows the feed publishes more than once
+ *   under the same name. SeaWorld Orlando lists "Sea Lions: Flippers, Facts &
+ *   Fun" twice and Sesame Place Philadelphia lists "Meet Dinger" three times,
+ *   with nothing to tell the copies apart (same category and subtype, no tag,
+ *   no coordinates); one copy carries the day's showtimes, another none. The
+ *   canonical copy is the lowest id, which stays the same for as long as the
+ *   copies exist, so the entity id does not move between days. The others'
+ *   showtimes merge into it as ordinary performances.
+ *
+ * Name matching uses showNameKey (case, punctuation and "ALL-NEW!" insensitive).
+ * JSON-safe (plain objects).
+ */
+export function mapShowAliases(shows: Array<{Id: string; Name: string}>): {
+  asl: Record<string, string>;
+  duplicate: Record<string, string>;
+} {
+  const canonical = new Map<string, string>();
   for (const s of shows) {
-    if (aslBaseName(s.Name) === null) byKey.set(showNameKey(s.Name), s.Id);
+    if (aslBaseName(s.Name) !== null) continue;
+    const key = showNameKey(s.Name);
+    const cur = canonical.get(key);
+    if (cur === undefined || s.Id < cur) canonical.set(key, s.Id);
   }
-  const out: Record<string, string> = {};
+  const asl: Record<string, string> = {};
+  const duplicate: Record<string, string> = {};
   for (const s of shows) {
     const base = aslBaseName(s.Name);
-    if (base === null) continue;
-    const baseId = byKey.get(showNameKey(base));
-    if (baseId && baseId !== s.Id) out[s.Id] = baseId;
+    if (base !== null) {
+      const baseId = canonical.get(showNameKey(base));
+      if (baseId && baseId !== s.Id) asl[s.Id] = baseId;
+      continue;
+    }
+    const id = canonical.get(showNameKey(s.Name));
+    if (id && id !== s.Id) duplicate[s.Id] = id;
   }
-  return out;
+  return {asl, duplicate};
 }
 
 // ---------------------------------------------------------------------------
@@ -550,9 +583,10 @@ export class SeaworldDestination extends Destination {
       const shows = this.getAllPoisOfTypes(parkDetail, ['Shows']);
       // Interpreted performances are folded into their base show's showtimes in
       // buildLiveData, so they are not entities of their own. See aslBaseName().
-      const aslToBase = mapAslShowsToBase(shows);
+      const aliases = mapShowAliases(shows);
       for (const poi of shows) {
-        if (aslToBase[poi.Id]) continue;
+        // ASL listings and same-name copies are folded into another show.
+        if (aliases.asl[poi.Id] || aliases.duplicate[poi.Id]) continue;
         // A walk-through filed under Shows keeps its id and moves to
         // ATTRACTION. attractionType is set explicitly: RIDE is the type every
         // other walk-through in this library already carries (haunt mazes,
@@ -669,6 +703,8 @@ export class SeaworldDestination extends Destination {
       // rows carry only an Id, no name, so they cannot be recognised without
       // the park detail.
       let aslToBase: Record<string, string> = {};
+      // Same-name copy id -> canonical show id (see mapShowAliases).
+      let duplicateToCanonical: Record<string, string> = {};
       try {
         availability = await this.getAvailability(parkId, searchDate);
         // Operating hours decide how to read the "no reading" state below.
@@ -678,7 +714,9 @@ export class SeaworldDestination extends Destination {
         try {
           const parkDetail = await this.getParkDetail(parkId);
           parkIsOpen = this.isParkOpenNow(parkDetail);
-          aslToBase = mapAslShowsToBase(this.getAllPoisOfTypes(parkDetail, ['Shows']));
+          const aliases = mapShowAliases(this.getAllPoisOfTypes(parkDetail, ['Shows']));
+          aslToBase = aliases.asl;
+          duplicateToCanonical = aliases.duplicate;
         } catch (err: any) {
           console.warn(
             `[${this.constructor.name}] operating hours unavailable for park ${parkId}, ` +
@@ -799,6 +837,11 @@ export class SeaworldDestination extends Destination {
           if (closureText) closedAslListings.add(wt.Id);
           continue;
         }
+        // A same-name copy is not an entity either. Its status row is ignored, not
+        // applied to the canonical show: a leftover copy saying "Closed" must not
+        // shut a show its twin is listing performances for. Its showtimes still
+        // merge in below.
+        if (duplicateToCanonical[wt.Id]) continue;
         const entry = getOrCreate(wt.Id);
 
         // Only trust an actual number. Number() maps null, '', '  ' and [] to 0,
@@ -873,7 +916,7 @@ export class SeaworldDestination extends Destination {
         // getOrCreate so it neither adds slots to the base show nor creates a
         // base row on a day the base show has no row of its own.
         if (baseId && closedAslListings.has(st.Id)) continue;
-        const targetId = baseId ?? st.Id;
+        const targetId = baseId ?? duplicateToCanonical[st.Id] ?? st.Id;
         const entry = getOrCreate(targetId);
 
         if (st.ShowTimes && st.ShowTimes.length > 0) {
@@ -903,7 +946,17 @@ export class SeaworldDestination extends Destination {
           }
           sources.set(st.Id, times);
           // Same park, same offset, so the ISO strings sort chronologically.
+          // Same-name copies can list the same slot; publish it once. The type is
+          // part of the key: an ASL-interpreted performance beside the regular one
+          // at the same time is two listings by design.
+          const seen = new Set<string>();
           entry.showtimes = [...sources.values()].flat()
+            .filter((t) => {
+              const key = `${t.startTime}|${t.endTime}|${t.type}`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            })
             .sort((a, b) => String(a.startTime).localeCompare(String(b.startTime)));
         }
       }
