@@ -130,6 +130,20 @@ const PARK_ID = 'usj.usj';
 const VENUE_ID = '10251';
 const TIMEZONE = 'Asia/Tokyo';
 
+/**
+ * Attractions that have closed permanently but are still published upstream.
+ * Both 4-D films shut in 2025. The places, wait-times and show-list feeds
+ * all still carry them (wait times as BRIEF_DELAY, the show list as
+ * OUT_OF_SERVICE), and the official app hides both. Their places are
+ * published to the Web channel only, but that alone does not mean retired:
+ * other Web-only places include live shows and the base listing of a ride
+ * running as seasonal versions.
+ */
+const RETIRED_PLACE_IDS = new Set([
+  'usj.usj.show.shrek_4d_adventure',
+  'usj.usj.show.sesame_street_4D_movie_magic',
+]);
+
 // Place types we want to expose as entities
 const WANTED_PLACE_TYPES: Record<string, Entity['entityType']> = {
   Ride: 'ATTRACTION',
@@ -393,6 +407,7 @@ export class UniversalStudiosJapan extends Destination {
       const placeType = place.place_type?.type;
       let entityType = WANTED_PLACE_TYPES[placeType];
       if (!entityType) continue;
+      if (RETIRED_PLACE_IDS.has(sanitizeId(place.place_id))) continue;
       const walkthrough = isWalkthroughShow(place);
       if (walkthrough) entityType = 'ATTRACTION';
 
@@ -535,6 +550,8 @@ export class UniversalStudiosJapan extends Destination {
 
       results.set(id, ld);
     }
+
+    for (const id of RETIRED_PLACE_IDS) results.delete(id);
 
     return [...results.values()];
   }
