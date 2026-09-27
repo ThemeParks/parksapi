@@ -1,5 +1,6 @@
+import crypto from 'node:crypto';
 import {Destination, DestinationConstructor} from '../../destination.js';
-import {cache} from '../../cache.js';
+import {cache, CacheLib} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
 import config from '../../config.js';
@@ -17,6 +18,27 @@ import {createStatusMap} from '../../statusMap.js';
  */
 function sanitizeId(id: string): string {
   return id.replace(/[^\w.-]/g, '_');
+}
+
+/**
+ * Signature for the mobile-service token request: base64 HMAC-SHA256 over
+ * `apiKey + "\n" + date + "\n"`, where `date` is the exact value sent in the
+ * request's Date header. Same scheme as the other Universal web services.
+ */
+export function signWebApiRequest(secret: string, apiKey: string, date: string): string {
+  return crypto.createHmac('sha256', secret).update(`${apiKey}\n${date}\n`).digest('base64');
+}
+
+/**
+ * Seconds to cache a mobile-service session token: until 5 minutes before the
+ * server-supplied expiry, never less than 5 minutes. Falls back to 1 hour when
+ * the expiry is missing or unparseable.
+ */
+export function webApiTokenTtlSeconds(expirationUnix: unknown, nowMs: number): number {
+  const exp = Number(expirationUnix);
+  if (!Number.isFinite(exp) || exp <= 0) return 3600;
+  const remaining = Math.floor(exp - nowMs / 1000) - 5 * 60;
+  return Math.max(remaining, 5 * 60);
 }
 
 // ─── Status mapping ───────────────────────────────────────────────────────────
@@ -160,11 +182,16 @@ export class UniversalStudiosJapan extends Destination {
   @config
   appVersion: string = '';
 
+  /** mobile-service API root (including the /api path segment) */
+  @config
+  webApiBase: string = '';
+
   @config
   webApiKey: string = '';
 
+  /** HMAC secret used to sign mobile-service session-token requests */
   @config
-  webApiToken: string = '';
+  webApiSecret: string = '';
 
   timezone: string = TIMEZONE;
 
@@ -263,7 +290,9 @@ export class UniversalStudiosJapan extends Destination {
   /** Inject Flutter app User-Agent on mobile-service requests */
   @inject({
     eventName: 'httpRequest',
-    hostname: 'mobile-service.usj.co.jp',
+    hostname: function(this: UniversalStudiosJapan) {
+      return hostnameFromUrl(this.webApiBase);
+    },
   })
   async injectMobileServiceUA(req: HTTPObj): Promise<void> {
     req.headers = {
@@ -500,15 +529,92 @@ export class UniversalStudiosJapan extends Destination {
 
   // ─── Schedule HTTP Methods ────────────────────────────────────────────────────
 
+  /**
+   * Request a mobile-service session token. The token expires within hours,
+   * so it is minted on demand rather than configured.
+   */
+  @http({tags: ['webApiAuth']} as any)
+  async fetchWebApiToken(): Promise<HTTPObj> {
+    const date = new Date().toUTCString();
+    return {
+      method: 'POST',
+      url: `${this.webApiBase}?city=USJ`,
+      headers: {
+        'Date': date,
+        'X-UNIWebService-ApiKey': this.webApiKey,
+      },
+      body: {
+        apiKey: this.webApiKey,
+        signature: signWebApiRequest(this.webApiSecret, this.webApiKey, date),
+      },
+      options: {json: true},
+      tags: ['webApiAuth'],
+    } as any as HTTPObj;
+  }
+
+  /** Cached mobile-service session token, held until shortly before it expires */
+  @cache({
+    callback: (resp: {token: string; expiresIn: number}) => resp?.expiresIn || 3600,
+    key: function(this: UniversalStudiosJapan) {
+      return `${this.constructor.name}:webApiToken`;
+    },
+  })
+  async getWebApiToken(): Promise<{token: string; expiresIn: number}> {
+    // @http rejects non-OK responses itself
+    const resp = await this.fetchWebApiToken();
+    const data: any = await resp.json();
+    if (!data?.Token) {
+      throw new Error('USJ: web API token response has no Token');
+    }
+    return {
+      token: data.Token,
+      expiresIn: webApiTokenTtlSeconds(data.TokenExpirationUnix, Date.now()),
+    };
+  }
+
+  /** Attach the api key and session token to mobile-service requests (not the token request itself) */
+  @inject({
+    eventName: 'httpRequest',
+    hostname: function(this: UniversalStudiosJapan) {
+      return hostnameFromUrl(this.webApiBase);
+    },
+    tags: {$nin: ['webApiAuth']},
+  })
+  async injectWebApiAuth(req: HTTPObj): Promise<void> {
+    // Request injectors run before the @http response-cache check. A request
+    // that will be answered from cache needs no token, and minting one anyway
+    // would let a token outage fail requests the cache could have served.
+    const cacheKey = (req as {cacheKey?: string}).cacheKey;
+    if (cacheKey && CacheLib.has(cacheKey)) return;
+
+    const {token} = await this.getWebApiToken();
+    req.headers = {
+      ...req.headers,
+      'X-UNIWebService-ApiKey': this.webApiKey,
+      'X-UNIWebService-Token': token,
+    };
+  }
+
+  /** A token revoked before its advertised expiry: drop it so the next call mints a fresh one */
+  @inject({
+    eventName: 'httpError',
+    hostname: function(this: UniversalStudiosJapan) {
+      return hostnameFromUrl(this.webApiBase);
+    },
+  })
+  async handleWebApiUnauthorized(req: HTTPObj): Promise<void> {
+    if (req.response?.status === 401) {
+      CacheLib.delete(`${this.constructor.name}:webApiToken`);
+    }
+  }
+
   /** Fetch venue hours for a month from the USJ website's mobile-service API */
   @http({cacheSeconds: 60 * 60 * 12} as any)
   async fetchVenueHoursForMonth(endDate: string): Promise<HTTPObj> {
     return {
       method: 'GET',
-      url: `https://mobile-service.usj.co.jp/api/Venues/${VENUE_ID}/Hours?endDate=${encodeURIComponent(endDate)}`,
+      url: `${this.webApiBase}/Venues/${VENUE_ID}/Hours?endDate=${encodeURIComponent(endDate)}`,
       headers: {
-        'X-UNIWebService-ApiKey': this.webApiKey,
-        'X-UNIWebService-Token': this.webApiToken,
         'Accept-Language': 'en-US',
       },
       options: {json: true},
@@ -519,10 +625,16 @@ export class UniversalStudiosJapan extends Destination {
   // ─── Schedules ──────────────────────────────────────────────────────────────────
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
+    if (!this.webApiBase || !this.webApiKey || !this.webApiSecret) {
+      throw new Error('USJ: webApiBase, webApiKey and webApiSecret must be configured for schedules');
+    }
+
     const schedule: Array<{date: string; type: string; openingTime: string; closingTime: string}> = [];
 
     // Fetch 3 months of schedule data
     const now = new Date();
+    const failures: string[] = [];
+    const seen = new Set<string>();
     for (let i = 0; i < 3; i++) {
       const monthDate = new Date(now.getFullYear(), now.getMonth() + i + 1, 0); // last day of month
       const mm = String(monthDate.getMonth() + 1).padStart(2, '0');
@@ -532,10 +644,18 @@ export class UniversalStudiosJapan extends Destination {
       try {
         const resp = await this.fetchVenueHoursForMonth(endDate);
         const hours = await resp.json();
-        if (!Array.isArray(hours)) continue;
+        if (!Array.isArray(hours)) {
+          failures.push(`${endDate}: response is not an array`);
+          continue;
+        }
 
         for (const h of hours) {
           if (!h.OpenTimeString || !h.CloseTimeString || !h.Date) continue;
+          // The endpoint returns every day from today up to endDate, not just
+          // that month, so later requests repeat the earlier ones' days.
+          const dedupeKey = `${h.Date}|${h.OpenTimeString}|${h.CloseTimeString}`;
+          if (seen.has(dedupeKey)) continue;
+          seen.add(dedupeKey);
           schedule.push({
             date: h.Date,
             type: 'OPERATING',
@@ -543,9 +663,19 @@ export class UniversalStudiosJapan extends Destination {
             closingTime: h.CloseTimeString,
           });
         }
-      } catch {
-        // Skip months that fail
+      } catch (err) {
+        // One bad month should not cost the others
+        failures.push(`${endDate}: ${(err as Error)?.message ?? err}`);
       }
+    }
+
+    // Every month failing is an outage (auth, endpoint), not an empty calendar.
+    // Returning [] here is what let a dead session token go unnoticed.
+    if (failures.length === 3) {
+      throw new Error(`USJ: every venue-hours request failed: ${failures.join('; ')}`);
+    }
+    if (failures.length > 0) {
+      console.warn(`USJ: some venue-hours months failed: ${failures.join('; ')}`);
     }
 
     return [{id: PARK_ID, schedule} as EntitySchedule];
