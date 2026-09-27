@@ -91,23 +91,6 @@ type TE2POIStatus = {
   };
 };
 
-/** Single queue entry from ride status endpoint */
-type TE2QueueEntry = {
-  isPrimary?: boolean;
-  isDefault?: boolean;
-  isOpen?: boolean;
-  waitTimeMins?: number;
-};
-
-/** Ride status entry from external fastpass endpoint */
-type TE2RideStatusEntry = {
-  tags?: string[];
-  queues?: TE2QueueEntry[];
-  isOpen?: boolean;
-  state?: string;
-  waitTimeMins?: number;
-};
-
 /** Schedule data from GET /v2/venues/{venueId}/venue-hours */
 type TE2ScheduleResponse = {
   days?: Array<{
@@ -173,10 +156,6 @@ class TE2Destination extends Destination {
   /** TE2 venue identifier (e.g., VRTP_SW) */
   @config
   venueId: string = '';
-
-  /** Optional external ride status URL (richer wait time data) */
-  @config
-  rideStatusUrl: string = '';
 
   /** Park timezone */
   @config
@@ -273,7 +252,7 @@ class TE2Destination extends Destination {
   }
 
   /**
-   * Fetch POI status (live data fallback when no rideStatusUrl).
+   * Fetch POI status (ride status and standby waits).
    * Cached 1min at HTTP level.
    */
   @http({cacheSeconds: 60})
@@ -281,20 +260,6 @@ class TE2Destination extends Destination {
     return {
       method: 'GET',
       url: `${this.baseUrl}/rest/venue/${this.venueId}/poi/all/status`,
-      options: {json: true},
-    } as any as HTTPObj;
-  }
-
-  /**
-   * Fetch external ride status endpoint (richer wait time data).
-   * Only used when rideStatusUrl is configured. No auth headers.
-   * Cached 1min at HTTP level.
-   */
-  @http({cacheSeconds: 60})
-  async fetchRideStatus(): Promise<HTTPObj> {
-    return {
-      method: 'GET',
-      url: this.rideStatusUrl,
       options: {json: true},
     } as any as HTTPObj;
   }
@@ -403,15 +368,16 @@ class TE2Destination extends Destination {
   /**
    * Get normalized live status data (cached 1min).
    *
-   * If rideStatusUrl is configured, fetches from the external endpoint
-   * (which provides richer queue data). Otherwise falls back to the
-   * standard POI status endpoint.
+   * Always read from the POI status endpoint, which is what the park's app
+   * shows. The parks also publish a virtual queue ("fastpass") ride feed, but
+   * its queue `isOpen` and `state` describe whether that virtual queue has
+   * places left, not whether the ride is running: a running ride whose
+   * virtual queue is sold out reads `state: "full"` with `isOpen: false`.
+   * Its waits are the same numbers as the POI feed's, so it adds nothing for
+   * live status. An old ride status URL setting is ignored.
    */
   @cache({ttlSeconds: 60})
   async getLiveStatus(): Promise<NormalizedStatusEntry[]> {
-    if (this.rideStatusUrl) {
-      return this.parseRideStatusEndpoint();
-    }
     return this.parsePOIStatusEndpoint();
   }
 
@@ -447,77 +413,6 @@ class TE2Destination extends Destination {
       });
     }
     return entries;
-  }
-
-  /**
-   * Parse the external ride status endpoint into normalized entries.
-   * Extracts entity ID from `te2_rideid:` tags.
-   */
-  private async parseRideStatusEndpoint(): Promise<NormalizedStatusEntry[]> {
-    const resp = await this.fetchRideStatus();
-    const data: TE2RideStatusEntry[] = await resp.json();
-    if (!Array.isArray(data)) return [];
-
-    const entries: NormalizedStatusEntry[] = [];
-    for (const ride of data) {
-      const te2Id = this.extractTe2RideId(ride.tags);
-      if (!te2Id) continue;
-
-      const primaryQueue = this.getPrimaryQueue(ride);
-      const isOpen = this.isRideOpen(ride, primaryQueue);
-
-      // Prefer ride-level waitTimeMins, fall back to queue-level
-      const rawWait = ride.waitTimeMins ?? primaryQueue?.waitTimeMins;
-      const waitValue = Number(rawWait);
-      const waitTime = Number.isFinite(waitValue) ? Math.max(0, Math.round(waitValue)) : null;
-
-      entries.push({
-        id: te2Id,
-        status: isOpen ? 'OPERATING' : 'CLOSED',
-        waitTime,
-      });
-    }
-    return entries;
-  }
-
-  /**
-   * Extract TE2 ride ID from tags array (looks for `te2_rideid:ACTUAL_ID`).
-   */
-  private extractTe2RideId(tags?: string[]): string | null {
-    if (!Array.isArray(tags)) return null;
-
-    for (const tag of tags) {
-      if (typeof tag !== 'string') continue;
-      const match = tag.match(/^te2_rideid:(.+)$/i);
-      if (match?.[1]) return match[1];
-    }
-    return null;
-  }
-
-  /**
-   * Select the primary queue entry for a ride.
-   * Priority: isPrimary > isDefault > first queue.
-   */
-  private getPrimaryQueue(ride: TE2RideStatusEntry) {
-    const queues = Array.isArray(ride.queues) ? ride.queues : [];
-    return queues.find(q => q?.isPrimary) || queues.find(q => q?.isDefault) || queues[0] || null;
-  }
-
-  /**
-   * Determine if a ride is open from queue or state data.
-   */
-  private isRideOpen(ride: TE2RideStatusEntry, primaryQueue: TE2QueueEntry | null): boolean {
-    if (typeof primaryQueue?.isOpen === 'boolean') return primaryQueue.isOpen;
-    if (typeof ride?.isOpen === 'boolean') return ride.isOpen;
-
-    if (typeof ride?.state === 'string') {
-      const normalized = ride.state.toLowerCase();
-      if (normalized.includes('open')) return true;
-      if (normalized.includes('closed') || normalized.includes('down') || normalized.includes('maintenance')) {
-        return false;
-      }
-    }
-    return false;
   }
 
   /**
@@ -799,7 +694,8 @@ class TE2Destination extends Destination {
         status: entry.status,
       } as LiveData;
 
-      if (entry.waitTime !== null) {
+      // Only a running ride has a standby queue.
+      if (entry.status === 'OPERATING' && entry.waitTime !== null) {
         ld.queue = {
           STANDBY: {waitTime: entry.waitTime},
         };
