@@ -1,4 +1,4 @@
-import {describe, test, expect, beforeAll, afterAll, beforeEach, vi} from 'vitest';
+import {describe, test, expect, beforeAll, afterAll, beforeEach, afterEach, vi} from 'vitest';
 import {createServer, IncomingMessage, Server, ServerResponse} from 'node:http';
 import type {AddressInfo} from 'node:net';
 import crypto from 'node:crypto';
@@ -8,6 +8,10 @@ import {
   webApiTokenTtlSeconds,
 } from '../universalstudiosjapan.js';
 import {CacheLib} from '../../../cache.js';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 // The venue-hours endpoint needs an X-UNIWebService-Token. That token is a
 // session token minted by POST {webApiBase}?city=USJ and it expires within
@@ -23,18 +27,20 @@ describe('signWebApiRequest', () => {
   test('HMAC-SHA256 over "key\\ndate\\n", base64', () => {
     expect(signWebApiRequest(
       'test-secret-not-real',
-      'USJFlutterMobileApp',
+      'test-api-key',
       'Wed, 13 May 2026 07:40:39 GMT',
-    )).toBe('mqQO1DM07Hab3jbZikYY1ftwZPcpRg+4umWe/yhDjFg=');
+    )).toBe('IJEYbFu4SHbtKlfLNL0Vobh8mgdvkVyMUDAg4YLGS/8=');
   });
 
-  // Real vector from an observed app request. Needs the real secret, which
-  // stays out of the repo, so this only runs where it is configured.
+  // Real vector from an observed app request. Needs the real key and secret,
+  // which stay out of the repo, so this only runs where they are configured:
+  //   node --env-file=.env ./node_modules/.bin/vitest run src/parks/usj
+  const realKey = process.env.UNIVERSALSTUDIOSJAPAN_WEBAPIKEY;
   const realSecret = process.env.UNIVERSALSTUDIOSJAPAN_WEBAPISECRET;
-  test.skipIf(!realSecret)('matches a signature observed from the app', () => {
+  test.skipIf(!realKey || !realSecret)('matches a signature observed from the app', () => {
     expect(signWebApiRequest(
       realSecret!,
-      'USJFlutterMobileApp',
+      realKey!,
       'Wed, 13 May 2026 07:40:39 GMT',
     )).toBe('j2dDTRe+tPx03B6Lc6s6fH996teVDlbHu8N3ziVTTp8=');
   });
@@ -67,13 +73,17 @@ describe('webApiTokenTtlSeconds', () => {
 // ─── End to end against a loopback stand-in for the mobile-service API ──────
 
 const SECRET = 'test-secret-not-real';
-const API_KEY = 'USJFlutterMobileApp';
+const API_KEY = 'test-api-key';
 
 type MockState = {
   issued: string[];
   valid: Set<string>;
   hoursTokens: string[];
   tokenRequests: Array<{date?: string; apiKeyHeader?: string; body: any}>;
+  /** How the token endpoint answers a correctly signed request */
+  mintMode: 'ok' | 'error' | 'noToken';
+  /** How the Hours endpoint answers a request with a valid token */
+  hoursMode: 'ok' | 'error';
 };
 
 function readBody(req: IncomingMessage): Promise<string> {
@@ -104,6 +114,8 @@ function startMockWebApi(state: MockState): Promise<{server: Server; base: strin
       if (body.apiKey !== API_KEY || body.signature !== expected) {
         return send(res, 401, {Message: 'bad signature'});
       }
+      if (state.mintMode === 'error') return send(res, 503, {Message: 'unavailable'});
+      if (state.mintMode === 'noToken') return send(res, 200, {});
       const token = `tok-${state.issued.length + 1}`;
       state.issued.push(token);
       state.valid.add(token);
@@ -117,6 +129,7 @@ function startMockWebApi(state: MockState): Promise<{server: Server; base: strin
       if (!token || !state.valid.has(token) || req.headers['x-uniwebservice-apikey'] !== API_KEY) {
         return send(res, 401, {Message: 'Authorization has been denied for this request.'});
       }
+      if (state.hoursMode === 'error') return send(res, 404, {Message: 'not found'});
       // One day per month requested, keyed on the endDate so each month is distinct
       const [mm, , yyyy] = (url.searchParams.get('endDate') || '').split('/');
       return send(res, 200, [{
@@ -148,7 +161,7 @@ describe('USJ schedules mint their own session token', () => {
   let state: MockState;
 
   beforeAll(async () => {
-    state = {issued: [], valid: new Set(), hoursTokens: [], tokenRequests: []};
+    state = {issued: [], valid: new Set(), hoursTokens: [], tokenRequests: [], mintMode: 'ok', hoursMode: 'ok'};
     ({server, base} = await startMockWebApi(state));
   });
 
@@ -161,8 +174,13 @@ describe('USJ schedules mint their own session token', () => {
     state.valid.clear();
     state.hoursTokens.length = 0;
     state.tokenRequests.length = 0;
+    state.mintMode = 'ok';
+    state.hoursMode = 'ok';
     await CacheLib.clearAll();
   });
+
+  // Mirrors the @cache key on getWebApiToken (universalstudiosjapan.ts)
+  const tokenKey = (park: UniversalStudiosJapan) => `${park.constructor.name}:webApiToken`;
 
   const probe = () => new ScheduleProbe({config: {
     webApiBase: base,
@@ -192,7 +210,7 @@ describe('USJ schedules mint their own session token', () => {
     // cache (keeping the token) so the next run re-fetches every month.
     state.valid.clear();
     await CacheLib.clearAll();
-    await CacheLib.set(`${park.constructor.name}:webApiToken`, {token: 'tok-1', expiresIn: 36000}, 36000);
+    await CacheLib.set(tokenKey(park), {token: 'tok-1', expiresIn: 36000}, 36000);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     const [entry] = await park.schedules();
@@ -203,8 +221,46 @@ describe('USJ schedules mint their own session token', () => {
     expect(state.issued).toEqual(['tok-1', 'tok-2']);
     expect(entry.schedule).toHaveLength(2);
     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/some venue-hours months failed.*401/));
-    expect(await CacheLib.get(`${park.constructor.name}:webApiToken`)).toMatchObject({token: 'tok-2'});
-    warn.mockRestore();
+    expect(await CacheLib.get(tokenKey(park))).toMatchObject({token: 'tok-2'});
+  });
+
+  test('the token is cached until 5 minutes before the server expiry', async () => {
+    const park = probe();
+    const before = Date.now();
+    await park.schedules();
+    const entry = CacheLib.getAllEntries().find((e) => e.key === tokenKey(park));
+    expect(entry).toBeDefined();
+    // Mock issues TokenExpirationUnix = now + 10h; cached for 10h - 5min
+    const expected = before + (10 * 3600 - 300) * 1000;
+    expect(Math.abs(entry!.expiresAt - expected)).toBeLessThan(5_000);
+  });
+
+  test('cached Hours responses are served without minting, so a token outage cannot fail them', async () => {
+    const park = probe();
+    await park.schedules();
+    expect(state.tokenRequests).toHaveLength(1);
+
+    // Token gone and the mint endpoint down; Hours bodies are still cached
+    CacheLib.delete(tokenKey(park));
+    state.mintMode = 'error';
+
+    const [entry] = await park.schedules();
+    expect(entry.schedule).toHaveLength(3);
+    expect(state.tokenRequests).toHaveLength(1);
+    expect(state.hoursTokens).toHaveLength(3);
+  });
+
+  test('a token response without a Token is an error', async () => {
+    state.mintMode = 'noToken';
+    await expect(probe().schedules()).rejects.toThrow(/has no Token/);
+  });
+
+  test('a non-401 Hours error keeps the cached token', async () => {
+    state.hoursMode = 'error';
+    const park = probe();
+    await expect(park.schedules()).rejects.toThrow(/every venue-hours request failed.*404/);
+    expect(CacheLib.get(tokenKey(park))).toMatchObject({token: 'tok-1'});
+    expect(state.issued).toEqual(['tok-1']);
   });
 
   test('a rejected signature surfaces as an error, not an empty schedule', async () => {
@@ -252,7 +308,6 @@ describe('USJ buildSchedules failure handling', () => {
     const [entry] = await new StubbedProbe(['ok', 'throw', 'ok']).schedules();
     expect(entry.schedule).toHaveLength(2);
     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/some venue-hours months failed/));
-    warn.mockRestore();
   });
 
   test('overlapping ranges are deduplicated (each request returns today..endDate)', async () => {

@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import {Destination, DestinationConstructor} from '../../destination.js';
-import {cache} from '../../cache.js';
+import {cache, CacheLib} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
 import config from '../../config.js';
@@ -560,10 +560,8 @@ export class UniversalStudiosJapan extends Destination {
     },
   })
   async getWebApiToken(): Promise<{token: string; expiresIn: number}> {
+    // @http rejects non-OK responses itself
     const resp = await this.fetchWebApiToken();
-    if (!resp.response?.ok) {
-      throw new Error(`USJ: web API token request failed: ${resp.response?.status} ${resp.response?.statusText}`);
-    }
     const data: any = await resp.json();
     if (!data?.Token) {
       throw new Error('USJ: web API token response has no Token');
@@ -583,6 +581,12 @@ export class UniversalStudiosJapan extends Destination {
     tags: {$nin: ['webApiAuth']},
   })
   async injectWebApiAuth(req: HTTPObj): Promise<void> {
+    // Request injectors run before the @http response-cache check. A request
+    // that will be answered from cache needs no token, and minting one anyway
+    // would let a token outage fail requests the cache could have served.
+    const cacheKey = (req as {cacheKey?: string}).cacheKey;
+    if (cacheKey && CacheLib.has(cacheKey)) return;
+
     const {token} = await this.getWebApiToken();
     req.headers = {
       ...req.headers,
@@ -600,8 +604,7 @@ export class UniversalStudiosJapan extends Destination {
   })
   async handleWebApiUnauthorized(req: HTTPObj): Promise<void> {
     if (req.response?.status === 401) {
-      const {CacheLib} = await import('../../cache.js');
-      await CacheLib.delete(`${this.constructor.name}:webApiToken`);
+      CacheLib.delete(`${this.constructor.name}:webApiToken`);
     }
   }
 
