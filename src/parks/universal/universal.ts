@@ -1864,6 +1864,11 @@ class Universal extends Destination {
               if (waitTime === undefined && queue.status === 'RIDE_NOW') {
                 waitTime = 0;
               }
+              // 995 is Universal's "not available" sentinel, as in the
+              // EXPRESS branch: the queue is open but has no reading.
+              if (waitTime === 995) {
+                waitTime = undefined;
+              }
 
               if (!attractionLiveData.queue) {
                 attractionLiveData.queue = {};
