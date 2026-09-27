@@ -19,6 +19,7 @@ import {
   SesamePlaceSanDiego,
   aslBaseName,
   mapAslShowsToBase,
+  mapShowAliases,
   ASL_SHOWTIME_TYPE,
 } from '../seaworld.js';
 
@@ -1581,6 +1582,86 @@ describe('ASL-interpreted performances', () => {
       {Id: 'asl-fiends', Minutes: 0, Status: 'Closed For The Day', StatusDisplay: null, Title: 'ASL - Fiends', LastUpDateTime: '2026-09-26T08:00:00'},
     ]) as any).buildLiveData();
     expect(live.find((r: any) => r.id === 'asl-fiends')).toBeUndefined();
+  });
+
+  describe('same-name shows', () => {
+    // Real 2026-09-27 shapes: SeaWorld Orlando publishes "Sea Lions: Flippers, Facts &
+    // Fun" twice (one copy with the day's showtimes, one with none) and Sesame Place
+    // Philadelphia "Meet Dinger" three times, nothing else telling them apart.
+    const DUP_SHOWS = [
+      {Id: 'b5efd31b', Name: 'Sea Lions: Flippers, Facts & Fun', Type: 'Shows'},
+      {Id: '774ef09d', Name: 'Sea Lions: Flippers, Facts & Fun', Type: 'Shows'},
+      {Id: 'asl-sl', Name: 'Sea Lions: Flippers, Facts & Fun - ASL Saturday', Type: 'Shows'},
+      {Id: 'd46174e2', Name: 'Meet Dinger', Type: 'Shows'},
+      {Id: 'abb187b7', Name: 'Meet Dinger', Type: 'Shows'},
+      {Id: 'b8be46b3', Name: 'MEET DINGER!', Type: 'Shows'},
+      {Id: 'solo', Name: 'Pets Rule!', Type: 'Shows'},
+    ];
+
+    function dup(showRows: any[], waitRows: any[] = [], hours: any[] = []) {
+      const park = new BuschGardensWilliamsburg();
+      const mainId = (park as any).resortIds[0];
+      (park as any).getParkDetail = async (id: string) => ({
+        Id: id, park_Name: 'P', TimeZone: 'America/New_York',
+        POIs: id === mainId ? {Shows: DUP_SHOWS} : {Shows: []}, open_hours: id === mainId ? hours : [],
+      }) as any;
+      (park as any).getAvailability = async (id: string) =>
+        (id === mainId ? {WaitTimes: waitRows, ShowTimes: showRows} : {WaitTimes: [], ShowTimes: []}) as any;
+      return park;
+    }
+
+    it('maps every copy but the lowest id to the lowest id, and ASL to that canonical id', () => {
+      expect(mapShowAliases(DUP_SHOWS)).toEqual({
+        asl: {'asl-sl': '774ef09d'},
+        duplicate: {'b5efd31b': '774ef09d', 'd46174e2': 'abb187b7', 'b8be46b3': 'abb187b7'},
+      });
+    });
+
+    it('is stable whatever order the feed lists the copies in', () => {
+      const reversed = [...DUP_SHOWS].reverse();
+      expect(mapShowAliases(reversed)).toEqual(mapShowAliases(DUP_SHOWS));
+    });
+
+    it('emits one entity per show name, on the canonical id', async () => {
+      const ids = (await (dup([]) as any).buildEntityList()).filter((e: any) => e.entityType === 'SHOW').map((e: any) => e.id);
+      expect(ids.sort()).toEqual(['774ef09d', 'abb187b7', 'solo']);
+    });
+
+    it('merges a copy\'s showtimes into the canonical show, once each', async () => {
+      const a = slot('2026-09-27T11:30:00', '2026-09-27T12:00:00');
+      const b = slot('2026-09-27T14:00:00', '2026-09-27T14:30:00');
+      const live = await (dup([
+        {Id: 'b5efd31b', ShowTimes: [a]},
+        {Id: '774ef09d', ShowTimes: [a, b]},          // the same 11:30 slot on both copies
+        {Id: 'asl-sl', ShowTimes: [a]},               // and its interpreted performance
+      ]) as any).buildLiveData();
+      expect(live.find((r: any) => r.id === 'b5efd31b')).toBeUndefined();
+      const sl = live.find((r: any) => r.id === '774ef09d');
+      expect(sl.showtimes.map((t: any) => [t.startTime.slice(11, 16), t.type])).toEqual([
+        ['11:30', 'Performance'],
+        ['11:30', ASL_SHOWTIME_TYPE],
+        ['14:00', 'Performance'],
+      ]);
+    });
+
+    it('never merges the same name across two parks of one destination', async () => {
+      const park = new BuschGardensWilliamsburg();
+      const [main, water] = (park as any).resortIds;
+      (park as any).getParkDetail = async (id: string) => ({
+        Id: id, park_Name: id, TimeZone: 'America/New_York', open_hours: [],
+        POIs: {Shows: [{Id: id === main ? 'z-in-main' : 'a-in-water', Name: 'Character Meet', Type: 'Shows'}]},
+      }) as any;
+      const ents = (await (park as any).buildEntityList()).filter((e: any) => e.entityType === 'SHOW');
+      expect(ents.map((e: any) => [e.id, e.parentId]).sort()).toEqual([['a-in-water', water], ['z-in-main', main]]);
+    });
+
+    it('ignores a copy\'s closure instead of shutting the canonical show', async () => {
+      const live = await (dup([], [
+        {Id: 'b5efd31b', Minutes: 0, Status: 'Closed For The Day', StatusDisplay: null, Title: 'x', LastUpDateTime: '2026-09-27T08:00:00'},
+      ]) as any).buildLiveData();
+      expect(live.find((r: any) => r.id === 'b5efd31b')).toBeUndefined();
+      expect(live.find((r: any) => r.id === '774ef09d')).toBeUndefined();   // no row invented either
+    });
   });
 
   describe('closures, with the park open', () => {
