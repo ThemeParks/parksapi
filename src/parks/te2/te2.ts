@@ -39,8 +39,22 @@ const SHOW_TYPES = new Set([
   'Shows', 'Show', 'Entertainment', 'Live Entertainment', 'Presentation',
 ]);
 
-/** Schedule hour labels that indicate park operating hours */
-const PARK_SCHEDULE_LABELS = new Set(['park', 'gate']);
+/**
+ * Schedule hour labels that carry the park's gate hours (lowercased, trimmed).
+ * Most venues label them "Gate"; Movie World renamed its label to "Gate Hours"
+ * in mid 2026.
+ */
+const PARK_SCHEDULE_LABELS = new Set(['park', 'gate', 'gate hours']);
+
+/**
+ * Ride-hours label. Informational while a day has a gate label; used as the
+ * operating window only on a day whose feed carries no gate label at all.
+ */
+const FALLBACK_OPERATING_LABEL = 'attractions';
+
+/** Lowercased, trimmed hour label ('' when missing). */
+const normalizeHourLabel = (label: unknown): string =>
+  typeof label === 'string' ? label.trim().toLowerCase() : '';
 
 /** Tags on POI entries that indicate a ride (used for fallback classification) */
 const RIDE_INDICATOR_LABELS = new Set(['thrill level', 'rider height', 'ages']);
@@ -800,6 +814,12 @@ class TE2Destination extends Destination {
     for (const day of scheduleData.days) {
       const hours = Array.isArray(day.hours) ? day.hours : [];
 
+      // A gate label (open or closed) is authoritative for the day. Only a day
+      // without one falls back to the ride hours for its operating window.
+      const hasGateLabel = hours.some(h => PARK_SCHEDULE_LABELS.has(normalizeHourLabel(h.label)));
+      // Identical OPERATING windows under two gate labels collapse into one.
+      const operatingWindows = new Set<string>();
+
       for (const hour of hours) {
         // Skip closed entries unless it's specifically the Park schedule
         if (day.label !== 'Park' && hour.status === 'CLOSED') continue;
@@ -813,13 +833,21 @@ class TE2Destination extends Destination {
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) continue;
 
         const label = typeof hour.label === 'string' ? hour.label.trim() : '';
-        const normalizedLabel = label.toLowerCase();
+        const normalizedLabel = normalizeHourLabel(label);
 
         // Determine schedule type
-        const scheduleType = PARK_SCHEDULE_LABELS.has(normalizedLabel) ? 'OPERATING' : 'INFO';
+        const isOperating = PARK_SCHEDULE_LABELS.has(normalizedLabel)
+          || (!hasGateLabel && normalizedLabel === FALLBACK_OPERATING_LABEL);
+        const scheduleType = isOperating ? 'OPERATING' : 'INFO';
 
         const startFormatted = formatInTimezone(startDate, this.timezone, 'iso');
         const endFormatted = formatInTimezone(endDate, this.timezone, 'iso');
+
+        if (isOperating) {
+          const window = `${startFormatted}|${endFormatted}`;
+          if (operatingWindows.has(window)) continue;
+          operatingWindows.add(window);
+        }
 
         scheduleEntries.push({
           date: startFormatted.slice(0, 10),
