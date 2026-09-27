@@ -274,6 +274,26 @@ describe('stripFantawildStars', () => {
   });
 });
 
+describe('stripFantawildStars invisible fillers', () => {
+  // Fantawild Oriental Heritage Mianyang names from 2026-09, with a trailing
+  // U+3164 HANGUL FILLER that renders as blank space.
+  test.each([
+    ['飞天团子\u3164', '飞天团子'],
+    ['马戏大狂欢[过山车]\u3164', '马戏大狂欢[过山车]'],
+    ['超级大摆锤\u3164', '超级大摆锤'],
+    ['孟姜女⭐⭐\u3164', '孟姜女'],
+    ['\u200B秦陵历险\uFEFF', '秦陵历险'],
+  ])('%j is cleaned', (input, expected) => {
+    expect(stripFantawildStars(input)).toBe(expected);
+  });
+
+  test('leaves ordinary names alone, including real Hangul', () => {
+    for (const name of ['飞越狗熊岭[过山车]', '파라오의 분노', '熊出没剧场【熊大推荐】']) {
+      expect(stripFantawildStars(name)).toBe(name);
+    }
+  });
+});
+
 const baseItem = (overrides: Partial<FantawildItem> = {}): FantawildItem => ({
   parkId: 19, id: 1, itemName: 'Test', waitTime: 0, itemOpened: true,
   statusStr: null, showTimeList: [], featureList: [], ...overrides,

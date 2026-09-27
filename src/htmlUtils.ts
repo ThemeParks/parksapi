@@ -23,7 +23,22 @@ const NAMED_ENTITIES: Record<string, string> = {
   quot: '"',
   apos: "'",
   nbsp: ' ',
+  // Typographic entities some park CMSs emit in plain-text names
+  // (Lotte World: "Pharaoh&rsquo;s Fury").
+  lsquo: '\u2018',
+  rsquo: '\u2019',
+  ldquo: '\u201C',
+  rdquo: '\u201D',
+  ndash: '\u2013',
+  mdash: '\u2014',
+  hellip: '\u2026',
+  trade: '\u2122',
+  reg: '\u00AE',
+  copy: '\u00A9',
 };
+
+const NAMED_ENTITY_RE = new RegExp(
+  `&(?:#x([0-9a-fA-F]+)|#(\\d+)|(${Object.keys(NAMED_ENTITIES).join('|')}));`, 'g');
 
 export function decodeHtmlEntities(str: string): string {
   if (!str) return '';
@@ -32,7 +47,7 @@ export function decodeHtmlEntities(str: string): string {
   // decimal entities, and named entities; the replace callback decides
   // how to decode each match. Because each entity is consumed in a single
   // pass, decoded output is never re-scanned for further entities.
-  return str.replace(/&(?:#x([0-9a-fA-F]+)|#(\d+)|(amp|lt|gt|quot|apos|nbsp));/g,
+  return str.replace(NAMED_ENTITY_RE,
     (match, hex, dec, name) => {
       if (hex !== undefined) return String.fromCharCode(parseInt(hex, 16));
       if (dec !== undefined) return String.fromCharCode(parseInt(dec, 10));
