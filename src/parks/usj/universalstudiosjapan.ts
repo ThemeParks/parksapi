@@ -47,7 +47,8 @@ export const mapQueueStatus = createStatusMap(
   {
     OPERATING: ['OPEN'],
     DOWN: ['WEATHER_DELAY', 'BRIEF_DELAY'],
-    CLOSED: ['CLOSED', 'N/A'],
+    // OUT_OF_SERVICE: show list, a show with no performances today
+    CLOSED: ['CLOSED', 'N/A', 'OUT_OF_SERVICE'],
   },
   {parkName: 'USJ'},
 );
@@ -462,7 +463,10 @@ export class UniversalStudiosJapan extends Destination {
       );
     }
 
-    const results: LiveData[] = [];
+    // One row per entity. Some shows (the 4-D films, SING on Tour, Curious
+    // George) are listed in both feeds under the same id. Emitting both made
+    // the wiki alternate between them from one write cycle to the next.
+    const results = new Map<string, LiveData>();
 
     // Wait times / attraction statuses
     for (const entry of waitTimeData) {
@@ -482,7 +486,7 @@ export class UniversalStudiosJapan extends Destination {
             ld.queue = {STANDBY: {waitTime: queue.display_wait_time}};
           }
 
-          results.push(ld);
+          results.set(ld.id, ld);
           break; // one STANDBY queue per attraction
         }
       }
@@ -510,19 +514,29 @@ export class UniversalStudiosJapan extends Destination {
           endTime: null,
         }));
 
+      const id = sanitizeId(show.show_id);
       const ld: LiveData = {
-        id: sanitizeId(show.show_id),
+        id,
         status: showStatus,
       } as LiveData;
+
+      // Listed in both feeds: the show list owns status and showtimes, since it
+      // is the performance-level source (e.g. wait times said BRIEF_DELAY while
+      // the show list said OUT_OF_SERVICE with no performances). Keep the
+      // wait-time queue only while the show is actually operating.
+      const waitRow = results.get(id);
+      if (waitRow?.queue && showStatus === 'OPERATING') {
+        ld.queue = waitRow.queue;
+      }
 
       if (showTimes.length > 0) {
         ld.showtimes = showTimes;
       }
 
-      results.push(ld);
+      results.set(id, ld);
     }
 
-    return results;
+    return [...results.values()];
   }
 
   // ─── Schedules ────────────────────────────────────────────────────────────
