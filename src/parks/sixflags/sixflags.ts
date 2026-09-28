@@ -1033,6 +1033,18 @@ export class SixFlags extends Destination {
     return {tz: this.timezone, fromCoords: false};
   }
 
+  /**
+   * Record a venue-status snapshot's `parkDateTime` as this park's source
+   * observation. Skipped when the zone came from the fallback rather than
+   * the park's coordinates, since the stamp would then be read hours off.
+   */
+  private async recordParkDateTime(parkId: number, parkCode: string, stamp: unknown): Promise<void> {
+    const {tz, fromCoords} = await this.resolveTimezoneForPark(parkId);
+    if (!fromCoords) return;
+    const observedAt = parseParkDateTime(stamp, tz);
+    if (observedAt !== null) this.recordSourceObservedAt(`sixflags_park_${parkCode}`, observedAt);
+  }
+
   // ============================================================================
   // Status Mapping
   // ============================================================================
@@ -1341,6 +1353,7 @@ export class SixFlags extends Destination {
     addedIds: Set<string>,
   ): Promise<void> {
     const venueStatus = await this.getVenueStatus(parkId);
+    if (venueStatus) await this.recordParkDateTime(parkId, parkCode, venueStatus.parkDateTime);
     if (!venueStatus?.venues) return;
 
     // A frozen snapshot is not a current observation: emitting it would
