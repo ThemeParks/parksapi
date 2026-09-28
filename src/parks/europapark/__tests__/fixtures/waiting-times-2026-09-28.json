@@ -1,0 +1,1208 @@
+[
+ {
+  "code": 853,
+  "time": 333,
+  "type": 1,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 850,
+  "time": 333,
+  "type": 1,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 250,
+  "time": 333,
+  "type": 1,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 200,
+  "time": 333,
+  "type": 1,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 500,
+  "time": 333,
+  "type": 1,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 701,
+  "time": 333,
+  "type": 1,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 351,
+  "time": 333,
+  "type": 1,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 403,
+  "time": 333,
+  "type": 1,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 700,
+  "time": 333,
+  "type": 2,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 800,
+  "time": 333,
+  "type": 2,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 400,
+  "time": 333,
+  "type": 2,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 650,
+  "time": 333,
+  "type": 2,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 350,
+  "time": 333,
+  "type": 1,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 851,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 404,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 100,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 550,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 201,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 900,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 202,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 102,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 495,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 157,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 159,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 600,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 753,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 155,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 901,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 651,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 702,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 9,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 204,
+  "time": 333,
+  "type": 3,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 665,
+  "time": 333,
+  "type": 2,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 444,
+  "time": 333,
+  "type": 2,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 471,
+  "time": 333,
+  "type": 2,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1001,
+  "time": 1,
+  "type": 4,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1002,
+  "time": 1,
+  "type": 4,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1003,
+  "time": 1,
+  "type": 4,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1004,
+  "time": 1,
+  "type": 4,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1005,
+  "time": 1,
+  "type": 4,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1006,
+  "time": 1,
+  "type": 4,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1007,
+  "time": 1,
+  "type": 4,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1008,
+  "time": 1,
+  "type": 4,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1009,
+  "time": 1,
+  "type": 4,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1010,
+  "time": 1,
+  "type": 4,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1018,
+  "time": 1,
+  "type": 4,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1030,
+  "time": 1,
+  "type": 4,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1031,
+  "time": 1,
+  "type": 4,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1055,
+  "time": 333,
+  "type": 4,
+  "infostele": true,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 2002,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 2003,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 2004,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 2005,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 2006,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 2033,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 2034,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1045,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1043,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1060,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1047,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1044,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1046,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 975,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1041,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1042,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 55,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 53,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 51,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 52,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 54,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 133,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 132,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 272,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 383,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 707,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 480,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 870,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 130,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 855,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1037,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 920,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 134,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 277,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 275,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 276,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 252,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 695,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1049,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 581,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 497,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1038,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 580,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 499,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 681,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 820,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 498,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 530,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 621,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 481,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 380,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 162,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 420,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 730,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 858,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 206,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 880,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 668,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 881,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 680,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 583,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 271,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 622,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 135,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 273,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1061,
+  "time": 0,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 531,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1048,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1062,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 76,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 167,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 812,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 13,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 1040,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 136,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 655,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 921,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 830,
+  "time": 333,
+  "type": 5,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 5002,
+  "time": 333,
+  "type": 1,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 5000,
+  "time": 333,
+  "type": 1,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 5001,
+  "time": 333,
+  "type": 1,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 5005,
+  "time": 333,
+  "type": 3,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 5006,
+  "time": 333,
+  "type": 3,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 5007,
+  "time": 333,
+  "type": 2,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ },
+ {
+  "code": 5008,
+  "time": 333,
+  "type": 1,
+  "infostele": false,
+  "changedAt": "2026-09-28T22:19:41+02:00",
+  "startAt": null,
+  "endAt": null
+ }
+]

@@ -1,0 +1,59 @@
+{
+ "scope": "europapark",
+ "locale": "en",
+ "today": {
+  "date": "2026-09-28T00:00:00+02:00",
+  "start": "2026-09-28T09:00:00+02:00",
+  "estimated": "2026-09-28T18:00:00+02:00",
+  "end": "2026-09-28T18:30:00+02:00"
+ },
+ "tomorrow": {
+  "date": "2026-09-29T00:00:00+02:00",
+  "start": "2026-09-29T09:00:00+02:00",
+  "estimated": "2026-09-29T18:00:00+02:00",
+  "end": "2026-09-29T18:00:00+02:00"
+ },
+ "next": null,
+ "messages": [
+  {
+   "from": "2026-09-28T00:00:00+02:00",
+   "to": "2026-09-28T09:00:00+02:00",
+   "title": "Closed",
+   "short": "Open 9:00am to 6:00pm",
+   "long": "Open today from 9:00am - at least 6:00pm",
+   "tomorrow": "Open tomorrow from 9:00am - at least 6:00pm"
+  },
+  {
+   "from": "2026-09-28T09:00:00+02:00",
+   "to": "2026-09-28T14:00:00+02:00",
+   "title": "Open",
+   "short": "Open 9:00am to 6:00pm",
+   "long": "Open today from 9:00am - at least 6:00pm",
+   "tomorrow": "Open tomorrow from 9:00am - at least 6:00pm"
+  },
+  {
+   "from": "2026-09-28T14:00:00+02:00",
+   "to": "2026-09-28T17:30:00+02:00",
+   "title": "Open",
+   "short": "Open 9:00am to 6:30pm",
+   "long": "Open today from 9:00am to 6:30pm",
+   "tomorrow": "Open tomorrow from 9:00am - at least 6:00pm"
+  },
+  {
+   "from": "2026-09-28T17:30:00+02:00",
+   "to": "2026-09-28T18:30:00+02:00",
+   "title": "Closing soon",
+   "short": "Open 9:00am to 6:30pm",
+   "long": "Open today from 9:00am to 6:30pm",
+   "tomorrow": "Open tomorrow from 9:00am - at least 6:00pm"
+  },
+  {
+   "from": "2026-09-28T18:30:00+02:00",
+   "to": "2026-09-28T23:59:59+02:00",
+   "title": "Closed",
+   "short": "Tomorrow 9:00am to 6:00pm",
+   "long": "Open tomorrow from 9:00am to 6:00pm",
+   "tomorrow": null
+  }
+ ]
+}
