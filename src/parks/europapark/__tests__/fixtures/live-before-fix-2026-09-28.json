@@ -1,0 +1,455 @@
+[
+ {
+  "id": "pois_579",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {},
+   "RETURN_TIME": {
+    "state": "AVAILABLE",
+    "returnStart": null,
+    "returnEnd": null
+   }
+  }
+ },
+ {
+  "id": "pois_578",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {},
+   "RETURN_TIME": {
+    "state": "AVAILABLE",
+    "returnStart": null,
+    "returnEnd": null
+   }
+  }
+ },
+ {
+  "id": "pois_26",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_40",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_580",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {},
+   "RETURN_TIME": {
+    "state": "AVAILABLE",
+    "returnStart": null,
+    "returnEnd": null
+   }
+  }
+ },
+ {
+  "id": "pois_44",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_75",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_82",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_29",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_47",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_28",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {},
+   "RETURN_TIME": {
+    "state": "AVAILABLE",
+    "returnStart": null,
+    "returnEnd": null
+   }
+  }
+ },
+ {
+  "id": "pois_65",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_90",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_212",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_41",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_36",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_39",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {},
+   "RETURN_TIME": {
+    "state": "AVAILABLE",
+    "returnStart": null,
+    "returnEnd": null
+   }
+  }
+ },
+ {
+  "id": "pois_94",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_581",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_63",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_72",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_46",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_316",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_318",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_38",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_69",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_314",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_295",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_96",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_92",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_346",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {},
+   "RETURN_TIME": {
+    "state": "AVAILABLE",
+    "returnStart": null,
+    "returnEnd": null
+   }
+  }
+ },
+ {
+  "id": "pois_79",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_444",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_786",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {},
+   "RETURN_TIME": {
+    "state": "AVAILABLE",
+    "returnStart": null,
+    "returnEnd": null
+   }
+  }
+ },
+ {
+  "id": "pois_288",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_14",
+  "status": "OPERATING",
+  "queue": {
+   "STANDBY": {
+    "waitTime": 1
+   }
+  }
+ },
+ {
+  "id": "pois_1",
+  "status": "OPERATING",
+  "queue": {
+   "STANDBY": {
+    "waitTime": 1
+   }
+  }
+ },
+ {
+  "id": "pois_2",
+  "status": "OPERATING",
+  "queue": {
+   "STANDBY": {
+    "waitTime": 1
+   }
+  }
+ },
+ {
+  "id": "pois_495",
+  "status": "OPERATING",
+  "queue": {
+   "STANDBY": {
+    "waitTime": 1
+   }
+  }
+ },
+ {
+  "id": "pois_8",
+  "status": "OPERATING",
+  "queue": {
+   "STANDBY": {
+    "waitTime": 1
+   }
+  }
+ },
+ {
+  "id": "pois_10",
+  "status": "OPERATING",
+  "queue": {
+   "STANDBY": {
+    "waitTime": 1
+   }
+  }
+ },
+ {
+  "id": "pois_11",
+  "status": "OPERATING",
+  "queue": {
+   "STANDBY": {
+    "waitTime": 1
+   }
+  }
+ },
+ {
+  "id": "pois_15",
+  "status": "OPERATING",
+  "queue": {
+   "STANDBY": {
+    "waitTime": 1
+   }
+  }
+ },
+ {
+  "id": "pois_16",
+  "status": "OPERATING",
+  "queue": {
+   "STANDBY": {
+    "waitTime": 1
+   }
+  }
+ },
+ {
+  "id": "pois_12",
+  "status": "OPERATING",
+  "queue": {
+   "STANDBY": {
+    "waitTime": 1
+   }
+  }
+ },
+ {
+  "id": "pois_489",
+  "status": "OPERATING",
+  "queue": {
+   "STANDBY": {
+    "waitTime": 1
+   }
+  }
+ },
+ {
+  "id": "pois_697",
+  "status": "OPERATING",
+  "queue": {
+   "STANDBY": {
+    "waitTime": 1
+   }
+  }
+ },
+ {
+  "id": "pois_746",
+  "status": "OPERATING",
+  "queue": {
+   "STANDBY": {
+    "waitTime": 1
+   }
+  }
+ },
+ {
+  "id": "pois_604",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_809",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_811",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_812",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_652",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_653",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_810",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ },
+ {
+  "id": "pois_764",
+  "status": "CLOSED",
+  "queue": {
+   "STANDBY": {}
+  }
+ }
+]
