@@ -476,6 +476,36 @@ function hauntWindowForDate(
 }
 
 /**
+ * The park's own opening window for one operating-hours date, or null when
+ * the vendor lists the date without one (closed, or no hours published).
+ *
+ * Prefers the canonical `operatings` array: the vendor increasingly publishes
+ * per-park hours there while leaving per-ride detailHours empty (La Ronde
+ * does this for its entire operating season). Falls back to the envelope of
+ * the ride venue's detailHours.
+ */
+function parkWindowForDate(dateObj: SixFlagsOperatingHours['dates'][0]): {open: string; close: string} | null {
+  if (dateObj.isParkClosed) return null;
+
+  const parkOperatings = (dateObj.operatings || []).flatMap(op =>
+    (op.operatingTypeName === 'Park' || op.operatingTypeId === 24)
+      ? (op.items || []).filter(i => i.timeFrom && i.timeTo)
+      : [],
+  );
+
+  const windows = parkOperatings.length > 0
+    ? parkOperatings
+      .filter(i => isWallClockTime(i.timeFrom) && isWallClockTime(i.timeTo))
+      .map(i => ({from: i.timeFrom, to: i.timeTo}))
+    : (dateObj.venues?.find(v => v.venueId === RIDE_VENUE_ID)?.detailHours || [])
+      .filter(h => isWallClockTime(h.operatingTimeFrom) && isWallClockTime(h.operatingTimeTo))
+      .map(h => ({from: h.operatingTimeFrom, to: h.operatingTimeTo}));
+  if (windows.length === 0) return null;
+
+  return {open: windows.map(w => w.from).sort()[0], close: latestClosingTime(windows)};
+}
+
+/**
  * Latest closing time across a set of windows, treating any close that does
  * not follow its own open as belonging to the next day.
  *
@@ -1033,6 +1063,51 @@ export class SixFlags extends Destination {
     return {tz: this.timezone, fromCoords: false};
   }
 
+  /**
+   * True when the park's own operating hours say it is open today, or that
+   * last night's window (park hours or the haunt event) is still running
+   * past midnight.
+   *
+   * Only positive evidence counts. A day the vendor lists as closed, a day
+   * listed with no hours (how a water park reads off-season), a day missing
+   * from the response and a failed fetch all return false, so the caller
+   * falls back to publishing. That keeps an off-season park publishing
+   * closed when its schedule cannot be read, at the cost of trusting a
+   * frozen all-"Not Scheduled" snapshot on the rare poll where both the
+   * live feed is frozen and the schedule is unavailable.
+   *
+   * The hours come from the same API host as the live feeds, so they can be
+   * frozen too. That still works: hours are published weeks ahead, so a
+   * copy frozen days earlier lists today correctly unless the park changed
+   * its hours after the freeze. The host serving the 2026-09-21 snapshot
+   * still answered 26 and 27 September with Cedar Point open 11:00-00:00
+   * and 11:00-20:00.
+   *
+   * Asks for single days (`date=YYYYMMDD`). A month query for the current
+   * month omits today: on 2026-09-28 `date=202609` returned only the 29th
+   * and 30th.
+   */
+  async scheduleSaysOpen(parkId: number, tz: string, now: Date = new Date()): Promise<boolean> {
+    const toIsoDate = (mdy: string) => `${mdy.slice(6, 10)}-${mdy.slice(0, 2)}-${mdy.slice(3, 5)}`;
+    const today = toIsoDate(formatInTimezone(now, tz, 'date'));
+    const dayWindow = async (isoDate: string) => {
+      const hours = await this.getOperatingHours(parkId, isoDate.replace(/-/g, ''));
+      const wanted = `${isoDate.slice(5, 7)}/${isoDate.slice(8, 10)}/${isoDate.slice(0, 4)}`;
+      const entry = hours?.dates?.find(d => d.date === wanted);
+      return entry ? {entry, park: parkWindowForDate(entry)} : null;
+    };
+
+    if ((await dayWindow(today))?.park) return true;
+
+    const yesterday = shiftDateString(today, -1);
+    const last = await dayWindow(yesterday);
+    if (!last?.park) return false;
+    const windows = [last.park, hauntWindowForDate(last.entry, last.park.open)]
+      .filter((w): w is {open: string; close: string} => w !== null);
+    return windows.some(w => closeTimeCrossesMidnight(w.open, w.close)
+      && now.getTime() < new Date(constructDateTime(today, w.close, tz)).getTime());
+  }
+
   // ============================================================================
   // Status Mapping
   // ============================================================================
@@ -1350,12 +1425,16 @@ export class SixFlags extends Destination {
     //  - The zone came from the fallback, not the park's coordinates. The
     //    stamp would be read in the wrong zone, and a Pacific park's fresh
     //    stamp would look three hours old.
-    //  - Every ride reads "Not Scheduled". A stale snapshot that only says
-    //    the park is shut is how a seasonal park looks off-season.
+    //  - Every ride reads "Not Scheduled" and the park's schedule does not
+    //    say it is open now. A stale snapshot that only says the park is shut
+    //    is how a seasonal park looks off-season. On a day the schedule says
+    //    the park is open, the same shape is a snapshot frozen on a closed
+    //    day, and publishing it would show an open park as closed all day.
     const {tz, fromCoords} = await this.resolveTimezoneForPark(parkId);
     if (fromCoords) {
       this.warnIfUnparseableStamp(parkId, venueStatus.parkDateTime);
-      if (isFrozenSnapshot(venueStatus.parkDateTime, tz) && !isAllNotScheduled(venueStatus.venues)) {
+      if (isFrozenSnapshot(venueStatus.parkDateTime, tz)
+        && (!isAllNotScheduled(venueStatus.venues) || await this.scheduleSaysOpen(parkId, tz))) {
         console.warn(`[SixFlags] park ${parkId} venue-status is frozen at "${venueStatus.parkDateTime}", withholding live data`);
         return;
       }
@@ -1630,41 +1709,10 @@ export class SixFlags extends Destination {
       if (!hoursData?.dates) continue;
 
       for (const dateObj of hoursData.dates) {
-        if (dateObj.isParkClosed) continue;
-
-        // Prefer the canonical `operatings` array — vendors increasingly
-        // publish per-park hours here while leaving per-ride detailHours
-        // empty (La Ronde does this for its entire operating season).
-        const parkOperatings = (dateObj.operatings || []).flatMap(op =>
-          (op.operatingTypeName === 'Park' || op.operatingTypeId === 24)
-            ? (op.items || []).filter(i => i.timeFrom && i.timeTo)
-            : [],
-        );
-
-        let earliestOpen: string;
-        let latestClose: string;
-
-        if (parkOperatings.length > 0) {
-          const windows = parkOperatings
-            .filter(i => isWallClockTime(i.timeFrom) && isWallClockTime(i.timeTo))
-            .map(i => ({from: i.timeFrom, to: i.timeTo}));
-          if (windows.length === 0) continue;
-
-          earliestOpen = windows.map(w => w.from).sort()[0];
-          latestClose = latestClosingTime(windows);
-        } else {
-          // Fall back to per-ride detailHours.
-          const ridesVenue = dateObj.venues?.find(v => v.venueId === RIDE_VENUE_ID);
-          if (!ridesVenue?.detailHours || ridesVenue.detailHours.length === 0) continue;
-
-          const windows = ridesVenue.detailHours
-            .filter(h => isWallClockTime(h.operatingTimeFrom) && isWallClockTime(h.operatingTimeTo))
-            .map(h => ({from: h.operatingTimeFrom, to: h.operatingTimeTo}));
-          if (windows.length === 0) continue;
-
-          earliestOpen = windows.map(w => w.from).sort()[0];
-          latestClose = latestClosingTime(windows);
-        }
+        const parkWindow = parkWindowForDate(dateObj);
+        if (!parkWindow) continue;
+        const earliestOpen = parkWindow.open;
+        const latestClose = parkWindow.close;
 
         // Parse date from MM/DD/YYYY format
         const dateParts = dateObj.date.split('/');
