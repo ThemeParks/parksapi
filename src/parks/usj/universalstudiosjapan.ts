@@ -112,6 +112,8 @@ type USJPlace = {
   land_id?: string;
   venue_id?: string;
   tags?: string[];
+  /** "Mobile", "Web", or JSON text such as '["Mobile","Web"]' */
+  channel_types?: string;
   short_description?: string;
   long_description?: string;
 };
@@ -137,12 +139,65 @@ const TIMEZONE = 'Asia/Tokyo';
  * OUT_OF_SERVICE), and the official app hides both. Their places are
  * published to the Web channel only, but that alone does not mean retired:
  * other Web-only places include live shows and the base listing of a ride
- * running as seasonal versions.
+ * running as seasonal versions (Jurassic Park - The Ride).
  */
 const RETIRED_PLACE_IDS = new Set([
   'usj.usj.show.shrek_4d_adventure',
   'usj.usj.show.sesame_street_4D_movie_magic',
 ]);
+
+/**
+ * Places reported CLOSED while the official app hides them.
+ *
+ * Space Fantasy - The Ride runs as themed overlays, each under its own place
+ * id. While an overlay runs, the base listing is moved to the Web channel
+ * (so the app hides it) and its wait-time row sits at BRIEF_DELAY through open
+ * hours, which would read as a breakdown. The entity is kept, so its history
+ * carries over, and its live status follows the feed again as soon as the
+ * base ride returns to the app.
+ *
+ * Per id, not a general rule: Web-only is not a retirement signal on its own
+ * (see RETIRED_PLACE_IDS).
+ */
+const APP_GATED_PLACE_IDS = new Set([
+  'usj.usj.rides.space_fantasy_the_ride',
+]);
+
+/**
+ * Read `channel_types` as a list. Upstream sends one channel as a plain string
+ * ("Web") and several as JSON text ('["Mobile","Web"]'), never a real array.
+ * Returns null when the field is absent.
+ */
+function parseChannels(raw: unknown): string[] | null {
+  if (raw == null) return null;
+  if (Array.isArray(raw)) return raw.map(String);
+  const text = String(raw).trim();
+  if (text.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) return parsed.map(String);
+    } catch {
+      // not JSON: fall through to the plain-string reading
+    }
+  }
+  return text.split(',').map((c) => c.trim()).filter(Boolean);
+}
+
+/**
+ * Does the official app show this place? It lists places on the Mobile
+ * channel. A place with no channel data is treated as shown; an empty
+ * channel list is not.
+ */
+export function isShownInApp(place: Pick<USJPlace, 'channel_types'>): boolean {
+  const channels = parseChannels(place?.channel_types);
+  if (channels == null) return true;
+  return channels.some((c) => c.toLowerCase() === 'mobile');
+}
+
+/** Is this an app-gated place the app currently hides? */
+export function isClosedWhileHiddenFromApp(place: Pick<USJPlace, 'place_id' | 'channel_types'>): boolean {
+  return APP_GATED_PLACE_IDS.has(sanitizeId(place.place_id)) && !isShownInApp(place);
+}
 
 // Place types we want to expose as entities
 const WANTED_PLACE_TYPES: Record<string, Entity['entityType']> = {
@@ -318,8 +373,12 @@ export class UniversalStudiosJapan extends Destination {
 
   // ─── HTTP fetch methods ──────────────────────────────────────────────────
 
-  /** Fetch all places / POI data from the authenticated API */
-  @http({cacheSeconds: 60 * 60 * 12} as any)
+  /**
+   * Fetch all places / POI data from the authenticated API. Hourly, not
+   * daily: live data reads each place's channel (APP_GATED_PLACE_IDS), so a
+   * channel change should land within the hour.
+   */
+  @http({cacheSeconds: 60 * 60} as any)
   async fetchPlaces(): Promise<HTTPObj> {
     return {
       method: 'GET',
@@ -351,7 +410,7 @@ export class UniversalStudiosJapan extends Destination {
   // ─── Cached data accessors ───────────────────────────────────────────────
 
   /** Parse and cache place data */
-  @cache({ttlSeconds: 60 * 60 * 12})
+  @cache({ttlSeconds: 60 * 60})
   async getPlaces(): Promise<USJPlace[]> {
     const resp = await this.fetchPlaces();
     const data: USJPlacesResponse = await resp.json();
@@ -553,7 +612,34 @@ export class UniversalStudiosJapan extends Destination {
 
     for (const id of RETIRED_PLACE_IDS) results.delete(id);
 
+    await this.applyAppGate(results);
+
     return [...results.values()];
+  }
+
+  /**
+   * Rewrite live rows for APP_GATED_PLACE_IDS:
+   * - the app hides the place: CLOSED, whatever the wait feed says;
+   * - the places feed can't be read: CLOSED, since a placeholder BRIEF_DELAY
+   *   must never go out as DOWN;
+   * - the places feed no longer lists it: no row, as there is no entity;
+   * - otherwise the feed's row stands.
+   */
+  private async applyAppGate(results: Map<string, LiveData>): Promise<void> {
+    let places: USJPlace[] | null = null;
+    try {
+      places = await this.getPlaces();
+    } catch (err) {
+      console.error('USJ: getPlaces failed while gating live data', err);
+    }
+    for (const id of APP_GATED_PLACE_IDS) {
+      const place = places?.find((p) => sanitizeId(p?.place_id ?? '') === id);
+      if (places && !place) {
+        results.delete(id);
+      } else if (!place || isClosedWhileHiddenFromApp(place)) {
+        results.set(id, {id, status: 'CLOSED'} as LiveData);
+      }
+    }
   }
 
   // ─── Schedules ────────────────────────────────────────────────────────────
