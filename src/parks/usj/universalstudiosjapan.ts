@@ -138,10 +138,16 @@ const TIMEZONE = 'Asia/Tokyo';
  * published to the Web channel only, but that alone does not mean retired:
  * other Web-only places include live shows and the base listing of a ride
  * running as seasonal versions.
+ *
+ * Space Fantasy - The Ride now only runs as themed overlays, and each overlay
+ * is published under its own place id. The base listing stays behind as a
+ * Web-only place whose wait-time row sits at BRIEF_DELAY through open hours,
+ * which would otherwise read as a breakdown.
  */
 const RETIRED_PLACE_IDS = new Set([
   'usj.usj.show.shrek_4d_adventure',
   'usj.usj.show.sesame_street_4D_movie_magic',
+  'usj.usj.rides.space_fantasy_the_ride',
 ]);
 
 // Place types we want to expose as entities
