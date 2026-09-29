@@ -151,3 +151,73 @@ describe('Genting calendar closed day', () => {
     expect(live.find((l) => l.id === '001')?.status).toBe('DOWN');
   });
 });
+
+/**
+ * The 2026 closed days, read from the official calendar PDF's shaded cells
+ * (every Tuesday checked). 15 September and 3 November are open; 24 March is
+ * closed.
+ */
+describe('Genting 2026 calendar transcription', () => {
+  const CLOSED_2026 = [
+    '2026-01-13', '2026-01-20', '2026-01-27', '2026-02-03', '2026-02-10', '2026-02-24',
+    '2026-03-03', '2026-03-10', '2026-03-17', '2026-03-24', '2026-03-31',
+    '2026-04-07', '2026-04-14', '2026-04-21', '2026-04-28', '2026-05-05', '2026-05-12', '2026-05-19',
+    '2026-06-09', '2026-06-16', '2026-06-23', '2026-06-30', '2026-07-07', '2026-07-14', '2026-07-21', '2026-07-28',
+    '2026-08-04', '2026-08-11', '2026-08-18', '2026-09-08', '2026-09-22', '2026-09-29',
+    '2026-10-06', '2026-10-13', '2026-10-20', '2026-10-27', '2026-11-10', '2026-11-17', '2026-11-24', '2026-12-01',
+  ];
+
+  beforeEach(() => {
+    CacheLib.clear();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    CacheLib.clear();
+  });
+
+  test('every 2026 Tuesday matches the calendar', async () => {
+    // The forward schedule spans 90 days, so read the year in 60-day windows.
+    const scheduled = new Set<string>();
+    for (const start of ['2026-01-01', '2026-03-01', '2026-05-01', '2026-07-01', '2026-09-01', '2026-11-01']) {
+      CacheLib.clear();
+      vi.setSystemTime(new Date(`${start}T09:00:00+08:00`));
+      const p = new Probe();
+      p.wait = {rideWaitTimes: []};
+      const [park] = await p.schedulesForTest();
+      for (const s of park.schedule as any[]) scheduled.add(s.date);
+    }
+
+    const wrong: string[] = [];
+    let tuesdays = 0;
+    for (let d = new Date('2026-01-06T12:00:00Z'); d.getUTCFullYear() === 2026; d = new Date(d.getTime() + 7 * 86400000)) {
+      const date = d.toISOString().slice(0, 10);
+      tuesdays++;
+      if (scheduled.has(date) === CLOSED_2026.includes(date)) wrong.push(date);
+    }
+    expect(tuesdays).toBe(52);
+    expect(wrong).toEqual([]);
+  });
+
+  test.each([
+    ['2026-09-15', true],
+    ['2026-11-03', true],
+    ['2026-09-22', false],
+    ['2026-11-10', false],
+  ])('%s is scheduled: %s', async (date, open) => {
+    vi.setSystemTime(new Date('2026-09-01T09:00:00+08:00'));
+    const p = new Probe();
+    p.wait = {rideWaitTimes: []};
+    const [park] = await p.schedulesForTest();
+    expect((park.schedule as any[]).some((s) => s.date === date)).toBe(open);
+  });
+
+  test('24 March is closed', async () => {
+    vi.setSystemTime(new Date('2026-03-01T09:00:00+08:00'));
+    const p = new Probe();
+    p.wait = {rideWaitTimes: []};
+    const [park] = await p.schedulesForTest();
+    expect((park.schedule as any[]).some((s) => s.date === '2026-03-24')).toBe(false);
+  });
+});
