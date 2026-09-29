@@ -124,6 +124,26 @@ const CLOSED_DATES_2026: ReadonlySet<string> = new Set([
   '2026-12-01',
 ]);
 
+/**
+ * True when the park's published calendar says it is closed on `dateStr`
+ * (YYYY-MM-DD, park-local). 2026 uses the transcribed calendar; later years
+ * fall back to the published rule of closed every Tuesday.
+ */
+function isCalendarClosed(dateStr: string): boolean {
+  return dateStr.startsWith('2026-')
+    ? CLOSED_DATES_2026.has(dateStr)
+    : new Date(`${dateStr}T12:00:00+08:00`).getUTCDay() === 2;
+}
+
+/**
+ * The wait-time feed's `operationHour` reads 10:00-18:00 every day, including
+ * calendar closed days. It only counts as evidence the park opened on a
+ * closed day when at least one ride is actually running.
+ */
+function anyRideUp(rides: GentingWaitTime[] | undefined): boolean {
+  return (rides ?? []).some((r) => r.status === 'UP');
+}
+
 @destinationController({category: 'Genting'})
 export class GentingSkyworlds extends Destination {
   @config apiBase: string = '';
@@ -354,7 +374,12 @@ export class GentingSkyworlds extends Destination {
     // live-data emission on the operationHour window: when `now` falls outside
     // the window, force CLOSED and suppress queue + VQ data. When we don't
     // have operationHour, fall through to upstream-as-truth.
-    const parkOpenNow = this.isParkCurrentlyOpen(wait.operationHour);
+    // On a calendar closed day the operationHour window is the feed's default,
+    // so the park is only open if a ride is actually running.
+    const today = formatDate(new Date(), this.timezone);
+    const parkOpenNow = isCalendarClosed(today) && !anyRideUp(wait.rideWaitTimes)
+      ? false
+      : this.isParkCurrentlyOpen(wait.operationHour);
 
     const out: LiveData[] = [];
 
@@ -446,6 +471,8 @@ export class GentingSkyworlds extends Destination {
    * park varies it. Tuesday closures may be overridden by Malaysian public
    * holidays and school holidays per the official park-hours page; without
    * a holiday feed we leave Tuesdays closed and accept the false negatives.
+   * The live operationHour reads 10:00-18:00 on closed days too, so on a
+   * calendar closed day it only reopens the day when a ride is running.
    * Source: https://www.gentingskyworlds.com/en/travel-information/park-hours.html
    */
   protected async buildSchedules(): Promise<EntitySchedule[]> {
@@ -457,10 +484,7 @@ export class GentingSkyworlds extends Destination {
 
     for (let d = new Date(today); d <= horizon; d = addDays(d, 1)) {
       const dateStr = formatDate(d, this.timezone);
-      const isClosed = dateStr.startsWith('2026-')
-        ? CLOSED_DATES_2026.has(dateStr)
-        : new Date(`${dateStr}T12:00:00+08:00`).getUTCDay() === 2;
-      if (isClosed) continue;
+      if (isCalendarClosed(dateStr)) continue;
 
       schedule.push({
         date: dateStr,
@@ -484,6 +508,10 @@ export class GentingSkyworlds extends Destination {
       if (Number.isFinite(startDate.getTime()) && Number.isFinite(endDate.getTime())) {
         const startLocalDate = formatDate(startDate, this.timezone);
         const endLocalDate = formatDate(endDate, this.timezone);
+        if (isCalendarClosed(startLocalDate) && !anyRideUp(wait.rideWaitTimes)) {
+          // The feed's default hours, not an opening: leave the day closed.
+          return [{id: PARK_ID, schedule} as EntitySchedule];
+        }
         const localHHmm = (d: Date) =>
           formatInTimezone(d, this.timezone, 'iso').slice(11, 16);
         const entry = {
