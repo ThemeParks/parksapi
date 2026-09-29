@@ -1,0 +1,114 @@
+{
+  "result": {
+    "rides": [
+      {
+        "id": "008",
+        "categoryId": "RIDE",
+        "title": "Acorn Adventure",
+        "isRide": true
+      },
+      {
+        "id": "012",
+        "categoryId": "RIDE",
+        "title": "Alpha Fighter Pilots",
+        "isRide": true
+      },
+      {
+        "id": "014",
+        "categoryId": "RIDE",
+        "title": "Bigweld's Zeppelins",
+        "isRide": true
+      },
+      {
+        "id": "002",
+        "categoryId": "RIDE",
+        "title": "Blue Sky Carousel",
+        "isRide": true
+      },
+      {
+        "id": "013",
+        "categoryId": "RIDE",
+        "title": "Boot Camp Training",
+        "isRide": true
+      },
+      {
+        "id": "006",
+        "categoryId": "RIDE",
+        "title": "Epic Hummingbird Flyers",
+        "isRide": true
+      },
+      {
+        "id": "005",
+        "categoryId": "RIDE",
+        "title": "Epic Voyage To Moonhaven",
+        "isRide": true
+      },
+      {
+        "id": "018",
+        "categoryId": "RIDE",
+        "title": "ESD Global Defender",
+        "isRide": true
+      },
+      {
+        "id": "010",
+        "categoryId": "RIDE",
+        "title": "Ice Age: Expedition Thin Ice",
+        "isRide": true
+      },
+      {
+        "id": "017",
+        "categoryId": "RIDE",
+        "title": "Independence Day: Defiance",
+        "isRide": true
+      },
+      {
+        "id": "016",
+        "categoryId": "RIDE",
+        "title": "Invasion of the Planet of the Apes",
+        "isRide": true
+      },
+      {
+        "id": "001",
+        "categoryId": "RIDE",
+        "title": "Mad Ramp Peak - Full Throttle Racing (Future Attraction)",
+        "isRide": true
+      },
+      {
+        "id": "007",
+        "categoryId": "RIDE",
+        "title": "Mammoth Fun Zone",
+        "isRide": true
+      },
+      {
+        "id": "004",
+        "categoryId": "RIDE",
+        "title": "Rio Carnaval Chaos!",
+        "isRide": true
+      },
+      {
+        "id": "015",
+        "categoryId": "RIDE",
+        "title": "Rivet Town Roller",
+        "isRide": true
+      },
+      {
+        "id": "003",
+        "categoryId": "RIDE",
+        "title": "Samba Gliders",
+        "isRide": true
+      },
+      {
+        "id": "009",
+        "categoryId": "RIDE",
+        "title": "Sid's Rock 'N' Slide",
+        "isRide": true
+      },
+      {
+        "id": "011",
+        "categoryId": "RIDE",
+        "title": "Terraform Tower Challenge",
+        "isRide": true
+      }
+    ]
+  }
+}
