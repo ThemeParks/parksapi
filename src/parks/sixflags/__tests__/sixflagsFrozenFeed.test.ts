@@ -478,12 +478,15 @@ describe('a frozen all-Not-Scheduled snapshot, judged against the park schedule'
     probe.venueStatus[CEDAR_POINT] = venueStatus(FRESH_ET, '001', 'Not Scheduled');
     probe.schedule[CEDAR_POINT] = [day('09/24/2026', {open: '11:00', close: '22:00'})];
 
+    const scheduleCheck = vi.spyOn(probe, 'scheduleSaysOpen');
+
     const live = await probe.liveForTest();
 
     expect(live.find(l => l.id === 'RIDE-001-00325')?.status).toBe('CLOSED');
-    // The live build reads the month for showtimes; the guard's per-day
-    // lookup must not run.
-    expect(probe.hoursRequests.filter(r => r.split(':')[1].length === 8)).toEqual([]);
+    // The guard's schedule lookup must not run for a fresh snapshot. Assert on
+    // the guard itself, not on request shapes: other live-build paths (such as
+    // showtimes) may legitimately read the day's hours.
+    expect(scheduleCheck).not.toHaveBeenCalled();
   });
 
   test('judges a water park on its own schedule', async () => {
