@@ -1,37 +1,61 @@
 import {describe, test, expect, vi, beforeEach, afterEach} from 'vitest';
 import {GentingSkyworlds} from '../gentingskyworlds.js';
 import {CacheLib} from '../../../cache.js';
+import waitTimeFixture from './fixtures/wait-time-2026-09-29.json' with {type: 'json'};
+import attractionFixture from './fixtures/attraction-all-rides-2026-09-29.json' with {type: 'json'};
 
 /**
  * The wait-time feed's `operationHour` reads 10:00-18:00 every day, including
  * the Tuesdays the park is closed. On a calendar closed day it must not put
  * the day back into the schedule or make DOWN rides look like breakdowns,
- * unless a ride is actually running (a Tuesday opened for a holiday the
- * calendar does not list).
+ * unless enough rides are actually running to call it an opening (a Tuesday
+ * opened for a holiday the calendar does not list). One ride running is not
+ * enough: that is what a test run on a closed day looks like.
+ *
+ * Fixtures are the real feed, fetched at 18:21 local on Tuesday 29 September
+ * 2026 (a closed day): 17 rides DOWN at 999, one future attraction COMINGSOON.
+ * The attraction list is trimmed to the ride ids and titles.
  */
 
 // Tuesday 29 September 2026, a closed day in the official calendar.
 const CLOSED_TUESDAY = '2026-09-29';
+// Tuesday 11 August 2026, a closed day on which one ride ran for 87 minutes.
+const TEST_RUN_TUESDAY = '2026-08-11';
 // Monday 28 September 2026, a normal operating day.
 const OPEN_MONDAY = '2026-09-28';
 
+const FIXTURE_DATE = '2026-09-29';
+
+/** The fixture's operationHour, moved to `date`. */
 function operationHour(date: string) {
-  return {
-    itineraryStartTime: `${date}T08:00:00+08:00`,
-    itineraryEndTime: `${date}T17:00:00+08:00`,
-    startTime: `${date}T10:00:00+08:00`,
-    endTime: `${date}T18:00:00+08:00`,
-  };
+  const oh = waitTimeFixture.result.operationHour as Record<string, string>;
+  return Object.fromEntries(Object.entries(oh).map(([k, v]) => [k, v.replace(FIXTURE_DATE, date)]));
 }
 
-// The shape the feed served at 12:55 local on 29 September 2026.
-function closedDayRides() {
-  const rides: any[] = [];
-  for (let i = 1; i <= 17; i++) {
-    rides.push({attractionId: String(i).padStart(3, '0'), waitTime: 999, status: 'DOWN', vqReservation: true, fullVqReservation: false});
-  }
-  rides.push({attractionId: '018', waitTime: 999, status: 'COMINGSOON', vqReservation: false, fullVqReservation: false});
-  return rides;
+/** The 29 September rides, exactly as served. */
+function closedDayRides(): any[] {
+  return waitTimeFixture.result.rideWaitTimes.map((r) => ({...r}));
+}
+
+/**
+ * The 11 August shape: one ride UP with a 5 minute wait from 10:00 local,
+ * every other ride DOWN.
+ */
+function testRunRides(): any[] {
+  return closedDayRides().map((r, i) => (i === 0
+    ? {...r, status: 'UP', waitTime: 5}
+    : {...r, status: 'DOWN', waitTime: 999}));
+}
+
+/**
+ * A real opening: the first `up` rides UP with ordinary waits, the rest as
+ * served. Openings run 15 or 16 of the 18 rides (one is a future attraction).
+ */
+function ridesWithUp(up: number): any[] {
+  let n = 0;
+  return closedDayRides().map((r) => (r.status === 'DOWN' && n++ < up
+    ? {...r, status: 'UP', waitTime: 5 + 5 * (n % 6)}
+    : r));
 }
 
 class Probe extends GentingSkyworlds {
@@ -66,7 +90,7 @@ class Probe extends GentingSkyworlds {
 function probeFor(date: string, rides: any[]) {
   const p = new Probe();
   p.wait = {operationHour: operationHour(date), rideWaitTimes: rides};
-  p.all = {rides: rides.map((r) => ({id: r.attractionId, title: `Ride ${r.attractionId}`})), shows: [], dining: []};
+  p.all = {rides: attractionFixture.result.rides, shows: [], dining: []};
   return p;
 }
 
@@ -86,6 +110,15 @@ describe('Genting calendar closed day', () => {
     CacheLib.clear();
   });
 
+  test('the fixture is the closed-day shape: no ride UP, 17 DOWN', () => {
+    const rides = closedDayRides();
+    expect(rides).toHaveLength(18);
+    expect(rides.filter((r) => r.status === 'UP')).toHaveLength(0);
+    expect(rides.filter((r) => r.status === 'DOWN')).toHaveLength(17);
+    expect(attractionFixture.result.rides.map((r) => r.id).sort())
+      .toEqual(rides.map((r) => r.attractionId).sort());
+  });
+
   test('a closed Tuesday stays out of the schedule when no ride is running', async () => {
     vi.setSystemTime(new Date(`${CLOSED_TUESDAY}T12:55:00+08:00`));
     const p = probeFor(CLOSED_TUESDAY, closedDayRides());
@@ -93,11 +126,9 @@ describe('Genting calendar closed day', () => {
     expect(await scheduleDay(p, CLOSED_TUESDAY)).toEqual([]);
   });
 
-  test('a closed Tuesday is scheduled when a ride is actually running', async () => {
+  test('a closed Tuesday is scheduled when the park actually opens', async () => {
     vi.setSystemTime(new Date(`${CLOSED_TUESDAY}T12:55:00+08:00`));
-    const rides = closedDayRides();
-    rides[0] = {...rides[0], status: 'UP', waitTime: 15};
-    const p = probeFor(CLOSED_TUESDAY, rides);
+    const p = probeFor(CLOSED_TUESDAY, ridesWithUp(16));
 
     const day = await scheduleDay(p, CLOSED_TUESDAY);
     expect(day).toHaveLength(1);
@@ -134,13 +165,15 @@ describe('Genting calendar closed day', () => {
 
   test('live data keeps real statuses on a closed Tuesday the park opened', async () => {
     vi.setSystemTime(new Date(`${CLOSED_TUESDAY}T12:55:00+08:00`));
-    const rides = closedDayRides();
-    rides[0] = {...rides[0], status: 'UP', waitTime: 15};
+    const rides = ridesWithUp(15);
     const p = probeFor(CLOSED_TUESDAY, rides);
 
     const live = await p.liveForTest();
-    expect(live.find((l) => l.id === '001')?.status).toBe('OPERATING');
-    expect(live.find((l) => l.id === '002')?.status).toBe('DOWN');
+    const up = rides.find((r) => r.status === 'UP');
+    const down = rides.find((r) => r.status === 'DOWN');
+    expect(live.filter((l) => l.status === 'OPERATING')).toHaveLength(15);
+    expect(live.find((l) => l.id === up.attractionId)?.queue?.STANDBY?.waitTime).toBe(up.waitTime);
+    expect(live.find((l) => l.id === down.attractionId)?.status).toBe('DOWN');
   });
 
   test('live data keeps DOWN on a normal day', async () => {
@@ -148,7 +181,75 @@ describe('Genting calendar closed day', () => {
     const p = probeFor(OPEN_MONDAY, closedDayRides());
 
     const live = await p.liveForTest();
-    expect(live.find((l) => l.id === '001')?.status).toBe('DOWN');
+    expect(live.find((l) => l.id === '008')?.status).toBe('DOWN');
+  });
+});
+
+/**
+ * 11 August 2026 was a calendar closed Tuesday. One ride read UP with a
+ * 5 minute wait for 87 minutes from 10:00 local while the other 17 read DOWN,
+ * most likely a test run. The park was not open.
+ */
+describe('Genting closed day with a single ride test run', () => {
+  beforeEach(() => {
+    CacheLib.clear();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(`${TEST_RUN_TUESDAY}T10:30:00+08:00`));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    CacheLib.clear();
+  });
+
+  test('the shape is 1 UP and 17 DOWN', () => {
+    const rides = testRunRides();
+    expect(rides.filter((r) => r.status === 'UP')).toHaveLength(1);
+    expect(rides.filter((r) => r.status === 'DOWN')).toHaveLength(17);
+  });
+
+  test('the park reads CLOSED with no queues', async () => {
+    const live = await probeFor(TEST_RUN_TUESDAY, testRunRides()).liveForTest();
+    expect(live).toHaveLength(18);
+    expect(live.every((l) => l.status === 'CLOSED')).toBe(true);
+    expect(live.some((l: any) => l.queue)).toBe(false);
+  });
+
+  test('the day stays off the schedule', async () => {
+    const p = probeFor(TEST_RUN_TUESDAY, testRunRides());
+    expect(await scheduleDay(p, TEST_RUN_TUESDAY)).toEqual([]);
+  });
+});
+
+/**
+ * Where the line sits on a calendar closed day: 2 rides UP is still a test,
+ * 3 is an opening. Real openings run 15 or 16.
+ */
+describe('Genting closed day opening threshold', () => {
+  beforeEach(() => {
+    CacheLib.clear();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(`${CLOSED_TUESDAY}T12:55:00+08:00`));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    CacheLib.clear();
+  });
+
+  test.each([
+    [0, false],
+    [1, false],
+    [2, false],
+    [3, true],
+    [15, true],
+    [16, true],
+  ])('%i rides UP opens the day: %s', async (up, open) => {
+    const p = probeFor(CLOSED_TUESDAY, ridesWithUp(up));
+
+    expect(await scheduleDay(p, CLOSED_TUESDAY)).toHaveLength(open ? 1 : 0);
+    const live = await p.liveForTest();
+    expect(live.filter((l) => l.status === 'OPERATING')).toHaveLength(open ? up : 0);
   });
 });
 
