@@ -112,6 +112,7 @@ type USJPlace = {
   land_id?: string;
   venue_id?: string;
   tags?: string[];
+  channel_types?: string | string[];
   short_description?: string;
   long_description?: string;
 };
@@ -138,17 +139,46 @@ const TIMEZONE = 'Asia/Tokyo';
  * published to the Web channel only, but that alone does not mean retired:
  * other Web-only places include live shows and the base listing of a ride
  * running as seasonal versions.
- *
- * Space Fantasy - The Ride now only runs as themed overlays, and each overlay
- * is published under its own place id. The base listing stays behind as a
- * Web-only place whose wait-time row sits at BRIEF_DELAY through open hours,
- * which would otherwise read as a breakdown.
  */
 const RETIRED_PLACE_IDS = new Set([
   'usj.usj.show.shrek_4d_adventure',
   'usj.usj.show.sesame_street_4D_movie_magic',
+]);
+
+/**
+ * Places published only while the official app shows them.
+ *
+ * Space Fantasy - The Ride runs as themed overlays, each under its own place
+ * id. While an overlay runs, the base listing is moved to the Web channel
+ * (so the app hides it) and its wait-time row sits at BRIEF_DELAY through open
+ * hours, which would read as a breakdown. If the base ride returns to the app,
+ * it comes back as a full entity with no code change.
+ *
+ * Per id, not a general rule: Web-only is not a retirement signal on its own
+ * (see RETIRED_PLACE_IDS).
+ */
+const APP_HIDDEN_PLACE_IDS = new Set([
   'usj.usj.rides.space_fantasy_the_ride',
 ]);
+
+/**
+ * Does the official app show this place? It lists places on the Mobile
+ * channel. `channel_types` arrives as a string ("Web") or an array
+ * (["Mobile", "Web"]). A place with no channel data is treated as shown.
+ */
+export function isShownInApp(place: Pick<USJPlace, 'channel_types'>): boolean {
+  const channels = place?.channel_types;
+  if (channels == null) return true;
+  const list = Array.isArray(channels) ? channels : [channels];
+  return list.some((c) => String(c).toLowerCase() === 'mobile');
+}
+
+/** Should this place be left out of the entity list and live data? */
+export function isSuppressedPlace(place: Pick<USJPlace, 'place_id' | 'channel_types'>): boolean {
+  const id = sanitizeId(place.place_id);
+  if (RETIRED_PLACE_IDS.has(id)) return true;
+  return APP_HIDDEN_PLACE_IDS.has(id) && !isShownInApp(place);
+}
 
 // Place types we want to expose as entities
 const WANTED_PLACE_TYPES: Record<string, Entity['entityType']> = {
@@ -413,7 +443,7 @@ export class UniversalStudiosJapan extends Destination {
       const placeType = place.place_type?.type;
       let entityType = WANTED_PLACE_TYPES[placeType];
       if (!entityType) continue;
-      if (RETIRED_PLACE_IDS.has(sanitizeId(place.place_id))) continue;
+      if (isSuppressedPlace(place)) continue;
       const walkthrough = isWalkthroughShow(place);
       if (walkthrough) entityType = 'ATTRACTION';
 
@@ -557,9 +587,29 @@ export class UniversalStudiosJapan extends Destination {
       results.set(id, ld);
     }
 
-    for (const id of RETIRED_PLACE_IDS) results.delete(id);
+    for (const id of await this.getSuppressedLiveIds()) results.delete(id);
 
     return [...results.values()];
+  }
+
+  /**
+   * Ids to drop from live data: the retired places, plus any app-hidden place
+   * the app currently hides. If the places feed can't be read, app-hidden
+   * places are dropped too: a stale BRIEF_DELAY must never go out as DOWN.
+   */
+  private async getSuppressedLiveIds(): Promise<Set<string>> {
+    const ids = new Set(RETIRED_PLACE_IDS);
+    let places: USJPlace[] | null = null;
+    try {
+      places = await this.getPlaces();
+    } catch (err) {
+      console.error('USJ: getPlaces failed while filtering live data', err);
+    }
+    for (const id of APP_HIDDEN_PLACE_IDS) {
+      const place = places?.find((p) => sanitizeId(p.place_id) === id);
+      if (!place || isSuppressedPlace(place)) ids.add(id);
+    }
+    return ids;
   }
 
   // ─── Schedules ────────────────────────────────────────────────────────────

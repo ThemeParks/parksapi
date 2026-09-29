@@ -7,13 +7,9 @@ import {CacheLib} from '../../../cache.js';
  * in 2025, but every upstream feed still publishes them: places (as Rides),
  * wait times (BRIEF_DELAY) and the show list (OUT_OF_SERVICE). The official
  * app hides both. They must not reach the entity list or live data.
- *
- * Space Fantasy - The Ride's base listing has the same shape: Web-only place,
- * BRIEF_DELAY wait row during open hours. Its overlays run under their own ids.
  */
 const SHREK = 'usj.usj.show.shrek_4d_adventure';
 const SESAME = 'usj.usj.show.sesame_street_4D_movie_magic';
-const SPACE_FANTASY = 'usj.usj.rides.space_fantasy_the_ride';
 const LIVE_SHOW = 'usj.usj.show.sing_on_tour';
 
 const place = (place_id: string, name: string, channel_types: unknown) => ({
@@ -29,8 +25,6 @@ const place = (place_id: string, name: string, channel_types: unknown) => ({
 const PLACES = [
   place(SHREK, 'Shrek’s 4-D Adventure', 'Web'),
   place(SESAME, 'Sesame Street 4-D Movie Magic™', 'Web'),
-  // Verbatim shape from 2026-09-29.
-  place(SPACE_FANTASY, 'Space Fantasy - The Ride', 'Web'),
   place(LIVE_SHOW, 'SING on Tour', ['Mobile', 'Web']),
   // Web-only but NOT retired: the channel alone must not drop a place.
   place('usj.usj.rides.jurassic_park_the_ride', 'Jurassic Park - The Ride', 'Web'),
@@ -46,12 +40,7 @@ const waitRow = (id: string, status: string) => ({
 class Probe extends UniversalStudiosJapan {
   async getPlaces(): Promise<any[]> { return PLACES; }
   async getWaitTimeData(): Promise<any[]> {
-    return [
-      waitRow(SHREK, 'BRIEF_DELAY'),
-      waitRow(SESAME, 'BRIEF_DELAY'),
-      waitRow(SPACE_FANTASY, 'BRIEF_DELAY'),
-      waitRow(LIVE_SHOW, 'CLOSED'),
-    ];
+    return [waitRow(SHREK, 'BRIEF_DELAY'), waitRow(SESAME, 'BRIEF_DELAY'), waitRow(LIVE_SHOW, 'CLOSED')];
   }
   async getShowListData(): Promise<any[]> {
     return [
@@ -75,11 +64,6 @@ describe('USJ retired 4-D shows', () => {
     expect(ids).not.toContain(SHREK);
     expect(ids).not.toContain(SESAME);
     expect(ids).toContain(LIVE_SHOW);
-  });
-
-  test('Space Fantasy base listing is not in the entity list', async () => {
-    const ids = (await new Probe().entities()).map((e) => e.id);
-    expect(ids).not.toContain(SPACE_FANTASY);
   });
 
   test('a Web-only place that is not retired is kept', async () => {
