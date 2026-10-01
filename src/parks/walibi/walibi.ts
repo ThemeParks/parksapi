@@ -6,7 +6,7 @@
  * CMS wait-time id; everything else — the rest of the rides, and every
  * restaurant — is keyed on its CMS path (attr_xxx, dining_xxx).
  *
- * Wait times are in seconds (divided by 60 for minutes).
+ * Wait times are in seconds, rounded to the nearest minute as the apps do.
  */
 
 import {Destination, DestinationConstructor} from '../../destination.js';
@@ -19,15 +19,35 @@ import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {constructDateTime, hostnameFromUrl} from '../../datetime.js';
 import {createStatusMap} from '../../statusMap.js';
 
+/**
+ * The parks' apps share one `WaitingTimeStatus` enum for the waitingtimes
+ * feed, and this map follows what the app shows for each value:
+ *
+ * - `open` is the only value the app shows as open, and the only one that
+ *   carries a wait.
+ * - closed, closed_indefinitely, full_and_closed, temporary_closed,
+ *   queue_line_closed, soon_opened and full are all shown as closed. `full`
+ *   means the queue line has been shut because it is full, so the ride is not
+ *   taking new guests: closed, not a breakdown.
+ * - maintenance and not_operational are shown as maintenance.
+ * - hidden is not shown at all. It is published CLOSED rather than dropped:
+ *   a ride missing from live data keeps its previous status until it is
+ *   retired, so dropping it could leave a ride the app has hidden showing as
+ *   open here for hours.
+ * - custom and unknown_status have no open state in the app, so CLOSED.
+ *
+ * Matching is case-insensitive. Anything else is a value the app enum does
+ * not have; it defaults to CLOSED (and is logged) rather than OPERATING, so a
+ * new upstream value can never publish a closed ride as open with a wait.
+ */
 const mapStatus = createStatusMap({
-  OPERATING: ['open', 'Open'],
-  CLOSED: ['closed', 'Closed', 'closed_indefinitely', 'temporary_closed', 'full_and_closed', 'custom', 'unknown_status', 'not_operational'],
-  DOWN: ['full', 'Full', 'Down'],
-  REFURBISHMENT: ['maintenance', 'Maintenance'],
-}, {parkName: 'Walibi', defaultStatus: 'OPERATING'});
-
-/** Statuses that should be excluded from live data entirely */
-const SKIP_STATUSES = new Set(['not_operational']);
+  OPERATING: ['open'],
+  CLOSED: [
+    'closed', 'closed_indefinitely', 'full_and_closed', 'temporary_closed',
+    'queue_line_closed', 'soon_opened', 'full', 'hidden', 'custom', 'unknown_status',
+  ],
+  REFURBISHMENT: ['maintenance', 'not_operational'],
+}, {parkName: 'Walibi', defaultStatus: 'CLOSED'});
 
 /**
  * CMS path slugs that must be keyed on the path rather than on
@@ -361,7 +381,6 @@ class WalibiBase extends Destination {
           return null;
         }
 
-        if (SKIP_STATUSES.has(entry.status)) return null;
         const status = mapStatus(entry.status);
 
         const ld: LiveData = {
@@ -369,10 +388,12 @@ class WalibiBase extends Destination {
           status,
         } as LiveData;
 
+        // Only an open ride carries a wait. The app rounds seconds to the
+        // nearest minute, so 630s reads as 11 minutes, not 10.
         if (status === 'OPERATING' && entry.time !== undefined) {
           const seconds = Number(entry.time || 0);
           ld.queue = {
-            STANDBY: {waitTime: seconds > 0 ? Math.floor(seconds / 60) : 0},
+            STANDBY: {waitTime: seconds > 0 ? Math.round(seconds / 60) : 0},
           };
         }
 
