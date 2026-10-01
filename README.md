@@ -43,11 +43,11 @@ This library powers the free API at [ThemeParks.wiki](https://themeparks.wiki).
 git clone https://github.com/ThemeParks/parksapi.git
 cd parksapi
 npm install
-touch .env             # Add your API credentials
+touch .env             # Destination config (see Configuration)
 npm run dev            # Test all parks
 ```
 
-Most parks require API credentials not provided in this repo — you must source these yourself.
+Most destinations need configuration values in `.env`, such as an app version, a client ID or a base URL. They aren't included in this repo. See [Configuration](#configuration).
 
 ## Usage
 
@@ -95,7 +95,7 @@ make                   # Full list of targets
 
 `make build` builds the image — the TypeScript compile is `make compile`.
 
-Most destinations need credentials in `.env` in the repo root; the container
+Most destinations need configuration in `.env` in the repo root; the container
 creates an empty one on first run, and `make park PARK=efteling` is one of the
 few that passes without any. Dependencies install into `node_modules/` on first
 run and reinstall when the lockfile changes (`make deps` forces it).
