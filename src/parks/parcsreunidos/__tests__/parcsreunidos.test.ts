@@ -1,6 +1,6 @@
 import {describe, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll} from 'vitest';
 import {createServer, IncomingMessage, ServerResponse} from 'http';
-import {MovieParkGermany, Mirabilandia} from '../parcsreunidos.js';
+import {MovieParkGermany, Mirabilandia, mapStayAppAttractionStatus} from '../parcsreunidos.js';
 import {CacheLib} from '../../../cache.js';
 import type {HTTPObj} from '../../../http.js';
 
@@ -162,19 +162,6 @@ describe('ParcsReunidosDestination — Weex bundle bearer extraction', () => {
 });
 
 /**
- * Status mapping for buildLiveData(). The API expresses status entirely via
- * `waitingTime` sentinels: no separate "is this ride down" field reliably
- * distinguishes a broken ride from a closed one. Verified live across 5
- * parks: -2 and -3 both behave as fresh, actively-updating, park-wide
- * "not open" signals (different establishments use different sentinels for
- * the same state) and the app's own UI shows "Geschlossen"/Closed for them
- * — not "down". `temporaryClosed` correlates with the long-stale -1 bucket
- * instead (removed/under-refurbishment rides), not with -2/-3, so there's
- * no reliable DOWN signal anywhere in this API. Every negative value maps
- * to CLOSED; only a non-negative number means OPERATING.
- */
-
-/**
  * fetchBearerBundle() itself — real HTTP call against a local server,
  * unstubbed, matching the pattern in src/__tests__/httpIntegration.test.ts.
  * Every other bearer-extraction test stubs this method directly, so none
@@ -216,67 +203,120 @@ describe('ParcsReunidosDestination.fetchBearerBundle — real HTTP request shape
   });
 });
 
-describe('ParcsReunidosDestination.buildLiveData — operating status mapping', () => {
+/**
+ * Status mapping for buildLiveData(), mirroring the parks' shared app:
+ *   temporaryClosed true  -> "temporarily closed", no wait shown
+ *   waitingTime >= 0      -> "<n> min"
+ *   waitingTime -2        -> "closed"
+ *   waitingTime -1 / -3   -> "waiting time not available"
+ * The flag wins over any wait time: a ride the app shows as temporarily
+ * closed must never be published OPERATING with a wait.
+ */
+describe('mapStayAppAttractionStatus', () => {
+  test('a non-negative waitingTime is OPERATING with that standby wait', () => {
+    expect(mapStayAppAttractionStatus({waitingTime: 12}, true)).toEqual({status: 'OPERATING', waitTime: 12});
+  });
+
+  test('waitingTime 0 is a 0-minute walk-on, not CLOSED', () => {
+    expect(mapStayAppAttractionStatus({waitingTime: 0}, true)).toEqual({status: 'OPERATING', waitTime: 0});
+  });
+
+  test('temporaryClosed with a posted wait is DOWN with no wait while the park operates', () => {
+    expect(mapStayAppAttractionStatus({waitingTime: 25, temporaryClosed: true}, true)).toEqual({status: 'DOWN'});
+  });
+
+  test('temporaryClosed is CLOSED, not DOWN, when the park is not operating', () => {
+    expect(mapStayAppAttractionStatus({waitingTime: 25, temporaryClosed: true}, false)).toEqual({status: 'CLOSED'});
+  });
+
+  test.each([-1, -2, -3])('temporaryClosed overrides the %i sentinel', (waitingTime) => {
+    expect(mapStayAppAttractionStatus({waitingTime, temporaryClosed: true}, true)).toEqual({status: 'DOWN'});
+  });
+
+  test('temporaryClosed with no waitingTime is still published', () => {
+    expect(mapStayAppAttractionStatus({temporaryClosed: true}, true)).toEqual({status: 'DOWN'});
+  });
+
+  test('temporaryClosed false behaves as if absent', () => {
+    expect(mapStayAppAttractionStatus({waitingTime: 8, temporaryClosed: false}, true)).toEqual({status: 'OPERATING', waitTime: 8});
+  });
+
+  test('waitingTime -2 ("closed") is CLOSED with no wait', () => {
+    expect(mapStayAppAttractionStatus({waitingTime: -2}, true)).toEqual({status: 'CLOSED'});
+  });
+
+  test.each([-1, -3])('waitingTime %i ("waiting time not available") is CLOSED with no wait', (waitingTime) => {
+    expect(mapStayAppAttractionStatus({waitingTime}, true)).toEqual({status: 'CLOSED'});
+  });
+
+  test('a missing waitingTime publishes nothing', () => {
+    expect(mapStayAppAttractionStatus({}, true)).toBeNull();
+    expect(mapStayAppAttractionStatus({waitingTime: null as any}, true)).toBeNull();
+    expect(mapStayAppAttractionStatus({waitingTime: '' as any}, true)).toBeNull();
+  });
+
+  test('numeric strings are coerced, both waits and sentinels', () => {
+    expect(mapStayAppAttractionStatus({waitingTime: '5' as any}, true)).toEqual({status: 'OPERATING', waitTime: 5});
+    expect(mapStayAppAttractionStatus({waitingTime: '-2' as any}, true)).toEqual({status: 'CLOSED'});
+  });
+});
+
+describe('ParcsReunidosDestination.buildLiveData', () => {
   beforeEach(() => CacheLib.clear());
   afterEach(() => CacheLib.clear());
 
-  async function liveStatusFor(waitingTime: number | undefined): Promise<{status: string; waitTime?: number | null}> {
+  async function liveFor(attractions: any[]) {
     const park = new MovieParkGermany();
-    park.getAttractions = async () => [{id: 1, waitingTime} as any];
+    park.getAttractions = async () => attractions;
     const live = await park.getLiveData();
-    const entry = live.find(l => l.id === '1')!;
-    return {status: entry.status as string, waitTime: entry.queue?.STANDBY?.waitTime};
+    return Object.fromEntries(live.map(l => [l.id, {status: l.status, waitTime: l.queue?.STANDBY?.waitTime}]));
   }
 
-  test('a non-negative waitingTime maps to OPERATING with that wait time', async () => {
-    expect(await liveStatusFor(12)).toEqual({status: 'OPERATING', waitTime: 12});
+  test('a temporarily closed ride with a wait is DOWN with no queue while other rides post waits', async () => {
+    const live = await liveFor([
+      {id: 1, waitingTime: 15},
+      {id: 2, waitingTime: 30, temporaryClosed: true},
+    ]);
+    expect(live['1']).toEqual({status: 'OPERATING', waitTime: 15});
+    expect(live['2']).toEqual({status: 'DOWN', waitTime: undefined});
   });
 
-  test('waitingTime 0 maps to OPERATING with a 0-minute wait, not CLOSED', async () => {
-    expect(await liveStatusFor(0)).toEqual({status: 'OPERATING', waitTime: 0});
+  test('a temporarily closed ride is CLOSED when no other ride posts a wait', async () => {
+    const live = await liveFor([
+      {id: 1, waitingTime: -2},
+      {id: 2, waitingTime: 30, temporaryClosed: true},
+      {id: 3, waitingTime: -1, temporaryClosed: true},
+    ]);
+    expect(live['2']).toEqual({status: 'CLOSED', waitTime: undefined});
+    expect(live['3']).toEqual({status: 'CLOSED', waitTime: undefined});
   });
 
-  test('waitingTime -1 maps to CLOSED', async () => {
-    expect((await liveStatusFor(-1)).status).toBe('CLOSED');
+  test('maps every sentinel and never attaches a wait to a non-operating ride', async () => {
+    const live = await liveFor([
+      {id: 1, waitingTime: 7},
+      {id: 2, waitingTime: -1},
+      {id: 3, waitingTime: -2},
+      {id: 4, waitingTime: -3},
+      {id: 5},
+      {id: 6, temporaryClosed: true},
+    ]);
+    expect(live).toEqual({
+      '1': {status: 'OPERATING', waitTime: 7},
+      '2': {status: 'CLOSED', waitTime: undefined},
+      '3': {status: 'CLOSED', waitTime: undefined},
+      '4': {status: 'CLOSED', waitTime: undefined},
+      '6': {status: 'DOWN', waitTime: undefined},
+    });
   });
 
-  test('waitingTime -2 maps to CLOSED, not DOWN', async () => {
-    expect((await liveStatusFor(-2)).status).toBe('CLOSED');
-  });
-
-  test('waitingTime -3 maps to CLOSED', async () => {
-    expect((await liveStatusFor(-3)).status).toBe('CLOSED');
-  });
-
-  test('no live entry is ever emitted with status DOWN', async () => {
-    const park = new MovieParkGermany();
-    park.getAttractions = async () => [
-      {id: 1, waitingTime: -1} as any,
-      {id: 2, waitingTime: -2} as any,
-      {id: 3, waitingTime: -3} as any,
-      {id: 4, waitingTime: 7} as any,
-    ];
-    const live = await park.getLiveData();
-    expect(live.some(l => l.status === 'DOWN')).toBe(false);
-  });
-
-  test('a missing waitingTime is skipped entirely, not emitted as any status', async () => {
-    const park = new MovieParkGermany();
-    park.getAttractions = async () => [{id: 1} as any];
-    const live = await park.getLiveData();
-    expect(live.find(l => l.id === '1')).toBeUndefined();
-  });
-
-  test('a numeric-string waitingTime is coerced, not misclassified as CLOSED', async () => {
-    // Number.isFinite('5') is false (unlike global isFinite, it never
-    // coerces) — waitingTime is only typed `number` at the TS level over an
-    // unvalidated JSON response, so a numeric-string value must still
-    // resolve to OPERATING rather than silently falling through to CLOSED.
-    expect(await liveStatusFor('5' as any)).toEqual({status: 'OPERATING', waitTime: 5});
-  });
-
-  test('a numeric-string negative sentinel is still coerced and correctly maps to CLOSED', async () => {
-    expect((await liveStatusFor('-2' as any)).status).toBe('CLOSED');
+  test('negative sentinels alone never produce DOWN', async () => {
+    const live = await liveFor([
+      {id: 1, waitingTime: -1},
+      {id: 2, waitingTime: -2},
+      {id: 3, waitingTime: -3},
+      {id: 4, waitingTime: 7},
+    ]);
+    expect(Object.values(live).some(l => l.status === 'DOWN')).toBe(false);
   });
 });
 
