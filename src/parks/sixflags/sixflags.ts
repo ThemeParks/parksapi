@@ -631,6 +631,17 @@ function parkLocalMonths(now: Date, tz: string, count: number): string[] {
   });
 }
 
+/**
+ * The month query keys a park's schedule covers: the park-local current
+ * month and the two after it, plus the previous month on the 1st, so the
+ * night before (which can still be running past midnight) stays covered.
+ */
+function scheduleMonths(now: Date, tz: string): string[] {
+  const yesterday = parkLocalDay(now, tz, -1).key.slice(0, 6);
+  const months = parkLocalMonths(now, tz, 3);
+  return months.includes(yesterday) ? months : [yesterday, ...months];
+}
+
 /** Sort key for an `MM/DD/YYYY` operating-hours date. */
 function hoursDateSortKey(label: string): string {
   return `${label.slice(6, 10)}${label.slice(0, 2)}${label.slice(3, 5)}`;
@@ -1017,15 +1028,18 @@ export class SixFlags extends Destination {
   }
 
   /**
-   * Operating hours for one month (`YYYYMM`), with the park's today and
-   * tomorrow filled in from the single-day query when the month answer
-   * leaves them out.
+   * Operating hours for one month (`YYYYMM`), with the park's yesterday,
+   * today and tomorrow filled in from the single-day query when the month
+   * answer leaves them out.
    *
    * The month query lists only the days after the vendor's own "today": on
    * 2026-09-28 `date=202609` returned the 29th and 30th for every park, and
    * a month wholly in the past returns only its last day. The single-day
-   * query (`date=YYYYMMDD`) answers for any day, today included. Tomorrow is
-   * covered too in case the vendor's day rolls over before the park's does.
+   * query (`date=YYYYMMDD`) answers for any day, today included.
+   *  - Yesterday: a night that runs past midnight (park hours to 01:00, a
+   *    haunt event to 02:00) is still open after the park's date has moved
+   *    on, and by then the month answer no longer lists it.
+   *  - Tomorrow: in case the vendor's day rolls over before the park's does.
    * A day the month answer already lists is never asked for again, and a
    * single-day answer is cached per park and day, shared with the live
    * showtimes lookup.
@@ -1040,7 +1054,7 @@ export class SixFlags extends Destination {
     const dates = [...(monthHours?.dates ?? [])];
 
     let filled = false;
-    for (const offset of [0, 1]) {
+    for (const offset of [-1, 0, 1]) {
       const day = parkLocalDay(now, tz, offset);
       if (!day.key.startsWith(month)) continue;
       if (dates.some(d => d.date === day.label)) continue;
@@ -1647,13 +1661,12 @@ export class SixFlags extends Destination {
     const parks = await this.getParkData();
     const schedules: EntitySchedule[] = [];
 
-    // The park-local current month + 2 forward months
     const now = new Date();
 
     for (const park of parks) {
       const tz = await this.getTimezoneForPark(park.parkId);
       const parkEntityId = `sixflags_park_${park.code}`;
-      const parkSchedule = await this.buildParkSchedule(park.parkId, tz, parkLocalMonths(now, tz, 3));
+      const parkSchedule = await this.buildParkSchedule(park.parkId, tz, scheduleMonths(now, tz));
 
       schedules.push({
         id: parkEntityId,
@@ -1664,7 +1677,7 @@ export class SixFlags extends Destination {
       for (const wp of park.waterParks) {
         const wpTz = await this.getTimezoneForPark(wp.parkId);
         const wpEntityId = `sixflags_park_${wp.code}`;
-        const wpSchedule = await this.buildParkSchedule(wp.parkId, wpTz, parkLocalMonths(now, wpTz, 3));
+        const wpSchedule = await this.buildParkSchedule(wp.parkId, wpTz, scheduleMonths(now, wpTz));
 
         schedules.push({
           id: wpEntityId,
