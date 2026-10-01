@@ -20,7 +20,7 @@ import {cache} from '../../cache.js';
 import {reusable} from '../../promiseReuse.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule, ScheduleEntry, AttractionType} from '@themeparks/typelib';
-import {formatInTimezone, addMinutes, constructDateTime, shiftDateString} from '../../datetime.js';
+import {formatInTimezone, formatDate, addMinutes, constructDateTime, shiftDateString} from '../../datetime.js';
 import {decodeHtmlEntities, stripHtmlTags} from '../../htmlUtils.js';
 import tzLookup from 'tz-lookup';
 
@@ -605,6 +605,48 @@ const WATERPARK_PARENT_OVERRIDES: Record<number, number> = {
   944: 943, // Hurricane Harbor Oklahoma City → Six Flags Frontier City
 };
 
+/**
+ * The park-local calendar day `offsetDays` after the one `now` falls on, as
+ * the vendor's single-day query key (`YYYYMMDD`) and the `MM/DD/YYYY` label
+ * its operating-hours answers carry.
+ */
+function parkLocalDay(now: Date, tz: string, offsetDays = 0): {key: string; label: string} {
+  const iso = shiftDateString(formatDate(now, tz), offsetDays);
+  return {
+    key: iso.replace(/-/g, ''),
+    label: `${iso.slice(5, 7)}/${iso.slice(8, 10)}/${iso.slice(0, 4)}`,
+  };
+}
+
+/**
+ * The park-local month `now` falls in and the `count - 1` months after it,
+ * as month query keys (`YYYYMM`). Read from the machine clock, the last
+ * evening of a month in a Pacific park is already the next month in UTC.
+ */
+function parkLocalMonths(now: Date, tz: string, count: number): string[] {
+  const [year, month] = formatDate(now, tz).split('-').map(Number);
+  return Array.from({length: count}, (_, i) => {
+    const index = month - 1 + i;
+    return `${year + Math.floor(index / 12)}${String((index % 12) + 1).padStart(2, '0')}`;
+  });
+}
+
+/**
+ * The month query keys a park's schedule covers: the park-local current
+ * month and the two after it, plus the previous month on the 1st, so the
+ * night before (which can still be running past midnight) stays covered.
+ */
+function scheduleMonths(now: Date, tz: string): string[] {
+  const yesterday = parkLocalDay(now, tz, -1).key.slice(0, 6);
+  const months = parkLocalMonths(now, tz, 3);
+  return months.includes(yesterday) ? months : [yesterday, ...months];
+}
+
+/** Sort key for an `MM/DD/YYYY` operating-hours date. */
+function hoursDateSortKey(label: string): string {
+  return `${label.slice(6, 10)}${label.slice(0, 2)}${label.slice(3, 5)}`;
+}
+
 // ============================================================================
 // Main Class
 // ============================================================================
@@ -983,6 +1025,48 @@ export class SixFlags extends Destination {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Operating hours for one month (`YYYYMM`), with the park's yesterday,
+   * today and tomorrow filled in from the single-day query when the month
+   * answer leaves them out.
+   *
+   * The month query lists only the days after the vendor's own "today": on
+   * 2026-09-28 `date=202609` returned the 29th and 30th for every park, and
+   * a month wholly in the past returns only its last day. The single-day
+   * query (`date=YYYYMMDD`) answers for any day, today included.
+   *  - Yesterday: a night that runs past midnight (park hours to 01:00, a
+   *    haunt event to 02:00) is still open after the park's date has moved
+   *    on, and by then the month answer no longer lists it.
+   *  - Tomorrow: in case the vendor's day rolls over before the park's does.
+   * A day the month answer already lists is never asked for again, and a
+   * single-day answer is cached per park and day, shared with the live
+   * showtimes lookup.
+   */
+  async getOperatingHoursForMonth(
+    parkId: number,
+    month: string,
+    tz: string,
+    now: Date = new Date(),
+  ): Promise<SixFlagsOperatingHours | null> {
+    const monthHours = await this.getOperatingHours(parkId, month);
+    const dates = [...(monthHours?.dates ?? [])];
+
+    let filled = false;
+    for (const offset of [-1, 0, 1]) {
+      const day = parkLocalDay(now, tz, offset);
+      if (!day.key.startsWith(month)) continue;
+      if (dates.some(d => d.date === day.label)) continue;
+      const entry = (await this.getOperatingHours(parkId, day.key))?.dates?.find(d => d.date === day.label);
+      if (!entry) continue;
+      dates.push(entry);
+      filled = true;
+    }
+
+    if (!filled) return monthHours;
+    dates.sort((a, b) => hoursDateSortKey(a.date).localeCompare(hoursDateSortKey(b.date)));
+    return {...monthHours, dates};
   }
 
   // ============================================================================
@@ -1474,15 +1558,13 @@ export class SixFlags extends Destination {
     const showsVenue = venueStatus.venues.find(v => v.venueId === SHOW_VENUE_ID);
     if (showsVenue?.details) {
 
-      // Fetch today's show times from operating hours
-      const todayFormatted = formatInTimezone(new Date(), tz, 'date'); // MM/DD/YYYY
-      const now = new Date();
-      const yearStr = String(now.getFullYear());
-      const monthStr = String(now.getMonth() + 1).padStart(2, '0');
-      const currentMonth = `${yearStr}${monthStr}`;
+      // Today's show times, asked for as the park-local day: the month
+      // query leaves today out.
+      const today = parkLocalDay(new Date(), tz);
+      const todayFormatted = today.label;
 
       let todayShows: SixFlagsOperatingHours['dates'][0]['shows'] = [];
-      const hoursData = await this.getOperatingHours(parkId, currentMonth);
+      const hoursData = await this.getOperatingHours(parkId, today.key);
       if (hoursData?.dates) {
         const todayEntry = hoursData.dates.find(d => d.date === todayFormatted);
         if (todayEntry?.shows) {
@@ -1579,20 +1661,12 @@ export class SixFlags extends Destination {
     const parks = await this.getParkData();
     const schedules: EntitySchedule[] = [];
 
-    // Generate current month + 2 forward months
     const now = new Date();
-    const months: string[] = [];
-    for (let i = 0; i < 3; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      const y = String(d.getFullYear());
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      months.push(`${y}${m}`);
-    }
 
     for (const park of parks) {
       const tz = await this.getTimezoneForPark(park.parkId);
       const parkEntityId = `sixflags_park_${park.code}`;
-      const parkSchedule = await this.buildParkSchedule(park.parkId, tz, months);
+      const parkSchedule = await this.buildParkSchedule(park.parkId, tz, scheduleMonths(now, tz));
 
       schedules.push({
         id: parkEntityId,
@@ -1603,7 +1677,7 @@ export class SixFlags extends Destination {
       for (const wp of park.waterParks) {
         const wpTz = await this.getTimezoneForPark(wp.parkId);
         const wpEntityId = `sixflags_park_${wp.code}`;
-        const wpSchedule = await this.buildParkSchedule(wp.parkId, wpTz, months);
+        const wpSchedule = await this.buildParkSchedule(wp.parkId, wpTz, scheduleMonths(now, wpTz));
 
         schedules.push({
           id: wpEntityId,
@@ -1626,7 +1700,7 @@ export class SixFlags extends Destination {
     const scheduleEntries: ScheduleEntry[] = [];
 
     for (const month of months) {
-      const hoursData = await this.getOperatingHours(parkId, month);
+      const hoursData = await this.getOperatingHoursForMonth(parkId, month, tz);
       if (!hoursData?.dates) continue;
 
       for (const dateObj of hoursData.dates) {
