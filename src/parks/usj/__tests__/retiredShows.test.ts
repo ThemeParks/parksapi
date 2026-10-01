@@ -25,7 +25,8 @@ const place = (place_id: string, name: string, channel_types: unknown) => ({
 const PLACES = [
   place(SHREK, 'Shrek’s 4-D Adventure', 'Web'),
   place(SESAME, 'Sesame Street 4-D Movie Magic™', 'Web'),
-  place(LIVE_SHOW, 'SING on Tour', ['Mobile', 'Web']),
+  // Several channels arrive as JSON text, not an array.
+  place(LIVE_SHOW, 'SING on Tour', '["Mobile","Web"]'),
   // Web-only but NOT retired: the channel alone must not drop a place.
   place('usj.usj.rides.jurassic_park_the_ride', 'Jurassic Park - The Ride', 'Web'),
 ];
