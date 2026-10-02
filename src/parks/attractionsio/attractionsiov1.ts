@@ -114,6 +114,21 @@ const RESTAURANT_CATEGORIES = [
   'Barbecue & food from home',
 ];
 
+/**
+ * How long an item that dropped out of the asset pack can stay published while
+ * the live feed still schedules it (see getPackDropGraceItems).
+ *
+ * The asset pack is a content export, and it is occasionally republished
+ * without rides that are still running: a seasonal re-theme of the app can
+ * drop most of a park's ride list while the live feed keeps scheduling every
+ * one of them for the day. Fourteen days covers two full weekly content cycles
+ * for the operator to republish the pack, and is short enough that a genuine
+ * retirement the live feed keeps scheduling (it does not prune old records)
+ * stops being published within two weeks of leaving the pack.
+ */
+export const PACK_DROP_GRACE_DAYS = 14;
+const PACK_DROP_GRACE_MS = PACK_DROP_GRACE_DAYS * 24 * 60 * 60 * 1000;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // API response types
 // ─────────────────────────────────────────────────────────────────────────────
@@ -321,6 +336,20 @@ function isOpenNow(hours: LiveTimeSlot[], nowMs: number): boolean {
     const s = h.startTime ? Date.parse(h.startTime) : NaN;
     const e = h.endTime ? Date.parse(h.endTime) : NaN;
     return Number.isFinite(s) && Number.isFinite(e) && s <= nowMs && nowMs < e;
+  });
+}
+
+/**
+ * Whether a live-feed `OpeningTimes` value schedules the item on `date`
+ * (park-local YYYY-MM-DD): some range starts on or before that date and ends
+ * on or after it. Slot bounds are park-local ISO strings, so their date part is
+ * the park's calendar date.
+ */
+export function isScheduledOnDate(raw: string | null | undefined, timezone: string, date: string): boolean {
+  return parseLiveOpeningTimes(raw, timezone).some(slot => {
+    const start = slot.startTime?.slice(0, 10);
+    const end = slot.endTime?.slice(0, 10);
+    return !!start && !!end && start <= date && date <= end;
   });
 }
 
@@ -984,6 +1013,66 @@ class AttractionsIOV1 extends Destination {
   }
 
   /**
+   * Item records soft-deleted from the store at or after `sinceMs`, as they
+   * were last published. `removed_at` is set once, by the sync that first
+   * found the item missing from the pack, and is not moved by later syncs.
+   */
+  private _readItemsRemovedSince(sinceMs: number): RecordItem[] {
+    const rows = database
+      .prepare(
+        "SELECT data FROM attractionsio_entities WHERE park_id = ? AND record_type = 'Item' " +
+        'AND removed_at IS NOT NULL AND removed_at >= ?',
+      )
+      .all(this.destinationId, sinceMs) as {data: string}[];
+    return rows.map(row => JSON.parse(row.data));
+  }
+
+  /**
+   * Items the asset pack dropped recently that the live feed still schedules.
+   *
+   * An item qualifies only when both hold:
+   *   - it left the pack within PACK_DROP_GRACE_DAYS (its soft-delete time in
+   *     the store), and
+   *   - the live feed carries it with OpeningTimes covering today, park-local.
+   *
+   * Either condition alone is not enough. The live feed keeps records for
+   * items retired long ago, some still with a daily OpeningTimes, so the feed
+   * cannot vouch for an item by itself; and an item the feed no longer
+   * schedules has no evidence it is still running. Items that never reached
+   * the store (or left it before the window) are never revived. Once the
+   * window passes or the feed stops scheduling the item, it drops out as any
+   * other removal does.
+   */
+  protected async getPackDropGraceItems(): Promise<RecordItem[]> {
+    const dropped = this._readItemsRemovedSince(Date.now() - PACK_DROP_GRACE_MS);
+    if (dropped.length === 0) return [];
+
+    const resp = await this.fetchLiveData();
+    const raw: LiveDataResponse = await resp.json();
+    const records: LiveDataRecord[] = raw?.entities?.Item?.records ?? [];
+    const today = formatDate(new Date(), this.timezone);
+    const scheduled = new Set(
+      records
+        .filter(r => isScheduledOnDate(r.OpeningTimes, this.timezone, today))
+        .map(r => r._id),
+    );
+    return dropped.filter(item => scheduled.has(item._id));
+  }
+
+  /**
+   * The records entities are built from: the current pack, plus any item kept
+   * by the pack-drop grace window (getPackDropGraceItems). Categories and the
+   * resort come from the current pack only.
+   */
+  protected async getCatalogue(): Promise<RecordsData> {
+    const data = await this.getPOIData();
+    const grace = await this.getPackDropGraceItems();
+    if (grace.length === 0) return data;
+    const current = new Set(data.Item.map(item => item._id));
+    return {...data, Item: [...data.Item, ...grace.filter(item => !current.has(item._id))]};
+  }
+
+  /**
    * Diff incoming records against the SQLite store and apply changes.
    * New records are inserted, existing records are updated (and un-deleted
    * if they were previously soft-deleted), and records not present in the
@@ -1109,7 +1198,7 @@ class AttractionsIOV1 extends Destination {
       allCatIds.push(...ids);
     }
 
-    const data = await this.getPOIData();
+    const data = await this.getCatalogue();
     return data.Item.filter(item => item.Category !== undefined && allCatIds.includes(item.Category));
   }
 
@@ -1219,7 +1308,7 @@ class AttractionsIOV1 extends Destination {
   }
 
   protected async buildEntityList(): Promise<Entity[]> {
-    const data = await this.getPOIData();
+    const data = await this.getCatalogue();
 
     if (!data.Resort || data.Resort.length === 0) {
       throw new Error(`No resort data for ${this.destinationId}`);
@@ -1405,7 +1494,7 @@ class AttractionsIOV1 extends Destination {
     // ShowTimes schedule in the records data (not the live feed)
     if (showIds.size > 0) {
       const today = formatDate(new Date(), this.timezone);
-      const poi = await this.getPOIData();
+      const poi = await this.getCatalogue();
       for (const item of poi.Item) {
         const id = String(item._id);
         if (!showIds.has(id)) continue;
