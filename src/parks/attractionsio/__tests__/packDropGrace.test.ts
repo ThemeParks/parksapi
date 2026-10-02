@@ -20,6 +20,7 @@ import {
   ChessingtonWorldOfAdventures,
   ThorpePark,
   PACK_DROP_GRACE_DAYS,
+  isScheduledBetween,
   isScheduledOnDate,
 } from '../attractionsiov1.js';
 import {database} from '../../../cache.js';
@@ -238,18 +239,18 @@ describe('pack-drop grace window: Chessington 2026-10-01', () => {
     const live = structuredClone(CHESSINGTON.live);
     for (const r of live.entities.Item.records) r.IsOperational = false;
     const park = chessingtonAfterDrop({live});
-    // The day after the feed's window: 2026-10-03 park-local.
-    vi.setSystemTime(new Date('2026-10-03T09:30:00Z'));
+    // Two days after the feed's window (2026-10-02): outside yesterday..+7.
+    vi.setSystemTime(new Date('2026-10-04T09:30:00Z'));
     const published = ids(await park.getEntities());
     for (const id of DROPPED_RIDES) expect(published.has(id), id).toBe(false);
   });
 
   test('a running item is kept on a day the feed does not schedule it', async () => {
     const park = chessingtonAfterDrop();
-    vi.setSystemTime(new Date('2026-10-03T09:30:00Z'));
+    vi.setSystemTime(new Date('2026-10-04T09:30:00Z'));
     const published = ids(await park.getEntities());
     expect(published.has('3972')).toBe(true); // IsOperational true
-    expect(published.has('3933')).toBe(false); // window was 2026-10-02 only
+    expect(published.has('3933')).toBe(false); // window was 2026-10-02, now two days past
   });
 
   test('Treetop Hoppers and Rubble & Rocky\'s Play Zone are kept only once the feed reports them running', async () => {
@@ -358,5 +359,149 @@ describe('pack-drop grace window: normal churn is unchanged', () => {
     const grace = (await park.getPackDropGraceItems()).map((i: any) => String(i._id)).sort();
     expect(grace).toEqual([...KEPT_RIDES].sort());
     expect(grace).not.toContain('52674'); // the dropped show
+  });
+});
+
+describe('isScheduledBetween', () => {
+  const tz = 'Europe/London';
+  const day = (d: string) => JSON.stringify({type: 'range', start: `${d} 10:00:00`, end: `${d} 16:00:00`});
+
+  test('inclusive at both ends', () => {
+    expect(isScheduledBetween(day('2026-10-01'), tz, '2026-10-01', '2026-10-09')).toBe(true);
+    expect(isScheduledBetween(day('2026-10-09'), tz, '2026-10-01', '2026-10-09')).toBe(true);
+    expect(isScheduledBetween(day('2026-09-30'), tz, '2026-10-01', '2026-10-09')).toBe(false);
+    expect(isScheduledBetween(day('2026-10-10'), tz, '2026-10-01', '2026-10-09')).toBe(false);
+  });
+});
+
+describe('pack-drop grace window: feed rollover', () => {
+  test('at 23:30 BST the feed already shows tomorrow, and the rides stay published', async () => {
+    const park = chessingtonAfterDrop();
+    vi.setSystemTime(new Date('2026-10-01T22:30:00Z')); // 23:30 BST on 2026-10-01
+    const published = ids(await park.getEntities());
+    for (const id of SCHEDULED_RIDES) expect(published.has(id), id).toBe(true);
+  });
+
+  test('a window up to a week ahead counts (a closed day showing the next open one)', async () => {
+    const park = chessingtonAfterDrop();
+    vi.setSystemTime(new Date('2026-09-25T09:30:00Z')); // 7 days before 2026-10-02
+    // removed_at is in the future here, which does not matter: the pack dates it.
+    expect(ids(await park.getEntities()).has('3933')).toBe(true);
+  });
+});
+
+describe('pack-drop grace window: boundary', () => {
+  test(`a last pack exactly ${PACK_DROP_GRACE_DAYS} days old still counts`, async () => {
+    const park = chessingtonAfterDrop({lastPack: iso(NEXT_MORNING.getTime() - PACK_DROP_GRACE_DAYS * DAY)});
+    vi.setSystemTime(NEXT_MORNING);
+    expect(ids(await park.getEntities()).has('3933')).toBe(true);
+  });
+});
+
+describe('pack-drop grace window: failures publish the pack as-is', () => {
+  async function packOnly(): Promise<Set<string>> {
+    const park = chessington();
+    syncAt(park, CHESSINGTON.pack, CHESSINGTON.packVersion, DROPPED_AT);
+    vi.setSystemTime(NEXT_MORNING);
+    return ids(await park.getEntities());
+  }
+
+  test('a feed error (503) leaves the entity list equal to the pack', async () => {
+    const expected = await packOnly();
+    clearStore();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const park = chessingtonAfterDrop();
+    park.fetchLiveData = async () => {
+      throw new Error('HTTP request not OK: 503');
+    };
+    vi.setSystemTime(NEXT_MORNING);
+    expect(ids(await park.getEntities())).toEqual(expected);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  test('a non-JSON feed body leaves the entity list equal to the pack', async () => {
+    const expected = await packOnly();
+    clearStore();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const park = chessingtonAfterDrop();
+    park.fetchLiveData = async () => ({json: async () => JSON.parse('<html>Service Unavailable</html>')});
+    vi.setSystemTime(NEXT_MORNING);
+    expect(ids(await park.getEntities())).toEqual(expected);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  test('a corrupt stored row is skipped, the rest are kept', async () => {
+    const park = chessingtonAfterDrop();
+    database.exec(
+      "UPDATE attractionsio_entities SET data = '{corrupt' " +
+      "WHERE park_id = 'chessingtonworldofadventuresresort' AND record_type = 'Item' AND entity_id = '3933'",
+    );
+    vi.setSystemTime(NEXT_MORNING);
+    const published = ids(await park.getEntities());
+    expect(published.has('3933')).toBe(false);
+    expect(published.has('3948')).toBe(true);
+  });
+
+  test('the feed is read once per build, not once per category lookup', async () => {
+    const park = chessingtonAfterDrop();
+    let reads = 0;
+    park.fetchLiveData = async () => {
+      reads++;
+      return {json: async () => CHESSINGTON.live};
+    };
+    vi.setSystemTime(NEXT_MORNING);
+    await park.getEntities();
+    expect(reads).toBe(1);
+  });
+});
+
+describe('pack-drop grace window: scope', () => {
+  test('dropped items are per park: ids that collide across parks do not leak', async () => {
+    // Thorpe recently dropped 3881 (Vortex); Chessington's feed carries a
+    // record with the same id, scheduled. Neither park publishes it.
+    const thorpe: any = new ThorpePark();
+    thorpe.getPOIData = async () => thorpe._readEntitiesFromDB();
+    thorpe.fetchLiveData = async () => ({json: async () => ({entities: {Item: {records: []}}})});
+    const thorpePack = {
+      Resort: [{_id: 1, Name: 'Thorpe Park Resort'}],
+      Category: [{_id: 10, Name: 'Rides'}],
+      Item: [{_id: 3880, Name: 'Stealth', Category: 10}],
+    };
+    syncAt(thorpe, {...thorpePack, Item: [...thorpePack.Item, {_id: 3881, Name: 'Vortex', Category: 10}]},
+      LAST_PACK, new Date(Date.parse(LAST_PACK) + 60_000));
+    syncAt(thorpe, thorpePack, CHESSINGTON.packVersion, DROPPED_AT);
+
+    const live = structuredClone(CHESSINGTON.live);
+    live.entities.Item.records.push({_id: 3881, IsOperational: true,
+      OpeningTimes: JSON.stringify({type: 'range', start: '2026-10-02 10:00:00', end: '2026-10-02 16:00:00'})});
+    const chess = chessingtonAfterDrop({live});
+
+    vi.setSystemTime(NEXT_MORNING);
+    expect(ids(await chess.getEntities()).has('3881')).toBe(false);
+    expect(ids(await thorpe.getEntities()).has('3881')).toBe(false);
+    expect((await chess.getPackDropGraceItems()).map((i: any) => i._id)).not.toContain(3881);
+  });
+
+  test('a dropped Category never re-enters the catalogue, and its items stay unclassified', async () => {
+    const park = chessington();
+    const prev = previousPack();
+    const withCat = {
+      ...prev,
+      Category: [...prev.Category, {_id: 99001, Name: 'Thrill Rides'}],
+      Item: [...prev.Item, {_id: 99002, Name: 'Seasonal Thrill', Category: 99001}],
+    };
+    syncAt(park, withCat, LAST_PACK, new Date(Date.parse(LAST_PACK) + 60_000));
+    syncAt(park, CHESSINGTON.pack, CHESSINGTON.packVersion, DROPPED_AT);
+    const live = structuredClone(CHESSINGTON.live);
+    live.entities.Item.records.push({_id: 99002, IsOperational: true});
+    park.fetchLiveData = async () => ({json: async () => live});
+
+    vi.setSystemTime(NEXT_MORNING);
+    const catalogue = await park.getCatalogue();
+    expect(catalogue.Category.map((c: any) => c._id)).not.toContain(99001);
+    expect(catalogue.Item.map((i: any) => i._id)).toContain(99002);
+    expect(ids(await park.getEntities()).has('99002')).toBe(false);
   });
 });

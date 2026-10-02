@@ -128,7 +128,22 @@ const RESTAURANT_CATEGORIES = [
  * stops being published within two weeks of leaving the pack.
  */
 export const PACK_DROP_GRACE_DAYS = 14;
-const PACK_DROP_GRACE_MS = PACK_DROP_GRACE_DAYS * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const PACK_DROP_GRACE_MS = PACK_DROP_GRACE_DAYS * DAY_MS;
+
+/**
+ * The park-local dates, relative to today, a live-feed OpeningTimes range may
+ * fall in for a dropped item to count as scheduled. The feed carries a single
+ * day and rolls over to the next operating day during the evening, and on a
+ * closed day it shows the next open one, so "today" alone would drop kept
+ * rides every night and on every closed day. The pack window above is what
+ * keeps long-retired items out, not this range.
+ */
+const PACK_DROP_SCHEDULE_FROM_DAYS = -1;
+const PACK_DROP_SCHEDULE_TO_DAYS = 7;
+
+/** How long one evaluation of the grace set is reused within a build. */
+const PACK_DROP_GRACE_MEMO_MS = 60 * 1000;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API response types
@@ -347,10 +362,23 @@ function isOpenNow(hours: LiveTimeSlot[], nowMs: number): boolean {
  * the park's calendar date.
  */
 export function isScheduledOnDate(raw: string | null | undefined, timezone: string, date: string): boolean {
+  return isScheduledBetween(raw, timezone, date, date);
+}
+
+/**
+ * Whether a live-feed `OpeningTimes` value has a range overlapping the
+ * park-local dates `from`..`to` (YYYY-MM-DD, inclusive).
+ */
+export function isScheduledBetween(
+  raw: string | null | undefined,
+  timezone: string,
+  from: string,
+  to: string,
+): boolean {
   return parseLiveOpeningTimes(raw, timezone).some(slot => {
     const start = slot.startTime?.slice(0, 10);
     const end = slot.endTime?.slice(0, 10);
-    return !!start && !!end && start <= date && date <= end;
+    return !!start && !!end && start <= to && from <= end;
   });
 }
 
@@ -1030,13 +1058,21 @@ class AttractionsIOV1 extends Destination {
         'AND removed_at IS NOT NULL',
       )
       .all(this.destinationId) as {data: string; last_version: string}[];
-    return rows
-      .filter(row => {
-        const packAt = Date.parse(row.last_version);
-        return Number.isFinite(packAt) && packAt >= sinceMs;
-      })
-      .map(row => JSON.parse(row.data));
+    const items: RecordItem[] = [];
+    for (const row of rows) {
+      const packAt = Date.parse(row.last_version);
+      if (!Number.isFinite(packAt) || packAt < sinceMs) continue;
+      try {
+        items.push(JSON.parse(row.data));
+      } catch {
+        // A corrupt stored row is skipped, not fatal.
+      }
+    }
+    return items;
   }
+
+  /** Memo of the last grace evaluation: {at, items}. */
+  private _packDropGraceMemo: {at: number; items: Promise<RecordItem[]>} | null = null;
 
   /**
    * Items the asset pack dropped recently that the live feed still runs.
@@ -1044,8 +1080,9 @@ class AttractionsIOV1 extends Destination {
    * An item qualifies only when both hold:
    *   - the last pack that contained it is within PACK_DROP_GRACE_DAYS of now
    *     (its manifest version, an upstream timestamp), and
-   *   - the live feed either carries it with OpeningTimes covering today,
-   *     park-local, or reports it IsOperational: true.
+   *   - the live feed either carries it with an OpeningTimes range between
+   *     yesterday and a week ahead, park-local, or reports it
+   *     IsOperational: true.
    *
    * Neither condition is enough alone. The live feed keeps records for items
    * retired long ago, some still with a daily OpeningTimes, so the feed cannot
@@ -1057,19 +1094,44 @@ class AttractionsIOV1 extends Destination {
    * as any other removal does.
    */
   protected async getPackDropGraceItems(): Promise<RecordItem[]> {
-    const dropped = this._readItemsDroppedFromPacksSince(Date.now() - PACK_DROP_GRACE_MS);
-    if (dropped.length === 0) return [];
+    // A build classifies items many times over; evaluate the grace set once
+    // per short window instead of re-reading the store and the feed each time.
+    const now = Date.now();
+    const memo = this._packDropGraceMemo;
+    if (memo && now >= memo.at && now - memo.at < PACK_DROP_GRACE_MEMO_MS) return memo.items;
+    const items = this._evaluatePackDropGraceItems(now);
+    this._packDropGraceMemo = {at: now, items};
+    return items;
+  }
 
-    const resp = await this.fetchLiveData();
-    const raw: LiveDataResponse = await resp.json();
-    const records: LiveDataRecord[] = raw?.entities?.Item?.records ?? [];
-    const today = formatDate(new Date(), this.timezone);
-    const running = new Set(
-      records
-        .filter(r => r.IsOperational === true || isScheduledOnDate(r.OpeningTimes, this.timezone, today))
-        .map(r => r._id),
-    );
-    return dropped.filter(item => running.has(item._id));
+  /**
+   * One evaluation of the grace set. Never throws: the window is a best-effort
+   * addition to the pack, so a store or feed failure leaves the entity list
+   * equal to the pack rather than failing the build.
+   */
+  private async _evaluatePackDropGraceItems(now: number): Promise<RecordItem[]> {
+    try {
+      const dropped = this._readItemsDroppedFromPacksSince(now - PACK_DROP_GRACE_MS);
+      if (dropped.length === 0) return [];
+
+      const resp = await this.fetchLiveData();
+      const raw: LiveDataResponse = await resp.json();
+      const records: LiveDataRecord[] = raw?.entities?.Item?.records ?? [];
+      const from = formatDate(new Date(now + PACK_DROP_SCHEDULE_FROM_DAYS * DAY_MS), this.timezone);
+      const to = formatDate(new Date(now + PACK_DROP_SCHEDULE_TO_DAYS * DAY_MS), this.timezone);
+      const running = new Set(
+        records
+          .filter(r => r.IsOperational === true || isScheduledBetween(r.OpeningTimes, this.timezone, from, to))
+          .map(r => r._id),
+      );
+      return dropped.filter(item => running.has(item._id));
+    } catch (error) {
+      console.warn(
+        `[AttractionsIOV1] ${this.destinationId}: pack-drop grace window skipped, publishing the pack as-is: ` +
+        (error instanceof Error ? error.message : String(error)),
+      );
+      return [];
+    }
   }
 
   /**
