@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import {cache, CacheLib} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
@@ -734,7 +734,7 @@ export class TokyoDisneyResort extends Destination {
           'JPY',
           yen ?? null,
         );
-        if (yen !== undefined) this.addRaw(ld, 'premierAccessPrices', yen);
+        if (yen !== undefined) attachRaw(ld, 'premierAccessPrices', yen);
       }
 
       // Priority Pass (free return time)
@@ -746,7 +746,7 @@ export class TokyoDisneyResort extends Destination {
         );
       }
 
-      liveData.push(this.addRaw(ld, 'conditions', attr));
+      liveData.push(attachRaw(ld, 'conditions', attr));
     }
 
     return liveData;
@@ -790,7 +790,7 @@ export class TokyoDisneyResort extends Destination {
 
       // Operating hours
       if (entry.openTime && entry.closeTime) {
-        scheduleMap.get(parkId)!.push(this.addRaw({
+        scheduleMap.get(parkId)!.push(attachRaw({
           date: dateStr,
           openingTime: constructDateTime(dateStr, entry.openTime, this.timezone),
           closingTime: constructDateTime(dateStr, entry.closeTime, this.timezone),
@@ -800,7 +800,7 @@ export class TokyoDisneyResort extends Destination {
 
       // Special hours (Extra Hours)
       if (entry.spOpenTime && entry.spCloseTime) {
-        scheduleMap.get(parkId)!.push(this.addRaw({
+        scheduleMap.get(parkId)!.push(attachRaw({
           date: dateStr,
           openingTime: constructDateTime(dateStr, entry.spOpenTime, this.timezone),
           closingTime: constructDateTime(dateStr, entry.spCloseTime, this.timezone),

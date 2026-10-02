@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
@@ -592,7 +592,7 @@ export class ShanghaiDisneylandResort extends Destination {
     for (const ld of liveData) {
       const entries = rawEntriesById.get(ld.id);
       if (!entries || entries.length === 0) continue;
-      this.addRaw(ld, 'waitTimes', entries.length === 1 ? entries[0] : entries);
+      attachRaw(ld, 'waitTimes', entries.length === 1 ? entries[0] : entries);
     }
 
     return liveData;
@@ -618,7 +618,7 @@ export class ShanghaiDisneylandResort extends Destination {
           scheduleMap.set(cleanId, []);
         }
 
-        scheduleMap.get(cleanId)!.push(this.addRaw({
+        scheduleMap.get(cleanId)!.push(attachRaw({
           date: dateStr,
           openingTime,
           closingTime,

@@ -384,7 +384,7 @@ export class Movieland extends Destination {
 
       const latitude = point.lat === '' || point.lat == null ? NaN : Number(point.lat);
       const longitude = point.lng === '' || point.lng == null ? NaN : Number(point.lng);
-      return [this.addRaw({
+      return [attachRaw({
         id: movielandEntityId(point.id),
         name: point.nome,
         entityType,

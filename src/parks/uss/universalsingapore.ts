@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
@@ -511,7 +511,7 @@ export class UniversalSingapore extends Destination {
         const loc = parseLatLng(attr.LatLng);
         if (loc) entity.location = loc;
 
-        attractionEntities.push(this.addRaw(entity, 'attractionList', attr));
+        attractionEntities.push(attachRaw(entity, 'attractionList', attr));
       }
     }
 
@@ -574,7 +574,7 @@ export class UniversalSingapore extends Destination {
         }
       }
 
-      results.push(this.addRaw(ld, 'attractionList', attr));
+      results.push(attachRaw(ld, 'attractionList', attr));
     }
 
     return results;
@@ -620,8 +620,8 @@ export class UniversalSingapore extends Destination {
         closingTime: constructDateTime(date, hours.end, TIMEZONE),
       };
 
-      if (hours.day) this.addRaw(entry, 'websitePage', hours.day);
-      if (availability) this.addRaw(entry, 'calendarApi', availability);
+      if (hours.day) attachRaw(entry, 'websitePage', hours.day);
+      if (availability) attachRaw(entry, 'calendarApi', availability);
 
       scheduleEntries.push(entry);
     }

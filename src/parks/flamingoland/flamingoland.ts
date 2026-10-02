@@ -501,7 +501,7 @@ export class FlamingoLand extends Destination {
       const marker = findMarkerForRide(decodeHtmlEntities(title), markerId || undefined, markers);
       if (marker) {
         (entity as any).location = {latitude: marker.lat, longitude: marker.lng};
-        this.addRaw(entity, 'mapPage', marker);
+        attachRaw(entity, 'mapPage', marker);
       }
 
       // The `restrictions` field on each ride doc carries the minimum height in cm
@@ -511,7 +511,7 @@ export class FlamingoLand extends Destination {
         (entity as any).tags = [TagBuilder.minimumHeight(Math.round(minHeightCm), 'cm')];
       }
 
-      attractions.push(this.addRaw(entity, 'rides', doc));
+      attractions.push(attachRaw(entity, 'rides', doc));
     }
 
     return [parkEntity, ...attractions];
@@ -559,7 +559,7 @@ export class FlamingoLand extends Destination {
         }
       }
 
-      out.push(this.addRaw(ld, 'rides', doc));
+      out.push(attachRaw(ld, 'rides', doc));
     }
     return out;
   }

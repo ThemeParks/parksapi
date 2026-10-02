@@ -12,7 +12,7 @@
  * @module sixflags
  */
 
-import {Destination, type DestinationConstructor} from '../../destination.js';
+import {Destination, type DestinationConstructor, attachRaw} from '../../destination.js';
 import crypto from 'crypto';
 import config from '../../config.js';
 import {http, type HTTPObj} from '../../http.js';
@@ -1162,7 +1162,7 @@ export class SixFlags extends Destination {
       const poi = await this.getPOI(park.parkId);
       const location = parkCentroidFromPOI(poi, park.parkId);
 
-      destinations.push(this.addRaw({
+      destinations.push(attachRaw({
         id: `sixflags_destination_${park.code}`,
         name: park.name,
         entityType: 'DESTINATION',
@@ -1188,7 +1188,7 @@ export class SixFlags extends Destination {
       const parkLocation = parkCentroidFromPOI(poiData, park.parkId);
 
       // Destination entity
-      entities.push(this.addRaw({
+      entities.push(attachRaw({
         id: destinationId,
         name: park.name,
         entityType: 'DESTINATION',
@@ -1197,7 +1197,7 @@ export class SixFlags extends Destination {
       } as Entity, 'firebaseConfig', park));
 
       // Main park entity
-      entities.push(this.addRaw({
+      entities.push(attachRaw({
         id: mainParkId,
         name: park.name,
         entityType: 'PARK',
@@ -1214,7 +1214,7 @@ export class SixFlags extends Destination {
         const wpTz = await this.getTimezoneForPark(wp.parkId);
         const wpLocation = parkCentroidFromPOI(poiData, wp.parkId) ?? parkLocation;
 
-        entities.push(this.addRaw({
+        entities.push(attachRaw({
           id: `sixflags_park_${wp.code}`,
           name: wp.name,
           entityType: 'PARK',
@@ -1557,8 +1557,8 @@ export class SixFlags extends Destination {
           }
         }
 
-        if (ride.venueStatusEntry) this.addRaw(ld, 'venueStatus', ride.venueStatusEntry);
-        if (waitInfo) this.addRaw(ld, 'waitTimes', waitInfo);
+        if (ride.venueStatusEntry) attachRaw(ld, 'venueStatus', ride.venueStatusEntry);
+        if (waitInfo) attachRaw(ld, 'waitTimes', waitInfo);
 
         liveData.push(ld);
       }
@@ -1604,7 +1604,7 @@ export class SixFlags extends Destination {
         // Parse show times
         const showTimeEntries = showTimesMap.get(show.fimsId);
         if (showTimeEntries) {
-          this.addRaw(ld, 'operatingHours', showTimeEntries.length === 1 ? showTimeEntries[0] : showTimeEntries);
+          attachRaw(ld, 'operatingHours', showTimeEntries.length === 1 ? showTimeEntries[0] : showTimeEntries);
 
           const showtimes: Array<{startTime: string; endTime: string; type: string}> = [];
 
@@ -1634,7 +1634,7 @@ export class SixFlags extends Destination {
           }
         }
 
-        liveData.push(this.addRaw(ld, 'venueStatus', show));
+        liveData.push(attachRaw(ld, 'venueStatus', show));
       }
     }
   }
@@ -1757,7 +1757,7 @@ export class SixFlags extends Destination {
         if (dateParts.length !== 3) continue;
         const dateStr = `${dateParts[2]}-${dateParts[0]}-${dateParts[1]}`;
 
-        scheduleEntries.push(this.addRaw({
+        scheduleEntries.push(attachRaw({
           date: dateStr,
           type: 'OPERATING',
           openingTime: constructDateTime(dateStr, earliestOpen, tz),
@@ -1773,7 +1773,7 @@ export class SixFlags extends Destination {
 
         const hauntWindow = hauntWindowForDate(dateObj, earliestOpen);
         if (hauntWindow) {
-          scheduleEntries.push(this.addRaw({
+          scheduleEntries.push(attachRaw({
             date: dateStr,
             type: 'TICKETED_EVENT',
             description: hauntWindow.description,

@@ -712,7 +712,7 @@ export class Fantawild extends Destination {
             longitude: item.longitude!,
           };
         }
-        entities.push(this.addRaw(entity, 'itemBusinessList', item));
+        entities.push(attachRaw(entity, 'itemBusinessList', item));
       }
       return entities;
     }));
@@ -780,7 +780,7 @@ export class Fantawild extends Destination {
             STANDBY: {waitTime: item.waitTime},
           };
         }
-        out.push(this.addRaw(ld, 'itemBusinessList', item));
+        out.push(attachRaw(ld, 'itemBusinessList', item));
       }
       return out;
     }));

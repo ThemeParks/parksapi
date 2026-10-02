@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import config from '../../config.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
@@ -198,7 +198,7 @@ export class Toverland extends Destination {
       });
 
       if (!todayHours) {
-        return this.addRaw({
+        return attachRaw({
           id: String(entry.id),
           status: 'CLOSED',
         } as LiveData, 'rideData', entry);
@@ -218,7 +218,7 @@ export class Toverland extends Destination {
         };
       }
 
-      return this.addRaw(ld, 'rideData', entry);
+      return attachRaw(ld, 'rideData', entry);
     }).filter((x): x is LiveData => x !== null);
   }
 
@@ -247,7 +247,7 @@ export class Toverland extends Destination {
           const openTime = day.openingHoursFrom.substring(0, 5); // HH:mm from HH:mm:ss
           const closeTime = day.openingHoursTo.substring(0, 5);
 
-          schedule.push(this.addRaw({
+          schedule.push(attachRaw({
             date: dateStr,
             type: 'OPERATING',
             openingTime: constructDateTime(dateStr, openTime, this.timezone),

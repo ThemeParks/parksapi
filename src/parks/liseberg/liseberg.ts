@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
@@ -145,7 +145,7 @@ export class Liseberg extends Destination {
         }
       }
 
-      liveData.push(this.addRaw(ld, 'attractions', item));
+      liveData.push(attachRaw(ld, 'attractions', item));
     }
 
     return liveData;
@@ -180,7 +180,7 @@ export class Liseberg extends Destination {
         const openingTime = constructDateTime(dateStr, `${openHour}:00:00`, this.timezone);
         const closingTime = constructDateTime(dateStr, `${closeHour}:00:00`, this.timezone);
 
-        scheduleEntries.push(this.addRaw({
+        scheduleEntries.push(attachRaw({
           date: dateStr,
           type: 'OPERATING',
           openingTime,
@@ -205,7 +205,7 @@ export class Liseberg extends Destination {
 
               const eveningOpeningTime = constructDateTime(dateStr, `${eveningTime}:00`, this.timezone);
 
-              scheduleEntries.push(this.addRaw({
+              scheduleEntries.push(attachRaw({
                 date: dateStr,
                 type: 'INFO',
                 description: 'Evening Hours',

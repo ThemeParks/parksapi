@@ -44,7 +44,7 @@
  * with no UA at all. See Nigloland for the same pattern.
  */
 
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import config from '../../config.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
@@ -1002,7 +1002,7 @@ export class OceanParkHongKong extends Destination {
       } as Entity;
 
       if (tags.length > 0) built.tags = tags;
-      this.addRaw(built, 'attractionsPage', item);
+      attachRaw(built, 'attractionsPage', item);
       return built;
     });
 
@@ -1026,7 +1026,7 @@ export class OceanParkHongKong extends Destination {
           timezone: TIMEZONE,
           location: coords ?? {latitude: DEFAULT_LAT, longitude: DEFAULT_LNG},
         } as Entity;
-        this.addRaw(entity, 'diningPage', item);
+        attachRaw(entity, 'diningPage', item);
         return entity;
       });
 
@@ -1073,7 +1073,7 @@ export class OceanParkHongKong extends Destination {
         timezone: TIMEZONE,
         location: coords ?? {latitude: DEFAULT_LAT, longitude: DEFAULT_LNG},
       } as Entity;
-      this.addRaw(entity, 'dailySchedule', group.items);
+      attachRaw(entity, 'dailySchedule', group.items);
       return entity;
     });
 
@@ -1115,7 +1115,7 @@ export class OceanParkHongKong extends Destination {
       } as LiveData;
 
       if (wt !== null) ld.queue = {STANDBY: {waitTime: wt}};
-      liveData.push(this.addRaw(ld, 'attractionsPage', item));
+      liveData.push(attachRaw(ld, 'attractionsPage', item));
     }
 
     // Shows — group today's programme entries by slug (same grouping
@@ -1176,7 +1176,7 @@ export class OceanParkHongKong extends Destination {
       } as LiveData;
       if (showtimes.length > 0) ld.showtimes = showtimes;
 
-      liveData.push(this.addRaw(ld, 'dailySchedule', group.items));
+      liveData.push(attachRaw(ld, 'dailySchedule', group.items));
     }
 
     return liveData;
@@ -1222,7 +1222,7 @@ export class OceanParkHongKong extends Destination {
       // following calendar day, not before it opened the same day.
       const closeDate = range.close <= range.open ? addDaysToDateString(dates[i], 1) : dates[i];
 
-      scheduleEntries.push(this.addRaw({
+      scheduleEntries.push(attachRaw({
         date: dates[i],
         type: 'OPERATING',
         openingTime: constructDateTime(dates[i], range.open, TIMEZONE),

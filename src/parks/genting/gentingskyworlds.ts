@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import config from '../../config.js';
 import {cache, CacheLib} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
@@ -337,7 +337,7 @@ export class GentingSkyworlds extends Destination {
       if (tags.length) (entity as any).tags = tags;
     }
 
-    return this.addRaw(entity, 'all', poi);
+    return attachRaw(entity, 'all', poi);
   }
 
   // ── Destination / Park ───────────────────────────────────────
@@ -408,9 +408,9 @@ export class GentingSkyworlds extends Destination {
         id: String(ride.id),
         status: 'CLOSED',
       } as LiveData;
-      this.addRaw(ld, 'all', ride);
+      attachRaw(ld, 'all', ride);
       // The window every status below is decided against.
-      if (wait.operationHour) this.addRaw(ld, 'waitTimesOperationHour', wait.operationHour);
+      if (wait.operationHour) attachRaw(ld, 'waitTimesOperationHour', wait.operationHour);
 
       if (parkOpenNow === false) {
         // Outside hours — closed, no queue. Don't trust the frozen snapshot.
@@ -421,7 +421,7 @@ export class GentingSkyworlds extends Destination {
       const queue: Record<string, any> = {};
 
       if (w) {
-        this.addRaw(ld, 'waitTimes', w);
+        attachRaw(ld, 'waitTimes', w);
         if (w.status === 'UP') {
           ld.status = 'OPERATING';
           if (Number.isFinite(w.waitTime) && w.waitTime >= 0 && w.waitTime < 600) {
@@ -447,7 +447,7 @@ export class GentingSkyworlds extends Destination {
         queue.RETURN_TIME = vq.fullVqReservation
           ? VQueueBuilder.returnTime().finished().withWindow(null, null).build()
           : VQueueBuilder.returnTime().available().withWindow(null, null).build();
-        this.addRaw(ld, 'desireItinerary', vq);
+        attachRaw(ld, 'desireItinerary', vq);
       }
 
       if (Object.keys(queue).length) (ld as any).queue = queue;
@@ -459,11 +459,11 @@ export class GentingSkyworlds extends Destination {
     // is closed, the upstream show status is also frozen, so force CLOSED.
     for (const show of data.shows ?? []) {
       const open = parkOpenNow !== false && show.operationStatus?.title === 'OPEN';
-      const ld = this.addRaw({
+      const ld = attachRaw({
         id: String(show.id),
         status: open ? 'OPERATING' : 'CLOSED',
       } as LiveData, 'all', show);
-      if (wait.operationHour) this.addRaw(ld, 'waitTimesOperationHour', wait.operationHour);
+      if (wait.operationHour) attachRaw(ld, 'waitTimesOperationHour', wait.operationHour);
       out.push(ld);
     }
 
@@ -541,7 +541,7 @@ export class GentingSkyworlds extends Destination {
         }
         const localHHmm = (d: Date) =>
           formatInTimezone(d, this.timezone, 'iso').slice(11, 16);
-        const entry = this.addRaw({
+        const entry = attachRaw({
           date: startLocalDate,
           type: 'OPERATING',
           openingTime: constructDateTime(startLocalDate, localHHmm(startDate), this.timezone),

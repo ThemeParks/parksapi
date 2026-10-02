@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import crypto from 'crypto';
 
 import {cache} from '../../cache.js';
@@ -324,8 +324,8 @@ export class Efteling extends Destination {
    * from. An entity only one of the two responses lists carries only that key.
    */
   private addPOIRaw(entity: Entity, item: any): Entity {
-    if (item.poiEnglish) this.addRaw(entity, 'poiEnglish', item.poiEnglish);
-    if (item.poiDutch) this.addRaw(entity, 'poiDutch', item.poiDutch);
+    if (item.poiEnglish) attachRaw(entity, 'poiEnglish', item.poiEnglish);
+    if (item.poiDutch) attachRaw(entity, 'poiDutch', item.poiDutch);
     return entity;
   }
 
@@ -506,7 +506,7 @@ export class Efteling extends Destination {
         // The single-rider row is a second row of the same response feeding
         // this element, so both rows go in under the one request name.
         const singleRiderEntry = singleRiderData.get(entityId)?.entry;
-        this.addRaw(ld, 'waitTimes', singleRiderEntry ? [entry, singleRiderEntry] : entry);
+        attachRaw(ld, 'waitTimes', singleRiderEntry ? [entry, singleRiderEntry] : entry);
       } else if (type === 'Shows en Entertainment') {
         const ld = getOrCreate(entityId);
 
@@ -522,7 +522,7 @@ export class Efteling extends Destination {
           }));
         }
 
-        this.addRaw(ld, 'waitTimes', entry);
+        attachRaw(ld, 'waitTimes', entry);
       } else if (type === 'Eten en Drinken') {
         const ld = getOrCreate(entityId);
         const state = entry.State?.toLowerCase();
@@ -539,7 +539,7 @@ export class Efteling extends Destination {
           }));
         }
 
-        this.addRaw(ld, 'waitTimes', entry);
+        attachRaw(ld, 'waitTimes', entry);
       }
     }
 
@@ -575,7 +575,7 @@ export class Efteling extends Destination {
           const openingTime = constructDateTime(day.Date, h.Open, this.timezone);
           const closingTime = constructDateTime(day.Date, h.Close, this.timezone);
 
-          scheduleEntries.push(this.addRaw({
+          scheduleEntries.push(attachRaw({
             date: day.Date,
             type: j === 0 ? 'OPERATING' : 'INFO',
             description: j === 0 ? undefined : 'Evening Hours',

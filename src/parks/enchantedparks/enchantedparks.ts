@@ -945,7 +945,7 @@ class EnchantedParks extends Destination {
         } as Entity;
         const loc = this.lookupAttractionLocation(r.name);
         if (loc) (entity as any).location = loc;
-        attractions.push(this.addRaw(entity, 'attractionsPage', r));
+        attractions.push(attachRaw(entity, 'attractionsPage', r));
       }
     }
 
@@ -974,7 +974,7 @@ class EnchantedParks extends Destination {
         } as Entity;
         const loc = this.lookupAttractionLocation(r.name);
         if (loc) (entity as any).location = loc;
-        attractions.push(this.addRaw(entity, 'attractionsPage', r));
+        attractions.push(attachRaw(entity, 'attractionsPage', r));
       }
 
       if (this.themePark.diningPath) {
@@ -991,7 +991,7 @@ class EnchantedParks extends Destination {
           } as Entity;
           const loc = this.lookupAttractionLocation(d.name);
           if (loc) (entity as any).location = loc;
-          attractions.push(this.addRaw(entity, 'attractionsPage', d));
+          attractions.push(attachRaw(entity, 'attractionsPage', d));
         }
       }
 
@@ -1009,7 +1009,7 @@ class EnchantedParks extends Destination {
           } as Entity;
           const loc = this.lookupAttractionLocation(s.name);
           if (loc) (entity as any).location = loc;
-          attractions.push(this.addRaw(entity, 'attractionsPage', s));
+          attractions.push(attachRaw(entity, 'attractionsPage', s));
         }
       }
     }

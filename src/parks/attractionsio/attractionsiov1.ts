@@ -1379,7 +1379,7 @@ class AttractionsIOV1 extends Destination {
     const loc = parseLocation(resort.DirectionsLocation || resort.Location);
     if (loc) entity.location = loc;
 
-    return [this.addRaw(entity, 'poiData', resort)];
+    return [attachRaw(entity, 'poiData', resort)];
   }
 
   protected async buildEntityList(): Promise<Entity[]> {
@@ -1405,7 +1405,7 @@ class AttractionsIOV1 extends Destination {
     const parkLoc = parseLocation(resort.DirectionsLocation || resort.Location);
     if (parkLoc) parkEntity.location = parkLoc;
 
-    this.addRaw(parkEntity, 'poiData', resort);
+    attachRaw(parkEntity, 'poiData', resort);
 
     // Attractions
     const attractionItems = await this.getItemsForCategories(ATTRACTION_CATEGORIES);
@@ -1538,7 +1538,7 @@ class AttractionsIOV1 extends Destination {
           };
         }
 
-        liveData.push(this.addRaw(entry, 'liveData', record));
+        liveData.push(attachRaw(entry, 'liveData', record));
         continue;
       }
 
@@ -1562,7 +1562,7 @@ class AttractionsIOV1 extends Destination {
         const entry: LiveData = {id, status};
         if (hours.length > 0) entry.operatingHours = hours;
 
-        liveData.push(this.addRaw(entry, 'liveData', record));
+        liveData.push(attachRaw(entry, 'liveData', record));
         continue;
       }
     }
@@ -1605,7 +1605,7 @@ class AttractionsIOV1 extends Destination {
           status: hasUpcoming ? 'OPERATING' : 'CLOSED',
         };
         if (showtimes.length > 0) entry.showtimes = showtimes;
-        liveData.push(this.addRaw(entry, 'poiData', item));
+        liveData.push(attachRaw(entry, 'poiData', item));
       }
     }
 
@@ -1626,7 +1626,7 @@ class AttractionsIOV1 extends Destination {
         }
         const entry: LiveData = {id, status: isOpenNow(hours, nowMs) ? 'OPERATING' : 'CLOSED'};
         if (hours.length > 0) entry.operatingHours = hours;
-        liveData.push(this.addRaw(entry, 'poiData', item));
+        liveData.push(attachRaw(entry, 'poiData', item));
       }
     }
 
@@ -1689,7 +1689,7 @@ class AttractionsIOV1 extends Destination {
         continue;
       }
 
-      schedule.push(this.addRaw({
+      schedule.push(attachRaw({
         date: dateStr,
         type: 'OPERATING',
         openingTime: constructDateTime(dateStr, times.openTime, this.timezone),
@@ -2058,7 +2058,7 @@ class HeideParkBase extends AttractionsIOV1 {
       if (entry.status !== 'open') continue;
       if (!entry.openingTimes?.open || !entry.openingTimes?.close) continue;
 
-      schedule.push(this.addRaw({
+      schedule.push(attachRaw({
         date: entry.date,
         type: 'OPERATING',
         openingTime: constructDateTime(entry.date, entry.openingTimes.open, this.timezone),
@@ -2250,7 +2250,7 @@ class DjursSommerlandBase extends AttractionsIOV1 {
 
         if (description) entry.description = description;
 
-        schedule.push(this.addRaw(entry, 'calendarHTML', event));
+        schedule.push(attachRaw(entry, 'calendarHTML', event));
       }
     }
 

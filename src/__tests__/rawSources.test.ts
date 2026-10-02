@@ -1,6 +1,6 @@
 /**
- * Raw upstream pieces behind each element (`raw`, `includeRaw`, `addRaw`,
- * `attachRaw`, `rawSource`).
+ * Raw upstream pieces behind each element (`raw`, `includeRaw`, `attachRaw`,
+ * `rawSource`).
  *
  * A consumer that stores the data itself can opt into the slice of the
  * upstream response each entity, live-data row and schedule entry was built
@@ -36,7 +36,7 @@ class RawTestDestination extends Destination {
 
   protected async buildEntityList(): Promise<Entity[]> {
     const park = {id: 'park', name: 'Park', entityType: 'PARK', parentId: 'resort', destinationId: 'resort', timezone: 'UTC'} as Entity;
-    const ride = this.addRaw(
+    const ride = attachRaw(
       {id: '12', name: 'Ride', entityType: 'ATTRACTION', parentId: 'park', destinationId: 'resort', timezone: 'UTC'} as Entity,
       'poi', poiItem,
     );
@@ -48,15 +48,15 @@ class RawTestDestination extends Destination {
   protected async buildLiveData(): Promise<LiveData[]> {
     return this.liveIds.map((id) => {
       if (id === '12') {
-        const ld = this.addRaw({id, status: 'OPERATING', queue: {STANDBY: {waitTime: 25}}} as LiveData, 'signage', signageRow);
-        return this.addRaw(ld, 'showTimes', showRow);
+        const ld = attachRaw({id, status: 'OPERATING', queue: {STANDBY: {waitTime: 25}}} as LiveData, 'signage', signageRow);
+        return attachRaw(ld, 'showTimes', showRow);
       }
       return {id, status: 'OPERATING', raw: {direct: showRow}} as WithRaw<LiveData>;
     });
   }
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
-    const day = this.addRaw(
+    const day = attachRaw(
       {date: '2026-09-21', type: 'OPERATING', openingTime: '2026-09-21T10:00:00+02:00', closingTime: '2026-09-21T18:00:00+02:00'} as ScheduleEntry,
       'calendar', calendarDay,
     );
@@ -65,7 +65,7 @@ class RawTestDestination extends Destination {
   }
 
   protected async *buildLiveDataStream(): AsyncGenerator<LiveData[]> {
-    yield [this.addRaw({id: '12', status: 'DOWN'} as LiveData, 'stream', signageRow)];
+    yield [attachRaw({id: '12', status: 'DOWN'} as LiveData, 'stream', signageRow)];
     yield [{id: '7', status: 'CLOSED', raw: {direct: showRow}} as WithRaw<LiveData>];
   }
 
@@ -184,16 +184,14 @@ describe('raw upstream pieces', () => {
     expect((streamed[1] as WithRaw<LiveData>).raw).toEqual({direct: showRow});
   });
 
-  test('two addRaw calls on one element give two keys, a repeated key replaces', () => {
-    const park = new RawTestDestination({includeRaw: true});
+  test('two attachRaw calls on one element give two keys, a repeated key replaces', () => {
     const element = {id: 'x'} as LiveData;
-    const addRaw = (park as unknown as {addRaw: (e: object, s: string, p: unknown) => object}).addRaw.bind(park);
 
-    addRaw(element, 'first', 1);
-    addRaw(element, 'second', 2);
+    attachRaw(element, 'first', 1);
+    attachRaw(element, 'second', 2);
     expect(rawOf(element)).toEqual({first: 1, second: 2});
 
-    addRaw(element, 'first', 3);
+    attachRaw(element, 'first', 3);
     expect(rawOf(element)).toEqual({first: 3, second: 2});
   });
 
@@ -234,16 +232,11 @@ describe('raw upstream pieces', () => {
     expect(Object.keys(piece)).toEqual(['poiId', 'waitTime', 'open', 'showTimes']);
   });
 
-  test('attachRaw and addRaw attach whatever the flag says', () => {
+  test('attachRaw returns the element it attached to, unchanged otherwise', () => {
     const element = {id: 'x'} as LiveData;
     expect(attachRaw(element, 'source', signageRow)).toBe(element);
     expect(rawOf(element)).toEqual({source: signageRow});
-
-    const off = new RawTestDestination();
-    const built = {id: 'y'} as LiveData;
-    const addRaw = (off as unknown as {addRaw: (e: object, s: string, p: unknown) => object}).addRaw.bind(off);
-    expect(addRaw(built, 'source', signageRow)).toBe(built);
-    expect(rawOf(built)).toEqual({source: signageRow});
+    expect((rawOf(element) as {source: unknown}).source).toBe(signageRow);
   });
 
   test('the flag can be flipped at any time: a cached build serves both settings', async () => {

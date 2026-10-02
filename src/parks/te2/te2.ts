@@ -11,7 +11,7 @@
  * @module te2
  */
 
-import {Destination, type DestinationConstructor} from '../../destination.js';
+import {Destination, type DestinationConstructor, attachRaw} from '../../destination.js';
 import config from '../../config.js';
 import {http, type HTTPObj} from '../../http.js';
 import {cache} from '../../cache.js';
@@ -516,7 +516,7 @@ class TE2Destination extends Destination {
     const location = this.getVenueLocation(venue);
 
     const destId = `${this.destinationId}_destination`;
-    return [this.addRaw({
+    return [attachRaw({
       id: destId,
       name: venue.name || venue.label || destId,
       entityType: 'DESTINATION',
@@ -534,7 +534,7 @@ class TE2Destination extends Destination {
     const parkId = this.destinationId;
 
     // Park entity
-    const parkEntity: Entity = this.addRaw({
+    const parkEntity: Entity = attachRaw({
       id: parkId,
       name: venue.name || venue.label || parkId,
       entityType: 'PARK',
@@ -629,7 +629,7 @@ class TE2Destination extends Destination {
         location,
       } as Entity;
 
-      entities.push(this.addRaw(entity, 'poiAll', poi));
+      entities.push(attachRaw(entity, 'poiAll', poi));
     }
 
     return entities;
@@ -684,7 +684,7 @@ class TE2Destination extends Destination {
         location,
       } as Entity;
 
-      entities.push(this.addRaw(entity, 'eventCalendarEvents', event));
+      entities.push(attachRaw(entity, 'eventCalendarEvents', event));
       existingShowIds.add(String(event.id));
     }
 
@@ -721,7 +721,7 @@ class TE2Destination extends Destination {
         };
       }
 
-      liveDataMap.set(entry.id, this.addRaw(ld, 'poiStatus', entry.entry));
+      liveDataMap.set(entry.id, attachRaw(ld, 'poiStatus', entry.entry));
     }
 
     // Process show schedule (event calendar for today)
@@ -800,7 +800,7 @@ class TE2Destination extends Destination {
       ld.status = 'OPERATING' as any;
       // Several slots of one list feed one row, so they go in as a list. The
       // list name tells the two lists of the calendar response apart.
-      liveDataMap.set(eventId, this.addRaw(ld, 'eventCalendarSchedules', showtimes.map(st => st.slot)));
+      liveDataMap.set(eventId, attachRaw(ld, 'eventCalendarSchedules', showtimes.map(st => st.slot)));
     }
   }
 
@@ -859,7 +859,7 @@ class TE2Destination extends Destination {
           operatingWindows.add(window);
         }
 
-        scheduleEntries.push(this.addRaw({
+        scheduleEntries.push(attachRaw({
           date: startFormatted.slice(0, 10),
           type: scheduleType,
           description: normalizedLabel === 'park' ? undefined : (label || undefined),

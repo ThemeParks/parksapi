@@ -555,8 +555,8 @@ export class QiddiyaCity extends Destination {
       if (status === 'OPERATING' && ride.waitTime != null && ride.waitTime > 0) {
         ld.queue = {STANDBY: {waitTime: ride.waitTime}};
       }
-      this.addRaw(ld, 'activities', ride);
-      if (parkOpenSource) this.addRaw(ld, 'dashboard', parkOpenSource);
+      attachRaw(ld, 'activities', ride);
+      if (parkOpenSource) attachRaw(ld, 'dashboard', parkOpenSource);
       return ld;
     };
 
@@ -597,7 +597,7 @@ export class QiddiyaCity extends Destination {
       // Handle overnight closing (e.g. "12 AM" or "1 AM" = next day)
       const closingDate = closesNextDay(hours.open, hours.close) ? formatDate(addDays(date, 1), this.timezone) : dateStr;
 
-      schedule.push(this.addRaw({
+      schedule.push(attachRaw({
         date: dateStr,
         type: 'OPERATING',
         openingTime: constructDateTime(dateStr, hours.open, this.timezone),

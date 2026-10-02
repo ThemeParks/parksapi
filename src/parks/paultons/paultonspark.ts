@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import config from '../../config.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
@@ -186,7 +186,7 @@ export class PaultonsPark extends Destination {
           timezone: this.timezone,
         } as Entity;
         if (loc) (entity as any).location = loc;
-        return this.addRaw(entity, 'poiData', poi);
+        return attachRaw(entity, 'poiData', poi);
       });
 
     return [parkEntity, ...entities];
@@ -241,7 +241,7 @@ export class PaultonsPark extends Destination {
           }
         }
 
-        return this.addRaw(ld, 'liveData', entry);
+        return attachRaw(ld, 'liveData', entry);
       })
       .filter((x): x is LiveData => x !== null);
   }
@@ -267,7 +267,7 @@ export class PaultonsPark extends Destination {
 
       const dateStr = formatDate(startDate, this.timezone);
 
-      return this.addRaw({
+      return attachRaw({
         date: dateStr,
         type: 'OPERATING',
         openingTime: formatInTimezone(startDate, this.timezone, 'iso'),

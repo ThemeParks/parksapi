@@ -5,7 +5,7 @@
  * Public API at wwwapi.everland.com, no auth required.
  */
 
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import config from '../../config.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
@@ -185,7 +185,7 @@ export class Everland extends Destination {
           };
         }
 
-        entities.push(this.addRaw(entity, 'facilities', fac));
+        entities.push(attachRaw(entity, 'facilities', fac));
       }
     }
 
@@ -214,7 +214,7 @@ export class Everland extends Destination {
           };
         }
 
-        liveData.push(this.addRaw(ld, 'facilities', fac));
+        liveData.push(attachRaw(ld, 'facilities', fac));
       }
     }
 
@@ -244,7 +244,7 @@ export class Everland extends Destination {
 
           if (hours) {
             const dateStr = formatDate(day);
-            schedule.push(this.addRaw({
+            schedule.push(attachRaw({
               date: dateStr,
               type: 'OPERATING',
               openingTime: constructDateTime(dateStr, hours.openTime, TIMEZONE),

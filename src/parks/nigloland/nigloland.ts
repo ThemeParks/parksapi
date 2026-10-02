@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
@@ -385,7 +385,7 @@ export class Nigloland extends Destination {
         } as Entity;
         const tags = this.buildRideTags(ride);
         if (tags.length) entity.tags = tags;
-        return this.addRaw(entity, 'pointsOfInterest', ride);
+        return attachRaw(entity, 'pointsOfInterest', ride);
       })
       .filter((e): e is Entity => e !== null);
 
@@ -394,7 +394,7 @@ export class Nigloland extends Destination {
       .map(show => {
         const id = this.entityId(show.idNiglo);
         if (!id || !show.title) return null;
-        return this.addRaw({
+        return attachRaw({
           id,
           name: show.title,
           entityType: 'SHOW',
@@ -409,7 +409,7 @@ export class Nigloland extends Destination {
       .map(food => {
         const id = this.entityId(food.idNiglo);
         if (!id || !food.title) return null;
-        return this.addRaw({
+        return attachRaw({
           id,
           name: food.title,
           entityType: 'RESTAURANT',
@@ -474,9 +474,9 @@ export class Nigloland extends Destination {
         }
       }
 
-      this.addRaw(ld, 'pointsOfInterest', ride);
+      attachRaw(ld, 'pointsOfInterest', ride);
       // Today's calendar entry feeds the open-now flags every status is mapped with.
-      if (todayEntry) this.addRaw(ld, 'calendarDates', todayEntry);
+      if (todayEntry) attachRaw(ld, 'calendarDates', todayEntry);
 
       liveData.push(ld);
     }
@@ -504,8 +504,8 @@ export class Nigloland extends Destination {
         }));
       }
 
-      this.addRaw(ld, 'pointsOfInterest', show);
-      if (todayEntry) this.addRaw(ld, 'calendarDates', todayEntry);
+      attachRaw(ld, 'pointsOfInterest', show);
+      if (todayEntry) attachRaw(ld, 'calendarDates', todayEntry);
 
       liveData.push(ld);
     }
@@ -532,7 +532,7 @@ export class Nigloland extends Destination {
       const park = this.parseCalendarHours(entry.calendarType?.hoursPark);
       const ride = this.parseCalendarHours(entry.calendarType?.hoursRides);
       if (park && park !== 'closed') {
-        parkSchedule.push(this.addRaw({
+        parkSchedule.push(attachRaw({
           date,
           type: 'OPERATING',
           openingTime: constructDateTime(date, park.open, this.timezone),
@@ -540,7 +540,7 @@ export class Nigloland extends Destination {
         }, 'calendarDates', entry));
       }
       if (ride && ride !== 'closed') {
-        rideSchedule.push(this.addRaw({
+        rideSchedule.push(attachRaw({
           date,
           type: 'OPERATING',
           openingTime: constructDateTime(date, ride.open, this.timezone),

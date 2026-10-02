@@ -2,7 +2,7 @@
  * Lotte World Adventure, Seoul, South Korea
  */
 
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import config from '../../config.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
@@ -167,7 +167,7 @@ export class LotteWorld extends Destination {
     for (const attr of attractions) {
       if (!attr.shopSysCd || !attr.atrctNm) continue;
 
-      entities.push(this.addRaw({
+      entities.push(attachRaw({
         id: String(attr.shopSysCd),
         // The CMS HTML-encodes some names ("Pharaoh&rsquo;s Fury").
         name: decodeHtmlEntities(attr.atrctNm).trim(),
@@ -211,7 +211,7 @@ export class LotteWorld extends Destination {
         }
       }
 
-      liveData.push(this.addRaw(ld, 'allList', attr));
+      liveData.push(attachRaw(ld, 'allList', attr));
     }
 
     return liveData;
@@ -239,7 +239,7 @@ export class LotteWorld extends Destination {
         const openingTime = constructDateTime(dateStr, operTime.bgnTmFmt, TIMEZONE);
         const closingTime = constructDateTime(dateStr, operTime.endTmFmt, TIMEZONE);
 
-        schedule.push(this.addRaw({
+        schedule.push(attachRaw({
           date: dateStr,
           type: 'OPERATING',
           openingTime,

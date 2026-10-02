@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import {readFileSync} from 'fs';
 import {join} from 'path';
 
@@ -237,7 +237,7 @@ export class PortAventuraWorld extends Destination {
     // Build park entities
     for (const park of parks) {
       const attrs = park.attributes || park;
-      entities.push(this.addRaw({
+      entities.push(attachRaw({
         id: `park_${park.id}`,
         name: attrs.name || `Park ${park.id}`,
         entityType: 'PARK',
@@ -313,7 +313,7 @@ export class PortAventuraWorld extends Destination {
         };
       }
 
-      liveData.push(this.addRaw(ld, 'waitTimes', entry));
+      liveData.push(attachRaw(ld, 'waitTimes', entry));
     }
 
     return liveData;
@@ -352,7 +352,7 @@ export class PortAventuraWorld extends Destination {
         if (openingTime === '00:00:00' || closingTime === '00:00:00') continue;
         if (openingTime === closingTime) continue;
 
-        scheduleEntries.push(this.addRaw({
+        scheduleEntries.push(attachRaw({
           date,
           type: 'OPERATING',
           openingTime: constructDateTime(date, openingTime, this.timezone),

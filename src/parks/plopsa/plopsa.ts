@@ -14,7 +14,7 @@
  * Note: De Panne's slug redirected — use the current slug directly.
  */
 
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import config from '../../config.js';
 import {http, HTTPObj} from '../../http.js';
 import {CacheLib} from '../../cache.js';
@@ -500,7 +500,7 @@ class PlopsaBase extends Destination {
           if (coords) {
             (entity as any).location = coords;
           }
-          entities.push(this.addRaw(entity, 'poi', item));
+          entities.push(attachRaw(entity, 'poi', item));
         }
       }
     }
@@ -530,7 +530,7 @@ class PlopsaBase extends Destination {
           (entity as any).location = {latitude: this.parkLat, longitude: this.parkLng};
         }
 
-        entities.push(this.addRaw(entity, 'entertainments', item));
+        entities.push(attachRaw(entity, 'entertainments', item));
       }
     }
 
@@ -633,9 +633,9 @@ class PlopsaBase extends Destination {
 
       // The reading, the POI flag and today's hours are the three inputs the
       // status came out of, so each one is a piece behind this row.
-      this.addRaw(ld, 'waitTimes', waitTime);
-      if (poiItem) this.addRaw(ld, 'poi', poiItem);
-      if (hoursData) this.addRaw(ld, 'todayHours', hoursData);
+      attachRaw(ld, 'waitTimes', waitTime);
+      if (poiItem) attachRaw(ld, 'poi', poiItem);
+      if (hoursData) attachRaw(ld, 'todayHours', hoursData);
       return ld;
     });
 
@@ -666,7 +666,7 @@ class PlopsaBase extends Destination {
         if (showtimes.length > 0) {
           (ld as {showtimes?: LiveTimeSlot[]}).showtimes = showtimes;
         }
-        showLiveData.push(this.addRaw(ld, 'entertainments', item));
+        showLiveData.push(attachRaw(ld, 'entertainments', item));
       }
     }
 
@@ -720,7 +720,7 @@ class PlopsaBase extends Destination {
           if (slot.type !== 'open') continue;
           if (!slot.start_time || !slot.end_time) continue;
 
-          schedule.push(this.addRaw({
+          schedule.push(attachRaw({
             date: dateKey,
             type: 'OPERATING',
             // Slots already have full ISO timestamps with correct offsets
@@ -786,7 +786,7 @@ class PlopsaBase extends Destination {
             }
             // The day, not the slot: the slot carries HH:MM only, the date
             // the entry is filed under comes from the day around it.
-            showSchedule.push(this.addRaw({
+            showSchedule.push(attachRaw({
               date: day.date,
               type: 'OPERATING',
               openingTime,

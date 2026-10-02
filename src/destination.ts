@@ -107,8 +107,22 @@ export type WithRaw<T> = T & {raw?: RawSources};
  * Always attaches, whatever the destination's `includeRaw` flag says: the
  * flag is applied once, by the public getters, which strip `raw` when it is
  * off. Builders never branch on it, so a result cached under one setting is
- * correct under the other and the flag can be flipped at any time. Park
- * classes can use {@link Destination.addRaw}; module-level helpers call this.
+ * correct under the other and the flag can be flipped at any time.
+ *
+ * The one call park code makes wherever it builds an element from a piece of
+ * an upstream response, in a class method or a module-level helper alike.
+ * Returns the element, so it can wrap a `push`:
+ *
+ * ```typescript
+ * for (const entry of waitTimes) {
+ *   const ld = {id: String(entry.id), status: this.mapStatus(entry.state)} as LiveData;
+ *   live.push(attachRaw(ld, 'waitTimes', entry));
+ * }
+ * ```
+ *
+ * @param element The entity, live data or schedule entry being built
+ * @param source Name of the request the piece came from (`waitTimes`, `signage`)
+ * @param piece The slice of that response this element was built from, unchanged
  */
 export function attachRaw<T extends object>(element: T, source: string, piece: unknown): T {
   const target = element as WithRaw<T>;
@@ -757,32 +771,10 @@ export abstract class Destination {
 
         // Attach the source item as the raw upstream piece if requested
         if (config.rawSource !== undefined) {
-          this.addRaw(result, config.rawSource, item);
+          attachRaw(result, config.rawSource, item);
         }
         return result;
       });
-  }
-
-  /**
-   * {@link attachRaw} as a method: the one-liner park code uses wherever it
-   * builds an element from a piece of an upstream response. Always attaches;
-   * never branch on {@link includeRaw} around it. Returns the element, so it
-   * can wrap a `push`.
-   *
-   * @param element The entity, live data or schedule entry being built
-   * @param source Name of the request the piece came from (`waitTimes`, `signage`)
-   * @param piece The slice of that response this element was built from, unchanged
-   *
-   * @example
-   * ```typescript
-   * for (const entry of waitTimes) {
-   *   const ld: LiveData = {id: String(entry.id), status: this.mapStatus(entry.state)} as LiveData;
-   *   live.push(this.addRaw(ld, 'waitTimes', entry));
-   * }
-   * ```
-   */
-  protected addRaw<T extends object>(element: T, source: string, piece: unknown): T {
-    return attachRaw(element, source, piece);
   }
 
   /**

@@ -13,7 +13,7 @@
  * @module hfe
  */
 
-import {Destination, type DestinationConstructor} from '../../destination.js';
+import {Destination, type DestinationConstructor, attachRaw} from '../../destination.js';
 import config from '../../config.js';
 import {http, type HTTPObj} from '../../http.js';
 import {cache} from '../../cache.js';
@@ -492,7 +492,7 @@ class HFEBase extends Destination {
         rawSource: 'activities',
         transform: (entity, activity) => {
           const scheduleActivities = scheduleActivitiesByCmsKey.get(activity.id);
-          if (scheduleActivities) this.addRaw(entity, 'schedule', scheduleActivities);
+          if (scheduleActivities) attachRaw(entity, 'schedule', scheduleActivities);
           return entity;
         },
       }));
@@ -564,9 +564,9 @@ class HFEBase extends Destination {
         ld.queue = {STANDBY: {waitTime: verdict.waitTime}};
       }
 
-      this.addRaw(ld, 'waitTimes', wt);
+      attachRaw(ld, 'waitTimes', wt);
       // Today's schedule day feeds the park-open flag every status is mapped with.
-      if (todaySchedule) this.addRaw(ld, 'schedule', todaySchedule);
+      if (todaySchedule) attachRaw(ld, 'schedule', todaySchedule);
 
       liveData.push(ld);
     }
@@ -693,7 +693,7 @@ class HFEBase extends Destination {
         const openingTime = constructDateTime(dateStr, fromTime, this.timezone);
         const closingTime = constructDateTime(dateStr, toTime, this.timezone);
 
-        scheduleEntries.push(this.addRaw({
+        scheduleEntries.push(attachRaw({
           date: dateStr,
           type: 'OPERATING',
           openingTime,
@@ -760,13 +760,13 @@ class HFEBase extends Destination {
             if (!showSchedules.has(show.id)) {
               showSchedules.set(show.id, []);
             }
-            const scheduleEntry = this.addRaw({
+            const scheduleEntry = attachRaw({
               date: dateStr,
               type: 'OPERATING',
               openingTime,
               closingTime,
             }, 'schedule', event);
-            if (closingFromDuration) this.addRaw(scheduleEntry, 'activities', show);
+            if (closingFromDuration) attachRaw(scheduleEntry, 'activities', show);
             showSchedules.get(show.id)!.push(scheduleEntry);
           }
         }

@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
@@ -375,7 +375,7 @@ export class Futuroscope extends Destination {
         }
       }
 
-      results.push(this.addRaw(liveDataObj, 'liveData', data));
+      results.push(attachRaw(liveDataObj, 'liveData', data));
     }
 
     return results;
@@ -491,7 +491,7 @@ export class Futuroscope extends Destination {
       const closeHour = String(scheduleItem.close[0]).padStart(2, '0');
       const closeMin = String(scheduleItem.close[1] ?? 0).padStart(2, '0');
 
-      schedule.push(this.addRaw({
+      schedule.push(attachRaw({
         date: dateStr,
         openingTime: constructDateTime(dateStr, `${openHour}:${openMin}`, this.timezone),
         closingTime: constructDateTime(dateStr, `${closeHour}:${closeMin}`, this.timezone),

@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import config from '../../config.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
@@ -96,7 +96,7 @@ export class HansaPark extends Destination {
 
     const attractions = allPois
       .filter(p => this.hasCategory(p, 'Attractions') && !this.hasCategory(p, 'Shows'))
-      .map(p => this.addRaw({
+      .map(p => attachRaw({
         id: String(p.id),
         name: p.name,
         entityType: 'ATTRACTION',
@@ -107,7 +107,7 @@ export class HansaPark extends Destination {
 
     const shows = allPois
       .filter(p => this.hasCategory(p, 'Shows'))
-      .map(p => this.addRaw({
+      .map(p => attachRaw({
         id: String(p.id),
         name: p.name,
         entityType: 'SHOW',
@@ -118,7 +118,7 @@ export class HansaPark extends Destination {
 
     const restaurants = allPois
       .filter(p => this.hasCategory(p, 'Restaurants'))
-      .map(p => this.addRaw({
+      .map(p => attachRaw({
         id: String(p.id),
         name: p.name,
         entityType: 'RESTAURANT',
@@ -171,7 +171,7 @@ export class HansaPark extends Destination {
       );
       if (!season) continue;
 
-      schedule.push(this.addRaw({
+      schedule.push(attachRaw({
         date: dateStr,
         type: 'OPERATING',
         openingTime: constructDateTime(dateStr, season.openTime, this.timezone),

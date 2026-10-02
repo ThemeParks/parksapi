@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor, type WithRaw} from '../../destination.js';
+import {Destination, DestinationConstructor, type WithRaw, attachRaw} from '../../destination.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
@@ -589,7 +589,7 @@ class EuropaParkBase extends Destination {
         parkEntity.location = {latitude: 48.2661, longitude: 7.7225};
       }
 
-      result.push(this.addRaw(parkEntity, 'pois', park));
+      result.push(attachRaw(parkEntity, 'pois', park));
     }
 
     // ── Attractions (non-show entities scoped to each park) ────────────────
@@ -634,7 +634,7 @@ class EuropaParkBase extends Destination {
         }
         if (tags.length) attraction.tags = tags;
 
-        result.push(this.addRaw(attraction, 'pois', entity.poi));
+        result.push(attachRaw(attraction, 'pois', entity.poi));
       }
     }
 
@@ -663,7 +663,7 @@ class EuropaParkBase extends Destination {
           show.location = {latitude: 48.2661, longitude: 7.7225};
         }
 
-        result.push(this.addRaw(show, 'pois', entity.poi));
+        result.push(attachRaw(show, 'pois', entity.poi));
         collectedShowIds.add(entity.id);
       }
     }
@@ -691,7 +691,7 @@ class EuropaParkBase extends Destination {
         show.location = {latitude: 48.2661, longitude: 7.7225};
       }
 
-      result.push(this.addRaw(show, 'pois', entity.poi));
+      result.push(attachRaw(show, 'pois', entity.poi));
     }
 
     // ── Restaurants (gastronomy POIs per park) ─────────────────────────────
@@ -717,7 +717,7 @@ class EuropaParkBase extends Destination {
           restaurant.location = {latitude: 48.2661, longitude: 7.7225};
         }
 
-        result.push(this.addRaw(restaurant, 'pois', poi));
+        result.push(attachRaw(restaurant, 'pois', poi));
       }
     }
 
@@ -896,7 +896,7 @@ class EuropaParkBase extends Destination {
         }
       }
 
-      this.addRaw(live, 'waitingTimes', rows.length === 1 ? rows[0] : rows);
+      attachRaw(live, 'waitingTimes', rows.length === 1 ? rows[0] : rows);
     }
 
     const now = new Date();
@@ -915,7 +915,7 @@ class EuropaParkBase extends Destination {
       if (!showEntity) continue;
 
       const live = getOrCreate(showEntityId);
-      this.addRaw(live, 'showTimes', showEntry);
+      attachRaw(live, 'showTimes', showEntry);
 
       const showtimes = showEntry.today.map((startTimeStr) => {
         const startTime = new Date(startTimeStr);
@@ -992,7 +992,7 @@ class EuropaParkBase extends Destination {
         ld.queue = {STANDBY: {waitTime: Math.min(...etas.map((e) => e.minutes))}};
         // A station is served by several trains, so every row that reported an
         // ETA for it is part of the answer.
-        this.addRaw(ld, 'expressWaitTimes', etas.map((e) => e.wait));
+        attachRaw(ld, 'expressWaitTimes', etas.map((e) => e.wait));
       }
       result.push(ld);
     }
@@ -1074,8 +1074,8 @@ class EuropaParkBase extends Destination {
       for (const entity of mainParkAttractions) {
         const closed = {id: entity.id, status: 'CLOSED'} as LiveData;
         const waitPiece = (liveDataMap.get(entity.id) as WithRaw<LiveData> | undefined)?.raw?.waitingTimes;
-        if (waitPiece !== undefined) this.addRaw(closed, 'waitingTimes', waitPiece);
-        liveDataMap.set(entity.id, this.addRaw(closed, 'liveCalendar', calendar?.today));
+        if (waitPiece !== undefined) attachRaw(closed, 'waitingTimes', waitPiece);
+        liveDataMap.set(entity.id, attachRaw(closed, 'liveCalendar', calendar?.today));
       }
       return;
     }
@@ -1101,7 +1101,7 @@ class EuropaParkBase extends Destination {
       // stays on the row.
       const closed = {id: entity.id, status: 'CLOSED'} as LiveData;
       const waitPiece = (live as WithRaw<LiveData>).raw?.waitingTimes;
-      if (waitPiece !== undefined) this.addRaw(closed, 'waitingTimes', waitPiece);
+      if (waitPiece !== undefined) attachRaw(closed, 'waitingTimes', waitPiece);
       liveDataMap.set(entity.id, closed);
     }
   }
@@ -1211,13 +1211,13 @@ class EuropaParkBase extends Destination {
         // Covers both the special-day and the regular branch above.
         closingTime = this._rollClosingPastMidnight(openingTime, closingTime);
 
-        times.push(this.addRaw(
+        times.push(attachRaw(
           {date: isoDate, openingTime, closingTime, type: 'OPERATING'}, 'seasons', season,
         ));
 
         // Hotel extra hours
         if (season.hotelStartAt && season.hotelEndAt) {
-          times.push(this.addRaw({
+          times.push(attachRaw({
             date: isoDate,
             openingTime: this._applyDateToTime(season.hotelStartAt, isoDate),
             closingTime: this._applyDateToTime(season.hotelEndAt, isoDate),
@@ -1263,7 +1263,7 @@ class EuropaParkBase extends Destination {
               liveData.today.start,
               liveData.today.end,
             );
-            this.addRaw(entry, 'liveCalendar', liveData.today);
+            attachRaw(entry, 'liveCalendar', liveData.today);
           }
         }
       }

@@ -11,7 +11,7 @@
  * Schedule data: scraped from Chinese-language HTML calendar pages.
  */
 
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import config from '../../config.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
@@ -244,7 +244,7 @@ export class Chimelong extends Destination {
     for (const entry of waitTimes) {
       if (!entry.code || !entry.name) continue;
       const destinationId = PARK_TO_DESTINATION[entry.parkId];
-      entities.push(this.addRaw({
+      entities.push(attachRaw({
         id: `attraction_${entry.code}`,
         name: entry.name,
         entityType: 'ATTRACTION',
@@ -281,7 +281,7 @@ export class Chimelong extends Destination {
         };
       }
 
-      liveData.push(this.addRaw(ld, 'waitTimes', entry));
+      liveData.push(attachRaw(ld, 'waitTimes', entry));
     }
 
     return liveData;
@@ -371,7 +371,7 @@ export class Chimelong extends Destination {
         if (!allowedDays || allowedDays.includes(dow)) {
           if (!seen.has(dateStr)) {
             seen.add(dateStr);
-            results.push(this.addRaw({
+            results.push(attachRaw({
               date: dateStr,
               type: 'OPERATING',
               openingTime: constructDateTime(dateStr, open, TIMEZONE),
@@ -433,7 +433,7 @@ export class Chimelong extends Destination {
         const m = after.match(/(\d{1,2}:\d{1,2})-(\d{1,2}:\d{1,2})/);
         if (m) {
           const dateStr = formatDate(now, TIMEZONE);
-          results.push(this.addRaw({
+          results.push(attachRaw({
             date: dateStr,
             type: 'OPERATING',
             openingTime: constructDateTime(dateStr, normalizeTime(m[1]), TIMEZONE),

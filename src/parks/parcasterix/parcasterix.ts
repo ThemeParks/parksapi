@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
@@ -900,7 +900,7 @@ export class ParcAsterix extends Destination {
           openingType = "TICKETED_EVENT"; // If park is open until next day, it's 99% probably a Halloween night
         }
 
-        entries.push(this.addRaw({
+        entries.push(attachRaw({
           date: dateStr,
           type: openingType,
           openingTime,
@@ -1074,7 +1074,7 @@ export class ParcAsterix extends Destination {
         }
       }
 
-      return this.addRaw(ld, 'pollingLatencies', entry);
+      return attachRaw(ld, 'pollingLatencies', entry);
     });
 
     const liveShowtimes = schedules.map((entry) => {
@@ -1130,7 +1130,7 @@ export class ParcAsterix extends Destination {
         ld.showtimes = showtimes;
       }
 
-      return this.addRaw(ld, 'pollingSchedules', entry);
+      return attachRaw(ld, 'pollingSchedules', entry);
     });
 
     // The two bills have never yet named the same id, and if they ever do the
@@ -1146,7 +1146,7 @@ export class ParcAsterix extends Destination {
       if (!observation) return true;
       if (entry.showtimes) {
         observation.showtimes = entry.showtimes;
-        this.addRaw(observation, 'pollingSchedules', scheduleById.get(entry.id));
+        attachRaw(observation, 'pollingSchedules', scheduleById.get(entry.id));
       }
       return false;
     });

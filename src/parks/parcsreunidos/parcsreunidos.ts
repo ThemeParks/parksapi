@@ -8,7 +8,7 @@
  * @module parcsreunidos
  */
 
-import {Destination, type DestinationConstructor} from '../../destination.js';
+import {Destination, type DestinationConstructor, attachRaw} from '../../destination.js';
 import config from '../../config.js';
 import {http, type HTTPObj} from '../../http.js';
 import {cache, CacheLib} from '../../cache.js';
@@ -373,7 +373,7 @@ class ParcsReunidosDestination extends Destination {
     const establishment = await this.getEstablishment();
     const destinationId = `parquesreunidos_${this.appId}`;
 
-    return [this.addRaw({
+    return [attachRaw({
       id: destinationId,
       name: establishment.name || destinationId,
       entityType: 'DESTINATION',
@@ -391,7 +391,7 @@ class ParcsReunidosDestination extends Destination {
     const destinationId = `parquesreunidos_${this.appId}`;
     const parkId = `parquesreunidos_${this.appId}_park`;
 
-    const parkEntity: Entity = this.addRaw({
+    const parkEntity: Entity = attachRaw({
       id: parkId,
       name: establishment.name || parkId,
       entityType: 'PARK',
@@ -463,7 +463,7 @@ class ParcsReunidosDestination extends Destination {
       if (mapped.waitTime !== undefined) {
         ld.queue = {STANDBY: {waitTime: mapped.waitTime}};
       }
-      liveData.push(this.addRaw(ld, 'attractions', attraction));
+      liveData.push(attachRaw(ld, 'attractions', attraction));
     }
 
     return liveData;
@@ -589,7 +589,7 @@ class ParcsReunidosDestination extends Destination {
           // consumers see the extra windows (parallel venues, evening
           // extensions, after-hours events).
           if (emitted.length === 1) {
-            scheduleEntries.push(this.addRaw({
+            scheduleEntries.push(attachRaw({
               date: dateStr,
               type: 'OPERATING',
               openingTime: emitted[0].openingTime,
@@ -606,7 +606,7 @@ class ParcsReunidosDestination extends Destination {
               if (i > 0 && emitted[i].description) {
                 entry.description = emitted[i].description;
               }
-              scheduleEntries.push(this.addRaw(entry, 'calendarHTML', emitted[i].piece));
+              scheduleEntries.push(attachRaw(entry, 'calendarHTML', emitted[i].piece));
             }
           }
         }
@@ -939,8 +939,8 @@ export class Mirabilandia extends ParcsReunidosDestination {
     // value, the park-level flag decides whether any of them counts.
     const push = (entityIds: readonly string[], item: CodeattrAttraction, build: (id: string) => LiveData) => {
       for (const id of entityIds) {
-        const ld = this.addRaw(build(id), 'waitTimes', item);
-        liveData.push(this.addRaw(ld, 'waitTimesInfo', info));
+        const ld = attachRaw(build(id), 'waitTimes', item);
+        liveData.push(attachRaw(ld, 'waitTimesInfo', info));
       }
     };
 

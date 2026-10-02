@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import config from '../../config.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
@@ -282,7 +282,7 @@ export class UniversalStudiosBeijing extends Destination {
         };
       }
 
-      liveData.push(this.addRaw(ld, 'attractionData', attraction));
+      liveData.push(attachRaw(ld, 'attractionData', attraction));
     }
 
     // Show times
@@ -313,7 +313,7 @@ export class UniversalStudiosBeijing extends Destination {
         }
       }
 
-      liveData.push(this.addRaw(ld, 'showData', show));
+      liveData.push(attachRaw(ld, 'showData', show));
     }
 
     return liveData;
@@ -360,13 +360,13 @@ export class UniversalStudiosBeijing extends Destination {
 
       if (!parkData.open || !parkData.close) continue;
 
-      const entry = this.addRaw({
+      const entry = attachRaw({
         date,
         type: 'OPERATING',
         openingTime: constructDateTime(date, parkData.open, this.timezone),
         closingTime: constructDateTime(date, parkData.close, this.timezone),
       }, 'monthOverview', monthOverviewByDate.get(date));
-      schedule.push(this.addRaw(entry, 'dailySchedule', parkData));
+      schedule.push(attachRaw(entry, 'dailySchedule', parkData));
     }
 
     return [{id: 'universalstudiosbeijing', schedule} as EntitySchedule];

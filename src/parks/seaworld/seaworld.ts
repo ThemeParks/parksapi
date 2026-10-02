@@ -25,7 +25,7 @@
  * API: base URL is config-only (`SEAWORLD_BASEURL`), no auth required.
  */
 
-import {Destination, type DestinationConstructor} from '../../destination.js';
+import {Destination, type DestinationConstructor, attachRaw} from '../../destination.js';
 import config from '../../config.js';
 import {http, type HTTPObj} from '../../http.js';
 import {cache} from '../../cache.js';
@@ -578,7 +578,7 @@ export class SeaworldDestination extends Destination {
             longitude: poi.Coordinate.Longitude,
           };
         }
-        entities.push(this.addRaw(entity, 'parkDetail', poi));
+        entities.push(attachRaw(entity, 'parkDetail', poi));
       }
 
       // --- SHOWs ---
@@ -618,7 +618,7 @@ export class SeaworldDestination extends Destination {
             longitude: poi.Coordinate.Longitude,
           };
         }
-        entities.push(this.addRaw(entity, 'parkDetail', poi));
+        entities.push(attachRaw(entity, 'parkDetail', poi));
       }
 
       // --- RESTAURANTs (Dining) ---
@@ -638,7 +638,7 @@ export class SeaworldDestination extends Destination {
             longitude: poi.Coordinate.Longitude,
           };
         }
-        entities.push(this.addRaw(entity, 'parkDetail', poi));
+        entities.push(attachRaw(entity, 'parkDetail', poi));
       }
     }
 
@@ -850,10 +850,10 @@ export class SeaworldDestination extends Destination {
         // merge in below.
         if (duplicateToCanonical[wt.Id]) continue;
         const entry = getOrCreate(wt.Id);
-        this.addRaw(entry, 'availabilityWaitTimes', wt);
+        attachRaw(entry, 'availabilityWaitTimes', wt);
         // The published hours are what the reading is read against, so they
         // are a piece behind every row of this park.
-        if (openHours) this.addRaw(entry, 'parkDetail', openHours);
+        if (openHours) attachRaw(entry, 'parkDetail', openHours);
 
         // Only trust an actual number. Number() maps null, '', '  ' and [] to 0,
         // which is finite and >= 0, so coercing here would invent a walk-on out
@@ -938,8 +938,8 @@ export class SeaworldDestination extends Destination {
           showRowsByTarget.set(targetId, rowsForTarget);
         }
         rowsForTarget.set(st.Id, st);
-        this.addRaw(entry, 'availabilityShowTimes', rowsForTarget.size === 1 ? st : [...rowsForTarget.values()]);
-        if (openHours) this.addRaw(entry, 'parkDetail', openHours);
+        attachRaw(entry, 'availabilityShowTimes', rowsForTarget.size === 1 ? st : [...rowsForTarget.values()]);
+        if (openHours) attachRaw(entry, 'parkDetail', openHours);
 
         if (st.ShowTimes && st.ShowTimes.length > 0) {
           // An explicit closure outranks a schedule. No id currently appears in
@@ -1081,7 +1081,7 @@ export class SeaworldDestination extends Destination {
         // entry of the day carries all of them.
         const blocks = spans.map((s) => s.hours);
         for (const s of spans) {
-          schedule.push(this.addRaw({
+          schedule.push(attachRaw({
             date,
             openingTime: s.openingTime,
             closingTime: s.closingTime,

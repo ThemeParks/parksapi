@@ -1710,7 +1710,7 @@ class Universal extends Destination {
       if (parkLoc?.lat_lng) {
         park.location = {latitude: parkLoc.lat_lng.lat, longitude: parkLoc.lat_lng.lng};
       }
-      out.push(this.addRaw(park, 'places', place));
+      out.push(attachRaw(park, 'places', place));
     }
 
     // Non-park entities (rides, shows, restaurants). Drop event-flagged variants
@@ -1823,8 +1823,8 @@ class Universal extends Destination {
           state: nextSlot ? 'AVAILABLE' : 'TEMP_FULL',
         };
 
-        this.addRaw(liveDataEntry, 'virtualQueueStates', vQueue);
-        this.addRaw(liveDataEntry, 'virtualQueueDetails', vQueueDetails);
+        attachRaw(liveDataEntry, 'virtualQueueStates', vQueue);
+        attachRaw(liveDataEntry, 'virtualQueueDetails', vQueueDetails);
       }
     }
 
@@ -1981,7 +1981,7 @@ class Universal extends Destination {
 
     for (const [id, queues] of rawQueuesById) {
       const entry = liveDataMap.get(id);
-      if (entry) this.addRaw(entry, 'waitTimes', queues.length === 1 ? queues[0] : queues);
+      if (entry) attachRaw(entry, 'waitTimes', queues.length === 1 ? queues[0] : queues);
     }
 
     // Process show times from the CDN show-list.json (place_id-keyed).
@@ -2175,7 +2175,7 @@ class Universal extends Destination {
       if (times.length > 0) {
         showEntry.showtimes = times;
       }
-      this.addRaw(showEntry, 'showList', show);
+      attachRaw(showEntry, 'showList', show);
     }
 
     // Layer Express Now (paid return time) offers from the UDX API. Only
@@ -2222,7 +2222,7 @@ class Universal extends Destination {
         Math.round(offer.product_price * 100), // dollars → cents
       );
 
-      if (offer.prediction !== undefined) this.addRaw(entry, 'expressNowOffers', offer.prediction);
+      if (offer.prediction !== undefined) attachRaw(entry, 'expressNowOffers', offer.prediction);
     }
 
     return await this.dropUnpublishableRows(liveData);
@@ -2336,7 +2336,7 @@ class Universal extends Destination {
         const open = formatInTimezone(rawOpen, this.timezone, 'iso');
         const close = formatInTimezone(rawClose, this.timezone, 'iso');
 
-        schedule.push(this.addRaw({
+        schedule.push(attachRaw({
           date: daySchedule.Date,
           openingTime: open,
           closingTime: close,
@@ -2345,7 +2345,7 @@ class Universal extends Destination {
 
         const rawEarly = new Date(daySchedule.EarlyEntryString || NaN);
         if (Number.isFinite(rawEarly.getTime()) && rawEarly < rawOpen) {
-          schedule.push(this.addRaw({
+          schedule.push(attachRaw({
             date: daySchedule.Date,
             openingTime: formatInTimezone(rawEarly, this.timezone, 'iso'),
             closingTime: open,
@@ -2373,7 +2373,7 @@ class Universal extends Destination {
               console.warn(`[${this.constructor.name}] skipping malformed ticketed-event hours for ${placeId} on ${night.date}`);
               continue;
             }
-            schedule.push(this.addRaw({
+            schedule.push(attachRaw({
               date: night.date,
               openingTime,
               closingTime,
@@ -2395,7 +2395,7 @@ class Universal extends Destination {
                 const earlyOpening = constructDateTime(night.date, night.earlyAccessTime, this.timezone);
                 const earlyMs = new Date(earlyOpening).getTime();
                 if (Number.isFinite(earlyMs) && earlyMs < openingMs) {
-                  schedule.push(this.addRaw({
+                  schedule.push(attachRaw({
                     date: night.date,
                     openingTime: earlyOpening,
                     closingTime: openingTime,

@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import crypto from 'crypto';
 
 import {cache, CacheLib} from '../../cache.js';
@@ -986,7 +986,7 @@ export class DisneylandParis extends Destination {
       },
       // The injected P2 is a literal, not a POI record, so it carries nothing.
       transform: (entity, item) => (
-        injectedP2 && item.id === 'P2' ? entity : this.addRaw(entity, 'poi', item)
+        injectedP2 && item.id === 'P2' ? entity : attachRaw(entity, 'poi', item)
       ),
     });
 
@@ -1018,7 +1018,7 @@ export class DisneylandParis extends Destination {
 
       entity.tags = entityType === 'ATTRACTION' ? this.buildTags(poi) : [];
 
-      entityEntries.push(this.addRaw(entity, 'poi', poi));
+      entityEntries.push(attachRaw(entity, 'poi', poi));
     }
 
     return [
@@ -1066,7 +1066,7 @@ export class DisneylandParis extends Destination {
 
       const ld = getOrCreate(ID_ALIASES[wt.entityId] ?? wt.entityId);
       if (!ld) continue;
-      this.addRaw(ld, 'waitTimes', wt);
+      attachRaw(ld, 'waitTimes', wt);
       ld.status = this.mapStatus(wt.status) as any;
 
       // Standby queue
@@ -1093,7 +1093,7 @@ export class DisneylandParis extends Destination {
 
       const ld = getOrCreate(pa.attractionId);
       if (!ld) continue;
-      this.addRaw(ld, 'premierAccess', pa);
+      attachRaw(ld, 'premierAccess', pa);
       if (!ld.queue) ld.queue = {};
 
       // DLP emits `2026-04-25T21:35:00.000+0200` (millis, no offset colon).
@@ -1136,7 +1136,7 @@ export class DisneylandParis extends Destination {
 
       const ld = getOrCreate(q.queueContentId);
       if (!ld) continue;
-      this.addRaw(ld, 'vQueueActivity', q);
+      attachRaw(ld, 'vQueueActivity', q);
 
       // Overnight every wave that matters reads CLOSED; publishing TEMP_FULL
       // there would be wrong, so no RETURN_TIME until a wave has actually
@@ -1234,7 +1234,7 @@ export class DisneylandParis extends Destination {
 
         const existing = liveDataMap.get(liveId);
         if (existing) {
-          this.addRaw(existing, 'scheduleForDate', performances);
+          attachRaw(existing, 'scheduleForDate', performances);
           existing.showtimes = showtimes;
           if (showtimes.length > 0) {
             existing.status = 'OPERATING' as any;
@@ -1242,7 +1242,7 @@ export class DisneylandParis extends Destination {
         } else {
           const ld = getOrCreate(liveId);
           if (!ld) continue;
-          this.addRaw(ld, 'scheduleForDate', performances);
+          attachRaw(ld, 'scheduleForDate', performances);
           ld.status = 'OPERATING' as any;
           ld.showtimes = showtimes;
         }
@@ -1408,7 +1408,7 @@ export class DisneylandParis extends Destination {
         // Queue-bearing ride — STANDBY:null baseline so consumers can
         // render `wait: null` while the feed is silent.
         if (!ld) {
-          ld = this.addRaw({id, status: 'CLOSED'} as LiveData, 'poi', poi);
+          ld = attachRaw({id, status: 'CLOSED'} as LiveData, 'poi', poi);
           liveDataMap.set(id, ld);
           liveData.push(ld);
         }
@@ -1421,8 +1421,8 @@ export class DisneylandParis extends Destination {
       } else if (!ld) {
         // Walkthrough — status from schedule, no queue.
         const {status, rows} = deriveWalkthroughStatus(poi);
-        const walkthrough = this.addRaw({id, status} as LiveData, 'poi', poi);
-        if (rows) this.addRaw(walkthrough, 'scheduleForDate', rows);
+        const walkthrough = attachRaw({id, status} as LiveData, 'poi', poi);
+        if (rows) attachRaw(walkthrough, 'scheduleForDate', rows);
         liveDataMap.set(id, walkthrough);
         liveData.push(walkthrough);
       }
@@ -1445,7 +1445,7 @@ export class DisneylandParis extends Destination {
 
       const ld = getOrCreate(poi.id);
       if (!ld) continue;
-      this.addRaw(ld, 'scheduleForDate', hours);
+      attachRaw(ld, 'scheduleForDate', hours);
 
       // Unlike the wait feed's, this REFURBISHMENT is a real closure, and the
       // only signal for it — buildSchedules skips those days entirely.
@@ -1620,7 +1620,7 @@ export class DisneylandParis extends Destination {
           if (!scheduleMap.has(scheduleId)) {
             scheduleMap.set(scheduleId, []);
           }
-          scheduleMap.get(scheduleId)!.push(this.addRaw({
+          scheduleMap.get(scheduleId)!.push(attachRaw({
             date: dateString,
             openingTime: openTime,
             closingTime: closeTime,

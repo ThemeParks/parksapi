@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
@@ -214,7 +214,7 @@ export class Hersheypark extends Destination {
         },
       } : {}),
     } as Entity;
-    if (parkData) this.addRaw(parkEntity, 'poi', parkData);
+    if (parkData) attachRaw(parkEntity, 'poi', parkData);
 
     const rides = poi.rides || [];
 
@@ -263,7 +263,7 @@ export class Hersheypark extends Destination {
         console.warn(`[Hersheypark] skipping hours for ride ${entry.id}: ${err?.message ?? err}`);
       }
 
-      liveData.push(this.addRaw(ld, 'status', entry));
+      liveData.push(attachRaw(ld, 'status', entry));
     }
 
     return liveData;
@@ -296,7 +296,7 @@ export class Hersheypark extends Destination {
       const openingTime = constructDateTime(date, openTime, this.timezone);
       const closingTime = constructDateTime(date, closeTime, this.timezone);
 
-      scheduleEntries.push(this.addRaw({
+      scheduleEntries.push(attachRaw({
         date,
         type: 'OPERATING',
         openingTime,

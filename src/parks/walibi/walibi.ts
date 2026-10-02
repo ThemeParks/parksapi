@@ -9,7 +9,7 @@
  * Wait times are in seconds, rounded to the nearest minute as the apps do.
  */
 
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import config from '../../config.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
@@ -331,7 +331,7 @@ class WalibiBase extends Destination {
             longitude: Number(a.longitude),
           };
         }
-        return this.addRaw(entity, 'attractions', a);
+        return attachRaw(entity, 'attractions', a);
       })
       .filter((e): e is Entity => e !== null);
 
@@ -353,7 +353,7 @@ class WalibiBase extends Destination {
             longitude: Number(r.longitude),
           };
         }
-        return this.addRaw(entity, 'restaurants', r);
+        return attachRaw(entity, 'restaurants', r);
       });
 
     return [parkEntity, ...attrEntities, ...diningEntities];
@@ -397,7 +397,7 @@ class WalibiBase extends Destination {
           };
         }
 
-        return this.addRaw(ld, 'waitTimes', entry);
+        return attachRaw(ld, 'waitTimes', entry);
       })
       .filter((x): x is LiveData => x !== null);
 
@@ -539,7 +539,7 @@ class WalibiBase extends Destination {
           const closingHour = displayed?.closing ?? day.closingHour;
           if (!openingHour || !closingHour) continue;
 
-          schedule.push(this.addRaw({
+          schedule.push(attachRaw({
             date: dateStr,
             type: 'OPERATING',
             openingTime: constructDateTime(dateStr, openingHour, this.timezone),

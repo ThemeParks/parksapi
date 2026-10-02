@@ -19,7 +19,7 @@
  * @module energylandia
  */
 
-import {Destination, type DestinationConstructor} from '../../destination.js';
+import {Destination, type DestinationConstructor, attachRaw} from '../../destination.js';
 import {cache, CacheLib} from '../../cache.js';
 import {http, type HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
@@ -1126,7 +1126,7 @@ export class Energylandia extends Destination {
 
       // A ride with no location is still emitted — it is real and still reports
       // wait times, it just has no coordinates.
-      rides.push(this.addRaw({
+      rides.push(attachRaw({
         id: entityIdFromDoc(doc),
         name,
         entityType: 'ATTRACTION',
@@ -1142,7 +1142,7 @@ export class Energylandia extends Destination {
     for (const doc of restaurants) {
       const name = nameFor(doc);
       if (!name) continue;
-      dining.push(this.addRaw({
+      dining.push(attachRaw({
         id: entityIdFromDoc(doc),
         name,
         entityType: 'RESTAURANT',
@@ -1170,7 +1170,7 @@ export class Energylandia extends Destination {
       const venueId = resolveShowVenueId(weeklySlots);
       const venueDoc = venueId ? attractionsById.get(venueId) : undefined;
 
-      performances.push(this.addRaw({
+      performances.push(attachRaw({
         id: showEntityIdFromDoc(doc),
         name,
         entityType: 'SHOW',
@@ -1309,7 +1309,7 @@ export class Energylandia extends Destination {
         queue: {STANDBY: {waitTime: wait.minutes}},
       } as LiveData;
       this.addLivePieces(ld, 'attractions', doc, todayPeriod);
-      out.push(this.addRaw(ld, 'waitTimes', wait.row));
+      out.push(attachRaw(ld, 'waitTimes', wait.row));
     }
 
     out.push(...this.buildShowLiveData(shows, date, now, operatesToday, outsideOperatingHours, todayPeriod));
@@ -1323,8 +1323,8 @@ export class Energylandia extends Destination {
    * hours decided whether the park counts as open at all.
    */
   private addLivePieces(ld: LiveData, source: string, doc: FsDoc, period?: CalendarPeriod): LiveData {
-    this.addRaw(ld, source, doc);
-    return period ? this.addRaw(ld, 'calendarPeriods', period) : ld;
+    attachRaw(ld, source, doc);
+    return period ? attachRaw(ld, 'calendarPeriods', period) : ld;
   }
 
   /**
@@ -1415,7 +1415,7 @@ export class Energylandia extends Destination {
           openingTime: constructDateTime(date, hours.open, this.timezone),
           closingTime: constructDateTime(date, hours.close, this.timezone),
         };
-        return hours.period ? this.addRaw(entry, 'calendarPeriods', hours.period) : entry;
+        return hours.period ? attachRaw(entry, 'calendarPeriods', hours.period) : entry;
       });
 
     return [{id: PARK_ID, schedule} as EntitySchedule];

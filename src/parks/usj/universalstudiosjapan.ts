@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import {Destination, DestinationConstructor, type WithRaw} from '../../destination.js';
+import {Destination, DestinationConstructor, type WithRaw, attachRaw} from '../../destination.js';
 import {cache, CacheLib} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
@@ -496,7 +496,7 @@ export class UniversalStudiosJapan extends Destination {
         (entity as Entity & {attractionType?: string}).attractionType = 'RIDE';
       }
 
-      attractionEntities.push(this.addRaw(entity, 'places', place));
+      attractionEntities.push(attachRaw(entity, 'places', place));
     }
 
     return [parkEntity, ...attractionEntities];
@@ -560,7 +560,7 @@ export class UniversalStudiosJapan extends Destination {
             ld.queue = {STANDBY: {waitTime: queue.display_wait_time}};
           }
 
-          results.set(ld.id, this.addRaw(ld, 'waitTimes', queue));
+          results.set(ld.id, attachRaw(ld, 'waitTimes', queue));
           break; // one STANDBY queue per attraction
         }
       }
@@ -603,14 +603,14 @@ export class UniversalStudiosJapan extends Destination {
         ld.queue = waitRow.queue;
         // The queue is the wait-time feed's, so its piece comes along.
         const waitPiece = (waitRow as WithRaw<LiveData>).raw?.waitTimes;
-        if (waitPiece !== undefined) this.addRaw(ld, 'waitTimes', waitPiece);
+        if (waitPiece !== undefined) attachRaw(ld, 'waitTimes', waitPiece);
       }
 
       if (showTimes.length > 0) {
         ld.showtimes = showTimes;
       }
 
-      results.set(id, this.addRaw(ld, 'showList', show));
+      results.set(id, attachRaw(ld, 'showList', show));
     }
 
     for (const id of RETIRED_PLACE_IDS) results.delete(id);
@@ -643,7 +643,7 @@ export class UniversalStudiosJapan extends Destination {
         results.set(id, {id, status: 'CLOSED'} as LiveData);
       } else if (isClosedWhileHiddenFromApp(place)) {
         // The places feed decided this row, so its record is the piece.
-        results.set(id, this.addRaw({id, status: 'CLOSED'} as LiveData, 'places', place));
+        results.set(id, attachRaw({id, status: 'CLOSED'} as LiveData, 'places', place));
       }
     }
   }
@@ -779,7 +779,7 @@ export class UniversalStudiosJapan extends Destination {
           const dedupeKey = `${h.Date}|${h.OpenTimeString}|${h.CloseTimeString}`;
           if (seen.has(dedupeKey)) continue;
           seen.add(dedupeKey);
-          schedule.push(this.addRaw({
+          schedule.push(attachRaw({
             date: h.Date,
             type: 'OPERATING',
             openingTime: h.OpenTimeString,

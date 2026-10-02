@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw} from '../../destination.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
@@ -256,7 +256,7 @@ export class FujiQHighland extends Destination {
         destinationId: DESTINATION_ID,
         timezone: this.timezone,
       } as Entity;
-      this.addRaw(entity, 'facilities', f);
+      attachRaw(entity, 'facilities', f);
 
       const lat = Number(f.lat);
       const lon = Number(f.lon);
@@ -302,7 +302,7 @@ export class FujiQHighland extends Destination {
         ld.queue = {STANDBY: {waitTime}};
       }
 
-      out.push(this.addRaw(ld, 'crawler', c));
+      out.push(attachRaw(ld, 'crawler', c));
     }
 
     return out;
@@ -326,7 +326,7 @@ export class FujiQHighland extends Destination {
     for (let i = 0; i < months; i++) {
       const monthDays = await this.getMonthSchedule(year, month).catch(() => []);
       for (const d of monthDays) {
-        days.push(this.addRaw({
+        days.push(attachRaw({
           date: d.date,
           type: 'OPERATING',
           openingTime: constructDateTime(d.date, d.open, this.timezone),
@@ -365,7 +365,7 @@ export class FujiQHighland extends Destination {
         if (!latestClose || parsed.close > latestClose) latestClose = parsed.close;
       }
       if (earliestOpen && latestClose) {
-        days.push(this.addRaw({
+        days.push(attachRaw({
           date: todayParts,
           type: 'OPERATING',
           openingTime: constructDateTime(todayParts, earliestOpen, this.timezone),
