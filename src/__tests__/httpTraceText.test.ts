@@ -9,9 +9,9 @@
  * each of the three paths against a loopback server, see
  * helpers/localHttpServer.ts.
  */
-import {http, HTTPObj, stopHttpQueue, truncateTraceText} from '../http';
-import {tracing, HttpTraceEvent} from '../tracing';
-import {startLocalServer, LocalServer, LONG_TEXT} from './helpers/localHttpServer';
+import {http, HTTPObj, stopHttpQueue, truncateTraceText} from '../http.js';
+import {tracing, HttpTraceEvent} from '../tracing.js';
+import {startLocalServer, LocalServer, LONG_TEXT} from './helpers/localHttpServer.js';
 
 const ENV = 'HTTP_TRACE_TEXT_LIMIT';
 const CUT = LONG_TEXT.substring(0, 1000) + '...';
@@ -72,7 +72,7 @@ describe('text bodies on trace events', () => {
 
     @http({cacheSeconds: 60})
     async fetchCachedText(): Promise<HTTPObj> {
-      return {method: 'GET', url: `${this.baseURL}/text`, queryParams: {cached: '1'}, tags: ['text']} as HTTPObj;
+      return {method: 'GET', url: `${this.baseURL}/text`, queryParams: {cached: '1'}, tags: ['text']} as any as HTTPObj;
     }
 
     @http({cacheSeconds: 0})
