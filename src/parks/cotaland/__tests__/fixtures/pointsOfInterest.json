@@ -1,0 +1,1201 @@
+{
+  "timestamp": "2026-09-30T21:51:02.271Z",
+  "data": [
+    {
+      "id": 6335,
+      "name": "T20 Central Park ",
+      "description_html": "<p>T20 Central Park is a lively gathering place featuring delicious dining, classic midway games, live entertainment, and the Flutterarium Butterfly Experience, all centered around the T-20 Restaurant &amp; Terrace.</p>",
+      "status": "Open",
+      "waitTime": 0,
+      "latitude": null,
+      "longitude": null,
+      "categories": [],
+      "isActive": true
+    },
+    {
+      "id": 6333,
+      "name": "Speed City",
+      "description_html": "<p><strong>Speed City</strong> is COTA&#39;s destination for even more ways to play! Race around the track at COTA Karting, soar above the action on the zipline, or challenge your crew to a round of mini golf. All just steps from the park!</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.133356,
+      "longitude": -97.643209,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6332,
+      "name": "Restrooms - Circuit Breaker",
+      "description_html": "",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.133264,
+      "longitude": -97.645227,
+      "categories": [
+        {
+          "id": 47,
+          "name": "Restrooms"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6331,
+      "name": "Nursing Station",
+      "description_html": "<p>A quiet, comfortable space for nursing parents to feed and care for little ones during their day at COTALAND.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.133102,
+      "longitude": -97.643644,
+      "categories": [
+        {
+          "id": 44,
+          "name": "Services"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6330,
+      "name": "Nursing Station",
+      "description_html": "<p>A quiet, comfortable space for nursing parents to feed and care for little ones during their day at COTALAND.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136239,
+      "longitude": -97.64163,
+      "categories": [
+        {
+          "id": 44,
+          "name": "Services"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6329,
+      "name": "Security",
+      "description_html": "",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136633,
+      "longitude": -97.640428,
+      "categories": [
+        {
+          "id": 44,
+          "name": "Services"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6328,
+      "name": "Mobility Rentals ",
+      "description_html": "<p><strong>Rentals</strong><br>Strollers, ECV, and Wheelchairs are available for rent here.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136538,
+      "longitude": -97.640338,
+      "categories": [],
+      "isActive": true
+    },
+    {
+      "id": 6327,
+      "name": "First Aid",
+      "description_html": "<p><strong>First Aid</strong><br>Feeling unwell or need medical assistance? Visit First Aid for help.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136584,
+      "longitude": -97.640404,
+      "categories": [
+        {
+          "id": 44,
+          "name": "Services"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6326,
+      "name": "Nursing Station",
+      "description_html": "<p>A quiet, comfortable space for nursing parents to feed and care for little ones during their day at COTALAND.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136624,
+      "longitude": -97.64053,
+      "categories": [
+        {
+          "id": 44,
+          "name": "Services"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6324,
+      "name": "Splash Pad ",
+      "description_html": "<p>Cool off and make a splash at COTALAND’s Splash Pad! With refreshing water features and plenty of room to play, it’s the perfect spot for little adventurers to beat the Texas heat.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.133234,
+      "longitude": -97.64416,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6323,
+      "name": "Restrooms - Carousel Corral",
+      "description_html": "",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136238,
+      "longitude": -97.641583,
+      "categories": [
+        {
+          "id": 47,
+          "name": "Restrooms"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6322,
+      "name": "Fang's Magnificent Magic Show!",
+      "description_html": "<p style='text-align: start;'>Come one, come all to Fang&#39;s Magnificent Magic Show! Fang has been practicing his amazing new tricks for days, and now it&#39;s time for his big debut! Get ready for silly surprises and plenty of chances to help Fang make some magic. Just remember the magic words…&quot;Flitter-Futter Peanut Butter!”</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136379,
+      "longitude": -97.641777,
+      "categories": [
+        {
+          "id": 80,
+          "name": "Entertainment"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6321,
+      "name": "Kettle Corn",
+      "description_html": "<p>Fresh, sweet, and perfectly crunchy! Stop by for classic kettle corn—the perfect snack to enjoy while exploring COTALAND.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.135093,
+      "longitude": -97.643986,
+      "categories": [
+        {
+          "id": 48,
+          "name": "Food"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6320,
+      "name": "The Squeak Show",
+      "description_html": "<p style='text-align: start;'>Get ready for one of the weirdest shows in Austin! Johan Von Bock Bock takes the stage with an entire flock of musical rubber chickens for a truly unique sideshow unlike anything you’ve ever seen or heard! Catch The Squeak Show daily at the Chicken Coop Stage located in Happy Hallow.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136054,
+      "longitude": -97.642341,
+      "categories": [
+        {
+          "id": 80,
+          "name": "Entertainment"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6319,
+      "name": "Flutterarium Butterfly Experience",
+      "description_html": "<p>Step into the Flutterarium Butterfly Experience and surround yourself with the beauty of live butterflies. Explore this immersive habitat and enjoy an up-close encounter with these colorful creatures.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.135566,
+      "longitude": -97.643458,
+      "categories": [],
+      "isActive": true
+    },
+    {
+      "id": 6318,
+      "name": "Buck’s Buckaroo Bash",
+      "description_html": "<p style='text-align: start;'>Grab your dancin’ boots and join Buck as he teaches young buckaroos the dance steps to his all-time favorite song, Cotton-Eyed Joe. But hold your horses! If things get a little too wild, a Buckaroo Safety Check will ensure everyone&#39;s staying safe, while having fun!</p><p></p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136054,
+      "longitude": -97.642341,
+      "categories": [
+        {
+          "id": 80,
+          "name": "Entertainment"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6317,
+      "name": "Happy Hallow",
+      "description_html": "",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.135982,
+      "longitude": -97.642358,
+      "categories": [],
+      "isActive": true
+    },
+    {
+      "id": 6316,
+      "name": "Checkers’ Bubbletastic Dance Party",
+      "description_html": "<p style='text-align: start;'>Join Checkers at her Bubbletastic Dance Party as she debuts her brand-new invention, the Bubblematic, Systematic, Hydromatic Electra 9000! But don’t let your bubble burst if things don’t go according to plan, ‘cause this smart little stinker always knows how to get things back on track!</p><p></p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136379,
+      "longitude": -97.641777,
+      "categories": [
+        {
+          "id": 80,
+          "name": "Entertainment"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6315,
+      "name": "Turbo's Fast Track Fitness",
+      "description_html": "<p>Start your engines! Join Turbo for a high-energy interactive show packed with silly stretches, speedy challenges and fast-track fun as Rookie Racers of all ages build strength, confidence and focus. Ready… set… GO GO GO!</p><p></p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136379,
+      "longitude": -97.641777,
+      "categories": [
+        {
+          "id": 80,
+          "name": "Entertainment"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6314,
+      "name": "Adventure Waits for You",
+      "description_html": "<p>Start your COTALAND adventure with all your favorite COTALAND Friends. Catch this special welcome moment happening daily near the Entry Plaza Fountain!</p><p></p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136927,
+      "longitude": -97.641109,
+      "categories": [
+        {
+          "id": 80,
+          "name": "Entertainment"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6313,
+      "name": "Rose Garden ",
+      "description_html": "",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136656,
+      "longitude": -97.641179,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6312,
+      "name": "Sidewinder",
+      "description_html": "<p>Get ready to twist, spin, and slide aboard Sidewinder! This high-energy ride sends guests racing back and forth along a towering track for an exciting experience packed with unexpected turns.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.135849,
+      "longitude": -97.643189,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6311,
+      "name": "Dippin' Dots",
+      "description_html": "<p>Cool off with colorful, bite-sized beads of ice cream in a variety of flavors. Dippin&#39; Dots</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136468,
+      "longitude": -97.641766,
+      "categories": [
+        {
+          "id": 48,
+          "name": "Food"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6310,
+      "name": "Dippin' Dots",
+      "description_html": "<p>Cool off with colorful, bite-sized beads of ice cream in a variety of flavors.</p><p></p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.132951,
+      "longitude": -97.644028,
+      "categories": [
+        {
+          "id": 48,
+          "name": "Food"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6309,
+      "name": "Box Office ",
+      "description_html": "",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.137794,
+      "longitude": -97.640442,
+      "categories": [
+        {
+          "id": 44,
+          "name": "Services"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6307,
+      "name": "\"Perfect Hug\"",
+      "description_html": "<p><strong>With “Perfect Hug&quot;, KAI transforms an emotionally fragile idea into a permanent reminder that human connection can hold us together.</strong></p><p></p><h4 style='text-align: left;'>Share Your “Perfect Hug”</h4><p style='text-align: left;'>Make the sculpture part of your COTALAND story. Take a photo with the people who make life more meaningful and tag <strong>@visitCOTALAND</strong> for a chance to be featured by COTALAND.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.13678,
+      "longitude": -97.640924,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6306,
+      "name": "Penny's Cafe & Bakery ",
+      "description_html": "<p>Fuel your day with specialty coffee and handcrafted espresso drinks. Alongside premium caffeine options, this cafe serves a variety of breakfast favorites, fresh sandwiches, and light, healthy options to keep you moving throughout the day.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.137033,
+      "longitude": -97.640668,
+      "categories": [
+        {
+          "id": 48,
+          "name": "Food"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6305,
+      "name": "Sweet Spot ",
+      "description_html": "<p>A colorful destination for guests with a sweet tooth. You&#39;ll find a wide array of classic sweet treats, bulk candies and gourmet treats.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.137086,
+      "longitude": -97.640785,
+      "categories": [
+        {
+          "id": 48,
+          "name": "Food"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6304,
+      "name": "Pops' Ice Cream Shoppe",
+      "description_html": "<p>A must-stop for those looking to beat the Texas heat. This location specializes in hand-scooped creations, specialty shakes, and unique dessert mashups that pair fresh-fried treats with indulgent toppings.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.137121,
+      "longitude": -97.640924,
+      "categories": [
+        {
+          "id": 48,
+          "name": "Food"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6303,
+      "name": "Pizza Place",
+      "description_html": "<p>Fresh pizza, hot sub sandwiches and garlicky knots.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136861,
+      "longitude": -97.642088,
+      "categories": [
+        {
+          "id": 48,
+          "name": "Food"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6302,
+      "name": "Snack Shack ",
+      "description_html": "<p style='text-align: start;'>Theme Park favorites like popcorn, pretzels, and churros.</p><p></p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1376,
+      "longitude": -97.640615,
+      "categories": [
+        {
+          "id": 48,
+          "name": "Food"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6301,
+      "name": "Specialty Nachos ",
+      "description_html": "<p>Portable, build-your-own creations featuring seasoned meats and bold sauces.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136179,
+      "longitude": -97.64248,
+      "categories": [
+        {
+          "id": 48,
+          "name": "Food"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6300,
+      "name": "Splashdown Bar",
+      "description_html": "<p>Located near The Soggy Logger flume ride, this full-service bar is the perfect place to refuel and refresh. Enjoy ice-cold regional craft beers and signature frozen cocktails designed to wet your whistle.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.135826,
+      "longitude": -97.642525,
+      "categories": [
+        {
+          "id": 48,
+          "name": "Food"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6299,
+      "name": "Wonderful Wingz",
+      "description_html": "<p>Crispy boneless chicken or plant-based wings tossed in a variety of zesty sauces. </p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.134545,
+      "longitude": -97.64431,
+      "categories": [
+        {
+          "id": 48,
+          "name": "Food"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6298,
+      "name": "The Pit-a Stop: Gyros ",
+      "description_html": "<p>Seasoned Mediterranean fare and fresh toppings served in warm pita bread.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.133972,
+      "longitude": -97.644948,
+      "categories": [
+        {
+          "id": 48,
+          "name": "Food"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6297,
+      "name": "Spud's Fries",
+      "description_html": "<p>Fresh-cut fries served hot with signature seasonings and loaded toppings.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.133405,
+      "longitude": -97.644097,
+      "categories": [
+        {
+          "id": 48,
+          "name": "Food"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6296,
+      "name": "Checkered Chopstix: An Asian Bistro",
+      "description_html": "<p>Savory bowls featuring street-inspired global flavors.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.133214,
+      "longitude": -97.644426,
+      "categories": [
+        {
+          "id": 48,
+          "name": "Food"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6263,
+      "name": "Valet Parking ",
+      "description_html": "",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.138312,
+      "longitude": -97.63872,
+      "categories": [
+        {
+          "id": 44,
+          "name": "Services"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6230,
+      "name": "Safari Adventure",
+      "description_html": "<p>Embark on a wild expedition through immersive terrain to spot exotic wildlife from your very own off-road vehicle.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.133691,
+      "longitude": -97.643815,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6194,
+      "name": "Checker's Sky Flyer ",
+      "description_html": "<p>Lift off and glide above it all! Smooth, breezy, and just the right amount of thrill.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.133431,
+      "longitude": -97.644456,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6192,
+      "name": "Spindletop",
+      "description_html": "<p>Inspired by the legendary Texas oil strike that changed everything, this twisting drop ride erupts with motion as it lifts, spins, and sends you into a rush of pure energy.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.132958,
+      "longitude": -97.644325,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6187,
+      "name": "Cloud Flyer",
+      "description_html": "<p>Pure joy from liftoff to landing. Soar 150 feet above the park on this towering swing ride for unbeatable views of the entire Circuit of The Americas layout.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1368106,
+      "longitude": -97.6412952,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6185,
+      "name": "Retro Rambler ",
+      "description_html": "<p>Ride the wild side on this Texas-sized coaster packed with quick turns, sudden drops, and untamed energy from start to finish.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.133589,
+      "longitude": -97.645247,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6184,
+      "name": "The Jackhammer ",
+      "description_html": "<p>Bounce up like a jackhammer and back down again in this playful, family-friendly ride. With just the right amount of lift and drop, it’s a lighthearted thrill for all.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1366574,
+      "longitude": -97.6422155,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6183,
+      "name": "Buck's Silly Soakers",
+      "description_html": "<p>Splash, spin, and cool off...this playful water ride is all about laughs and getting a little soaked.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1363553,
+      "longitude": -97.641905,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6182,
+      "name": "Circuit Breaker Gift Shop",
+      "description_html": "<p>Circuit Breaker themed gifts and ride photos!</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.133192,
+      "longitude": -97.645226,
+      "categories": [
+        {
+          "id": 42,
+          "name": "Shopping"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6181,
+      "name": "Circuit Breaker ",
+      "description_html": "<p>Texas&#39;s only tilt coaster and a true supercoaster. Experience the adrenaline of North America&#39;s first-of-its-kind tilt drop. This engineering feat puts you at the edge of your seat.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.133144,
+      "longitude": -97.645005,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6180,
+      "name": "Palindrome ",
+      "description_html": "<p>The first infinity shuttle coaster in the U.S. and the only steel coaster to soar over an active road. This machine rockets you forward and backward through a gravity-defying course.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1374002,
+      "longitude": -97.6405682,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6178,
+      "name": "Grand Carousel",
+      "description_html": "<p>A timeless favorite for all ages. Climb aboard beautifully crafted horses and enjoy a smooth, classic carousel experience filled with charm and nostalgia.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1365892,
+      "longitude": -97.6419657,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6177,
+      "name": "Mission Blasters ",
+      "description_html": "<p>Lock, load, and aim! Compete with friends as you blast targets in this interactive ride packed with action, lights, and nonstop fun.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1358329,
+      "longitude": -97.6421059,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6176,
+      "name": "Smugglers Curse",
+      "description_html": "<p>Set sail on a swinging adventure that lifts you high and sends you soaring back and forth like a ship caught in wild seas.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1360574,
+      "longitude": -97.6418948,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6174,
+      "name": "Victory Wheel ",
+      "description_html": "<p>Take it all in from the top. This towering Ferris wheel offers sweeping views of the park and beyond, making it the perfect spot to slow things down and enjoy the ride.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1365107,
+      "longitude": -97.640957,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6173,
+      "name": "Turn N' Burn ",
+      "description_html": "<p>Hop on for a classic spin with smooth turns and just the right amount of speed. It’s an easygoing ride that’s perfect for younger guests and those looking for a lighter thrill.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.135906,
+      "longitude": -97.643116,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6171,
+      "name": "Park Entrance ",
+      "description_html": "",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136726,
+      "longitude": -97.6403336,
+      "categories": [
+        {
+          "id": 44,
+          "name": "Services"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6164,
+      "name": "Trading Post ",
+      "description_html": "<p>The Trading Post is your stop for Soggy Logger-themed merchandise, souvenirs, and park essentials. Grab a keepsake and take a piece of the adventure home with you.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1355905,
+      "longitude": -97.642715,
+      "categories": [
+        {
+          "id": 42,
+          "name": "Shopping"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6159,
+      "name": "Restrooms - Circuit Breaker Bay",
+      "description_html": "",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.133099,
+      "longitude": -97.643632,
+      "categories": [
+        {
+          "id": 47,
+          "name": "Restrooms"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6158,
+      "name": "Restrooms - T20 Central Park ",
+      "description_html": "",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.134865,
+      "longitude": -97.643745,
+      "categories": [
+        {
+          "id": 47,
+          "name": "Restrooms"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6157,
+      "name": "Restrooms - Perfect Hug Plaza ",
+      "description_html": "",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.136632,
+      "longitude": -97.640471,
+      "categories": [
+        {
+          "id": 47,
+          "name": "Restrooms"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6154,
+      "name": "Cosmic Glider ",
+      "description_html": "<p>Soar through great big Texas skies as you dip and dive over the water in this high-flying, side-by-side aerial adventure.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.133857,
+      "longitude": -97.644587,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6153,
+      "name": "Doggy Dash ",
+      "description_html": "<p>Pick your favorite spotted pup and enjoy a playful ride full of family fun. A paw-some adventure for little explorers!</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.13363,
+      "longitude": -97.644206,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6150,
+      "name": "Midway Games",
+      "description_html": "<p>Test your skills at COTALAND’s Midway Games! Take on classic carnival-style challenges, compete with friends and family, and play for fun prizes</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.134419,
+      "longitude": -97.644503,
+      "categories": [
+        {
+          "id": 45,
+          "name": "Games"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6149,
+      "name": "T20 Restaurant & Terrace ",
+      "description_html": "<p>This expansive indoor dining destination is the central hub for the park’s most popular offerings, complete with a scenic outdoor terrace overlooking Turn 20 and some of the most breathtaking views at Circuit of The Americas. The menu features classic comfort food built to satisfy every appetite, from premium burgers and hand-breaded chicken tenders to fresh, vibrant vegetarian options.</p><h3 style='text-align: start;'>The T20 Bar</h3><p style='text-align: start;'>High-energy bar with a curated selection of handcrafted cocktails, frozen specialty drinks, and craft drafts.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.134932,
+      "longitude": -97.643594,
+      "categories": [
+        {
+          "id": 48,
+          "name": "Food"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6144,
+      "name": "Super Drift Challenge ",
+      "description_html": "<p>Slide into the driver’s seat and take on tight turns, quick spins, and drifting action at every corner. It’s all about speed, control, and just the right amount of chaos.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.135055,
+      "longitude": -97.642929,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6142,
+      "name": "The Accelerator ",
+      "description_html": "<p>Zero to full speed in seconds! This one doesn’t wait, and neither should you.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1371211,
+      "longitude": -97.6413337,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6138,
+      "name": "Lil' Logger",
+      "description_html": "<p>Perfect for younger adventurers, this mini log ride brings gentle dips and light splashes in a fun, approachable format made just for kids.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1355248,
+      "longitude": -97.6432899,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6136,
+      "name": "The Emporium",
+      "description_html": "<p>The Emporium is COTALAND’s go-to gift shop for park merchandise, souvenirs, apparel, and more. Stop in to find the perfect keepsake to remember your day at COTALAND.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1368569,
+      "longitude": -97.6404013,
+      "categories": [
+        {
+          "id": 42,
+          "name": "Shopping"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6133,
+      "name": "Turbo’s Tilt ’N Twist",
+      "description_html": "<p>TURBO’S TILT ’N TWIST takes the classic Tilt-A-Whirl and cranks it into high gear, sending families swirling in colorful turtle shells just like our favorite little dreamer, Turbo!</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1367683,
+      "longitude": -97.6417291,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6129,
+      "name": "Wacky Worm",
+      "description_html": "<p>A family coaster favorite! Twist and turn along a colorful track that’s just the right amount of fun for younger riders and first-time thrill seekers.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1341233,
+      "longitude": -97.6443558,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6128,
+      "name": "Downforce",
+      "description_html": "<p>Feel the rush as Downforce launches you into high-speed motion, powerful spins, and intense G-forces. Built for thrill-seekers, this ride delivers nonstop adrenaline from start to finish.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.133643,
+      "longitude": -97.643608,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6127,
+      "name": "Baby Buccaneer",
+      "description_html": "<p>Set sail on a mini adventure. This swinging ship brings just the right splash of thrill for future pirates.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1362042,
+      "longitude": -97.6421041,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6126,
+      "name": "Preferred Parking ",
+      "description_html": "<p>Lots with shuttles to the entrance</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.139248,
+      "longitude": -97.639707,
+      "categories": [
+        {
+          "id": 44,
+          "name": "Services"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6125,
+      "name": "Hot Lap",
+      "description_html": "<p>This high-octane ride along experience lets you feel the rush of the nation’s only purpose-built F1 racetrack, conquering the same 20 turns as the pros (Additional Fee Required).</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.135484,
+      "longitude": -97.642344,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6122,
+      "name": "The Soggy Logger",
+      "description_html": "<p>Take the plunge on this classic hill-country log flume that culminates in a massive, heart-pounding splashdown for the  whole crew.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1355213,
+      "longitude": -97.6429405,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6121,
+      "name": "Fang's Flight",
+      "description_html": "<p>Take a gentle spin through the skies. Just enough lift and swing to feel like you’re flying.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.132949,
+      "longitude": -97.64393,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6118,
+      "name": "Spin Out",
+      "description_html": "<p>No brakes, all chaos! Spin faster than you planned and laugh the whole way through.</p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.137009,
+      "longitude": -97.641552,
+      "categories": [
+        {
+          "id": 41,
+          "name": "Attractions"
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "id": 6113,
+      "name": "Guest Services",
+      "description_html": "<p><strong>Guest Services</strong><br>Need assistance? Our Guest Services team is here to help!</p><p></p>",
+      "status": "Open",
+      "waitTime": null,
+      "latitude": 30.1366177,
+      "longitude": -97.6404205,
+      "categories": [
+        {
+          "id": 44,
+          "name": "Services"
+        }
+      ],
+      "isActive": true
+    }
+  ]
+}

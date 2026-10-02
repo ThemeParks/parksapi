@@ -1,0 +1,163 @@
+{
+  "_note": "Rows captured from Warner Bros. Movie World, trimmed to a few rides. poiStatusDay and rideStatusDay are the same poll of the two feeds; poiStatusNight is before opening.",
+  "capturedAt": {
+    "day": "2026-09-27T00:40:31.809Z",
+    "night": "2026-09-26T17:29:53.661Z"
+  },
+  "poiStatusDay": [
+    {
+      "id": "b97d582c-f145-44f1-b30c-1108d162a471",
+      "label": "BATWING Spaceshot",
+      "status": {
+        "poiId": "b97d582c-f145-44f1-b30c-1108d162a471",
+        "externalKey": "0f26206d-d604-465c-bcd3-a95675ba0b11",
+        "isOpen": false,
+        "lastUpdateTime": "2026-09-27T00:00:27.081+0000",
+        "waitTime": 25,
+        "lastChanged": "2026-09-27T00:34:52.765+0000",
+        "operationalStatus": "OPEN"
+      }
+    },
+    {
+      "id": "911615ad-d090-476b-8989-d7955276d3b6",
+      "label": "GREEN LANTERN Coaster",
+      "status": {
+        "poiId": "911615ad-d090-476b-8989-d7955276d3b6",
+        "externalKey": "3d619667-9e5e-4f79-8462-566ae4ede28f",
+        "isOpen": true,
+        "lastUpdateTime": "2026-09-27T00:00:27.081+0000",
+        "waitTime": 30,
+        "lastChanged": "2026-09-27T00:39:33.829+0000",
+        "operationalStatus": "OPEN"
+      }
+    },
+    {
+      "id": "aadb584a-5a3f-43b8-a847-b1d801697db2",
+      "label": "Wild West Falls Adventure Ride",
+      "status": {
+        "poiId": "aadb584a-5a3f-43b8-a847-b1d801697db2",
+        "externalKey": "6ef08e79-3a2a-4e6b-89af-af2cc173b26e",
+        "isOpen": false,
+        "lastUpdateTime": "2026-09-27T00:00:02.027+0000",
+        "waitTime": 5,
+        "lastChanged": "2026-09-27T00:40:05.756+0000",
+        "operationalStatus": "DOWN"
+      }
+    },
+    {
+      "id": "0dff7787-ee7b-4e40-9bf0-0e874772de53",
+      "label": "DC Rivals HyperCoaster",
+      "status": {
+        "poiId": "0dff7787-ee7b-4e40-9bf0-0e874772de53",
+        "externalKey": "f4be2bcc-4c4f-4ee9-8960-77e90a0e4827",
+        "isOpen": false,
+        "lastUpdateTime": "2026-09-27T00:00:27.081+0000",
+        "waitTime": 5,
+        "lastChanged": "2026-09-27T00:40:04.952+0000",
+        "operationalStatus": "DOWN"
+      }
+    }
+  ],
+  "rideStatusDay": [
+    {
+      "name": "BATWING Spaceshot",
+      "state": "full",
+      "hideUnavailableWaitTime": false,
+      "waitTimeMins": 25,
+      "tags": [
+        "te2_rideId:b97d582c-f145-44f1-b30c-1108d162a471"
+      ],
+      "queues": [
+        {
+          "name": "Physical",
+          "isPrimary": true,
+          "isDefault": true,
+          "isOpen": false,
+          "waitTimeMins": 25
+        }
+      ]
+    },
+    {
+      "name": "GREEN LANTERN Coaster",
+      "state": "open",
+      "hideUnavailableWaitTime": false,
+      "waitTimeMins": 30.425642026666665,
+      "tags": [
+        "te2_rideId:911615ad-d090-476b-8989-d7955276d3b6"
+      ],
+      "queues": [
+        {
+          "name": "Default",
+          "isPrimary": true,
+          "isDefault": true,
+          "isOpen": true,
+          "waitTimeMins": 30.425642026666665
+        }
+      ]
+    },
+    {
+      "name": "Wild West Falls Adventure Ride",
+      "state": "full_and_closed",
+      "hideUnavailableWaitTime": false,
+      "waitTimeMins": 5,
+      "tags": [
+        "te2_rideId:aadb584a-5a3f-43b8-a847-b1d801697db2"
+      ],
+      "queues": [
+        {
+          "name": "Default",
+          "isPrimary": true,
+          "isDefault": true,
+          "isOpen": false,
+          "waitTimeMins": 5
+        }
+      ]
+    },
+    {
+      "name": "DC Rivals HyperCoaster",
+      "state": "closed",
+      "hideUnavailableWaitTime": false,
+      "waitTimeMins": 5,
+      "tags": [
+        "te2_rideId:0dff7787-ee7b-4e40-9bf0-0e874772de53"
+      ],
+      "queues": [
+        {
+          "name": "Default",
+          "isPrimary": true,
+          "isDefault": true,
+          "isOpen": true,
+          "waitTimeMins": 5
+        }
+      ]
+    }
+  ],
+  "poiStatusNight": [
+    {
+      "id": "b97d582c-f145-44f1-b30c-1108d162a471",
+      "label": "BATWING Spaceshot",
+      "status": {
+        "poiId": "b97d582c-f145-44f1-b30c-1108d162a471",
+        "externalKey": "0f26206d-d604-465c-bcd3-a95675ba0b11",
+        "isOpen": false,
+        "lastUpdateTime": "2026-09-26T00:02:03.781+0000",
+        "waitTime": 5,
+        "lastChanged": "2026-09-26T07:01:51.877+0000",
+        "operationalStatus": "DOWN"
+      }
+    },
+    {
+      "id": "a8738743-2b09-44ad-895a-c89ff947d2f0",
+      "label": "SUPERMAN Escape",
+      "status": {
+        "poiId": "a8738743-2b09-44ad-895a-c89ff947d2f0",
+        "externalKey": "c1fa73e4-4afc-4530-8444-9363febfee51",
+        "isOpen": false,
+        "lastUpdateTime": "2026-09-26T00:06:44.490+0000",
+        "waitTime": 5,
+        "lastChanged": "2026-09-26T17:25:42.605+0000",
+        "operationalStatus": "DOWN"
+      }
+    }
+  ]
+}

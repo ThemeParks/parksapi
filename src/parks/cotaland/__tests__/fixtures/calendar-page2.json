@@ -1,0 +1,78 @@
+{
+  "total": 59,
+  "total_pages": 2,
+  "events": [
+    {
+      "id": 10000065,
+      "title": "PARK OPEN",
+      "start_date": "2026-12-22 12:00:00",
+      "end_date": "2026-12-22 22:00:00",
+      "all_day": false,
+      "timezone": "America/Chicago"
+    },
+    {
+      "id": 10000066,
+      "title": "PARK OPEN",
+      "start_date": "2026-12-23 12:00:00",
+      "end_date": "2026-12-23 22:00:00",
+      "all_day": false,
+      "timezone": "America/Chicago"
+    },
+    {
+      "id": 10000067,
+      "title": "PARK OPEN",
+      "start_date": "2026-12-24 12:00:00",
+      "end_date": "2026-12-24 22:00:00",
+      "all_day": false,
+      "timezone": "America/Chicago"
+    },
+    {
+      "id": 10000068,
+      "title": "PARK OPEN",
+      "start_date": "2026-12-25 12:00:00",
+      "end_date": "2026-12-25 22:00:00",
+      "all_day": false,
+      "timezone": "America/Chicago"
+    },
+    {
+      "id": 10000069,
+      "title": "PARK OPEN",
+      "start_date": "2026-12-26 12:00:00",
+      "end_date": "2026-12-26 22:00:00",
+      "all_day": false,
+      "timezone": "America/Chicago"
+    },
+    {
+      "id": 10000070,
+      "title": "PARK OPEN",
+      "start_date": "2026-12-27 12:00:00",
+      "end_date": "2026-12-27 22:00:00",
+      "all_day": false,
+      "timezone": "America/Chicago"
+    },
+    {
+      "id": 10000071,
+      "title": "PARK OPEN",
+      "start_date": "2026-12-28 12:00:00",
+      "end_date": "2026-12-28 22:00:00",
+      "all_day": false,
+      "timezone": "America/Chicago"
+    },
+    {
+      "id": 10000072,
+      "title": "PARK OPEN",
+      "start_date": "2026-12-29 12:00:00",
+      "end_date": "2026-12-29 22:00:00",
+      "all_day": false,
+      "timezone": "America/Chicago"
+    },
+    {
+      "id": 10000073,
+      "title": "PARK OPEN",
+      "start_date": "2026-12-30 12:00:00",
+      "end_date": "2026-12-30 22:00:00",
+      "all_day": false,
+      "timezone": "America/Chicago"
+    }
+  ]
+}

@@ -69,10 +69,11 @@ function stubbedPark(includeRaw: boolean): SixFlags {
   vi.spyOn(park, 'getWaitTimes').mockImplementation(
     async (parkId: number) => (parkId === MAIN_PARK_ID ? waitTimes as any : null),
   );
-  // Three months are requested; only the current one has a published day.
+  // The schedule asks for months, today's showtimes for the day itself. Only
+  // the current month and today have a published day, the same one.
   vi.spyOn(park, 'getOperatingHours').mockImplementation(
     async (parkId: number, date: string) =>
-      (parkId === MAIN_PARK_ID && date === '202609' ? operatingHours as any : null),
+      (parkId === MAIN_PARK_ID && (date === '202609' || date === '20260921') ? operatingHours as any : null),
   );
   return park;
 }

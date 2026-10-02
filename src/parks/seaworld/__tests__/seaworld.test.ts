@@ -17,6 +17,10 @@ import {
   BuschGardensWilliamsburg,
   SesamePlacePhiladelphia,
   SesamePlaceSanDiego,
+  aslBaseName,
+  mapAslShowsToBase,
+  mapShowAliases,
+  ASL_SHOWTIME_TYPE,
 } from '../seaworld.js';
 
 // ---------------------------------------------------------------------------
@@ -1450,5 +1454,367 @@ describe('SeaworldDestination.buildSchedules — event hours vs normal hours', (
     expect(day[0].type).toBe('OPERATING');
     // Rolled back one day: 09:00–19:00 same day, not 34h.
     expect(day[0].closingTime).toContain('2026-09-18T19:00:00');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ASL-interpreted performances
+// ---------------------------------------------------------------------------
+//
+// The operator lists an interpreted performance as its own Shows POI with its
+// own ShowTimes row, next to the regular show. Observed 2026-09-26 at Busch
+// Gardens Williamsburg ("ASL - Fiends" beside "Fiends") and Sesame Place San
+// Diego ("Storytime with Friends with ASL Interpretation"). ShowTimes rows carry
+// only {Id, ShowTimes}: the name is only on the POI.
+
+describe('ASL-interpreted performances', () => {
+  describe('aslBaseName', () => {
+    it.each([
+      ['ASL - Fiends', 'Fiends'],
+      ['ASL - Skeletones In Your Closet', 'Skeletones In Your Closet'],
+      ['ASL \u2013 Monster Street Party', 'Monster Street Party'],
+      ['Storytime with Friends with ASL Interpretation', 'Storytime with Friends'],
+      ['Welcome to Our Street with ASL Interpretation!', 'Welcome to Our Street'],
+      ['Orca Encounter - ASL Saturday', 'Orca Encounter'],
+      ['Sea Lions: Flippers, Facts & Fun - ASL Saturday', 'Sea Lions: Flippers, Facts & Fun'],
+    ])('reads %s as an ASL listing of %s', (name, base) => {
+      expect(aslBaseName(name)).toBe(base);
+    });
+
+    it.each(['Fiends', 'Basle Express', 'Flash', 'Tasl', 'ASL', 'ASL - ', ''])('does not treat %j as an ASL listing', (name) => {
+      expect(aslBaseName(name)).toBeNull();
+    });
+  });
+
+  describe('mapAslShowsToBase', () => {
+    it('pairs an ASL listing with its base show and ignores punctuation', () => {
+      expect(mapAslShowsToBase([
+        {Id: 'base', Name: 'Welcome to Our Street!'},
+        {Id: 'asl', Name: 'Welcome to Our Street with ASL Interpretation!'},
+      ])).toEqual({asl: 'base'});
+    });
+
+    it('leaves an ASL listing with no base show unmapped', () => {
+      expect(mapAslShowsToBase([
+        {Id: 'a', Name: 'Fiends'},
+        {Id: 'b', Name: 'ASL - Something Else'},
+      ])).toEqual({});
+    });
+  });
+
+  // One Busch Gardens Williamsburg park with two ASL pairs and one orphan.
+  const BGW_SHOWS = [
+    {Id: 'fiends', Name: 'Fiends', Type: 'Shows'},
+    {Id: 'asl-fiends', Name: 'ASL - Fiends', Type: 'Shows'},
+    {Id: 'msp', Name: 'Monster Street Party', Type: 'Shows'},
+    {Id: 'asl-msp', Name: 'ASL - Monster Street Party', Type: 'Shows'},
+    {Id: 'asl-orphan', Name: 'ASL - A Show Not Listed', Type: 'Shows'},
+  ];
+  const slot = (start: string, end: string) => ({
+    StartDateTime: `${start}-04:00`, EndDateTime: `${end}-04:00`, StartTime: start, EndTime: end,
+  });
+
+  function bgw(showRows: any[], waitRows: any[] = [], hours: any[] = []) {
+    const park = new BuschGardensWilliamsburg();
+    const resortIds: string[] = (park as any).resortIds;
+    const mainId = resortIds[0];
+    (park as any).getParkDetail = async (id: string) => ({
+      Id: id,
+      park_Name: id === mainId ? 'Busch Gardens Williamsburg' : 'Water Country USA',
+      TimeZone: 'America/New_York',
+      POIs: id === mainId ? {Shows: BGW_SHOWS} : {Shows: []},
+      open_hours: id === mainId ? hours : [],
+    }) as any;
+    (park as any).getAvailability = async (id: string) =>
+      (id === mainId ? {WaitTimes: waitRows, ShowTimes: showRows} : {WaitTimes: [], ShowTimes: []}) as any;
+    return park;
+  }
+
+  it('does not emit an ASL listing whose base show exists, but keeps an orphan', async () => {
+    const ids = (await (bgw([]) as any).buildEntityList()).map((e: any) => e.id);
+    expect(ids).toEqual(expect.arrayContaining(['fiends', 'msp', 'asl-orphan']));
+    expect(ids).not.toContain('asl-fiends');
+    expect(ids).not.toContain('asl-msp');
+  });
+
+  it('folds interpreted performances into the base show, marked and in time order', async () => {
+    const live = await (bgw([
+      {Id: 'fiends', ShowTimes: [slot('2026-09-26T15:00:00', '2026-09-26T15:25:00'), slot('2026-09-26T19:30:00', '2026-09-26T19:55:00')]},
+      {Id: 'asl-fiends', ShowTimes: [slot('2026-09-26T17:00:00', '2026-09-26T17:25:00')]},
+    ]) as any).buildLiveData();
+
+    expect(live.find((r: any) => r.id === 'asl-fiends')).toBeUndefined();
+    const fiends = live.find((r: any) => r.id === 'fiends');
+    expect(fiends.showtimes.map((t: any) => [t.startTime.slice(11, 16), t.type])).toEqual([
+      ['15:00', 'Performance'],
+      ['17:00', ASL_SHOWTIME_TYPE],
+      ['19:30', 'Performance'],
+    ]);
+  });
+
+  it('gives the base show its interpreted performances even on a day it has no regular ones', async () => {
+    // Row order is the operator's, not ours: the ASL row may come first.
+    const live = await (bgw([
+      {Id: 'asl-msp', ShowTimes: [slot('2026-09-26T13:30:00', '2026-09-26T13:55:00')]},
+      {Id: 'msp', ShowTimes: []},
+    ]) as any).buildLiveData();
+    const msp = live.find((r: any) => r.id === 'msp');
+    expect(msp.showtimes).toHaveLength(1);
+    expect(msp.showtimes[0].type).toBe(ASL_SHOWTIME_TYPE);
+  });
+
+  it('leaves an orphan ASL listing on its own entity with ordinary performances', async () => {
+    const live = await (bgw([
+      {Id: 'asl-orphan', ShowTimes: [slot('2026-09-26T12:00:00', '2026-09-26T12:25:00')]},
+    ]) as any).buildLiveData();
+    expect(live.find((r: any) => r.id === 'asl-orphan').showtimes[0].type).toBe('Performance');
+  });
+
+  it('does not double a schedule when the same row arrives twice', async () => {
+    const row = {Id: 'fiends', ShowTimes: [slot('2026-09-26T15:00:00', '2026-09-26T15:25:00')]};
+    const asl = {Id: 'asl-fiends', ShowTimes: [slot('2026-09-26T17:00:00', '2026-09-26T17:25:00')]};
+    const live = await (bgw([row, asl, row, asl]) as any).buildLiveData();
+    expect(live.find((r: any) => r.id === 'fiends').showtimes).toHaveLength(2);
+  });
+
+  it('never creates a live row for a folded ASL listing from WaitTimes', async () => {
+    const live = await (bgw([], [
+      {Id: 'asl-fiends', Minutes: 0, Status: 'Closed For The Day', StatusDisplay: null, Title: 'ASL - Fiends', LastUpDateTime: '2026-09-26T08:00:00'},
+    ]) as any).buildLiveData();
+    expect(live.find((r: any) => r.id === 'asl-fiends')).toBeUndefined();
+  });
+
+  describe('same-name shows', () => {
+    // Real 2026-09-27 shapes: SeaWorld Orlando publishes "Sea Lions: Flippers, Facts &
+    // Fun" twice (one copy with the day's showtimes, one with none) and Sesame Place
+    // Philadelphia "Meet Dinger" three times, nothing else telling them apart.
+    const DUP_SHOWS = [
+      {Id: 'b5efd31b', Name: 'Sea Lions: Flippers, Facts & Fun', Type: 'Shows'},
+      {Id: '774ef09d', Name: 'Sea Lions: Flippers, Facts & Fun', Type: 'Shows'},
+      {Id: 'asl-sl', Name: 'Sea Lions: Flippers, Facts & Fun - ASL Saturday', Type: 'Shows'},
+      {Id: 'd46174e2', Name: 'Meet Dinger', Type: 'Shows'},
+      {Id: 'abb187b7', Name: 'Meet Dinger', Type: 'Shows'},
+      {Id: 'b8be46b3', Name: 'MEET DINGER!', Type: 'Shows'},
+      {Id: 'solo', Name: 'Pets Rule!', Type: 'Shows'},
+    ];
+
+    function dup(showRows: any[], waitRows: any[] = [], hours: any[] = []) {
+      const park = new BuschGardensWilliamsburg();
+      const mainId = (park as any).resortIds[0];
+      (park as any).getParkDetail = async (id: string) => ({
+        Id: id, park_Name: 'P', TimeZone: 'America/New_York',
+        POIs: id === mainId ? {Shows: DUP_SHOWS} : {Shows: []}, open_hours: id === mainId ? hours : [],
+      }) as any;
+      (park as any).getAvailability = async (id: string) =>
+        (id === mainId ? {WaitTimes: waitRows, ShowTimes: showRows} : {WaitTimes: [], ShowTimes: []}) as any;
+      return park;
+    }
+
+    it('maps every copy but the lowest id to the lowest id, and ASL to that canonical id', () => {
+      expect(mapShowAliases(DUP_SHOWS)).toEqual({
+        asl: {'asl-sl': '774ef09d'},
+        duplicate: {'b5efd31b': '774ef09d', 'd46174e2': 'abb187b7', 'b8be46b3': 'abb187b7'},
+      });
+    });
+
+    it('is stable whatever order the feed lists the copies in', () => {
+      const reversed = [...DUP_SHOWS].reverse();
+      expect(mapShowAliases(reversed)).toEqual(mapShowAliases(DUP_SHOWS));
+    });
+
+    it('emits one entity per show name, on the canonical id', async () => {
+      const ids = (await (dup([]) as any).buildEntityList()).filter((e: any) => e.entityType === 'SHOW').map((e: any) => e.id);
+      expect(ids.sort()).toEqual(['774ef09d', 'abb187b7', 'solo']);
+    });
+
+    it('merges a copy\'s showtimes into the canonical show, once each', async () => {
+      const a = slot('2026-09-27T11:30:00', '2026-09-27T12:00:00');
+      const b = slot('2026-09-27T14:00:00', '2026-09-27T14:30:00');
+      const live = await (dup([
+        {Id: 'b5efd31b', ShowTimes: [a]},
+        {Id: '774ef09d', ShowTimes: [a, b]},          // the same 11:30 slot on both copies
+        {Id: 'asl-sl', ShowTimes: [a]},               // and its interpreted performance
+      ]) as any).buildLiveData();
+      expect(live.find((r: any) => r.id === 'b5efd31b')).toBeUndefined();
+      const sl = live.find((r: any) => r.id === '774ef09d');
+      expect(sl.showtimes.map((t: any) => [t.startTime.slice(11, 16), t.type])).toEqual([
+        ['11:30', 'Performance'],
+        ['11:30', ASL_SHOWTIME_TYPE],
+        ['14:00', 'Performance'],
+      ]);
+    });
+
+    it('never merges the same name across two parks of one destination', async () => {
+      const park = new BuschGardensWilliamsburg();
+      const [main, water] = (park as any).resortIds;
+      (park as any).getParkDetail = async (id: string) => ({
+        Id: id, park_Name: id, TimeZone: 'America/New_York', open_hours: [],
+        POIs: {Shows: [{Id: id === main ? 'z-in-main' : 'a-in-water', Name: 'Character Meet', Type: 'Shows'}]},
+      }) as any;
+      const ents = (await (park as any).buildEntityList()).filter((e: any) => e.entityType === 'SHOW');
+      expect(ents.map((e: any) => [e.id, e.parentId]).sort()).toEqual([['a-in-water', water], ['z-in-main', main]]);
+    });
+
+    it('ignores a copy\'s closure instead of shutting the canonical show', async () => {
+      const live = await (dup([], [
+        {Id: 'b5efd31b', Minutes: 0, Status: 'Closed For The Day', StatusDisplay: null, Title: 'x', LastUpDateTime: '2026-09-27T08:00:00'},
+      ]) as any).buildLiveData();
+      expect(live.find((r: any) => r.id === 'b5efd31b')).toBeUndefined();
+      expect(live.find((r: any) => r.id === '774ef09d')).toBeUndefined();   // no row invented either
+    });
+  });
+
+  describe('closures, with the park open', () => {
+    // Every test above runs with no operating hours, so the park never reads as
+    // open and every show is CLOSED regardless of the closure logic. These pin
+    // the clock inside HOURS_TODAY so a closure is the only thing that can
+    // make a show CLOSED.
+    beforeEach(() => pinClock(CLOCK_PARK_OPEN));
+    afterEach(() => vi.useRealTimers());
+
+    const closedRow = (id: string, title: string) => ({
+      Id: id, Minutes: 0, Status: 'Closed For The Day', StatusDisplay: null, Title: title,
+      LastUpDateTime: '2026-08-15T08:00:00',
+    });
+
+    it('keeps a closed base show CLOSED when its ASL listing still lists slots', async () => {
+      const live = await (bgw(
+        [{Id: 'asl-fiends', ShowTimes: [slot('2026-08-15T17:00:00', '2026-08-15T17:25:00')]}],
+        [closedRow('fiends', 'Fiends')],
+        HOURS_TODAY,
+      ) as any).buildLiveData();
+      expect(live.find((r: any) => r.id === 'fiends').status).toBe('CLOSED');
+    });
+
+    it('drops the slots of a closed ASL listing without closing the base show', async () => {
+      const live = await (bgw(
+        [
+          {Id: 'fiends', ShowTimes: [slot('2026-08-15T15:00:00', '2026-08-15T15:25:00')]},
+          {Id: 'asl-fiends', ShowTimes: [slot('2026-08-15T17:00:00', '2026-08-15T17:25:00')]},
+        ],
+        [closedRow('asl-fiends', 'ASL - Fiends')],
+        HOURS_TODAY,
+      ) as any).buildLiveData();
+
+      expect(live.find((r: any) => r.id === 'asl-fiends')).toBeUndefined();
+      const fiends = live.find((r: any) => r.id === 'fiends');
+      expect(fiends.status).toBe('OPERATING');
+      expect(fiends.showtimes.map((t: any) => [t.startTime.slice(11, 16), t.type])).toEqual([
+        ['15:00', 'Performance'],
+      ]);
+    });
+
+    it('does not publish a base show from a closed ASL listing alone', async () => {
+      const live = await (bgw(
+        [{Id: 'asl-msp', ShowTimes: [slot('2026-08-15T13:30:00', '2026-08-15T13:55:00')]}],
+        [closedRow('asl-msp', 'ASL - Monster Street Party')],
+        HOURS_TODAY,
+      ) as any).buildLiveData();
+      expect(live.find((r: any) => r.id === 'msp')).toBeUndefined();
+      expect(live.find((r: any) => r.id === 'asl-msp')).toBeUndefined();
+    });
+  });
+
+  it('without park detail, ASL rows fall back to their own ids rather than being lost', async () => {
+    // ShowTimes rows carry no name, so nothing can be folded. The rows keep
+    // their own ids; those are not in the entity list, so consumers that match
+    // live data to entities ignore them. The base show is unaffected.
+    const park = bgw([
+      {Id: 'fiends', ShowTimes: [slot('2026-09-26T15:00:00', '2026-09-26T15:25:00')]},
+      {Id: 'asl-fiends', ShowTimes: [slot('2026-09-26T17:00:00', '2026-09-26T17:25:00')]},
+    ]);
+    (park as any).getParkDetail = async () => { throw new Error('park detail unavailable'); };
+    const live = await (park as any).buildLiveData();
+    expect(live.find((r: any) => r.id === 'fiends').showtimes).toHaveLength(1);
+    expect(live.find((r: any) => r.id === 'asl-fiends').showtimes[0].type).toBe('Performance');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Walk-throughs the operator files under Shows
+// ---------------------------------------------------------------------------
+describe('walk-through attractions filed as Shows', () => {
+  const SPL_PARK_ID = 'F7408854-28CB-4B1E-98E5-4449FE600E85';
+  const TRAIL_ID = '56e4d407-e5ad-4e7c-8fba-40f5734c4747';
+
+  // Sanitised from the live Sesame Place Philadelphia payload. The trail and
+  // the concert share every classifying field: Type, a null SubType, the
+  // top-level Shows category with no Subcategory, empty tags, no showtimes.
+  const showPoi = (Id: string, Name: string, SubcategoryName: string | null) => ({
+    Id,
+    Name,
+    Type: 'Shows',
+    SubType: SubcategoryName,
+    ShowType: null,
+    FilterTags: [],
+    Tags: [],
+    ShowTimes: [],
+    Category: {
+      CategoryName: 'Shows',
+      Subcategory: SubcategoryName ? {SubcategoryName} : null,
+    },
+    Coordinate: {Latitude: 40.18, Longitude: -74.87},
+  });
+
+  const detail = {
+    Id: SPL_PARK_ID,
+    park_Name: 'Sesame Place Langhorne',
+    TimeZone: 'America/New_York',
+    map_center: {Latitude: 40.18, Longitude: -74.87},
+    POIs: {
+      Rides: [{Id: 'ride-1', Name: 'Vapor Trail', Type: 'Rides'}],
+      Shows: [
+        showPoi(TRAIL_ID, 'Trick-or-Treat Trail', null),
+        showPoi('show-concert', 'David Jack Concert', null),
+        showPoi('show-parade', 'The Sesame Street Halloween Parade', 'Presentations'),
+        showPoi('show-meet', 'Meet Elmo', 'Meet-and-Greets'),
+      ],
+      Dining: [],
+    },
+    open_hours: [],
+  };
+
+  async function entitiesFor(park: any) {
+    park.getParkDetail = async () => detail as any;
+    return await park.buildEntityList();
+  }
+
+  it('publishes the Trick-or-Treat Trail as an ATTRACTION under its existing id', async () => {
+    const entities = await entitiesFor(new SesamePlacePhiladelphia());
+    const trail = entities.find((e: any) => e.id === TRAIL_ID);
+    expect(trail).toMatchObject({
+      id: TRAIL_ID,
+      name: 'Trick-or-Treat Trail',
+      entityType: 'ATTRACTION',
+      attractionType: 'RIDE',
+      parentId: SPL_PARK_ID,
+      destinationId: 'sesameplacephiladelphia',
+    });
+  });
+
+  it('leaves real performances, parades and meet & greets as SHOW', async () => {
+    const entities = await entitiesFor(new SesamePlacePhiladelphia());
+    for (const id of ['show-concert', 'show-parade', 'show-meet']) {
+      const e = entities.find((x: any) => x.id === id);
+      expect(e?.entityType).toBe('SHOW');
+      expect((e as any).attractionType).toBeUndefined();
+    }
+  });
+
+  it('changes no ids and drops no entities', async () => {
+    const entities = await entitiesFor(new SesamePlacePhiladelphia());
+    const ids = entities.map((e: any) => e.id).sort();
+    expect(ids).toEqual(
+      ['sesameplacephiladelphia', SPL_PARK_ID, 'ride-1', TRAIL_ID, 'show-concert', 'show-parade', 'show-meet'].sort(),
+    );
+  });
+
+  it('is scoped to the destination that lists the id', async () => {
+    // Same POI id in another destination's payload stays a SHOW: the list is
+    // per destination, not a family-wide rule.
+    const other = new SesamePlaceSanDiego();
+    (other as any).getParkDetail = async () => ({...detail, Id: 'A988F4CE-6A81-4527-9535-DDB378689E52'}) as any;
+    const entities = await (other as any).buildEntityList();
+    expect(entities.find((e: any) => e.id === TRAIL_ID)?.entityType).toBe('SHOW');
   });
 });

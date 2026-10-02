@@ -1,0 +1,800 @@
+[
+ {
+  "id": 17,
+  "code": 1061,
+  "scopes": [
+   "rulantica"
+  ]
+ },
+ {
+  "id": 18,
+  "code": 1041,
+  "scopes": [
+   "rulantica"
+  ]
+ },
+ {
+  "id": 19,
+  "code": 1044,
+  "scopes": [
+   "rulantica"
+  ]
+ },
+ {
+  "id": 20,
+  "code": 1043,
+  "scopes": [
+   "rulantica"
+  ]
+ },
+ {
+  "id": 21,
+  "code": 1047,
+  "scopes": [
+   "rulantica"
+  ]
+ },
+ {
+  "id": 23,
+  "code": 975,
+  "scopes": [
+   "rulantica"
+  ]
+ },
+ {
+  "id": 32,
+  "code": 133,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 33,
+  "code": 420,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 102,
+  "code": 880,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 103,
+  "code": 621,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 108,
+  "code": 54,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 109,
+  "code": 52,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 110,
+  "code": 50,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 111,
+  "code": 53,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 112,
+  "code": 51,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 113,
+  "code": 481,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 114,
+  "code": 480,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 115,
+  "code": 498,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 123,
+  "code": 276,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 124,
+  "code": 273,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 126,
+  "code": 272,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 127,
+  "code": 275,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 128,
+  "code": 252,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 129,
+  "code": 270,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 130,
+  "code": 271,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 131,
+  "code": 277,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 138,
+  "code": 583,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 139,
+  "code": 581,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 140,
+  "code": 580,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 141,
+  "code": 499,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 146,
+  "code": 135,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 147,
+  "code": 134,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 149,
+  "code": 132,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 150,
+  "code": 130,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 154,
+  "code": 730,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 158,
+  "code": 530,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 160,
+  "code": 382,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 161,
+  "code": 380,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 165,
+  "code": 681,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 167,
+  "code": 680,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 171,
+  "code": 781,
+  "scopes": [
+   "hotel",
+   "europapark"
+  ]
+ },
+ {
+  "id": 172,
+  "code": 780,
+  "scopes": [
+   "hotel",
+   "europapark"
+  ]
+ },
+ {
+  "id": 213,
+  "code": 830,
+  "scopes": [
+   "europapark",
+   "resort"
+  ]
+ },
+ {
+  "id": 214,
+  "code": 959,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 215,
+  "code": 953,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 216,
+  "code": 952,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 227,
+  "code": 787,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 228,
+  "code": 788,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 229,
+  "code": 789,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 230,
+  "code": 782,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 278,
+  "code": 820,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 281,
+  "code": 920,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 283,
+  "code": 987,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 284,
+  "code": 976,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 285,
+  "code": 989,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 287,
+  "code": 990,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 289,
+  "code": 988,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 308,
+  "code": 622,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 320,
+  "code": 162,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 329,
+  "code": 960,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 330,
+  "code": 812,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 334,
+  "code": 732,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 345,
+  "code": 497,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 349,
+  "code": 855,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 352,
+  "code": 55,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 357,
+  "code": 206,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 358,
+  "code": 13,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 365,
+  "code": 783,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 367,
+  "code": 967,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 374,
+  "code": 970,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 404,
+  "code": 136,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 417,
+  "code": 695,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 418,
+  "code": 707,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 421,
+  "code": 996,
+  "scopes": [
+   "hotel",
+   "rulantica"
+  ]
+ },
+ {
+  "id": 422,
+  "code": 997,
+  "scopes": [
+   "hotel",
+   "rulantica"
+  ]
+ },
+ {
+  "id": 423,
+  "code": 998,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 445,
+  "code": 668,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 486,
+  "code": 1042,
+  "scopes": [
+   "rulantica"
+  ]
+ },
+ {
+  "id": 575,
+  "code": 47,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 583,
+  "code": 858,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 595,
+  "code": 881,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 601,
+  "code": 1046,
+  "scopes": [
+   "rulantica"
+  ]
+ },
+ {
+  "id": 602,
+  "code": 1045,
+  "scopes": [
+   "rulantica"
+  ]
+ },
+ {
+  "id": 605,
+  "code": null,
+  "scopes": [
+   "hotel",
+   "rulantica"
+  ]
+ },
+ {
+  "id": 606,
+  "code": null,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 609,
+  "code": 383,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 623,
+  "code": 1062,
+  "scopes": [
+   "rulantica"
+  ]
+ },
+ {
+  "id": 654,
+  "code": 2009,
+  "scopes": [
+   "traumatica"
+  ]
+ },
+ {
+  "id": 657,
+  "code": 2012,
+  "scopes": [
+   "traumatica"
+  ]
+ },
+ {
+  "id": 668,
+  "code": 2022,
+  "scopes": [
+   "traumatica"
+  ]
+ },
+ {
+  "id": 670,
+  "code": 2024,
+  "scopes": [
+   "traumatica"
+  ]
+ },
+ {
+  "id": 717,
+  "code": 1115,
+  "scopes": [
+   "traumatica"
+  ]
+ },
+ {
+  "id": 719,
+  "code": 1117,
+  "scopes": [
+   "traumatica"
+  ]
+ },
+ {
+  "id": 721,
+  "code": 1118,
+  "scopes": [
+   "traumatica"
+  ]
+ },
+ {
+  "id": 726,
+  "code": null,
+  "scopes": [
+   "eatrenalin",
+   "hotel"
+  ]
+ },
+ {
+  "id": 738,
+  "code": 1048,
+  "scopes": [
+   "rulantica"
+  ]
+ },
+ {
+  "id": 739,
+  "code": 1049,
+  "scopes": [
+   "rulantica"
+  ]
+ },
+ {
+  "id": 751,
+  "code": 1037,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 752,
+  "code": 921,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 775,
+  "code": 2040,
+  "scopes": [
+   "traumatica"
+  ]
+ },
+ {
+  "id": 777,
+  "code": 1122,
+  "scopes": [
+   "traumatica"
+  ]
+ },
+ {
+  "id": 787,
+  "code": 870,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 790,
+  "code": 1038,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 791,
+  "code": 872,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 843,
+  "code": 3005,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 844,
+  "code": null,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 850,
+  "code": 1060,
+  "scopes": [
+   "rulantica"
+  ]
+ },
+ {
+  "id": 862,
+  "code": null,
+  "scopes": [
+   "europapark"
+  ]
+ },
+ {
+  "id": 917,
+  "code": null,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 918,
+  "code": null,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 919,
+  "code": null,
+  "scopes": [
+   "hotel"
+  ]
+ },
+ {
+  "id": 932,
+  "code": 993,
+  "scopes": [
+   "backstage"
+  ]
+ },
+ {
+  "id": 943,
+  "code": null,
+  "scopes": [
+   "europapark"
+  ]
+ }
+]

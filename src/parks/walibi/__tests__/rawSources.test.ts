@@ -41,8 +41,8 @@ const saloon = {
 const restaurants = [saloon];
 
 const waitEntryOpen = {id: '45', status: 'open', time: 300};
-const waitEntryDown = {id: '99', status: 'Down'};
-const waitTimes = [waitEntryOpen, waitEntryDown];
+const waitEntryMaintenance = {id: '99', status: 'maintenance'};
+const waitTimes = [waitEntryOpen, waitEntryMaintenance];
 
 const day21 = {dayNumber: 21, openingHour: '10:00', closingHour: '18:00', closed: false, soldOut: false, customOpeningHourToDisplay: ''};
 const day22 = {dayNumber: 22, openingHour: '10:00', closingHour: '19:00', closed: false, soldOut: false};
@@ -73,9 +73,9 @@ describe('WalibiBelgium raw upstream pieces', () => {
     expect(rawOf(live[0])!.waitTimes).toBe(waitEntryOpen);
     expect(live[0].queue).toEqual({STANDBY: {waitTime: 5}});
 
-    expect(live[1].status).toBe('DOWN');
-    expect(rawOf(live[1])).toEqual({waitTimes: waitEntryDown});
-    expect(rawOf(live[1])!.waitTimes).toBe(waitEntryDown);
+    expect(live[1].status).toBe('REFURBISHMENT');
+    expect(rawOf(live[1])).toEqual({waitTimes: waitEntryMaintenance});
+    expect(rawOf(live[1])!.waitTimes).toBe(waitEntryMaintenance);
     expect(live[1].queue).toBeUndefined();
   });
 

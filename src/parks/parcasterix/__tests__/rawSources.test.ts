@@ -9,8 +9,9 @@ import type {WithRaw} from '../../../destination.js';
  * bills carries both. A show closed because the bill does not name it has no
  * piece at all. Every entity carries its POI entry from the offline package,
  * and every calendar day the package's calendar row together with the legend
- * row its hours were read from — the same pair on both sessions of a day.
- * Off, nothing carries anything.
+ * row its hours were read from — the same pair on both sessions of a day. A
+ * day whose type is a sentence carries its hours itself, so its calendar row
+ * stands alone. Off, nothing carries anything.
  */
 // 14:00 in Europe/Paris, inside the park's 10:00-18:00 day
 const NOW = new Date('2026-09-21T12:00:00Z');
@@ -133,6 +134,22 @@ describe('Parc Asterix raw upstream pieces', () => {
     expect(rawOf(daytime)).toEqual({packageZip: [calendarItems[1], labels[1]]});
     expect(rawOf(evening)!.packageZip).toBe(rawOf(daytime)!.packageZip);
     expect(evening.openingTime).toBe('2026-09-22T19:00:00+02:00');
+  });
+
+  it('attaches the calendar row alone to a day whose type is a sentence', () => {
+    const park = new ParcAsterix();
+    park.includeRaw = true;
+    const sentenceItem = {day: '2026-09-23 00:00:00', type: 'Parc ouvert de 10h à 19h'};
+    const {hoursMap, closedTypes, labelByType} = (park as any).parseCalendarLabels(labels);
+    const {entries} = (park as any).buildCalendarEntries([sentenceItem], hoursMap, closedTypes, labelByType);
+
+    expect(entries).toHaveLength(1);
+    const [day] = entries;
+    expect(day.type).toBe('OPERATING');
+    expect(day.openingTime).toBe('2026-09-23T10:00:00+02:00');
+    expect(day.closingTime).toBe('2026-09-23T19:00:00+02:00');
+    expect(rawOf(day)).toEqual({packageZip: sentenceItem});
+    expect(rawOf(day)!.packageZip).toBe(sentenceItem);
   });
 
   it('carries nothing when includeRaw is off', async () => {

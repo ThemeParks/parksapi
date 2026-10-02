@@ -4,9 +4,10 @@ import type {WithRaw} from '../../../destination.js';
 
 /**
  * With `includeRaw` on, every live row carries the queue object or show row
- * it was built from, every entity carries its place row, and every schedule
- * entry carries the venue-hours row for that month. Off, nothing carries
- * anything.
+ * it was built from (a show listed in both feeds that keeps its wait queue
+ * carries both, and a row the app gate closes carries the place row that
+ * closed it), every entity carries its place row, and every schedule entry
+ * carries the venue-hours row for that month. Off, nothing carries anything.
  */
 const NOW = new Date('2026-09-21T10:00:00Z');
 
@@ -22,15 +23,25 @@ const entryHidden = {wait_time_attraction_id: 'hidden-ride', resort_area_code: '
 const showWaterWorld = {
   show_id: 'water-world', name: 'Water World', status: 'OPEN',
   show_times: [
-    {show_time_id: 's1', status: 'ENABLED', start_time: '2026-09-21T11:00:00'},
-    {show_time_id: 's2', status: 'CANCELLED', start_time: '2026-09-21T15:00:00'},
+    // Real UTC instants: 11:00 and 15:00 in Osaka
+    {show_time_id: 's1', status: 'ENABLED', start_time: '2026-09-21T02:00:00.000Z'},
+    {show_time_id: 's2', status: 'CANCELLED', start_time: '2026-09-21T06:00:00.000Z'},
   ],
 };
 
 const hoursDay = {Date: '2026-09-30', OpenTimeString: '9:00 AM', CloseTimeString: '8:00 PM'};
 
+// A show listed in both feeds under one id, and the app-gated ride while the
+// app hides it (Web only)
+const showQueue = {queue_id: 'q3', queue_type: 'STANDBY', status: 'OPEN', display_wait_time: 20};
+const entryWaterWorld = {wait_time_attraction_id: 'water-world', resort_area_code: 'USJ', land_id: 'ww', name: 'Water World', venue_id: '10251', show_externally: true, category: 'show', queues: [showQueue]};
+const placeSpaceFantasy = {place_id: 'usj.usj.rides.space_fantasy_the_ride', name: 'Space Fantasy - The Ride', place_type: {type: 'Ride'}, channel_types: 'Web'};
+const entrySpaceFantasy = {wait_time_attraction_id: 'usj.usj.rides.space_fantasy_the_ride', resort_area_code: 'USJ', land_id: 'hw', name: 'Space Fantasy', venue_id: '10251', show_externally: true, category: 'ride', queues: [{queue_id: 'q4', queue_type: 'STANDBY', status: 'BRIEF_DELAY'}]};
+
+const WEB_API = {webApiBase: 'https://example.invalid/api', webApiKey: 'k', webApiSecret: 's'};
+
 function stubbedPark(includeRaw: boolean): UniversalStudiosJapan {
-  const park = new UniversalStudiosJapan();
+  const park = new UniversalStudiosJapan({config: WEB_API});
   park.includeRaw = includeRaw;
   vi.spyOn(park as any, 'getPlaces').mockResolvedValue([placeRide, placeShow, placeDining, placeOther]);
   vi.spyOn(park as any, 'getWaitTimeData').mockResolvedValue([entryDinosaur, entryHidden]);
@@ -69,6 +80,28 @@ describe('UniversalStudiosJapan raw upstream pieces', () => {
     expect(live[1].showtimes).toEqual([
       {type: 'PERFORMANCE_TIME', startTime: '2026-09-21T11:00:00+09:00', endTime: null},
     ]);
+  });
+
+  it('attaches both pieces to a show the two feeds list, and the place row to a row the app gate closes', async () => {
+    const park = new UniversalStudiosJapan({config: WEB_API});
+    park.includeRaw = true;
+    vi.spyOn(park as any, 'getPlaces').mockResolvedValue([placeShow, placeSpaceFantasy]);
+    vi.spyOn(park as any, 'getWaitTimeData').mockResolvedValue([entryWaterWorld, entrySpaceFantasy]);
+    vi.spyOn(park as any, 'getShowListData').mockResolvedValue([showWaterWorld]);
+    const live = await park.getLiveData();
+    expect(live.map((l) => l.id)).toEqual(['water-world', 'usj.usj.rides.space_fantasy_the_ride']);
+
+    // The show list owns status and showtimes, the wait feed the queue.
+    expect(live[0].status).toBe('OPERATING');
+    expect(live[0].queue).toEqual({STANDBY: {waitTime: 20}});
+    expect(rawOf(live[0])).toEqual({waitTimes: showQueue, showList: showWaterWorld});
+    expect(rawOf(live[0])!.waitTimes).toBe(showQueue);
+    expect(rawOf(live[0])!.showList).toBe(showWaterWorld);
+
+    // The app hides the ride, so the places feed closes it, whatever the wait feed says.
+    expect(live[1].status).toBe('CLOSED');
+    expect(rawOf(live[1])).toEqual({places: placeSpaceFantasy});
+    expect(rawOf(live[1])!.places).toBe(placeSpaceFantasy);
   });
 
   it('attaches the place row to each entity, nothing to the park', async () => {

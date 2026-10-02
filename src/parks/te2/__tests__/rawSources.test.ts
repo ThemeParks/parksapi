@@ -5,8 +5,8 @@ import type {WithRaw} from '../../../destination.js';
 import type {HTTPObj} from '../../../http.js';
 
 /**
- * With `includeRaw` on, every live ride row carries the status entry it was
- * built from, under the name of the endpoint that served it, and a show row
+ * With `includeRaw` on, every live ride row carries the POI status entry it
+ * was built from, and a show row
  * carries every calendar slot behind its showtimes. Entities carry the venue,
  * the POI entry or the calendar event they were built from, and every schedule
  * entry carries its day and the hours block inside it. Off, nothing carries
@@ -28,16 +28,11 @@ const stormPoi = {id: 'POI_STORM', name: 'Storm Coaster', type: 'Ride', location
 const dinerPoi = {id: 'POI_DINER', name: 'Dockside Diner', type: 'Dining', location: {lon: 153.4265, lat: -27.9578}};
 const jetSkiPoi = {id: 'POI_JETSKI', name: 'Jet Ski Spectacular', type: 'Shows', location: {lon: 153.4271, lat: -27.9581}};
 
-// Entries of the external ride-status feed, keyed back by a `te2_rideid:` tag
-const leviathanRide = {
-  tags: ['te2_rideid:POI_LEVIATHAN'], isOpen: true, waitTimeMins: 25,
-  queues: [{isPrimary: true, isOpen: true, waitTimeMins: 25}],
-};
-const stormRide = {tags: ['te2_rideid:POI_STORM'], isOpen: false, state: 'Closed', queues: []};
-const retiredRide = {tags: ['te2_rideid:POI_GONE'], isOpen: true, waitTimeMins: 5, queues: []};
-
-// Entry of the POI status endpoint, used when no ride-status URL is configured
-const leviathanStatus = {id: 'POI_LEVIATHAN', status: {isOpen: true, waitTime: 15}};
+// Entries of the POI status endpoint. A closed ride's waitTime counts down to
+// opening, so it is not a wait.
+const leviathanStatus = {id: 'POI_LEVIATHAN', status: {operationalStatus: 'OPEN', isOpen: true, waitTime: 25}};
+const stormStatus = {id: 'POI_STORM', status: {operationalStatus: 'CLOSED', isOpen: false, waitTime: 40}};
+const retiredStatus = {id: 'POI_GONE', status: {operationalStatus: 'OPEN', isOpen: true, waitTime: 5}};
 
 const dolphinEvent = {
   id: 'EVT_DOLPHIN', title: 'Dolphin Presentation',
@@ -62,24 +57,12 @@ function stubReaders(park: SeaWorldGoldCoast): void {
   vi.spyOn(park as any, 'getScheduleData').mockResolvedValue(scheduleData);
 }
 
-/** A park reading the external ride-status endpoint. */
 function stubbedPark(includeRaw: boolean): SeaWorldGoldCoast {
-  const park = new SeaWorldGoldCoast({config: {...CONFIG, rideStatusUrl: 'https://rides.example/status'}});
-  park.includeRaw = includeRaw;
-  stubReaders(park);
-  vi.spyOn(park as any, 'fetchRideStatus').mockResolvedValue({
-    json: async () => [leviathanRide, stormRide, retiredRide],
-  } as any as HTTPObj);
-  return park;
-}
-
-/** A park with no ride-status URL, falling back to the POI status endpoint. */
-function stubbedParkOnPOIStatus(includeRaw: boolean): SeaWorldGoldCoast {
-  const park = new SeaWorldGoldCoast({config: {...CONFIG, rideStatusUrl: ''}});
+  const park = new SeaWorldGoldCoast({config: CONFIG});
   park.includeRaw = includeRaw;
   stubReaders(park);
   vi.spyOn(park as any, 'fetchPOIStatus').mockResolvedValue({
-    json: async () => [leviathanStatus],
+    json: async () => [leviathanStatus, stormStatus, retiredStatus],
   } as any as HTTPObj);
   return park;
 }
@@ -99,27 +82,20 @@ describe('TE2 raw upstream pieces', () => {
     CacheLib.clear({includePersistent: true});
   });
 
-  it('attaches the ride-status entry to each live ride row', async () => {
+  it('attaches the POI status entry to each live ride row', async () => {
     const live = await stubbedPark(true).getLiveData();
     // The third feed entry has no entity of its own and never becomes a row.
     expect(live.map((l) => l.id)).toEqual(['POI_LEVIATHAN', 'POI_STORM', 'EVT_DOLPHIN']);
 
+    expect(live[0].status).toBe('OPERATING');
     expect(live[0].queue).toEqual({STANDBY: {waitTime: 25}});
     // The normalised entries are cached, so the piece is the feed entry as it
     // comes back out of the cache rather than the fixture object itself.
-    expect(rawOf(live[0])).toEqual({rideStatus: leviathanRide});
+    expect(rawOf(live[0])).toEqual({poiStatus: leviathanStatus});
 
     expect(live[1].status).toBe('CLOSED');
     expect(live[1].queue).toBeUndefined();
-    expect(rawOf(live[1])).toEqual({rideStatus: stormRide});
-  });
-
-  it('attaches the POI status entry when that is the endpoint in use', async () => {
-    const live = await stubbedParkOnPOIStatus(true).getLiveData();
-    expect(live.map((l) => l.id)).toEqual(['POI_LEVIATHAN', 'EVT_DOLPHIN']);
-
-    expect(live[0].queue).toEqual({STANDBY: {waitTime: 15}});
-    expect(rawOf(live[0])).toEqual({poiStatus: leviathanStatus});
+    expect(rawOf(live[1])).toEqual({poiStatus: stormStatus});
   });
 
   it('attaches every calendar slot behind a show row, in the order it publishes them', async () => {

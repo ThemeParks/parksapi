@@ -732,6 +732,48 @@ export class ParcAsterix extends Destination {
   }
 
   /**
+   * Read one legend text into the sessions it describes.
+   *
+   * Returns 'closed' when the text carries no clock time at all: that is the
+   * park saying there is no session that day ("Theme Park closed", "Parc
+   * fermé"). Returns an empty list when the text does carry a clock time but
+   * we could not pair it into a range. That is a legend we failed to read,
+   * which is a different thing and must never be published as a closure.
+   *
+   * Handles English ("10:00 a.m. to 6:00 p.m.", "7pm - 01am") and French
+   * ("10h - 18h", "Parc ouvert de 10h à 19h") wordings.
+   */
+  private readLegend(text: string): TimeRange[] | 'closed' {
+    const connector = '\\s*(?:-|–|to|à)\\s*';
+    const postfix = '(?:am|pm|a\\.m|p\\.m|h|hr)\\.?';
+    const withMinutes = `\\d+:\\d+\\s*${postfix}`;
+    const withoutMinutes = `\\d+\\s*${postfix}`;
+
+    // Built from the same tokens as the range patterns, so the two can never
+    // disagree about what a time looks like.
+    const anyTime = new RegExp(`(?:${withMinutes})|(?:${withoutMinutes})`, 'i');
+    if (!anyTime.test(text)) return 'closed';
+
+    const patterns = [
+      new RegExp(`(${withMinutes})${connector}(${withMinutes})`, 'gi'),
+      new RegExp(`(${withoutMinutes})${connector}(${withoutMinutes})`, 'gi'),
+    ];
+
+    for (const pattern of patterns) {
+      const matches = [...text.matchAll(pattern)];
+      if (matches.length === 0) continue;
+      return matches
+        .map((m) => ({
+          start: this.parseTimeString(m[1].trim())!,
+          end: this.parseTimeString(m[2].trim())!,
+        }))
+        .filter((r) => r.start && r.end);
+    }
+
+    return [];
+  }
+
+  /**
    * Parse calendar labels into a map of date type → time ranges.
    * Labels contain free-form text like:
    *   "10:00 a.m. to 6:00 p.m."
@@ -745,56 +787,46 @@ export class ParcAsterix extends Destination {
     // The legend row each day type's hours were read from.
     const labelByType: Record<string, SqliteLabel> = {};
 
-    const connector = '\\s*(?:-|to)\\s*';
-    const postfix = '(?:am|pm|a\\.m|p\\.m|h|hr)\\.?';
-    const withMinutes = `\\d+:\\d+\\s*${postfix}`;
-    const withoutMinutes = `\\d+\\s*${postfix}`;
-
-    const patterns = [
-      new RegExp(
-        `(${withMinutes})${connector}(${withMinutes})`,
-        'gi',
-      ),
-      new RegExp(
-        `(${withoutMinutes})${connector}(${withoutMinutes})`,
-        'gi',
-      ),
-    ];
-
-    // A legend carrying no clock time at all is the park saying there is no
-    // session that day — type D reads "Theme Park closed". One carrying clock
-    // times we then failed to pair into a range is a legend we could not read,
-    // which is a different thing and must never be published as a closure.
-    // Built from the same tokens as the range patterns, so the two can never
-    // disagree about what a time looks like.
-    const anyTime = new RegExp(`(?:${withMinutes})|(?:${withoutMinutes})`, 'i');
-
     for (const label of labels) {
       const key = label.key.replace('calendar.dateType.legend.', '');
       if (hoursMap[key]) continue;
 
-      if (!anyTime.test(label.value)) {
+      const read = this.readLegend(label.value);
+      if (read === 'closed') {
         closedTypes.add(key);
-        continue;
-      }
-
-      for (const pattern of patterns) {
-        const matches = label.value.match(pattern);
-        if (matches) {
-          hoursMap[key] = matches.map((m) => {
-            const parts = m.replace(/ to /g, '-').split('-');
-            return {
-              start: this.parseTimeString(parts[0].trim())!,
-              end: this.parseTimeString(parts[1].trim())!,
-            };
-          }).filter((r) => r.start && r.end);
-          labelByType[key] = label;
-          break;
-        }
+      } else {
+        hoursMap[key] = read;
+        labelByType[key] = label;
       }
     }
 
     return {hoursMap, closedTypes, labelByType};
+  }
+
+  /**
+   * Resolve a calendar day type to its sessions.
+   *
+   * The package has carried two shapes in `calendar_items.type`. It used to be
+   * a legend key ("H") looked up in the `calendar.dateType.legend.*` labels.
+   * Since September 2026 it is a French sentence ("Parc ouvert de 10h à 19h",
+   * "Parc fermé"), the same in every culture's database and matching no
+   * legend label's key or value, so the sentence itself is the only source of
+   * the day's hours.
+   *
+   * A legend key wins when one matches. Otherwise only text with a space in it
+   * is read as a sentence: a bare code with no legend entry is the old shape
+   * with a label missing, and it carries no clock time only because it carries
+   * no words. Reading that as a closure would shut an open park.
+   */
+  private resolveDayType(
+    type: string,
+    hoursMap: Record<string, TimeRange[]>,
+    closedTypes: Set<string>,
+  ): TimeRange[] | 'closed' {
+    if (Object.hasOwn(hoursMap, type)) return hoursMap[type];
+    if (closedTypes.has(type)) return 'closed';
+    if (!/\s/.test(type.trim())) return [];
+    return this.readLegend(type);
   }
 
   /**
@@ -810,8 +842,14 @@ export class ParcAsterix extends Destination {
     const closedDates = new Set<string>();
     const unreadable = new Map<string, number>();
 
+    const resolved = new Map<string, TimeRange[] | 'closed'>();
+
     for (const item of calendarItems) {
-      const hours = hoursMap[item.type];
+      let dayType = resolved.get(item.type);
+      if (dayType === undefined) {
+        dayType = this.resolveDayType(item.type, hoursMap, closedTypes);
+        resolved.set(item.type, dayType);
+      }
       // SQLite day field may include time portion ("2026-04-04 00:00:00")
       const dateStr = item.day.split(' ')[0];
 
@@ -824,20 +862,23 @@ export class ParcAsterix extends Destination {
       // An empty range list is the same case by a quieter route: a legend that
       // matched a pattern but whose ranges all failed to parse leaves `[]`,
       // which is truthy and would otherwise sail past a `!hours` check.
-      if (!hours || hours.length === 0) {
-        if (closedTypes.has(item.type)) {
-          closedDates.add(dateStr);
-        } else {
-          unreadable.set(item.type, (unreadable.get(item.type) ?? 0) + 1);
-        }
+      if (dayType === 'closed') {
+        closedDates.add(dateStr);
+        continue;
+      }
+      if (dayType.length === 0) {
+        unreadable.set(item.type, (unreadable.get(item.type) ?? 0) + 1);
         continue;
       }
 
-      // Both rows of the package are behind every day this item produces: the
-      // calendar row names the day, the legend row carries its hours.
-      const piece = [item, labelByType[item.type]];
+      // Every row of the package behind this day goes with each entry it
+      // produces: the calendar row names the day, and a legend row, when the
+      // day type is a legend key, carries its hours. A day type written as a
+      // sentence carries its hours itself, so the calendar row stands alone.
+      const label = Object.hasOwn(labelByType, item.type) ? labelByType[item.type] : undefined;
+      const piece = label ? [item, label] : item;
 
-      for (const range of hours) {
+      for (const range of dayType) {
         if (!range.start || !range.end) continue;
 
         let openingType = 'OPERATING';

@@ -59,6 +59,19 @@ function extractName(name: string | Record<string, string> | undefined): string 
   return first ? first.trim() : '';
 }
 
+/**
+ * Leading circled map numbers some parks prefix to item names: LEGOLAND Japan
+ * started publishing "⑰Driving School" and "㉒Merlin's Challenge" in September
+ * 2026, keying names to its park-map legend. The number is not part of the
+ * name, and changing it would rename the entity whenever the map is redrawn.
+ * Covers ①-⑳ (U+2460-2473), ㉑-㉟ (U+3251-325F) and ㊱-㊿ (U+32B1-32BF).
+ */
+const CIRCLED_NUMBER_PREFIX = /^[\u2460-\u2473\u3251-\u325F\u32B1-\u32BF]+\s*/u;
+
+export function stripMapNumberPrefix(name: string): string {
+  return name.replace(CIRCLED_NUMBER_PREFIX, '');
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Category names used for entity classification
 // ─────────────────────────────────────────────────────────────────────────────
@@ -100,6 +113,37 @@ const RESTAURANT_CATEGORIES = [
   'Ice cream, coffee & treats',
   'Barbecue & food from home',
 ];
+
+/**
+ * How long after the last asset pack that contained it an item can stay
+ * published while the live feed still schedules or runs it (see
+ * getPackDropGraceItems).
+ *
+ * The asset pack is a content export, and it is occasionally republished
+ * without rides that are still running: a seasonal re-theme of the app can
+ * drop most of a park's ride list while the live feed keeps scheduling every
+ * one of them for the day. Fourteen days covers two full weekly content cycles
+ * for the operator to republish the pack, and is short enough that a genuine
+ * retirement the live feed keeps carrying (it does not prune old records)
+ * stops being published within two weeks of leaving the pack.
+ */
+export const PACK_DROP_GRACE_DAYS = 14;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const PACK_DROP_GRACE_MS = PACK_DROP_GRACE_DAYS * DAY_MS;
+
+/**
+ * The park-local dates, relative to today, a live-feed OpeningTimes range may
+ * fall in for a dropped item to count as scheduled. The feed carries a single
+ * day and rolls over to the next operating day during the evening, and on a
+ * closed day it shows the next open one, so "today" alone would drop kept
+ * rides every night and on every closed day. The pack window above is what
+ * keeps long-retired items out, not this range.
+ */
+const PACK_DROP_SCHEDULE_FROM_DAYS = -1;
+const PACK_DROP_SCHEDULE_TO_DAYS = 7;
+
+/** How long one evaluation of the grace set is reused within a build. */
+const PACK_DROP_GRACE_MEMO_MS = 60 * 1000;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API response types
@@ -311,6 +355,33 @@ function isOpenNow(hours: LiveTimeSlot[], nowMs: number): boolean {
   });
 }
 
+/**
+ * Whether a live-feed `OpeningTimes` value schedules the item on `date`
+ * (park-local YYYY-MM-DD): some range starts on or before that date and ends
+ * on or after it. Slot bounds are park-local ISO strings, so their date part is
+ * the park's calendar date.
+ */
+export function isScheduledOnDate(raw: string | null | undefined, timezone: string, date: string): boolean {
+  return isScheduledBetween(raw, timezone, date, date);
+}
+
+/**
+ * Whether a live-feed `OpeningTimes` value has a range overlapping the
+ * park-local dates `from`..`to` (YYYY-MM-DD, inclusive).
+ */
+export function isScheduledBetween(
+  raw: string | null | undefined,
+  timezone: string,
+  from: string,
+  to: string,
+): boolean {
+  return parseLiveOpeningTimes(raw, timezone).some(slot => {
+    const start = slot.startTime?.slice(0, 10);
+    const end = slot.endTime?.slice(0, 10);
+    return !!start && !!end && start <= to && from <= end;
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Show schedules (`ShowTimes` recurring-schedule algebra)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -456,6 +527,41 @@ export function parseShowTimes(raw: string | null | undefined): ShowTimeNode | n
   } catch {
     return null;
   }
+}
+
+/**
+ * Shortest daily window that still reads as opening hours rather than a
+ * performance. Only consulted inside a park's walk-through categories (see
+ * getWalkThroughCategories), where the alternative is a keeper talk or feed:
+ * those run in short slots, while an animal area open for the day publishes
+ * one multi-hour window. Elsewhere long windows are normal for real shows
+ * (hotel entertainment, all-afternoon programmes), so this is not a general
+ * show/attraction test.
+ */
+const OPENING_WINDOW_MIN_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * True when a ShowTimes tree describes opening hours, not performances: it has
+ * at least one daily `period` (period_length of exactly one day) and every
+ * daily period's window is at least {@link OPENING_WINDOW_MIN_MS} long. A
+ * point-in-time period (no range_length) or a short slot is a performance.
+ * Weekly periods and ranges only pick which days apply, so they are ignored.
+ */
+export function isOpeningWindowSchedule(node: ShowTimeNode | null): boolean {
+  if (!node) return false;
+  const dailyWindows: number[] = [];
+  const walk = (n: ShowTimeNode): void => {
+    if (!n || typeof n !== 'object') return;
+    if (n.type === 'period') {
+      if (showTimeDurationMs(n.period_length) === SHOWTIME_DAY_MS) {
+        dailyWindows.push(showTimeDurationMs(n.range_length));
+      }
+      return;
+    }
+    if ('children' in n && Array.isArray(n.children)) n.children.forEach(walk);
+  };
+  walk(node);
+  return dailyWindows.length > 0 && dailyWindows.every(ms => ms >= OPENING_WINDOW_MIN_MS);
 }
 
 /**
@@ -936,6 +1042,112 @@ class AttractionsIOV1 extends Destination {
   }
 
   /**
+   * Item records soft-deleted from the store whose last containing pack is no
+   * older than `sinceMs`, as they were last published.
+   *
+   * `last_version` is the manifest version of the newest pack that still held
+   * the item: an upstream timestamp. `removed_at` is only when this store
+   * noticed, which for a store that has not synced in weeks is long after the
+   * item really left, so the window is measured from the pack, not from it.
+   * An unparseable version never qualifies.
+   */
+  private _readItemsDroppedFromPacksSince(sinceMs: number): RecordItem[] {
+    const rows = database
+      .prepare(
+        "SELECT data, last_version FROM attractionsio_entities WHERE park_id = ? AND record_type = 'Item' " +
+        'AND removed_at IS NOT NULL',
+      )
+      .all(this.destinationId) as {data: string; last_version: string}[];
+    const items: RecordItem[] = [];
+    for (const row of rows) {
+      const packAt = Date.parse(row.last_version);
+      if (!Number.isFinite(packAt) || packAt < sinceMs) continue;
+      try {
+        items.push(JSON.parse(row.data));
+      } catch {
+        // A corrupt stored row is skipped, not fatal.
+      }
+    }
+    return items;
+  }
+
+  /** Memo of the last grace evaluation: {at, items}. */
+  private _packDropGraceMemo: {at: number; items: Promise<RecordItem[]>} | null = null;
+
+  /**
+   * Items the asset pack dropped recently that the live feed still runs.
+   *
+   * An item qualifies only when both hold:
+   *   - the last pack that contained it is within PACK_DROP_GRACE_DAYS of now
+   *     (its manifest version, an upstream timestamp), and
+   *   - the live feed either carries it with an OpeningTimes range between
+   *     yesterday and a week ahead, park-local, or reports it
+   *     IsOperational: true.
+   *
+   * Neither condition is enough alone. The live feed keeps records for items
+   * retired long ago, some still with a daily OpeningTimes, so the feed cannot
+   * vouch for an item by itself; and an item the feed neither schedules nor
+   * runs has no evidence it is still running. Items that never reached the
+   * store, or whose last pack is older than the window, are never revived,
+   * however recently this store noticed them missing. Once the window passes
+   * or the feed stops carrying the item as scheduled or running, it drops out
+   * as any other removal does.
+   */
+  protected async getPackDropGraceItems(): Promise<RecordItem[]> {
+    // A build classifies items many times over; evaluate the grace set once
+    // per short window instead of re-reading the store and the feed each time.
+    const now = Date.now();
+    const memo = this._packDropGraceMemo;
+    if (memo && now >= memo.at && now - memo.at < PACK_DROP_GRACE_MEMO_MS) return memo.items;
+    const items = this._evaluatePackDropGraceItems(now);
+    this._packDropGraceMemo = {at: now, items};
+    return items;
+  }
+
+  /**
+   * One evaluation of the grace set. Never throws: the window is a best-effort
+   * addition to the pack, so a store or feed failure leaves the entity list
+   * equal to the pack rather than failing the build.
+   */
+  private async _evaluatePackDropGraceItems(now: number): Promise<RecordItem[]> {
+    try {
+      const dropped = this._readItemsDroppedFromPacksSince(now - PACK_DROP_GRACE_MS);
+      if (dropped.length === 0) return [];
+
+      const resp = await this.fetchLiveData();
+      const raw: LiveDataResponse = await resp.json();
+      const records: LiveDataRecord[] = raw?.entities?.Item?.records ?? [];
+      const from = formatDate(new Date(now + PACK_DROP_SCHEDULE_FROM_DAYS * DAY_MS), this.timezone);
+      const to = formatDate(new Date(now + PACK_DROP_SCHEDULE_TO_DAYS * DAY_MS), this.timezone);
+      const running = new Set(
+        records
+          .filter(r => r.IsOperational === true || isScheduledBetween(r.OpeningTimes, this.timezone, from, to))
+          .map(r => r._id),
+      );
+      return dropped.filter(item => running.has(item._id));
+    } catch (error) {
+      console.warn(
+        `[AttractionsIOV1] ${this.destinationId}: pack-drop grace window skipped, publishing the pack as-is: ` +
+        (error instanceof Error ? error.message : String(error)),
+      );
+      return [];
+    }
+  }
+
+  /**
+   * The records entities are built from: the current pack, plus any item kept
+   * by the pack-drop grace window (getPackDropGraceItems). Categories and the
+   * resort come from the current pack only.
+   */
+  protected async getCatalogue(): Promise<RecordsData> {
+    const data = await this.getPOIData();
+    const grace = await this.getPackDropGraceItems();
+    if (grace.length === 0) return data;
+    const current = new Set(data.Item.map(item => item._id));
+    return {...data, Item: [...data.Item, ...grace.filter(item => !current.has(item._id))]};
+  }
+
+  /**
    * Diff incoming records against the SQLite store and apply changes.
    * New records are inserted, existing records are updated (and un-deleted
    * if they were previously soft-deleted), and records not present in the
@@ -1061,7 +1273,7 @@ class AttractionsIOV1 extends Destination {
       allCatIds.push(...ids);
     }
 
-    const data = await this.getPOIData();
+    const data = await this.getCatalogue();
     return data.Item.filter(item => item.Category !== undefined && allCatIds.includes(item.Category));
   }
 
@@ -1071,6 +1283,39 @@ class AttractionsIOV1 extends Destination {
    */
   protected getShowCategories(): string[] {
     return SHOW_CATEGORIES;
+  }
+
+  /**
+   * Category names (matched with their immediate children, as for the other
+   * lists) whose scheduled items are walk-through areas when their schedule is
+   * an opening window rather than performances. Empty by default; a park opts
+   * in with the category its own feed uses.
+   */
+  protected getWalkThroughCategories(): string[] {
+    return [];
+  }
+
+  /**
+   * Items published as walk-through ATTRACTIONs: filed under one of this
+   * park's walk-through categories, not claimed by the attraction, show or
+   * restaurant lists, and carrying a ShowTimes schedule that is an opening
+   * window (see isOpeningWindowSchedule). A scheduled keeper talk in the same
+   * category has short slots and stays a SHOW.
+   */
+  private async getWalkThroughItems(): Promise<RecordItem[]> {
+    const categories = this.getWalkThroughCategories();
+    if (categories.length === 0) return [];
+    const listed = new Set(
+      (await this.getItemsForCategories([
+        ...ATTRACTION_CATEGORIES,
+        ...this.getShowCategories(),
+        ...RESTAURANT_CATEGORIES,
+      ])).map(item => item._id),
+    );
+    const items = await this.getItemsForCategories(categories);
+    return items.filter(item =>
+      !listed.has(item._id) && isOpeningWindowSchedule(parseShowTimes(item.ShowTimes)),
+    );
   }
 
   // ── Live data ─────────────────────────────────────────────────────────────
@@ -1138,7 +1383,7 @@ class AttractionsIOV1 extends Destination {
   }
 
   protected async buildEntityList(): Promise<Entity[]> {
-    const data = await this.getPOIData();
+    const data = await this.getCatalogue();
 
     if (!data.Resort || data.Resort.length === 0) {
       throw new Error(`No resort data for ${this.destinationId}`);
@@ -1180,12 +1425,43 @@ class AttractionsIOV1 extends Destination {
       buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'RESTAURANT', this.includeRaw)
     );
 
+    // Scheduled performances under a category none of the lists name. Seasonal
+    // content lives in categories no fixed list can anticipate (Chessington's
+    // top-level "Howl’o’ween " / "Summer ", Legoland Korea's "Season Content",
+    // Legoland California's "Brick or Treat" > "SHOWS"), but the item's own
+    // ShowTimes schedule marks it as a performance. There is no equivalent
+    // signal for rides: a height requirement also sits on Thorpe Park's
+    // per-ride "Ride Access Pass" duplicates, so unlisted items without a
+    // schedule stay unclassified.
+    const classified = new Set(
+      [...attractionItems, ...showItems, ...restaurantItems].map(item => item._id),
+    );
+
+    // Walk-through areas the park files in a category of their own with an
+    // opening-hours schedule. Taken before the scheduled-show fallback, which
+    // would otherwise read that schedule as performances. attractionType is
+    // explicit: RIDE is what every other walk-through in this library carries,
+    // and the base class would otherwise default to it silently.
+    const walkThroughItems = await this.getWalkThroughItems();
+    const walkThroughEntities = walkThroughItems.map(item => {
+      const entity = buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'ATTRACTION');
+      (entity as Entity & {attractionType?: string}).attractionType = 'RIDE';
+      return entity;
+    });
+    for (const item of walkThroughItems) classified.add(item._id);
+
+    const scheduledShowEntities = data.Item
+      .filter(item => !classified.has(item._id) && parseShowTimes(item.ShowTimes) !== null)
+      .map(item => buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'SHOW'));
+
     return [
       ...await this.getDestinations(),
       parkEntity,
       ...attractionEntities,
+      ...walkThroughEntities,
       ...showEntities,
       ...restaurantEntities,
+      ...scheduledShowEntities,
     ];
   }
 
@@ -1202,8 +1478,17 @@ class AttractionsIOV1 extends Destination {
    */
   protected async buildLiveData(): Promise<LiveData[]> {
     const entities = await this.getEntities();
+    // Walk-through areas publish their hours as a schedule, and the live feed
+    // carries no usable signal for them (Chessington's Wanyama Village sits in
+    // it at IsOperational:false with no OpeningTimes, whatever the time of
+    // day). Their status comes from that schedule instead, as it did while
+    // they were published as shows, so they are kept out of the ride branch.
+    const walkThroughItems = await this.getWalkThroughItems();
+    const walkThroughIds = new Set(walkThroughItems.map(item => String(item._id)));
     const attractionIds = new Set(
-      entities.filter(e => e.entityType === 'ATTRACTION').map(e => e.id),
+      entities
+        .filter(e => e.entityType === 'ATTRACTION' && !walkThroughIds.has(e.id))
+        .map(e => e.id),
     );
     const restaurantIds = new Set(
       entities.filter(e => e.entityType === 'RESTAURANT').map(e => e.id),
@@ -1286,7 +1571,7 @@ class AttractionsIOV1 extends Destination {
     // ShowTimes schedule in the records data (not the live feed)
     if (showIds.size > 0) {
       const today = formatDate(new Date(), this.timezone);
-      const poi = await this.getPOIData();
+      const poi = await this.getCatalogue();
       for (const item of poi.Item) {
         const id = String(item._id);
         if (!showIds.has(id)) continue;
@@ -1321,6 +1606,27 @@ class AttractionsIOV1 extends Destination {
         };
         if (showtimes.length > 0) entry.showtimes = showtimes;
         liveData.push(this.addRaw(entry, 'poiData', item));
+      }
+    }
+
+    // Walk-throughs: OPERATING while "now" sits inside one of today's opening
+    // windows, CLOSED otherwise; today's windows are published as
+    // operatingHours. Only ids that made it into the entity list are emitted.
+    if (walkThroughIds.size > 0) {
+      const today = formatDate(new Date(), this.timezone);
+      const nowMs = Date.now();
+      for (const item of walkThroughItems) {
+        const id = String(item._id);
+        if (!entities.some(e => e.id === id && e.entityType === 'ATTRACTION')) continue;
+        let hours: LiveTimeSlot[];
+        try {
+          hours = showTimesForDate(item.ShowTimes, today, this.timezone, 'OPERATING');
+        } catch {
+          continue;
+        }
+        const entry: LiveData = {id, status: isOpenNow(hours, nowMs) ? 'OPERATING' : 'CLOSED'};
+        if (hours.length > 0) entry.operatingHours = hours;
+        liveData.push(entry);
       }
     }
 
@@ -1445,7 +1751,7 @@ function buildItemEntity(
 ): Entity {
   const entity: Entity = {
     id: String(item._id),
-    name: extractName(item.Name),
+    name: stripMapNumberPrefix(extractName(item.Name)),
     entityType,
     parentId: parkId,
     parkId,
@@ -1551,6 +1857,18 @@ export class ChessingtonWorldOfAdventures extends AttractionsIOV1 {
         ...options?.config,
       },
     });
+  }
+
+  /**
+   * Chessington files its zoo in a top-level "Zoo Encounters" category that
+   * mixes walk-through animal areas (Wanyama Village, Trail of the Kings, the
+   * aquarium) with keeper talks. Its "Zoo Areas" and "Animal Talks" child
+   * categories exist but are empty; every item sits on the parent. The areas
+   * that carry a schedule publish one multi-hour daily window, which is what
+   * separates them from a talk.
+   */
+  protected getWalkThroughCategories(): string[] {
+    return ['Zoo Encounters'];
   }
 }
 

@@ -6,7 +6,9 @@ import type {WithRaw} from '../../../destination.js';
  * With `includeRaw` on, a ride row carries its wait-time row and the park's
  * published hours, which decide how a reading is read, a show row its
  * show-times row and the same hours, and a ride marked for refurbishment from
- * its name carries nothing, because no response mentioned it. Entities carry
+ * its name carries nothing, because no response mentioned it. A show that
+ * takes in an ASL listing's or a same-name copy's performances carries every
+ * show-times row behind it, as a list. Entities carry
  * the park document or their own POI entry, a schedule day the hours blocks of
  * that day, as a list where a day has more than one. Off, nothing carries
  * anything.
@@ -46,6 +48,20 @@ const showRow = {
 };
 const availability = {WaitTimes: [waitRow], ShowTimes: [showRow]};
 
+// An ASL listing and a same-name copy of the show, both folded into show-001
+const aslPoi = {Id: 'show-002', Name: 'ASL - Dolphin Adventures', Type: 'Shows'};
+const copyPoi = {Id: 'show-003', Name: 'Dolphin Adventures', Type: 'Shows'};
+const aslRow = {
+  Id: 'show-002',
+  ShowTimes: [{
+    StartDateTime: '2026-08-15T23:00:00Z',
+    EndDateTime: '2026-08-15T23:30:00Z',
+    StartTime: '2026-08-15T16:00:00',
+    EndTime: '2026-08-15T16:30:00',
+  }],
+};
+const copyRow = {Id: 'show-003', ShowTimes: showRow.ShowTimes};
+
 function stubbedPark(includeRaw: boolean): SeaworldSanDiego {
   const park = new SeaworldSanDiego();
   park.includeRaw = includeRaw;
@@ -83,6 +99,30 @@ describe('SeaWorld raw upstream pieces', () => {
     // Refurbishment read off the entity name: no response mentioned this ride.
     expect(live[2].status).toBe('REFURBISHMENT');
     expect(rawOf(live[2])).toBeUndefined();
+  });
+
+  it('attaches every show-times row folded into a show, as a list', async () => {
+    const park = new SeaworldSanDiego();
+    park.includeRaw = true;
+    vi.spyOn(park as any, 'getParkDetail').mockResolvedValue({
+      ...parkDetail,
+      POIs: {...parkDetail.POIs, Shows: [showPoi, aslPoi, copyPoi]},
+    });
+    vi.spyOn(park as any, 'getAvailability').mockResolvedValue({WaitTimes: [], ShowTimes: [showRow, aslRow, copyRow]});
+    const live = await park.getLiveData();
+    expect(live.map((l) => l.id)).toEqual(['show-001', 'ride-002']);
+
+    const [show] = live;
+    // The copy repeats the base show's slot, which is published once.
+    expect(show.showtimes!.map((t) => [t.startTime, t.type])).toEqual([
+      ['2026-08-15T15:00:00-07:00', 'Performance'],
+      ['2026-08-15T16:00:00-07:00', 'Performance - ASL'],
+    ]);
+    expect(rawOf(show)).toEqual({availabilityShowTimes: [showRow, aslRow, copyRow], parkDetail: parkDetail.open_hours});
+    const rows = rawOf(show)!.availabilityShowTimes as unknown[];
+    expect(rows[0]).toBe(showRow);
+    expect(rows[1]).toBe(aslRow);
+    expect(rows[2]).toBe(copyRow);
   });
 
   it('attaches the POI entry to each child, nothing to the destination or the park', async () => {

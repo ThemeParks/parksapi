@@ -1,4 +1,4 @@
-import {describe, test, expect, beforeAll} from 'vitest';
+import {describe, test, expect, beforeAll, afterEach, vi} from 'vitest';
 import {
   parseBusinessTime,
   stripFantawildStars,
@@ -274,6 +274,26 @@ describe('stripFantawildStars', () => {
   });
 });
 
+describe('stripFantawildStars invisible fillers', () => {
+  // Fantawild Oriental Heritage Mianyang names from 2026-09, with a trailing
+  // U+3164 HANGUL FILLER that renders as blank space.
+  test.each([
+    ['飞天团子\u3164', '飞天团子'],
+    ['马戏大狂欢[过山车]\u3164', '马戏大狂欢[过山车]'],
+    ['超级大摆锤\u3164', '超级大摆锤'],
+    ['孟姜女⭐⭐\u3164', '孟姜女'],
+    ['\u200B秦陵历险\uFEFF', '秦陵历险'],
+  ])('%j is cleaned', (input, expected) => {
+    expect(stripFantawildStars(input)).toBe(expected);
+  });
+
+  test('leaves ordinary names alone, including real Hangul', () => {
+    for (const name of ['飞越狗熊岭[过山车]', '파라오의 분노', '熊出没剧场【熊大推荐】']) {
+      expect(stripFantawildStars(name)).toBe(name);
+    }
+  });
+});
+
 const baseItem = (overrides: Partial<FantawildItem> = {}): FantawildItem => ({
   parkId: 19, id: 1, itemName: 'Test', waitTime: 0, itemOpened: true,
   statusStr: null, showTimeList: [], featureList: [], ...overrides,
@@ -289,10 +309,39 @@ describe('isFantawildShow', () => {
     expect(isFantawildShow(baseItem({showTimeList: ['10:30', '11:30', '12:30', '13:30']}))).toBe(true);
   });
 
-  test('respects 真人表演 feature tag even with range-shaped times', () => {
+  test('respects 真人表演 feature tag even with several session windows', () => {
+    // Real shape: a water show at Dreamland Zhuzhou, run in three sessions.
     expect(isFantawildShow(baseItem({
-      showTimeList: ['09:00-21:00'],
-      featureList: ['真人表演', '观赏'],
+      showTimeList: ['10:00-11:45', '13:30-17:30', '18:30-19:30'],
+      featureList: ['真人表演'],
+    }))).toBe(true);
+  });
+
+  test('respects 真人表演 feature tag with discrete showtimes or none', () => {
+    expect(isFantawildShow(baseItem({
+      showTimeList: ['11:30', '14:30', '17:00'],
+      featureList: ['必玩', '真人表演', '观赏'],
+    }))).toBe(true);
+    expect(isFantawildShow(baseItem({
+      showTimeList: [],
+      featureList: ['真人表演', '观赏', '需提前入场'],
+    }))).toBe(true);
+  });
+
+  test('a live-actor item open in one all-day window is a walk-through, not a show', () => {
+    // Real shape (Glorious Orient Jining, item 2016): a haunted-school scare
+    // maze with live actors, published with the park's operating window.
+    expect(isFantawildShow(baseItem({
+      parkId: 87, id: 2016, itemName: '南洋诡校（增值体验）',
+      showTimeList: ['09:30-21:00'],
+      featureList: ['刺激', '惊吓', '真人表演'],
+    }))).toBe(false);
+  });
+
+  test('a parade is a SHOW even with a single window', () => {
+    expect(isFantawildShow(baseItem({
+      showTimeList: ['09:30-21:00'],
+      featureList: ['巡游'],
     }))).toBe(true);
   });
 
@@ -534,3 +583,150 @@ describe('Fantawild.getStableRoster', () => {
   });
 });
 
+
+describe('Fantawild.buildEntityList walk-through classification', () => {
+  // Sanitised from the live Glorious Orient Jining (parkId 87) roster.
+  const JINING = 87;
+  const roster = [
+    {parkId: JINING, id: 2016, itemName: '南洋诡校（增值体验）', waitTime: 0, itemOpened: true, statusStr: null,
+      showTimeList: ['09:30-21:00'], featureList: ['刺激', '惊吓', '真人表演'], latitude: 35.33, longitude: 116.69},
+    {parkId: JINING, id: 1714, itemName: '圆明园【盛世遗韵】', waitTime: 0, itemOpened: true, statusStr: null,
+      showTimeList: ['11:30', '14:30', '17:00'], featureList: ['必玩', '真人表演', '观赏']},
+    {parkId: JINING, id: 2295, itemName: '沪上风云', waitTime: 0, itemOpened: true, statusStr: null,
+      showTimeList: ['18:00'], featureList: ['必玩', '真人表演', '观赏']},
+    {parkId: JINING, id: 2015, itemName: '真人CS（增值体验）', waitTime: 0, itemOpened: true, statusStr: null,
+      showTimeList: ['09:30-21:00'], featureList: ['刺激', '人偶互动']},
+  ];
+
+  async function entities() {
+    const {Fantawild} = await import('../fantawild.js');
+    const d = new Fantawild({config: {
+      baseUrl: 'https://image.fangte.com',
+      apiBaseUrl: 'https://leyou.fangte.com',
+    }});
+    (d as any).getStableRoster = async (parkId: number) => (parkId === JINING ? roster : []);
+    return await (d as any).buildEntityList() as any[];
+  }
+
+  test('the haunted school is an ATTRACTION under its existing id', async () => {
+    const e = (await entities()).find(x => x.id === 'fantawild_attraction_87_2016');
+    expect(e).toMatchObject({
+      id: 'fantawild_attraction_87_2016',
+      name: '南洋诡校（增值体验）',
+      entityType: 'ATTRACTION',
+      attractionType: 'RIDE',
+      parkId: 'fantawild_park_87',
+    });
+  });
+
+  test('scheduled live performances stay SHOW', async () => {
+    const all = await entities();
+    for (const id of ['fantawild_attraction_87_1714', 'fantawild_attraction_87_2295']) {
+      const e = all.find(x => x.id === id);
+      expect(e.entityType).toBe('SHOW');
+      expect(e.attractionType).toBeUndefined();
+    }
+  });
+
+  test('ids are unchanged and nothing is dropped', async () => {
+    const ids = (await entities()).filter(x => x.parkId === 'fantawild_park_87').map(x => x.id).sort();
+    expect(ids).toEqual([
+      'fantawild_attraction_87_1714',
+      'fantawild_attraction_87_2015',
+      'fantawild_attraction_87_2016',
+      'fantawild_attraction_87_2295',
+    ]);
+  });
+});
+
+describe('Fantawild sticky SHOW classification', () => {
+  // The feed changes showTimeList's shape for the same item from day to day.
+  // Real rows for 熊出没剧场 (Fantawild Park Xuzhou, parkId 105, item 1455):
+  // discrete performances on one day, a single all-day window on 2026-09-27.
+  const XUZHOU = 105;
+  const theatreWithShows = {parkId: XUZHOU, id: 1455, itemName: '熊出没剧场【熊大推荐】', waitTime: 0, itemOpened: true,
+    statusStr: null, showTimeList: ['11:00', '13:00', '15:00', '17:00'], featureList: ['3D/4D', '观赏']};
+  const theatreAllDay = {...theatreWithShows, showTimeList: ['11:00-20:00']};
+  // A ride that never publishes discrete times (Tai'an 转转杯, same day).
+  const teacups = {parkId: XUZHOU, id: 554, itemName: '转转杯【旋转游乐】', waitTime: 0, itemOpened: true,
+    statusStr: null, showTimeList: ['09:30-20:40'], featureList: ['舒缓', '旋转', '亲子']};
+
+  const DAY1 = new Date('2026-09-20T04:00:00Z');
+
+  async function dest() {
+    const {Fantawild} = await import('../fantawild.js');
+    return new Fantawild({config: {baseUrl: 'https://image.fangte.com', apiBaseUrl: 'https://leyou.fangte.com'}});
+  }
+
+  // Unique parkIds per test: the cache is process-global.
+  let nextPark = 9_100_000;
+  function item(base: any) {
+    return {...base, parkId: nextPark};
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test('a show seen with discrete times stays a SHOW on an all-day-window day', async () => {
+    vi.useFakeTimers({now: DAY1, toFake: ['Date']});
+    const d = await dest();
+    const park = ++nextPark;
+    expect((d as any).isStickyShow(park, item(theatreWithShows))).toBe(true);
+    vi.setSystemTime(new Date(DAY1.getTime() + 24 * 3600 * 1000));
+    expect((d as any).isStickyShow(park, item(theatreAllDay))).toBe(true);
+  });
+
+  test('never caches FALSE: an all-day-window day does not lock a later show out', async () => {
+    const d = await dest();
+    const park = ++nextPark;
+    expect((d as any).isStickyShow(park, item(theatreAllDay))).toBe(false);
+    expect((d as any).isStickyShow(park, item(theatreWithShows))).toBe(true);
+  });
+
+  test('a ride never seen with discrete times stays an ATTRACTION', async () => {
+    const d = await dest();
+    const park = ++nextPark;
+    expect((d as any).isStickyShow(park, item(teacups))).toBe(false);
+    expect((d as any).isStickyShow(park, item(teacups))).toBe(false);
+  });
+
+  test('memory is per park and per item', async () => {
+    const d = await dest();
+    const park = ++nextPark;
+    expect((d as any).isStickyShow(park, item(theatreWithShows))).toBe(true);
+    expect((d as any).isStickyShow(park + 1, item(theatreAllDay))).toBe(false);
+    expect((d as any).isStickyShow(park, item({...theatreAllDay, id: 9999}))).toBe(false);
+  });
+
+  test('falls back to the feed after 30 days without a SHOW sighting', async () => {
+    vi.useFakeTimers({now: DAY1, toFake: ['Date']});
+    const d = await dest();
+    const park = ++nextPark;
+    expect((d as any).isStickyShow(park, item(theatreWithShows))).toBe(true);
+    vi.setSystemTime(new Date(DAY1.getTime() + 29 * 24 * 3600 * 1000));
+    expect((d as any).isStickyShow(park, item(theatreAllDay))).toBe(true);
+    vi.setSystemTime(new Date(DAY1.getTime() + 31 * 24 * 3600 * 1000));
+    expect((d as any).isStickyShow(park, item(theatreAllDay))).toBe(false);
+  });
+
+  test('buildEntityList keeps the theatre a SHOW across the day-to-day flip', async () => {
+    const {CacheLib} = await import('../../../cache.js');
+    const d = await dest();
+    CacheLib.delete(`${(d as any).getCacheKeyPrefix()}:seenAsShow:v1:${XUZHOU}:1455`);
+    CacheLib.delete(`${(d as any).getCacheKeyPrefix()}:seenAsShow:v1:${XUZHOU}:554`);
+    const typeOf = async (roster: any[]) => {
+      (d as any).getStableRoster = async (parkId: number) => (parkId === XUZHOU ? roster : []);
+      const all = await (d as any).buildEntityList() as any[];
+      const pick = (id: number) => all.find(x => x.id === `fantawild_attraction_${XUZHOU}_${id}`);
+      return {theatre: pick(1455), teacups: pick(554)};
+    };
+    const day1 = await typeOf([theatreWithShows, teacups]);
+    expect(day1.theatre.entityType).toBe('SHOW');
+    expect(day1.teacups).toMatchObject({entityType: 'ATTRACTION', attractionType: 'RIDE'});
+    const day2 = await typeOf([theatreAllDay, teacups]);
+    expect(day2.theatre.entityType).toBe('SHOW');
+    expect(day2.theatre.attractionType).toBeUndefined();
+    expect(day2.teacups).toMatchObject({entityType: 'ATTRACTION', attractionType: 'RIDE'});
+  });
+});

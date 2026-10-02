@@ -19,6 +19,24 @@ function formatName(name: string): string {
 }
 
 /**
+ * Is this perform-list row a Halloween scare zone?
+ *
+ * The perform list carries scare zones alongside real performances with an
+ * identical record shape: `material_type: "perform"`, the same `show_indoor`,
+ * `area`, `thrilling_degree` and `service_time` fields, and no category or
+ * type field (`type_id` on the request is ignored). The only thing that sets
+ * them apart is the feed's own naming convention: every scare zone is titled
+ * "Scare Zone: <name>", and no performance, parade or meet and greet is.
+ *
+ * A scare zone is a walk-through area guests stroll through, not a
+ * performance with a start time, so it is published as an ATTRACTION like
+ * the Halloween houses the attraction list already carries.
+ */
+export function isScareZone(item: {title?: string}): boolean {
+  return /^\s*scare zone\s*:/i.test(item?.title ?? '');
+}
+
+/**
  * Map gems_status codes to ThemeParks.wiki status strings.
  * Based on IndoorPoiName class in the Universal Studios Beijing app.
  */
@@ -193,7 +211,32 @@ export class UniversalStudiosBeijing extends Destination {
       rawSource: 'attractionData',
     });
 
-    const showEntities = this.mapEntities(shows, {
+    // Scare zones arrive in the perform list but are walk-through areas.
+    // Same ids either way; only the type changes.
+    const scareZones = shows.filter((item) => isScareZone(item));
+    const performances = shows.filter((item) => !isScareZone(item));
+
+    const scareZoneEntities = this.mapEntities(scareZones, {
+      idField: (item) => String(item.id),
+      nameField: (item) => formatName(item.title || ''),
+      entityType: 'ATTRACTION',
+      parentIdField: () => parkId,
+      destinationId: destId,
+      timezone: this.timezone,
+      locationFields: {
+        lat: (item) => item.position?.latitude != null ? Number(item.position.latitude) : undefined,
+        lng: (item) => item.position?.longitude != null ? Number(item.position.longitude) : undefined,
+      },
+      transform: (entity) => {
+        // typelib has no walk-through member. RIDE is what the Halloween
+        // houses in the attraction list (also walk-throughs) are published
+        // as, so the whole event reads as one type.
+        (entity as Entity & {attractionType?: string}).attractionType = 'RIDE';
+        return entity;
+      },
+    });
+
+    const showEntities = this.mapEntities(performances, {
       idField: (item) => String(item.id),
       nameField: (item) => formatName(item.title || ''),
       entityType: 'SHOW',
@@ -207,7 +250,7 @@ export class UniversalStudiosBeijing extends Destination {
       rawSource: 'showData',
     });
 
-    return [parkEntity, ...attractionEntities, ...showEntities];
+    return [parkEntity, ...attractionEntities, ...scareZoneEntities, ...showEntities];
   }
 
   // ── Live Data ────────────────────────────────────────────────

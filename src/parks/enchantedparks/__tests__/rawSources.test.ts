@@ -3,11 +3,12 @@ import {Valleyfair} from '../valleyfair.js';
 import {CacheLib} from '../../../cache.js';
 import type {WithRaw} from '../../../destination.js';
 import type {HTTPObj} from '../../../http.js';
-import type {TribeEventsResponse} from '../enchantedparks.js';
+import {matchFeaturesToLiveData, type LiveFeature, type TribeEventsResponse} from '../enchantedparks.js';
 
 /**
  * With `includeRaw` on, every live row carries the feed item its status came
- * from, every entity carries the listing stub it was scraped from, and every
+ * from (also when it only matches with its zone code removed), every entity
+ * carries the listing stub it was scraped from, and every
  * schedule day carries its Tribe event — or, when the REST endpoint lists
  * nothing, the VEVENT block of the iCal fallback. The destination and the two
  * parks come from configuration and carry nothing. Off, nothing carries
@@ -122,6 +123,16 @@ describe('Enchanted Parks raw upstream pieces', () => {
 
     expect(live[2].status).toBe('DOWN');
     expect(rawOf(live[2])!.features).toBe(renegadeItem);
+  });
+
+  it('attaches the feed item a ride matched with its zone code removed', () => {
+    const colossusItem = {name: 'SL - A4 Colossus', parentAssignmentId: SITE, operationalStatus: 'Open'};
+    const feature: LiveFeature = {name: colossusItem.name, siteId: SITE, operationalStatus: 'Open', feature: colossusItem};
+    const live = matchFeaturesToLiveData([feature], [SITE], [{id: 'colossus', name: 'Colossus'}], true);
+
+    expect(live.map((l) => [l.id, l.status])).toEqual([['colossus', 'OPERATING']]);
+    expect(rawOf(live[0])).toEqual({features: colossusItem});
+    expect(rawOf(live[0])!.features).toBe(colossusItem);
   });
 
   it('attaches the listing stub to each entity, nothing to the parks or the destination', async () => {

@@ -19,8 +19,8 @@ import {http, type HTTPObj} from '../../http.js';
 import {cache} from '../../cache.js';
 import {reusable} from '../../promiseReuse.js';
 import {destinationController} from '../../destinationRegistry.js';
-import type {Entity, LiveData, EntitySchedule, ScheduleEntry} from '@themeparks/typelib';
-import {formatInTimezone, addMinutes, constructDateTime, shiftDateString} from '../../datetime.js';
+import type {Entity, LiveData, EntitySchedule, ScheduleEntry, AttractionType} from '@themeparks/typelib';
+import {formatInTimezone, formatDate, addMinutes, constructDateTime, shiftDateString} from '../../datetime.js';
 import {decodeHtmlEntities, stripHtmlTags} from '../../htmlUtils.js';
 import tzLookup from 'tz-lookup';
 
@@ -81,6 +81,8 @@ type SixFlagsPOI = {
 
 /** Venue status API response */
 type SixFlagsVenueStatus = {
+  /** Park-local wall clock the snapshot was generated, e.g. "Sep 24, 2026 22:31:00" */
+  parkDateTime?: string;
   parkName: string;
   lat: string;
   lng: string;
@@ -95,6 +97,7 @@ type SixFlagsVenueStatus = {
 
 /** Wait times API response */
 type SixFlagsWaitTimes = {
+  parkDateTime?: string;
   venues: Array<{
     venueId: number;
     details: Array<{
@@ -185,6 +188,25 @@ const EXCLUDED_PARK_IDS = new Set<number>([6, 12, 14, 27, 903, 924, 969]);
 const DEFAULT_SHOW_DURATION_MINUTES = 30;
 
 /**
+ * How far a live feed's `parkDateTime` may trail the park's wall clock before
+ * the snapshot is treated as frozen and withheld.
+ *
+ * The vendor stamps venue-status and wait-times with the park-local minute it
+ * was generated, and refreshes both every minute. An API host that stops
+ * refreshing keeps answering 200 with its last snapshot, so nothing else in
+ * the response reveals it. Observed 2026-09-24: every Six Flags park served a
+ * snapshot stamped the previous Monday lunchtime for three and a half days.
+ *
+ * Two hours rather than a few minutes because the comparison runs through a
+ * timezone derived from GPS, and that can be an hour out: Hurricane Harbor
+ * Oaxtepec stamps in UTC-5 while its coordinates resolve to UTC-6, and a
+ * stamp inside the repeated hour on a DST fall-back night resolves to the
+ * earlier reading. A one-hour error must never withhold a healthy park, and a
+ * genuine freeze lasts far longer than two hours.
+ */
+export const LIVE_FEED_MAX_AGE_MINUTES = 120;
+
+/**
  * Venue identifiers used throughout the vendor's POI, venue-status,
  * wait-times and operating-hours responses. The same numbering is shared by
  * every park in the estate.
@@ -211,6 +233,52 @@ const RESTAURANT_VENUE_ID = 4;
 const QUEUEING_VENUE_IDS: readonly number[] = [RIDE_VENUE_ID, MAZE_VENUE_ID];
 
 /**
+ * Venue-2 rows that are walk-throughs or play areas, not performances.
+ *
+ * The vendor files seasonal hay mazes, trick-or-treat trails, pumpkin
+ * patches and a foam pit in the show venue, so they would otherwise publish
+ * as SHOW entities. They have no performances, so they are published as
+ * ATTRACTION instead. The id is unchanged, so the entity keeps its identity
+ * downstream and only its type moves.
+ *
+ * Keyed by fimsId, grouped by park, because the POI feed carries no field
+ * that separates these rows from real shows:
+ *  - `showType` is "Interactive" on all of them, and equally on character
+ *    meet-and-greets, costume contests, dance parties, magic acts and
+ *    animal talks.
+ *  - `poiSubcategory` is "daytime.activity" on only two of the ten (Hay Bale
+ *    Maze, The Spellbound Harvest Trail). Great America's Corn Maize reads
+ *    "daytime.show", most of the rest carry no subcategory at all, and one
+ *    (Magic Mountain's Trick or Treat Trail) has no showType either.
+ * A name pattern would also catch real shows ("Trick or Treat Adventure" is
+ * a stage show at Canada's Wonderland), so the list is explicit. Add a row
+ * here when a park files another walk-through in its show venue.
+ *
+ * typelib has no walk-through value. Walk-throughs (mazes, trails) take
+ * `RIDE`, the type every other walk-through in parksapi carries, including
+ * the venue-3 haunt mazes in this module. Rows that are not walk-throughs
+ * (a pumpkin patch, a foam pit) take `OTHER`. The type is always set, since
+ * an ATTRACTION without one falls back to `RIDE` in the base class.
+ */
+const SHOW_VENUE_ATTRACTIONS: ReadonlyMap<string, AttractionType> = new Map<string, AttractionType>([
+  // Six Flags Over Texas
+  ['SHOW-901-00051', 'RIDE'], // Hay Bale Maze
+  ['SHOW-901-00056', 'RIDE'], // Tricks & Treats Trail
+  // Six Flags Over Georgia
+  ['SHOW-902-00047', 'OTHER'], // Farmer Jordan's Pumpkin Patch
+  ['SHOW-902-00048', 'RIDE'], // Inflatable Corn Maze
+  ['SHOW-902-00050', 'RIDE'], // Trick-or-Treat Trail
+  // Six Flags Magic Mountain
+  ['SHOW-906-00030', 'OTHER'], // Phantom Foam Pit
+  ['SHOW-906-00033', 'RIDE'], // The Spellbound Harvest Trail
+  ['SHOW-906-00034', 'RIDE'], // Trick or Treat Trail
+  // Six Flags Great America
+  ['SHOW-910-00040', 'RIDE'], // Pumpkin Hollow's Corn Maize
+  // Six Flags Discovery Kingdom
+  ['SHOW-936-00024', 'RIDE'], // Hay Maze
+]);
+
+/**
  * `operatings[].operatingTypeId` for the seasonal haunt event. The vendor
  * publishes it alongside the regular `Park` window (id 24) on event nights
  * and it is the only place Knott's exposes Scary Farm hours — its maze
@@ -221,6 +289,58 @@ const HAUNT_OPERATING_TYPE_ID = 25;
 // ============================================================================
 // Helpers
 // ============================================================================
+
+const MONTHS: Record<string, string> = {
+  jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+  jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+};
+
+/**
+ * Parse a live feed's `parkDateTime` ("Sep 24, 2026 22:31:00", park-local
+ * wall clock with no offset) into epoch milliseconds. Returns null for
+ * anything that does not match that shape, so an unfamiliar value never
+ * reads as a timestamp.
+ */
+export function parseParkDateTime(value: unknown, tz: string): number | null {
+  if (typeof value !== 'string') return null;
+  const m = /^([A-Za-z]{3})[a-z]* (\d{1,2}), (\d{4}) (\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(value.trim());
+  if (!m) return null;
+  const month = MONTHS[m[1].toLowerCase()];
+  if (!month) return null;
+  const date = `${m[3]}-${month}-${m[2].padStart(2, '0')}`;
+  const time = `${m[4].padStart(2, '0')}:${m[5]}:${m[6] ?? '00'}`;
+  try {
+    const ms = new Date(constructDateTime(date, time, tz)).getTime();
+    return Number.isFinite(ms) ? ms : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True when a feed's `parkDateTime` shows the snapshot is older than
+ * LIVE_FEED_MAX_AGE_MINUTES. A missing or unparseable stamp is not evidence
+ * of staleness and returns false.
+ */
+export function isFrozenSnapshot(parkDateTime: unknown, tz: string, now: Date = new Date()): boolean {
+  const stamped = parseParkDateTime(parkDateTime, tz);
+  if (stamped === null) return false;
+  return now.getTime() - stamped > LIVE_FEED_MAX_AGE_MINUTES * 60 * 1000;
+}
+
+/**
+ * True when every queueing row in a venue-status snapshot reads "Not
+ * Scheduled". A stale snapshot of that shape only asserts the park is shut,
+ * which is what a seasonal park's feed looks like once it stops refreshing
+ * for the off-season (Knott's Soak City, observed 2026-09-25, stamped that
+ * morning with all seven rides "Not Scheduled").
+ */
+export function isAllNotScheduled(venues: Array<{venueId: number; details?: Array<{status?: string}>}>): boolean {
+  const rows = venues
+    .filter(v => QUEUEING_VENUE_IDS.includes(v.venueId))
+    .flatMap(v => v.details ?? []);
+  return rows.length > 0 && rows.every(r => (r.status ?? '').toLowerCase() === 'not scheduled');
+}
 
 /**
  * Strip HTML tags and decode common HTML entities from POI names.
@@ -314,9 +434,19 @@ function closeTimeCrossesMidnight(openTime: string, closeTime: string): boolean 
  *
  * Prefer (a): it is the vendor's own statement of the event window, whereas
  * the envelope in (b) is inferred from whatever mazes happen to be scheduled.
+ *
+ * In (b), a maze filed as opening before the park itself opens is not
+ * evidence of an earlier event: guests cannot reach a maze before the gates
+ * do. Fiesta Texas files six of its fourteen mazes as 06:00-23:00 on every
+ * Friday of the 2026 season, against a 17:00 park open and a 19:15 start for
+ * the other eight, and taking the earliest start published the event from
+ * 06:00. So the inferred open is the earliest maze start at or after
+ * `parkOpen`, or `parkOpen` itself when every maze is filed before it. The
+ * close still spans every maze: only the start is implausible.
  */
 function hauntWindowForDate(
   dateObj: SixFlagsOperatingHours['dates'][0],
+  parkOpen: string,
 ): {open: string; close: string; description: string} | null {
   const hauntOperatings = (dateObj.operatings || []).filter(op =>
     op.operatingTypeId === HAUNT_OPERATING_TYPE_ID || /haunt/i.test(op.operatingTypeName || ''),
@@ -337,8 +467,9 @@ function hauntWindowForDate(
     .filter(h => isWallClockTime(h.operatingTimeFrom) && isWallClockTime(h.operatingTimeTo));
   if (mazeHours.length === 0) return null;
 
+  const plausibleStarts = mazeHours.map(h => h.operatingTimeFrom).filter(from => from >= parkOpen).sort();
   return {
-    open: mazeHours.map(h => h.operatingTimeFrom).sort()[0],
+    open: plausibleStarts[0] ?? parkOpen,
     close: latestClosingTime(mazeHours.map(h => ({from: h.operatingTimeFrom, to: h.operatingTimeTo}))),
     description: 'Haunt',
   };
@@ -474,6 +605,48 @@ const WATERPARK_PARENT_OVERRIDES: Record<number, number> = {
   944: 943, // Hurricane Harbor Oklahoma City → Six Flags Frontier City
 };
 
+/**
+ * The park-local calendar day `offsetDays` after the one `now` falls on, as
+ * the vendor's single-day query key (`YYYYMMDD`) and the `MM/DD/YYYY` label
+ * its operating-hours answers carry.
+ */
+function parkLocalDay(now: Date, tz: string, offsetDays = 0): {key: string; label: string} {
+  const iso = shiftDateString(formatDate(now, tz), offsetDays);
+  return {
+    key: iso.replace(/-/g, ''),
+    label: `${iso.slice(5, 7)}/${iso.slice(8, 10)}/${iso.slice(0, 4)}`,
+  };
+}
+
+/**
+ * The park-local month `now` falls in and the `count - 1` months after it,
+ * as month query keys (`YYYYMM`). Read from the machine clock, the last
+ * evening of a month in a Pacific park is already the next month in UTC.
+ */
+function parkLocalMonths(now: Date, tz: string, count: number): string[] {
+  const [year, month] = formatDate(now, tz).split('-').map(Number);
+  return Array.from({length: count}, (_, i) => {
+    const index = month - 1 + i;
+    return `${year + Math.floor(index / 12)}${String((index % 12) + 1).padStart(2, '0')}`;
+  });
+}
+
+/**
+ * The month query keys a park's schedule covers: the park-local current
+ * month and the two after it, plus the previous month on the 1st, so the
+ * night before (which can still be running past midnight) stays covered.
+ */
+function scheduleMonths(now: Date, tz: string): string[] {
+  const yesterday = parkLocalDay(now, tz, -1).key.slice(0, 6);
+  const months = parkLocalMonths(now, tz, 3);
+  return months.includes(yesterday) ? months : [yesterday, ...months];
+}
+
+/** Sort key for an `MM/DD/YYYY` operating-hours date. */
+function hoursDateSortKey(label: string): string {
+  return `${label.slice(6, 10)}${label.slice(0, 2)}${label.slice(3, 5)}`;
+}
+
 // ============================================================================
 // Main Class
 // ============================================================================
@@ -521,6 +694,22 @@ export class SixFlags extends Destination {
    */
   getCacheKeyPrefix(): string {
     return 'sixflags';
+  }
+
+  /** Parks already warned about an unparseable stamp, so it logs once, not every poll. */
+  private unparseableStampParks = new Set<number>();
+
+  /**
+   * An unparseable stamp is treated as fresh, which switches the frozen-feed
+   * guard off for that park. Say so once, so a vendor format change is
+   * visible instead of silent.
+   */
+  private warnIfUnparseableStamp(parkId: number, stamp: unknown): void {
+    if (stamp === undefined || stamp === null) return;
+    if (parseParkDateTime(stamp, 'UTC') !== null) return;
+    if (this.unparseableStampParks.has(parkId)) return;
+    this.unparseableStampParks.add(parkId);
+    console.warn(`[SixFlags] park ${parkId} parkDateTime "${String(stamp)}" is not in the expected format; frozen-feed check is off for this park`);
   }
 
   // ============================================================================
@@ -838,6 +1027,48 @@ export class SixFlags extends Destination {
     }
   }
 
+  /**
+   * Operating hours for one month (`YYYYMM`), with the park's yesterday,
+   * today and tomorrow filled in from the single-day query when the month
+   * answer leaves them out.
+   *
+   * The month query lists only the days after the vendor's own "today": on
+   * 2026-09-28 `date=202609` returned the 29th and 30th for every park, and
+   * a month wholly in the past returns only its last day. The single-day
+   * query (`date=YYYYMMDD`) answers for any day, today included.
+   *  - Yesterday: a night that runs past midnight (park hours to 01:00, a
+   *    haunt event to 02:00) is still open after the park's date has moved
+   *    on, and by then the month answer no longer lists it.
+   *  - Tomorrow: in case the vendor's day rolls over before the park's does.
+   * A day the month answer already lists is never asked for again, and a
+   * single-day answer is cached per park and day, shared with the live
+   * showtimes lookup.
+   */
+  async getOperatingHoursForMonth(
+    parkId: number,
+    month: string,
+    tz: string,
+    now: Date = new Date(),
+  ): Promise<SixFlagsOperatingHours | null> {
+    const monthHours = await this.getOperatingHours(parkId, month);
+    const dates = [...(monthHours?.dates ?? [])];
+
+    let filled = false;
+    for (const offset of [-1, 0, 1]) {
+      const day = parkLocalDay(now, tz, offset);
+      if (!day.key.startsWith(month)) continue;
+      if (dates.some(d => d.date === day.label)) continue;
+      const entry = (await this.getOperatingHours(parkId, day.key))?.dates?.find(d => d.date === day.label);
+      if (!entry) continue;
+      dates.push(entry);
+      filled = true;
+    }
+
+    if (!filled) return monthHours;
+    dates.sort((a, b) => hoursDateSortKey(a.date).localeCompare(hoursDateSortKey(b.date)));
+    return {...monthHours, dates};
+  }
+
   // ============================================================================
   // Timezone Helpers
   // ============================================================================
@@ -852,6 +1083,16 @@ export class SixFlags extends Destination {
    * per park — water parks return 404 on their own POI endpoint.
    */
   private async getTimezoneForPark(parkId: number): Promise<string> {
+    return (await this.resolveTimezoneForPark(parkId)).tz;
+  }
+
+  /**
+   * As getTimezoneForPark, but also says whether the zone came from the
+   * park's coordinates or from the instance fallback. getPOI swallows fetch
+   * errors and caches the empty result, so one failed POI fetch can leave a
+   * Pacific park on the Eastern fallback for a day.
+   */
+  private async resolveTimezoneForPark(parkId: number): Promise<{tz: string; fromCoords: boolean}> {
     // Find which main-park this parkId belongs to (itself, or a sister water park).
     const parks = await this.getParkData();
     const owner = parks.find((p) =>
@@ -872,8 +1113,8 @@ export class SixFlags extends Destination {
       coords = parkCentroidFromPOI(standalonePoi, parkId);
     }
 
-    if (coords) return timezoneFromCoords(coords.latitude, coords.longitude);
-    return this.timezone;
+    if (coords) return {tz: timezoneFromCoords(coords.latitude, coords.longitude), fromCoords: true};
+    return {tz: this.timezone, fromCoords: false};
   }
 
   // ============================================================================
@@ -1077,6 +1318,14 @@ export class SixFlags extends Destination {
         if (entityType === 'ATTRACTION') {
           (entity as any).attractionType = 'RIDE';
         }
+        // A walk-through filed in the show venue is an attraction, not a show.
+        const showVenueAttraction = entityType === 'SHOW'
+          ? SHOW_VENUE_ATTRACTIONS.get(String(poi.fimsId))
+          : undefined;
+        if (showVenueAttraction) {
+          entity.entityType = 'ATTRACTION';
+          (entity as any).attractionType = showVenueAttraction;
+        }
         // Fall back to the park's centroid when the POI didn't carry
         // coordinates. Shows and outdoor restaurants are the main offenders;
         // without this they'd have no location at all.
@@ -1180,6 +1429,24 @@ export class SixFlags extends Destination {
     const venueStatus = await this.getVenueStatus(parkId);
     if (!venueStatus?.venues) return;
 
+    // A frozen snapshot is not a current observation: emitting it would
+    // present an old reading as if it were taken just now, so the park is
+    // withheld. Two exceptions, both so the guard can never blank a healthy
+    // park:
+    //  - The zone came from the fallback, not the park's coordinates. The
+    //    stamp would be read in the wrong zone, and a Pacific park's fresh
+    //    stamp would look three hours old.
+    //  - Every ride reads "Not Scheduled". A stale snapshot that only says
+    //    the park is shut is how a seasonal park looks off-season.
+    const {tz, fromCoords} = await this.resolveTimezoneForPark(parkId);
+    if (fromCoords) {
+      this.warnIfUnparseableStamp(parkId, venueStatus.parkDateTime);
+      if (isFrozenSnapshot(venueStatus.parkDateTime, tz) && !isAllNotScheduled(venueStatus.venues)) {
+        console.warn(`[SixFlags] park ${parkId} venue-status is frozen at "${venueStatus.parkDateTime}", withholding live data`);
+        return;
+      }
+    }
+
     // Build venue status lookup
     const statusMap = new Map<string, string>();
     for (const venue of venueStatus.venues) {
@@ -1191,7 +1458,12 @@ export class SixFlags extends Destination {
     }
 
     // Fetch wait times (may be null for some parks)
-    const waitTimesData = await this.getWaitTimes(parkId);
+    const fetchedWaitTimes = await this.getWaitTimes(parkId);
+    // Venue-status is the authority for status; a frozen wait-times feed
+    // alone only loses the waits, so drop it rather than the whole park.
+    const waitTimesData = fetchedWaitTimes && fromCoords && isFrozenSnapshot(fetchedWaitTimes.parkDateTime, tz)
+      ? null
+      : fetchedWaitTimes;
     const waitTimesMap = new Map<string, {regularWaittime?: {waitTime: number}; isFastLane?: boolean; fastlaneWaittime?: {waitTime: number}}>();
     if (waitTimesData?.venues) {
       for (const venue of waitTimesData.venues) {
@@ -1295,17 +1567,14 @@ export class SixFlags extends Destination {
     // Process shows (venueId: 2) from venue status
     const showsVenue = venueStatus.venues.find(v => v.venueId === SHOW_VENUE_ID);
     if (showsVenue?.details) {
-      const tz = await this.getTimezoneForPark(parkId);
 
-      // Fetch today's show times from operating hours
-      const todayFormatted = formatInTimezone(new Date(), tz, 'date'); // MM/DD/YYYY
-      const now = new Date();
-      const yearStr = String(now.getFullYear());
-      const monthStr = String(now.getMonth() + 1).padStart(2, '0');
-      const currentMonth = `${yearStr}${monthStr}`;
+      // Today's show times, asked for as the park-local day: the month
+      // query leaves today out.
+      const today = parkLocalDay(new Date(), tz);
+      const todayFormatted = today.label;
 
       let todayShows: SixFlagsOperatingHours['dates'][0]['shows'] = [];
-      const hoursData = await this.getOperatingHours(parkId, currentMonth);
+      const hoursData = await this.getOperatingHours(parkId, today.key);
       if (hoursData?.dates) {
         const todayEntry = hoursData.dates.find(d => d.date === todayFormatted);
         if (todayEntry?.shows) {
@@ -1404,20 +1673,12 @@ export class SixFlags extends Destination {
     const parks = await this.getParkData();
     const schedules: EntitySchedule[] = [];
 
-    // Generate current month + 2 forward months
     const now = new Date();
-    const months: string[] = [];
-    for (let i = 0; i < 3; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      const y = String(d.getFullYear());
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      months.push(`${y}${m}`);
-    }
 
     for (const park of parks) {
       const tz = await this.getTimezoneForPark(park.parkId);
       const parkEntityId = `sixflags_park_${park.code}`;
-      const parkSchedule = await this.buildParkSchedule(park.parkId, tz, months);
+      const parkSchedule = await this.buildParkSchedule(park.parkId, tz, scheduleMonths(now, tz));
 
       schedules.push({
         id: parkEntityId,
@@ -1428,7 +1689,7 @@ export class SixFlags extends Destination {
       for (const wp of park.waterParks) {
         const wpTz = await this.getTimezoneForPark(wp.parkId);
         const wpEntityId = `sixflags_park_${wp.code}`;
-        const wpSchedule = await this.buildParkSchedule(wp.parkId, wpTz, months);
+        const wpSchedule = await this.buildParkSchedule(wp.parkId, wpTz, scheduleMonths(now, wpTz));
 
         schedules.push({
           id: wpEntityId,
@@ -1451,7 +1712,7 @@ export class SixFlags extends Destination {
     const scheduleEntries: ScheduleEntry[] = [];
 
     for (const month of months) {
-      const hoursData = await this.getOperatingHours(parkId, month);
+      const hoursData = await this.getOperatingHoursForMonth(parkId, month, tz);
       if (!hoursData?.dates) continue;
 
       for (const dateObj of hoursData.dates) {
@@ -1510,7 +1771,7 @@ export class SixFlags extends Destination {
             : constructDateTime(dateStr, latestClose, tz),
         }, 'operatingHours', dateObj));
 
-        const hauntWindow = hauntWindowForDate(dateObj);
+        const hauntWindow = hauntWindowForDate(dateObj, earliestOpen);
         if (hauntWindow) {
           scheduleEntries.push(this.addRaw({
             date: dateStr,
