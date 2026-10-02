@@ -6,7 +6,8 @@ import type {WithRaw} from '../../../destination.js';
 /**
  * With `includeRaw` on, every element carries the upstream piece it was built
  * from: the live-feed record for an attraction or a restaurant, the records.json
- * item for a show and for every entity, the resort record for the destination
+ * item for a show, a walk-through and every entity (also one classified from
+ * its own schedule outside the category lists), the resort record for the destination
  * and the park, and the calendar entry for a day — `calendar` for the standard
  * calendar API, `heideParkSchedule` for Heide Park's own endpoint and
  * `calendarHTML` for the object Djurs Sommerland's page carries. Off, nothing
@@ -61,6 +62,36 @@ function stubbedProbe(includeRaw: boolean): Probe {
   vi.spyOn(park as any, 'fetchCalendar').mockResolvedValue({
     json: async () => ({Locations: [{days: [calendarDay, calendarNextDay]}]}),
   });
+  return park;
+}
+
+// A walk-through area with a daily opening window, in a category the park
+// names as walk-throughs, and a scheduled performance in a category no list names
+const walkThrough = {
+  _id: 400, Name: 'Raw Village', Category: 40,
+  ShowTimes: JSON.stringify({type: 'period', offset_date: '2020-01-01 10:00:00', period_length: {day: 1}, range_length: {minute: 300}}),
+};
+const seasonalShow = {_id: 500, Name: 'Raw Seasonal Show', Category: 50, ShowTimes: pointShow('15:00:00')};
+
+class WalkThroughProbe extends AttractionsIOV1 {
+  constructor() {
+    super({config: {destinationId: 'rawwalk-resort', parkId: 'rawwalk-park', timezone: TZ}});
+  }
+
+  protected getWalkThroughCategories(): string[] {
+    return ['Zoo Encounters'];
+  }
+}
+
+function stubbedWalkThroughProbe(): WalkThroughProbe {
+  const park = new WalkThroughProbe();
+  park.includeRaw = true;
+  vi.spyOn(park as any, 'getPOIData').mockResolvedValue({
+    ...records,
+    Category: [...records.Category, {_id: 40, Name: 'Zoo Encounters'}, {_id: 50, Name: 'Season Content'}],
+    Item: [...records.Item, walkThrough, seasonalShow],
+  });
+  vi.spyOn(park as any, 'fetchLiveData').mockResolvedValue({json: async () => liveResponse});
   return park;
 }
 
@@ -140,6 +171,30 @@ describe('Attractions.io raw upstream pieces', () => {
 
     expect(rawOf(entities[3])!.poiData).toBe(show);
     expect(rawOf(entities[4])!.poiData).toBe(diner);
+  });
+
+  test('attaches the records item to a walk-through and to a show classified from its schedule', async () => {
+    const park = stubbedWalkThroughProbe();
+    const entities = new Map((await park.getEntities()).map((e) => [e.id, e]));
+
+    const village = entities.get('400')!;
+    expect(village.entityType).toBe('ATTRACTION');
+    expect(rawOf(village)).toEqual({poiData: walkThrough});
+    expect(rawOf(village)!.poiData).toBe(walkThrough);
+
+    const seasonal = entities.get('500')!;
+    expect(seasonal.entityType).toBe('SHOW');
+    expect(rawOf(seasonal)).toEqual({poiData: seasonalShow});
+    expect(rawOf(seasonal)!.poiData).toBe(seasonalShow);
+
+    const live = new Map((await park.getLiveData()).map((l) => [l.id, l]));
+    // 12:00 sits inside the 10:00-15:00 window
+    expect(live.get('400')!.status).toBe('OPERATING');
+    expect(rawOf(live.get('400')!)).toEqual({poiData: walkThrough});
+    expect(rawOf(live.get('400')!)!.poiData).toBe(walkThrough);
+
+    expect(live.get('500')!.showtimes).toHaveLength(1);
+    expect(rawOf(live.get('500')!)!.poiData).toBe(seasonalShow);
   });
 
   test('attaches the calendar day to each day of the standard calendar', async () => {

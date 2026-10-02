@@ -1444,7 +1444,7 @@ class AttractionsIOV1 extends Destination {
     // and the base class would otherwise default to it silently.
     const walkThroughItems = await this.getWalkThroughItems();
     const walkThroughEntities = walkThroughItems.map(item => {
-      const entity = buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'ATTRACTION');
+      const entity = buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'ATTRACTION', this.includeRaw);
       (entity as Entity & {attractionType?: string}).attractionType = 'RIDE';
       return entity;
     });
@@ -1452,7 +1452,7 @@ class AttractionsIOV1 extends Destination {
 
     const scheduledShowEntities = data.Item
       .filter(item => !classified.has(item._id) && parseShowTimes(item.ShowTimes) !== null)
-      .map(item => buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'SHOW'));
+      .map(item => buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'SHOW', this.includeRaw));
 
     return [
       ...await this.getDestinations(),
@@ -1626,7 +1626,7 @@ class AttractionsIOV1 extends Destination {
         }
         const entry: LiveData = {id, status: isOpenNow(hours, nowMs) ? 'OPERATING' : 'CLOSED'};
         if (hours.length > 0) entry.operatingHours = hours;
-        liveData.push(entry);
+        liveData.push(this.addRaw(entry, 'poiData', item));
       }
     }
 
