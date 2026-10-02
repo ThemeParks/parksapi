@@ -8,7 +8,10 @@ import type {WithRaw} from '../../../destination.js';
  * the virtual-queue dummy row when one hands it a return time), the show-times
  * entry for a show, and the ETAs of the trains serving an EP-Express station.
  * A season is one object standing behind every day it covers, and today's day
- * adds the live calendar when it overrode the season's hours. A station no
+ * adds the live calendar when it overrode the season's hours. A ride closed
+ * because the live calendar shuts the park today carries that calendar entry,
+ * and one closed for a zero wait on a day without season hours keeps its
+ * waiting-times row. A station no
  * train reported for, and the destination built from constants, carry nothing.
  * Off, nothing carries anything.
  */
@@ -122,6 +125,37 @@ describe('Europa-Park raw upstream pieces', () => {
     const restaurant = live.find((l) => l.id === 'gastronomy_500')!;
     expect(rawOf(restaurant)).toEqual({waitingTimes: gastronomyWait});
     expect(rawOf(restaurant)!.waitingTimes).toBe(gastronomyWait);
+  });
+
+  it('attaches today\'s live-calendar entry to every ride it closes', async () => {
+    const closedToday = {date: '2026-09-21', start: null, end: null};
+    const park = stubbedPark(true);
+    vi.spyOn(park as any, 'getLiveCalendar').mockResolvedValue({today: closedToday});
+    const live = await park.getLiveData();
+
+    for (const id of ['pois_36', 'pois_37']) {
+      const ride = live.find((l) => l.id === id)!;
+      expect(ride.status).toBe('CLOSED');
+      expect(rawOf(ride)).toEqual({liveCalendar: closedToday});
+      expect(rawOf(ride)!.liveCalendar).toBe(closedToday);
+    }
+  });
+
+  it('keeps the waiting-times row on a ride a zero wait closes on a day without hours', async () => {
+    const zeroWait = {code: 36, time: 0, startAt: null, endAt: null};
+    const park = stubbedPark(true);
+    vi.spyOn(park as any, 'getWaitingTimes').mockResolvedValue([zeroWait]);
+    vi.spyOn(park as any, 'getLiveCalendar').mockResolvedValue(null);
+    // The season ended the day before.
+    vi.spyOn(park as any, 'getSeasons').mockResolvedValue([{...season, endAt: '2026-09-20T18:00:00+02:00'}]);
+    const live = await park.getLiveData();
+
+    const ride = live.find((l) => l.id === 'pois_36')!;
+    // The closure replaces the row, so the zero wait is gone with it.
+    expect(ride.status).toBe('CLOSED');
+    expect(ride.queue).toBeUndefined();
+    expect(rawOf(ride)).toEqual({waitingTimes: zeroWait});
+    expect(rawOf(ride)!.waitingTimes).toBe(zeroWait);
   });
 
   it('attaches the show-times entry to a show', async () => {

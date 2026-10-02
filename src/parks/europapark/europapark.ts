@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, type WithRaw} from '../../destination.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
@@ -1068,8 +1068,10 @@ class EuropaParkBase extends Destination {
     if (dayStatus === 'OPEN') return;
 
     if (dayStatus === 'CLOSED') {
+      // Today's live-calendar entry closed the park, so it is the piece behind
+      // every row it closes.
       for (const entity of mainParkAttractions) {
-        liveDataMap.set(entity.id, {id: entity.id, status: 'CLOSED'} as LiveData);
+        liveDataMap.set(entity.id, this.addRaw({id: entity.id, status: 'CLOSED'} as LiveData, 'liveCalendar', calendar?.today));
       }
       return;
     }
@@ -1091,7 +1093,12 @@ class EuropaParkBase extends Destination {
       if (entity.code === undefined || timeByCode.get(entity.code) !== 0) continue;
       const live = liveDataMap.get(entity.id);
       if (!live || live.status !== 'OPERATING') continue;
-      liveDataMap.set(entity.id, {id: entity.id, status: 'CLOSED'} as LiveData);
+      // The zero wait is what closes the ride here, so its waiting-times piece
+      // stays on the row.
+      const closed = {id: entity.id, status: 'CLOSED'} as LiveData;
+      const waitPiece = (live as WithRaw<LiveData>).raw?.waitingTimes;
+      if (waitPiece !== undefined) this.addRaw(closed, 'waitingTimes', waitPiece);
+      liveDataMap.set(entity.id, closed);
     }
   }
 
