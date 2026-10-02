@@ -133,9 +133,12 @@ describe('name handling', () => {
 
 describe('buildScheduleIndex', () => {
   test('maps every day of a period to its hours', () => {
-    const i = buildScheduleIndex([{openFrom: '10:00', openTo: '20:00', days: ['2026-08-09', '2026-08-10']}]);
-    expect(i.get('2026-08-09')).toEqual({open: '10:00', close: '20:00'});
-    expect(i.get('2026-08-10')).toEqual({open: '10:00', close: '20:00'});
+    const period = {openFrom: '10:00', openTo: '20:00', days: ['2026-08-09', '2026-08-10']};
+    const i = buildScheduleIndex([period]);
+    // Each day also keeps the period it came from, as its raw upstream piece.
+    expect(i.get('2026-08-09')).toEqual({open: '10:00', close: '20:00', period});
+    expect(i.get('2026-08-10')).toEqual({open: '10:00', close: '20:00', period});
+    expect(i.get('2026-08-09')!.period).toBe(period);
   });
 
   test('skips CMS placeholder periods that carry no days', () => {

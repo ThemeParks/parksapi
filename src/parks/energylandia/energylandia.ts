@@ -272,13 +272,12 @@ export function parseWaitMinutes(raw: unknown): number | undefined {
  * unused CMS placeholders and are skipped, as are `00:00`–`00:00` entries,
  * which mark a closed period rather than a midnight-to-midnight opening.
  *
- * With `includeRaw`, every day also carries the period it came from, the same
+ * Every day also carries the period it came from, the same
  * object on each of that period's days, so the day and the live rows it governs
  * can name the piece they were built from.
  */
 export function buildScheduleIndex(
-  periods: CalendarPeriod[],
-  includeRaw = false,
+  periods: CalendarPeriod[]
 ): Map<string, {open: string; close: string; period?: CalendarPeriod}> {
   const index = new Map<string, {open: string; close: string; period?: CalendarPeriod}>();
   for (const period of periods) {
@@ -287,7 +286,7 @@ export function buildScheduleIndex(
     if (!open || !close) continue;
     if (open === '00:00' && close === '00:00') continue;
     for (const day of period.days || []) {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(day)) index.set(day, includeRaw ? {open, close, period} : {open, close});
+      if (/^\d{4}-\d{2}-\d{2}$/.test(day)) index.set(day, {open, close, period});
     }
   }
   return index;
@@ -1224,7 +1223,7 @@ export class Energylandia extends Destination {
 
     const now = new Date();
     const {date, time} = parkLocalDateTime(now, this.timezone);
-    const schedule = buildScheduleIndex(periods, this.includeRaw);
+    const schedule = buildScheduleIndex(periods);
     const parkOpen = isWithinOperatingWindow(schedule, date, time);
 
     // The park's published hours are the only live open/closed signal it has.
@@ -1405,7 +1404,7 @@ export class Energylandia extends Destination {
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const periods = await this.getCalendarPeriods();
-    const index = buildScheduleIndex(periods, this.includeRaw);
+    const index = buildScheduleIndex(periods);
 
     const schedule = [...index.entries()]
       .sort(([a], [b]) => a.localeCompare(b))

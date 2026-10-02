@@ -250,7 +250,7 @@ EFTELING_FETCHWAITTIMES_CACHESECONDS=0     # never serve wait times from the cac
 HTTP_TIMEOUT_MS=10000   # give up on a request after 10 seconds
 ```
 
-`includeRaw` is a per-destination opt-in for a consumer that stores the data itself and wants the upstream original next to each mapped element. When on, every entity, live-data row and schedule entry carries a `raw` object holding the slice of the upstream response it was built from, keyed by the request that delivered it (the park module's `fetch` method name without the prefix). It is off by default and nothing in the output changes unless it is set. The pieces are the upstream response as it came, so leave it off on an instance that hands elements on to third parties.
+`includeRaw` is a per-destination opt-in for a consumer that stores the data itself and wants the upstream original next to each mapped element. When on, every entity, live-data row and schedule entry carries a `raw` object holding the slice of the upstream response it was built from, keyed by the request that delivered it (the park module's `fetch` method name without the prefix). It is off by default and nothing in the output changes unless it is set. It can be turned on or off at any time: the pieces are kept behind the scenes either way, so a value already cached does not have to expire first. The pieces are the upstream response as it came, so leave it off on an instance that hands elements on to third parties.
 
 ```typescript
 const park = new Phantasialand();

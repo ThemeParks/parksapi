@@ -442,14 +442,13 @@ export function canonicalPlaceNames(
  * don't expose (Park is emitted separately by buildEntityList; Shop /
  * Amenity / Hotel / etc. are out of scope for this migration).
  *
- * With `includeRaw` on, the place is attached to the entity as its raw
+ * The place is attached to the entity as its raw
  * upstream piece under the name of the request that delivered it.
  */
 export function placeToEntity(
   place: UniversalPlace,
   destinationId: string,
-  timezone: string,
-  includeRaw = false,
+  timezone: string
 ): Entity | null {
   const entityType = PLACE_TYPE_TO_ENTITY[place.place_type.type];
   if (!entityType) return null;
@@ -499,7 +498,7 @@ export function placeToEntity(
     if (tags.length > 0) entity.tags = tags;
   }
 
-  if (includeRaw) attachRaw(entity, 'places', place);
+  attachRaw(entity, 'places', place);
 
   return entity;
 }
@@ -730,7 +729,7 @@ export type ExpressNowOffer = {
  * sample that came back from the live endpoint (Spider-Man, Mardi Gras
  * late-close window).
  *
- * With `includeRaw` on, each parsed offer also carries the prediction it came
+ * Each parsed offer also carries the prediction it came
  * from, so the live row it feeds can publish it unchanged.
  */
 // Required `inventory_time_slot` format. Must be enforced at parse time —
@@ -739,7 +738,7 @@ export type ExpressNowOffer = {
 // anything else, then `formatInTimezone` would throw mid-buildLiveData.
 const SLOT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
 
-export function parseExpressNowResponse(data: unknown, includeRaw = false): Record<string, ExpressNowOffer> {
+export function parseExpressNowResponse(data: unknown): Record<string, ExpressNowOffer> {
   const predictions: any[] = Array.isArray((data as any)?.predictions) ? (data as any).predictions : [];
   const grouped: Record<string, ExpressNowOffer> = {};
 
@@ -756,7 +755,7 @@ export function parseExpressNowResponse(data: unknown, includeRaw = false): Reco
       inventory_time_minutes: parseInt(raw.inventory_time_minutes, 10),
       product_price: parseFloat(raw.product_price),
       vl_inventory: parseInt(raw.vl_inventory, 10),
-      ...(includeRaw ? {prediction: raw} : {}),
+      ...({prediction: raw}),
     };
 
     if (!Number.isFinite(parsed.product_price)
@@ -1285,7 +1284,7 @@ class Universal extends Destination {
       throw err;
     }
 
-    return parseExpressNowResponse(await resp.json(), this.includeRaw);
+    return parseExpressNowResponse(await resp.json());
   }
 
   // ─── Legacy API (services.universalorlando.com) ─────────────────────────
@@ -1735,7 +1734,7 @@ class Universal extends Destination {
       if (isAccessibilityReturnTimeVariant(place, knownPlaceIds)) continue;
       // Passholder marketing copy typed as a ride/show/dining place.
       if (isNonPoiNamespace(place)) continue;
-      const entity = placeToEntity(place, destinationId, this.timezone, this.includeRaw);
+      const entity = placeToEntity(place, destinationId, this.timezone);
       if (entity) out.push(entity);
     }
 

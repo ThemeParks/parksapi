@@ -4,6 +4,7 @@ import {
   isShownInApp,
   isClosedWhileHiddenFromApp,
 } from '../universalstudiosjapan.js';
+import {withoutRaw} from '../../../__tests__/helpers/withoutRaw.js';
 
 /**
  * Space Fantasy - The Ride runs as themed overlays under their own place ids.
@@ -58,7 +59,7 @@ class AppGatedProbe extends UniversalStudiosJapan {
   async getShowListData(): Promise<any[]> { return []; }
   async _init(): Promise<void> {}
   entities() { return this.buildEntityList(); }
-  live() { return this.buildLiveData(); }
+  async live() { return withoutRaw(await this.buildLiveData()); }
 }
 
 const places = (sfChannels: unknown) => [

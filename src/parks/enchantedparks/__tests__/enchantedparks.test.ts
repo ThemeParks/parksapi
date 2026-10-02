@@ -13,6 +13,9 @@ import {
   type WpPage,
   parseCategoryRideSlugs,
 } from '../enchantedparks.js';
+import {withoutRaw} from '../../../__tests__/helpers/withoutRaw.js';
+
+const liveRows = (...args: Parameters<typeof matchFeaturesToLiveData>) => withoutRaw(matchFeaturesToLiveData(...args));
 
 describe('parseTribeEvents', () => {
   const fixture: TribeEventsResponse = {
@@ -495,7 +498,7 @@ describe('matchFeaturesToLiveData', () => {
   ];
 
   test('maps each matched ride to its live status by id', () => {
-    const out = matchFeaturesToLiveData(features, [WOF], rides);
+    const out = liveRows(features, [WOF], rides);
     const byId = Object.fromEntries(out.map((l) => [l.id, l.status]));
     expect(byId['enchantedparks_attraction_WOF_ripcord']).toBe('DOWN');
     expect(byId['enchantedparks_attraction_WOF_zambezi-zinger']).toBe('OPERATING');
@@ -504,7 +507,7 @@ describe('matchFeaturesToLiveData', () => {
   });
 
   test('drops features with no matching ride entity (POS, retail, gates)', () => {
-    const out = matchFeaturesToLiveData(features, [WOF], rides);
+    const out = liveRows(features, [WOF], rides);
     // 4 rides matched, Ticket Sales dropped.
     expect(out).toHaveLength(4);
     expect(out.every((l) => l.id.startsWith('enchantedparks_attraction_'))).toBe(true);
@@ -513,13 +516,13 @@ describe('matchFeaturesToLiveData', () => {
   test('only uses features from the requested site id(s)', () => {
     // The Valleyfair "VF - RipCord" (Closed) must not overwrite the Worlds of
     // Fun RipCord (Temporarily Closed → DOWN).
-    const out = matchFeaturesToLiveData(features, [WOF], rides);
+    const out = liveRows(features, [WOF], rides);
     const ripcord = out.find((l) => l.id === 'enchantedparks_attraction_WOF_ripcord');
     expect(ripcord?.status).toBe('DOWN');
   });
 
   test('returns empty when no site ids are supplied', () => {
-    expect(matchFeaturesToLiveData(features, [], rides)).toEqual([]);
+    expect(liveRows(features, [], rides)).toEqual([]);
   });
 });
 
@@ -645,7 +648,7 @@ describe('zone codes after the park code', () => {
 
   const SL = 'site-uuid-sl';
   test('rides behind a zone code get live data', () => {
-    const out = matchFeaturesToLiveData(
+    const out = liveRows(
       [
         {name: 'SL - A4 Colossus', siteId: SL, operationalStatus: 'Open'},
         {name: 'SL - HH Big Kahuna', siteId: SL, operationalStatus: 'Closed'},
@@ -674,7 +677,7 @@ describe('zone codes after the park code', () => {
       {name: 'XX - THE Joker', siteId: SL, operationalStatus: 'Open'},
       {name: 'XX - A1 Joker', siteId: SL, operationalStatus: 'Closed'},
     ];
-    const reversed = matchFeaturesToLiveData([...feats].reverse(), [SL], [
+    const reversed = liveRows([...feats].reverse(), [SL], [
       {id: 'the-joker', name: 'THE Joker'},
       {id: 'joker', name: 'Joker'},
     ]);
@@ -682,7 +685,7 @@ describe('zone codes after the park code', () => {
       'the-joker': 'OPERATING',
       'joker': 'CLOSED',
     });
-    const out = matchFeaturesToLiveData(
+    const out = liveRows(
       feats,
       [SL],
       [
@@ -704,7 +707,7 @@ describe('zone codes after the park code', () => {
       {name: 'SL - A4 Colossus', siteId: S, operationalStatus: 'Closed'},
     ];
     for (const order of [feats, [...feats].reverse()]) {
-      const out = matchFeaturesToLiveData(order, [S], [{id: 'colossus', name: 'Colossus'}]);
+      const out = liveRows(order, [S], [{id: 'colossus', name: 'Colossus'}]);
       expect(out).toEqual([{id: 'colossus', status: 'OPERATING'}]);
     }
   });
@@ -716,13 +719,13 @@ describe('zone codes after the park code', () => {
       {name: 'SL - HH Tornado', siteId: S, operationalStatus: 'Closed'},
     ];
     for (const order of [feats, [...feats].reverse()]) {
-      expect(matchFeaturesToLiveData(order, [S], [{id: 'tornado', name: 'Tornado'}])).toEqual([]);
+      expect(liveRows(order, [S], [{id: 'tornado', name: 'Tornado'}])).toEqual([]);
     }
   });
 
   test('zones that agree on one name still match', () => {
     const S = 'site-uuid-sl';
-    const out = matchFeaturesToLiveData(
+    const out = liveRows(
       [{name: 'SL - A4 Tornado', siteId: S, operationalStatus: 'Open'}, {name: 'SL - HH Tornado', siteId: S, operationalStatus: 'Open'}],
       [S], [{id: 'tornado', name: 'Tornado'}],
     );
@@ -731,7 +734,7 @@ describe('zone codes after the park code', () => {
 
   test('sites without zone codes are unaffected', () => {
     const W = 'site-uuid-wof';
-    const out = matchFeaturesToLiveData(
+    const out = liveRows(
       [{name: 'WOF - Mamba', siteId: W, operationalStatus: 'Open'}, {name: 'VF - PEANUTS 500', siteId: W, operationalStatus: 'Closed'}],
       [W],
       [{id: 'mamba', name: 'Mamba'}, {id: 'p500', name: 'PEANUTS™ 500'}, {id: 'five-hundred', name: '500'}],

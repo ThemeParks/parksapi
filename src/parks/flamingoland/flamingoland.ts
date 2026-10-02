@@ -175,7 +175,7 @@ export function decideRideStatus(flags: {
 // `defaultClose`. The `<=` on endMs keeps the season-end day in the list. The
 // `maxDays` cap is a safety net.
 //
-// With `includeRaw`, every day carries the season window it came from under
+// Every day carries the season window it came from under
 // `webshopOverview` — the same object on each day — and a day that took its
 // closing time from the homepage banner also carries that time under
 // `homepage`.
@@ -186,7 +186,7 @@ export function iterateScheduleDays(opts: {
   defaultClose: string;
   timezone: string;
   maxDays?: number;
-}, includeRaw = false): Array<{date: string; type: 'OPERATING'; openingTime: string; closingTime: string}> {
+}): Array<{date: string; type: 'OPERATING'; openingTime: string; closingTime: string}> {
   const out: Array<{date: string; type: 'OPERATING'; openingTime: string; closingTime: string}> = [];
   const startStr = opts.season.start > opts.todayStr ? opts.season.start : opts.todayStr;
   const cursor = new Date(`${startStr}T00:00:00Z`);
@@ -203,10 +203,8 @@ export function iterateScheduleDays(opts: {
       openingTime: constructDateTime(dateStr, openTime, opts.timezone),
       closingTime: constructDateTime(dateStr, closeTime, opts.timezone),
     };
-    if (includeRaw) {
-      attachRaw(entry, 'webshopOverview', opts.season);
-      if (usesTodayClose) attachRaw(entry, 'homepage', opts.todayClose);
-    }
+    attachRaw(entry, 'webshopOverview', opts.season);
+    if (usesTodayClose) attachRaw(entry, 'homepage', opts.todayClose);
     out.push(entry);
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
@@ -587,7 +585,7 @@ export class FlamingoLand extends Destination {
       todayClose,
       defaultClose: '17:00',
       timezone: this.timezone,
-    }, this.includeRaw);
+    });
     return [{id: PARK_ID, schedule} as EntitySchedule];
   }
 }

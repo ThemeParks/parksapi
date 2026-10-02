@@ -125,10 +125,10 @@ export function cotalandEntityType(poi: CotalandPoi): {entityType: 'ATTRACTION' 
 }
 
 /**
- * Entities from the point feed. With `includeRaw`, each carries its point
- * under `pointsOfInterest`.
+ * Entities from the point feed, each carrying its point under
+ * `pointsOfInterest`.
  */
-export function cotalandEntities(pois: CotalandPoi[], timezone: string, includeRaw = false): Entity[] {
+export function cotalandEntities(pois: CotalandPoi[], timezone: string): Entity[] {
   return pois.flatMap(poi => {
     if (poi.isActive === false) return [];
     const type = cotalandEntityType(poi);
@@ -151,8 +151,7 @@ export function cotalandEntities(pois: CotalandPoi[], timezone: string, includeR
       ...(description ? {description} : {}),
       ...(Number.isFinite(latitude) && Number.isFinite(longitude) ? {location: {latitude, longitude}} : {}),
     } as Entity;
-    if (includeRaw) attachRaw(entity, 'pointsOfInterest', poi);
-    return [entity];
+    return [attachRaw(entity, 'pointsOfInterest', poi)];
   });
 }
 
@@ -165,9 +164,9 @@ export function cotalandEntities(pois: CotalandPoi[], timezone: string, includeR
  * is published as OPERATING with the restriction kept as the description.
  * Anything titled otherwise is skipped with a warning rather than guessed at.
  *
- * With `includeRaw`, each entry carries its event under `calendarPage`.
+ * Each entry carries its event under `calendarPage`.
  */
-export function cotalandScheduleEntries(events: CotalandCalendarEvent[], timezone: string, includeRaw = false): ScheduleEntry[] {
+export function cotalandScheduleEntries(events: CotalandCalendarEvent[], timezone: string): ScheduleEntry[] {
   const entries: ScheduleEntry[] = [];
   const parse = (value: string) => value?.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
 
@@ -194,8 +193,7 @@ export function cotalandScheduleEntries(events: CotalandCalendarEvent[], timezon
       closingTime: constructDateTime(end[1], end[2], tz),
       ...(plain ? {} : {description: title}),
     } as ScheduleEntry;
-    if (includeRaw) attachRaw(entry, 'calendarPage', event);
-    entries.push(entry);
+    entries.push(attachRaw(entry, 'calendarPage', event));
   }
 
   entries.sort((a, b) => a.openingTime.localeCompare(b.openingTime));
@@ -231,7 +229,7 @@ export function cotalandParkIsOpen(schedule: ScheduleEntry[], now: Date): boolea
  * `parkOpen` is null when the calendar could not be read. Rows that depend on
  * it are then left out rather than guessed.
  *
- * With `includeRaw`, each row carries its point under `pointsOfInterest`, and
+ * Each row carries its point under `pointsOfInterest`, and
  * a row the open calendar decided also carries `openHours`, the calendar
  * event in effect, under `calendarPage`. A row the calendar closed has no
  * event behind it: no block of hours covering now is not one row.
@@ -240,15 +238,12 @@ export function cotalandLiveData(
   pois: CotalandPoi[],
   entityIds: Set<string>,
   parkOpen: boolean | null,
-  includeRaw = false,
   openHours?: unknown,
 ): LiveData[] {
   const result: LiveData[] = [];
   const push = (ld: LiveData, poi: CotalandPoi, hours?: unknown) => {
-    if (includeRaw) {
-      attachRaw(ld, 'pointsOfInterest', poi);
-      if (hours !== undefined) attachRaw(ld, 'calendarPage', hours);
-    }
+    attachRaw(ld, 'pointsOfInterest', poi);
+    if (hours !== undefined) attachRaw(ld, 'calendarPage', hours);
     result.push(ld);
   };
   for (const poi of pois) {
@@ -340,7 +335,8 @@ export class Cotaland extends Destination {
     return feed.data;
   }
 
-  @cache({ttlSeconds: 43200})
+  // cacheVersion 1: each entry stores its calendar event as a raw piece.
+  @cache({ttlSeconds: 43200, cacheVersion: 1})
   async getScheduleEntries(): Promise<ScheduleEntry[]> {
     const today = formatDate(new Date(), this.timezone);
     const endDate = shiftDateString(today, this.scheduleDays - 1);
@@ -351,7 +347,7 @@ export class Cotaland extends Destination {
       events.push(...(body?.events ?? []));
       if (page >= (body?.total_pages ?? 1)) break;
     }
-    return cotalandScheduleEntries(events, this.timezone, this.includeRaw);
+    return cotalandScheduleEntries(events, this.timezone);
   }
 
   async getDestinations(): Promise<Entity[]> {
@@ -375,7 +371,7 @@ export class Cotaland extends Destination {
       timezone: this.timezone,
       location: PARK_LOCATION,
     } as Entity;
-    return [park, ...cotalandEntities(pois, this.timezone, this.includeRaw)];
+    return [park, ...cotalandEntities(pois, this.timezone)];
   }
 
   protected async buildLiveData(): Promise<LiveData[]> {
@@ -401,7 +397,7 @@ export class Cotaland extends Destination {
       console.warn(`[COTALAND] Hours calendar unavailable, publishing live readings only: ${(err as Error).message}`);
     }
 
-    return cotalandLiveData(pois, entityIds, parkOpen, this.includeRaw, openHours);
+    return cotalandLiveData(pois, entityIds, parkOpen, openHours);
   }
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {

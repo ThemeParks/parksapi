@@ -25,7 +25,7 @@ export type TribeEventsResponse = {
  * operating-hours schedule entries. Skips all-day events (those are
  * marketing/group events, not operating hours).
  *
- * With `includeRaw`, every entry carries the event it was built from under
+ * Every entry carries the event it was built from under
  * `tribeEvents`.
  */
 
@@ -35,8 +35,7 @@ const LISTING_RETRY_MS = 60 * 60 * 1000;
 export function parseTribeEvents(
   json: TribeEventsResponse,
   categoryName: string,
-  timezone: string,
-  includeRaw = false,
+  timezone: string
 ): ScheduleEntry[] {
   const out: ScheduleEntry[] = [];
   for (const ev of json.events ?? []) {
@@ -56,7 +55,7 @@ export function parseTribeEvents(
       // before opening.
       closingTime: constructDateTime(endDate, endTime.slice(0, 5), timezone),
     };
-    if (includeRaw) attachRaw(entry, 'tribeEvents', ev);
+    attachRaw(entry, 'tribeEvents', ev);
     out.push(entry);
   }
   return out;
@@ -66,14 +65,13 @@ export function parseTribeEvents(
  * Fallback parser for the iCal/.ics feed. Extracts VEVENT blocks whose
  * CATEGORIES line includes `categoryName` and converts to operating hours.
  *
- * With `includeRaw`, every entry carries the VEVENT block it was built from
+ * Every entry carries the VEVENT block it was built from
  * under `iCalFeed`, as the string it is in the feed.
  */
 export function parseICalFeed(
   text: string,
   categoryName: string,
-  timezone: string,
-  includeRaw = false,
+  timezone: string
 ): ScheduleEntry[] {
   const out: ScheduleEntry[] = [];
   // Split into VEVENT blocks. The text uses CRLF or LF; normalise to LF first.
@@ -101,7 +99,7 @@ export function parseICalFeed(
       openingTime: constructDateTime(startDateStr, startHm, timezone),
       closingTime: constructDateTime(endDateStr, endHm, timezone),
     };
-    if (includeRaw) attachRaw(entry, 'iCalFeed', body);
+    attachRaw(entry, 'iCalFeed', body);
     out.push(entry);
   }
   return out;
@@ -356,15 +354,14 @@ export function normalizeFeatureNameWithoutZone(name: string): string | undefine
  * matching ride entity (POS registers, gates, retail carts, points offers) are
  * dropped — the ride roster is the scraped entity list, not the feed.
  *
- * With `includeRaw`, every row carries the feed item its status came from
+ * Every row carries the feed item its status came from
  * under `features`, so the name-matching index keeps the item alongside the
  * status it mapped to.
  */
 export function matchFeaturesToLiveData(
   features: LiveFeature[],
   siteIds: string[],
-  rides: Array<{id: string; name: string}>,
-  includeRaw = false,
+  rides: Array<{id: string; name: string}>
 ): LiveData[] {
   if (!siteIds.length) return [];
   const siteSet = new Set(siteIds);
@@ -402,7 +399,7 @@ export function matchFeaturesToLiveData(
     if (!match) continue;
     emitted.add(r.id);
     const ld = {id: r.id, status: match.status} as LiveData;
-    if (includeRaw) attachRaw(ld, 'features', match.feature);
+    attachRaw(ld, 'features', match.feature);
     out.push(ld);
   }
   return out;
@@ -641,7 +638,8 @@ class EnchantedParks extends Destination {
    *
    * Cached 1h.
    */
-  @cache({callback: scrapeTtl(60 * 60 * 12)})
+  // cacheVersion 1: each entry stores its event or VEVENT as a raw piece.
+  @cache({callback: scrapeTtl(60 * 60 * 12), cacheVersion: 1})
   async scrapeSchedule(category: string): Promise<ScheduleEntry[]> {
     const today = new Date();
     const end = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
@@ -663,7 +661,7 @@ class EnchantedParks extends Destination {
       while (page <= MAX_PAGES) {
         const resp = await this.fetchTribeEvents(startStr, endStr, page);
         const json = await resp.json() as TribeEventsResponse;
-        const pageEntries = parseTribeEvents(json, category, this.timezone, this.includeRaw);
+        const pageEntries = parseTribeEvents(json, category, this.timezone);
         all.push(...pageEntries);
         const totalPages = json.total_pages ?? 1;
         if (page >= totalPages) break;
@@ -679,7 +677,7 @@ class EnchantedParks extends Destination {
     try {
       const resp = await this.fetchICalFeed();
       const text = await resp.text();
-      return parseICalFeed(text, category, this.timezone, this.includeRaw);
+      return parseICalFeed(text, category, this.timezone);
     } catch {
       return [];
     }
@@ -1126,7 +1124,7 @@ class EnchantedParks extends Destination {
       console.warn(`${this.constructor.name}: skipping live data, ${err instanceof Error ? err.message : err}`);
       return [];
     }
-    return matchFeaturesToLiveData(features, this.liveStatusSiteIds, rides, this.includeRaw);
+    return matchFeaturesToLiveData(features, this.liveStatusSiteIds, rides);
   }
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {

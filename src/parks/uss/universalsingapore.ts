@@ -111,10 +111,10 @@ function nowTimestamp(): string {
  * "months":{"Months":[{Value, Name, Year, Days:[{Number, StartHour, EndHour}]}]}
  * Returns a map of "YYYY-MM-DD" → {start, end} for efficient lookup.
  *
- * With `includeRaw` on, each entry also carries the day object it was read
+ * Each entry also carries the day object it was read
  * from, so the schedule entry built from it can publish that object unchanged.
  */
-function parseMonthsFromHtml(html: string, includeRaw = false): Map<string, USSDayHours> {
+function parseMonthsFromHtml(html: string): Map<string, USSDayHours> {
   const map = new Map<string, USSDayHours>();
   const marker = '"months":{"Months":';
   const markerIdx = html.indexOf(marker);
@@ -143,7 +143,7 @@ function parseMonthsFromHtml(html: string, includeRaw = false): Map<string, USSD
         map.set(`${month.Year}-${mm}-${dd}`, {
           start: day.StartHour,
           end: day.EndHour,
-          ...(includeRaw ? {day} : {}),
+          ...({day}),
         });
       }
     }
@@ -425,7 +425,7 @@ export class UniversalSingapore extends Destination {
   async getHoursMap(): Promise<[string, USSDayHours][]> {
     const resp = await this.fetchWebsitePage();
     const html = await resp.text();
-    return Array.from(parseMonthsFromHtml(html, this.includeRaw).entries());
+    return Array.from(parseMonthsFromHtml(html).entries());
   }
 
   /** Fetch attractions for a given category. Timestamp is a cache-buster. */

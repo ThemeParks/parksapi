@@ -17,6 +17,7 @@ import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {describe, test, expect, vi, beforeEach, afterEach} from 'vitest';
 import {EuropaPark} from '../europapark.js';
+import {withoutRaw} from '../../../__tests__/helpers/withoutRaw.js';
 
 const fixture = (name: string): any =>
   JSON.parse(readFileSync(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), 'utf8'));
@@ -91,7 +92,7 @@ class LiveProbe extends EuropaPark {
   override async getLiveCalendar(): Promise<any> { return this.calendar(); }
   override async getSeasons(): Promise<any> { return this.seasons(); }
   async live(): Promise<Map<string, any>> {
-    const rows = await this.buildLiveData();
+    const rows = withoutRaw(await this.buildLiveData());
     return new Map(rows.map((r: any) => [r.id, r]));
   }
 }

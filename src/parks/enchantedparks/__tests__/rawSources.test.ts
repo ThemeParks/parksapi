@@ -128,7 +128,7 @@ describe('Enchanted Parks raw upstream pieces', () => {
   it('attaches the feed item a ride matched with its zone code removed', () => {
     const colossusItem = {name: 'SL - A4 Colossus', parentAssignmentId: SITE, operationalStatus: 'Open'};
     const feature: LiveFeature = {name: colossusItem.name, siteId: SITE, operationalStatus: 'Open', feature: colossusItem};
-    const live = matchFeaturesToLiveData([feature], [SITE], [{id: 'colossus', name: 'Colossus'}], true);
+    const live = matchFeaturesToLiveData([feature], [SITE], [{id: 'colossus', name: 'Colossus'}]);
 
     expect(live.map((l) => [l.id, l.status])).toEqual([['colossus', 'OPERATING']]);
     expect(rawOf(live[0])).toEqual({features: colossusItem});

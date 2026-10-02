@@ -3,6 +3,7 @@
  */
 import {describe, test, expect} from 'vitest';
 import {placeToEntity, isEventVariantAlias, parseShowTimes, mapUniversalShowStatus, type UniversalPlace, type UniversalShowListEntry} from '../universal.js';
+import {withoutRaw} from '../../../__tests__/helpers/withoutRaw.js';
 
 const DESTINATION = 'universalresort_orlando';
 const TZ = 'America/New_York';
@@ -50,7 +51,7 @@ const shopPlace: UniversalPlace = {
 
 describe('placeToEntity', () => {
   test('Ride → ATTRACTION with venue_id as parent and map location', () => {
-    expect(placeToEntity(ridePlace, DESTINATION, TZ)).toEqual({
+    expect(withoutRaw(placeToEntity(ridePlace, DESTINATION, TZ))).toEqual({
       id: 'uor.usf.rides.despicable_me_minion_mayhem',
       name: 'Despicable Me Minion Mayhem™',
       entityType: 'ATTRACTION',

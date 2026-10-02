@@ -305,7 +305,8 @@ export class Chimelong extends Destination {
     return schedules;
   }
 
-  @cache({ttlSeconds: 3600})
+  // cacheVersion 1: each entry stores its calendar match as a raw piece.
+  @cache({ttlSeconds: 3600, cacheVersion: 1})
   async getScheduleForPark(park: ParkConfig): Promise<Array<{date: string; type: string; openingTime: string; closingTime: string}>> {
     const resp = await this.fetchCalendarPage(park.calendarURL);
     const html: string = await resp.text();

@@ -37,7 +37,10 @@ describe('parseExpressNowResponse', () => {
       inventory_time_minutes: 28,
       product_price: 39.99,
       vl_inventory: 1,
+      // The prediction the offer came from, kept as its raw upstream piece.
+      prediction: SAMPLE_PAYLOAD.predictions[0],
     });
+    expect(out[placeId].prediction).toBe(SAMPLE_PAYLOAD.predictions[0]);
   });
 
   test('product_price * 100 rounds cleanly to cents (no float drift)', () => {

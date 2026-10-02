@@ -1,6 +1,7 @@
 import {describe, test, expect, beforeEach, afterEach, vi} from 'vitest';
 import {UniversalStudiosJapan} from '../universalstudiosjapan.js';
 import {CacheLib} from '../../../cache.js';
+import {withoutRaw} from '../../../__tests__/helpers/withoutRaw.js';
 
 /**
  * Some USJ shows are listed in both the wait-times feed and the show list,
@@ -80,7 +81,7 @@ class Probe extends UniversalStudiosJapan {
   async getShowListData(): Promise<any[]> { return this.shows; }
   async getPlaces(): Promise<any[]> { return []; }
   async _init(): Promise<void> {}
-  live() { return this.buildLiveData(); }
+  async live() { return withoutRaw(await this.buildLiveData()); }
 }
 
 beforeEach(() => {

@@ -309,14 +309,13 @@ function closeDateAcrossMidnight(date: string, openTime: string, closeTime: stri
  * event) is layered on top. Closing times at or before opening (e.g.
  * 18:00–00:30 or 22:00–01:00) roll the close date to the next day.
  *
- * With `includeRaw`, every entry carries the BusinessTime entry it was built
+ * Every entry carries the BusinessTime entry it was built
  * from under `businessTime` — the same entry on both entries of a day that
  * has a night session.
  */
 export function parseBusinessTime(
   json: FantawildBusinessTimeResponse | null | undefined,
-  timezone: string,
-  includeRaw = false,
+  timezone: string
 ): ScheduleEntry[] {
   const out: ScheduleEntry[] = [];
   for (const ev of json?.value ?? []) {
@@ -334,7 +333,7 @@ export function parseBusinessTime(
         openingTime: constructDateTime(date, ev.startTime, timezone),
         closingTime: constructDateTime(closeDate, ev.endTime, timezone),
       };
-      if (includeRaw) attachRaw(entry, 'businessTime', ev);
+      attachRaw(entry, 'businessTime', ev);
       out.push(entry);
     }
     if (ev.isNight && ev.nightStartTime && ev.nightEndTime
@@ -346,7 +345,7 @@ export function parseBusinessTime(
         openingTime: constructDateTime(date, ev.nightStartTime, timezone),
         closingTime: constructDateTime(nightCloseDate, ev.nightEndTime, timezone),
       };
-      if (includeRaw) attachRaw(entry, 'businessTime', ev);
+      attachRaw(entry, 'businessTime', ev);
       out.push(entry);
     }
   }
@@ -539,13 +538,13 @@ export class Fantawild extends Destination {
 
   @cache({
     callback: (result: ScheduleEntry[]) => result.length === 0 ? 60 : 60 * 60 * 6,
-    cacheVersion: 1,
+    cacheVersion: 2, // 2: each entry stores its BusinessTime entry as a raw piece
   })
   async getSchedule(parkId: number, timezone: string): Promise<ScheduleEntry[]> {
     try {
       const resp = await this.fetchBusinessTime(parkId);
       const json = await resp.json() as FantawildBusinessTimeResponse;
-      return parseBusinessTime(json, timezone, this.includeRaw);
+      return parseBusinessTime(json, timezone);
     } catch {
       return [];
     }
@@ -684,13 +683,10 @@ export class Fantawild extends Destination {
       // Use the stable roster, not the raw fresh items. This protects the
       // entity list from upstream roster shrinkage (overnight CMS prune,
       // slow-API timeouts, scheduled day-closures) — see getStableRoster.
+      // Each entity carries its roster item: the row this tick's response
+      // holds for it, or for one the roster kept alive, the last row upstream
+      // sent before it dropped out.
       const items = await this.getStableRoster(park.parkId, park.timezone);
-      // A roster item this tick's response still carries is the piece behind
-      // its entity; one the roster cache alone kept alive has no piece. Only
-      // read when pieces are wanted, so the default build asks for nothing more.
-      const freshIds = this.includeRaw
-        ? new Set((await this.getItems(park.parkId, park.timezone)).map(f => f.id))
-        : new Set<number>();
       for (const item of items) {
         if (!item.id) continue;
         const cleanName = stripFantawildStars(item.itemName || '');
@@ -716,7 +712,7 @@ export class Fantawild extends Destination {
             longitude: item.longitude!,
           };
         }
-        entities.push(freshIds.has(item.id) ? this.addRaw(entity, 'itemBusinessList', item) : entity);
+        entities.push(this.addRaw(entity, 'itemBusinessList', item));
       }
       return entities;
     }));

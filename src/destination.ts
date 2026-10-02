@@ -104,9 +104,11 @@ export type WithRaw<T> = T & {raw?: RawSources};
  * requests gets one call per request. The piece is stored as is: no copy, no
  * cleaning, only the slice of the response that concerns this element.
  *
- * Park classes use {@link Destination.addRaw}, which sits behind the
- * destination's `includeRaw` flag. Module-level helpers that build elements
- * outside a class take an `includeRaw` parameter and call this directly.
+ * Always attaches, whatever the destination's `includeRaw` flag says: the
+ * flag is applied once, by the public getters, which strip `raw` when it is
+ * off. Builders never branch on it, so a result cached under one setting is
+ * correct under the other and the flag can be flipped at any time. Park
+ * classes can use {@link Destination.addRaw}; module-level helpers call this.
  */
 export function attachRaw<T extends object>(element: T, source: string, piece: unknown): T {
   const target = element as WithRaw<T>;
@@ -114,7 +116,7 @@ export function attachRaw<T extends object>(element: T, source: string, piece: u
   return element;
 }
 
-/** Remove `raw` from an element. Safety net for the public getters when `includeRaw` is off. */
+/** Remove `raw` from an element. How the public getters apply `includeRaw` when it is off. */
 function stripRaw(element: object): void {
   delete (element as WithRaw<object>).raw;
 }
@@ -159,8 +161,8 @@ export type EntityMapperConfig<T> = {
 
   /**
    * Optional request name under which each source item is attached to its
-   * entity as a raw upstream piece (see {@link attachRaw}). Only takes effect
-   * when the destination's `includeRaw` flag is on.
+   * entity as a raw upstream piece (see {@link attachRaw}). Attached always;
+   * the getters drop it unless `includeRaw` is on.
    */
   rawSource?: string;
 };
@@ -244,9 +246,12 @@ export abstract class Destination {
   /**
    * Opt-in: carry the raw upstream pieces each element was built from, under
    * `raw`, keyed by request name (see {@link attachRaw}). Applies to entities,
-   * live data and every schedule entry alike. Off by default, and when off the
-   * public getters strip any `raw` a park set anyway, so the default output
-   * does not change by a byte.
+   * live data and every schedule entry alike. Off by default.
+   *
+   * Parks attach their pieces unconditionally, and this flag is read in one
+   * place only: the public getters, which strip `raw` when it is off. So the
+   * output with it off is unchanged, a value cached under either setting
+   * serves both, and it can be flipped at any time without clearing a cache.
    *
    * Meant for a consumer that stores and analyses the data itself and wants
    * the upstream original next to the mapped element. The pieces are the
@@ -759,9 +764,10 @@ export abstract class Destination {
   }
 
   /**
-   * {@link attachRaw} behind the {@link includeRaw} flag: the one-liner park
-   * code uses wherever it builds an element from a piece of an upstream
-   * response. Returns the element either way, so it can wrap a `push`.
+   * {@link attachRaw} as a method: the one-liner park code uses wherever it
+   * builds an element from a piece of an upstream response. Always attaches;
+   * never branch on {@link includeRaw} around it. Returns the element, so it
+   * can wrap a `push`.
    *
    * @param element The entity, live data or schedule entry being built
    * @param source Name of the request the piece came from (`waitTimes`, `signage`)
@@ -776,7 +782,7 @@ export abstract class Destination {
    * ```
    */
   protected addRaw<T extends object>(element: T, source: string, piece: unknown): T {
-    return this.includeRaw ? attachRaw(element, source, piece) : element;
+    return attachRaw(element, source, piece);
   }
 
   /**

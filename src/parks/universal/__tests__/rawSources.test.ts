@@ -133,7 +133,7 @@ function stubbedPark(includeRaw: boolean): UniversalStudios {
   // The real parser runs, so the test also covers the prediction being carried
   // through the reduced offer shape.
   vi.spyOn(park, 'getExpressNowOffers').mockImplementation(
-    async () => parseExpressNowResponse({predictions: [prediction]}, park.includeRaw),
+    async () => parseExpressNowResponse({predictions: [prediction]}),
   );
   // Retirement force-closes ids that vanish from the feed. It runs after
   // buildLiveData and is a separate concern, so keep it out of these rows.

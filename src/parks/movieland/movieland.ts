@@ -44,15 +44,14 @@ export function movielandEntityId(id: string): string {
  * Join the show rows to the points they belong to and publish their
  * performances for one date.
  *
- * With `includeRaw` on, every row carries the show row it was built from under
+ * Every row carries the show row it was built from under
  * `shows`, and a row that two show rows target carries both as a list.
  */
 export function movielandShowtimes(
   shows: HelpyShow[],
   pointIds: Set<string>,
   date: string,
-  timezone: string,
-  includeRaw = false,
+  timezone: string
 ): LiveData[] {
   const result = shows.flatMap(show => {
     const id = [show.id, show.infoPointId]
@@ -77,7 +76,7 @@ export function movielandShowtimes(
   }
   for (const entry of merged.values()) {
     entry.live.showtimes?.sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''));
-    if (includeRaw) attachRaw(entry.live, 'shows', entry.sources.length > 1 ? entry.sources : entry.sources[0]);
+    attachRaw(entry.live, 'shows', entry.sources.length > 1 ? entry.sources : entry.sources[0]);
   }
   return [...merged.values()].map(entry => entry.live);
 }
@@ -201,15 +200,14 @@ export function parseMovielandSeason(html: string): {min?: string; max?: string}
  * Closed days are omitted rather than published: the schedule contract has no
  * CLOSED type, and every other park in this repo skips them.
  *
- * With `includeRaw` on, every day carries both halves it was joined from: the
+ * Every day carries both halves it was joined from: the
  * day's object of the month data under `calendarMonth` and the legend entry
  * that gave it its hours under `calendarPage`.
  */
 export function movielandScheduleEntries(
   month: MovielandCalendarMonth,
   legend: Record<string, MovielandLegendEntry>,
-  timezone: string,
-  includeRaw = false,
+  timezone: string
 ): ScheduleEntry[] {
   const entries: ScheduleEntry[] = [];
 
@@ -233,10 +231,8 @@ export function movielandScheduleEntries(
           ),
           ...(entry.description ? {description: entry.description} : {}),
         } as ScheduleEntry;
-        if (includeRaw) {
-          attachRaw(day, 'calendarMonth', contents);
-          attachRaw(day, 'calendarPage', entry);
-        }
+        attachRaw(day, 'calendarMonth', contents);
+        attachRaw(day, 'calendarPage', entry);
         entries.push(day);
         break; // one set of hours per day
       }
@@ -410,7 +406,7 @@ export class Movieland extends Destination {
     const shows = await response.json() as HelpyShow[];
     const today = formatInTimezone(new Date(), this.timezone, 'date').split('/');
     const date = `${today[2]}-${today[0]}-${today[1]}`;
-    return movielandShowtimes(shows.filter(show => show.parco === 'movieland'), new Set(points.filter(p => p.categoria === 'show').map(p => movielandEntityId(p.id))), date, this.timezone, this.includeRaw);
+    return movielandShowtimes(shows.filter(show => show.parco === 'movieland'), new Set(points.filter(p => p.categoria === 'show').map(p => movielandEntityId(p.id))), date, this.timezone);
   }
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
@@ -426,7 +422,7 @@ export class Movieland extends Destination {
     const months = await Promise.all(
       movielandMonthsToFetch(year, month, this.scheduleMonths).map(async ({year, month}) => {
         const data = await (await this.fetchCalendarMonth(year, month)).json() as MovielandCalendarMonth;
-        return movielandScheduleEntries(data, legend, this.timezone, this.includeRaw);
+        return movielandScheduleEntries(data, legend, this.timezone);
       }),
     );
 

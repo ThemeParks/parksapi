@@ -4,6 +4,7 @@ import {mkdtempSync, readFileSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {ParcAsterix} from '../parcasterix.js';
+import {withoutRaw} from '../../../__tests__/helpers/withoutRaw.js';
 
 /**
  * In September 2026 the offline package stopped writing a legend key into
@@ -71,10 +72,11 @@ function packageDb(days: Array<[string, string]>, legend: Record<string, string>
 
 function load(days: Array<[string, string]>, legend: Record<string, string> = LIVE_EN_LEGEND) {
   const park = new ParcAsterix();
-  return (park as any).loadSqliteDatabase(packageDb(days, legend), 'en') as {
+  const loaded = (park as any).loadSqliteDatabase(packageDb(days, legend), 'en') as {
     calendar: Array<{date: string; type: string; openingTime: string; closingTime: string}>;
     closedDates: Set<string>;
   };
+  return {...loaded, calendar: withoutRaw(loaded.calendar)};
 }
 
 describe('calendar day types written as sentences', () => {

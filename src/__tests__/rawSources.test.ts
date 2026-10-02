@@ -4,14 +4,15 @@
  *
  * A consumer that stores the data itself can opt into the slice of the
  * upstream response each entity, live-data row and schedule entry was built
- * from. Off by default: the public getters then strip `raw` from anything a
- * park set, so the default output is unchanged.
+ * from. Parks always attach their pieces; the flag is applied only by the
+ * public getters, which strip `raw` when it is off. Off is the default, and
+ * the default output is unchanged.
  */
 
 import {describe, test, expect, vi, beforeEach, afterEach} from 'vitest';
 import {Destination, attachRaw, type WithRaw} from '../destination.js';
 import config from '../config.js';
-import {CacheLib} from '../cache.js';
+import {CacheLib, cache} from '../cache.js';
 import {Entity, LiveData, EntitySchedule, ScheduleEntry} from '@themeparks/typelib';
 
 const signageRow = {poiId: '12', waitTime: 25, open: true, showTimes: null};
@@ -82,11 +83,43 @@ class RawTestDestination extends Destination {
   }
 }
 
+/** A park that builds its calendar inside a @cache method. */
+@config
+class CachedCalendarDestination extends Destination {
+  public builds = 0;
+
+  async getDestinations(): Promise<Entity[]> {
+    return [];
+  }
+
+  @cache({ttlSeconds: 3600})
+  async getCalendar(): Promise<ScheduleEntry[]> {
+    this.builds++;
+    return [attachRaw(
+      {date: '2026-09-21', type: 'OPERATING', openingTime: '2026-09-21T10:00:00+02:00', closingTime: '2026-09-21T18:00:00+02:00'} as ScheduleEntry,
+      'calendar', calendarDay,
+    )];
+  }
+
+  protected async buildEntityList(): Promise<Entity[]> {
+    return [];
+  }
+
+  protected async buildLiveData(): Promise<LiveData[]> {
+    return [];
+  }
+
+  protected async buildSchedules(): Promise<EntitySchedule[]> {
+    return [{id: 'park', schedule: await this.getCalendar()}];
+  }
+}
+
 const rawOf = (element: object): unknown => (element as WithRaw<object>).raw;
 
 describe('raw upstream pieces', () => {
   beforeEach(() => {
     CacheLib.clearByClassName('RawTestDestination', {includePersistent: true});
+    CacheLib.clearByClassName('CachedCalendarDestination', {includePersistent: true});
   });
 
   afterEach(() => {
@@ -164,18 +197,15 @@ describe('raw upstream pieces', () => {
     expect(rawOf(element)).toEqual({first: 3, second: 2});
   });
 
-  test('mapEntities attaches the source item under rawSource, and only then', () => {
-    const on = new RawTestDestination({includeRaw: true});
-    const [withSource] = on.mapWithRaw('poiData');
-    expect((withSource as WithRaw<Entity>).raw!.poiData).toBe(poiItem);
-    expect(withSource.location).toEqual({latitude: 53.02, longitude: 9.87});
+  test('mapEntities attaches the source item under rawSource, whatever the flag', () => {
+    for (const park of [new RawTestDestination({includeRaw: true}), new RawTestDestination()]) {
+      const [withSource] = park.mapWithRaw('poiData');
+      expect((withSource as WithRaw<Entity>).raw!.poiData).toBe(poiItem);
+      expect(withSource.location).toEqual({latitude: 53.02, longitude: 9.87});
 
-    const [withoutSource] = on.mapWithRaw();
-    expect(rawOf(withoutSource)).toBeUndefined();
-
-    const off = new RawTestDestination();
-    const [flagOff] = off.mapWithRaw('poiData');
-    expect(rawOf(flagOff)).toBeUndefined();
+      const [withoutSource] = park.mapWithRaw();
+      expect(rawOf(withoutSource)).toBeUndefined();
+    }
   });
 
   test('a retirement CLOSED row has no raw', async () => {
@@ -204,15 +234,30 @@ describe('raw upstream pieces', () => {
     expect(Object.keys(piece)).toEqual(['poiId', 'waitTime', 'open', 'showTimes']);
   });
 
-  test('attachRaw attaches regardless of any flag, addRaw only with the flag on', () => {
+  test('attachRaw and addRaw attach whatever the flag says', () => {
     const element = {id: 'x'} as LiveData;
     expect(attachRaw(element, 'source', signageRow)).toBe(element);
     expect(rawOf(element)).toEqual({source: signageRow});
 
     const off = new RawTestDestination();
-    const untouched = {id: 'y'} as LiveData;
+    const built = {id: 'y'} as LiveData;
     const addRaw = (off as unknown as {addRaw: (e: object, s: string, p: unknown) => object}).addRaw.bind(off);
-    expect(addRaw(untouched, 'source', signageRow)).toBe(untouched);
-    expect(rawOf(untouched)).toBeUndefined();
+    expect(addRaw(built, 'source', signageRow)).toBe(built);
+    expect(rawOf(built)).toEqual({source: signageRow});
+  });
+
+  test('the flag can be flipped at any time: a cached build serves both settings', async () => {
+    const park = new CachedCalendarDestination();
+    const pieces = (schedules: EntitySchedule[]) => schedules[0].schedule.map((e) => rawOf(e));
+
+    // Filled with the flag off: the cached entries still hold their pieces.
+    expect(pieces(await park.getSchedules())).toEqual([undefined]);
+    park.includeRaw = true;
+    expect(pieces(await park.getSchedules())).toEqual([{calendar: calendarDay}]);
+    park.includeRaw = false;
+    expect(pieces(await park.getSchedules())).toEqual([undefined]);
+
+    // One build, served three times from the cache.
+    expect(park.builds).toBe(1);
   });
 });

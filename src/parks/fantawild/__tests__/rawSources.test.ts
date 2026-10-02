@@ -8,8 +8,9 @@ import type {HTTPObj} from '../../../http.js';
  * With `includeRaw` on, every live row and every entity carries the item the
  * current `GetItemBusinessList` response held for it, and every schedule entry
  * carries the BusinessTime entry of its day — the same entry on the day and on
- * its night session. A ride only the stable roster still knows carries nothing,
- * and so do the destination and the park. Off, nothing carries anything.
+ * its night session. A ride only the stable roster still knows keeps its last
+ * row on the entity; its synthesised CLOSED live row carries nothing, and nor
+ * do the destination and the park. Off, nothing carries anything.
  */
 // 12:00 in Asia/Shanghai, inside the park's 09:30-18:00 window
 const NOW = new Date('2026-09-21T04:00:00Z');
@@ -92,7 +93,7 @@ describe('Fantawild raw upstream pieces', () => {
     expect(rawOf(live[2])).toBeUndefined();
   });
 
-  it('attaches the item to each entity, nothing to a roster-only ride, the park or the destination', async () => {
+  it('attaches the item to each entity, the last-seen row to a roster-only ride, nothing to the park or the destination', async () => {
     const entities = await stubbedPark(true).getEntities();
     const rides = ofPark(entities);
     expect(rides.map((e) => e.id)).toEqual([
@@ -106,7 +107,8 @@ describe('Fantawild raw upstream pieces', () => {
     expect(rides[0].name).toBe('孟姜女');
     expect(rawOf(rides[1])!.itemBusinessList).toBe(showItem);
     expect(rides[1].entityType).toBe('SHOW');
-    expect(rawOf(rides[2])).toBeUndefined();
+    expect(rawOf(rides[2])).toEqual({itemBusinessList: rosterOnlyItem});
+    expect(rawOf(rides[2])!.itemBusinessList).toBe(rosterOnlyItem);
 
     for (const id of [`fantawild_destination_${PARK_ID}`, `fantawild_park_${PARK_ID}`]) {
       expect(rawOf(entities.find((e) => e.id === id)!)).toBeUndefined();

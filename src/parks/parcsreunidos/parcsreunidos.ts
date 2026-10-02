@@ -500,7 +500,8 @@ class ParcsReunidosDestination extends Destination {
   // a full day of an already-deployed fix doing nothing. Observed exactly
   // that on the first deploy: the collector synced with the corrected build
   // and republished the same inverted rows straight out of this cache.
-  @cache({ttlSeconds: 86400, cacheVersion: 2})
+  // cacheVersion 3: calendar entries store their raw upstream pieces.
+  @cache({ttlSeconds: 86400, cacheVersion: 3})
   async parseCalendar(): Promise<Array<{date: string; type: string; openingTime: string; closingTime: string}>> {
     const resp = await this.fetchCalendarHTML();
     const html = await resp.text();

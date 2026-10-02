@@ -144,8 +144,7 @@ export function parseDashboardHours(str: string): {open: string; close: string} 
 export function buildTodayScheduleFromDashboard(
   dashboard: QiddiyaDashboardResponse['data'] | undefined,
   today: Date,
-  timezone: string,
-  includeRaw = false,
+  timezone: string
 ): Array<{date: string; type: string; openingTime: string; closingTime: string}> {
   if (dashboard?.parkInfo?.isOpen === false) return [];
 
@@ -161,7 +160,7 @@ export function buildTodayScheduleFromDashboard(
     openingTime: constructDateTime(dateStr, hours.open, timezone),
     closingTime: constructDateTime(closingDate, hours.close, timezone),
   };
-  if (includeRaw) attachRaw(entry, 'dashboard', dashboard);
+  attachRaw(entry, 'dashboard', dashboard);
   return [entry];
 }
 
@@ -579,7 +578,7 @@ export class QiddiyaCity extends Destination {
 
     if (Object.keys(weeklyHours).length === 0) {
       const dashboard = await this.getDashboard();
-      const todaySchedule = buildTodayScheduleFromDashboard(dashboard, new Date(), this.timezone, this.includeRaw);
+      const todaySchedule = buildTodayScheduleFromDashboard(dashboard, new Date(), this.timezone);
       return [{id: SIX_FLAGS_PARK_ID, schedule: todaySchedule} as EntitySchedule, aquaRabia];
     }
 

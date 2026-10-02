@@ -1410,19 +1410,19 @@ class AttractionsIOV1 extends Destination {
     // Attractions
     const attractionItems = await this.getItemsForCategories(ATTRACTION_CATEGORIES);
     const attractionEntities = attractionItems.map(item =>
-      buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'ATTRACTION', this.includeRaw)
+      buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'ATTRACTION')
     );
 
     // Shows
     const showItems = await this.getItemsForCategories(this.getShowCategories());
     const showEntities = showItems.map(item =>
-      buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'SHOW', this.includeRaw)
+      buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'SHOW')
     );
 
     // Restaurants
     const restaurantItems = await this.getItemsForCategories(RESTAURANT_CATEGORIES);
     const restaurantEntities = restaurantItems.map(item =>
-      buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'RESTAURANT', this.includeRaw)
+      buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'RESTAURANT')
     );
 
     // Scheduled performances under a category none of the lists name. Seasonal
@@ -1444,7 +1444,7 @@ class AttractionsIOV1 extends Destination {
     // and the base class would otherwise default to it silently.
     const walkThroughItems = await this.getWalkThroughItems();
     const walkThroughEntities = walkThroughItems.map(item => {
-      const entity = buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'ATTRACTION', this.includeRaw);
+      const entity = buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'ATTRACTION');
       (entity as Entity & {attractionType?: string}).attractionType = 'RIDE';
       return entity;
     });
@@ -1452,7 +1452,7 @@ class AttractionsIOV1 extends Destination {
 
     const scheduledShowEntities = data.Item
       .filter(item => !classified.has(item._id) && parseShowTimes(item.ShowTimes) !== null)
-      .map(item => buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'SHOW', this.includeRaw));
+      .map(item => buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'SHOW'));
 
     return [
       ...await this.getDestinations(),
@@ -1738,7 +1738,7 @@ function parseYYYYMMDD(raw: string): string | null {
 /**
  * Build a full Entity from a records.json Item.
  *
- * With `includeRaw` on, the item is attached to the entity as its raw upstream
+ * The item is attached to the entity as its raw upstream
  * piece under the name of the request that delivered it.
  */
 function buildItemEntity(
@@ -1746,8 +1746,7 @@ function buildItemEntity(
   parkId: string,
   destinationId: string,
   timezone: string,
-  entityType: 'ATTRACTION' | 'SHOW' | 'RESTAURANT',
-  includeRaw = false
+  entityType: 'ATTRACTION' | 'SHOW' | 'RESTAURANT'
 ): Entity {
   const entity: Entity = {
     id: String(item._id),
@@ -1791,7 +1790,7 @@ function buildItemEntity(
     entity.tags = tags;
   }
 
-  if (includeRaw) attachRaw(entity, 'poiData', item);
+  attachRaw(entity, 'poiData', item);
 
   return entity;
 }

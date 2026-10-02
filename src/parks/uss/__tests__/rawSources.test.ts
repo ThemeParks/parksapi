@@ -166,11 +166,14 @@ describe('Universal Singapore raw upstream pieces', () => {
     ]);
   });
 
-  test('the page parser leaves the day object out by default', async () => {
+  test('the page parser always keeps the day object, whatever the flag', async () => {
     const park = new UniversalSingapore({config: {websiteBase: 'https://rws.example'}});
     vi.spyOn(park as any, 'fetchWebsitePage').mockResolvedValue({text: async () => websiteHtml} as any);
 
-    expect(await park.getHoursMap()).toEqual([['2026-09-21', {start: '10:00', end: '20:00'}]]);
+    const [[date, hours]] = await park.getHoursMap();
+    expect(date).toBe('2026-09-21');
+    expect(hours).toMatchObject({start: '10:00', end: '20:00'});
+    expect(hours.day).toBeDefined();
   });
 
   test('carries nothing when includeRaw is off', async () => {

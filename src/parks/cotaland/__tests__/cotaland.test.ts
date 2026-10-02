@@ -16,6 +16,9 @@ import {
 } from '../cotaland.js';
 import {CacheLib} from '../../../cache.js';
 import type {HTTPObj} from '../../../http.js';
+import {withoutRaw} from '../../../__tests__/helpers/withoutRaw.js';
+
+const liveRows = (...args: Parameters<typeof cotalandLiveData>) => withoutRaw(cotalandLiveData(...args));
 
 /**
  * COTALAND publishes two things this module joins:
@@ -205,11 +208,11 @@ describe('cotalandParkIsOpen', () => {
 describe('cotalandLiveData', () => {
   const ids = new Set(['6181']);
   const one = (overrides: Partial<CotalandPoi>, parkOpen: boolean | null) =>
-    cotalandLiveData([poi(overrides)], ids, parkOpen);
+    liveRows([poi(overrides)], ids, parkOpen);
 
   test('the captured feed, park shut: every published point is CLOSED, not "Open"', () => {
     const entityIds = new Set(cotalandEntities(feed.data!, TZ).map(e => e.id));
-    const live = cotalandLiveData(feed.data!, entityIds, false);
+    const live = liveRows(feed.data!, entityIds, false);
     expect(live).toHaveLength(entityIds.size);
     expect(live.every(ld => ld.status === 'CLOSED')).toBe(true);
     expect(live.some(ld => ld.queue)).toBe(false);
@@ -260,7 +263,7 @@ describe('cotalandLiveData', () => {
   });
 
   test('points that are not published entities are ignored', () => {
-    expect(cotalandLiveData([poi({id: 6332, waitTime: 10})], ids, true)).toEqual([]);
+    expect(liveRows([poi({id: 6332, waitTime: 10})], ids, true)).toEqual([]);
   });
 });
 

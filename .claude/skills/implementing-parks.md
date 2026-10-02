@@ -184,7 +184,7 @@ protected async buildEntityList(): Promise<Entity[]> {
 }
 ```
 
-**Every element carries its raw upstream piece when the consumer asks for it.** `rawSource` names the request the items came from (the `fetch` method name without the prefix, in lowerCamelCase), and `mapEntities()` attaches each item under that name when the destination's `includeRaw` flag is on. Entities built by hand get the same through `this.addRaw(entity, 'poi', item)`. Entities built from constants (the destination, a park with a literal id) carry nothing: no piece, no `raw`.
+**Every element carries its raw upstream piece.** `rawSource` names the request the items came from (the `fetch` method name without the prefix, in lowerCamelCase), and `mapEntities()` attaches each item under that name; the public getters drop it unless the consumer set `includeRaw`. Entities built by hand get the same through `this.addRaw(entity, 'poi', item)`. Entities built from constants (the destination, a park with a literal id) carry nothing: no piece, no `raw`.
 
 **Do not emit a `TagBuilder.location(...)` that duplicates the entity's primary coordinate.** `locationFields` already puts that lat/lng on `entity.location`. LOCATION tags are only for *additional* named sub-points (e.g. a separate single-rider entrance or exit with distinct coordinates). If the source API only gives you one point, stop at `locationFields` — no tag needed. See `src/tags/TAG_DEVELOPMENT_GUIDE.md` §"When to Emit a LOCATION Tag".
 
@@ -209,16 +209,19 @@ protected async buildLiveData(): Promise<LiveData[]> {
 
 **waitTime must be a finite number or null/undefined — never a string.** The base class `getLiveData()` sanitises output and replaces any non-numeric waitTime with `null`, but always validate at the source too. The base class guard is a safety net, not an excuse to skip validation.
 
-**Attach the raw piece wherever an element is built.** `this.addRaw(element, source, piece)` records the slice of the upstream response the element came from, keyed by the request name (the `fetch` method name without the prefix: `fetchWaitTimes` -> `waitTimes`; a request with several lists gets the list name appended, `pollingLatencies`). It does nothing unless the consumer set `includeRaw`, and the getters strip `raw` when the flag is off, so it costs the default output nothing. Rules:
+**Attach the raw piece wherever an element is built.** `this.addRaw(element, source, piece)` records the slice of the upstream response the element came from, keyed by the request name (the `fetch` method name without the prefix: `fetchWaitTimes` -> `waitTimes`; a request with several lists gets the list name appended, `pollingLatencies`). It always attaches. `includeRaw` is applied in one place only, the public getters in `destination.ts`, which strip `raw` when it is off, so the default output is unchanged. Rules:
+
+- **Never read `includeRaw` in park code**, and never branch on it. Builders, helpers and above all `@cache` methods attach unconditionally. A cached result built under one setting then serves both, and the consumer can flip the flag at any time without clearing a cache. `src/__tests__/rawFlagOnlyInGetters.test.ts` fails the build on any read outside the getters.
 
 - The piece is the part of the response that concerns this element, unchanged: the list entry, the map value, the field. Never the whole response, never other entities' rows.
 - An element assembled from several requests gets one call per request (`addRaw(ld, 'waitTimes', row)` then `addRaw(ld, 'showTimes', show)`); a park-wide piece that decided the status (today's opening hours) counts as a contributor.
 - Several entries of one response feeding one element go in as an array.
 - A synthetic element with no upstream evidence (a CLOSED row for an entity only the roster knows, a status derived from a name) gets no call.
 - Schedules: attach to each `ScheduleEntry`, not to the `EntitySchedule`. A season or a range that produces many days is the same object on each of those days.
-- A module-level helper that builds elements outside the class takes `includeRaw = false` as its last parameter and calls `attachRaw()` from `destination.ts` when it is true.
-- Never pay for `raw` when it is off. A request or a lookup made only to find a piece runs behind `if (this.includeRaw)`; the default build makes exactly the calls it made before.
+- A module-level helper that builds elements outside the class calls `attachRaw()` from `destination.ts`. It takes no flag.
+- Never make a request only to find a piece. Attach what the build already has in hand; a piece that would need an extra call is left out.
 - A piece stored inside a `@cache` result changes that result's shape, so bump the method's `cacheVersion` in the same change.
+- A test that calls a builder or helper directly, and is not about the pieces, compares through `withoutRaw()` from `src/__tests__/helpers/withoutRaw.ts`.
 - Every park ships a `__tests__/rawSources.test.ts`: with the flag on, the exact key set on each element and `toBe` identity of each piece; with it off, no element carries `raw`. A new park gets one in the PR that adds it.
 
 #### A present value is not a current value
