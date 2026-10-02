@@ -9,9 +9,9 @@ import type {WithRaw} from '../../../destination.js';
  * entry for a show, and the ETAs of the trains serving an EP-Express station.
  * A season is one object standing behind every day it covers, and today's day
  * adds the live calendar when it overrode the season's hours. A ride closed
- * because the live calendar shuts the park today carries that calendar entry,
- * and one closed for a zero wait on a day without season hours keeps its
- * waiting-times row. A station no
+ * because the live calendar shuts the park today carries that calendar entry
+ * next to its own waiting-times rows, and one closed for a zero wait on a day
+ * without season hours keeps its waiting-times row. A station no
  * train reported for, and the destination built from constants, carry nothing.
  * Off, nothing carries anything.
  */
@@ -127,18 +127,27 @@ describe('Europa-Park raw upstream pieces', () => {
     expect(rawOf(restaurant)!.waitingTimes).toBe(gastronomyWait);
   });
 
-  it('attaches today\'s live-calendar entry to every ride it closes', async () => {
+  it('attaches today\'s live-calendar entry to every ride it closes, next to its own rows', async () => {
     const closedToday = {date: '2026-09-21', start: null, end: null};
     const park = stubbedPark(true);
     vi.spyOn(park as any, 'getLiveCalendar').mockResolvedValue({today: closedToday});
     const live = await park.getLiveData();
 
-    for (const id of ['pois_36', 'pois_37']) {
-      const ride = live.find((l) => l.id === id)!;
-      expect(ride.status).toBe('CLOSED');
-      expect(rawOf(ride)).toEqual({liveCalendar: closedToday});
-      expect(rawOf(ride)!.liveCalendar).toBe(closedToday);
-    }
+    // The feed still lists the ride; the calendar decides only its status.
+    const voletarium = live.find((l) => l.id === 'pois_36')!;
+    expect(voletarium.status).toBe('CLOSED');
+    expect(voletarium.queue).toBeUndefined();
+    expect(rawOf(voletarium)).toEqual({waitingTimes: [rideWait, vQueueWait], liveCalendar: closedToday});
+    const rows = rawOf(voletarium)!.waitingTimes as unknown[];
+    expect(rows[0]).toBe(rideWait);
+    expect(rows[1]).toBe(vQueueWait);
+    expect(rawOf(voletarium)!.liveCalendar).toBe(closedToday);
+
+    // A ride the feed does not list has the calendar entry alone behind it.
+    const silverStar = live.find((l) => l.id === 'pois_37')!;
+    expect(silverStar.status).toBe('CLOSED');
+    expect(rawOf(silverStar)).toEqual({liveCalendar: closedToday});
+    expect(rawOf(silverStar)!.liveCalendar).toBe(closedToday);
   });
 
   it('keeps the waiting-times row on a ride a zero wait closes on a day without hours', async () => {

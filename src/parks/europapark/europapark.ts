@@ -1068,10 +1068,14 @@ class EuropaParkBase extends Destination {
     if (dayStatus === 'OPEN') return;
 
     if (dayStatus === 'CLOSED') {
-      // Today's live-calendar entry closed the park, so it is the piece behind
-      // every row it closes.
+      // Today's live-calendar entry closed the park, so it is a piece behind
+      // every row it closes. A ride the waiting-times feed lists keeps that
+      // piece too: the calendar decides only its status.
       for (const entity of mainParkAttractions) {
-        liveDataMap.set(entity.id, this.addRaw({id: entity.id, status: 'CLOSED'} as LiveData, 'liveCalendar', calendar?.today));
+        const closed = {id: entity.id, status: 'CLOSED'} as LiveData;
+        const waitPiece = (liveDataMap.get(entity.id) as WithRaw<LiveData> | undefined)?.raw?.waitingTimes;
+        if (waitPiece !== undefined) this.addRaw(closed, 'waitingTimes', waitPiece);
+        liveDataMap.set(entity.id, this.addRaw(closed, 'liveCalendar', calendar?.today));
       }
       return;
     }
