@@ -1,4 +1,4 @@
-import {Destination, DestinationConstructor} from '../../destination.js';
+import {Destination, DestinationConstructor, attachRaw, type WithRaw} from '../../destination.js';
 import config from '../../config.js';
 import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
@@ -124,7 +124,11 @@ export function cotalandEntityType(poi: CotalandPoi): {entityType: 'ATTRACTION' 
   return {entityType, attractionType: PLAY_AREAS.has(id) ? AttractionTypeEnum.OTHER : AttractionTypeEnum.RIDE};
 }
 
-export function cotalandEntities(pois: CotalandPoi[], timezone: string): Entity[] {
+/**
+ * Entities from the point feed. With `includeRaw`, each carries its point
+ * under `pointsOfInterest`.
+ */
+export function cotalandEntities(pois: CotalandPoi[], timezone: string, includeRaw = false): Entity[] {
   return pois.flatMap(poi => {
     if (poi.isActive === false) return [];
     const type = cotalandEntityType(poi);
@@ -136,7 +140,7 @@ export function cotalandEntities(pois: CotalandPoi[], timezone: string): Entity[
     const description = cleanText(poi.description_html);
     const latitude = coordinate(poi.latitude);
     const longitude = coordinate(poi.longitude);
-    return [{
+    const entity = {
       id: String(poi.id),
       name,
       entityType: type.entityType,
@@ -146,7 +150,9 @@ export function cotalandEntities(pois: CotalandPoi[], timezone: string): Entity[
       timezone,
       ...(description ? {description} : {}),
       ...(Number.isFinite(latitude) && Number.isFinite(longitude) ? {location: {latitude, longitude}} : {}),
-    } as Entity];
+    } as Entity;
+    if (includeRaw) attachRaw(entity, 'pointsOfInterest', poi);
+    return [entity];
   });
 }
 
@@ -158,8 +164,10 @@ export function cotalandEntities(pois: CotalandPoi[], timezone: string): Entity[
  * The last is still a full operating day, open to F1 ticket holders only, so it
  * is published as OPERATING with the restriction kept as the description.
  * Anything titled otherwise is skipped with a warning rather than guessed at.
+ *
+ * With `includeRaw`, each entry carries its event under `calendarPage`.
  */
-export function cotalandScheduleEntries(events: CotalandCalendarEvent[], timezone: string): ScheduleEntry[] {
+export function cotalandScheduleEntries(events: CotalandCalendarEvent[], timezone: string, includeRaw = false): ScheduleEntry[] {
   const entries: ScheduleEntry[] = [];
   const parse = (value: string) => value?.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
 
@@ -179,23 +187,30 @@ export function cotalandScheduleEntries(events: CotalandCalendarEvent[], timezon
 
     const tz = event.timezone || timezone;
     const plain = /^park open$/i.test(title);
-    entries.push({
+    const entry = {
       date: start[1],
       type: 'OPERATING',
       openingTime: constructDateTime(start[1], start[2], tz),
       closingTime: constructDateTime(end[1], end[2], tz),
       ...(plain ? {} : {description: title}),
-    } as ScheduleEntry);
+    } as ScheduleEntry;
+    if (includeRaw) attachRaw(entry, 'calendarPage', event);
+    entries.push(entry);
   }
 
   entries.sort((a, b) => a.openingTime.localeCompare(b.openingTime));
   return entries;
 }
 
+/** The published block of hours `now` falls inside, if any. */
+export function cotalandOpenEntry(schedule: ScheduleEntry[], now: Date): ScheduleEntry | undefined {
+  const t = now.getTime();
+  return schedule.find(entry => Date.parse(entry.openingTime) <= t && t < Date.parse(entry.closingTime));
+}
+
 /** True when `now` falls inside any published block of hours. */
 export function cotalandParkIsOpen(schedule: ScheduleEntry[], now: Date): boolean {
-  const t = now.getTime();
-  return schedule.some(entry => Date.parse(entry.openingTime) <= t && t < Date.parse(entry.closingTime));
+  return cotalandOpenEntry(schedule, now) !== undefined;
 }
 
 /**
@@ -215,9 +230,27 @@ export function cotalandParkIsOpen(schedule: ScheduleEntry[], now: Date): boolea
  *
  * `parkOpen` is null when the calendar could not be read. Rows that depend on
  * it are then left out rather than guessed.
+ *
+ * With `includeRaw`, each row carries its point under `pointsOfInterest`, and
+ * a row the open calendar decided also carries `openHours`, the calendar
+ * event in effect, under `calendarPage`. A row the calendar closed has no
+ * event behind it: no block of hours covering now is not one row.
  */
-export function cotalandLiveData(pois: CotalandPoi[], entityIds: Set<string>, parkOpen: boolean | null): LiveData[] {
+export function cotalandLiveData(
+  pois: CotalandPoi[],
+  entityIds: Set<string>,
+  parkOpen: boolean | null,
+  includeRaw = false,
+  openHours?: unknown,
+): LiveData[] {
   const result: LiveData[] = [];
+  const push = (ld: LiveData, poi: CotalandPoi, hours?: unknown) => {
+    if (includeRaw) {
+      attachRaw(ld, 'pointsOfInterest', poi);
+      if (hours !== undefined) attachRaw(ld, 'calendarPage', hours);
+    }
+    result.push(ld);
+  };
   for (const poi of pois) {
     const id = String(poi.id);
     if (!entityIds.has(id)) continue;
@@ -227,24 +260,24 @@ export function cotalandLiveData(pois: CotalandPoi[], entityIds: Set<string>, pa
     const hasWait = Number.isFinite(wait) && wait >= 0;
 
     if (status !== 'OPERATING') {
-      result.push({id, status} as LiveData);
+      push({id, status} as LiveData, poi);
       continue;
     }
 
     if (hasWait && wait > 0) {
-      result.push({id, status: 'OPERATING', queue: {STANDBY: {waitTime: wait}}} as LiveData);
+      push({id, status: 'OPERATING', queue: {STANDBY: {waitTime: wait}}} as LiveData, poi);
       continue;
     }
 
     if (parkOpen === null) continue;
     if (!parkOpen) {
-      result.push({id, status: 'CLOSED'} as LiveData);
+      push({id, status: 'CLOSED'} as LiveData, poi);
       continue;
     }
 
     const ld = {id, status: 'OPERATING'} as LiveData;
     if (hasWait) ld.queue = {STANDBY: {waitTime: wait}};
-    result.push(ld);
+    push(ld, poi, openHours);
   }
   return result;
 }
@@ -318,7 +351,7 @@ export class Cotaland extends Destination {
       events.push(...(body?.events ?? []));
       if (page >= (body?.total_pages ?? 1)) break;
     }
-    return cotalandScheduleEntries(events, this.timezone);
+    return cotalandScheduleEntries(events, this.timezone, this.includeRaw);
   }
 
   async getDestinations(): Promise<Entity[]> {
@@ -342,7 +375,7 @@ export class Cotaland extends Destination {
       timezone: this.timezone,
       location: PARK_LOCATION,
     } as Entity;
-    return [park, ...cotalandEntities(pois, this.timezone)];
+    return [park, ...cotalandEntities(pois, this.timezone, this.includeRaw)];
   }
 
   protected async buildLiveData(): Promise<LiveData[]> {
@@ -357,13 +390,18 @@ export class Cotaland extends Destination {
     const entityIds = new Set(cotalandEntities(pois, this.timezone).map(entity => entity.id));
 
     let parkOpen: boolean | null = null;
+    let openHours: unknown;
     try {
-      parkOpen = cotalandParkIsOpen(await this.getScheduleEntries(), now);
+      const schedule = await this.getScheduleEntries();
+      parkOpen = cotalandParkIsOpen(schedule, now);
+      // The calendar event behind the block of hours in effect, if the cached
+      // entries carry it.
+      openHours = (cotalandOpenEntry(schedule, now) as WithRaw<ScheduleEntry> | undefined)?.raw?.calendarPage;
     } catch (err) {
       console.warn(`[COTALAND] Hours calendar unavailable, publishing live readings only: ${(err as Error).message}`);
     }
 
-    return cotalandLiveData(pois, entityIds, parkOpen);
+    return cotalandLiveData(pois, entityIds, parkOpen, this.includeRaw, openHours);
   }
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
