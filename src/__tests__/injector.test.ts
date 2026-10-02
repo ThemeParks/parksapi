@@ -1,4 +1,4 @@
-import { inject, broadcast, registerInstance } from '../injector';
+import { inject, broadcast, registerInstance } from '../injector.js';
 
 describe('Injector System', () => {
   beforeEach(() => {

@@ -2,8 +2,8 @@
  * Tests for cache key prefix functionality
  */
 
-import {CacheLib, cache} from '../cache';
-import {Destination} from '../destination';
+import {CacheLib, cache} from '../cache.js';
+import {Destination} from '../destination.js';
 
 describe('Cache Key Prefix', () => {
   beforeEach(() => {

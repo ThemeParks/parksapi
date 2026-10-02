@@ -1,0 +1,2395 @@
+{
+ "_comment": "Chessington World of Adventures, attractions.io. pack = records.json of asset pack version 2026-10-01T16:44:01Z (Resort, Category, Item; fields trimmed). droppedItems = the Item records the previous pack carried and this one does not, as last published. live = the live feed fetched 2026-10-01T23:10Z, trimmed to the pack and dropped items.",
+ "packVersion": "2026-10-01T16:44:01Z",
+ "pack": {
+  "Resort": [
+   {
+    "_id": 44,
+    "Name": "Chessington World of Adventures Resort",
+    "DirectionsLocation": "51.346701,-0.318867"
+   }
+  ],
+  "Category": [
+   {
+    "_id": 465,
+    "Name": "Rides"
+   },
+   {
+    "_id": 466,
+    "Name": "Our Animals"
+   },
+   {
+    "_id": 467,
+    "Name": "Food & Drink"
+   },
+   {
+    "_id": 468,
+    "Name": "Facilities"
+   },
+   {
+    "_id": 469,
+    "Name": "Entertainment"
+   },
+   {
+    "_id": 470,
+    "Name": "Gift Shops"
+   },
+   {
+    "_id": 1060,
+    "Name": "Hotels"
+   },
+   {
+    "_id": 1325,
+    "Name": "Howl’o’ween "
+   },
+   {
+    "_id": 1406,
+    "Name": "Winter's Tail "
+   },
+   {
+    "_id": 1407,
+    "Name": "Go Ape!"
+   },
+   {
+    "_id": 1539,
+    "Name": "Parking"
+   },
+   {
+    "_id": 1589,
+    "Name": "Little Rangers",
+    "Parent": 465
+   },
+   {
+    "_id": 1590,
+    "Name": "Family Explorers",
+    "Parent": 465
+   },
+   {
+    "_id": 1591,
+    "Name": "Brave Adventurers ",
+    "Parent": 465
+   },
+   {
+    "_id": 1592,
+    "Name": "Animal Encounters ",
+    "Parent": 466
+   },
+   {
+    "_id": 1593,
+    "Name": "Zoo Experiences",
+    "Parent": 466
+   },
+   {
+    "_id": 1594,
+    "Name": "Live Shows",
+    "Parent": 469
+   },
+   {
+    "_id": 1595,
+    "Name": "Character Meet & Greets",
+    "Parent": 469
+   },
+   {
+    "_id": 1596,
+    "Name": "Story Time",
+    "Parent": 469
+   },
+   {
+    "_id": 1597,
+    "Name": "Restaurants",
+    "Parent": 467
+   },
+   {
+    "_id": 1598,
+    "Name": "Fast Food",
+    "Parent": 467
+   },
+   {
+    "_id": 1599,
+    "Name": "Drinks & Snacks",
+    "Parent": 467
+   },
+   {
+    "_id": 1600,
+    "Name": "Gift Shops",
+    "Parent": 470
+   },
+   {
+    "_id": 1601,
+    "Name": "Sweets & Treats",
+    "Parent": 470
+   },
+   {
+    "_id": 1602,
+    "Name": "Photography",
+    "Parent": 470
+   },
+   {
+    "_id": 1603,
+    "Name": "Guest Help & Information",
+    "Parent": 468
+   },
+   {
+    "_id": 1604,
+    "Name": "Fastrack, VIP & Annual Passes ",
+    "Parent": 468
+   },
+   {
+    "_id": 1605,
+    "Name": "Toilets",
+    "Parent": 468
+   },
+   {
+    "_id": 1606,
+    "Name": "Lockers",
+    "Parent": 468
+   },
+   {
+    "_id": 1607,
+    "Name": "ATM",
+    "Parent": 468
+   },
+   {
+    "_id": 1608,
+    "Name": "Phone Charging",
+    "Parent": 468
+   },
+   {
+    "_id": 1609,
+    "Name": "Smoking Areas",
+    "Parent": 468
+   },
+   {
+    "_id": 1610,
+    "Name": "Picnic Areas ",
+    "Parent": 468
+   },
+   {
+    "_id": 1611,
+    "Name": "Wild Learning Centre ",
+    "Parent": 468
+   },
+   {
+    "_id": 1612,
+    "Name": "Entrance / Exit Gate",
+    "Parent": 1539
+   },
+   {
+    "_id": 1613,
+    "Name": "Car Parks",
+    "Parent": 1539
+   },
+   {
+    "_id": 1614,
+    "Name": "First Aid",
+    "Parent": 468
+   },
+   {
+    "_id": 1624,
+    "Name": "Toilets"
+   },
+   {
+    "_id": 1625,
+    "Name": "Toilets",
+    "Parent": 1060
+   },
+   {
+    "_id": 1626,
+    "Name": "Restaurants",
+    "Parent": 1060
+   },
+   {
+    "_id": 1627,
+    "Name": "Shops",
+    "Parent": 1060
+   },
+   {
+    "_id": 1628,
+    "Name": "ATM",
+    "Parent": 1060
+   },
+   {
+    "_id": 1629,
+    "Name": "Feedback Survey",
+    "Parent": 1060
+   },
+   {
+    "_id": 1630,
+    "Name": "Feedback Survey",
+    "Parent": 468
+   },
+   {
+    "_id": 1631,
+    "Name": "Smoking Areas",
+    "Parent": 1060
+   },
+   {
+    "_id": 1632,
+    "Name": "Public Transport",
+    "Parent": 1539
+   },
+   {
+    "_id": 1666,
+    "Name": "Zoo Encounters"
+   },
+   {
+    "_id": 1674,
+    "Name": "Summer "
+   },
+   {
+    "_id": 1675,
+    "Name": "FEB'ROAR'Y"
+   },
+   {
+    "_id": 1679,
+    "Name": "--ATM",
+    "Parent": 468
+   },
+   {
+    "_id": 1706,
+    "Name": "Sweets & Treats",
+    "Parent": 467
+   },
+   {
+    "_id": 1722,
+    "Name": "Movie Time",
+    "Parent": 469
+   },
+   {
+    "_id": 1778,
+    "Name": "Easter"
+   },
+   {
+    "_id": 1809,
+    "Name": "Zoo Areas",
+    "Parent": 1666
+   },
+   {
+    "_id": 1810,
+    "Name": "Animal Talks, Feeds & Presentation",
+    "Parent": 1666
+   },
+   {
+    "_id": 2605,
+    "Name": "MARDI GRRRA!"
+   },
+   {
+    "_id": 2696,
+    "Name": "Recycling"
+   },
+   {
+    "_id": 3374,
+    "Name": "Easter",
+    "Parent": 1778
+   },
+   {
+    "_id": 3395,
+    "Name": "Coca-Cola Freestyle"
+   },
+   {
+    "_id": 3800,
+    "Name": "CoComelon's Summer Celebration"
+   },
+   {
+    "_id": 3881,
+    "Name": "ROAR & Explore"
+   },
+   {
+    "_id": 4697,
+    "Name": "Events",
+    "Parent": 465
+   },
+   {
+    "_id": 4749,
+    "Name": "Gruffalo Spring Spectacular"
+   },
+   {
+    "_id": 4847,
+    "Name": "Passholder Discount ",
+    "Parent": 467
+   },
+   {
+    "_id": 4877,
+    "Name": "Elmer's Autumn Adventure "
+   },
+   {
+    "_id": 5173,
+    "Name": "Zootastic "
+   },
+   {
+    "_id": 5740,
+    "Name": "PAW Patrol Autumn Adventure"
+   },
+   {
+    "_id": 5860,
+    "Name": "Howl'o'ween 2024"
+   },
+   {
+    "_id": 5889,
+    "Name": "Passholder Day"
+   },
+   {
+    "_id": 5975,
+    "Name": "February Half Term"
+   }
+  ],
+  "Item": [
+   {
+    "_id": 35105,
+    "Name": "Savannah Splash Pool",
+    "Category": 1060,
+    "Location": "51.350292409783,-0.3163661408615"
+   },
+   {
+    "_id": 4171,
+    "Name": "Touchscreen Feedback (Paw Patrol Gift Shop)",
+    "Category": 1629,
+    "Location": "51.349265504702,-0.31727272750856"
+   },
+   {
+    "_id": 4019,
+    "Name": "Accessible Changing Facility (Shipwreck Coast)",
+    "Category": 1624,
+    "Location": "51.34769913697,-0.31631517889026"
+   },
+   {
+    "_id": 3956,
+    "Name": "Adventure Point Gift Shop",
+    "Category": 470,
+    "Location": "51.34826203036,-0.31696963788988"
+   },
+   {
+    "_id": 4005,
+    "Name": "Adventure Point Hot Dogs",
+    "Category": 1598,
+    "Location": "51.348431232082,-0.3170796084595"
+   },
+   {
+    "_id": 3971,
+    "Name": "Adventure Point Pizza Pasta",
+    "Category": 1597,
+    "Location": "51.348752881157,-0.31667727710727"
+   },
+   {
+    "_id": 4537,
+    "Name": "Adventure Tree Carousel",
+    "Category": 1589,
+    "Location": "51.348608809455,-0.31699645998004",
+    "MinimumUnaccompaniedHeightRequirement": 1.3
+   },
+   {
+    "_id": 6961,
+    "Name": "Ankole Cattle",
+    "Category": 466,
+    "Location": "51.350374494187,-0.31759727479938"
+   },
+   {
+    "_id": 7020,
+    "Name": "Azteca Resort Hotel",
+    "Category": 1060,
+    "Location": "51.350059557304,-0.31677115442277"
+   },
+   {
+    "_id": 4168,
+    "Name": "Touchscreen Feedback (Temple Restaurant)",
+    "Category": 1629,
+    "Location": "51.349917164918,-0.31642514945987"
+   },
+   {
+    "_id": 44112,
+    "Name": "Barnyard Boogie",
+    "Category": 1325,
+    "Location": "51.349230324838,-0.31552929164886",
+    "ShowTimes": "{\"type\":\"union\",\"children\":[{\"type\":\"intersection\",\"children\":[{\"type\":\"range\",\"start\":\"2026-10-03 00:00:00\",\"end\":\"2026-10-19 00:00:00\"},{\"type\":\"period\",\"offset_date\":\"2018-01-06 00:00:00\",\"period_length\":{\"day\":7},\"range_length\":{\"day\":2}},{\"type\":\"union\",\"children\":[{\"type\":\"period\",\"offset_date\":\"2020-01-01 11:00:00\",\"period_length\":{\"day\":1}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 14:00:00\",\"period_length\":{\"day\":1}}]}]},{\"type\":\"intersection\",\"children\":[{\"type\":\"range\",\"start\":\"2026-10-19 00:00:00\",\"end\":\"2026-10-23 00:00:00\"},{\"type\":\"period\",\"offset_date\":\"2018-01-08 00:00:00\",\"period_length\":{\"day\":7},\"range_length\":{\"day\":4}},{\"type\":\"union\",\"children\":[{\"type\":\"period\",\"offset_date\":\"2020-01-01 11:00:00\",\"period_length\":{\"day\":1}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 14:00:00\",\"period_length\":{\"day\":1}}]}]},{\"type\":\"intersection\",\"children\":[{\"type\":\"range\",\"start\":\"2026-10-23 00:00:00\",\"end\":\"2026-11-02 00:00:00\"},{\"type\":\"union\",\"children\":[{\"type\":\"period\",\"offset_date\":\"2020-01-01 11:00:00\",\"period_length\":{\"day\":1}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 14:00:00\",\"period_length\":{\"day\":1}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 16:45:00\",\"period_length\":{\"day\":1}}]}]},{\"type\":\"intersection\",\"children\":[{\"type\":\"range\",\"start\":\"2026-10-01 00:00:00\",\"end\":\"2026-10-02 00:00:00\"},{\"type\":\"period\",\"offset_date\":\"2018-01-04 00:00:00\",\"period_length\":{\"day\":7},\"range_length\":{\"day\":1}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 19:35:00\",\"period_length\":{\"day\":1}}]}]}"
+   },
+   {
+    "_id": 10456,
+    "Name": "Ben & Jerry's Scoop Shop",
+    "Category": 1706,
+    "Location": "51.348305587299,-0.31638491632461"
+   },
+   {
+    "_id": 11328,
+    "Name": "Black Crowned Crane",
+    "Category": 466,
+    "Location": "51.350093061331,-0.31794596197127"
+   },
+   {
+    "_id": 6958,
+    "Name": "Blesbok",
+    "Category": 466,
+    "Location": "51.350093061331,-0.31941581251147"
+   },
+   {
+    "_id": 3988,
+    "Name": "Bolivian Squirrel Monkey",
+    "Category": 466,
+    "Location": "51.349650806207,-0.31664106728556"
+   },
+   {
+    "_id": 6977,
+    "Name": "Bus Stop",
+    "Category": 1632,
+    "Location": "51.350178496488,-0.31374294044496"
+   },
+   {
+    "_id": 10461,
+    "Name": "California Sea Lion",
+    "Category": 466,
+    "Location": "51.348213447573,-0.31533617259978"
+   },
+   {
+    "_id": 4000,
+    "Name": "Captain's Fish & Chips",
+    "Category": 1597,
+    "Location": "51.347611184253,-0.31643856050494"
+   },
+   {
+    "_id": 21811,
+    "Name": "Coca-Cola Freestyle - Sweet Shop",
+    "Category": 3395,
+    "Location": "51.348406103153,-0.31633931877135"
+   },
+   {
+    "_id": 21814,
+    "Name": "Coca-Cola Freestyle - Forbidden Kingdom",
+    "Category": 3395,
+    "Location": "51.348948884954,-0.31824905158996"
+   },
+   {
+    "_id": 21815,
+    "Name": "Coca-Cola Freestyle - Chessington Zoo",
+    "Category": 3395,
+    "Location": "51.349107195102,-0.31650159241675"
+   },
+   {
+    "_id": 23002,
+    "Name": "Coca-Cola Freestyle - World of Jumanji",
+    "Category": 3395,
+    "Location": "51.347195291262,-0.31779307605742"
+   },
+   {
+    "_id": 18121,
+    "Name": "Coca-Cola Reverse Vending Machine - Wild Woods",
+    "Category": 2696,
+    "Location": "51.347695786394,-0.31618911506652"
+   },
+   {
+    "_id": 18122,
+    "Name": "Coca-Cola Reverse Vending Machine - Adventure Point Gift Shop",
+    "Category": 2696,
+    "Location": "51.348238576608,-0.31677651884078"
+   },
+   {
+    "_id": 6959,
+    "Name": "Common Eland",
+    "Category": 466,
+    "Location": "51.350543688109,-0.3179110932541"
+   },
+   {
+    "_id": 21235,
+    "Name": "Crested Porcupine",
+    "Category": 466,
+    "Location": "51.350036104471,-0.31763750793456"
+   },
+   {
+    "_id": 10496,
+    "Name": "Croc Drop",
+    "Category": 1591,
+    "Location": "51.348958936409,-0.31856823446273",
+    "MinimumHeightRequirement": 1.2,
+    "MinimumUnaccompaniedHeightRequirement": 1.3
+   },
+   {
+    "_id": 3995,
+    "Name": "Croc Drop Shop",
+    "Category": 470,
+    "Location": "51.348995791722,-0.31833756448749"
+   },
+   {
+    "_id": 11309,
+    "Name": "Cuban Rock Iguana",
+    "Category": 466,
+    "Location": "51.349577096604,-0.31648147584914"
+   },
+   {
+    "_id": 10457,
+    "Name": "Disabled Car Park",
+    "Category": 1613,
+    "Location": "51.35029073459,-0.31470317127227"
+   },
+   {
+    "_id": 3946,
+    "Name": "Donut Express",
+    "Category": 1706,
+    "Location": "51.348406103152,-0.31654584886554"
+   },
+   {
+    "_id": 4002,
+    "Name": "Donut Shack",
+    "Category": 1706,
+    "Location": "51.349444754066,-0.31491506578448"
+   },
+   {
+    "_id": 53197,
+    "Name": "Dr Frankenfun's Haunted House Party",
+    "Category": 1325,
+    "Location": "51.348640639288,-0.31837779762267",
+    "ShowTimes": "{\"type\":\"union\",\"children\":[{\"type\":\"intersection\",\"children\":[{\"type\":\"range\",\"start\":\"2026-11-03 00:00:00\",\"end\":\"2026-11-19 00:00:00\"},{\"type\":\"period\",\"offset_date\":\"2018-01-06 00:00:00\",\"period_length\":{\"day\":7},\"range_length\":{\"day\":2}},{\"type\":\"union\",\"children\":[{\"type\":\"period\",\"offset_date\":\"2020-01-01 12:00:00\",\"period_length\":{\"day\":1}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 15:00:00\",\"period_length\":{\"day\":1}}]}]},{\"type\":\"intersection\",\"children\":[{\"type\":\"range\",\"start\":\"2026-10-19 00:00:00\",\"end\":\"2026-10-23 00:00:00\"},{\"type\":\"period\",\"offset_date\":\"2018-01-08 00:00:00\",\"period_length\":{\"day\":7},\"range_length\":{\"day\":4}},{\"type\":\"union\",\"children\":[{\"type\":\"period\",\"offset_date\":\"2020-01-01 12:00:00\",\"period_length\":{\"day\":1}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 15:00:00\",\"period_length\":{\"day\":1}}]}]},{\"type\":\"intersection\",\"children\":[{\"type\":\"range\",\"start\":\"2026-10-23 00:00:00\",\"end\":\"2026-11-02 00:00:00\"},{\"type\":\"union\",\"children\":[{\"type\":\"period\",\"offset_date\":\"2020-01-01 12:00:00\",\"period_length\":{\"day\":1}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 15:00:00\",\"period_length\":{\"day\":1}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 17:45:00\",\"period_length\":{\"day\":1}}]}]},{\"type\":\"intersection\",\"children\":[{\"type\":\"range\",\"start\":\"2026-10-01 00:00:00\",\"end\":\"2026-10-02 00:00:00\"},{\"type\":\"period\",\"offset_date\":\"2018-01-04 00:00:00\",\"period_length\":{\"day\":7},\"range_length\":{\"day\":1}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 18:45:00\",\"period_length\":{\"day\":1}}]}]}"
+   },
+   {
+    "_id": 4451,
+    "Name": "Dragon Delights",
+    "Category": 1706,
+    "Location": "51.347816406996,-0.31878012897492"
+   },
+   {
+    "_id": 3968,
+    "Name": "Dragon’s Lair Café",
+    "Category": 1599,
+    "Location": "51.34805052733,-0.31820479514125"
+   },
+   {
+    "_id": 3970,
+    "Name": "Drop'n Chicken",
+    "Category": 1598,
+    "Location": "51.348950560196,-0.31887802960399"
+   },
+   {
+    "_id": 44120,
+    "Name": "Enchanted Hollow: Trick or Treat",
+    "Category": 1325,
+    "Location": "51.348339092609,-0.31553465606688"
+   },
+   {
+    "_id": 10458,
+    "Name": "Express Car Park",
+    "Category": 1539,
+    "Location": "51.349476583319,-0.31396288158416"
+   },
+   {
+    "_id": 3957,
+    "Name": "First Aid Centre",
+    "Category": 1614,
+    "Location": "51.349156614559,-0.31880695106509"
+   },
+   {
+    "_id": 6819,
+    "Name": "Forbidden Treats",
+    "Category": 1599,
+    "Location": "51.348700948385,-0.31867552282336"
+   },
+   {
+    "_id": 6962,
+    "Name": "Nubian Giraffe",
+    "Category": 466,
+    "Location": "51.351014412463,-0.31878012897494"
+   },
+   {
+    "_id": 6973,
+    "Name": "Giraffe Car Park",
+    "Category": 1613,
+    "Location": "51.346511342213,-0.32094198944095"
+   },
+   {
+    "_id": 3944,
+    "Name": "Western Lowland Gorilla",
+    "Category": 466,
+    "Location": "51.348686708745,-0.3148480105591"
+   },
+   {
+    "_id": 29116,
+    "Name": "Gorilla Talk",
+    "Category": 1666,
+    "Location": "51.34870597414,-0.31483191730498"
+   },
+   {
+    "_id": 3990,
+    "Name": "Grévy’s Zebra",
+    "Category": 466,
+    "Location": "51.350890449935,-0.31817931415561"
+   },
+   {
+    "_id": 30419,
+    "Name": "Gruffalo Bites 🍩",
+    "Category": 1599,
+    "Location": "51.347484699573,-0.31578141929625"
+   },
+   {
+    "_id": 10499,
+    "Name": "Touchscreen Feedback (Gruffalo Gift Shop)",
+    "Category": 1630,
+    "Location": "51.347472972499,-0.31586993219375"
+   },
+   {
+    "_id": 10462,
+    "Name": "Gruffalo Meet & Greet",
+    "Category": 1595,
+    "Location": "51.349056100352,-0.31483191730498"
+   },
+   {
+    "_id": 4017,
+    "Name": "Guest Help and Information",
+    "Category": 1603,
+    "Location": "51.348618023356,-0.31809884788516"
+   },
+   {
+    "_id": 4090,
+    "Name": "Safari & Azteca Hotel Parking",
+    "Category": 1613,
+    "Location": "51.350624096881,-0.31483459951404"
+   },
+   {
+    "_id": 6985,
+    "Name": "Humboldt Penguin",
+    "Category": 466,
+    "Location": "51.3492872827,-0.31626958133701"
+   },
+   {
+    "_id": 34425,
+    "Name": "Jumanji Food Supplies",
+    "Category": 467,
+    "Location": "51.347383344048,-0.31827721478461"
+   },
+   {
+    "_id": 29205,
+    "Name": "Jumanji Shop",
+    "Category": 470,
+    "Location": "51.347295390725,-0.31768846990584"
+   },
+   {
+    "_id": 4082,
+    "Name": "Kirk’s Dik-Dik",
+    "Category": 466,
+    "Location": "51.350252205123,-0.31764555456165"
+   },
+   {
+    "_id": 10500,
+    "Name": "Touchscreen Feedback (Land of the Tiger)",
+    "Category": 1630,
+    "Location": "51.348166540005,-0.32008636476516"
+   },
+   {
+    "_id": 4031,
+    "Name": "Lockers (Land of the Dragons)",
+    "Category": 1606,
+    "Location": "51.347900171117,-0.31893301488879"
+   },
+   {
+    "_id": 4032,
+    "Name": "Lockers (Wild Woods)",
+    "Category": 1606,
+    "Location": "51.347064198328,-0.31617033960345"
+   },
+   {
+    "_id": 4033,
+    "Name": "Lockers (Adventure Point)",
+    "Category": 1606,
+    "Location": "51.347980584529,-0.31700852992061"
+   },
+   {
+    "_id": 13581,
+    "Name": "Lodge Car Park",
+    "Category": 1539,
+    "Location": "51.35088542442,-0.31429815771102"
+   },
+   {
+    "_id": 6975,
+    "Name": "Macaw Car Park",
+    "Category": 1613,
+    "Location": "51.345671993363,-0.31907517196658"
+   },
+   {
+    "_id": 22605,
+    "Name": "Mamba Strike",
+    "Category": 1591,
+    "Location": "51.347419362978,-0.31781453372954",
+    "MinimumHeightRequirement": 1.2
+   },
+   {
+    "_id": 22603,
+    "Name": "Mandrill Mayhem",
+    "Category": 1591,
+    "Location": "51.347158015672,-0.31756240608214",
+    "MinimumHeightRequirement": 1.2
+   },
+   {
+    "_id": 3984,
+    "Name": "Meerkats",
+    "Category": 466,
+    "Location": "51.350026890854,-0.31770053984644"
+   },
+   {
+    "_id": 49284,
+    "Name": "Meet the Pups",
+    "Category": 1595,
+    "Location": "51.349350103788,-0.31745511772155"
+   },
+   {
+    "_id": 3985,
+    "Name": "Ostrich",
+    "Category": 466,
+    "Location": "51.350520235523,-0.3181417632294"
+   },
+   {
+    "_id": 10544,
+    "Name": "Ostrich Car Park",
+    "Category": 1613,
+    "Location": "51.34591492026,-0.31739342691421"
+   },
+   {
+    "_id": 22604,
+    "Name": "Ostrich Stampede",
+    "Category": 1591,
+    "Location": "51.347329734424,-0.31846362831115",
+    "MinimumHeightRequirement": 1.2
+   },
+   {
+    "_id": 49282,
+    "Name": "PAW Patrol Gift Shop",
+    "Category": 470,
+    "Location": "51.349233675303,-0.317266021986"
+   },
+   {
+    "_id": 24671,
+    "Name": "Penguin Talk & Feed",
+    "Category": 1666,
+    "Location": "51.349320787291,-0.31625885250091"
+   },
+   {
+    "_id": 10545,
+    "Name": "Pick Up/Drop Off (Lodge Car Park)",
+    "Category": 1613,
+    "Location": "51.349766396026,-0.31411844970702"
+   },
+   {
+    "_id": 4173,
+    "Name": "Touchscreen Feedback (Pizza Pasta)",
+    "Category": 1630,
+    "Location": "51.34871937615,-0.31674969675067"
+   },
+   {
+    "_id": 10943,
+    "Name": "Pygmy Marmoset",
+    "Category": 466,
+    "Location": "51.349214828938,-0.31665246667384"
+   },
+   {
+    "_id": 10945,
+    "Name": "Raccoon",
+    "Category": 466,
+    "Location": "51.349518463881,-0.31639564516067"
+   },
+   {
+    "_id": 24641,
+    "Name": "Raccoon Talk",
+    "Category": 1666,
+    "Location": "51.349548617863,-0.31666654827117"
+   },
+   {
+    "_id": 35106,
+    "Name": "Ranger's Academy",
+    "Category": 1060,
+    "Location": "51.350771512599,-0.31558293582915"
+   },
+   {
+    "_id": 10968,
+    "Name": "Red Footed Tortoise",
+    "Category": 466,
+    "Location": "51.349501711661,-0.31655389549254"
+   },
+   {
+    "_id": 3978,
+    "Name": "Reindeer",
+    "Category": 466,
+    "Location": "51.34844128365,-0.31583238126756"
+   },
+   {
+    "_id": 49283,
+    "Name": "Rescue Refreshments",
+    "Category": 1599,
+    "Location": "51.34904437368,-0.31712654711722"
+   },
+   {
+    "_id": 44114,
+    "Name": "Rising Flame: Shadow of the Tomb",
+    "Category": 1325,
+    "Location": "51.348386,-0.31685966732024",
+    "ShowTimes": "{\"type\":\"union\",\"children\":[{\"type\":\"intersection\",\"children\":[{\"type\":\"range\",\"start\":\"2026-10-03 00:00:00\",\"end\":\"2026-10-19 00:00:00\"},{\"type\":\"period\",\"offset_date\":\"2018-01-06 00:00:00\",\"period_length\":{\"day\":7},\"range_length\":{\"day\":2}},{\"type\":\"union\",\"children\":[{\"type\":\"period\",\"offset_date\":\"2020-01-01 13:00:00\",\"period_length\":{\"day\":1}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 16:30:00\",\"period_length\":{\"day\":1}}]}]},{\"type\":\"intersection\",\"children\":[{\"type\":\"range\",\"start\":\"2026-10-19 00:00:00\",\"end\":\"2026-10-23 00:00:00\"},{\"type\":\"period\",\"offset_date\":\"2018-01-08 00:00:00\",\"period_length\":{\"day\":7},\"range_length\":{\"day\":4}},{\"type\":\"union\",\"children\":[{\"type\":\"period\",\"offset_date\":\"2020-01-01 13:00:00\",\"period_length\":{\"day\":1}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 16:30:00\",\"period_length\":{\"day\":1}}]}]},{\"type\":\"intersection\",\"children\":[{\"type\":\"range\",\"start\":\"2026-10-23 00:00:00\",\"end\":\"2026-11-02 00:00:00\"},{\"type\":\"union\",\"children\":[{\"type\":\"period\",\"offset_date\":\"2020-01-01 13:00:00\",\"period_length\":{\"day\":1}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 16:30:00\",\"period_length\":{\"day\":1}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 18:45:00\",\"period_length\":{\"day\":1}}]}]},{\"type\":\"intersection\",\"children\":[{\"type\":\"range\",\"start\":\"2026-10-01 00:00:00\",\"end\":\"2026-10-02 00:00:00\"},{\"type\":\"period\",\"offset_date\":\"2018-01-04 00:00:00\",\"period_length\":{\"day\":7},\"range_length\":{\"day\":1}},{\"type\":\"union\",\"children\":[{\"type\":\"period\",\"offset_date\":\"2020-01-01 17:30:00\",\"period_length\":{\"day\":1}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 19:45:00\",\"period_length\":{\"day\":1}}]}]}]}"
+   },
+   {
+    "_id": 6210,
+    "Name": "Room on the Broom - A Magical Journey",
+    "Category": 1590,
+    "Location": "51.348870148486,-0.31599867822648",
+    "MinimumUnaccompaniedHeightRequirement": 1.1
+   },
+   {
+    "_id": 4174,
+    "Name": "Touchscreen Feedback (Safari Hotel)",
+    "Category": 1629,
+    "Location": "51.350563790315,-0.31617570402148"
+   },
+   {
+    "_id": 7021,
+    "Name": "Safari Resort Hotel",
+    "Category": 1060,
+    "Location": "51.350714556582,-0.31579751255038"
+   },
+   {
+    "_id": 6989,
+    "Name": "Scimitar Horned Oryx",
+    "Category": 466,
+    "Location": "51.350620746519,-0.31835902215961"
+   },
+   {
+    "_id": 34400,
+    "Name": "SEA LIFE Aquarium",
+    "Category": 1666,
+    "Location": "51.34955464882,-0.31576639866384"
+   },
+   {
+    "_id": 3994,
+    "Name": "SEA LIFE Shop",
+    "Category": 470,
+    "Location": "51.349634054035,-0.31568754198077"
+   },
+   {
+    "_id": 4175,
+    "Name": "Touchscreen Feedback (SEA LIFE)",
+    "Category": 1630,
+    "Location": "51.349610600984,-0.31567949535373"
+   },
+   {
+    "_id": 4448,
+    "Name": "Blacktip Reef Shark Talk",
+    "Category": 1666,
+    "Location": "51.349600549672,-0.31596649171831"
+   },
+   {
+    "_id": 6990,
+    "Name": "Sitatunga",
+    "Category": 466,
+    "Location": "51.350262256292,-0.31795400859836"
+   },
+   {
+    "_id": 10935,
+    "Name": "Six Banded Armadillo",
+    "Category": 466,
+    "Location": "51.34964913099,-0.3165646243286"
+   },
+   {
+    "_id": 11675,
+    "Name": "Skunk & Raccoon Talk",
+    "Category": 1666,
+    "Location": "51.349461506307,-0.31642246725081"
+   },
+   {
+    "_id": 3999,
+    "Name": "Smokehouse BBQ & Bar",
+    "Category": 1597,
+    "Location": "51.348600433178,-0.31624544145587"
+   },
+   {
+    "_id": 34422,
+    "Name": "The Smokehouse Coffee Co.",
+    "Category": 467,
+    "Location": "51.348521696164,-0.31658894298002"
+   },
+   {
+    "_id": 4063,
+    "Name": "Smoking Area (Land of the Tiger)",
+    "Category": 1609,
+    "Location": "51.348903653383,-0.32035190345767"
+   },
+   {
+    "_id": 4066,
+    "Name": "Smoking Area (Forbidden Kingdom)",
+    "Category": 1609,
+    "Location": "51.349067551979,-0.31886420611386"
+   },
+   {
+    "_id": 4067,
+    "Name": "Smoking Area (Lodge Entrance)",
+    "Category": 1609,
+    "Location": "51.349394497306,-0.3149365234566"
+   },
+   {
+    "_id": 4070,
+    "Name": "Smoking Area (Shipwreck Coast)",
+    "Category": 1609,
+    "Location": "51.348069374174,-0.31625885250095"
+   },
+   {
+    "_id": 4071,
+    "Name": "Smoking Area (Azteca Hotel)",
+    "Category": 1631,
+    "Location": "51.349781472938,-0.31658339979173"
+   },
+   {
+    "_id": 4072,
+    "Name": "Smoking Area (Safari Hotel)",
+    "Category": 1631,
+    "Location": "51.350422655887,-0.31556483091834"
+   },
+   {
+    "_id": 4073,
+    "Name": "Smoking Area (Adventure Point)",
+    "Category": 1609,
+    "Location": "51.348290509902,-0.31614083530429"
+   },
+   {
+    "_id": 4074,
+    "Name": "Smoking Area (Chessington Zoo)",
+    "Category": 1609,
+    "Location": "51.349324137749,-0.31481582405093"
+   },
+   {
+    "_id": 10454,
+    "Name": "Smoking Area (Explorer Gate)",
+    "Category": 1609,
+    "Location": "51.347561763128,-0.31867015840529"
+   },
+   {
+    "_id": 10455,
+    "Name": "Smoking Area (Outside Safari Hotel)",
+    "Category": 1609,
+    "Location": "51.350483381436,-0.31556952478408"
+   },
+   {
+    "_id": 4015,
+    "Name": "SOKO",
+    "Category": 1627,
+    "Location": "51.350614045793,-0.316092555542"
+   },
+   {
+    "_id": 6960,
+    "Name": "Southern White Rhino",
+    "Category": 466,
+    "Location": "51.349850156584,-0.31894106151582"
+   },
+   {
+    "_id": 3987,
+    "Name": "Spider Monkey",
+    "Category": 466,
+    "Location": "51.349469882425,-0.31685027958872"
+   },
+   {
+    "_id": 24639,
+    "Name": "Stingray Talk",
+    "Category": 1666,
+    "Location": "51.349618977075,-0.31595308067321"
+   },
+   {
+    "_id": 44116,
+    "Name": "Stone Watchers: The Vampire’s Lair",
+    "Category": 1325,
+    "Location": "51.347441141854,-0.31728345634459"
+   },
+   {
+    "_id": 10942,
+    "Name": "Striped Skunk",
+    "Category": 466,
+    "Location": "51.349523489546,-0.3163473653984"
+   },
+   {
+    "_id": 18390,
+    "Name": "Sun Cream (Amazu)",
+    "Category": 468,
+    "Location": "51.349176717375,-0.31637686969756"
+   },
+   {
+    "_id": 18391,
+    "Name": "Sun Cream (Forbidden Kingdom)",
+    "Category": 468,
+    "Location": "51.349064476545,-0.31871307374953"
+   },
+   {
+    "_id": 18392,
+    "Name": "Sun Cream (Shipwreck Coast)",
+    "Category": 468,
+    "Location": "51.347999850222,-0.31631316723346"
+   },
+   {
+    "_id": 18393,
+    "Name": "Sun Cream (Land of the Dragons)",
+    "Category": 468,
+    "Location": "51.347735993296,-0.31896251918792"
+   },
+   {
+    "_id": 30397,
+    "Name": "Sun Cream (Rainforest)",
+    "Category": 468,
+    "Location": "51.34820758413,-0.3184904504013"
+   },
+   {
+    "_id": 30398,
+    "Name": "Sun Cream (Chessington Zoo)",
+    "Category": 468,
+    "Location": "51.349360992768,-0.31492713572501"
+   },
+   {
+    "_id": 30400,
+    "Name": "Sun Cream (World of Jumanji)",
+    "Category": 468,
+    "Location": "51.347463758367,-0.31808141352653"
+   },
+   {
+    "_id": 30396,
+    "Name": "Sun Cream (Land of the Tiger)",
+    "Category": 468,
+    "Location": "51.348603783689,-0.32074082376479"
+   },
+   {
+    "_id": 30399,
+    "Name": "Sun Cream (Wild Woods)",
+    "Category": 468,
+    "Location": "51.347908547521,-0.31628031017302"
+   },
+   {
+    "_id": 3996,
+    "Name": "Sweet Shop",
+    "Category": 470,
+    "Location": "51.348399402103,-0.31634334208491"
+   },
+   {
+    "_id": 4003,
+    "Name": "Temple Restaurant & Bar",
+    "Category": 1626,
+    "Location": "51.349912139296,-0.3167228746605"
+   },
+   {
+    "_id": 3964,
+    "Name": "The Coffee Hut",
+    "Category": 1599,
+    "Location": "51.348657391823,-0.31816322090152"
+   },
+   {
+    "_id": 3993,
+    "Name": "The Gruffalo Gift Shop",
+    "Category": 470,
+    "Location": "51.34752825725,-0.31577337266923"
+   },
+   {
+    "_id": 47750,
+    "Name": "The Gruffalo River Ride Adventure",
+    "Category": 1589,
+    "Location": "51.347756096734,-0.31568485977172",
+    "MinimumUnaccompaniedHeightRequirement": 1.1
+   },
+   {
+    "_id": 6996,
+    "Name": "Three Banded Armadillo",
+    "Category": 466,
+    "Location": "51.349216922979,-0.31662899734498"
+   },
+   {
+    "_id": 6997,
+    "Name": "Tiger Car Park",
+    "Category": 1613,
+    "Location": "51.348238576608,-0.32280880691531"
+   },
+   {
+    "_id": 4059,
+    "Name": "Toilets (Lodge Gate)",
+    "Category": 1624,
+    "Location": "51.34971460817,-0.31502328280453"
+   },
+   {
+    "_id": 10452,
+    "Name": "Toilets (Pizza Pasta Buffet)",
+    "Category": 1624,
+    "Location": "51.348783035641,-0.31662631513595"
+   },
+   {
+    "_id": 10453,
+    "Name": "Toilets (Smokehouse BBQ & Bar)",
+    "Category": 1624,
+    "Location": "51.34864566505,-0.31627762796401"
+   },
+   {
+    "_id": 10503,
+    "Name": "Toilets (Forbidden Kingdom)",
+    "Category": 1624,
+    "Location": "51.349210222048,-0.31899738790511"
+   },
+   {
+    "_id": 10504,
+    "Name": "Toilets (Adventure Point)",
+    "Category": 1624,
+    "Location": "51.348369247366,-0.31716275693892"
+   },
+   {
+    "_id": 10505,
+    "Name": "Toilets (Wild Woods)",
+    "Category": 1624,
+    "Location": "51.347464596016,-0.31615424634932"
+   },
+   {
+    "_id": 10506,
+    "Name": "Toilets (Land of the Dragons)",
+    "Category": 1624,
+    "Location": "51.34779127773,-0.31864870073318"
+   },
+   {
+    "_id": 10507,
+    "Name": "Toilets (Land of the Tiger)",
+    "Category": 1624,
+    "Location": "51.348710999895,-0.32107341768264"
+   },
+   {
+    "_id": 10767,
+    "Name": "Toilets (Explorer Gate)",
+    "Category": 1624,
+    "Location": "51.34715131444,-0.31887400629043"
+   },
+   {
+    "_id": 49130,
+    "Name": "Toilets (World of Paw Patrol)",
+    "Category": 1624,
+    "Location": "51.349481608988,-0.3174819398117"
+   },
+   {
+    "_id": 10697,
+    "Name": "Toilets (Azteca Hotel - Temple Restaurant & Bar)",
+    "Category": 1625,
+    "Location": "51.349841780534,-0.31679529430388"
+   },
+   {
+    "_id": 10698,
+    "Name": "Toilets (Safari Hotel Lobby)",
+    "Category": 1625,
+    "Location": "51.350598969156,-0.31601745368957"
+   },
+   {
+    "_id": 3938,
+    "Name": "Tomb Blaster",
+    "Category": 1590,
+    "Location": "51.348980714551,-0.31937557937625",
+    "MinimumUnaccompaniedHeightRequirement": 1.1
+   },
+   {
+    "_id": 4131,
+    "Name": "Touchscreen Feedback (Sea Lion Bay)",
+    "Category": 1630,
+    "Location": "51.348337417344,-0.31550246955875"
+   },
+   {
+    "_id": 4172,
+    "Name": "Touchscreen Feedback (Croc Drop)",
+    "Category": 1630,
+    "Location": "51.348876849468,-0.3184153485489"
+   },
+   {
+    "_id": 10844,
+    "Name": "Trail of the Kings",
+    "Category": 1666,
+    "Location": "51.347883418305,-0.31472462894439"
+   },
+   {
+    "_id": 10501,
+    "Name": "Touchscreen Feedback (Trail of the Kings)",
+    "Category": 1630,
+    "Location": "51.3487713089,-0.31494188787459"
+   },
+   {
+    "_id": 10766,
+    "Name": "Chessington South Train Station",
+    "Category": 1632,
+    "Location": "51.351461679878,-0.31313139678954"
+   },
+   {
+    "_id": 3929,
+    "Name": "Vampire",
+    "Category": 1591,
+    "Location": "51.347392558196,-0.31563389780048",
+    "MinimumHeightRequirement": 1.1,
+    "MinimumUnaccompaniedHeightRequirement": 1.3
+   },
+   {
+    "_id": 3945,
+    "Name": "Vampire's Burger Kitchen",
+    "Category": 1597,
+    "Location": "51.347451193639,-0.3161086487961"
+   },
+   {
+    "_id": 10846,
+    "Name": "Wanyama Village",
+    "Category": 1666,
+    "Location": "51.350113163735,-0.31766969444274",
+    "ShowTimes": "{\"type\":\"union\",\"children\":[{\"type\":\"intersection\",\"children\":[{\"type\":\"range\",\"start\":\"2025-01-25 00:00:00\",\"end\":\"2025-02-17 00:00:00\"},{\"type\":\"period\",\"offset_date\":\"2018-01-06 00:00:00\",\"period_length\":{\"day\":7},\"range_length\":{\"day\":2}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 10:00:00\",\"period_length\":{\"day\":1},\"range_length\":{\"minute\":300}}]},{\"type\":\"intersection\",\"children\":[{\"type\":\"range\",\"start\":\"2025-03-01 00:00:00\",\"end\":\"2025-03-10 00:00:00\"},{\"type\":\"period\",\"offset_date\":\"2018-01-06 00:00:00\",\"period_length\":{\"day\":7},\"range_length\":{\"day\":2}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 10:00:00\",\"period_length\":{\"day\":1},\"range_length\":{\"minute\":300}}]},{\"type\":\"intersection\",\"children\":[{\"type\":\"range\",\"start\":\"2025-02-17 00:00:00\",\"end\":\"2025-02-24 00:00:00\"},{\"type\":\"period\",\"offset_date\":\"2020-01-01 10:00:00\",\"period_length\":{\"day\":1},\"range_length\":{\"minute\":300}}]}]}"
+   },
+   {
+    "_id": 18395,
+    "Name": "Water - Lodge Entrance",
+    "Category": 468,
+    "Location": "51.349496685994,-0.31493115903853"
+   },
+   {
+    "_id": 25106,
+    "Name": "Water  - Adventure Point",
+    "Category": 468,
+    "Location": "51.348451335215,-0.317176167984"
+   },
+   {
+    "_id": 30401,
+    "Name": "Water - Land of the Dragons",
+    "Category": 468,
+    "Location": "51.347849075022,-0.31844217063903"
+   },
+   {
+    "_id": 40342,
+    "Name": "Water - Rainforest",
+    "Category": 468,
+    "Location": "51.348630587764,-0.31925756217956"
+   },
+   {
+    "_id": 42659,
+    "Name": "Water - World of Jumanji",
+    "Category": 468,
+    "Location": "51.347356539243,-0.31825106324672"
+   },
+   {
+    "_id": 10502,
+    "Name": "Wheelchair, Mobility Scooter & Buggy Hire",
+    "Category": 468,
+    "Location": "51.34951678866,-0.31492043020247"
+   },
+   {
+    "_id": 4004,
+    "Name": "Zafari Bar & Grill",
+    "Category": 1626,
+    "Location": "51.350669326754,-0.31605768682481"
+   }
+  ]
+ },
+ "droppedItems": [
+  {
+   "_id": 3931,
+   "Name": "ZUFARI",
+   "Category": 1590,
+   "Location": "51.349608925764,-0.31923610450746",
+   "MinimumHeightRequirement": 1,
+   "MinimumUnaccompaniedHeightRequirement": 1.3
+  },
+  {
+   "_id": 3932,
+   "Name": "Elmer's Flying Jumbos",
+   "Category": 1589,
+   "Location": "51.348146436747,-0.31724590541843",
+   "MinimumUnaccompaniedHeightRequirement": 1.1
+  },
+  {
+   "_id": 3933,
+   "Name": "Dragon's Fury",
+   "Category": 1591,
+   "Location": "51.347937027283,-0.31915295602801",
+   "MinimumHeightRequirement": 1.2
+  },
+  {
+   "_id": 3934,
+   "Name": "Griffin's Galleon",
+   "Category": 1589,
+   "Location": "51.347799654153,-0.31744707109454",
+   "MinimumHeightRequirement": 0.9,
+   "MinimumUnaccompaniedHeightRequirement": 1.2
+  },
+  {
+   "_id": 3935,
+   "Name": "Canopy Capers",
+   "Category": 1589,
+   "Location": "51.347892632352,-0.31814712764743",
+   "MinimumUnaccompaniedHeightRequirement": 0.9
+  },
+  {
+   "_id": 3936,
+   "Name": "Sea Dragons",
+   "Category": 1589,
+   "Location": "51.347857451434,-0.31834829332355",
+   "MinimumUnaccompaniedHeightRequirement": 1.1
+  },
+  {
+   "_id": 3937,
+   "Name": "Dragon's Playhouse - Soft Play",
+   "Category": 1589,
+   "Location": "51.348087802193,-0.31798887731553"
+  },
+  {
+   "_id": 3942,
+   "Name": "Tiny Truckers",
+   "Category": 1589,
+   "Location": "51.348088639829,-0.31765360118867",
+   "MinimumUnaccompaniedHeightRequirement": 1.1
+  },
+  {
+   "_id": 3948,
+   "Name": "Rattlesnake",
+   "Category": 1591,
+   "Location": "51.348739479157,-0.3178198981476",
+   "MinimumHeightRequirement": 1.4
+  },
+  {
+   "_id": 3953,
+   "Name": "Blue Barnacle",
+   "Category": 1591,
+   "Location": "51.347495170171,-0.31693141641141",
+   "MinimumHeightRequirement": 1.1,
+   "MinimumUnaccompaniedHeightRequirement": 1.3
+  },
+  {
+   "_id": 3954,
+   "Name": "Seastorm",
+   "Category": 1590,
+   "Location": "51.348148112018,-0.31658339979175",
+   "MinimumHeightRequirement": 0.9,
+   "MinimumUnaccompaniedHeightRequirement": 1.1
+  },
+  {
+   "_id": 3959,
+   "Name": "Treetop Hoppers",
+   "Category": 1589,
+   "Location": "51.348385162368,-0.3186634528828",
+   "MinimumHeightRequirement": 0.9,
+   "MinimumUnaccompaniedHeightRequirement": 1.1
+  },
+  {
+   "_id": 3961,
+   "Name": "Tiger Rock",
+   "Category": 1591,
+   "Location": "51.348403590259,-0.32085347654346",
+   "MinimumHeightRequirement": 1.2,
+   "MinimumUnaccompaniedHeightRequirement": 1.3
+  },
+  {
+   "_id": 3972,
+   "Name": "AMAZU: Treetop Adventure",
+   "Category": 1589,
+   "Location": "51.349512600605,-0.31675640227321",
+   "MinimumUnaccompaniedHeightRequirement": 0.9
+  },
+  {
+   "_id": 7439,
+   "Name": "Jungle Rangers",
+   "Category": 1589,
+   "Location": "51.348221823919,-0.31882036211013",
+   "MinimumUnaccompaniedHeightRequirement": 1.2
+  },
+  {
+   "_id": 7441,
+   "Name": "River Rafts",
+   "Category": 1589,
+   "Location": "51.348525046628,-0.31918246032714",
+   "MinimumHeightRequirement": 0.9,
+   "MinimumUnaccompaniedHeightRequirement": 1.2
+  },
+  {
+   "_id": 16752,
+   "Name": "Barrel Bail Out!",
+   "Category": 1590,
+   "Location": "51.347906034599,-0.31692605199336",
+   "MinimumHeightRequirement": 0.9,
+   "MinimumUnaccompaniedHeightRequirement": 1.2
+  },
+  {
+   "_id": 16753,
+   "Name": "Trawler Trouble",
+   "Category": 1590,
+   "Location": "51.347977233973,-0.31656194211959",
+   "MinimumHeightRequirement": 0.9
+  },
+  {
+   "_id": 49126,
+   "Name": "Chase's Mountain Mission",
+   "Category": 1589,
+   "Location": "51.34937774504,-0.31803983928679",
+   "MinimumHeightRequirement": 0.9
+  },
+  {
+   "_id": 49127,
+   "Name": "Skye's Helicopter Heroes",
+   "Category": 1589,
+   "Location": "51.349076203211,-0.31793925644874",
+   "MinimumHeightRequirement": 0.9
+  },
+  {
+   "_id": 49128,
+   "Name": "Marshall's Firetruck Rescue",
+   "Category": 1589,
+   "Location": "51.349440566004,-0.31760263921737",
+   "MinimumHeightRequirement": 0.9
+  },
+  {
+   "_id": 49129,
+   "Name": "Zuma's Hovercraft Adventure",
+   "Category": 1589,
+   "Location": "51.349046048919,-0.31731564285277",
+   "MinimumHeightRequirement": 0.9
+  },
+  {
+   "_id": 49132,
+   "Name": "Rubble & Rocky's Play Zone",
+   "Category": 1589,
+   "Location": "51.349226974373,-0.31764287235259"
+  },
+  {
+   "_id": 52674,
+   "Name": "DJ Rubble Disco Party",
+   "Category": 1594,
+   "Location": "51.34915661456,-0.31585652114867",
+   "ShowTimes": "{\"type\":\"union\",\"children\":[{\"type\":\"period\",\"offset_date\":\"2020-01-01 10:30:00\",\"period_length\":{\"day\":1}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 13:00:00\",\"period_length\":{\"day\":1}},{\"type\":\"period\",\"offset_date\":\"2020-01-01 15:00:00\",\"period_length\":{\"day\":1}}]}"
+  }
+ ],
+ "live": {
+  "entities": {
+   "Item": {
+    "records": [
+     {
+      "_id": 3929,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3931,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3932,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3933,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3934,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3935,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3936,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3937,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3938,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3942,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3944,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3945,
+      "IsOperational": true,
+      "IsOpen": false
+     },
+     {
+      "_id": 3946,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3948,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3953,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3954,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3956,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3957,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3959,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED"
+     },
+     {
+      "_id": 3961,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3964,
+      "IsOperational": true,
+      "IsOpen": false
+     },
+     {
+      "_id": 3968,
+      "IsOperational": true,
+      "IsOpen": false
+     },
+     {
+      "_id": 3970,
+      "IsOperational": true,
+      "IsOpen": false
+     },
+     {
+      "_id": 3971,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3972,
+      "IsOperational": true,
+      "IsOpen": false,
+      "QueueStatusMessage": "Open"
+     },
+     {
+      "_id": 3978,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3984,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3985,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3987,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3988,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3990,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3993,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3994,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3995,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3996,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 3999,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 4000,
+      "IsOperational": true,
+      "IsOpen": false
+     },
+     {
+      "_id": 4002,
+      "IsOperational": true,
+      "IsOpen": false
+     },
+     {
+      "_id": 4003,
+      "IsOperational": true
+     },
+     {
+      "_id": 4004,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 4005,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 4015,
+      "IsOperational": true
+     },
+     {
+      "_id": 4017,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 4019,
+      "IsOperational": true
+     },
+     {
+      "_id": 4031,
+      "IsOperational": true
+     },
+     {
+      "_id": 4032,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 4033,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 4059,
+      "IsOperational": true
+     },
+     {
+      "_id": 4063,
+      "IsOperational": true
+     },
+     {
+      "_id": 4066,
+      "IsOperational": true
+     },
+     {
+      "_id": 4067,
+      "IsOperational": true
+     },
+     {
+      "_id": 4070,
+      "IsOperational": true
+     },
+     {
+      "_id": 4071,
+      "IsOperational": true
+     },
+     {
+      "_id": 4072,
+      "IsOperational": true
+     },
+     {
+      "_id": 4073,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 4074,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 4082,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 4090,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 4131,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 4168,
+      "IsOperational": true
+     },
+     {
+      "_id": 4171,
+      "IsOperational": true
+     },
+     {
+      "_id": 4172,
+      "IsOperational": true
+     },
+     {
+      "_id": 4173,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 4174,
+      "IsOperational": true
+     },
+     {
+      "_id": 4175,
+      "IsOperational": true
+     },
+     {
+      "_id": 4448,
+      "IsOperational": true
+     },
+     {
+      "_id": 4451,
+      "IsOperational": true,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 4537,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED"
+     },
+     {
+      "_id": 6210,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 6819,
+      "IsOperational": false,
+      "IsOpen": false
+     },
+     {
+      "_id": 6958,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 6959,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 6960,
+      "IsOperational": false
+     },
+     {
+      "_id": 6961,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 6962,
+      "IsOperational": false
+     },
+     {
+      "_id": 6973,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 6975,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 6977,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 6985,
+      "IsOperational": false
+     },
+     {
+      "_id": 6989,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 6990,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 6996,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 6997,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 7020,
+      "IsOperational": false
+     },
+     {
+      "_id": 7021,
+      "IsOperational": false
+     },
+     {
+      "_id": 7439,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 7441,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 10452,
+      "IsOperational": false
+     },
+     {
+      "_id": 10453,
+      "IsOperational": false
+     },
+     {
+      "_id": 10454,
+      "IsOperational": false
+     },
+     {
+      "_id": 10455,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 10456,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 10457,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 10458,
+      "IsOperational": false
+     },
+     {
+      "_id": 10461,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 10462,
+      "IsOperational": false
+     },
+     {
+      "_id": 10496,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 10499,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 10500,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 10501,
+      "IsOperational": false
+     },
+     {
+      "_id": 10502,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 10503,
+      "IsOperational": false
+     },
+     {
+      "_id": 10504,
+      "IsOperational": false
+     },
+     {
+      "_id": 10505,
+      "IsOperational": false
+     },
+     {
+      "_id": 10506,
+      "IsOperational": false
+     },
+     {
+      "_id": 10507,
+      "IsOperational": false
+     },
+     {
+      "_id": 10544,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 10545,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 10697,
+      "IsOperational": false
+     },
+     {
+      "_id": 10698,
+      "IsOperational": false
+     },
+     {
+      "_id": 10766,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 10767,
+      "IsOperational": false
+     },
+     {
+      "_id": 10844,
+      "IsOperational": false
+     },
+     {
+      "_id": 10846,
+      "IsOperational": false
+     },
+     {
+      "_id": 10935,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 10942,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 10943,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 10945,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 10968,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 11309,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 11328,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 11675,
+      "IsOperational": false
+     },
+     {
+      "_id": 13581,
+      "IsOperational": false
+     },
+     {
+      "_id": 16752,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 16753,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 18121,
+      "IsOperational": false
+     },
+     {
+      "_id": 18122,
+      "IsOperational": false
+     },
+     {
+      "_id": 18390,
+      "IsOperational": false
+     },
+     {
+      "_id": 18391,
+      "IsOperational": false
+     },
+     {
+      "_id": 18392,
+      "IsOperational": false
+     },
+     {
+      "_id": 18393,
+      "IsOperational": false
+     },
+     {
+      "_id": 18395,
+      "IsOperational": false
+     },
+     {
+      "_id": 21235,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 21811,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 21814,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 21815,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 22603,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 22604,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 22605,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 23002,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 24639,
+      "IsOperational": false
+     },
+     {
+      "_id": 24641,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 24671,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 25106,
+      "IsOperational": false
+     },
+     {
+      "_id": 29116,
+      "IsOperational": false
+     },
+     {
+      "_id": 29205,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 30396,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 30397,
+      "IsOperational": false
+     },
+     {
+      "_id": 30398,
+      "IsOperational": false
+     },
+     {
+      "_id": 30399,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 30400,
+      "IsOperational": false
+     },
+     {
+      "_id": 30401,
+      "IsOperational": false
+     },
+     {
+      "_id": 30419,
+      "IsOperational": false,
+      "IsOpen": false
+     },
+     {
+      "_id": 34400,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 34422,
+      "IsOperational": false,
+      "IsOpen": false
+     },
+     {
+      "_id": 34425,
+      "IsOperational": false,
+      "IsOpen": false
+     },
+     {
+      "_id": 35105,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 35106,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 40342,
+      "IsOperational": false
+     },
+     {
+      "_id": 42659,
+      "IsOperational": false
+     },
+     {
+      "_id": 44112,
+      "IsOperational": false
+     },
+     {
+      "_id": 44114,
+      "IsOperational": false
+     },
+     {
+      "_id": 44116,
+      "IsOperational": false,
+      "IsOpen": false
+     },
+     {
+      "_id": 44120,
+      "IsOperational": false,
+      "IsOpen": false
+     },
+     {
+      "_id": 47750,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 49126,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 09:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 49127,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 09:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 49128,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 09:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 49129,
+      "IsOperational": false,
+      "IsOpen": false,
+      "QueueStatusMessage": "CLOSED",
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 09:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 49130,
+      "IsOperational": false
+     },
+     {
+      "_id": 49132,
+      "IsOperational": false
+     },
+     {
+      "_id": 49282,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 49283,
+      "IsOperational": false,
+      "IsOpen": false,
+      "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 16:00:00\"}"
+     },
+     {
+      "_id": 49284,
+      "IsOperational": false
+     },
+     {
+      "_id": 52674,
+      "IsOperational": false
+     },
+     {
+      "_id": 53197,
+      "IsOperational": false
+     }
+    ]
+   }
+  }
+ }
+}

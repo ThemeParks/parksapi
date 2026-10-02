@@ -10,7 +10,7 @@ import {
   LiveData,
   EntitySchedule,
 } from '@themeparks/typelib';
-import {constructDateTime, hostnameFromUrl} from '../../datetime.js';
+import {constructDateTime, formatDate, formatInTimezone, hostnameFromUrl} from '../../datetime.js';
 import {createStatusMap} from '../../statusMap.js';
 
 /**
@@ -23,6 +23,82 @@ const mapStatus = createStatusMap({
   DOWN: ['2'],
   CLOSED: ['0', '3'],
 }, {parkName: 'Hersheypark'});
+
+/**
+ * Temporary operating notes the park appends to ride names.
+ *
+ * Around events the feed renames rides in place: "Monorail - Closes at 5PM",
+ * "Skyrush - Opens at 6PM", "Comet - Dark Coaster" (Dark Nights runs),
+ * "Dry Gulch Railroad - Featuring Halloween Overlay". Passed through, every
+ * change of note is a rename of a permanent ride. The notes are stripped so the
+ * name stays stable; the times survive as operatingHours where the status feed
+ * also gives them as data (see rideOperatingHours).
+ *
+ * Deliberately narrow and anchored at the end: a real two-part name such as
+ * "Hershey Triple Tower - Hershey's Tower" must survive untouched.
+ */
+const OPERATING_NOTE_PATTERNS: RegExp[] = [
+  /\s*[-\u2013\u2014]\s*(?:closes?|opens?)\s+at\s+\d{1,2}(?::\d{2})?\s*[ap]\.?\s*m\.?\s*$/i,
+  /\s*[-\u2013\u2014]\s*dark\s+coaster\s*$/i,
+  /\s*[-\u2013\u2014]\s*featuring\s+.*\boverlay\s*$/i,
+];
+
+/** A ride name with any trailing operating note removed. */
+export function stripOperatingNote(name: string): string {
+  let out = String(name ?? '');
+  // Notes can stack in either order ("X - Dark Coaster - Closes at 5PM",
+  // "X - Closes at 5PM - Dark Coaster"), and each pattern only sees the tail,
+  // so keep passing over the list until a whole pass removes nothing.
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const re of OPERATING_NOTE_PATTERNS) {
+      const next = out.replace(re, '');
+      if (next !== out && next.trim()) {
+        out = next;
+        changed = true;
+      }
+    }
+  }
+  return out.trim();
+}
+
+/** Longest window accepted as one day's hours. Anything longer is not a day. */
+const MAX_WINDOW_SECONDS = 24 * 60 * 60;
+
+/**
+ * A ride's opening window for today, from the status feed's `hours` (the same
+ * {opens, closes} in epoch seconds that the index carries as `statusHours`), or null.
+ *
+ * A window is today's when it opens on today's date in the park's timezone, or
+ * when `now` falls inside it: an 18:00-01:00 window is still the one running at
+ * 00:30. Anything else (yesterday's finished window, a window longer than a day,
+ * an epoch too large to be a date) is refused, so a stale or malformed record
+ * can never be published as today's hours.
+ */
+export function rideOperatingHours(
+  statusHours: unknown,
+  timezone: string,
+  now: Date = new Date(),
+): {type: string; startTime: string; endTime: string} | null {
+  const sh = statusHours as {opens?: unknown; closes?: unknown} | null;
+  if (!sh || typeof sh !== 'object') return null;
+  const opens = Number(sh.opens);
+  const closes = Number(sh.closes);
+  if (!Number.isFinite(opens) || !Number.isFinite(closes) || opens <= 0 || closes <= opens) return null;
+  if (closes - opens > MAX_WINDOW_SECONDS) return null;
+  const start = new Date(opens * 1000);
+  const end = new Date(closes * 1000);
+  // A finite number of seconds can still be outside the range a Date can hold.
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) return null;
+  const nowMs = now.getTime();
+  const running = nowMs >= start.getTime() && nowMs <= end.getTime();
+  if (!running && formatDate(start, timezone) !== formatDate(now, timezone)) return null;
+  return {
+    type: 'OPERATING',
+    startTime: formatInTimezone(start, timezone, 'iso'),
+    endTime: formatInTimezone(end, timezone, 'iso'),
+  };
+}
 
 @destinationController({category: 'Hersheypark'})
 export class Hersheypark extends Destination {
@@ -143,7 +219,7 @@ export class Hersheypark extends Destination {
 
     const attractions = this.mapEntities(rides, {
       idField: (item: any) => `rides_${item.id}`,
-      nameField: 'name',
+      nameField: (item: any) => stripOperatingNote(item.name),
       entityType: 'ATTRACTION',
       parentIdField: () => parkId,
       destinationId,
@@ -173,6 +249,16 @@ export class Hersheypark extends Destination {
         ld.queue = {
           STANDBY: {waitTime: entry.wait},
         };
+      }
+
+      // The status feed (2-minute cache) carries each ride's `hours`, the same
+      // {opens, closes} the index holds as `statusHours`, so no second fetch is
+      // needed. One bad record must not cost the row, or any other ride, anything.
+      try {
+        const hours = rideOperatingHours(entry.hours, this.timezone);
+        if (hours) ld.operatingHours = [hours];
+      } catch (err: any) {
+        console.warn(`[Hersheypark] skipping hours for ride ${entry.id}: ${err?.message ?? err}`);
       }
 
       liveData.push(ld);

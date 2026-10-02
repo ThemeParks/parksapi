@@ -5,7 +5,13 @@
 #
 # Three layers, roughly 10s total on a typical commit:
 #   1. typecheck        — vitest strips types with esbuild and never typechecks,
-#                         so without this a type error reaches CI unopposed
+#                         so without this a type error reaches CI unopposed.
+#                         Runs against tsconfig.test.json, which is the base
+#                         config plus the test files. tsconfig.json excludes
+#                         __tests__ so that they never reach dist/, and for a
+#                         long time that exclusion meant nothing typechecked
+#                         them at all: an arity change left every call site in
+#                         the tests silently passing undefined.
 #   2. affected tests   — vitest walks the module graph from the staged files,
 #                         so editing a park runs that park (~3s) while editing
 #                         src/datetime.ts correctly pulls in its 59 dependents
@@ -31,8 +37,8 @@ fail () {
   exit 1
 }
 
-echo "pre-commit: typecheck"
-npx tsc --noEmit || fail "typecheck failed"
+echo "pre-commit: typecheck (src + tests)"
+npx tsc --noEmit -p tsconfig.test.json || fail "typecheck failed"
 
 echo "pre-commit: tests affected by staged changes"
 npx vitest run --changed HEAD --passWithNoTests || fail "affected tests failed"
@@ -45,6 +51,7 @@ npx vitest run \
   src/__tests__/utcDateTrap.test.ts \
   src/__tests__/readmeDestinations.test.ts \
   src/__tests__/noPrivateRefs.test.ts \
+  src/__tests__/typecheckCoverage.test.ts \
   || fail "structural gate failed"
 
 exit 0

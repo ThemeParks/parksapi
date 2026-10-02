@@ -7,13 +7,13 @@
  * helpers/localHttpServer.ts.
  */
 
-import { Destination } from '../destination';
-import config from '../config';
-import { http } from '../http';
-import { tracing } from '../tracing';
+import { Destination } from '../destination.js';
+import config from '../config.js';
+import { http } from '../http.js';
+import { tracing } from '../tracing.js';
 import { LiveData, Entity } from '@themeparks/typelib';
-import { stopHttpQueue } from '../http';
-import { startLocalServer, LocalServer } from './helpers/localHttpServer';
+import { stopHttpQueue } from '../http.js';
+import { startLocalServer, LocalServer } from './helpers/localHttpServer.js';
 
 // Simple test destination with HTTP requests
 @config

@@ -1,0 +1,1592 @@
+[
+ {
+  "id": 14,
+  "status": "live",
+  "scopes": [
+   "rulantica"
+  ],
+  "theme": null,
+  "name": "Rulantica",
+  "excerpt": "Open all year round",
+  "description": "Open daily from 9.30am until 10pm\r\nRulantica will remain closed on 24./25.12. On 31.12., Rulantica will be open from 9.30am until 7pm.\r\nPlanned maintenance: 16.11.-27.11.2026 (Rulantica closed)",
+  "specialOpenTimes": [
+   {
+    "dateAt": "2026-12-31T00:00:00+01:00",
+    "startAt": "2026-12-31T09:30:00+01:00",
+    "estimatedAt": "2026-12-31T19:00:00+01:00",
+    "endAt": "2026-12-31T19:00:00+01:00"
+   },
+   {
+    "dateAt": "2026-12-25T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-12-24T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-27T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-26T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-25T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-24T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-23T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-22T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-21T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-20T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-19T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-18T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-17T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-16T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-08-15T00:00:00+02:00",
+    "startAt": "2026-08-15T09:30:00+02:00",
+    "estimatedAt": "2026-08-15T00:00:00+02:00",
+    "endAt": "2026-08-15T00:00:00+02:00"
+   },
+   {
+    "dateAt": "2026-08-14T00:00:00+02:00",
+    "startAt": "2026-08-14T09:30:00+02:00",
+    "estimatedAt": "2026-08-14T00:00:00+02:00",
+    "endAt": "2026-08-14T00:00:00+02:00"
+   },
+   {
+    "dateAt": "2026-08-08T00:00:00+02:00",
+    "startAt": "2026-08-08T09:30:00+02:00",
+    "estimatedAt": "2026-08-08T00:00:00+02:00",
+    "endAt": "2026-08-08T00:00:00+02:00"
+   },
+   {
+    "dateAt": "2026-08-07T00:00:00+02:00",
+    "startAt": "2026-08-07T09:30:00+02:00",
+    "estimatedAt": "2026-08-07T00:00:00+02:00",
+    "endAt": "2026-08-07T00:00:00+02:00"
+   },
+   {
+    "dateAt": "2026-02-07T00:00:00+01:00",
+    "startAt": "2026-02-07T09:30:00+01:00",
+    "estimatedAt": "2026-02-07T00:00:00+01:00",
+    "endAt": "2026-02-07T00:00:00+01:00"
+   }
+  ],
+  "image": null,
+  "icon": {
+   "id": 1783,
+   "name": "ico_main_rulantica_default.png",
+   "autor": null,
+   "alt": null,
+   "copyright": null,
+   "mime": "image/png",
+   "changedAt": "2019-11-08T15:15:43+01:00",
+   "reference": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/181c6a4e4025bc4d1b35ff5d822431e80d4d557d.png",
+   "provider": "181c6a4e4025bc4d1b35ff5d822431e80d4d557d.png",
+   "small": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_small.png",
+   "medium": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_medium.png",
+   "large": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_large.png",
+   "xlarge": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_xlarge.png",
+   "480p": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_480p.png",
+   "720p": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_720p.png",
+   "1080p": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_1080p.png",
+   "48x48": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_48x48.png",
+   "96x96": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_96x96.png",
+   "144x144": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_144x144.png",
+   "adminList": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_adminList.png",
+   "adminSinglePreview": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_adminSinglePreview.png",
+   "teaserCard": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_teaserCard.png",
+   "imageSlider": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_imageSlider.png",
+   "teaserProductArticle": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_teaserProductArticle.png",
+   "characteristic": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_characteristic.png",
+   "teaserAddOn": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_teaserAddOn.png",
+   "productSponsor": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/02/thumb_1783_default_productSponsor.png"
+  },
+  "iconSvg": null,
+  "startAt": "2021-06-03T09:30:00+02:00",
+  "endAt": "2099-12-31T22:00:00+01:00",
+  "showIds": [],
+  "highlightShowIds": [],
+  "highlightPoiIds": [
+   604,
+   622
+  ],
+  "hotelPoiIds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   482,
+   483,
+   489,
+   495,
+   496,
+   596,
+   597,
+   604,
+   679,
+   697,
+   746,
+   849
+  ],
+  "hotelStartAt": "2021-06-03T09:00:00+02:00",
+  "hotelEndAt": "2099-12-31T22:00:00+01:00",
+  "closed": false,
+  "closedTitle": null,
+  "closedExcerpt": null,
+  "closedDescription": null,
+  "validFrom": "2021-03-11T11:37:00+01:00",
+  "validTo": "2099-12-31T22:00:00+01:00",
+  "changedAt": "2026-07-08T15:16:20+02:00"
+ },
+ {
+  "id": 23,
+  "status": "live",
+  "scopes": [
+   "traumatica"
+  ],
+  "theme": null,
+  "name": "Traumatica",
+  "excerpt": "Traumatica - Festival of Fear opens its doors once again!",
+  "description": null,
+  "specialOpenTimes": [
+   {
+    "dateAt": "2026-11-04T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-03T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-02T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-28T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-27T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-26T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-21T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-20T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-19T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-15T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-14T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-13T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-12T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-08T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-07T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-06T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-05T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-01T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-09-30T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-09-29T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-09-28T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-09-27T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-09-24T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   }
+  ],
+  "image": null,
+  "icon": null,
+  "iconSvg": null,
+  "startAt": "2026-09-23T19:00:00+02:00",
+  "endAt": "2026-11-07T23:30:00+01:00",
+  "showIds": [],
+  "highlightShowIds": [],
+  "highlightPoiIds": [],
+  "hotelPoiIds": [],
+  "hotelStartAt": null,
+  "hotelEndAt": null,
+  "closed": false,
+  "closedTitle": null,
+  "closedExcerpt": null,
+  "closedDescription": null,
+  "validFrom": "2021-09-06T11:28:04+02:00",
+  "validTo": null,
+  "changedAt": "2026-05-27T09:02:48+02:00"
+ },
+ {
+  "id": 24,
+  "status": "live",
+  "scopes": [
+   "evening-cinema"
+  ],
+  "theme": null,
+  "name": "Abendkino",
+  "excerpt": "",
+  "description": "Daily from 6pm - at least 10pm",
+  "specialOpenTimes": [
+   {
+    "dateAt": "2025-12-25T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2025-12-24T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   }
+  ],
+  "image": null,
+  "icon": null,
+  "iconSvg": null,
+  "startAt": "2026-03-26T18:00:00+01:00",
+  "endAt": "2027-01-10T22:00:00+01:00",
+  "showIds": [],
+  "highlightShowIds": [],
+  "highlightPoiIds": [],
+  "hotelPoiIds": [],
+  "hotelStartAt": null,
+  "hotelEndAt": null,
+  "closed": false,
+  "closedTitle": "",
+  "closedExcerpt": "",
+  "closedDescription": "",
+  "validFrom": null,
+  "validTo": null,
+  "changedAt": "2026-03-24T15:56:48+01:00"
+ },
+ {
+  "id": 32,
+  "status": "live",
+  "scopes": [
+   "eatrenalin"
+  ],
+  "theme": null,
+  "name": "Eatrenalin",
+  "excerpt": "",
+  "description": "",
+  "specialOpenTimes": [
+   {
+    "dateAt": "2027-01-06T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-05T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-01T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-12-25T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-12-24T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-12-23T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-12-16T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-12-15T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-12-09T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-12-08T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-12-02T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-12-01T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-25T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-24T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-18T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-17T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-16T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-11T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-10T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-04T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-11-03T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-28T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-27T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-21T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-20T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-13T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-12T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-07T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-10-06T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-09-29T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-09-23T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-09-22T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-09-16T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-09-15T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-09-09T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-09-08T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-09-02T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-09-01T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-08-26T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-08-25T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-08-19T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-08-18T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-08-12T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-08-11T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-08-05T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-08-04T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-08-03T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-08-02T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-08-01T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-07-31T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-07-30T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-07-29T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-07-28T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-07-27T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-07-26T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-07-25T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-07-24T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-07-23T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-07-22T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-07-21T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-07-15T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-07-14T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-07-08T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-07-07T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-07-01T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-06-30T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-06-24T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-06-23T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-06-17T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-06-16T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-06-10T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-06-09T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-06-02T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-05-27T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-05-26T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-05-20T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-05-19T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-05-13T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-05-12T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-05-06T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-05-05T00:00:00+02:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   }
+  ],
+  "image": null,
+  "icon": null,
+  "iconSvg": null,
+  "startAt": "2023-03-21T17:00:00+01:00",
+  "endAt": "2099-12-31T01:00:00+01:00",
+  "showIds": [],
+  "highlightShowIds": [],
+  "highlightPoiIds": [],
+  "hotelPoiIds": [],
+  "hotelStartAt": null,
+  "hotelEndAt": null,
+  "closed": false,
+  "closedTitle": "",
+  "closedExcerpt": "",
+  "closedDescription": "",
+  "validFrom": "2023-01-01T12:02:58+01:00",
+  "validTo": "2099-12-31T01:00:00+01:00",
+  "changedAt": "2026-06-17T11:02:29+02:00"
+ },
+ {
+  "id": 33,
+  "status": "live",
+  "scopes": [
+   "yullbe"
+  ],
+  "theme": null,
+  "name": "YULLBE",
+  "excerpt": null,
+  "description": "Monday - Sunday from 3 pm. - 11 pm.",
+  "specialOpenTimes": [],
+  "image": null,
+  "icon": null,
+  "iconSvg": null,
+  "startAt": "2026-06-18T15:00:00+02:00",
+  "endAt": "2026-12-31T23:00:00+01:00",
+  "showIds": [],
+  "highlightShowIds": [],
+  "highlightPoiIds": [],
+  "hotelPoiIds": [],
+  "hotelStartAt": null,
+  "hotelEndAt": null,
+  "closed": false,
+  "closedTitle": "YULLBE experience centre closed",
+  "closedExcerpt": "Continue to experience YULLBE GO in the blue fire Dome!",
+  "closedDescription": "The adventure continues! From summer 2026, you can look forward to our YULLBE GO experiences in Silver Lake City.",
+  "validFrom": null,
+  "validTo": "2099-08-23T22:00:00+02:00",
+  "changedAt": "2026-06-25T14:24:38+02:00"
+ },
+ {
+  "id": 34,
+  "status": "live",
+  "scopes": [
+   "boston-red-sox"
+  ],
+  "theme": null,
+  "name": "'Boston Red Sox' Fitness Club",
+  "excerpt": "",
+  "description": "",
+  "specialOpenTimes": [
+   {
+    "dateAt": "2024-12-25T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2024-12-24T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2024-01-30T00:00:00+01:00",
+    "startAt": "2024-01-30T09:00:00+01:00",
+    "estimatedAt": "2024-01-30T22:00:00+01:00",
+    "endAt": "2024-01-30T22:00:00+01:00"
+   }
+  ],
+  "image": null,
+  "icon": null,
+  "iconSvg": null,
+  "startAt": "2023-03-21T07:00:00+01:00",
+  "endAt": "2099-03-21T22:00:00+01:00",
+  "showIds": [],
+  "highlightShowIds": [],
+  "highlightPoiIds": [],
+  "hotelPoiIds": [],
+  "hotelStartAt": null,
+  "hotelEndAt": null,
+  "closed": false,
+  "closedTitle": "",
+  "closedExcerpt": "",
+  "closedDescription": "",
+  "validFrom": null,
+  "validTo": null,
+  "changedAt": "2024-12-24T10:36:46+01:00"
+ },
+ {
+  "id": 46,
+  "status": "live",
+  "scopes": [
+   "europapark"
+  ],
+  "theme": "halloween",
+  "name": "Halloween Season 2026",
+  "excerpt": "26.09. - 01.11.2026",
+  "description": "Daily from 9am to at least 6pm",
+  "specialOpenTimes": [
+   {
+    "dateAt": "2026-09-28T00:00:00+02:00",
+    "startAt": "2026-09-28T09:00:00+02:00",
+    "estimatedAt": "2026-09-28T18:00:00+02:00",
+    "endAt": "2026-09-28T18:30:00+02:00"
+   },
+   {
+    "dateAt": "2026-09-27T00:00:00+02:00",
+    "startAt": "2026-09-27T09:00:00+02:00",
+    "estimatedAt": "2026-09-27T18:00:00+02:00",
+    "endAt": "2026-09-27T19:30:00+02:00"
+   },
+   {
+    "dateAt": "2026-09-26T00:00:00+02:00",
+    "startAt": "2026-09-26T09:00:00+02:00",
+    "estimatedAt": "2026-09-26T18:00:00+02:00",
+    "endAt": "2026-09-26T20:00:00+02:00"
+   }
+  ],
+  "image": null,
+  "icon": null,
+  "iconSvg": {
+   "id": 19517,
+   "name": "halloween_icon.svg",
+   "autor": null,
+   "alt": null,
+   "copyright": null,
+   "mime": "image/svg+xml",
+   "changedAt": "2024-02-13T10:35:35+01:00",
+   "reference": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/20/ab839922d9a0a1297c015e157ed5ecf4013f4d00.svg",
+   "provider": "ab839922d9a0a1297c015e157ed5ecf4013f4d00.svg"
+  },
+  "startAt": "2026-09-26T09:00:00+02:00",
+  "endAt": "2026-11-01T18:00:00+01:00",
+  "showIds": [],
+  "highlightShowIds": [],
+  "highlightPoiIds": [],
+  "hotelPoiIds": [],
+  "hotelStartAt": "2026-09-26T08:30:00+02:00",
+  "hotelEndAt": "2026-11-01T18:00:00+01:00",
+  "closed": false,
+  "closedTitle": null,
+  "closedExcerpt": null,
+  "closedDescription": null,
+  "validFrom": "2025-11-11T00:00:00+01:00",
+  "validTo": "2026-11-01T23:59:59+01:00",
+  "changedAt": "2025-11-11T08:33:00+01:00"
+ },
+ {
+  "id": 47,
+  "status": "live",
+  "scopes": [
+   "europapark"
+  ],
+  "theme": "hallowinter",
+  "name": "HALLOWinter 2026",
+  "excerpt": "02.11. - 27.11.2026",
+  "description": "Daily from 11am - at least 7pm",
+  "specialOpenTimes": [],
+  "image": null,
+  "icon": null,
+  "iconSvg": {
+   "id": 19518,
+   "name": "HalloWinter_icon.svg",
+   "autor": null,
+   "alt": null,
+   "copyright": null,
+   "mime": "image/svg+xml",
+   "changedAt": "2024-02-13T10:35:57+01:00",
+   "reference": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/20/96568b40fcd92e8d9fb941ce142fffd22a69d7cf.svg",
+   "provider": "96568b40fcd92e8d9fb941ce142fffd22a69d7cf.svg"
+  },
+  "startAt": "2026-11-02T11:00:00+01:00",
+  "endAt": "2026-11-27T19:00:00+01:00",
+  "showIds": [],
+  "highlightShowIds": [],
+  "highlightPoiIds": [],
+  "hotelPoiIds": [],
+  "hotelStartAt": "2026-11-02T10:00:00+01:00",
+  "hotelEndAt": "2026-11-27T19:00:00+01:00",
+  "closed": false,
+  "closedTitle": null,
+  "closedExcerpt": null,
+  "closedDescription": null,
+  "validFrom": "2025-11-11T00:00:00+01:00",
+  "validTo": "2026-11-27T23:59:59+01:00",
+  "changedAt": "2025-11-10T11:21:21+01:00"
+ },
+ {
+  "id": 48,
+  "status": "live",
+  "scopes": [
+   "europapark"
+  ],
+  "theme": "winter",
+  "name": "Winter Season 2026/2027",
+  "excerpt": "28.11.2026 - 09.01.2027",
+  "description": "Daily from 11am - at least 7pm\r\n(closed  on 24/25.12.)",
+  "specialOpenTimes": [
+   {
+    "dateAt": "2026-12-25T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2026-12-24T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   }
+  ],
+  "image": null,
+  "icon": null,
+  "iconSvg": {
+   "id": 19515,
+   "name": "winter_icon.svg",
+   "autor": null,
+   "alt": null,
+   "copyright": null,
+   "mime": "image/svg+xml",
+   "changedAt": "2024-02-13T10:34:50+01:00",
+   "reference": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/20/cea727810c35f211a23f45054be7b27622fc4258.svg",
+   "provider": "cea727810c35f211a23f45054be7b27622fc4258.svg"
+  },
+  "startAt": "2026-11-28T11:00:00+01:00",
+  "endAt": "2027-01-09T19:00:00+01:00",
+  "showIds": [],
+  "highlightShowIds": [],
+  "highlightPoiIds": [],
+  "hotelPoiIds": [],
+  "hotelStartAt": "2026-11-28T10:00:00+01:00",
+  "hotelEndAt": "2027-01-09T19:00:00+01:00",
+  "closed": false,
+  "closedTitle": null,
+  "closedExcerpt": null,
+  "closedDescription": null,
+  "validFrom": "2025-11-11T00:00:00+01:00",
+  "validTo": "2027-01-09T23:59:59+01:00",
+  "changedAt": "2026-05-05T07:47:16+02:00"
+ },
+ {
+  "id": 49,
+  "status": "live",
+  "scopes": [
+   "silver-lake-city"
+  ],
+  "theme": null,
+  "name": "Silver Lake City",
+  "excerpt": null,
+  "description": null,
+  "specialOpenTimes": [],
+  "image": null,
+  "icon": null,
+  "iconSvg": null,
+  "startAt": "2026-08-17T09:00:00+02:00",
+  "endAt": "2029-11-30T23:00:00+01:00",
+  "showIds": [],
+  "highlightShowIds": [],
+  "highlightPoiIds": [],
+  "hotelPoiIds": [],
+  "hotelStartAt": null,
+  "hotelEndAt": null,
+  "closed": true,
+  "closedTitle": null,
+  "closedExcerpt": "The new Wild West dream – just a few minutes' walk from Europa-Park",
+  "closedDescription": null,
+  "validFrom": null,
+  "validTo": null,
+  "changedAt": "2026-09-16T15:01:05+02:00"
+ },
+ {
+  "id": 50,
+  "status": "live",
+  "scopes": [
+   "europapark"
+  ],
+  "theme": null,
+  "name": "Pre-Opening Weeks 2027",
+  "excerpt": "07. - 19.03.2027",
+  "description": "Not all attractions and shows will be operational during the Pre-Opening Weeks.\r\n(Closed  on 24/25.03.2027)",
+  "specialOpenTimes": [
+   {
+    "dateAt": "2027-03-17T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-03-16T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-03-06T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-03-05T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-03-04T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-03-03T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-03-02T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-03-01T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-28T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-27T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-26T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-25T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-24T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-23T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-22T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-21T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-20T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-19T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-18T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-17T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-16T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-15T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-14T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-13T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-12T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-11T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-10T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-09T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-08T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-07T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-06T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-05T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-04T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-03T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-02T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-02-01T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-31T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-30T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-29T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-28T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-27T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-26T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-25T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-24T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-23T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-22T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-21T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-20T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-19T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-18T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-17T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-16T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-15T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-14T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-13T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-12T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-11T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   },
+   {
+    "dateAt": "2027-01-10T00:00:00+01:00",
+    "startAt": null,
+    "estimatedAt": null,
+    "endAt": null
+   }
+  ],
+  "image": null,
+  "icon": null,
+  "iconSvg": {
+   "id": 22756,
+   "name": "icon-pre-opening.svg",
+   "autor": null,
+   "alt": null,
+   "copyright": null,
+   "mime": "image/svg+xml",
+   "changedAt": "2026-09-17T10:49:08+02:00",
+   "reference": "https://storage.googleapis.com/ots-media-bucket-prod/default/0001/23/22b25c37c758e31f46e1ddca2c13894643db6f3b.svg",
+   "provider": "22b25c37c758e31f46e1ddca2c13894643db6f3b.svg"
+  },
+  "startAt": "2027-03-07T09:00:00+01:00",
+  "endAt": "2027-03-19T18:00:00+01:00",
+  "showIds": [],
+  "highlightShowIds": [],
+  "highlightPoiIds": [],
+  "hotelPoiIds": [],
+  "hotelStartAt": "2027-03-07T08:15:00+01:00",
+  "hotelEndAt": "2027-03-19T18:00:00+01:00",
+  "closed": false,
+  "closedTitle": null,
+  "closedExcerpt": null,
+  "closedDescription": null,
+  "validFrom": null,
+  "validTo": "2027-03-19T20:00:00+01:00",
+  "changedAt": "2026-09-28T15:43:04+02:00"
+ }
+]

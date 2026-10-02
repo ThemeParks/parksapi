@@ -932,7 +932,7 @@ describe('parseShowSlots', () => {
       {mapValue: {fields: {time: str('12:00'), active: bool(false)}}},
       {mapValue: {fields: {time: str('13:00'), active: bool(true)}}},
       {mapValue: {fields: {time: str('14:00')}}},
-    ]}}}}};
+    ]}}}}} as Parameters<typeof parseShowSlots>[0];
     // Absent means published; only an explicit false suppresses.
     expect(parseShowSlots(tt2, 'sunday').map((x) => x.time)).toEqual(['13:00', '14:00']);
   });

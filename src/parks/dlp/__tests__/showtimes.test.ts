@@ -95,10 +95,15 @@ describe('DLP showtimes', () => {
     vi.spyOn(park as any, 'getWaitTimes').mockResolvedValue([]);
     vi.spyOn(park as any, 'getPremierAccess').mockResolvedValue([]);
     vi.spyOn(park as any, 'getVirtualQueueData').mockResolvedValue([]);
-    vi.spyOn(park as any, 'getScheduleForDate').mockImplementation(async (date: string) => [{
-      id: 'P1DA13', // the hidden twin
-      schedules: [{date, startTime: '12:30:00', endTime: '12:30:00', status: 'PERFORMANCE_TIME'}],
-    }]);
+    // spyOn through `as any` types the mock as (...args: unknown[]), so the
+    // date has to be read out of args rather than declared as a parameter.
+    vi.spyOn(park as any, 'getScheduleForDate').mockImplementation(async (...args: unknown[]) => {
+      const date = args[0] as string;
+      return [{
+        id: 'P1DA13', // the hidden twin
+        schedules: [{date, startTime: '12:30:00', endTime: '12:30:00', status: 'PERFORMANCE_TIME'}],
+      }];
+    });
 
     const live = await park.getLiveData();
     const show = live.find((l) => l.id === 'P1G103');

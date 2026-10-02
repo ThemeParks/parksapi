@@ -8,9 +8,9 @@
  * `makeHttpRequest` and through the `@http` queue against a loopback server
  * whose `/hang` route never answers, see helpers/localHttpServer.ts.
  */
-import {httpTimeoutMs, makeHttpRequest} from '../httpProxy';
-import {http, HTTPObj, stopHttpQueue} from '../http';
-import {startLocalServer, LocalServer} from './helpers/localHttpServer';
+import {httpTimeoutMs, makeHttpRequest} from '../httpProxy.js';
+import {http, HTTPObj, stopHttpQueue} from '../http.js';
+import {startLocalServer, LocalServer} from './helpers/localHttpServer.js';
 
 const ENV = 'HTTP_TIMEOUT_MS';
 

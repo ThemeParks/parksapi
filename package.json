@@ -17,6 +17,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "watch": "tsc --watch",
     "dev": "npm run ts-dev -- src/test.ts",
     "ts-dev": "tsx --env-file=.env",

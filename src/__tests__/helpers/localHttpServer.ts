@@ -37,6 +37,16 @@ const POSTS = [
 ];
 
 /**
+ * A text/plain body well past the 1000-character trace cut, and not valid
+ * JSON, so the cache-hit trace path takes its text branch too. Served whole
+ * by `/text` (200) and `/text/error` (500).
+ */
+export const LONG_TEXT = Array.from(
+  {length: 120},
+  (_, line) => `line ${line}: the quick brown fox jumps over the lazy dog`,
+).join('\n');
+
+/**
  * Routes cover what the two tracing suites used to reach for on httpbin.org
  * and jsonplaceholder.typicode.com.
  *
@@ -54,6 +64,12 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
   if (status) {
     res.writeHead(Number(status[1]), {'Content-Type': 'application/json'});
     res.end('{}');
+    return;
+  }
+
+  if (path === '/text' || path === '/text/error') {
+    res.writeHead(path === '/text' ? 200 : 500, {'Content-Type': 'text/plain'});
+    res.end(LONG_TEXT);
     return;
   }
 

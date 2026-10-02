@@ -1,4 +1,4 @@
-import { tracing, trace, TraceResult, HttpTraceEvent } from '../tracing';
+import { tracing, trace, TraceResult, HttpTraceEvent } from '../tracing.js';
 
 describe('Tracing System', () => {
   beforeEach(() => {
