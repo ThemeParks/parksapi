@@ -244,6 +244,12 @@ EUROPAPARK_FETCHSEASONS_CACHESECONDS=600   # poll the seasons every 10 minutes i
 EFTELING_FETCHWAITTIMES_CACHESECONDS=0     # never serve wait times from the cache
 ```
 
+`HTTP_TIMEOUT_MS` sets the request timeout for the whole process. The default is 30 seconds:
+
+```
+HTTP_TIMEOUT_MS=10000   # give up on a request after 10 seconds
+```
+
 ## Architecture
 
 The library uses a **decorator-based design** with TypeScript:
