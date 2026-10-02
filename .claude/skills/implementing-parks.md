@@ -217,6 +217,9 @@ protected async buildLiveData(): Promise<LiveData[]> {
 - A synthetic element with no upstream evidence (a CLOSED row for an entity only the roster knows, a status derived from a name) gets no call.
 - Schedules: attach to each `ScheduleEntry`, not to the `EntitySchedule`. A season or a range that produces many days is the same object on each of those days.
 - A module-level helper that builds elements outside the class takes `includeRaw = false` as its last parameter and calls `attachRaw()` from `destination.ts` when it is true.
+- Never pay for `raw` when it is off. A request or a lookup made only to find a piece runs behind `if (this.includeRaw)`; the default build makes exactly the calls it made before.
+- A piece stored inside a `@cache` result changes that result's shape, so bump the method's `cacheVersion` in the same change.
+- Every park ships a `__tests__/rawSources.test.ts`: with the flag on, the exact key set on each element and `toBe` identity of each piece; with it off, no element carries `raw`. A new park gets one in the PR that adds it.
 
 #### A present value is not a current value
 
@@ -303,6 +306,14 @@ arithmetic on a date that is *already* a calendar day is fine — anchor at
 comment giving the reason.
 
 ## Validation
+
+### Unit Tests
+
+Tests are typechecked by `tsconfig.test.json` (pre-commit and CI), separately from `src`:
+
+- Relative imports carry `.js`: `from '../http.js'`, `from './helpers/localHttpServer.js'`. An extensionless import passes vitest and fails the gate.
+- Write fixture timestamps with the offset the feed itself sends (`2026-09-27T02:40:00.000Z`, `+09:00`). A string with no offset is read in the machine's timezone, so the test passes on one machine and fails on another.
+- Pin the clock with `vi.setSystemTime()` for anything that depends on today, and stub the upstream calls: the suite blocks network access.
 
 ### Health Check
 ```bash
