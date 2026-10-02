@@ -115,15 +115,16 @@ const RESTAURANT_CATEGORIES = [
 ];
 
 /**
- * How long an item that dropped out of the asset pack can stay published while
- * the live feed still schedules it (see getPackDropGraceItems).
+ * How long after the last asset pack that contained it an item can stay
+ * published while the live feed still schedules or runs it (see
+ * getPackDropGraceItems).
  *
  * The asset pack is a content export, and it is occasionally republished
  * without rides that are still running: a seasonal re-theme of the app can
  * drop most of a park's ride list while the live feed keeps scheduling every
  * one of them for the day. Fourteen days covers two full weekly content cycles
  * for the operator to republish the pack, and is short enough that a genuine
- * retirement the live feed keeps scheduling (it does not prune old records)
+ * retirement the live feed keeps carrying (it does not prune old records)
  * stops being published within two weeks of leaving the pack.
  */
 export const PACK_DROP_GRACE_DAYS = 14;
@@ -1013,50 +1014,62 @@ class AttractionsIOV1 extends Destination {
   }
 
   /**
-   * Item records soft-deleted from the store at or after `sinceMs`, as they
-   * were last published. `removed_at` is set once, by the sync that first
-   * found the item missing from the pack, and is not moved by later syncs.
+   * Item records soft-deleted from the store whose last containing pack is no
+   * older than `sinceMs`, as they were last published.
+   *
+   * `last_version` is the manifest version of the newest pack that still held
+   * the item: an upstream timestamp. `removed_at` is only when this store
+   * noticed, which for a store that has not synced in weeks is long after the
+   * item really left, so the window is measured from the pack, not from it.
+   * An unparseable version never qualifies.
    */
-  private _readItemsRemovedSince(sinceMs: number): RecordItem[] {
+  private _readItemsDroppedFromPacksSince(sinceMs: number): RecordItem[] {
     const rows = database
       .prepare(
-        "SELECT data FROM attractionsio_entities WHERE park_id = ? AND record_type = 'Item' " +
-        'AND removed_at IS NOT NULL AND removed_at >= ?',
+        "SELECT data, last_version FROM attractionsio_entities WHERE park_id = ? AND record_type = 'Item' " +
+        'AND removed_at IS NOT NULL',
       )
-      .all(this.destinationId, sinceMs) as {data: string}[];
-    return rows.map(row => JSON.parse(row.data));
+      .all(this.destinationId) as {data: string; last_version: string}[];
+    return rows
+      .filter(row => {
+        const packAt = Date.parse(row.last_version);
+        return Number.isFinite(packAt) && packAt >= sinceMs;
+      })
+      .map(row => JSON.parse(row.data));
   }
 
   /**
-   * Items the asset pack dropped recently that the live feed still schedules.
+   * Items the asset pack dropped recently that the live feed still runs.
    *
    * An item qualifies only when both hold:
-   *   - it left the pack within PACK_DROP_GRACE_DAYS (its soft-delete time in
-   *     the store), and
-   *   - the live feed carries it with OpeningTimes covering today, park-local.
+   *   - the last pack that contained it is within PACK_DROP_GRACE_DAYS of now
+   *     (its manifest version, an upstream timestamp), and
+   *   - the live feed either carries it with OpeningTimes covering today,
+   *     park-local, or reports it IsOperational: true.
    *
-   * Either condition alone is not enough. The live feed keeps records for
-   * items retired long ago, some still with a daily OpeningTimes, so the feed
-   * cannot vouch for an item by itself; and an item the feed no longer
-   * schedules has no evidence it is still running. Items that never reached
-   * the store (or left it before the window) are never revived. Once the
-   * window passes or the feed stops scheduling the item, it drops out as any
-   * other removal does.
+   * Neither condition is enough alone. The live feed keeps records for items
+   * retired long ago, some still with a daily OpeningTimes, so the feed cannot
+   * vouch for an item by itself; and an item the feed neither schedules nor
+   * runs has no evidence it is still running. Items that never reached the
+   * store, or whose last pack is older than the window, are never revived,
+   * however recently this store noticed them missing. Once the window passes
+   * or the feed stops carrying the item as scheduled or running, it drops out
+   * as any other removal does.
    */
   protected async getPackDropGraceItems(): Promise<RecordItem[]> {
-    const dropped = this._readItemsRemovedSince(Date.now() - PACK_DROP_GRACE_MS);
+    const dropped = this._readItemsDroppedFromPacksSince(Date.now() - PACK_DROP_GRACE_MS);
     if (dropped.length === 0) return [];
 
     const resp = await this.fetchLiveData();
     const raw: LiveDataResponse = await resp.json();
     const records: LiveDataRecord[] = raw?.entities?.Item?.records ?? [];
     const today = formatDate(new Date(), this.timezone);
-    const scheduled = new Set(
+    const running = new Set(
       records
-        .filter(r => isScheduledOnDate(r.OpeningTimes, this.timezone, today))
+        .filter(r => r.IsOperational === true || isScheduledOnDate(r.OpeningTimes, this.timezone, today))
         .map(r => r._id),
     );
-    return dropped.filter(item => scheduled.has(item._id));
+    return dropped.filter(item => running.has(item._id));
   }
 
   /**

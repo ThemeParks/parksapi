@@ -4,8 +4,9 @@
  * Chessington's asset pack version 2026-10-01T16:44:01Z dropped 23 rides
  * (Dragon's Fury, Rattlesnake, Tiger Rock, the PAW Patrol rides, ...) while the
  * live feed kept scheduling them for the next day. Items that leave the pack
- * stay published while BOTH hold: they left within PACK_DROP_GRACE_DAYS, and
- * the live feed carries them with OpeningTimes covering today (park-local).
+ * stay published while BOTH hold: the last pack that contained them is within
+ * PACK_DROP_GRACE_DAYS, and the live feed either carries them with
+ * OpeningTimes covering today (park-local) or reports them IsOperational.
  *
  * Fixtures are real data, trimmed: the 2026-10-01 pack, the records the pack
  * dropped (as last published), and the live feed fetched that night. The store
@@ -31,7 +32,9 @@ const VORTEX_LIVE = fixture('thorpe-vortex-live-2026-10-01.json').record;
 
 const DAY = 24 * 60 * 60 * 1000;
 
-// The sync that first saw the new pack.
+// The previous pack, the last that held the rides, and the sync that first saw
+// the new pack.
+const LAST_PACK = '2026-09-30T13:05:07Z';
 const DROPPED_AT = new Date('2026-10-01T20:55:08Z');
 // 10:30 BST on the day the live feed schedules (2026-10-02).
 const NEXT_MORNING = new Date('2026-10-02T09:30:00Z');
@@ -42,11 +45,19 @@ const DROPPED_RIDES = [
   3972, 7439, 7441, 16752, 16753, 49126, 49127, 49128, 49129, 49132,
 ].map(String);
 
+const liveRecord = (id: string) =>
+  CHESSINGTON.live.entities.Item.records.find((r: any) => String(r._id) === id);
+
 // Dropped rides the feed carries with OpeningTimes for 2026-10-02.
-const SCHEDULED_RIDES = DROPPED_RIDES.filter(id => {
-  const rec = CHESSINGTON.live.entities.Item.records.find((r: any) => String(r._id) === id);
-  return isScheduledOnDate(rec?.OpeningTimes, 'Europe/London', '2026-10-02');
-});
+const SCHEDULED_RIDES = DROPPED_RIDES.filter(id =>
+  isScheduledOnDate(liveRecord(id)?.OpeningTimes, 'Europe/London', '2026-10-02'));
+
+// Dropped rides the feed runs or schedules: the 20 above plus AMAZU (3972),
+// which carries OpeningTimes null and IsOperational true.
+const KEPT_RIDES = DROPPED_RIDES.filter(id =>
+  SCHEDULED_RIDES.includes(id) || liveRecord(id)?.IsOperational === true);
+
+const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 function clearStore() {
   database.exec('DELETE FROM attractionsio_entities');
@@ -71,10 +82,15 @@ function chessington(live: any = CHESSINGTON.live): any {
   return park;
 }
 
-/** Store as a real sync leaves it: previous pack, then the 2026-10-01 pack. */
-function chessingtonAfterDrop(droppedAt: Date = DROPPED_AT, live?: any): any {
+/**
+ * Store as a real sync leaves it: the previous pack (version `lastPack`), then
+ * the 2026-10-01 pack, first seen at `droppedAt`.
+ */
+function chessingtonAfterDrop(
+  {lastPack = LAST_PACK, droppedAt = DROPPED_AT, live}: {lastPack?: string; droppedAt?: Date; live?: any} = {},
+): any {
   const park = chessington(live);
-  syncAt(park, previousPack(), '2026-09-30T13:05:07Z', new Date(droppedAt.getTime() - DAY));
+  syncAt(park, previousPack(), lastPack, new Date(Date.parse(lastPack) + 60_000));
   syncAt(park, CHESSINGTON.pack, CHESSINGTON.packVersion, droppedAt);
   return park;
 }
@@ -123,6 +139,15 @@ describe('pack-drop grace window: Chessington 2026-10-01', () => {
     // All but three carry a window for 2026-10-02; those three carry none.
     expect(SCHEDULED_RIDES).toHaveLength(20);
     expect(DROPPED_RIDES.filter(id => !SCHEDULED_RIDES.includes(id)).sort()).toEqual(['3959', '3972', '49132']);
+    // Of those three, the feed reports only AMAZU running.
+    // (The trimmed fixture omits null fields, so a null OpeningTimes is absent.)
+    expect(liveRecord('3972')?.OpeningTimes ?? null).toBeNull();
+    expect(liveRecord('3972')?.IsOperational).toBe(true);
+    expect(liveRecord('3959')?.OpeningTimes ?? null).toBeNull();
+    expect(liveRecord('3959')?.IsOperational).toBe(false);
+    expect(liveRecord('49132')?.OpeningTimes ?? null).toBeNull();
+    expect(liveRecord('49132')?.IsOperational).toBe(false);
+    expect(KEPT_RIDES).toHaveLength(21);
   });
 
   test('without the window the pack alone publishes none of them', async () => {
@@ -133,21 +158,23 @@ describe('pack-drop grace window: Chessington 2026-10-01', () => {
     for (const id of DROPPED_RIDES) expect(published.has(id)).toBe(false);
   });
 
-  test("Dragon's Fury and the other scheduled rides stay published, with their last-known details", async () => {
+  test("Dragon's Fury and the other scheduled or running rides stay published, with their last-known details", async () => {
     const park = chessingtonAfterDrop();
     vi.setSystemTime(NEXT_MORNING);
     const entities = await park.getEntities();
     const byId = new Map<string, any>(entities.map((e: any) => [e.id, e]));
 
-    for (const id of SCHEDULED_RIDES) {
+    for (const id of KEPT_RIDES) {
       expect(byId.get(id)?.entityType, id).toBe('ATTRACTION');
       expect(byId.get(id)?.parentId, id).toBe('chessingtonworldofadventures');
     }
     expect(byId.get('3933')).toMatchObject({name: "Dragon's Fury", entityType: 'ATTRACTION'});
     expect(byId.get('49126')).toMatchObject({name: "Chase's Mountain Mission", entityType: 'ATTRACTION'});
 
-    // Dropped rides the feed does not schedule today are not kept.
-    for (const id of ['3959', '3972', '49132']) expect(byId.has(id), id).toBe(false);
+    expect(byId.get('3972')).toMatchObject({name: 'AMAZU: Treetop Adventure', entityType: 'ATTRACTION'});
+
+    // Dropped rides the feed neither schedules today nor runs are not kept.
+    for (const id of ['3959', '49132']) expect(byId.has(id), id).toBe(false);
     // Nor is the dropped show, which has no live record scheduling it.
     expect(byId.has('52674')).toBe(false);
 
@@ -162,38 +189,92 @@ describe('pack-drop grace window: Chessington 2026-10-01', () => {
     vi.setSystemTime(NEXT_MORNING);
     const live = await park.getLiveData();
     const byId = new Map<string, any>(live.map((l: any) => [l.id, l]));
-    for (const id of SCHEDULED_RIDES) {
-      const rec = CHESSINGTON.live.entities.Item.records.find((r: any) => String(r._id) === id);
-      expect(byId.get(id)?.status, id).toBe(rec.IsOperational ? 'OPERATING' : 'CLOSED');
+    // The ride branch is unchanged: an explicit IsOpen decides, else
+    // IsOperational. AMAZU's record (IsOperational true, IsOpen false) reads
+    // CLOSED, as it would for a ride still in the pack.
+    for (const id of KEPT_RIDES) {
+      const rec = liveRecord(id);
+      const open = typeof rec.IsOpen === 'boolean' ? rec.IsOpen : !!rec.IsOperational;
+      expect(byId.get(id)?.status, id).toBe(open ? 'OPERATING' : 'CLOSED');
     }
+    expect(byId.has('3972')).toBe(true);
   });
 
-  test(`an item dropped more than ${PACK_DROP_GRACE_DAYS} days ago is not published`, async () => {
-    const park = chessingtonAfterDrop(new Date(NEXT_MORNING.getTime() - (PACK_DROP_GRACE_DAYS * DAY + 60_000)));
+  test(`an item whose last pack is more than ${PACK_DROP_GRACE_DAYS} days old is not published`, async () => {
+    const park = chessingtonAfterDrop({lastPack: iso(NEXT_MORNING.getTime() - (PACK_DROP_GRACE_DAYS * DAY + 60_000))});
     vi.setSystemTime(NEXT_MORNING);
     const published = ids(await park.getEntities());
     for (const id of DROPPED_RIDES) expect(published.has(id), id).toBe(false);
   });
 
-  test('an item just inside the window is still published', async () => {
-    const park = chessingtonAfterDrop(new Date(NEXT_MORNING.getTime() - (PACK_DROP_GRACE_DAYS * DAY - 60_000)));
+  test('an item whose last pack is just inside the window is still published', async () => {
+    const park = chessingtonAfterDrop({lastPack: iso(NEXT_MORNING.getTime() - (PACK_DROP_GRACE_DAYS * DAY - 60 * 60_000))});
     vi.setSystemTime(NEXT_MORNING);
     const published = ids(await park.getEntities());
     expect(published.has('3933')).toBe(true);
   });
 
-  test('an item the feed does not schedule today is not published', async () => {
+  test('a store that has not synced since September does not revive items that left the pack in September', async () => {
+    // Last synced against the 2026-09-10 pack; the next sync it runs, today,
+    // stamps removed_at now. The pack is what dates the removal, not the stamp.
+    const park = chessingtonAfterDrop({lastPack: '2026-09-10T09:53:22Z', droppedAt: new Date(NEXT_MORNING.getTime() - 60_000)});
+    vi.setSystemTime(NEXT_MORNING);
+    const published = ids(await park.getEntities());
+    for (const id of DROPPED_RIDES) expect(published.has(id), id).toBe(false);
+  });
+
+  test('an item whose last pack version is not a timestamp is not published', async () => {
     const park = chessingtonAfterDrop();
+    database.exec(
+      "UPDATE attractionsio_entities SET last_version = 'not-a-date' " +
+      "WHERE park_id = 'chessingtonworldofadventuresresort' AND removed_at IS NOT NULL",
+    );
+    vi.setSystemTime(NEXT_MORNING);
+    const published = ids(await park.getEntities());
+    for (const id of DROPPED_RIDES) expect(published.has(id), id).toBe(false);
+  });
+
+  test('an item the feed neither schedules today nor runs is not published', async () => {
+    const live = structuredClone(CHESSINGTON.live);
+    for (const r of live.entities.Item.records) r.IsOperational = false;
+    const park = chessingtonAfterDrop({live});
     // The day after the feed's window: 2026-10-03 park-local.
     vi.setSystemTime(new Date('2026-10-03T09:30:00Z'));
     const published = ids(await park.getEntities());
     for (const id of DROPPED_RIDES) expect(published.has(id), id).toBe(false);
   });
 
+  test('a running item is kept on a day the feed does not schedule it', async () => {
+    const park = chessingtonAfterDrop();
+    vi.setSystemTime(new Date('2026-10-03T09:30:00Z'));
+    const published = ids(await park.getEntities());
+    expect(published.has('3972')).toBe(true); // IsOperational true
+    expect(published.has('3933')).toBe(false); // window was 2026-10-02 only
+  });
+
+  test('Treetop Hoppers and Rubble & Rocky\'s Play Zone are kept only once the feed reports them running', async () => {
+    const asIs = chessingtonAfterDrop();
+    vi.setSystemTime(NEXT_MORNING);
+    const before = ids(await asIs.getEntities());
+    expect(before.has('3959')).toBe(false);
+    expect(before.has('49132')).toBe(false);
+
+    clearStore();
+    const live = structuredClone(CHESSINGTON.live);
+    for (const r of live.entities.Item.records) {
+      if (r._id === 3959 || r._id === 49132) r.IsOperational = true;
+    }
+    const running = chessingtonAfterDrop({live});
+    vi.setSystemTime(NEXT_MORNING);
+    const after = ids(await running.getEntities());
+    expect(after.has('3959')).toBe(true);
+    expect(after.has('49132')).toBe(true);
+  });
+
   test('an item missing from the feed is not published', async () => {
     const live = structuredClone(CHESSINGTON.live);
     live.entities.Item.records = live.entities.Item.records.filter((r: any) => r._id !== 3933);
-    const park = chessingtonAfterDrop(DROPPED_AT, live);
+    const park = chessingtonAfterDrop({live});
     vi.setSystemTime(NEXT_MORNING);
     const published = ids(await park.getEntities());
     expect(published.has('3933')).toBe(false);
@@ -236,13 +317,24 @@ describe('pack-drop grace window: long-retired items stay dead', () => {
   test('Vortex is not revived when it left the pack long ago', async () => {
     const {park, pack} = thorpe();
     const withVortex = {...pack, Item: [...pack.Item, {_id: 3881, Name: 'Vortex', Category: 10}]};
-    syncAt(park, withVortex, 'v0', new Date('2025-01-10T12:00:00Z'));
-    syncAt(park, pack, 'v1', new Date('2025-02-01T12:00:00Z'));
-    syncAt(park, pack, 'v2', DROPPED_AT); // later syncs do not move removed_at
+    syncAt(park, withVortex, '2025-01-10T12:00:00Z', new Date('2025-01-10T12:01:00Z'));
+    syncAt(park, pack, '2025-02-01T12:00:00Z', new Date('2025-02-01T12:01:00Z'));
+    syncAt(park, pack, '2026-10-01T16:00:00Z', DROPPED_AT); // later syncs do not move removed_at
     vi.setSystemTime(NEXT_MORNING);
     const published = ids(await park.getEntities());
     expect(published.has('3881')).toBe(false);
     expect(published.has('3880')).toBe(true);
+  });
+
+  test('Vortex is not revived by a store that only noticed today, even if the feed says it is running', async () => {
+    const {park, pack} = thorpe();
+    const withVortex = {...pack, Item: [...pack.Item, {_id: 3881, Name: 'Vortex', Category: 10}]};
+    syncAt(park, withVortex, '2025-01-10T12:00:00Z', new Date('2025-01-10T12:01:00Z'));
+    syncAt(park, pack, '2026-10-01T16:00:00Z', new Date(NEXT_MORNING.getTime() - 60_000));
+    park.fetchLiveData = async () =>
+      ({json: async () => ({entities: {Item: {records: [{...VORTEX_LIVE, IsOperational: true}]}}})});
+    vi.setSystemTime(NEXT_MORNING);
+    expect(ids(await park.getEntities()).has('3881')).toBe(false);
   });
 });
 
@@ -260,10 +352,11 @@ describe('pack-drop grace window: normal churn is unchanged', () => {
     expect(liveReads).toBe(0);
   });
 
-  test('a recently dropped seasonal item with no window today drops out as before', async () => {
+  test('a recently dropped item the feed neither schedules nor runs drops out as before', async () => {
     const park = chessingtonAfterDrop();
     vi.setSystemTime(NEXT_MORNING);
     const grace = (await park.getPackDropGraceItems()).map((i: any) => String(i._id)).sort();
-    expect(grace).toEqual([...SCHEDULED_RIDES].sort());
+    expect(grace).toEqual([...KEPT_RIDES].sort());
+    expect(grace).not.toContain('52674'); // the dropped show
   });
 });
