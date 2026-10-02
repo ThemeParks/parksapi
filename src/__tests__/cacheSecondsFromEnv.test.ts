@@ -8,10 +8,10 @@
  * The resolver is exercised directly, then each decorator through the SQLite
  * cache and, for `@http`, the loopback server (helpers/localHttpServer.ts).
  */
-import config from '../config';
-import {cache, cacheSecondsFromEnv, database} from '../cache';
-import {http, HTTPObj, stopHttpQueue} from '../http';
-import {startLocalServer, LocalServer} from './helpers/localHttpServer';
+import config from '../config.js';
+import {cache, cacheSecondsFromEnv, database} from '../cache.js';
+import {http, HTTPObj, stopHttpQueue} from '../http.js';
+import {startLocalServer, LocalServer} from './helpers/localHttpServer.js';
 
 const VARIABLES = [
   'PROBE_COMPUTE_CACHESECONDS',
