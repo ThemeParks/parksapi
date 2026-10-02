@@ -1,5 +1,6 @@
 import {DatabaseSync} from 'node:sqlite';
 import {persistentKeyExclusion} from './cacheKeys.js';
+import {getEnvConfigValue} from './config.js';
 
 const CACHE_DB_PATH = process.env.CACHE_DB_PATH || './cache.sqlite';
 const MAX_CACHE_ENTRIES = parseInt(process.env.CACHE_MAX_ENTRIES || '50000', 10);
@@ -536,6 +537,25 @@ class CacheLib {
   }
 }
 
+/**
+ * A cache lifetime set in the environment for one decorated method.
+ *
+ * `{CLASSNAME}_{METHODNAME}_CACHESECONDS`, or `{PREFIX}_{METHODNAME}_CACHESECONDS`
+ * for a prefix registered with addConfigPrefix(), replaces the `ttlSeconds` of
+ * a `@cache` method and the `cacheSeconds` of an `@http` method at call time.
+ * `0` stops caching. A `@cache` callback keeps deriving its own lifetime. An
+ * entry already in the cache is served until it expires.
+ *
+ * @returns The lifetime in seconds, or undefined when the variable is unset
+ *          or not a non-negative number
+ */
+export function cacheSecondsFromEnv(instance: any, methodName: string): number | undefined {
+  const raw = getEnvConfigValue(instance, `${methodName}_CACHESECONDS`);
+  if (raw === undefined || raw === '') return undefined;
+  const seconds = Number(raw);
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds : undefined;
+}
+
 export default function cacheDecorator({ttlSeconds = 60, callback, key, cacheVersion}: {ttlSeconds?: number, callback?: (response: any) => number, key?: string | ((this: any, args: any[]) => string | Promise<string>), cacheVersion?: number | string} = {}) {
   return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
@@ -586,10 +606,11 @@ export default function cacheDecorator({ttlSeconds = 60, callback, key, cacheVer
       // Critical for OAuth token refresh: without dedup, two concurrent
       // callers would both hit the token endpoint and the second's response
       // would overwrite the first in cache.
+      // A fixed TTL can be replaced from the environment; a callback cannot.
       return await CacheLib.wrap(
         cacheKey,
         () => originalMethod.apply(this, args),
-        callback ?? ttlSeconds,
+        callback ?? cacheSecondsFromEnv(this, propertyKey) ?? ttlSeconds,
       );
     };
   };
