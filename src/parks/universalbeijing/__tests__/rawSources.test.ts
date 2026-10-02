@@ -4,7 +4,8 @@ import type {WithRaw} from '../../../destination.js';
 
 /**
  * With `includeRaw` on, every live row and entity carries the attraction or
- * show row it was built from, and every schedule day carries the month
+ * show row it was built from (a scare zone, published as an attraction, its
+ * show row), and every schedule day carries the month
  * overview that selected the day plus the daily schedule that gave its
  * times. Off, nothing carries anything.
  */
@@ -82,6 +83,18 @@ describe('UniversalStudiosBeijing raw upstream pieces', () => {
     expect(rawOf(entities[3])!.attractionData).toBe(attractionJurassic);
     expect(rawOf(entities[4])).toEqual({showData: showPanda});
     expect(rawOf(entities[4])!.showData).toBe(showPanda);
+  });
+
+  it('attaches the show row to a scare zone published as an attraction', async () => {
+    const scareZone = {id: 702, title: 'Scare Zone: Raw Woods', gems_status: '1', is_closed: false, show_time_arr: [], position: {latitude: '39.857', longitude: '116.672'}};
+    const park = stubbedPark(true);
+    vi.spyOn(park as any, 'getShowData').mockResolvedValue([scareZone]);
+    const entities = await park.getEntities();
+    const zone = entities.find((e) => e.id === '702')!;
+
+    expect(zone.entityType).toBe('ATTRACTION');
+    expect(rawOf(zone)).toEqual({showData: scareZone});
+    expect(rawOf(zone)!.showData).toBe(scareZone);
   });
 
   it('attaches the month overview and the daily schedule to the open day', async () => {

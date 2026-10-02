@@ -234,6 +234,7 @@ export class UniversalStudiosBeijing extends Destination {
         (entity as Entity & {attractionType?: string}).attractionType = 'RIDE';
         return entity;
       },
+      rawSource: 'showData',
     });
 
     const showEntities = this.mapEntities(performances, {
