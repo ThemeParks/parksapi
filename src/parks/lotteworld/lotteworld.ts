@@ -12,6 +12,7 @@ import {createStatusMap} from '../../statusMap.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
 import {AttractionTypeEnum} from '@themeparks/typelib';
 import {constructDateTime, formatDate, addDays, hostnameFromUrl} from '../../datetime.js';
+import {decodeHtmlEntities} from '../../htmlUtils.js';
 
 // ── Constants ──────────────────────────────────────────────────
 
@@ -168,7 +169,8 @@ export class LotteWorld extends Destination {
 
       entities.push({
         id: String(attr.shopSysCd),
-        name: attr.atrctNm,
+        // The CMS HTML-encodes some names ("Pharaoh&rsquo;s Fury").
+        name: decodeHtmlEntities(attr.atrctNm).trim(),
         entityType: 'ATTRACTION',
         attractionType: AttractionTypeEnum.RIDE,
         parentId: PARK_ID,

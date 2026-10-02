@@ -15,7 +15,7 @@ import {cache, CacheLib} from '../../cache.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import {constructDateTime} from '../../datetime.js';
+import {constructDateTime, shiftDateString} from '../../datetime.js';
 import {decodeHtmlEntities} from '../../htmlUtils.js';
 
 // ============================================================================
@@ -44,6 +44,12 @@ type StayAppAttraction = {
     };
   };
   waitingTime?: number;
+  /**
+   * Set by park staff in the Stay-App back office. When true the app shows the
+   * attraction as "temporarily closed" and hides any wait time, whatever
+   * `waitingTime` says.
+   */
+  temporaryClosed?: boolean;
 };
 
 /** Attractions API response */
@@ -79,6 +85,60 @@ type CodeattrInfo = {
   override_value?: unknown;
   halloween_open?: boolean;
 };
+
+// ============================================================================
+// Live status mapping
+// ============================================================================
+
+/**
+ * Coerce a Stay-App `waitingTime` to a finite number, or null when absent or
+ * unparseable.
+ *
+ * `waitingTime` is only typed `number` at the TS level (an assertion over an
+ * unvalidated JSON response), so coerce via Number() before Number.isFinite:
+ * Number.isFinite doesn't coerce, and a numeric-string wait time would
+ * otherwise misclassify an operating ride. null and '' are rejected before
+ * coercion because Number(null) and Number('') are both 0.
+ */
+export function parseStayAppWaitingTime(raw: unknown): number | null {
+  if (raw === undefined || raw === null || raw === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Map one Stay-App attraction to a live status, mirroring what the parks'
+ * shared app shows for it. Returns null when there is nothing to publish.
+ *
+ * The app's display rules, in order:
+ *   - `temporaryClosed: true`: "temporarily closed", no wait shown, whatever
+ *     `waitingTime` holds. Published as DOWN while the park is operating
+ *     (the repo's convention for a ride that should be running and isn't),
+ *     CLOSED otherwise: outside operating hours nothing is wrong with the ride,
+ *     the whole park is shut, and the flag stays set overnight and across
+ *     multi-day closures.
+ *   - `waitingTime >= 0`: "<n> min". OPERATING with that standby wait.
+ *   - `waitingTime -2`: "closed". CLOSED.
+ *   - `waitingTime -1` / `-3`: "waiting time not available". CLOSED with no
+ *     wait. The feed has no other status for these rows, and -1 is also what
+ *     long-idle and removed attractions carry, so OPERATING would be a guess.
+ *     Any other negative value is treated the same way.
+ *   - no `waitingTime` at all (and not flagged): nothing is published.
+ */
+export function mapStayAppAttractionStatus(
+  attraction: Pick<StayAppAttraction, 'waitingTime' | 'temporaryClosed'>,
+  parkOperating: boolean,
+): {status: 'OPERATING' | 'DOWN' | 'CLOSED'; waitTime?: number} | null {
+  if (attraction.temporaryClosed === true) {
+    return {status: parkOperating ? 'DOWN' : 'CLOSED'};
+  }
+
+  const waitingTime = parseStayAppWaitingTime(attraction.waitingTime);
+  if (waitingTime === null) return null;
+
+  if (waitingTime >= 0) return {status: 'OPERATING', waitTime: waitingTime};
+  return {status: 'CLOSED'};
+}
 
 // ============================================================================
 // Base Class
@@ -383,42 +443,25 @@ class ParcsReunidosDestination extends Destination {
 
   protected async buildLiveData(): Promise<LiveData[]> {
     const attractions = await this.getAttractions();
+
+    // The feed carries no park-level open flag, and the parks' own sentinel
+    // values reset overnight. A posted wait on any attraction that is not
+    // flagged closed is the only live evidence the park is operating right
+    // now, which is what separates a temporarily closed ride (DOWN) from one
+    // that is simply shut along with the rest of the park (CLOSED).
+    const parkOperating = attractions.some(
+      (a) => a.temporaryClosed !== true && (parseStayAppWaitingTime(a.waitingTime) ?? -1) >= 0,
+    );
+
     const liveData: LiveData[] = [];
-
     for (const attraction of attractions) {
-      const rawWaitingTime = attraction.waitingTime;
+      const mapped = mapStayAppAttractionStatus(attraction, parkOperating);
+      if (!mapped) continue;
 
-      // Skip entities with no waitingTime data
-      if (rawWaitingTime === undefined || rawWaitingTime === null) continue;
-
-      const entityId = String(attraction.id);
-      const ld: LiveData = {id: entityId, status: 'CLOSED'} as LiveData;
-
-      // `waitingTime` is only typed `number` at the TS level (an assertion
-      // over an unvalidated JSON response) — coerce via Number() before
-      // Number.isFinite, since Number.isFinite doesn't coerce and a
-      // numeric-string wait time would otherwise silently misclassify an
-      // operating ride as CLOSED. Matches this repo's established pattern
-      // for the same field shape (te2.ts, nigloland.ts).
-      const waitingTime = Number(rawWaitingTime);
-
-      // Negative sentinel values (-1, -2, -3, ...) all mean "not currently
-      // operating" — verified live against the app's own UI (shows
-      // "Geschlossen"/Closed) and cross-park data: -2 and -3 both behave
-      // identically (fresh, actively-updating, park-wide "not open" signals
-      // — different establishments apparently use different sentinel values
-      // for the same state). Nothing in the API distinguishes a genuine
-      // ride-is-down state from park/ride-not-open: `temporaryClosed`
-      // correlates with the long-stale -1 bucket (rides untouched for
-      // months/years — a removed/under-refurbishment signal), not with -2
-      // or -3, so there's no reliable DOWN signal here. Default to CLOSED.
-      if (Number.isFinite(waitingTime) && waitingTime >= 0) {
-        ld.status = 'OPERATING' as any;
-        ld.queue = {
-          STANDBY: {waitTime: waitingTime},
-        };
+      const ld = {id: String(attraction.id), status: mapped.status} as LiveData;
+      if (mapped.waitTime !== undefined) {
+        ld.queue = {STANDBY: {waitTime: mapped.waitTime}};
       }
-
       liveData.push(ld);
     }
 
@@ -448,7 +491,15 @@ class ParcsReunidosDestination extends Destination {
    * Parse calendar HTML to extract schedule entries.
    * Cached for 24 hours.
    */
-  @cache({ttlSeconds: 86400})
+  // cacheVersion 2: the closing time of any window running past midnight
+  // changed meaning. It used to be stamped onto the opening day, which made
+  // the entry close before it opened; it is now stamped onto the following
+  // day. The shape is identical, so nothing detects the difference — an entry
+  // cached by the old code is silently still wrong, and at a 24h TTL that is
+  // a full day of an already-deployed fix doing nothing. Observed exactly
+  // that on the first deploy: the collector synced with the corrected build
+  // and republished the same inverted rows straight out of this cache.
+  @cache({ttlSeconds: 86400, cacheVersion: 2})
   async parseCalendar(): Promise<Array<{date: string; type: string; openingTime: string; closingTime: string}>> {
     const resp = await this.fetchCalendarHTML();
     const html = await resp.text();
@@ -517,7 +568,14 @@ class ParcsReunidosDestination extends Destination {
 
             emitted.push({
               openingTime: constructDateTime(dateStr, hours.open, this.timezone),
-              closingTime: constructDateTime(dateStr, hours.close, this.timezone),
+              // A window running past midnight closes on the NEXT calendar
+              // day. Without this both ends were stamped onto the same date
+              // and the entry came out inverted — a close before its own open.
+              closingTime: constructDateTime(
+                hours.closesNextDay ? shiftDateString(dateStr, 1) : dateStr,
+                hours.close,
+                this.timezone,
+              ),
               description: this.extractLabelDescription(timeLabel),
             });
           }
@@ -564,7 +622,37 @@ class ParcsReunidosDestination extends Destination {
    * 3. "10 tot 5u" (Dutch)
    * 4. "11 a.m. – 7 p.m." (with dots and en-dash)
    */
-  private parseTimeRange(label: string): {open: string; close: string} | null {
+  private parseTimeRange(
+    label: string,
+  ): {open: string; close: string; closesNextDay: boolean} | null {
+    const range = this.parseTimeRangeParts(label);
+    if (range === null) return null;
+    // ONE rule for every format, rather than a roll per branch. A close
+    // strictly before its own open cannot be on the same day, whichever
+    // notation produced it:
+    //
+    //   "12:00 - 00:00"        a midnight close, 91 of the 98 live cases
+    //   "10:30 - 01:00"        into the small hours
+    //   "22:00 - 03:00"        a Halloween event night
+    //   "24:00 - 05:00"        constructDateTime already rolls a 24:00 OPEN,
+    //                          so the close has to follow it or the entry
+    //                          lands 19 hours backwards
+    //
+    // Equal times are deliberately NOT rolled. No live label produces one,
+    // and a zero-length window is a visible oddity where a fabricated
+    // 24-hour one would not be.
+    const minutes = (time: string): number => {
+      const [h, m] = time.split(':');
+      return Number(h) * 60 + Number(m ?? 0);
+    };
+    return {...range, closesNextDay: minutes(range.close) < minutes(range.open)};
+  }
+
+  /**
+   * The format branches. Returns wall-clock times only; whether the close
+   * belongs to the next day is decided once, by parseTimeRange above.
+   */
+  private parseTimeRangeParts(label: string): {open: string; close: string} | null {
     // Format 4: "11 a.m. – 7 p.m." (dots in am/pm, en-dash or hyphen)
     const dotAmPmMatch = label.match(/(\d{1,2}(?::\d{2})?)\s*a\.m\.\s*[–\-]\s*(\d{1,2}(?::\d{2})?)\s*p\.m\./i);
     if (dotAmPmMatch) {

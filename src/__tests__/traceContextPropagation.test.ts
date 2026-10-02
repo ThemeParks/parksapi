@@ -4,10 +4,10 @@
  * and `src/http.ts`, not of any particular endpoint, so these run against a
  * loopback server rather than httpbin.org — see helpers/localHttpServer.ts.
  */
-import { tracing } from '../tracing';
-import { http, HTTPObj, stopHttpQueue, waitForHttpQueue } from '../http';
-import { inject } from '../injector';
-import { startLocalServer, LocalServer } from './helpers/localHttpServer';
+import { tracing } from '../tracing.js';
+import { http, HTTPObj, stopHttpQueue, waitForHttpQueue } from '../http.js';
+import { inject } from '../injector.js';
+import { startLocalServer, LocalServer } from './helpers/localHttpServer.js';
 
 /** Loopback, so the `@inject` hostname matcher has a literal to match on. */
 const HOST = '127.0.0.1';

@@ -6,7 +6,7 @@ import {
   calculateReturnWindow,
   findNextAvailableSlot,
   parseTimeSlots,
-} from '../timeWindows';
+} from '../timeWindows.js';
 
 describe('Time Window Helpers', () => {
   describe('calculateReturnWindow()', () => {

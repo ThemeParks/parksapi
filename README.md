@@ -1,6 +1,6 @@
 # ThemeParks.wiki Park Data Backend
 
-An open-source TypeScript library for fetching real-time theme park data — wait times, schedules, and entity metadata — from <!-- destinations:count -->81<!-- /destinations:count -->+ destinations worldwide.
+An open-source TypeScript library for fetching real-time theme park data — wait times, schedules, and entity metadata — from <!-- destinations:count -->82<!-- /destinations:count -->+ destinations worldwide.
 
 This library powers the free API at [ThemeParks.wiki](https://themeparks.wiki).
 
@@ -43,11 +43,11 @@ This library powers the free API at [ThemeParks.wiki](https://themeparks.wiki).
 git clone https://github.com/ThemeParks/parksapi.git
 cd parksapi
 npm install
-touch .env             # Add your API credentials
+touch .env             # Destination config (see Configuration)
 npm run dev            # Test all parks
 ```
 
-Most parks require API credentials not provided in this repo — you must source these yourself.
+Most destinations need configuration values in `.env`, such as an app version, a client ID or a base URL. They aren't included in this repo. See [Configuration](#configuration).
 
 ## Usage
 
@@ -95,7 +95,7 @@ make                   # Full list of targets
 
 `make build` builds the image — the TypeScript compile is `make compile`.
 
-Most destinations need credentials in `.env` in the repo root; the container
+Most destinations need configuration in `.env` in the repo root; the container
 creates an empty one on first run, and `make park PARK=efteling` is one of the
 few that passes without any. Dependencies install into `node_modules/` on first
 run and reinstall when the lockfile changes (`make deps` forces it).
@@ -116,7 +116,7 @@ make COMPOSE="podman-compose --env-file /dev/null --podman-run-args=--userns=kee
 ## Supported Destinations
 
 <!-- destinations:table -->
-81 destinations across Disney, Universal, Cedar Fair, Six Flags, Merlin, and many more.
+82 destinations across Disney, Universal, Cedar Fair, Six Flags, Merlin, and many more.
 
 Some parks are served through a parent destination rather than an id of their own — Cedar Point and Knott's Berry Farm arrive under the Six Flags controller, for instance — so they are entities in the output rather than rows here.
 
@@ -135,6 +135,7 @@ Run `npm run dev -- --list` for the same list with categories.
 | Busch Gardens Williamsburg | `buschgardenswilliamsburg` |
 | Chessington World Of Adventures | `chessingtonworldofadventures` |
 | Chimelong | `chimelong` |
+| Cotaland | `cotaland` |
 | Disneyland Paris | `disneylandparis` |
 | Djurs Sommerland | `djurssommerland` |
 | Dollywood | `dollywood` |

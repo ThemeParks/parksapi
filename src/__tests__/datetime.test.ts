@@ -272,6 +272,29 @@ describe('DateTime Utilities', () => {
   });
 
   describe('addDays()', () => {
+    test('is LOCAL calendar arithmetic, so a DST boundary shifts the UTC hour', () => {
+      // addDays is `setDate(getDate() + n)`: same local wall clock, n calendar
+      // days later. Across a spring-forward that means the UTC hour moves by
+      // an hour, and that is correct — a park's "two days from now at 10:00"
+      // is 10:00 local on both sides of the transition.
+      //
+      // The zone is pinned because the assertion is only meaningful somewhere
+      // that actually transitions in this window. Unpinned, this passes in
+      // London (which springs forward on 31 March) and fails in New York,
+      // which is a test that depends on whose laptop it runs on.
+      const original = process.env.TZ;
+      try {
+        process.env.TZ = 'America/New_York';
+        const before = new Date('2024-03-09T12:00:00Z'); // 07:00 EST
+        const after = addDays(before, 2);               // 07:00 EDT
+        expect(after.getHours()).toBe(before.getHours());
+        expect(after.getUTCHours()).toBe(11);            // shifted by the hour
+      } finally {
+        process.env.TZ = original;
+      }
+    });
+
+
     test('should add positive days', () => {
       const date = new Date('2025-03-15T12:00:00Z');
       const result = addDays(date, 5);

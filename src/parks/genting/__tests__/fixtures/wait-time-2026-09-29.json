@@ -1,0 +1,174 @@
+{
+  "result": {
+    "operationHour": {
+      "itineraryStartTime": "2026-09-29T08:00:00+08:00",
+      "itineraryEndTime": "2026-09-29T17:00:00+08:00",
+      "startTime": "2026-09-29T10:00:00+08:00",
+      "endTime": "2026-09-29T18:00:00+08:00"
+    },
+    "rideWaitTimes": [
+      {
+        "attractionId": "008",
+        "waitTime": 999,
+        "status": "DOWN",
+        "vqReservation": true,
+        "fullVqReservation": false,
+        "isSightSeeing": false,
+        "isShowType": false
+      },
+      {
+        "attractionId": "012",
+        "waitTime": 999,
+        "status": "DOWN",
+        "vqReservation": true,
+        "fullVqReservation": false,
+        "isSightSeeing": false,
+        "isShowType": false
+      },
+      {
+        "attractionId": "014",
+        "waitTime": 999,
+        "status": "DOWN",
+        "vqReservation": true,
+        "fullVqReservation": false,
+        "isSightSeeing": false,
+        "isShowType": false
+      },
+      {
+        "attractionId": "002",
+        "waitTime": 999,
+        "status": "DOWN",
+        "vqReservation": true,
+        "fullVqReservation": false,
+        "isSightSeeing": false,
+        "isShowType": false
+      },
+      {
+        "attractionId": "013",
+        "waitTime": 999,
+        "status": "DOWN",
+        "vqReservation": true,
+        "fullVqReservation": true,
+        "isSightSeeing": false,
+        "isShowType": false
+      },
+      {
+        "attractionId": "006",
+        "waitTime": 999,
+        "status": "DOWN",
+        "vqReservation": true,
+        "fullVqReservation": false,
+        "isSightSeeing": false,
+        "isShowType": false
+      },
+      {
+        "attractionId": "005",
+        "waitTime": 999,
+        "status": "DOWN",
+        "vqReservation": true,
+        "fullVqReservation": false,
+        "isSightSeeing": false,
+        "isShowType": false
+      },
+      {
+        "attractionId": "018",
+        "waitTime": 999,
+        "status": "DOWN",
+        "vqReservation": true,
+        "fullVqReservation": true,
+        "isSightSeeing": false,
+        "isShowType": false
+      },
+      {
+        "attractionId": "010",
+        "waitTime": 999,
+        "status": "DOWN",
+        "vqReservation": true,
+        "fullVqReservation": false,
+        "isSightSeeing": false,
+        "isShowType": false
+      },
+      {
+        "attractionId": "017",
+        "waitTime": 999,
+        "status": "DOWN",
+        "vqReservation": true,
+        "fullVqReservation": false,
+        "isSightSeeing": false,
+        "isShowType": false
+      },
+      {
+        "attractionId": "016",
+        "waitTime": 999,
+        "status": "DOWN",
+        "vqReservation": true,
+        "fullVqReservation": false,
+        "isSightSeeing": false,
+        "isShowType": false
+      },
+      {
+        "attractionId": "001",
+        "waitTime": 1000,
+        "status": "COMINGSOON",
+        "vqReservation": false,
+        "fullVqReservation": false,
+        "isSightSeeing": false,
+        "isShowType": false
+      },
+      {
+        "attractionId": "007",
+        "waitTime": 999,
+        "status": "DOWN",
+        "vqReservation": false,
+        "fullVqReservation": false,
+        "isSightSeeing": false,
+        "isShowType": false
+      },
+      {
+        "attractionId": "004",
+        "waitTime": 999,
+        "status": "DOWN",
+        "vqReservation": true,
+        "fullVqReservation": false,
+        "isSightSeeing": false,
+        "isShowType": false
+      },
+      {
+        "attractionId": "015",
+        "waitTime": 999,
+        "status": "DOWN",
+        "vqReservation": true,
+        "fullVqReservation": false,
+        "isSightSeeing": false,
+        "isShowType": false
+      },
+      {
+        "attractionId": "003",
+        "waitTime": 999,
+        "status": "DOWN",
+        "vqReservation": true,
+        "fullVqReservation": false,
+        "isSightSeeing": false,
+        "isShowType": false
+      },
+      {
+        "attractionId": "009",
+        "waitTime": 999,
+        "status": "DOWN",
+        "vqReservation": true,
+        "fullVqReservation": false,
+        "isSightSeeing": false,
+        "isShowType": false
+      },
+      {
+        "attractionId": "011",
+        "waitTime": 999,
+        "status": "DOWN",
+        "vqReservation": true,
+        "fullVqReservation": false,
+        "isSightSeeing": false,
+        "isShowType": false
+      }
+    ]
+  }
+}

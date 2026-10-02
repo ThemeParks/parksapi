@@ -1,4 +1,4 @@
-import {TagType, TAG_NAMES, SIMPLE_TAG_TYPES, isSimpleTag, isValidTagType} from '../tagTypes';
+import {TagType, TAG_NAMES, SIMPLE_TAG_TYPES, isSimpleTag, isValidTagType} from '../tagTypes.js';
 
 describe('Tag Types', () => {
   describe('TagType enum', () => {
