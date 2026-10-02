@@ -108,3 +108,19 @@ describe('stripHtmlTags', () => {
     }
   });
 });
+
+describe('decodeHtmlEntities typographic entities', () => {
+  test('decodes the apostrophe Lotte World publishes in a ride name', () => {
+    expect(decodeHtmlEntities('Pharaoh&rsquo;s Fury')).toBe('Pharaoh’s Fury');
+  });
+
+  test('decodes quotes, dashes, ellipsis and marks', () => {
+    expect(decodeHtmlEntities('&lsquo;a&rsquo; &ldquo;b&rdquo; c&ndash;d&mdash;e&hellip; X&trade; Y&reg; Z&copy;'))
+      .toBe('‘a’ “b” c–d—e… X™ Y® Z©');
+  });
+
+  test('still decodes once only and leaves unknown entities alone', () => {
+    expect(decodeHtmlEntities('&amp;rsquo;')).toBe('&rsquo;');
+    expect(decodeHtmlEntities('&notanentity;')).toBe('&notanentity;');
+  });
+});

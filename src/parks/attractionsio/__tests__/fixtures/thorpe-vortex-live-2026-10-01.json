@@ -1,0 +1,9 @@
+{
+ "_comment": "Thorpe Park live feed record for Vortex (3881), fetched 2026-10-01T23:30Z. Vortex left the asset pack long ago; the feed still schedules it.",
+ "record": {
+  "_id": 3881,
+  "IsOperational": false,
+  "IsOpen": false,
+  "OpeningTimes": "{\"type\":\"range\",\"start\":\"2026-10-02 10:00:00\",\"end\":\"2026-10-02 21:00:00\"}"
+ }
+}

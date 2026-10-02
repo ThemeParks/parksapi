@@ -98,8 +98,24 @@ type EuropaParkLiveCalendar = {
     date: string;
     start: string | null;
     end: string | null;
-  };
+  } | null;
 };
+
+/** One opening-hours entry derived from the seasons feed. */
+type ScheduleEntry = {
+  date: string;
+  openingTime: string;
+  closingTime: string;
+  type: 'OPERATING' | 'EXTRA_HOURS';
+  description?: string;
+};
+
+/**
+ * What the live calendar says about Europa-Park (main park) today.
+ * UNKNOWN covers a failed fetch, a missing `today` block, a `today` block for
+ * a different date, or start/end values that are neither strings nor null.
+ */
+type EuropaParkDayStatus = 'OPEN' | 'CLOSED' | 'UNKNOWN';
 
 // ─── Internal entity record (mirrors europaparkdb _getEntities output) ────────
 
@@ -134,6 +150,14 @@ const PARK_CONFIGS: EuropaParkConfig[] = [
 
 const DESTINATION_ID = 'europapark';
 const TIMEZONE = 'Europe/Berlin';
+
+/** Scope of the main park, the only one the live calendar describes. */
+const MAIN_PARK_SCOPE = 'europapark';
+
+/** Scopes of the other parks that share the waiting-times feed. */
+const OTHER_PARK_SCOPES = PARK_CONFIGS
+  .map((p) => p.scope)
+  .filter((scope) => scope !== MAIN_PARK_SCOPE);
 
 // ─── EP-Express shuttle ────────────────────────────────────────────────────────
 //
@@ -696,11 +720,18 @@ class EuropaParkBase extends Destination {
   @reusable()
   protected async buildLiveData(): Promise<LiveData[]> {
     // Parallelise — these are independent network calls.
-    const [entities, poiData, waitsRaw, showTimes, expressWaits] = await Promise.all([
+    const [entities, poiData, waitsRaw, showTimes, liveCalendar, expressWaits] = await Promise.all([
       this.getParkEntities(),
       this.getPOIs(),
       this.getWaitingTimes(),
       this.getShowTimes(),
+      // Only used to tell whether the main park is open today. A calendar
+      // outage must not take live data down; it degrades to UNKNOWN below.
+      this.getLiveCalendar().catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`Europa-Park live calendar unavailable (${msg}); using season hours for closure check`);
+        return null;
+      }),
       // EP-Express lives on a separate host; a hotelapp outage shouldn't take
       // the rest of Europa-Park's live data down with it. On failure we skip
       // shuttle emission entirely (the stations get no live data) rather than
@@ -851,8 +882,15 @@ class EuropaParkBase extends Destination {
       }
     }
 
-    // ── Show times ────────────────────────────────────────────────────────
     const now = new Date();
+
+    // ── Main-park closed days ──────────────────────────────────────────────
+    // During the winter closure the waiting-times feed keeps listing the
+    // main park's rides but sends `time: 0` instead of the closed code 333,
+    // which the pass above maps to OPERATING with a 0-minute wait.
+    await this._applyMainParkClosure(liveDataMap, entities, waits, liveCalendar, now);
+
+    // ── Show times ────────────────────────────────────────────────────────
 
     for (const showEntry of showTimes) {
       const showEntityId = `shows_${showEntry.showId}`;
@@ -940,6 +978,111 @@ class EuropaParkBase extends Destination {
     return result;
   }
 
+  /** Today's date in the park timezone as YYYY-MM-DD. */
+  private _parkDate(now: Date): string {
+    const [mm, dd, yyyy] = formatInTimezone(now, TIMEZONE, 'date').split('/');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  /**
+   * Read the main park's open/closed state for today from the live calendar.
+   * Mirrors the schedule overlay: a null start or end means closed today, two
+   * strings mean open. Anything else, including a `today` block dated for a
+   * different day (a stale response around midnight), is UNKNOWN.
+   */
+  protected _mainParkDayStatus(
+    calendar: EuropaParkLiveCalendar | null | undefined,
+    now: Date,
+  ): EuropaParkDayStatus {
+    const today = calendar?.today;
+    if (!today || typeof today !== 'object' || typeof today.date !== 'string') {
+      return 'UNKNOWN';
+    }
+    if (today.date.substring(0, 10) !== this._parkDate(now)) return 'UNKNOWN';
+    if (today.start === null || today.end === null) return 'CLOSED';
+    if (typeof today.start === 'string' && typeof today.end === 'string') return 'OPEN';
+    return 'UNKNOWN';
+  }
+
+  /**
+   * True when the entity belongs to the main park and to no other park.
+   * Rulantica and Traumatica share the waiting-times feed but have their own
+   * hours, which the main park's calendar says nothing about.
+   */
+  private _isMainParkOnly(entity: EuropaParkEntity): boolean {
+    return entity.scopes.includes(MAIN_PARK_SCOPE)
+      && !OTHER_PARK_SCOPES.some((scope) => entity.scopes.includes(scope));
+  }
+
+  /**
+   * Correct main-park attractions on days the park is closed.
+   *
+   * Calendar says CLOSED: every main-park attraction is CLOSED with no queue,
+   * whatever the waiting-times feed sent (including rides it left out). The
+   * EP-Express stations are skipped; the shuttle feed owns them.
+   *
+   * Calendar says OPEN: nothing changes. In season upstream sends 333 for
+   * closed rides and `time: 0` is a genuine walk-on.
+   *
+   * Calendar UNKNOWN: fall back to the seasons feed. Only when it publishes
+   * no main-park hours at all for today (no OPERATING or hotel EXTRA_HOURS
+   * entry) is a `time: 0` entry turned into CLOSED. Real waits are kept, since
+   * rides do run on some days the season calendar leaves out. If the seasons
+   * feed is also unavailable, the feed mapping is left as it is.
+   */
+  protected async _applyMainParkClosure(
+    liveDataMap: Map<string, LiveData>,
+    entities: EuropaParkEntity[],
+    waits: EuropaParkWaitTime[],
+    calendar: EuropaParkLiveCalendar | null,
+    now: Date,
+  ): Promise<void> {
+    const mainParkAttractions = entities.filter(
+      (e) => e.entityType === 'ATTRACTION'
+        && this._isMainParkOnly(e)
+        && !EP_EXPRESS_ENTITY_IDS.has(e.id),
+    );
+
+    const dayStatus = this._mainParkDayStatus(calendar, now);
+    if (dayStatus === 'OPEN') return;
+
+    if (dayStatus === 'CLOSED') {
+      for (const entity of mainParkAttractions) {
+        liveDataMap.set(entity.id, {id: entity.id, status: 'CLOSED'} as LiveData);
+      }
+      return;
+    }
+
+    let hasHoursToday: boolean;
+    try {
+      hasHoursToday = await this._mainParkHasSeasonHours(now);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`Europa-Park seasons unavailable (${msg}); leaving live status as reported`);
+      return;
+    }
+    if (hasHoursToday) return;
+
+    const timeByCode = new Map<number, number>();
+    for (const wait of waits) timeByCode.set(wait.code, wait.time);
+
+    for (const entity of mainParkAttractions) {
+      if (entity.code === undefined || timeByCode.get(entity.code) !== 0) continue;
+      const live = liveDataMap.get(entity.id);
+      if (!live || live.status !== 'OPERATING') continue;
+      liveDataMap.set(entity.id, {id: entity.id, status: 'CLOSED'} as LiveData);
+    }
+  }
+
+  /** True when the seasons feed publishes any main-park hours for today. */
+  private async _mainParkHasSeasonHours(now: Date): Promise<boolean> {
+    const mainPark = PARK_CONFIGS.find((p) => p.scope === MAIN_PARK_SCOPE)!;
+    const seasons = await this.getSeasons();
+    if (!Array.isArray(seasons)) throw new Error('unexpected seasons response');
+    const today = this._parkDate(now);
+    return this._seasonTimesForPark(seasons, mainPark, now).some((t) => t.date === today);
+  }
+
   // ─── Template Method: buildSchedules ─────────────────────────────────────
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
@@ -953,10 +1096,15 @@ class EuropaParkBase extends Destination {
     return schedules;
   }
 
-  /** Build the schedule for a single park config */
-  private async _buildScheduleForPark(parkConfig: EuropaParkConfig): Promise<EntitySchedule> {
-    const cal = await this.getSeasons();
-    const now = new Date();
+  /**
+   * Opening-hour entries from the seasons feed for one park, from today up to
+   * the emission horizon. Pure: no live-calendar overlay.
+   */
+  private _seasonTimesForPark(
+    cal: EuropaParkSeason[],
+    parkConfig: EuropaParkConfig,
+    now: Date,
+  ): ScheduleEntry[] {
     const nowDate = formatInTimezone(now, TIMEZONE, 'date');
     // Cap the emission horizon. Some seasons (e.g. Rulantica) run to 2099 as
     // a "always open" placeholder. Without a cap the inner loop formats
@@ -971,14 +1119,6 @@ class EuropaParkBase extends Destination {
     const parkSeasons = cal.filter(
       (s) => !s.closed && s.scopes.includes(parkConfig.scope) && s.status === 'live',
     );
-
-    type ScheduleEntry = {
-      date: string;
-      openingTime: string;
-      closingTime: string;
-      type: 'OPERATING' | 'EXTRA_HOURS';
-      description?: string;
-    };
 
     const times: ScheduleEntry[] = [];
 
@@ -1055,6 +1195,14 @@ class EuropaParkBase extends Destination {
         current = addDays(current, 1);
       }
     }
+
+    return times;
+  }
+
+  /** Build the schedule for a single park config */
+  private async _buildScheduleForPark(parkConfig: EuropaParkConfig): Promise<EntitySchedule> {
+    const cal = await this.getSeasons();
+    const times = this._seasonTimesForPark(cal, parkConfig, new Date());
 
     // Overlay live opening times for Europa-Park main park only
     if (parkConfig.scope === 'europapark') {

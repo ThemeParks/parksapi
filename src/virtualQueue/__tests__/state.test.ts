@@ -2,7 +2,7 @@
  * Tests for State Determination Logic
  */
 
-import { determineReturnTimeState, determineBoardingGroupState } from '../state';
+import { determineReturnTimeState, determineBoardingGroupState } from '../state.js';
 
 describe('State Determination Logic', () => {
   describe('determineReturnTimeState()', () => {

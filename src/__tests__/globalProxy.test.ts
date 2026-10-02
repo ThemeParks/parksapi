@@ -1,7 +1,7 @@
 // Tests for global proxy configuration
-import {Destination} from '../destination';
+import {Destination} from '../destination.js';
 import {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import config from '../config';
+import config from '../config.js';
 
 // Mock destination for testing
 @config

@@ -210,26 +210,47 @@ const STAR_RE = /(?:⭐️?)+\s*$/u;
 
 /** Strip trailing star-rating glyphs from a Fantawild item name. */
 export function stripFantawildStars(name: string): string {
-  return name.replace(STAR_RE, '').trim();
+  return name.replace(INVISIBLE_FILLER_RE, '').replace(STAR_RE, '').trim();
 }
+
+/**
+ * Invisible characters that render as blank space and that `trim()` does not
+ * remove. Fantawild Oriental Heritage Mianyang began appending U+3164 HANGUL
+ * FILLER to item names in September 2026 ("飞天团子ㅤ"), renaming every one.
+ * Also covers the other Hangul fillers, zero-width characters and the BOM.
+ */
+const INVISIBLE_FILLER_RE = /[\u115F\u1160\u3164\uFFA0\u200B-\u200D\u2060\uFEFF]/gu;
 
 /**
  * Classify an item as SHOW vs RIDE based on showTimeList shape + feature tags.
  *
- * Precedence: explicit `真人表演` (live performance) / `巡游` (parade) tags
- * win unconditionally — even if showTimeList contains an `HH:MM-HH:MM` range
- * (operating-hours pattern for attractions), an item carrying one of those
- * tags is a SHOW. Falls back to showTimeList shape inspection otherwise.
+ * Precedence: an explicit `巡游` (parade) tag always wins. An explicit `真人表演`
+ * (live performance) tag wins too — even when showTimeList holds several
+ * `HH:MM-HH:MM` session windows — with one exception: a live-actor item whose
+ * showTimeList is a single all-day window runs continuously from open to close,
+ * which is how an attraction publishes its operating hours. That is the
+ * walk-through with live actors (a scare maze such as `南洋诡校`), not a
+ * performance, so it falls through to the shape test and is an ATTRACTION.
+ * Otherwise falls back to showTimeList shape inspection.
  */
 export function isFantawildShow(item: FantawildItem): boolean {
   const features = item.featureList ?? [];
-  // Explicit live-performance / parade feature flags (highest priority).
-  if (features.includes('真人表演') || features.includes('巡游')) return true;
   const times = item.showTimeList ?? [];
+  if (features.includes('巡游')) return true;
+  if (features.includes('真人表演') && !isSingleOperatingWindow(times)) return true;
   if (times.length === 0) return false;
   // If every entry is a single time (no dash range) it's a discrete-showtime SHOW.
   // A single "HH:MM-HH:MM" range is the operating-hours pattern used for attractions.
   return times.every(t => /^\d{1,2}:\d{2}$/.test(t.trim()));
+}
+
+/**
+ * True when showTimeList is exactly one `HH:MM-HH:MM` window: the shape the feed
+ * uses for an attraction's operating hours. Several windows (e.g. a water show
+ * run in three sessions) do not count.
+ */
+function isSingleOperatingWindow(times: readonly string[]): boolean {
+  return times.length === 1 && /^\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$/.test(times[0].trim());
 }
 
 /**
@@ -522,6 +543,30 @@ export class Fantawild extends Destination {
   }
 
   /**
+   * SHOW vs ATTRACTION for one item, stable across days.
+   *
+   * isFantawildShow() reads the day's `showTimeList`, and the feed changes its
+   * shape from day to day for the same item: a theatre lists discrete
+   * performances one day and a single `11:00-20:00` window the next, or nothing
+   * at all when it is dark. Classified fresh each run, the entity's type
+   * flipped back and forth with the feed.
+   *
+   * Once an item has been seen as a SHOW, that is remembered for 30 days and
+   * it stays a SHOW. Per `feedback_cache_only_true.md` only TRUE is ever
+   * written: a single all-day-window day must not lock a show into ATTRACTION.
+   * Each SHOW sighting refreshes the 30 days, so an item that stops publishing
+   * performances for a month falls back to what the feed says.
+   */
+  protected isStickyShow(parkId: number, item: FantawildItem): boolean {
+    const key = `${this.getCacheKeyPrefix()}:seenAsShow:v1:${parkId}:${item.id}`;
+    if (isFantawildShow(item)) {
+      CacheLib.set(key, true, 60 * 60 * 24 * 30);
+      return true;
+    }
+    return CacheLib.get(key) === true;
+  }
+
+  /**
    * Permissive write-once flag tracking whether a park has EVER returned a
    * `waitTime > 0` in production. Combined with the static `hasLiveWaitTimes`
    * config flag via OR: once we observe a real queue, we mark the park as
@@ -635,7 +680,7 @@ export class Fantawild extends Destination {
         if (!item.id) continue;
         const cleanName = stripFantawildStars(item.itemName || '');
         if (!cleanName) continue;
-        const isShow = isFantawildShow(item);
+        const isShow = this.isStickyShow(park.parkId, item);
         const entity: Entity = {
           id: this.attractionIdFor(park.parkId, item.id),
           name: cleanName,

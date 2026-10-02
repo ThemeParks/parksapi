@@ -39,8 +39,22 @@ const SHOW_TYPES = new Set([
   'Shows', 'Show', 'Entertainment', 'Live Entertainment', 'Presentation',
 ]);
 
-/** Schedule hour labels that indicate park operating hours */
-const PARK_SCHEDULE_LABELS = new Set(['park', 'gate']);
+/**
+ * Schedule hour labels that carry the park's gate hours (lowercased, trimmed).
+ * Most venues label them "Gate"; Movie World renamed its label to "Gate Hours"
+ * in mid 2026.
+ */
+const PARK_SCHEDULE_LABELS = new Set(['park', 'gate', 'gate hours']);
+
+/**
+ * Ride-hours label. Informational while a day has a gate label; used as the
+ * operating window only on a day whose feed carries no gate label at all.
+ */
+const FALLBACK_OPERATING_LABEL = 'attractions';
+
+/** Lowercased, trimmed hour label ('' when missing). */
+const normalizeHourLabel = (label: unknown): string =>
+  typeof label === 'string' ? label.trim().toLowerCase() : '';
 
 /** Tags on POI entries that indicate a ride (used for fallback classification) */
 const RIDE_INDICATOR_LABELS = new Set(['thrill level', 'rider height', 'ages']);
@@ -87,24 +101,8 @@ type TE2POIStatus = {
   status?: {
     isOpen?: boolean;
     waitTime?: number;
+    operationalStatus?: string;
   };
-};
-
-/** Single queue entry from ride status endpoint */
-type TE2QueueEntry = {
-  isPrimary?: boolean;
-  isDefault?: boolean;
-  isOpen?: boolean;
-  waitTimeMins?: number;
-};
-
-/** Ride status entry from external fastpass endpoint */
-type TE2RideStatusEntry = {
-  tags?: string[];
-  queues?: TE2QueueEntry[];
-  isOpen?: boolean;
-  state?: string;
-  waitTimeMins?: number;
 };
 
 /** Schedule data from GET /v2/venues/{venueId}/venue-hours */
@@ -140,7 +138,8 @@ type TE2EventCalendarResponse = {
 /** Normalized status entry used internally */
 type NormalizedStatusEntry = {
   id: string;
-  isOpen: boolean;
+  status: 'OPERATING' | 'CLOSED' | 'DOWN';
+  /** Standby wait to publish, or null when there is none to show. */
   waitTime: number | null;
 };
 
@@ -171,10 +170,6 @@ class TE2Destination extends Destination {
   /** TE2 venue identifier (e.g., VRTP_SW) */
   @config
   venueId: string = '';
-
-  /** Optional external ride status URL (richer wait time data) */
-  @config
-  rideStatusUrl: string = '';
 
   /** Park timezone */
   @config
@@ -271,7 +266,7 @@ class TE2Destination extends Destination {
   }
 
   /**
-   * Fetch POI status (live data fallback when no rideStatusUrl).
+   * Fetch POI status (ride status and standby waits).
    * Cached 1min at HTTP level.
    */
   @http({cacheSeconds: 60})
@@ -279,20 +274,6 @@ class TE2Destination extends Destination {
     return {
       method: 'GET',
       url: `${this.baseUrl}/rest/venue/${this.venueId}/poi/all/status`,
-      options: {json: true},
-    } as any as HTTPObj;
-  }
-
-  /**
-   * Fetch external ride status endpoint (richer wait time data).
-   * Only used when rideStatusUrl is configured. No auth headers.
-   * Cached 1min at HTTP level.
-   */
-  @http({cacheSeconds: 60})
-  async fetchRideStatus(): Promise<HTTPObj> {
-    return {
-      method: 'GET',
-      url: this.rideStatusUrl,
       options: {json: true},
     } as any as HTTPObj;
   }
@@ -401,15 +382,16 @@ class TE2Destination extends Destination {
   /**
    * Get normalized live status data (cached 1min).
    *
-   * If rideStatusUrl is configured, fetches from the external endpoint
-   * (which provides richer queue data). Otherwise falls back to the
-   * standard POI status endpoint.
+   * Always read from the POI status endpoint, which is what the park's app
+   * shows. The parks also publish a virtual queue ("fastpass") ride feed, but
+   * its queue `isOpen` and `state` describe whether that virtual queue has
+   * places left, not whether the ride is running: a running ride whose
+   * virtual queue is sold out reads `state: "full"` with `isOpen: false`.
+   * Its waits are the same numbers as the POI feed's, so it adds nothing for
+   * live status. An old ride status URL setting is ignored.
    */
   @cache({ttlSeconds: 60})
   async getLiveStatus(): Promise<NormalizedStatusEntry[]> {
-    if (this.rideStatusUrl) {
-      return this.parseRideStatusEndpoint();
-    }
     return this.parsePOIStatusEndpoint();
   }
 
@@ -425,89 +407,26 @@ class TE2Destination extends Destination {
     for (const item of data) {
       if (!item?.id || !item.status) continue;
 
+      // The park's app keys a ride on operationalStatus alone and ignores
+      // isOpen: "OPEN" shows the wait, "DOWN" shows the ride as down, and
+      // anything else as closed. A closed ride's waitTime counts down to
+      // opening and a down ride keeps its last wait, so the app shows a wait
+      // only for OPEN, and so do we.
+      const operational = String(item.status.operationalStatus ?? '').toUpperCase();
+      const status = operational === 'OPEN' ? 'OPERATING' : operational === 'DOWN' ? 'DOWN' : 'CLOSED';
+
       const rawWait = item.status.waitTime;
-      const waitTime = (rawWait !== undefined && rawWait !== null && Number.isFinite(Number(rawWait)))
+      const waitTime = (status === 'OPERATING' && rawWait !== undefined && rawWait !== null && Number.isFinite(Number(rawWait)))
         ? Math.max(0, Math.round(Number(rawWait)))
         : null;
 
       entries.push({
         id: String(item.id),
-        isOpen: item.status.isOpen === true,
+        status,
         waitTime,
       });
     }
     return entries;
-  }
-
-  /**
-   * Parse the external ride status endpoint into normalized entries.
-   * Extracts entity ID from `te2_rideid:` tags.
-   */
-  private async parseRideStatusEndpoint(): Promise<NormalizedStatusEntry[]> {
-    const resp = await this.fetchRideStatus();
-    const data: TE2RideStatusEntry[] = await resp.json();
-    if (!Array.isArray(data)) return [];
-
-    const entries: NormalizedStatusEntry[] = [];
-    for (const ride of data) {
-      const te2Id = this.extractTe2RideId(ride.tags);
-      if (!te2Id) continue;
-
-      const primaryQueue = this.getPrimaryQueue(ride);
-      const isOpen = this.isRideOpen(ride, primaryQueue);
-
-      // Prefer ride-level waitTimeMins, fall back to queue-level
-      const rawWait = ride.waitTimeMins ?? primaryQueue?.waitTimeMins;
-      const waitValue = Number(rawWait);
-      const waitTime = Number.isFinite(waitValue) ? Math.max(0, Math.round(waitValue)) : null;
-
-      entries.push({
-        id: te2Id,
-        isOpen,
-        waitTime,
-      });
-    }
-    return entries;
-  }
-
-  /**
-   * Extract TE2 ride ID from tags array (looks for `te2_rideid:ACTUAL_ID`).
-   */
-  private extractTe2RideId(tags?: string[]): string | null {
-    if (!Array.isArray(tags)) return null;
-
-    for (const tag of tags) {
-      if (typeof tag !== 'string') continue;
-      const match = tag.match(/^te2_rideid:(.+)$/i);
-      if (match?.[1]) return match[1];
-    }
-    return null;
-  }
-
-  /**
-   * Select the primary queue entry for a ride.
-   * Priority: isPrimary > isDefault > first queue.
-   */
-  private getPrimaryQueue(ride: TE2RideStatusEntry) {
-    const queues = Array.isArray(ride.queues) ? ride.queues : [];
-    return queues.find(q => q?.isPrimary) || queues.find(q => q?.isDefault) || queues[0] || null;
-  }
-
-  /**
-   * Determine if a ride is open from queue or state data.
-   */
-  private isRideOpen(ride: TE2RideStatusEntry, primaryQueue: TE2QueueEntry | null): boolean {
-    if (typeof primaryQueue?.isOpen === 'boolean') return primaryQueue.isOpen;
-    if (typeof ride?.isOpen === 'boolean') return ride.isOpen;
-
-    if (typeof ride?.state === 'string') {
-      const normalized = ride.state.toLowerCase();
-      if (normalized.includes('open')) return true;
-      if (normalized.includes('closed') || normalized.includes('down') || normalized.includes('maintenance')) {
-        return false;
-      }
-    }
-    return false;
   }
 
   /**
@@ -786,10 +705,11 @@ class TE2Destination extends Destination {
 
       const ld: LiveData = {
         id: entry.id,
-        status: entry.isOpen ? 'OPERATING' : 'CLOSED',
+        status: entry.status,
       } as LiveData;
 
-      if (entry.waitTime !== null) {
+      // Only a running ride has a standby queue.
+      if (entry.status === 'OPERATING' && entry.waitTime !== null) {
         ld.queue = {
           STANDBY: {waitTime: entry.waitTime},
         };
@@ -894,6 +814,12 @@ class TE2Destination extends Destination {
     for (const day of scheduleData.days) {
       const hours = Array.isArray(day.hours) ? day.hours : [];
 
+      // A gate label (open or closed) is authoritative for the day. Only a day
+      // without one falls back to the ride hours for its operating window.
+      const hasGateLabel = hours.some(h => PARK_SCHEDULE_LABELS.has(normalizeHourLabel(h.label)));
+      // Identical OPERATING windows under two gate labels collapse into one.
+      const operatingWindows = new Set<string>();
+
       for (const hour of hours) {
         // Skip closed entries unless it's specifically the Park schedule
         if (day.label !== 'Park' && hour.status === 'CLOSED') continue;
@@ -907,13 +833,21 @@ class TE2Destination extends Destination {
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) continue;
 
         const label = typeof hour.label === 'string' ? hour.label.trim() : '';
-        const normalizedLabel = label.toLowerCase();
+        const normalizedLabel = normalizeHourLabel(label);
 
         // Determine schedule type
-        const scheduleType = PARK_SCHEDULE_LABELS.has(normalizedLabel) ? 'OPERATING' : 'INFO';
+        const isOperating = PARK_SCHEDULE_LABELS.has(normalizedLabel)
+          || (!hasGateLabel && normalizedLabel === FALLBACK_OPERATING_LABEL);
+        const scheduleType = isOperating ? 'OPERATING' : 'INFO';
 
         const startFormatted = formatInTimezone(startDate, this.timezone, 'iso');
         const endFormatted = formatInTimezone(endDate, this.timezone, 'iso');
+
+        if (isOperating) {
+          const window = `${startFormatted}|${endFormatted}`;
+          if (operatingWindows.has(window)) continue;
+          operatingWindows.add(window);
+        }
 
         scheduleEntries.push({
           date: startFormatted.slice(0, 10),

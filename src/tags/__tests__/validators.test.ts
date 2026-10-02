@@ -3,8 +3,8 @@ import {
   isHeightValue,
   validateTagValue,
   hasOnlyKeys,
-} from '../validators';
-import {TagType} from '../tagTypes';
+} from '../validators.js';
+import {TagType} from '../tagTypes.js';
 
 describe('Tag Validators', () => {
   describe('isLocationValue', () => {

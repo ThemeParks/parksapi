@@ -58,6 +58,113 @@ const SEAWORLD_STAMP_TIMEZONE = 'America/New_York';
  */
 const SEAWORLD_FRESH_READING_MINUTES = 90;
 
+/**
+ * ASL-interpreted performances.
+ *
+ * The operator publishes an interpreted performance as its own `Shows` POI,
+ * with its own id and its own ShowTimes row, next to the regular show:
+ * "ASL - Fiends" beside "Fiends" (Busch Gardens Williamsburg), "Storytime with
+ * Friends with ASL Interpretation" beside "Storytime with Friends" (Sesame
+ * Place San Diego). Older SeaWorld Orlando listings used a suffix instead:
+ * "Orca Encounter - ASL Saturday".
+ *
+ * Emitted as-is, each becomes a second entity for the same show, with none of
+ * the base show's history and no link to it. Instead the interpreted
+ * performances are folded into the base show as showtimes of type
+ * ASL_SHOWTIME_TYPE, so one entity carries the whole schedule and a guest can
+ * still see which performances are interpreted.
+ *
+ * Only when the base show exists in the same park: an ASL listing with no
+ * matching show stays an entity of its own, so nothing is ever dropped.
+ */
+export const ASL_SHOWTIME_TYPE = 'Performance - ASL';
+
+const ASL_NAME_PATTERNS: RegExp[] = [
+  /^\s*ASL\s*[-\u2013\u2014:]\s*(.+?)\s*$/i,          // "ASL - Fiends"
+  /^(.+?)\s+with\s+ASL\s+Interpretation!?\s*$/i,        // "... with ASL Interpretation!"
+  /^(.+?)\s*[-\u2013\u2014]\s*ASL\b.*$/i,              // "Orca Encounter - ASL Saturday"
+];
+
+/** The base show name an ASL listing refers to, or null if the name is not an ASL listing. */
+export function aslBaseName(name: string): string | null {
+  for (const re of ASL_NAME_PATTERNS) {
+    const m = re.exec(name ?? '');
+    if (m && m[1].trim()) return m[1].trim();
+  }
+  return null;
+}
+
+/**
+ * A leading "ALL-NEW!" marketing tag. SeaWorld's CMS prefixes a season's new
+ * experiences with it ("ALL-NEW! Byte Bar", "ALL NEW! - Expedition Odyssey
+ * Fire & Ice", "All-New! Coral Candy Club"). It is not part of the name, and
+ * dropping it next season would rename every entity that carried it.
+ */
+const MARKETING_PREFIX = /^\s*all[\s-]*new\s*!+\s*(?:[-\u2013\u2014:]\s*)?/i;
+
+/** A POI's display name without the marketing prefix. */
+export function cleanPoiName(name: string): string {
+  const cleaned = String(name ?? '').replace(MARKETING_PREFIX, '').trim();
+  return cleaned || String(name ?? '').trim();
+}
+
+/** Case- and punctuation-insensitive key, so "Welcome to Our Street!" matches "Welcome to Our Street". */
+function showNameKey(name: string): string {
+  return cleanPoiName(name).toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+/**
+ * For one park's show POIs: ASL listing id -> base show id, for every ASL
+ * listing whose base show is in the same list. JSON-safe (plain object).
+ * When the base show itself is duplicated, the listing maps to its canonical id.
+ */
+export function mapAslShowsToBase(shows: Array<{Id: string; Name: string}>): Record<string, string> {
+  return mapShowAliases(shows).asl;
+}
+
+/**
+ * Show POIs that are not entities of their own, for one park:
+ *
+ * - `asl`: ASL listing id -> base show id (see aslBaseName). Their performances
+ *   are folded into the base show as ASL_SHOWTIME_TYPE.
+ * - `duplicate`: id -> canonical id, for shows the feed publishes more than once
+ *   under the same name. SeaWorld Orlando lists "Sea Lions: Flippers, Facts &
+ *   Fun" twice and Sesame Place Philadelphia lists "Meet Dinger" three times,
+ *   with nothing to tell the copies apart (same category and subtype, no tag,
+ *   no coordinates); one copy carries the day's showtimes, another none. The
+ *   canonical copy is the lowest id, which stays the same for as long as the
+ *   copies exist, so the entity id does not move between days. The others'
+ *   showtimes merge into it as ordinary performances.
+ *
+ * Name matching uses showNameKey (case, punctuation and "ALL-NEW!" insensitive).
+ * JSON-safe (plain objects).
+ */
+export function mapShowAliases(shows: Array<{Id: string; Name: string}>): {
+  asl: Record<string, string>;
+  duplicate: Record<string, string>;
+} {
+  const canonical = new Map<string, string>();
+  for (const s of shows) {
+    if (aslBaseName(s.Name) !== null) continue;
+    const key = showNameKey(s.Name);
+    const cur = canonical.get(key);
+    if (cur === undefined || s.Id < cur) canonical.set(key, s.Id);
+  }
+  const asl: Record<string, string> = {};
+  const duplicate: Record<string, string> = {};
+  for (const s of shows) {
+    const base = aslBaseName(s.Name);
+    if (base !== null) {
+      const baseId = canonical.get(showNameKey(base));
+      if (baseId && baseId !== s.Id) asl[s.Id] = baseId;
+      continue;
+    }
+    const id = canonical.get(showNameKey(s.Name));
+    if (id && id !== s.Id) duplicate[s.Id] = id;
+  }
+  return {asl, duplicate};
+}
+
 // ---------------------------------------------------------------------------
 // API response types
 // ---------------------------------------------------------------------------
@@ -152,6 +259,19 @@ export class SeaworldDestination extends Destination {
 
   // IANA timezone for this destination (set by subclasses)
   timezone: string = 'America/New_York';
+
+  /**
+   * `Shows` POIs, by feed Id, that are walk-through attractions rather than
+   * performances. Published as ATTRACTION instead of SHOW; the id is unchanged.
+   *
+   * This is a per-destination list because the feed carries nothing that sets
+   * such an item apart. Every field that could classify one (Type, SubType,
+   * Category, Subcategory, ShowType, FilterTags, Tags) is identical to, or
+   * absent on, dozens of real performances across the family, and an empty
+   * `ShowTimes` array is common to plenty of real shows too. Set by
+   * subclasses; empty by default.
+   */
+  walkThroughShowIds: ReadonlySet<string> = new Set();
 
   constructor(options?: DestinationConstructor) {
     super(options);
@@ -443,7 +563,7 @@ export class SeaworldDestination extends Destination {
       for (const poi of rides) {
         const entity: Entity = {
           id: poi.Id,
-          name: poi.Name,
+          name: cleanPoiName(poi.Name),
           entityType: 'ATTRACTION',
           attractionType: 'RIDE',
           parentId: parkDetail.Id,
@@ -461,15 +581,35 @@ export class SeaworldDestination extends Destination {
 
       // --- SHOWs ---
       const shows = this.getAllPoisOfTypes(parkDetail, ['Shows']);
+      // Interpreted performances are folded into their base show's showtimes in
+      // buildLiveData, so they are not entities of their own. See aslBaseName().
+      const aliases = mapShowAliases(shows);
       for (const poi of shows) {
-        const entity: Entity = {
-          id: poi.Id,
-          name: poi.Name,
-          entityType: 'SHOW',
-          parentId: parkDetail.Id,
-          destinationId: this.destinationId,
-          timezone: this.timezone,
-        };
+        // ASL listings and same-name copies are folded into another show.
+        if (aliases.asl[poi.Id] || aliases.duplicate[poi.Id]) continue;
+        // A walk-through filed under Shows keeps its id and moves to
+        // ATTRACTION. attractionType is set explicitly: RIDE is the type every
+        // other walk-through in this library already carries (haunt mazes,
+        // event houses), and the base class would otherwise default to it
+        // silently.
+        const entity: Entity = this.walkThroughShowIds.has(poi.Id)
+          ? {
+            id: poi.Id,
+            name: cleanPoiName(poi.Name),
+            entityType: 'ATTRACTION',
+            attractionType: 'RIDE',
+            parentId: parkDetail.Id,
+            destinationId: this.destinationId,
+            timezone: this.timezone,
+          }
+          : {
+            id: poi.Id,
+            name: cleanPoiName(poi.Name),
+            entityType: 'SHOW',
+            parentId: parkDetail.Id,
+            destinationId: this.destinationId,
+            timezone: this.timezone,
+          };
         if (poi.Coordinate) {
           entity.location = {
             latitude: poi.Coordinate.Latitude,
@@ -484,7 +624,7 @@ export class SeaworldDestination extends Destination {
       for (const poi of dining) {
         const entity: Entity = {
           id: poi.Id,
-          name: poi.Name,
+          name: cleanPoiName(poi.Name),
           entityType: 'RESTAURANT',
           parentId: parkDetail.Id,
           destinationId: this.destinationId,
@@ -520,6 +660,19 @@ export class SeaworldDestination extends Destination {
     // overwrite a real closure with a schedule.
     const closedByStatus = new Set<string>();
 
+    // ASL listings the operator closed this cycle. Kept apart from
+    // closedByStatus because the closure belongs to the interpreted
+    // performances only: the base show itself may still be running, so its
+    // status must not follow. The show loop drops these listings' slots instead
+    // of folding cancelled performances into the base show.
+    const closedAslListings = new Set<string>();
+
+    // Showtimes per target entity, keyed by the ShowTimes row they came from.
+    // A base show and its ASL listing are two rows landing on one entity; a row
+    // seen again (the same id in two parks' payloads) replaces itself rather
+    // than doubling the schedule.
+    const showtimesBySource = new Map<string, Map<string, NonNullable<LiveData['showtimes']>>>();
+
     const getOrCreate = (id: string): LiveData => {
       let entry = liveDataMap.get(id);
       if (!entry) {
@@ -543,6 +696,15 @@ export class SeaworldDestination extends Destination {
       // comment on their loops.
       let availability: SeaworldAvailabilityResponse;
       let parkIsOpen: boolean | null = null;
+      // ASL listing id -> base show id. Empty only if park detail is unavailable
+      // (it is cached 12h, so that means no successful fetch at all). ASL rows
+      // then come out under their own ids, which are not in the entity list, so
+      // a consumer that matches live rows to entities ignores them. The ShowTimes
+      // rows carry only an Id, no name, so they cannot be recognised without
+      // the park detail.
+      let aslToBase: Record<string, string> = {};
+      // Same-name copy id -> canonical show id (see mapShowAliases).
+      let duplicateToCanonical: Record<string, string> = {};
       try {
         availability = await this.getAvailability(parkId, searchDate);
         // Operating hours decide how to read the "no reading" state below.
@@ -550,7 +712,11 @@ export class SeaworldDestination extends Destination {
         // the live data we already have: fall back to parkIsOpen = null, which
         // takes the conservative branch.
         try {
-          parkIsOpen = this.isParkOpenNow(await this.getParkDetail(parkId));
+          const parkDetail = await this.getParkDetail(parkId);
+          parkIsOpen = this.isParkOpenNow(parkDetail);
+          const aliases = mapShowAliases(this.getAllPoisOfTypes(parkDetail, ['Shows']));
+          aslToBase = aliases.asl;
+          duplicateToCanonical = aliases.duplicate;
         } catch (err: any) {
           console.warn(
             `[${this.constructor.name}] operating hours unavailable for park ${parkId}, ` +
@@ -652,8 +818,6 @@ export class SeaworldDestination extends Destination {
       // To Weather"), and the newest was the most frequent — the set is open.
       for (const wt of waitRows) {
         if (!wt?.Id) continue;
-        const entry = getOrCreate(wt.Id);
-
         // Either field carries the closure text; StatusDisplay is null when
         // absent. Coerce with String() before trimming: a non-string here would
         // throw, and this loop sits outside the per-park try above, so one
@@ -664,6 +828,21 @@ export class SeaworldDestination extends Destination {
         // Status is truthy, so it would win the || and then trim to empty,
         // discarding a real closure sitting in StatusDisplay.
         const closureText = String(wt.Status ?? '').trim() || String(wt.StatusDisplay ?? '').trim();
+
+        // An ASL listing is not an entity (it is folded into its base show), so
+        // a row for it must not create one here. Its closure still matters: it
+        // cancels the interpreted performances, which the show loop would
+        // otherwise fold into the base show as if they were going ahead.
+        if (aslToBase[wt.Id]) {
+          if (closureText) closedAslListings.add(wt.Id);
+          continue;
+        }
+        // A same-name copy is not an entity either. Its status row is ignored, not
+        // applied to the canonical show: a leftover copy saying "Closed" must not
+        // shut a show its twin is listing performances for. Its showtimes still
+        // merge in below.
+        if (duplicateToCanonical[wt.Id]) continue;
+        const entry = getOrCreate(wt.Id);
 
         // Only trust an actual number. Number() maps null, '', '  ' and [] to 0,
         // which is finite and >= 0, so coercing here would invent a walk-on out
@@ -732,17 +911,23 @@ export class SeaworldDestination extends Destination {
       const showRows = Array.isArray(availability?.ShowTimes) ? availability.ShowTimes : [];
       for (const st of showRows) {
         if (!st?.Id) continue;
-        const entry = getOrCreate(st.Id);
+        const baseId = aslToBase[st.Id];
+        // A closed ASL listing's slots are cancelled. Skip the row before
+        // getOrCreate so it neither adds slots to the base show nor creates a
+        // base row on a day the base show has no row of its own.
+        if (baseId && closedAslListings.has(st.Id)) continue;
+        const targetId = baseId ?? duplicateToCanonical[st.Id] ?? st.Id;
+        const entry = getOrCreate(targetId);
 
         if (st.ShowTimes && st.ShowTimes.length > 0) {
           // An explicit closure outranks a schedule. No id currently appears in
           // both arrays (checked across five parks), but if one ever does, the
           // operator saying "Closed For The Day" must not be overwritten by the
           // fact that performances were listed this morning.
-          if (!closedByStatus.has(st.Id)) {
+          if (!closedByStatus.has(targetId)) {
             entry.status = parkOperating ? 'OPERATING' : 'CLOSED';
           }
-          entry.showtimes = st.ShowTimes.map((time) => {
+          const times = st.ShowTimes.map((time) => {
             // StartTime/EndTime are local datetime strings without a timezone
             // suffix (e.g. "2026-04-01T12:00:00").  Use constructDateTime to
             // attach the correct offset for this destination's timezone.
@@ -751,9 +936,28 @@ export class SeaworldDestination extends Destination {
             return {
               startTime: startLocal,
               endTime: endLocal,
-              type: 'Performance',
+              type: baseId ? ASL_SHOWTIME_TYPE : 'Performance',
             };
           });
+          let sources = showtimesBySource.get(targetId);
+          if (!sources) {
+            sources = new Map();
+            showtimesBySource.set(targetId, sources);
+          }
+          sources.set(st.Id, times);
+          // Same park, same offset, so the ISO strings sort chronologically.
+          // Same-name copies can list the same slot; publish it once. The type is
+          // part of the key: an ASL-interpreted performance beside the regular one
+          // at the same time is two listings by design.
+          const seen = new Set<string>();
+          entry.showtimes = [...sources.values()].flat()
+            .filter((t) => {
+              const key = `${t.startTime}|${t.endTime}|${t.type}`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            })
+            .sort((a, b) => String(a.startTime).localeCompare(String(b.startTime)));
         }
       }
     }
@@ -992,6 +1196,11 @@ export class SesamePlacePhiladelphia extends SeaworldDestination {
     this.timezone = 'America/New_York';
     this.destinationName = 'Sesame Place Philadelphia';
     this.destinationId = 'sesameplacephiladelphia';
+    this.walkThroughShowIds = new Set([
+      // Trick-or-Treat Trail: a seasonal trail guests walk through, filed by
+      // the operator under Shows with no subcategory and no performances.
+      '56e4d407-e5ad-4e7c-8fba-40f5734c4747',
+    ]);
   }
 }
 
