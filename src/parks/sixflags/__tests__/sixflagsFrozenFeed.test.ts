@@ -36,6 +36,12 @@ class Probe extends SixFlags {
   public poi: any[] = [{fimsId: 'RIDE-001-00325', name: 'Top Thrill 2', parkId: CEDAR_POINT, venueId: 1, location: SANDUSKY}];
   public venueStatus: Record<number, Feed> = {};
   public waitTimes: Record<number, Feed> = {};
+  /**
+   * Operating-hours days per park, served the way the vendor does: a
+   * `YYYYMMDD` query answers with that one day. null = the fetch failed.
+   */
+  public schedule: Record<number, any[] | null> = {};
+  public hoursRequests: string[] = [];
 
   constructor() {
     // A fallback distinct from every fixture park's real zone, so a silent
@@ -59,8 +65,12 @@ class Probe extends SixFlags {
     return this.waitTimes[parkId] ?? null;
   }
 
-  override async getOperatingHours(): Promise<any> {
-    return {dates: []};
+  override async getOperatingHours(parkId: number, month: string): Promise<any> {
+    this.hoursRequests.push(`${parkId}:${month}`);
+    const days = this.schedule[parkId];
+    if (days === null) return null;
+    const mdy = `${month.slice(4, 6)}/${month.slice(6, 8)}/${month.slice(0, 4)}`;
+    return {dates: (days ?? []).filter(d => month.length === 8 ? d.date === mdy : d.date.startsWith(`${month.slice(4, 6)}/`))};
   }
 
   public liveForTest(): Promise<LiveData[]> {
@@ -103,6 +113,26 @@ function knotts(): Probe {
     {fimsId: 'RIDE-004-00172', name: 'GhostRider', parkId: KNOTTS, venueId: 1, location: BUENA_PARK},
     {fimsId: 'RIDE-201-00001', name: 'Pacific Spin', parkId: SOAK_CITY, venueId: 1, location: BUENA_PARK},
   ];
+  return probe;
+}
+
+/** One operating-hours day. `open`/`close` null = a listed day with no park hours. */
+function day(date: string, opts: {closed?: boolean; open?: string; close?: string}) {
+  const {closed = false, open, close} = opts;
+  return {
+    date,
+    isParkClosed: closed,
+    venues: [],
+    operatings: open && close
+      ? [{operatingTypeId: 24, operatingTypeName: 'Park', items: [{timeFrom: open, timeTo: close}]}]
+      : [],
+  };
+}
+
+/** Cedar Point with a frozen snapshot whose every ride reads Not Scheduled. */
+function frozenAllNotScheduled(): Probe {
+  const probe = new Probe();
+  probe.venueStatus[CEDAR_POINT] = venueStatus(MONDAY_ET, '001', 'Not Scheduled');
   return probe;
 }
 
@@ -316,5 +346,159 @@ describe('frozen-feed timezone handling', () => {
     expect(live.some(l => String(l.id).includes('-004-'))).toBe(true);
     expect(live.some(l => String(l.id).includes('-201-'))).toBe(false);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('park 201 venue-status is frozen'));
+  });
+});
+
+describe('a frozen all-Not-Scheduled snapshot, judged against the park schedule', () => {
+  // The frozen snapshot observed on 2026-09-24 was taken on a Monday the
+  // park was shut, so every ride read "Not Scheduled". Publishing it showed
+  // open parks as closed all day. The schedule tells an off-season park
+  // (publish) from an open one (withhold).
+
+  test('withholds when the schedule says the park is open today', async () => {
+    const probe = frozenAllNotScheduled();
+    probe.schedule[CEDAR_POINT] = [day('09/24/2026', {open: '11:00', close: '22:00'})];
+
+    expect(await probe.liveForTest()).toEqual([]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('park 1 venue-status is frozen'));
+  });
+
+  test('withholds before opening time on an open day, not only during hours', async () => {
+    vi.setSystemTime(new Date('2026-09-24T12:00:00Z')); // 08:00 Eastern
+    const probe = frozenAllNotScheduled();
+    probe.schedule[CEDAR_POINT] = [day('09/24/2026', {open: '11:00', close: '22:00'})];
+
+    expect(await probe.liveForTest()).toEqual([]);
+  });
+
+  test('publishes CLOSED when the schedule says the park is closed today', async () => {
+    const probe = frozenAllNotScheduled();
+    probe.schedule[CEDAR_POINT] = [day('09/24/2026', {closed: true})];
+
+    const live = await probe.liveForTest();
+
+    expect(live.find(l => l.id === 'RIDE-001-00325')?.status).toBe('CLOSED');
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  test('a listed day with no park hours counts as closed', async () => {
+    const probe = frozenAllNotScheduled();
+    probe.schedule[CEDAR_POINT] = [day('09/24/2026', {})];
+
+    expect((await probe.liveForTest()).find(l => l.id === 'RIDE-001-00325')?.status).toBe('CLOSED');
+  });
+
+  test('publishes CLOSED when the schedule has no entry for today', async () => {
+    const probe = frozenAllNotScheduled();
+    probe.schedule[CEDAR_POINT] = [day('09/23/2026', {open: '11:00', close: '22:00'})];
+
+    expect((await probe.liveForTest()).find(l => l.id === 'RIDE-001-00325')?.status).toBe('CLOSED');
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  test('publishes CLOSED when the schedule could not be fetched', async () => {
+    const probe = frozenAllNotScheduled();
+    probe.schedule[CEDAR_POINT] = null;
+
+    expect((await probe.liveForTest()).find(l => l.id === 'RIDE-001-00325')?.status).toBe('CLOSED');
+  });
+
+  test('another open day in the month does not count', async () => {
+    const probe = frozenAllNotScheduled();
+    probe.schedule[CEDAR_POINT] = [
+      day('09/24/2026', {closed: true}),
+      day('09/25/2026', {open: '11:00', close: '22:00'}),
+    ];
+
+    expect((await probe.liveForTest()).find(l => l.id === 'RIDE-001-00325')?.status).toBe('CLOSED');
+  });
+
+  test('reads today in the park zone, not UTC', async () => {
+    // 02:31Z on the 25th is still the evening of the 24th in Sandusky.
+    const probe = frozenAllNotScheduled();
+    probe.schedule[CEDAR_POINT] = [
+      day('09/24/2026', {open: '11:00', close: '22:00'}),
+      day('09/25/2026', {closed: true}),
+    ];
+
+    expect(await probe.liveForTest()).toEqual([]);
+  });
+
+  test('asks for the park-local date at a month boundary', async () => {
+    vi.setSystemTime(new Date('2026-10-01T02:00:00Z')); // 22:00 Eastern, Sep 30
+    const probe = frozenAllNotScheduled();
+    probe.schedule[CEDAR_POINT] = [day('09/30/2026', {open: '11:00', close: '23:00'})];
+
+    expect(await probe.liveForTest()).toEqual([]);
+    expect(probe.hoursRequests[0]).toBe(`${CEDAR_POINT}:20260930`);
+  });
+
+  test('withholds after midnight while last night\'s hours are still running', async () => {
+    vi.setSystemTime(new Date('2026-09-25T04:30:00Z')); // 00:30 Eastern on the 25th
+    const probe = frozenAllNotScheduled();
+    probe.schedule[CEDAR_POINT] = [
+      day('09/24/2026', {open: '11:00', close: '01:00'}),
+      day('09/25/2026', {closed: true}),
+    ];
+
+    expect(await probe.liveForTest()).toEqual([]);
+  });
+
+  test('publishes CLOSED after midnight once last night\'s hours have ended', async () => {
+    vi.setSystemTime(new Date('2026-09-25T05:30:00Z')); // 01:30 Eastern on the 25th
+    const probe = frozenAllNotScheduled();
+    probe.schedule[CEDAR_POINT] = [
+      day('09/24/2026', {open: '11:00', close: '01:00'}),
+      day('09/25/2026', {closed: true}),
+    ];
+
+    expect((await probe.liveForTest()).find(l => l.id === 'RIDE-001-00325')?.status).toBe('CLOSED');
+  });
+
+  test('withholds after midnight while last night\'s haunt event is still running', async () => {
+    vi.setSystemTime(new Date('2026-09-25T08:00:00Z')); // 01:00 Pacific on the 25th
+    const probe = knotts();
+    probe.venueStatus[KNOTTS] = venueStatus(MONDAY_PT, '004', 'Not Scheduled');
+    probe.schedule[KNOTTS] = [
+      {...day('09/24/2026', {open: '10:00', close: '17:30'}),
+        operatings: [
+          {operatingTypeId: 24, operatingTypeName: 'Park', items: [{timeFrom: '10:00', timeTo: '17:30'}]},
+          {operatingTypeId: 25, operatingTypeName: 'Haunt', items: [{timeFrom: '19:00', timeTo: '02:00'}]},
+        ]},
+      day('09/25/2026', {closed: true}),
+    ];
+
+    const live = await probe.liveForTest();
+
+    expect(live.some(l => String(l.id).includes('-004-'))).toBe(false);
+  });
+
+  test('never reads the schedule for a fresh snapshot', async () => {
+    const probe = new Probe();
+    probe.venueStatus[CEDAR_POINT] = venueStatus(FRESH_ET, '001', 'Not Scheduled');
+    probe.schedule[CEDAR_POINT] = [day('09/24/2026', {open: '11:00', close: '22:00'})];
+
+    const scheduleCheck = vi.spyOn(probe, 'scheduleSaysOpen');
+
+    const live = await probe.liveForTest();
+
+    expect(live.find(l => l.id === 'RIDE-001-00325')?.status).toBe('CLOSED');
+    // The guard's schedule lookup must not run for a fresh snapshot. Assert on
+    // the guard itself, not on request shapes: other live-build paths (such as
+    // showtimes) may legitimately read the day's hours.
+    expect(scheduleCheck).not.toHaveBeenCalled();
+  });
+
+  test('judges a water park on its own schedule', async () => {
+    const probe = knotts();
+    probe.venueStatus[KNOTTS] = venueStatus(MONDAY_PT, '004', 'Not Scheduled');
+    probe.venueStatus[SOAK_CITY] = venueStatus(MONDAY_PT, '201', 'Not Scheduled');
+    probe.schedule[KNOTTS] = [day('09/24/2026', {open: '10:00', close: '22:00'})];
+    probe.schedule[SOAK_CITY] = [day('09/24/2026', {closed: true})];
+
+    const live = await probe.liveForTest();
+
+    expect(live.some(l => String(l.id).includes('-004-'))).toBe(false);
+    expect(live.find(l => l.id === 'RIDE-201-00325')?.status).toBe('CLOSED');
   });
 });
