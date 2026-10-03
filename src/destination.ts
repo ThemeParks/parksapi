@@ -86,6 +86,24 @@ function stripUndefinedDeep(value: unknown): void {
   }
 }
 
+/**
+ * One park's upstream snapshot time, as the source itself states it.
+ *
+ * `observedAt` is the instant the source says its snapshot describes (a feed's
+ * own generation stamp). `readAt` is when this destination read that snapshot.
+ * `readAt - observedAt` is how old the upstream data already was when it was
+ * collected: a source that has stopped refreshing but keeps answering shows up
+ * here and nowhere else.
+ */
+export type SourceObservation = {
+  /** The park's entity id, as published by getEntities(). */
+  parkId: string;
+  /** ISO 8601 instant the source's snapshot describes. */
+  observedAt: string;
+  /** ISO 8601 instant the snapshot was read. */
+  readAt: string;
+};
+
 export type DestinationConstructor = {
   config?: {[key: string]: string | string[]};
 };
@@ -1164,6 +1182,44 @@ export abstract class Destination {
     }
     for (const entry of data) stripUndefinedDeep(entry);
     return data;
+  }
+
+  /** Latest upstream snapshot reading per park; see {@link getSourceObservations}. */
+  private sourceObservations = new Map<string, {observedAtMs: number; readAtMs: number}>();
+
+  /**
+   * Record a park's upstream snapshot time, for sources that publish one.
+   * Call from buildLiveData() whenever the source's stamp was read, including
+   * when the snapshot is then withheld: that is when the age matters most.
+   *
+   * A non-finite time or an empty park id is ignored, so a parse failure can
+   * never read as a timestamp.
+   *
+   * @param parkId The park's entity id.
+   * @param observedAt When the source says its snapshot was generated.
+   * @param readAt When the snapshot was read. Defaults to now.
+   */
+  protected recordSourceObservedAt(parkId: string, observedAt: number | Date, readAt: number | Date = Date.now()): void {
+    const observedAtMs = observedAt instanceof Date ? observedAt.getTime() : observedAt;
+    const readAtMs = readAt instanceof Date ? readAt.getTime() : readAt;
+    if (!parkId || !Number.isFinite(observedAtMs) || !Number.isFinite(readAtMs)) return;
+    this.sourceObservations.set(parkId, {observedAtMs, readAtMs});
+  }
+
+  /**
+   * The latest upstream snapshot time recorded for each park, one entry per
+   * park. Empty for a destination whose source carries no stamp.
+   *
+   * A park the latest build did not read keeps its previous entry, with its
+   * previous `readAt`, so a caller should judge recency from `readAt` rather
+   * than assume every entry was read by the latest build.
+   */
+  getSourceObservations(): SourceObservation[] {
+    return [...this.sourceObservations].map(([parkId, o]) => ({
+      parkId,
+      observedAt: new Date(o.observedAtMs).toISOString(),
+      readAt: new Date(o.readAtMs).toISOString(),
+    }));
   }
 
   /**
