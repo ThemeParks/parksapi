@@ -129,6 +129,8 @@ Key: uses `node:http`/`node:https` (not `fetch`), global queue with 100ms interv
 
 **Timeout:** a request is aborted after 30 seconds. `HTTP_TIMEOUT_MS` sets another limit for the whole process.
 
+**HTTP transport:** `setHttpTransport(transport)` puts `transport(request, caller, send)` between the queue and the network. It sees every attempt after the injectors, never a cache hit. A request outside `@http` therefore goes through `makeHttpRequest(options, caller)`, never through the global `fetch`.
+
 #### **@inject** (`src/injector.ts`)
 Event-based dependency injection using Sift.js (MongoDB-like queries). Used for auth headers, response transforms.
 

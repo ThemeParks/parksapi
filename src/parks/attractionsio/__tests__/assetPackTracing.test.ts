@@ -3,7 +3,8 @@
  * /data endpoint answers 303 with the ZIP's Location and the ZIP is binary.
  * They still have to reach a tracing listener like every other request the
  * class makes: start and complete with status, duration, headers, class and
- * method, or start and error when the connection fails. The server is a
+ * method, or start and error when the connection fails. They also have to
+ * pass through the HTTP transport with their caller. The server is a
  * loopback one serving a real ZIP, so the whole sync runs, down to the SQLite
  * entity store.
  */
@@ -13,6 +14,7 @@ import type {AddressInfo} from 'node:net';
 import AdmZip from 'adm-zip';
 import {AttractionsIOV1} from '../attractionsiov1.js';
 import {CacheLib, database} from '../../../cache.js';
+import {setHttpTransport, HttpCaller} from '../../../httpProxy.js';
 import {tracing, HttpTraceEvent} from '../../../tracing.js';
 
 const RECORDS = {
@@ -97,6 +99,27 @@ describe('asset pack requests on the trace', () => {
 
     // Nothing else was requested along the way.
     expect(events).toHaveLength(4);
+  });
+
+  test('both requests go through the HTTP transport with their caller', async () => {
+    const seen: Array<{url: string; caller: HttpCaller; status: number}> = [];
+    setHttpTransport(async (request, caller, send) => {
+      const response = await send(request);
+      seen.push({url: request.url, caller, status: response.status});
+      return response;
+    });
+    try {
+      const probe = new Probe(baseURL);
+      const result = await probe.getPOIData();
+      expect(result.Item.map(item => item._id)).toEqual([100]);
+    } finally {
+      setHttpTransport(null);
+    }
+
+    expect(seen).toEqual([
+      {url: `${baseURL}data`, caller: {className: 'Probe', methodName: '_syncFromAPI', retryCount: 0}, status: 303},
+      {url: `${baseURL}pack.zip`, caller: {className: 'Probe', methodName: 'downloadAssetPack', retryCount: 0}, status: 200},
+    ]);
   });
 
   test('a failed connection emits start and error', async () => {

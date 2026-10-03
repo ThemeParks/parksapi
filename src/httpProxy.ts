@@ -24,12 +24,6 @@ import {
 } from 'undici';
 
 /**
- * Make an HTTP request via fetch() with optional proxy / mutual-TLS support.
- *
- * @param options Request options
- * @returns Standard fetch Response
- */
-/**
  * Redact secret query params from a proxy URL before it appears in logs or
  * error messages. Proxy services (Scrapfly/CrawlBase) carry the API key — and,
  * for Scrapfly, forwarded auth headers and request bodies — in the URL's query
@@ -77,7 +71,7 @@ export function httpTimeoutMs(): number {
   return Number.isInteger(timeout) && timeout > 0 ? timeout : DEFAULT_TIMEOUT_MS;
 }
 
-export async function makeHttpRequest(options: {
+export type HttpRequestOptions = {
   method: string;
   url: string;
   headers?: Record<string, string>;
@@ -89,9 +83,85 @@ export async function makeHttpRequest(options: {
   key?: string;
   /** Request timeout in milliseconds (default: `HTTP_TIMEOUT_MS`, else 30s) */
   timeoutMs?: number;
-}): Promise<Response> {
-  const {method, url, headers, body, proxyUrl, cert, key, timeoutMs = httpTimeoutMs()} = options;
+};
 
+/**
+ * Who makes a request. Every field is optional, since a direct call of
+ * `makeHttpRequest()` may pass none of them.
+ */
+export type HttpCaller = {
+  /** Class of the decorated method, e.g. `Efteling` */
+  className?: string;
+  /** The decorated method, e.g. `fetchCalendar` */
+  methodName?: string;
+  /** Arguments the decorated method was called with, e.g. `[2026, 10]` */
+  args?: unknown[];
+  /** 0 for the first attempt, 1 for the first retry, and so on */
+  retryCount?: number;
+};
+
+/**
+ * A function between the `@http` queue and the network. It receives the
+ * request as it is about to go out (after the injectors, with the default
+ * `user-agent` and `accept-encoding` filled in), who makes it, and `send`,
+ * which performs the real request. It may call `send` (as is, or with a
+ * changed request) or return a `Response` of its own without touching the
+ * network. Whatever `send` throws (a timeout, a connection error) passes
+ * through unless the transport catches it. An error the transport throws
+ * itself counts as a failed connection and is retried like one.
+ *
+ * Rules for a transport:
+ * - Read a body only from `response.clone()`. The `Response` it returns
+ *   must be unread, because parksapi reads it afterwards.
+ * - The request carries secrets: auth headers, proxy keys in the URL and in
+ *   `proxyUrl`, an mTLS `key`. Redact a copy before storing anything.
+ *   `redactProxyUrlSecrets` helps with proxy URLs.
+ * - What it returns is cached like a network response when the method
+ *   caches.
+ * - The timeout applies inside `send` only. A request from the queue holds
+ *   its slot in the concurrency limit while the transport runs, so the
+ *   transport must end on its own, must not call an `@http` method itself,
+ *   and should not take longer than the request it replaces.
+ */
+export type HttpTransport = (
+  request: HttpRequestOptions,
+  caller: HttpCaller,
+  send: (request: HttpRequestOptions) => Promise<Response>,
+) => Promise<Response>;
+
+let httpTransport: HttpTransport | null = null;
+
+/**
+ * Route every request through `transport` on its way to the network, for a
+ * consumer that records the parks' responses, replays a recording, or tests a
+ * destination offline. A request served from the HTTP cache never gets here.
+ * `null` restores the default.
+ */
+export function setHttpTransport(transport: HttpTransport | null): void {
+  httpTransport = transport;
+}
+
+/**
+ * Make an HTTP request: through the transport when one is set, otherwise
+ * via fetch() with optional proxy / mutual-TLS support.
+ *
+ * @param options Request options
+ * @param caller Who makes the request, handed to the transport
+ * @returns Standard fetch Response
+ */
+export async function makeHttpRequest(options: HttpRequestOptions, caller: HttpCaller = {}): Promise<Response> {
+  const request = {...options, headers: withDefaultHeaders(options.headers)};
+  if (httpTransport) {
+    const response = await httpTransport(request, caller, sendHttpRequest);
+    if (response.bodyUsed) {
+      throw new Error(`HTTP transport returned a Response whose body was already read: ${request.method} ${redactProxyUrlSecrets(request.url)}`);
+    }
+    return response;
+  }
+  return sendHttpRequest(request);
+}
+
+function withDefaultHeaders(headers: Record<string, string> | undefined): Record<string, string> {
   const hdrs: Record<string, string> = {...(headers || {})};
 
   // Default User-Agent — parks that need app-specific UAs override via @inject
@@ -103,6 +173,14 @@ export async function makeHttpRequest(options: {
   if (!hdrs['accept-encoding'] && !hdrs['Accept-Encoding']) {
     hdrs['accept-encoding'] = 'gzip, deflate, br';
   }
+
+  return hdrs;
+}
+
+async function sendHttpRequest(options: HttpRequestOptions): Promise<Response> {
+  const {method, url, headers, body, proxyUrl, cert, key, timeoutMs = httpTimeoutMs()} = options;
+
+  const hdrs = withDefaultHeaders(headers);
 
   let fetchBody: BodyInit | undefined;
   if (body !== undefined && body !== null) {

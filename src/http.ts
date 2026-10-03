@@ -7,8 +7,8 @@ import {broadcast} from "./injector.js";
 import {tracing} from "./tracing.js";
 import Ajv, {type DefinedError} from "ajv";
 // Note: basic proxy URL is now set per-request via proxyUrl property (injected by Destination._injectProxy)
-import {makeHttpRequest, redactProxyUrlSecrets} from "./httpProxy.js";
-export {redactProxyUrlSecrets};
+import {makeHttpRequest, redactProxyUrlSecrets, setHttpTransport, type HttpCaller, type HttpRequestOptions, type HttpTransport} from "./httpProxy.js";
+export {redactProxyUrlSecrets, setHttpTransport, type HttpCaller, type HttpRequestOptions, type HttpTransport};
 const ajv = new Ajv.default();
 
 // OpenAPI-like parameter definition
@@ -410,8 +410,9 @@ class HTTPRequestImpl implements HTTPObj {
 
   // Internal method to actually make this HTTP request
   //  Popuplates the response property on success
-  async makeRequest(traceContext?: any, className?: string, methodName?: string): Promise<void> {
+  async makeRequest(traceContext?: any, caller: HttpCaller = {}): Promise<void> {
     const startTime = Date.now();
+    const {className, methodName} = caller;
 
     // first, check the cache
     if (this.cacheKey && CacheLib.has(this.cacheKey)) {
@@ -468,7 +469,7 @@ class HTTPRequestImpl implements HTTPObj {
       proxyUrl: this.proxyUrl, // Per-request proxy URL (set by Destination._injectProxy)
       cert: this.options?.cert,
       key: this.options?.key,
-    });
+    }, caller);
 
     this.response = response;
 
@@ -856,7 +857,13 @@ async function fireRequest(
     // their own permits without waiting for us to finish.
     await globalHttpLimiter.acquire();
     try {
-      await entry.request.makeRequest(entry.traceContext, entry.className, entry.methodName);
+      await entry.request.makeRequest(entry.traceContext, {
+        className: entry.className,
+        methodName: entry.methodName,
+        args: entry.args,
+        // retryAttempt counts retries from 0 and is unset on the first attempt
+        retryCount: entry.retryAttempt === undefined ? 0 : entry.retryAttempt + 1,
+      });
     } finally {
       globalHttpLimiter.release();
     }

@@ -869,7 +869,7 @@ class AttractionsIOV1 extends Destination {
     };
     tracing.emitHttpEvent({eventType: 'http.request.start', retryCount: 0, ...origin});
     try {
-      const response = await makeHttpRequest(options);
+      const response = await makeHttpRequest(options, {className: this.constructor.name, methodName, retryCount: 0});
       tracing.emitHttpEvent({
         eventType: 'http.request.complete',
         status: response.status,
