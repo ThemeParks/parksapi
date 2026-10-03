@@ -53,6 +53,43 @@ export function redactProxyUrlSecrets(rawUrl: string): string {
   }
 }
 
+// A `pageToken` matches too, at the cost of a page cursor in a log line.
+const CREDENTIAL_PARAM = /(key|token|secret|password|signature|auth)$|^sig$/;
+
+/**
+ * Redact the credentials a request URL carries before it appears in a log
+ * line or an error message: the proxy secrets of `redactProxyUrlSecrets()`,
+ * then every query parameter whose name ends in `key`, `token`, `secret`,
+ * `password`, `signature` or `auth`, or is `sig`, whatever its case. Each
+ * matching value becomes `***`. A `url` parameter that holds another URL,
+ * such as a scraping proxy's target, is redacted the same way. A URL without
+ * such parameters, or a string that is not a URL, is returned unchanged.
+ */
+export function redactUrlSecrets(rawUrl: string): string {
+  const proxyRedacted = redactProxyUrlSecrets(rawUrl);
+  let url: URL;
+  try {
+    url = new URL(proxyRedacted);
+  } catch {
+    return proxyRedacted;
+  }
+  let changed = false;
+  for (const [name, value] of [...url.searchParams.entries()]) {
+    const lower = name.toLowerCase();
+    if (CREDENTIAL_PARAM.test(lower)) {
+      url.searchParams.set(name, '***');
+      changed = true;
+    } else if (lower === 'url') {
+      const inner = redactUrlSecrets(value);
+      if (inner !== value) {
+        url.searchParams.set(name, inner);
+        changed = true;
+      }
+    }
+  }
+  return changed ? url.toString() : proxyRedacted;
+}
+
 const DEFAULT_TIMEOUT_MS = 30000;
 
 /**
@@ -168,7 +205,9 @@ export function getHttpInstanceId(instance: object): number {
  *   headers in the URL, `proxyUrl`, an mTLS `key`, the credentials in the
  *   body of a sign-in, whose response carries a token. `caller.args` can
  *   carry credentials too. Redact a copy before storing anything.
- *   `redactProxyUrlSecrets` helps with proxy URLs.
+ *   `redactUrlSecrets(request.url)` masks what the URL carries of them:
+ *   the proxy keys, the forwarded headers and the credential query
+ *   parameters.
  * - What it returns is cached like a network response when the method
  *   caches.
  * - The timeout applies inside `send` only. A request from the queue holds
@@ -245,10 +284,10 @@ export async function makeHttpRequest(options: HttpRequestOptions, caller: HttpC
     throw new HttpTransportError(`HTTP transport failed: ${message}`, {cause: error});
   }
   if (!response) {
-    throw new HttpTransportError(`HTTP transport returned no Response: ${request.method} ${redactProxyUrlSecrets(request.url)}`);
+    throw new HttpTransportError(`HTTP transport returned no Response: ${request.method} ${redactUrlSecrets(request.url)}`);
   }
   if (response.bodyUsed) {
-    throw new HttpTransportError(`HTTP transport returned a Response whose body was already read: ${request.method} ${redactProxyUrlSecrets(request.url)}`);
+    throw new HttpTransportError(`HTTP transport returned a Response whose body was already read: ${request.method} ${redactUrlSecrets(request.url)}`);
   }
   return response;
 }
@@ -302,7 +341,7 @@ async function sendHttpRequest(options: HttpRequestOptions): Promise<Response> {
     // Surface timeouts with the same message shape we used before so callers
     // (and log greps) don't need to change.
     if (err?.name === 'TimeoutError' || err?.code === 'UND_ERR_ABORTED' || err?.name === 'AbortError') {
-      throw new Error(`HTTP request timed out after ${timeoutMs}ms: ${method} ${redactProxyUrlSecrets(url)}`);
+      throw new Error(`HTTP request timed out after ${timeoutMs}ms: ${method} ${redactUrlSecrets(url)}`);
     }
     throw err;
   }

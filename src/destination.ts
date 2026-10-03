@@ -462,8 +462,8 @@ export abstract class Destination {
 
       // Keep the Scrapfly key, forwarded auth headers and body in queryParams
       // (merged into the final URL only at buildUrl() time) rather than baking
-      // them into req.url — trace/retry logging prints req.url verbatim, so this
-      // keeps secrets out of the logs. Auth now travels as params, so clear the
+      // them into req.url — trace events carry req.url verbatim, so this
+      // keeps secrets out of them. Auth now travels as params, so clear the
       // request headers too (they'd otherwise be sent to api.scrapfly.io).
       req.headers = {};
       req.url = 'https://api.scrapfly.io/scrape';

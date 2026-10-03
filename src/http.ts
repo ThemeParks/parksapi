@@ -7,8 +7,8 @@ import {broadcast} from "./injector.js";
 import {tracing} from "./tracing.js";
 import Ajv, {type DefinedError} from "ajv";
 // Note: basic proxy URL is now set per-request via proxyUrl property (injected by Destination._injectProxy)
-import {HttpTransportError, encodeHttpBody, getHttpInstanceId, makeHttpRequest, redactProxyUrlSecrets, setHttpTransport, withDefaultHeaders, type HttpCaller, type HttpRequestBody, type HttpRequestOptions, type HttpTransport} from "./httpProxy.js";
-export {HttpTransportError, redactProxyUrlSecrets, setHttpTransport, type HttpCaller, type HttpRequestBody, type HttpRequestOptions, type HttpTransport};
+import {HttpTransportError, encodeHttpBody, getHttpInstanceId, makeHttpRequest, redactProxyUrlSecrets, redactUrlSecrets, setHttpTransport, withDefaultHeaders, type HttpCaller, type HttpRequestBody, type HttpRequestOptions, type HttpTransport} from "./httpProxy.js";
+export {HttpTransportError, redactProxyUrlSecrets, redactUrlSecrets, setHttpTransport, type HttpCaller, type HttpRequestBody, type HttpRequestOptions, type HttpTransport};
 const ajv = new Ajv.default();
 
 // OpenAPI-like parameter definition
@@ -580,7 +580,7 @@ class HTTPRequestImpl implements HTTPObj {
       } catch { /* ignore */ }
       throw new Error(
         `HTTP request not OK: ${response.status} ${response.statusText}\n` +
-        `  URL: ${this.method} ${redactProxyUrlSecrets(urlToFetch)}\n` +
+        `  URL: ${this.method} ${redactUrlSecrets(urlToFetch)}\n` +
         (bodySnippet ? `  Body: ${bodySnippet}\n` : '')
       );
     }
@@ -1013,6 +1013,9 @@ async function fireRequest(
       (responseStatus >= 500 && responseStatus < 600)
     );
 
+    // The URL may carry a proxy key after a rewrite, or a park's own credentials
+    const redactedUrl = redactUrlSecrets(entry.request.url);
+
     // allow retries if configured and error is retryable, but push to the back of the queue
     if (isRetryable && entry.request.retries && entry.request.retries > 0) {
       entry.request.retries -= 1;
@@ -1029,7 +1032,7 @@ async function fireRequest(
       console.warn(
         `HTTP request failed, retrying in ${Math.round(backoffDelay / 1000)}s ` +
         `(attempt ${entry.retryAttempt + 1}, ${entry.request.retries} retries left): ` +
-        `${entry.request.method} ${entry.request.url}`,
+        `${entry.request.method} ${redactedUrl}`,
         error
       );
 
@@ -1039,19 +1042,19 @@ async function fireRequest(
       const errMsg = error instanceof Error ? error.message : String(error);
       if (transportFailed && entry.request.retries && entry.request.retries > 0) {
         // Had retries remaining but the transport itself failed
-        console.error(`HTTP request failed, not retrying: ${entry.request.method} ${redactProxyUrlSecrets(entry.request.url)} ${errMsg}`);
+        console.error(`HTTP request failed, not retrying: ${entry.request.method} ${redactedUrl} ${errMsg}`);
       } else if (!isRetryable && entry.request.retries && entry.request.retries > 0) {
         // Had retries remaining but error is non-retryable (4xx)
         console.error(
           `HTTP request failed with non-retryable status ${responseStatus}, not retrying: ` +
-          `${entry.request.method} ${entry.request.url} ${errMsg}`
+          `${entry.request.method} ${redactedUrl} ${errMsg}`
         );
       } else {
-        console.error(`HTTP request failed, no retries left: ${entry.request.method} ${entry.request.url} ${errMsg}`);
+        console.error(`HTTP request failed, no retries left: ${entry.request.method} ${redactedUrl} ${errMsg}`);
       }
       // A transport error keeps its class, so a request whose injector ran into
       // it through a nested request is not retried either
-      const message = `${entry.request.method} ${entry.request.url}: ${errMsg}`;
+      const message = `${entry.request.method} ${redactedUrl}: ${errMsg}`;
       entry.request.rejectPromise(
         transportFailed ? new HttpTransportError(message, {cause: error}) : new Error(message)
       );
