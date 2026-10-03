@@ -7,7 +7,7 @@
  * cache is filled against a loopback server, see helpers/localHttpServer.ts,
  * and `CacheLib.expiresAt()` is checked once on its own.
  */
-import {setHttpTransport} from '../httpProxy.js';
+import {setHttpTransport, HttpCaller} from '../httpProxy.js';
 import {http, HTTPObj, HttpCacheHit, setHttpCacheObserver, stopHttpQueue} from '../http.js';
 import {CacheLib} from '../cache.js';
 import {startLocalServer, LocalServer} from './helpers/localHttpServer.js';
@@ -32,6 +32,11 @@ class ObserverClient {
       options: {json: true},
       tags: ['users'],
     } as any as HTTPObj;
+  }
+
+  @http({cacheSeconds: 60})
+  async fetchGraph(query: string): Promise<HTTPObj> {
+    return {method: 'POST', url: `${this.baseURL}/graphql`, body: {query}, tags: ['graph']} as any as HTTPObj;
   }
 }
 
@@ -106,10 +111,51 @@ describe('the HTTP cache observer', () => {
       },
       body: '{"page":1}',
     });
-    expect(hit.caller).toEqual({className: 'ObserverClient', methodName: 'fetchUsers', args: ['de'], retryCount: 0});
+    expect(hit.caller).toEqual({className: 'ObserverClient', methodName: 'fetchUsers', args: ['de'], instanceId: expect.any(Number), retryCount: 0});
     expect(hit.body).toBe(JSON.stringify(USERS));
     expect(hit.expiresAt).toBeGreaterThanOrEqual(before + 60_000);
     expect(hit.expiresAt).toBeLessThanOrEqual(Date.now() + 60_000);
+  });
+
+  it('reports an object body sent without options.json as the JSON that went out', async () => {
+    const hits: HttpCacheHit[] = [];
+    setHttpCacheObserver((hit) => { hits.push(hit); });
+    const bodies: unknown[] = [];
+    setHttpTransport(async (request, _caller, send) => {
+      bodies.push(request.body);
+      return send(request);
+    });
+
+    const client = new ObserverClient(server.baseURL);
+    await client.fetchGraph('{ users }');
+    await client.fetchGraph('{ users }');
+
+    expect(bodies).toEqual(['{"query":"{ users }"}']);
+    expect(hits).toHaveLength(1);
+    expect(hits[0].request.body).toBe('{"query":"{ users }"}');
+  });
+
+  it('tells the instance served from the cache apart from the one that filled it', async () => {
+    const hits: HttpCacheHit[] = [];
+    setHttpCacheObserver((hit) => { hits.push(hit); });
+    const callers: HttpCaller[] = [];
+    setHttpTransport(async (request, caller, send) => {
+      callers.push(caller);
+      return send(request);
+    });
+
+    const first = new ObserverClient(server.baseURL);
+    const second = new ObserverClient(server.baseURL);
+    await first.fetchUsers('it');
+    await second.fetchUsers('it');
+    await first.fetchUsers('it');
+
+    expect(callers).toHaveLength(1);
+    expect(hits).toHaveLength(2);
+    expect(callers[0].instanceId).toEqual(expect.any(Number));
+    expect(hits[0].caller.instanceId).toEqual(expect.any(Number));
+    expect(hits[0].caller.instanceId).not.toBe(callers[0].instanceId);
+    expect(hits[1].caller.instanceId).toBe(callers[0].instanceId);
   });
 
   it('is quiet once set to null', async () => {

@@ -7,8 +7,8 @@ import {broadcast} from "./injector.js";
 import {tracing} from "./tracing.js";
 import Ajv, {type DefinedError} from "ajv";
 // Note: basic proxy URL is now set per-request via proxyUrl property (injected by Destination._injectProxy)
-import {makeHttpRequest, redactProxyUrlSecrets, setHttpTransport, withDefaultHeaders, type HttpCaller, type HttpRequestOptions, type HttpTransport} from "./httpProxy.js";
-export {redactProxyUrlSecrets, setHttpTransport, type HttpCaller, type HttpRequestOptions, type HttpTransport};
+import {HttpTransportError, encodeHttpBody, getHttpInstanceId, makeHttpRequest, redactProxyUrlSecrets, redactUrlSecrets, setHttpTransport, withDefaultHeaders, type HttpCaller, type HttpRequestBody, type HttpRequestOptions, type HttpTransport} from "./httpProxy.js";
+export {HttpTransportError, redactProxyUrlSecrets, redactUrlSecrets, setHttpTransport, type HttpCaller, type HttpRequestBody, type HttpRequestOptions, type HttpTransport};
 const ajv = new Ajv.default();
 
 // OpenAPI-like parameter definition
@@ -42,19 +42,6 @@ const httpRequesters: HTTPRequester[] = [];
 // Key: "<instanceId>:<methodName>:<serialisedArgs>"
 // While a promise is pending, concurrent calls with the same key return the same promise.
 const httpInflightMap = new Map<string, Promise<HTTPObj>>();
-
-// WeakMap to assign stable numeric IDs to instances (for dedup key building)
-const httpInstanceIds = new WeakMap<object, number>();
-let httpInstanceIdCounter = 0;
-
-function getHttpInstanceId(instance: object): number {
-  let id = httpInstanceIds.get(instance);
-  if (id === undefined) {
-    id = ++httpInstanceIdCounter;
-    httpInstanceIds.set(instance, id);
-  }
-  return id;
-}
 
 /**
  * Clear the in-flight deduplication map.
@@ -273,12 +260,17 @@ export function truncateTraceText(text: string): string {
  * the rest.
  */
 export type HttpCacheHit = {
-  /** The request as the transport would have received it, without `proxyUrl`, `cert`, `key` and `timeoutMs` */
+  /**
+   * The request as the transport would have received it, without `proxyUrl`,
+   * `cert`, `key` and `timeoutMs`. It carries secrets all the same, see
+   * `setHttpCacheObserver`.
+   */
   request: {
     method: string;
     url: string;
     headers: Record<string, string>;
-    body?: HttpRequestOptions['body'];
+    /** The body encoded as it is sent, an object as JSON */
+    body?: HttpRequestBody;
   };
   /** Who makes the request */
   caller: HttpCaller;
@@ -300,6 +292,11 @@ let httpCacheObserver: HttpCacheObserver | null = null;
  * switches the report off. A synchronous observer runs as part of the hit,
  * while an async one is not awaited. An error it throws or rejects with is
  * logged and never affects the cached response.
+ *
+ * The reported request carries the auth headers the injectors added and, behind
+ * a scraping proxy, the rewritten URL with the proxy's key and the forwarded
+ * headers, and `caller.args` can carry credentials. Redact them before storing
+ * anything, as a transport has to (see `HttpTransport`).
  */
 export function setHttpCacheObserver(observer: HttpCacheObserver | null): void {
   httpCacheObserver = observer;
@@ -432,6 +429,15 @@ class HTTPRequestImpl implements HTTPObj {
   }
 
   /**
+   * Get the body as it goes out: the JSON text of `body` with `options.json`, otherwise `body` encoded
+   * @returns {HttpRequestBody | undefined} Body for the request, or undefined without one
+   */
+  public buildBody(): HttpRequestBody | undefined {
+    if (!this.body) return undefined;
+    return encodeHttpBody(this.options?.json ? JSON.stringify(this.body) : this.body);
+  }
+
+  /**
    * Generate a cache key for the request, based on class name, method, URL, headers, and body
    * @returns {string} Cache key for the request, based on class name, method, URL, headers, and body
    */
@@ -475,37 +481,41 @@ class HTTPRequestImpl implements HTTPObj {
         try {
           this.response = new Response(cachedValue);
 
-          // Try to parse body for trace (but don't fail if we can't)
-          let responseBody: any = undefined;
-          try {
-            responseBody = JSON.parse(cachedValue);
-          } catch {
-            responseBody = truncateTraceText(cachedValue); // text, not JSON
-          }
+          // The body is only parsed for the trace event, which is dropped
+          // without a trace context.
+          if (tracing.isTracing(traceContext)) {
+            // Try to parse body for trace (but don't fail if we can't)
+            let responseBody: any = undefined;
+            try {
+              responseBody = JSON.parse(cachedValue);
+            } catch {
+              responseBody = truncateTraceText(cachedValue); // text, not JSON
+            }
 
-          // Emit trace event for cache hit (use provided context if available).
-          // We don't store the original status code in the cache, so the trace
-          // reports whatever new Response() gave us (always 200 today). Only
-          // 2xx responses are cached, so this is the right ballpark.
-          tracing.emitHttpEvent({
-            eventType: 'http.request.complete',
-            url: this.url,
-            method: this.method,
-            status: this.response.status,
-            duration: Date.now() - startTime,
-            cacheHit: true,
-            headers: this.buildHeaders(),
-            body: responseBody,
-            className,
-            methodName,
-          }, traceContext);
+            // Emit trace event for cache hit (use provided context if available).
+            // We don't store the original status code in the cache, so the trace
+            // reports whatever new Response() gave us (always 200 today). Only
+            // 2xx responses are cached, so this is the right ballpark.
+            tracing.emitHttpEvent({
+              eventType: 'http.request.complete',
+              url: this.url,
+              method: this.method,
+              status: this.response.status,
+              duration: Date.now() - startTime,
+              cacheHit: true,
+              headers: this.buildHeaders(),
+              body: responseBody,
+              className,
+              methodName,
+            }, traceContext);
+          }
 
           notifyHttpCacheObserver(() => ({
             request: {
               method: this.method,
               url: this.buildUrl(),
               headers: withDefaultHeaders(this.buildHeaders()),
-              body: this.body ? (this.options?.json ? JSON.stringify(this.body) : this.body) : undefined,
+              body: this.buildBody(),
             },
             caller,
             body: cachedValue,
@@ -521,17 +531,12 @@ class HTTPRequestImpl implements HTTPObj {
 
     // Use node:http/https for all requests (with optional proxy support)
     const urlToFetch = this.buildUrl();
-    let requestBody: any = undefined;
-
-    if (this.body) {
-      requestBody = this.options?.json ? JSON.stringify(this.body) : this.body;
-    }
 
     const response = await makeHttpRequest({
       method: this.method,
       url: urlToFetch,
       headers: this.buildHeaders(),
-      body: requestBody,
+      body: this.buildBody(),
       proxyUrl: this.proxyUrl, // Per-request proxy URL (set by Destination._injectProxy)
       cert: this.options?.cert,
       key: this.options?.key,
@@ -579,10 +584,14 @@ class HTTPRequestImpl implements HTTPObj {
       } catch { /* ignore */ }
       throw new Error(
         `HTTP request not OK: ${response.status} ${response.statusText}\n` +
-        `  URL: ${this.method} ${redactProxyUrlSecrets(urlToFetch)}\n` +
+        `  URL: ${this.method} ${redactUrlSecrets(urlToFetch)}\n` +
         (bodySnippet ? `  Body: ${bodySnippet}\n` : '')
       );
     }
+
+    // The body is only read for the trace event, which is dropped without a
+    // trace context.
+    if (!tracing.isTracing(traceContext)) return;
 
     // Capture response body for trace event
     let responseBody: any = undefined;
@@ -927,6 +936,7 @@ async function fireRequest(
         className: entry.className,
         methodName: entry.methodName,
         args: entry.args,
+        instanceId: getHttpInstanceId(entry.instance),
         // retryAttempt counts retries from 0 and is unset on the first attempt
         retryCount: entry.retryAttempt === undefined ? 0 : entry.retryAttempt + 1,
       });
@@ -959,38 +969,42 @@ async function fireRequest(
     // Resolve the original promise (now safe — injectors have all run)
     entry.request.resolvePromise(entry.request);
   } catch (error) {
-    // Try to capture error response body if available
-    let errorBody: any = undefined;
-    if (entry.request.response) {
-      try {
-        const clonedResponse = entry.request.response.clone();
-        const contentType = entry.request.response.headers.get('content-type');
+    // The error body is only read for the trace event, which is dropped
+    // without a trace context.
+    if (tracing.isTracing(entry.traceContext)) {
+      // Try to capture error response body if available
+      let errorBody: any = undefined;
+      if (entry.request.response) {
+        try {
+          const clonedResponse = entry.request.response.clone();
+          const contentType = entry.request.response.headers.get('content-type');
 
-        if (contentType?.includes('application/json')) {
-          errorBody = await clonedResponse.json();
-        } else {
-          const text = await clonedResponse.text();
-          errorBody = truncateTraceText(text);
+          if (contentType?.includes('application/json')) {
+            errorBody = await clonedResponse.json();
+          } else {
+            const text = await clonedResponse.text();
+            errorBody = truncateTraceText(text);
+          }
+        } catch (bodyError) {
+          // Failed to get body, just skip it
         }
-      } catch (bodyError) {
-        // Failed to get body, just skip it
       }
-    }
 
-    // Emit trace error event (use captured context if available)
-    tracing.emitHttpEvent({
-      eventType: 'http.request.error',
-      url: entry.request.url,
-      method: entry.request.method,
-      status: entry.request.response?.status,
-      duration: Date.now() - requestStartTime,
-      error: error instanceof Error ? error : new Error(String(error)),
-      headers: entry.request.buildHeaders(),
-      body: errorBody,
-      retryCount: entry.retryAttempt || 0,
-      className: entry.className,
-      methodName: entry.methodName,
-    }, entry.traceContext);
+      // Emit trace error event (use captured context if available)
+      tracing.emitHttpEvent({
+        eventType: 'http.request.error',
+        url: entry.request.url,
+        method: entry.request.method,
+        status: entry.request.response?.status,
+        duration: Date.now() - requestStartTime,
+        error: error instanceof Error ? error : new Error(String(error)),
+        headers: entry.request.buildHeaders(),
+        body: errorBody,
+        retryCount: entry.retryAttempt || 0,
+        className: entry.className,
+        methodName: entry.methodName,
+      }, entry.traceContext);
+    }
 
     // broadcast error event (restore trace context)
     await tracing.runWithContext(entry.traceContext, async () => {
@@ -1002,10 +1016,17 @@ async function fireRequest(
     //   - 429 Too Many Requests → retryable
     //   - 5xx server error → retryable
     //   - 4xx client error (other than 429) → NOT retryable (definitive failure)
+    //   - the HTTP transport's own error → NOT retryable (the park may already have answered)
     const responseStatus = entry.request.response?.status;
-    const isRetryable = responseStatus === undefined ||
+    const transportFailed = error instanceof HttpTransportError;
+    const isRetryable = !transportFailed && (
+      responseStatus === undefined ||
       responseStatus === 429 ||
-      (responseStatus >= 500 && responseStatus < 600);
+      (responseStatus >= 500 && responseStatus < 600)
+    );
+
+    // The URL may carry a proxy key after a rewrite, or a park's own credentials
+    const redactedUrl = redactUrlSecrets(entry.request.url);
 
     // allow retries if configured and error is retryable, but push to the back of the queue
     if (isRetryable && entry.request.retries && entry.request.retries > 0) {
@@ -1023,7 +1044,7 @@ async function fireRequest(
       console.warn(
         `HTTP request failed, retrying in ${Math.round(backoffDelay / 1000)}s ` +
         `(attempt ${entry.retryAttempt + 1}, ${entry.request.retries} retries left): ` +
-        `${entry.request.method} ${entry.request.url}`,
+        `${entry.request.method} ${redactedUrl}`,
         error
       );
 
@@ -1031,17 +1052,23 @@ async function fireRequest(
       requeue(entry); // re-queue the request on its own queue
     } else {
       const errMsg = error instanceof Error ? error.message : String(error);
-      if (!isRetryable && entry.request.retries && entry.request.retries > 0) {
+      if (transportFailed && entry.request.retries && entry.request.retries > 0) {
+        // Had retries remaining but the transport itself failed
+        console.error(`HTTP request failed, not retrying: ${entry.request.method} ${redactedUrl} ${errMsg}`);
+      } else if (!isRetryable && entry.request.retries && entry.request.retries > 0) {
         // Had retries remaining but error is non-retryable (4xx)
         console.error(
           `HTTP request failed with non-retryable status ${responseStatus}, not retrying: ` +
-          `${entry.request.method} ${entry.request.url} ${errMsg}`
+          `${entry.request.method} ${redactedUrl} ${errMsg}`
         );
       } else {
-        console.error(`HTTP request failed, no retries left: ${entry.request.method} ${entry.request.url} ${errMsg}`);
+        console.error(`HTTP request failed, no retries left: ${entry.request.method} ${redactedUrl} ${errMsg}`);
       }
+      // A transport error keeps its class, so a request whose injector ran into
+      // it through a nested request is not retried either
+      const message = `${entry.request.method} ${redactedUrl}: ${errMsg}`;
       entry.request.rejectPromise(
-        new Error(`${entry.request.method} ${entry.request.url}: ${errMsg}`)
+        transportFailed ? new HttpTransportError(message, {cause: error}) : new Error(message)
       );
     }
   }
