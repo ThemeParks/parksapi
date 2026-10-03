@@ -71,10 +71,26 @@ export function httpTimeoutMs(): number {
   return Number.isInteger(timeout) && timeout > 0 ? timeout : DEFAULT_TIMEOUT_MS;
 }
 
+/** A request body as it goes out: text or bytes */
+export type HttpRequestBody = string | Uint8Array | ArrayBuffer;
+
+/**
+ * The body as it goes out: a string, `Uint8Array` or `ArrayBuffer` as is, an
+ * object as JSON, anything else as its string form, and nothing for `null`
+ * or `undefined`.
+ */
+export function encodeHttpBody(body: unknown): HttpRequestBody | undefined {
+  if (body === undefined || body === null) return undefined;
+  if (typeof body === 'string' || body instanceof Uint8Array || body instanceof ArrayBuffer) return body;
+  if (typeof body === 'object') return JSON.stringify(body);
+  return String(body);
+}
+
 export type HttpRequestOptions = {
   method: string;
   url: string;
   headers?: Record<string, string>;
+  /** Text or bytes go out as is, an object as JSON. A transport receives the body encoded */
   body?: any;
   proxyUrl?: string;
   /** Client SSL certificate (PEM format) for mutual TLS */
@@ -128,11 +144,12 @@ export function getHttpInstanceId(instance: object): number {
 /**
  * A function between the `@http` queue and the network. It receives the
  * request as it is about to go out (after the injectors, with the default
- * `user-agent` and `accept-encoding` filled in), who makes it, and `send`,
- * which performs the real request. It may call `send` (as is, or with a
- * changed request) or return a `Response` of its own without touching the
- * network. Whatever `send` throws (a timeout, a connection error) passes
- * through unless the transport catches it.
+ * `user-agent` and `accept-encoding` filled in and the body encoded as it
+ * is sent), who makes it, and `send`, which performs the real request. It
+ * may call `send` (as is, or with a changed request) or return a `Response`
+ * of its own without touching the network. Whatever `send` throws (a
+ * timeout, a connection error) passes through unless the transport catches
+ * it.
  *
  * Of the errors a transport lets through, only one that `send` rejected with
  * is retried, as a failed connection is, and only when the transport rethrows
@@ -201,7 +218,7 @@ export function setHttpTransport(transport: HttpTransport | null): void {
  * @returns Standard fetch Response
  */
 export async function makeHttpRequest(options: HttpRequestOptions, caller: HttpCaller = {}): Promise<Response> {
-  const request = {...options, headers: withDefaultHeaders(options.headers)};
+  const request = {...options, headers: withDefaultHeaders(options.headers), body: encodeHttpBody(options.body)};
   if (!httpTransport) {
     return sendHttpRequest(request);
   }
@@ -256,17 +273,7 @@ async function sendHttpRequest(options: HttpRequestOptions): Promise<Response> {
   const {method, url, headers, body, proxyUrl, cert, key, timeoutMs = httpTimeoutMs()} = options;
 
   const hdrs = withDefaultHeaders(headers);
-
-  let fetchBody: BodyInit | undefined;
-  if (body !== undefined && body !== null) {
-    if (typeof body === 'string' || body instanceof Uint8Array || body instanceof ArrayBuffer) {
-      fetchBody = body as BodyInit;
-    } else if (typeof body === 'object') {
-      fetchBody = JSON.stringify(body);
-    } else {
-      fetchBody = String(body);
-    }
-  }
+  const fetchBody = encodeHttpBody(body) as BodyInit | undefined;
 
   const dispatcher = buildDispatcher(proxyUrl, cert, key);
 

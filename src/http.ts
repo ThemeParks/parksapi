@@ -7,8 +7,8 @@ import {broadcast} from "./injector.js";
 import {tracing} from "./tracing.js";
 import Ajv, {type DefinedError} from "ajv";
 // Note: basic proxy URL is now set per-request via proxyUrl property (injected by Destination._injectProxy)
-import {HttpTransportError, getHttpInstanceId, makeHttpRequest, redactProxyUrlSecrets, setHttpTransport, withDefaultHeaders, type HttpCaller, type HttpRequestOptions, type HttpTransport} from "./httpProxy.js";
-export {HttpTransportError, redactProxyUrlSecrets, setHttpTransport, type HttpCaller, type HttpRequestOptions, type HttpTransport};
+import {HttpTransportError, encodeHttpBody, getHttpInstanceId, makeHttpRequest, redactProxyUrlSecrets, setHttpTransport, withDefaultHeaders, type HttpCaller, type HttpRequestBody, type HttpRequestOptions, type HttpTransport} from "./httpProxy.js";
+export {HttpTransportError, redactProxyUrlSecrets, setHttpTransport, type HttpCaller, type HttpRequestBody, type HttpRequestOptions, type HttpTransport};
 const ajv = new Ajv.default();
 
 // OpenAPI-like parameter definition
@@ -269,7 +269,8 @@ export type HttpCacheHit = {
     method: string;
     url: string;
     headers: Record<string, string>;
-    body?: HttpRequestOptions['body'];
+    /** The body encoded as it is sent, an object as JSON */
+    body?: HttpRequestBody;
   };
   /** Who makes the request */
   caller: HttpCaller;
@@ -428,6 +429,15 @@ class HTTPRequestImpl implements HTTPObj {
   }
 
   /**
+   * Get the body as it goes out: the JSON text of `body` with `options.json`, otherwise `body` encoded
+   * @returns {HttpRequestBody | undefined} Body for the request, or undefined without one
+   */
+  public buildBody(): HttpRequestBody | undefined {
+    if (!this.body) return undefined;
+    return encodeHttpBody(this.options?.json ? JSON.stringify(this.body) : this.body);
+  }
+
+  /**
    * Generate a cache key for the request, based on class name, method, URL, headers, and body
    * @returns {string} Cache key for the request, based on class name, method, URL, headers, and body
    */
@@ -501,7 +511,7 @@ class HTTPRequestImpl implements HTTPObj {
               method: this.method,
               url: this.buildUrl(),
               headers: withDefaultHeaders(this.buildHeaders()),
-              body: this.body ? (this.options?.json ? JSON.stringify(this.body) : this.body) : undefined,
+              body: this.buildBody(),
             },
             caller,
             body: cachedValue,
@@ -517,17 +527,12 @@ class HTTPRequestImpl implements HTTPObj {
 
     // Use node:http/https for all requests (with optional proxy support)
     const urlToFetch = this.buildUrl();
-    let requestBody: any = undefined;
-
-    if (this.body) {
-      requestBody = this.options?.json ? JSON.stringify(this.body) : this.body;
-    }
 
     const response = await makeHttpRequest({
       method: this.method,
       url: urlToFetch,
       headers: this.buildHeaders(),
-      body: requestBody,
+      body: this.buildBody(),
       proxyUrl: this.proxyUrl, // Per-request proxy URL (set by Destination._injectProxy)
       cert: this.options?.cert,
       key: this.options?.key,

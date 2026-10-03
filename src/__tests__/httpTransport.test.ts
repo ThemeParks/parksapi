@@ -51,6 +51,11 @@ class TransportClient {
     return {method: 'GET', url: `${this.baseURL}/hang`, tags: ['hang']} as HTTPObj;
   }
 
+  @http({cacheSeconds: 0})
+  async fetchGraph(query: string): Promise<HTTPObj> {
+    return {method: 'POST', url: `${this.baseURL}/graphql`, body: {query}, tags: ['graph']} as any as HTTPObj;
+  }
+
   @http({cacheSeconds: 0, retries: 2})
   async fetchWithRetries(): Promise<HTTPObj> {
     return {method: 'GET', url: `${this.baseURL}/retried`, tags: ['retried']} as HTTPObj;
@@ -147,6 +152,20 @@ describe('the HTTP transport', () => {
     expect(answer).toEqual({status: 200, contentType: 'application/json', body: POSTS});
     expect(result).toEqual(POSTS);
     expect(server.requests).toContain('/posts');
+  });
+
+  it('sees an object body sent without options.json as the JSON that goes out', async () => {
+    const bodies: unknown[] = [];
+    setHttpTransport(async (request, _caller, send) => {
+      bodies.push(request.body);
+      return send(request);
+    });
+
+    const client = new TransportClient(server.baseURL);
+    await client.fetchGraph('{ posts }');
+    await makeHttpRequest({method: 'POST', url: `${server.baseURL}/graphql`, body: {query: '{ users }'}});
+
+    expect(bodies).toEqual(['{"query":"{ posts }"}', '{"query":"{ users }"}']);
   });
 
   it('sees the headers the injectors set', async () => {

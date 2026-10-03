@@ -33,6 +33,11 @@ class ObserverClient {
       tags: ['users'],
     } as any as HTTPObj;
   }
+
+  @http({cacheSeconds: 60})
+  async fetchGraph(query: string): Promise<HTTPObj> {
+    return {method: 'POST', url: `${this.baseURL}/graphql`, body: {query}, tags: ['graph']} as any as HTTPObj;
+  }
 }
 
 describe('CacheLib.expiresAt', () => {
@@ -110,6 +115,24 @@ describe('the HTTP cache observer', () => {
     expect(hit.body).toBe(JSON.stringify(USERS));
     expect(hit.expiresAt).toBeGreaterThanOrEqual(before + 60_000);
     expect(hit.expiresAt).toBeLessThanOrEqual(Date.now() + 60_000);
+  });
+
+  it('reports an object body sent without options.json as the JSON that went out', async () => {
+    const hits: HttpCacheHit[] = [];
+    setHttpCacheObserver((hit) => { hits.push(hit); });
+    const bodies: unknown[] = [];
+    setHttpTransport(async (request, _caller, send) => {
+      bodies.push(request.body);
+      return send(request);
+    });
+
+    const client = new ObserverClient(server.baseURL);
+    await client.fetchGraph('{ users }');
+    await client.fetchGraph('{ users }');
+
+    expect(bodies).toEqual(['{"query":"{ users }"}']);
+    expect(hits).toHaveLength(1);
+    expect(hits[0].request.body).toBe('{"query":"{ users }"}');
   });
 
   it('tells the instance served from the cache apart from the one that filled it', async () => {
