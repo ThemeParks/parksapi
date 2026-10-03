@@ -7,8 +7,8 @@ import {broadcast} from "./injector.js";
 import {tracing} from "./tracing.js";
 import Ajv, {type DefinedError} from "ajv";
 // Note: basic proxy URL is now set per-request via proxyUrl property (injected by Destination._injectProxy)
-import {makeHttpRequest, redactProxyUrlSecrets} from "./httpProxy.js";
-export {redactProxyUrlSecrets};
+import {makeHttpRequest, redactProxyUrlSecrets, setHttpTransport, withDefaultHeaders, type HttpCaller, type HttpRequestOptions, type HttpTransport} from "./httpProxy.js";
+export {redactProxyUrlSecrets, setHttpTransport, type HttpCaller, type HttpRequestOptions, type HttpTransport};
 const ajv = new Ajv.default();
 
 // OpenAPI-like parameter definition
@@ -266,6 +266,60 @@ export function truncateTraceText(text: string): string {
   return text.substring(0, limit) + '...';
 }
 
+/**
+ * A request answered from the HTTP cache, as reported to the observer set
+ * with `setHttpCacheObserver()`. The transport (see httpProxy.ts) never sees
+ * such a request, so a consumer that records every response listens here for
+ * the rest.
+ */
+export type HttpCacheHit = {
+  /** The request as the transport would have received it, without `proxyUrl`, `cert`, `key` and `timeoutMs` */
+  request: {
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+    body?: HttpRequestOptions['body'];
+  };
+  /** Who makes the request */
+  caller: HttpCaller;
+  /** The cached response text */
+  body: string;
+  /**
+   * When the cache entry expires, as a millisecond timestamp. Missing when
+   * the entry expired while the hit was served, or the lookup failed.
+   */
+  expiresAt?: number;
+};
+
+export type HttpCacheObserver = (hit: HttpCacheHit) => void | Promise<void>;
+
+let httpCacheObserver: HttpCacheObserver | null = null;
+
+/**
+ * Report every request served from the HTTP cache to `observer`. `null`
+ * switches the report off. A synchronous observer runs as part of the hit,
+ * while an async one is not awaited. An error it throws or rejects with is
+ * logged and never affects the cached response.
+ */
+export function setHttpCacheObserver(observer: HttpCacheObserver | null): void {
+  httpCacheObserver = observer;
+}
+
+/**
+ * Call the observer with the hit `build()` describes. The hit is only built
+ * when an observer is set, and an error while building or observing is
+ * logged, so a cache hit never turns into a network request.
+ */
+function notifyHttpCacheObserver(build: () => HttpCacheHit): void {
+  if (!httpCacheObserver) return;
+  const failed = (error: unknown) => console.warn("HTTP cache observer failed:", error);
+  try {
+    Promise.resolve(httpCacheObserver(build())).catch(failed);
+  } catch (error) {
+    failed(error);
+  }
+}
+
 // Internal class to handle HTTPRequest with private promise handlers
 class HTTPRequestImpl implements HTTPObj {
   public method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
@@ -410,8 +464,9 @@ class HTTPRequestImpl implements HTTPObj {
 
   // Internal method to actually make this HTTP request
   //  Popuplates the response property on success
-  async makeRequest(traceContext?: any, className?: string, methodName?: string): Promise<void> {
+  async makeRequest(traceContext?: any, caller: HttpCaller = {}): Promise<void> {
     const startTime = Date.now();
+    const {className, methodName} = caller;
 
     // first, check the cache
     if (this.cacheKey && CacheLib.has(this.cacheKey)) {
@@ -445,6 +500,18 @@ class HTTPRequestImpl implements HTTPObj {
             methodName,
           }, traceContext);
 
+          notifyHttpCacheObserver(() => ({
+            request: {
+              method: this.method,
+              url: this.buildUrl(),
+              headers: withDefaultHeaders(this.buildHeaders()),
+              body: this.body ? (this.options?.json ? JSON.stringify(this.body) : this.body) : undefined,
+            },
+            caller,
+            body: cachedValue,
+            expiresAt: CacheLib.expiresAt(this.cacheKey!) ?? undefined,
+          }));
+
           return; // return early with cached response
         } catch (error) {
           console.warn("Failed to parse cached response, proceeding with HTTP request.", error);
@@ -468,7 +535,7 @@ class HTTPRequestImpl implements HTTPObj {
       proxyUrl: this.proxyUrl, // Per-request proxy URL (set by Destination._injectProxy)
       cert: this.options?.cert,
       key: this.options?.key,
-    });
+    }, caller);
 
     this.response = response;
 
@@ -856,7 +923,13 @@ async function fireRequest(
     // their own permits without waiting for us to finish.
     await globalHttpLimiter.acquire();
     try {
-      await entry.request.makeRequest(entry.traceContext, entry.className, entry.methodName);
+      await entry.request.makeRequest(entry.traceContext, {
+        className: entry.className,
+        methodName: entry.methodName,
+        args: entry.args,
+        // retryAttempt counts retries from 0 and is unset on the first attempt
+        retryCount: entry.retryAttempt === undefined ? 0 : entry.retryAttempt + 1,
+      });
     } finally {
       globalHttpLimiter.release();
     }

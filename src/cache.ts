@@ -299,6 +299,21 @@ class CacheLib {
     }
   }
 
+  /**
+   * When the entry under `key` expires, as a millisecond timestamp.
+   * Null when there is no live entry.
+   */
+  static expiresAt(key: string): number | null {
+    try {
+      const stmt = database.prepare('SELECT timestamp FROM cache WHERE key = ? AND timestamp > ?');
+      const row = stmt.get(key, Date.now()) as {timestamp: number} | undefined;
+      return row ? row.timestamp : null;
+    } catch (error) {
+      console.error("Cache expiresAt error:", error);
+      return null;
+    }
+  }
+
   static keys(): string[] {
     try {
       const stmt = database.prepare('SELECT key FROM cache WHERE timestamp > ?');
