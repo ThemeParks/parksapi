@@ -7,7 +7,7 @@ import {broadcast} from "./injector.js";
 import {tracing} from "./tracing.js";
 import Ajv, {type DefinedError} from "ajv";
 // Note: basic proxy URL is now set per-request via proxyUrl property (injected by Destination._injectProxy)
-import {HttpTransportError, makeHttpRequest, redactProxyUrlSecrets, setHttpTransport, withDefaultHeaders, type HttpCaller, type HttpRequestOptions, type HttpTransport} from "./httpProxy.js";
+import {HttpTransportError, getHttpInstanceId, makeHttpRequest, redactProxyUrlSecrets, setHttpTransport, withDefaultHeaders, type HttpCaller, type HttpRequestOptions, type HttpTransport} from "./httpProxy.js";
 export {HttpTransportError, redactProxyUrlSecrets, setHttpTransport, type HttpCaller, type HttpRequestOptions, type HttpTransport};
 const ajv = new Ajv.default();
 
@@ -42,19 +42,6 @@ const httpRequesters: HTTPRequester[] = [];
 // Key: "<instanceId>:<methodName>:<serialisedArgs>"
 // While a promise is pending, concurrent calls with the same key return the same promise.
 const httpInflightMap = new Map<string, Promise<HTTPObj>>();
-
-// WeakMap to assign stable numeric IDs to instances (for dedup key building)
-const httpInstanceIds = new WeakMap<object, number>();
-let httpInstanceIdCounter = 0;
-
-function getHttpInstanceId(instance: object): number {
-  let id = httpInstanceIds.get(instance);
-  if (id === undefined) {
-    id = ++httpInstanceIdCounter;
-    httpInstanceIds.set(instance, id);
-  }
-  return id;
-}
 
 /**
  * Clear the in-flight deduplication map.
@@ -936,6 +923,7 @@ async function fireRequest(
         className: entry.className,
         methodName: entry.methodName,
         args: entry.args,
+        instanceId: getHttpInstanceId(entry.instance),
         // retryAttempt counts retries from 0 and is unset on the first attempt
         retryCount: entry.retryAttempt === undefined ? 0 : entry.retryAttempt + 1,
       });

@@ -117,9 +117,10 @@ describe('asset pack requests on the trace', () => {
     }
 
     expect(seen).toEqual([
-      {url: `${baseURL}data`, caller: {className: 'Probe', methodName: '_syncFromAPI', retryCount: 0}, status: 303},
-      {url: `${baseURL}pack.zip`, caller: {className: 'Probe', methodName: 'downloadAssetPack', retryCount: 0}, status: 200},
+      {url: `${baseURL}data`, caller: {className: 'Probe', methodName: '_syncFromAPI', instanceId: expect.any(Number), retryCount: 0}, status: 303},
+      {url: `${baseURL}pack.zip`, caller: {className: 'Probe', methodName: 'downloadAssetPack', instanceId: expect.any(Number), retryCount: 0}, status: 200},
     ]);
+    expect(seen[1].caller.instanceId).toBe(seen[0].caller.instanceId);
   });
 
   test('a failed connection emits start and error', async () => {

@@ -100,9 +100,30 @@ export type HttpCaller = {
    * password, a refresh token), so redact them before storing anything.
    */
   args?: unknown[];
+  /**
+   * A number that tells the instances of one class apart, e.g. `3`. It is
+   * assigned when an instance first makes a request and is unique within
+   * the process across all classes, but can differ in the next run, so do
+   * not key a recording on it.
+   */
+  instanceId?: number;
   /** 0 for the first attempt, 1 for the first retry, and so on */
   retryCount?: number;
 };
+
+// Stable numeric ids for the instances that make requests, for
+// `HttpCaller.instanceId` and the in-flight deduplication key of `@http`.
+const httpInstanceIds = new WeakMap<object, number>();
+let httpInstanceIdCounter = 0;
+
+export function getHttpInstanceId(instance: object): number {
+  let id = httpInstanceIds.get(instance);
+  if (id === undefined) {
+    id = ++httpInstanceIdCounter;
+    httpInstanceIds.set(instance, id);
+  }
+  return id;
+}
 
 /**
  * A function between the `@http` queue and the network. It receives the

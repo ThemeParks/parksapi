@@ -2,7 +2,7 @@ import {Destination, DestinationConstructor} from '../../destination.js';
 import config from '../../config.js';
 import {cache, CacheLib} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
-import {makeHttpRequest} from '../../httpProxy.js';
+import {getHttpInstanceId, makeHttpRequest} from '../../httpProxy.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import {hostnameFromUrl, constructDateTime, formatDate, formatInTimezone, addDays} from '../../datetime.js';
@@ -234,7 +234,7 @@ export class GentingSkyworlds extends Destination {
         if (this.tokenAuth) headers[this.tokenAuthHeader || 'Authorization'] = this.tokenAuth;
         const resp = await makeHttpRequest(
           {method: 'GET', url: this.tokenUrl, headers},
-          {className: this.constructor.name, methodName: 'getAccessToken', retryCount: 0},
+          {className: this.constructor.name, methodName: 'getAccessToken', instanceId: getHttpInstanceId(this), retryCount: 0},
         );
         if (!resp.ok) throw new Error(`token service HTTP ${resp.status}`);
         const doc = await resp.json() as GentingTokenDoc;

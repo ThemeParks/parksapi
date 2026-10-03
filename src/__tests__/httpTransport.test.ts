@@ -3,12 +3,12 @@
  *
  * It sits between the `@http` queue and the network and sees every attempt
  * the queue makes: the request as it is about to go out (after the
- * injectors, with the default headers), who makes it (class, method,
- * arguments, retry count) and `send`, the network. It may call `send` or
- * answer on its own, and whatever `send` throws passes through it. Only an
- * error from `send` is retried. An error the transport raises itself fails
- * the request at once. A request served from the HTTP cache never reaches
- * it. Every case runs against a loopback server, see
+ * injectors, with the default headers), who makes it (class, instance,
+ * method, arguments, retry count) and `send`, the network. It may call
+ * `send` or answer on its own, and whatever `send` throws passes through
+ * it. Only an error from `send` is retried. An error the transport raises
+ * itself fails the request at once. A request served from the HTTP cache
+ * never reaches it. Every case runs against a loopback server, see
  * helpers/localHttpServer.ts.
  */
 import {makeHttpRequest, setHttpTransport, HttpCaller, HttpRequestOptions} from '../httpProxy.js';
@@ -334,8 +334,28 @@ describe('the HTTP transport', () => {
     await client.fetchPosts('fr');
 
     expect(callers).toEqual([
-      {className: 'TransportClient', methodName: 'fetchPosts', args: ['fr'], retryCount: 0},
+      {className: 'TransportClient', methodName: 'fetchPosts', args: ['fr'], instanceId: expect.any(Number), retryCount: 0},
     ]);
+  });
+
+  it('tells two instances of one class apart by instanceId', async () => {
+    const callers: HttpCaller[] = [];
+    setHttpTransport(async (request, caller, send) => {
+      callers.push(caller);
+      return send(request);
+    });
+
+    const first = new TransportClient(server.baseURL);
+    const second = new TransportClient(server.baseURL);
+    await first.fetchPosts('es');
+    await second.fetchPosts('es');
+    await first.fetchPosts('es');
+
+    expect(callers.map((caller) => caller.className)).toEqual(['TransportClient', 'TransportClient', 'TransportClient']);
+    expect(callers[0].instanceId).toEqual(expect.any(Number));
+    expect(callers[1].instanceId).toEqual(expect.any(Number));
+    expect(callers[1].instanceId).not.toBe(callers[0].instanceId);
+    expect(callers[2].instanceId).toBe(callers[0].instanceId);
   });
 
   it('passes on the caller of a direct makeHttpRequest() call, or an empty one', async () => {
