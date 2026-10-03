@@ -273,7 +273,11 @@ export function truncateTraceText(text: string): string {
  * the rest.
  */
 export type HttpCacheHit = {
-  /** The request as the transport would have received it, without `proxyUrl`, `cert`, `key` and `timeoutMs` */
+  /**
+   * The request as the transport would have received it, without `proxyUrl`,
+   * `cert`, `key` and `timeoutMs`. It carries secrets all the same, see
+   * `setHttpCacheObserver`.
+   */
   request: {
     method: string;
     url: string;
@@ -300,6 +304,11 @@ let httpCacheObserver: HttpCacheObserver | null = null;
  * switches the report off. A synchronous observer runs as part of the hit,
  * while an async one is not awaited. An error it throws or rejects with is
  * logged and never affects the cached response.
+ *
+ * The reported request carries the auth headers the injectors added and, behind
+ * a scraping proxy, the rewritten URL with the proxy's key and the forwarded
+ * headers, and `caller.args` can carry credentials. Redact them before storing
+ * anything, as a transport has to (see `HttpTransport`).
  */
 export function setHttpCacheObserver(observer: HttpCacheObserver | null): void {
   httpCacheObserver = observer;

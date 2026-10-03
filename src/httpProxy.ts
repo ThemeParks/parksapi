@@ -94,7 +94,11 @@ export type HttpCaller = {
   className?: string;
   /** The decorated method, e.g. `fetchCalendar` */
   methodName?: string;
-  /** Arguments the decorated method was called with, e.g. `[2026, 10]` */
+  /**
+   * Arguments the decorated method was called with, e.g. `[2026, 10]`. A
+   * sign-in method is called with its credentials (an email address and a
+   * password, a refresh token), so redact them before storing anything.
+   */
   args?: unknown[];
   /** 0 for the first attempt, 1 for the first retry, and so on */
   retryCount?: number;
@@ -122,8 +126,10 @@ export type HttpCaller = {
  * Rules for a transport:
  * - Read a body only from `response.clone()`. The `Response` it returns
  *   must be unread, because parksapi reads it afterwards.
- * - The request carries secrets: auth headers, proxy keys in the URL and in
- *   `proxyUrl`, an mTLS `key`. Redact a copy before storing anything.
+ * - The request carries secrets: auth headers, proxy keys and forwarded
+ *   headers in the URL, `proxyUrl`, an mTLS `key`, the credentials in the
+ *   body of a sign-in, whose response carries a token. `caller.args` can
+ *   carry credentials too. Redact a copy before storing anything.
  *   `redactProxyUrlSecrets` helps with proxy URLs.
  * - What it returns is cached like a network response when the method
  *   caches.
