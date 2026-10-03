@@ -264,6 +264,8 @@ All parks extend the `Destination` base class using the **Template Method Patter
 
 **Swapping the HTTP layer:** `setHttpTransport()` puts a function between the `@http` queue and the network. It receives every attempt — the request as it is about to go out (after the injectors, with the default `user-agent` and `accept-encoding`), who makes it (class, method, arguments, retry count) and a `send` function — and returns a `Response`. Call `send` to record what the parks answer (read the body from `response.clone()`, and redact the secrets the request carries before storing it), or answer yourself to replay a recording or to test a destination without the network. `setHttpTransport(null)` restores the default. A request served from the HTTP cache never reaches the transport.
 
+`setHttpCacheObserver()` reports those cache hits instead: the request, its caller, the cached body and when it expires.
+
 See `CLAUDE.md` for full architecture documentation.
 
 ## Contributing

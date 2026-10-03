@@ -161,7 +161,7 @@ export async function makeHttpRequest(options: HttpRequestOptions, caller: HttpC
   return sendHttpRequest(request);
 }
 
-function withDefaultHeaders(headers: Record<string, string> | undefined): Record<string, string> {
+export function withDefaultHeaders(headers: Record<string, string> | undefined): Record<string, string> {
   const hdrs: Record<string, string> = {...(headers || {})};
 
   // Default User-Agent — parks that need app-specific UAs override via @inject

@@ -131,6 +131,8 @@ Key: uses `node:http`/`node:https` (not `fetch`), global queue with 100ms interv
 
 **HTTP transport:** `setHttpTransport(transport)` puts `transport(request, caller, send)` between the queue and the network. It sees every attempt after the injectors, never a cache hit. A request outside `@http` therefore goes through `makeHttpRequest(options, caller)`, never through the global `fetch`.
 
+**Cache hits:** `setHttpCacheObserver(observer)` reports every request served from the HTTP cache with the request, its caller, the cached body and its expiry.
+
 #### **@inject** (`src/injector.ts`)
 Event-based dependency injection using Sift.js (MongoDB-like queries). Used for auth headers, response transforms.
 
