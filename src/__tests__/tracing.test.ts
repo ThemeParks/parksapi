@@ -43,6 +43,13 @@ describe('Tracing System', () => {
       expect(tracing.getContext()).toBeUndefined();
     });
 
+    it('should count an explicit context as tracing', async () => {
+      const {result: context} = await tracing.trace(async () => tracing.getContext());
+
+      expect(tracing.isTracing(context)).toBe(true);
+      expect(tracing.isTracing(undefined)).toBe(false);
+    });
+
     it('should include metadata in context', async () => {
       const metadata = { userId: '123', action: 'test' };
 

@@ -104,10 +104,12 @@ class TracingManager extends EventEmitter {
   }
 
   /**
-   * Check if currently in a trace context
+   * Check if currently in a trace context, or if an `explicitContext` is given.
+   * `emitHttpEvent()` drops its event when both are missing, so work that only
+   * feeds the event, such as reading a response body, can be skipped.
    */
-  isTracing(): boolean {
-    return this.asyncLocalStorage.getStore() !== undefined;
+  isTracing(explicitContext?: TraceContext): boolean {
+    return (explicitContext || this.asyncLocalStorage.getStore()) !== undefined;
   }
 
   /**

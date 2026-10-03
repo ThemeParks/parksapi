@@ -481,30 +481,34 @@ class HTTPRequestImpl implements HTTPObj {
         try {
           this.response = new Response(cachedValue);
 
-          // Try to parse body for trace (but don't fail if we can't)
-          let responseBody: any = undefined;
-          try {
-            responseBody = JSON.parse(cachedValue);
-          } catch {
-            responseBody = truncateTraceText(cachedValue); // text, not JSON
-          }
+          // The body is only parsed for the trace event, which is dropped
+          // without a trace context.
+          if (tracing.isTracing(traceContext)) {
+            // Try to parse body for trace (but don't fail if we can't)
+            let responseBody: any = undefined;
+            try {
+              responseBody = JSON.parse(cachedValue);
+            } catch {
+              responseBody = truncateTraceText(cachedValue); // text, not JSON
+            }
 
-          // Emit trace event for cache hit (use provided context if available).
-          // We don't store the original status code in the cache, so the trace
-          // reports whatever new Response() gave us (always 200 today). Only
-          // 2xx responses are cached, so this is the right ballpark.
-          tracing.emitHttpEvent({
-            eventType: 'http.request.complete',
-            url: this.url,
-            method: this.method,
-            status: this.response.status,
-            duration: Date.now() - startTime,
-            cacheHit: true,
-            headers: this.buildHeaders(),
-            body: responseBody,
-            className,
-            methodName,
-          }, traceContext);
+            // Emit trace event for cache hit (use provided context if available).
+            // We don't store the original status code in the cache, so the trace
+            // reports whatever new Response() gave us (always 200 today). Only
+            // 2xx responses are cached, so this is the right ballpark.
+            tracing.emitHttpEvent({
+              eventType: 'http.request.complete',
+              url: this.url,
+              method: this.method,
+              status: this.response.status,
+              duration: Date.now() - startTime,
+              cacheHit: true,
+              headers: this.buildHeaders(),
+              body: responseBody,
+              className,
+              methodName,
+            }, traceContext);
+          }
 
           notifyHttpCacheObserver(() => ({
             request: {
@@ -584,6 +588,10 @@ class HTTPRequestImpl implements HTTPObj {
         (bodySnippet ? `  Body: ${bodySnippet}\n` : '')
       );
     }
+
+    // The body is only read for the trace event, which is dropped without a
+    // trace context.
+    if (!tracing.isTracing(traceContext)) return;
 
     // Capture response body for trace event
     let responseBody: any = undefined;
@@ -961,38 +969,42 @@ async function fireRequest(
     // Resolve the original promise (now safe — injectors have all run)
     entry.request.resolvePromise(entry.request);
   } catch (error) {
-    // Try to capture error response body if available
-    let errorBody: any = undefined;
-    if (entry.request.response) {
-      try {
-        const clonedResponse = entry.request.response.clone();
-        const contentType = entry.request.response.headers.get('content-type');
+    // The error body is only read for the trace event, which is dropped
+    // without a trace context.
+    if (tracing.isTracing(entry.traceContext)) {
+      // Try to capture error response body if available
+      let errorBody: any = undefined;
+      if (entry.request.response) {
+        try {
+          const clonedResponse = entry.request.response.clone();
+          const contentType = entry.request.response.headers.get('content-type');
 
-        if (contentType?.includes('application/json')) {
-          errorBody = await clonedResponse.json();
-        } else {
-          const text = await clonedResponse.text();
-          errorBody = truncateTraceText(text);
+          if (contentType?.includes('application/json')) {
+            errorBody = await clonedResponse.json();
+          } else {
+            const text = await clonedResponse.text();
+            errorBody = truncateTraceText(text);
+          }
+        } catch (bodyError) {
+          // Failed to get body, just skip it
         }
-      } catch (bodyError) {
-        // Failed to get body, just skip it
       }
-    }
 
-    // Emit trace error event (use captured context if available)
-    tracing.emitHttpEvent({
-      eventType: 'http.request.error',
-      url: entry.request.url,
-      method: entry.request.method,
-      status: entry.request.response?.status,
-      duration: Date.now() - requestStartTime,
-      error: error instanceof Error ? error : new Error(String(error)),
-      headers: entry.request.buildHeaders(),
-      body: errorBody,
-      retryCount: entry.retryAttempt || 0,
-      className: entry.className,
-      methodName: entry.methodName,
-    }, entry.traceContext);
+      // Emit trace error event (use captured context if available)
+      tracing.emitHttpEvent({
+        eventType: 'http.request.error',
+        url: entry.request.url,
+        method: entry.request.method,
+        status: entry.request.response?.status,
+        duration: Date.now() - requestStartTime,
+        error: error instanceof Error ? error : new Error(String(error)),
+        headers: entry.request.buildHeaders(),
+        body: errorBody,
+        retryCount: entry.retryAttempt || 0,
+        className: entry.className,
+        methodName: entry.methodName,
+      }, entry.traceContext);
+    }
 
     // broadcast error event (restore trace context)
     await tracing.runWithContext(entry.traceContext, async () => {
