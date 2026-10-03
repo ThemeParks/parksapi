@@ -7,8 +7,8 @@ import {broadcast} from "./injector.js";
 import {tracing} from "./tracing.js";
 import Ajv, {type DefinedError} from "ajv";
 // Note: basic proxy URL is now set per-request via proxyUrl property (injected by Destination._injectProxy)
-import {makeHttpRequest, redactProxyUrlSecrets, setHttpTransport, withDefaultHeaders, type HttpCaller, type HttpRequestOptions, type HttpTransport} from "./httpProxy.js";
-export {redactProxyUrlSecrets, setHttpTransport, type HttpCaller, type HttpRequestOptions, type HttpTransport};
+import {HttpTransportError, makeHttpRequest, redactProxyUrlSecrets, setHttpTransport, withDefaultHeaders, type HttpCaller, type HttpRequestOptions, type HttpTransport} from "./httpProxy.js";
+export {HttpTransportError, redactProxyUrlSecrets, setHttpTransport, type HttpCaller, type HttpRequestOptions, type HttpTransport};
 const ajv = new Ajv.default();
 
 // OpenAPI-like parameter definition
@@ -1002,10 +1002,14 @@ async function fireRequest(
     //   - 429 Too Many Requests → retryable
     //   - 5xx server error → retryable
     //   - 4xx client error (other than 429) → NOT retryable (definitive failure)
+    //   - the HTTP transport's own error → NOT retryable (the park may already have answered)
     const responseStatus = entry.request.response?.status;
-    const isRetryable = responseStatus === undefined ||
+    const transportFailed = error instanceof HttpTransportError;
+    const isRetryable = !transportFailed && (
+      responseStatus === undefined ||
       responseStatus === 429 ||
-      (responseStatus >= 500 && responseStatus < 600);
+      (responseStatus >= 500 && responseStatus < 600)
+    );
 
     // allow retries if configured and error is retryable, but push to the back of the queue
     if (isRetryable && entry.request.retries && entry.request.retries > 0) {
@@ -1031,7 +1035,10 @@ async function fireRequest(
       requeue(entry); // re-queue the request on its own queue
     } else {
       const errMsg = error instanceof Error ? error.message : String(error);
-      if (!isRetryable && entry.request.retries && entry.request.retries > 0) {
+      if (transportFailed && entry.request.retries && entry.request.retries > 0) {
+        // Had retries remaining but the transport itself failed
+        console.error(`HTTP request failed, not retrying: ${entry.request.method} ${redactProxyUrlSecrets(entry.request.url)} ${errMsg}`);
+      } else if (!isRetryable && entry.request.retries && entry.request.retries > 0) {
         // Had retries remaining but error is non-retryable (4xx)
         console.error(
           `HTTP request failed with non-retryable status ${responseStatus}, not retrying: ` +
@@ -1040,8 +1047,11 @@ async function fireRequest(
       } else {
         console.error(`HTTP request failed, no retries left: ${entry.request.method} ${entry.request.url} ${errMsg}`);
       }
+      // A transport error keeps its class, so a request whose injector ran into
+      // it through a nested request is not retried either
+      const message = `${entry.request.method} ${entry.request.url}: ${errMsg}`;
       entry.request.rejectPromise(
-        new Error(`${entry.request.method} ${entry.request.url}: ${errMsg}`)
+        transportFailed ? new HttpTransportError(message, {cause: error}) : new Error(message)
       );
     }
   }

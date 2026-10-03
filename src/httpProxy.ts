@@ -107,8 +107,17 @@ export type HttpCaller = {
  * which performs the real request. It may call `send` (as is, or with a
  * changed request) or return a `Response` of its own without touching the
  * network. Whatever `send` throws (a timeout, a connection error) passes
- * through unless the transport catches it. An error the transport throws
- * itself counts as a failed connection and is retried like one.
+ * through unless the transport catches it.
+ *
+ * Of the errors a transport lets through, only one that `send` rejected with
+ * is retried, as a failed connection is, and only when the transport rethrows
+ * it as is. Any other error the transport throws is its own, whether before
+ * `send` (a replay without a recording) or after it (a recorder whose disk is
+ * full), and fails the request at once without a retry, so a park that has
+ * already answered is not asked again. A missing or already read Response
+ * fails the same way. The caller receives an `HttpTransportError`, and a
+ * request whose injector lets one through from a nested request fails
+ * without a retry as well.
  *
  * Rules for a transport:
  * - Read a body only from `response.clone()`. The `Response` it returns
@@ -132,6 +141,21 @@ export type HttpTransport = (
 let httpTransport: HttpTransport | null = null;
 
 /**
+ * A failure of the transport, as opposed to an error `send` rejected with:
+ * the transport threw, or it returned no Response or a read one. The
+ * `@http` queue fails the request without a retry and rejects with an error
+ * of this class, see `HttpTransport`. `cause` holds what the transport
+ * threw, for a request of the queue one level down, in the error of the
+ * failed attempt. A missing or read Response has no such cause.
+ */
+export class HttpTransportError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'HttpTransportError';
+  }
+}
+
+/**
  * Route every request through `transport` on its way to the network, for a
  * consumer that records the parks' responses, replays a recording, or tests a
  * destination offline. A request served from the HTTP cache never gets here.
@@ -151,14 +175,38 @@ export function setHttpTransport(transport: HttpTransport | null): void {
  */
 export async function makeHttpRequest(options: HttpRequestOptions, caller: HttpCaller = {}): Promise<Response> {
   const request = {...options, headers: withDefaultHeaders(options.headers)};
-  if (httpTransport) {
-    const response = await httpTransport(request, caller, sendHttpRequest);
-    if (response.bodyUsed) {
-      throw new Error(`HTTP transport returned a Response whose body was already read: ${request.method} ${redactProxyUrlSecrets(request.url)}`);
-    }
-    return response;
+  if (!httpTransport) {
+    return sendHttpRequest(request);
   }
-  return sendHttpRequest(request);
+
+  // Only an error that came out of `send` is the network's. Anything else
+  // the transport throws is its own and must not be retried (see
+  // `HttpTransport`), so the errors `send` rejected with are remembered.
+  const sendErrors: unknown[] = [];
+  const send = async (outgoing: HttpRequestOptions): Promise<Response> => {
+    try {
+      return await sendHttpRequest(outgoing);
+    } catch (error) {
+      sendErrors.push(error);
+      throw error;
+    }
+  };
+
+  let response: Response;
+  try {
+    response = await httpTransport(request, caller, send);
+  } catch (error) {
+    if (sendErrors.includes(error)) throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    throw new HttpTransportError(`HTTP transport failed: ${message}`, {cause: error});
+  }
+  if (!response) {
+    throw new HttpTransportError(`HTTP transport returned no Response: ${request.method} ${redactProxyUrlSecrets(request.url)}`);
+  }
+  if (response.bodyUsed) {
+    throw new HttpTransportError(`HTTP transport returned a Response whose body was already read: ${request.method} ${redactProxyUrlSecrets(request.url)}`);
+  }
+  return response;
 }
 
 export function withDefaultHeaders(headers: Record<string, string> | undefined): Record<string, string> {
