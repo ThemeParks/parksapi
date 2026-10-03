@@ -1,32 +1,43 @@
-import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { GentingSkyworlds } from '../gentingskyworlds.js';
 import { CacheLib } from '../../../cache.js';
+import { setHttpTransport, HttpCaller, HttpRequestOptions } from '../../../httpProxy.js';
 
 /**
- * The VQ bearer is fetched from an external token service. Some services expect
- * the credential in a header other than `Authorization`, so `tokenAuthHeader`
- * makes the header name configurable (default `Authorization`, backward-compat).
+ * The VQ bearer is fetched from an external token service through
+ * `makeHttpRequest()`, so the HTTP transport sees the request and can answer
+ * it, which is also how these tests keep off the network. Some services
+ * expect the credential in a header other than `Authorization`, so
+ * `tokenAuthHeader` makes the header name configurable (default
+ * `Authorization`, backward-compat).
  */
-describe('GentingSkyworlds.getAccessToken — token-service credential header', () => {
+describe('GentingSkyworlds.getAccessToken — the token-service request', () => {
     const ENV_KEYS = [
         'GENTINGSKYWORLDS_TOKENURL',
         'GENTINGSKYWORLDS_TOKENAUTH',
         'GENTINGSKYWORLDS_TOKENAUTHHEADER',
     ];
-    let fetchMock: ReturnType<typeof vi.fn>;
+    let seen: Array<{ request: HttpRequestOptions; caller: HttpCaller }>;
+
+    function tokenService(status = 200) {
+        return async (request: HttpRequestOptions, caller: HttpCaller) => {
+            seen.push({ request, caller });
+            return new Response(JSON.stringify({ accessToken: 'TOK123', exp: 4102444800000 }), {
+                status,
+                headers: { 'content-type': 'application/json' },
+            });
+        };
+    }
 
     beforeEach(() => {
         CacheLib.clear();
         for (const k of ENV_KEYS) delete process.env[k];
-        fetchMock = vi.fn(async () => ({
-            ok: true,
-            json: async () => ({ accessToken: 'TOK123', exp: 4102444800000 }),
-        }));
-        vi.stubGlobal('fetch', fetchMock);
+        seen = [];
+        setHttpTransport(tokenService());
     });
 
     afterEach(() => {
-        vi.unstubAllGlobals();
+        setHttpTransport(null);
         for (const k of ENV_KEYS) delete process.env[k];
         CacheLib.clear();
     });
@@ -39,11 +50,12 @@ describe('GentingSkyworlds.getAccessToken — token-service credential header', 
         const token = await new GentingSkyworlds().getAccessToken();
 
         expect(token).toBe('TOK123');
-        expect(fetchMock).toHaveBeenCalledTimes(1);
-        const [url, opts] = fetchMock.mock.calls[0] as [string, any];
-        expect(url).toBe('https://token.example/a');
-        expect(opts.headers['x-custom-key']).toBe('secret-abc');
-        expect(opts.headers).not.toHaveProperty('Authorization');
+        expect(seen).toHaveLength(1);
+        const [{ request }] = seen;
+        expect(request.method).toBe('GET');
+        expect(request.url).toBe('https://token.example/a');
+        expect(request.headers!['x-custom-key']).toBe('secret-abc');
+        expect(request.headers).not.toHaveProperty('Authorization');
     });
 
     test('defaults to the Authorization header when tokenAuthHeader is unset (backward compatible)', async () => {
@@ -52,8 +64,7 @@ describe('GentingSkyworlds.getAccessToken — token-service credential header', 
 
         await new GentingSkyworlds().getAccessToken();
 
-        const [, opts] = fetchMock.mock.calls[0] as [string, any];
-        expect(opts.headers['Authorization']).toBe('secret-def');
+        expect(seen[0].request.headers!['Authorization']).toBe('secret-def');
     });
 
     test('sends no credential header when tokenAuth is empty', async () => {
@@ -61,8 +72,35 @@ describe('GentingSkyworlds.getAccessToken — token-service credential header', 
 
         await new GentingSkyworlds().getAccessToken();
 
-        const [, opts] = fetchMock.mock.calls[0] as [string, any];
-        expect(opts.headers).not.toHaveProperty('Authorization');
-        expect(Object.keys(opts.headers)).toEqual(['Accept']);
+        const { headers } = seen[0].request;
+        expect(headers).not.toHaveProperty('Authorization');
+        expect(Object.keys(headers!).sort()).toEqual(['Accept', 'accept-encoding', 'user-agent']);
+    });
+
+    test('reaches the HTTP transport with its caller, and caches the token', async () => {
+        process.env.GENTINGSKYWORLDS_TOKENURL = 'https://token.example/d';
+        const park = new GentingSkyworlds();
+
+        expect(await park.getAccessToken()).toBe('TOK123');
+        expect(await park.getAccessToken()).toBe('TOK123');
+
+        expect(seen).toHaveLength(1);
+        expect(seen[0].caller).toMatchObject({ className: 'GentingSkyworlds', methodName: 'getAccessToken' });
+    });
+
+    test('returns an empty string when the token service fails, and asks again next time', async () => {
+        process.env.GENTINGSKYWORLDS_TOKENURL = 'https://token.example/e';
+        setHttpTransport(tokenService(503));
+        const park = new GentingSkyworlds();
+
+        expect(await park.getAccessToken()).toBe('');
+        expect(await park.getAccessToken()).toBe('');
+
+        expect(seen).toHaveLength(2);
+    });
+
+    test('makes no request without a tokenUrl', async () => {
+        expect(await new GentingSkyworlds().getAccessToken()).toBe('');
+        expect(seen).toHaveLength(0);
     });
 });

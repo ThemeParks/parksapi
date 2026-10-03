@@ -2,6 +2,7 @@ import {Destination, DestinationConstructor} from '../../destination.js';
 import config from '../../config.js';
 import {cache, CacheLib} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
+import {makeHttpRequest} from '../../httpProxy.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import {hostnameFromUrl, constructDateTime, formatDate, formatInTimezone, addDays} from '../../datetime.js';
@@ -212,7 +213,10 @@ export class GentingSkyworlds extends Destination {
   // ── Token (refetched periodically from external service) ─────
 
   /**
-   * Fetch the current VQ bearer from the configured token service.
+   * Fetch the current VQ bearer from the configured token service. The
+   * request goes through `makeHttpRequest()` so that an HTTP transport sees
+   * it, but stays outside the `@http` queue, so neither the park's
+   * injectors (the proxy among them) nor its rate limit apply to it.
    * Successful results cache for 3 hours via CacheLib.wrap — the token
    * service is expected to keep `accessToken` rolling well ahead of its
    * 7-day expiry. Failures are NOT cached (CacheLib.wrap rethrows on
@@ -228,7 +232,10 @@ export class GentingSkyworlds extends Destination {
       return await CacheLib.wrap(cacheKey, async () => {
         const headers: Record<string, string> = {'Accept': 'application/json'};
         if (this.tokenAuth) headers[this.tokenAuthHeader || 'Authorization'] = this.tokenAuth;
-        const resp = await fetch(this.tokenUrl, {headers});
+        const resp = await makeHttpRequest(
+          {method: 'GET', url: this.tokenUrl, headers},
+          {className: this.constructor.name, methodName: 'getAccessToken', retryCount: 0},
+        );
         if (!resp.ok) throw new Error(`token service HTTP ${resp.status}`);
         const doc = await resp.json() as GentingTokenDoc;
         if (!doc?.accessToken) throw new Error('token service returned no accessToken');
