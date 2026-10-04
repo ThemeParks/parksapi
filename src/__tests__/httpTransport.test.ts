@@ -3,14 +3,16 @@
  *
  * It sits between the `@http` queue and the network and sees every attempt
  * the queue makes: the request as it is about to go out (after the
- * injectors, with the default headers), who makes it (class, method,
- * arguments, retry count) and `send`, the network. It may call `send` or
- * answer on its own, and whatever `send` throws passes through it. A request
- * served from the HTTP cache never reaches it. Every case runs against a
- * loopback server, see helpers/localHttpServer.ts.
+ * injectors, with the default headers), who makes it (class, instance,
+ * method, arguments, retry count) and `send`, the network. It may call
+ * `send` or answer on its own, and whatever `send` throws passes through
+ * it. Only an error from `send` is retried. An error the transport raises
+ * itself fails the request at once. A request served from the HTTP cache
+ * never reaches it. Every case runs against a loopback server, see
+ * helpers/localHttpServer.ts.
  */
 import {makeHttpRequest, setHttpTransport, HttpCaller, HttpRequestOptions} from '../httpProxy.js';
-import {http, HTTPObj, stopHttpQueue} from '../http.js';
+import {http, HTTPObj, HttpTransportError, stopHttpQueue} from '../http.js';
 import {inject} from '../injector.js';
 import {startLocalServer, LocalServer} from './helpers/localHttpServer.js';
 
@@ -48,6 +50,21 @@ class TransportClient {
   async fetchHang(): Promise<HTTPObj> {
     return {method: 'GET', url: `${this.baseURL}/hang`, tags: ['hang']} as HTTPObj;
   }
+
+  @http({cacheSeconds: 0})
+  async fetchGraph(query: string): Promise<HTTPObj> {
+    return {method: 'POST', url: `${this.baseURL}/graphql`, body: {query}, tags: ['graph']} as any as HTTPObj;
+  }
+
+  @http({cacheSeconds: 0, retries: 2})
+  async fetchWithRetries(): Promise<HTTPObj> {
+    return {method: 'GET', url: `${this.baseURL}/retried`, tags: ['retried']} as HTTPObj;
+  }
+
+  @http({cacheSeconds: 0, retries: 2})
+  async fetchHangWithRetries(): Promise<HTTPObj> {
+    return {method: 'GET', url: `${this.baseURL}/hang`, tags: ['hang']} as HTTPObj;
+  }
 }
 
 class InjectedClient {
@@ -61,6 +78,26 @@ class InjectedClient {
   @http({cacheSeconds: 0})
   async fetchUsers(): Promise<HTTPObj> {
     return {method: 'GET', url: `${this.baseURL}/users`, tags: ['users']} as HTTPObj;
+  }
+}
+
+class NestedClient {
+  constructor(private readonly baseURL: string) {}
+
+  @inject({eventName: 'httpRequest', tags: {$nin: ['auth']}})
+  async addToken(request: HTTPObj): Promise<void> {
+    const token = await (await this.fetchToken()).json();
+    request.headers = {...request.headers, authorization: `Bearer ${token.path}`};
+  }
+
+  @http({cacheSeconds: 0})
+  async fetchToken(): Promise<HTTPObj> {
+    return {method: 'GET', url: `${this.baseURL}/token`, tags: ['auth']} as HTTPObj;
+  }
+
+  @http({cacheSeconds: 0, retries: 2})
+  async fetchGuarded(): Promise<HTTPObj> {
+    return {method: 'GET', url: `${this.baseURL}/guarded`, tags: ['guarded']} as HTTPObj;
   }
 }
 
@@ -115,6 +152,20 @@ describe('the HTTP transport', () => {
     expect(answer).toEqual({status: 200, contentType: 'application/json', body: POSTS});
     expect(result).toEqual(POSTS);
     expect(server.requests).toContain('/posts');
+  });
+
+  it('sees an object body sent without options.json as the JSON that goes out', async () => {
+    const bodies: unknown[] = [];
+    setHttpTransport(async (request, _caller, send) => {
+      bodies.push(request.body);
+      return send(request);
+    });
+
+    const client = new TransportClient(server.baseURL);
+    await client.fetchGraph('{ posts }');
+    await makeHttpRequest({method: 'POST', url: `${server.baseURL}/graphql`, body: {query: '{ users }'}});
+
+    expect(bodies).toEqual(['{"query":"{ posts }"}', '{"query":"{ users }"}']);
   });
 
   it('sees the headers the injectors set', async () => {
@@ -200,6 +251,97 @@ describe('the HTTP transport', () => {
     expect(errors).toEqual([`HTTP request timed out after 200ms: GET ${server.baseURL}/hang`]);
   });
 
+  it('does not retry its own error after send, so the park is asked once', async () => {
+    const retryCounts: number[] = [];
+    setHttpTransport(async (request, caller, send) => {
+      retryCounts.push(caller.retryCount ?? -1);
+      await send(request);
+      throw new Error('disk full');
+    });
+
+    const before = server.requests.length;
+    const client = new TransportClient(server.baseURL);
+    const error = await client.fetchWithRetries().catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(HttpTransportError);
+    expect((error as Error).message).toContain('HTTP transport failed: disk full');
+    expect(server.requests).toHaveLength(before + 1);
+    expect(retryCounts).toEqual([0]);
+  });
+
+  it('does not retry a transport that returns nothing', async () => {
+    setHttpTransport(async (request, _caller, send) => {
+      await send(request);
+      return undefined as unknown as Response;
+    });
+
+    const before = server.requests.length;
+    const client = new TransportClient(server.baseURL);
+    await expect(client.fetchWithRetries()).rejects.toThrow('HTTP transport returned no Response');
+
+    expect(server.requests).toHaveLength(before + 1);
+  });
+
+  it('fails a request without a retry when the nested request of its injector hits the transport\'s error', async () => {
+    setHttpTransport(async (request, _caller, send) => {
+      const response = await send(request);
+      if (request.url.endsWith('/token')) throw new Error('disk full');
+      return response;
+    });
+
+    const before = server.requests.length;
+    const client = new NestedClient(server.baseURL);
+    const error = await client.fetchGuarded().catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(HttpTransportError);
+    expect((error as Error).message).toContain('HTTP transport failed: disk full');
+    expect(server.requests.slice(before)).toEqual(['/token']);
+  });
+
+  it('does not retry a Response whose body it has already read either', async () => {
+    setHttpTransport(async (request, _caller, send) => {
+      const response = await send(request);
+      await response.text();
+      return response;
+    });
+
+    const before = server.requests.length;
+    const client = new TransportClient(server.baseURL);
+    await expect(client.fetchWithRetries()).rejects.toThrow('HTTP transport returned a Response whose body was already read');
+
+    expect(server.requests).toHaveLength(before + 1);
+  });
+
+  it('does not retry its own error before send, so a replay without a recording fails at once', async () => {
+    let calls = 0;
+    setHttpTransport(async () => {
+      calls++;
+      throw new Error('no recording for this request');
+    });
+
+    const before = server.requests.length;
+    const client = new TransportClient(server.baseURL);
+    await expect(client.fetchWithRetries()).rejects.toThrow('HTTP transport failed: no recording for this request');
+
+    expect(server.requests).toHaveLength(before);
+    expect(calls).toBe(1);
+  });
+
+  it('retries an error from send per the method\'s retries', async () => {
+    const retryCounts: number[] = [];
+    setHttpTransport(async (request, caller, send) => {
+      retryCounts.push(caller.retryCount ?? -1);
+      return send({...request, timeoutMs: 200});
+    });
+
+    const before = server.requests.filter((path) => path === '/hang').length;
+    const client = new TransportClient(server.baseURL);
+    await expect(client.fetchHangWithRetries()).rejects.toThrow('HTTP request timed out after 200ms');
+
+    expect(retryCounts).toEqual([0, 1, 2]);
+    expect(server.requests.filter((path) => path === '/hang')).toHaveLength(before + 3);
+  }, 15000);
+
   it('carries class, method and arguments in the caller', async () => {
     const callers: HttpCaller[] = [];
     setHttpTransport(async (request, caller, send) => {
@@ -211,8 +353,28 @@ describe('the HTTP transport', () => {
     await client.fetchPosts('fr');
 
     expect(callers).toEqual([
-      {className: 'TransportClient', methodName: 'fetchPosts', args: ['fr'], retryCount: 0},
+      {className: 'TransportClient', methodName: 'fetchPosts', args: ['fr'], instanceId: expect.any(Number), retryCount: 0},
     ]);
+  });
+
+  it('tells two instances of one class apart by instanceId', async () => {
+    const callers: HttpCaller[] = [];
+    setHttpTransport(async (request, caller, send) => {
+      callers.push(caller);
+      return send(request);
+    });
+
+    const first = new TransportClient(server.baseURL);
+    const second = new TransportClient(server.baseURL);
+    await first.fetchPosts('es');
+    await second.fetchPosts('es');
+    await first.fetchPosts('es');
+
+    expect(callers.map((caller) => caller.className)).toEqual(['TransportClient', 'TransportClient', 'TransportClient']);
+    expect(callers[0].instanceId).toEqual(expect.any(Number));
+    expect(callers[1].instanceId).toEqual(expect.any(Number));
+    expect(callers[1].instanceId).not.toBe(callers[0].instanceId);
+    expect(callers[2].instanceId).toBe(callers[0].instanceId);
   });
 
   it('passes on the caller of a direct makeHttpRequest() call, or an empty one', async () => {

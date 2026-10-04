@@ -53,6 +53,43 @@ export function redactProxyUrlSecrets(rawUrl: string): string {
   }
 }
 
+// A `pageToken` matches too, at the cost of a page cursor in a log line.
+const CREDENTIAL_PARAM = /(key|token|secret|password|signature|auth)$|^sig$/;
+
+/**
+ * Redact the credentials a request URL carries before it appears in a log
+ * line or an error message: the proxy secrets of `redactProxyUrlSecrets()`,
+ * then every query parameter whose name ends in `key`, `token`, `secret`,
+ * `password`, `signature` or `auth`, or is `sig`, whatever its case. Each
+ * matching value becomes `***`. A `url` parameter that holds another URL,
+ * such as a scraping proxy's target, is redacted the same way. A URL without
+ * such parameters, or a string that is not a URL, is returned unchanged.
+ */
+export function redactUrlSecrets(rawUrl: string): string {
+  const proxyRedacted = redactProxyUrlSecrets(rawUrl);
+  let url: URL;
+  try {
+    url = new URL(proxyRedacted);
+  } catch {
+    return proxyRedacted;
+  }
+  let changed = false;
+  for (const [name, value] of [...url.searchParams.entries()]) {
+    const lower = name.toLowerCase();
+    if (CREDENTIAL_PARAM.test(lower)) {
+      url.searchParams.set(name, '***');
+      changed = true;
+    } else if (lower === 'url') {
+      const inner = redactUrlSecrets(value);
+      if (inner !== value) {
+        url.searchParams.set(name, inner);
+        changed = true;
+      }
+    }
+  }
+  return changed ? url.toString() : proxyRedacted;
+}
+
 const DEFAULT_TIMEOUT_MS = 30000;
 
 /**
@@ -71,10 +108,26 @@ export function httpTimeoutMs(): number {
   return Number.isInteger(timeout) && timeout > 0 ? timeout : DEFAULT_TIMEOUT_MS;
 }
 
+/** A request body as it goes out: text or bytes */
+export type HttpRequestBody = string | Uint8Array | ArrayBuffer;
+
+/**
+ * The body as it goes out: a string, `Uint8Array` or `ArrayBuffer` as is, an
+ * object as JSON, anything else as its string form, and nothing for `null`
+ * or `undefined`.
+ */
+export function encodeHttpBody(body: unknown): HttpRequestBody | undefined {
+  if (body === undefined || body === null) return undefined;
+  if (typeof body === 'string' || body instanceof Uint8Array || body instanceof ArrayBuffer) return body;
+  if (typeof body === 'object') return JSON.stringify(body);
+  return String(body);
+}
+
 export type HttpRequestOptions = {
   method: string;
   url: string;
   headers?: Record<string, string>;
+  /** Text or bytes go out as is, an object as JSON. A transport receives the body encoded */
   body?: any;
   proxyUrl?: string;
   /** Client SSL certificate (PEM format) for mutual TLS */
@@ -94,28 +147,67 @@ export type HttpCaller = {
   className?: string;
   /** The decorated method, e.g. `fetchCalendar` */
   methodName?: string;
-  /** Arguments the decorated method was called with, e.g. `[2026, 10]` */
+  /**
+   * Arguments the decorated method was called with, e.g. `[2026, 10]`. A
+   * sign-in method is called with its credentials (an email address and a
+   * password, a refresh token), so redact them before storing anything.
+   */
   args?: unknown[];
+  /**
+   * A number that tells the instances of one class apart, e.g. `3`. It is
+   * assigned when an instance first makes a request and is unique within
+   * the process across all classes, but can differ in the next run, so do
+   * not key a recording on it.
+   */
+  instanceId?: number;
   /** 0 for the first attempt, 1 for the first retry, and so on */
   retryCount?: number;
 };
 
+// Stable numeric ids for the instances that make requests, for
+// `HttpCaller.instanceId` and the in-flight deduplication key of `@http`.
+const httpInstanceIds = new WeakMap<object, number>();
+let httpInstanceIdCounter = 0;
+
+export function getHttpInstanceId(instance: object): number {
+  let id = httpInstanceIds.get(instance);
+  if (id === undefined) {
+    id = ++httpInstanceIdCounter;
+    httpInstanceIds.set(instance, id);
+  }
+  return id;
+}
+
 /**
  * A function between the `@http` queue and the network. It receives the
  * request as it is about to go out (after the injectors, with the default
- * `user-agent` and `accept-encoding` filled in), who makes it, and `send`,
- * which performs the real request. It may call `send` (as is, or with a
- * changed request) or return a `Response` of its own without touching the
- * network. Whatever `send` throws (a timeout, a connection error) passes
- * through unless the transport catches it. An error the transport throws
- * itself counts as a failed connection and is retried like one.
+ * `user-agent` and `accept-encoding` filled in and the body encoded as it
+ * is sent), who makes it, and `send`, which performs the real request. It
+ * may call `send` (as is, or with a changed request) or return a `Response`
+ * of its own without touching the network. Whatever `send` throws (a
+ * timeout, a connection error) passes through unless the transport catches
+ * it.
+ *
+ * Of the errors a transport lets through, only one that `send` rejected with
+ * is retried, as a failed connection is, and only when the transport rethrows
+ * it as is. Any other error the transport throws is its own, whether before
+ * `send` (a replay without a recording) or after it (a recorder whose disk is
+ * full), and fails the request at once without a retry, so a park that has
+ * already answered is not asked again. A missing or already read Response
+ * fails the same way. The caller receives an `HttpTransportError`, and a
+ * request whose injector lets one through from a nested request fails
+ * without a retry as well.
  *
  * Rules for a transport:
  * - Read a body only from `response.clone()`. The `Response` it returns
  *   must be unread, because parksapi reads it afterwards.
- * - The request carries secrets: auth headers, proxy keys in the URL and in
- *   `proxyUrl`, an mTLS `key`. Redact a copy before storing anything.
- *   `redactProxyUrlSecrets` helps with proxy URLs.
+ * - The request carries secrets: auth headers, proxy keys and forwarded
+ *   headers in the URL, `proxyUrl`, an mTLS `key`, the credentials in the
+ *   body of a sign-in, whose response carries a token. `caller.args` can
+ *   carry credentials too. Redact a copy before storing anything.
+ *   `redactUrlSecrets(request.url)` masks what the URL carries of them:
+ *   the proxy keys, the forwarded headers and the credential query
+ *   parameters.
  * - What it returns is cached like a network response when the method
  *   caches.
  * - The timeout applies inside `send` only. A request from the queue holds
@@ -130,6 +222,21 @@ export type HttpTransport = (
 ) => Promise<Response>;
 
 let httpTransport: HttpTransport | null = null;
+
+/**
+ * A failure of the transport, as opposed to an error `send` rejected with:
+ * the transport threw, or it returned no Response or a read one. The
+ * `@http` queue fails the request without a retry and rejects with an error
+ * of this class, see `HttpTransport`. `cause` holds what the transport
+ * threw, for a request of the queue one level down, in the error of the
+ * failed attempt. A missing or read Response has no such cause.
+ */
+export class HttpTransportError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'HttpTransportError';
+  }
+}
 
 /**
  * Route every request through `transport` on its way to the network, for a
@@ -150,15 +257,39 @@ export function setHttpTransport(transport: HttpTransport | null): void {
  * @returns Standard fetch Response
  */
 export async function makeHttpRequest(options: HttpRequestOptions, caller: HttpCaller = {}): Promise<Response> {
-  const request = {...options, headers: withDefaultHeaders(options.headers)};
-  if (httpTransport) {
-    const response = await httpTransport(request, caller, sendHttpRequest);
-    if (response.bodyUsed) {
-      throw new Error(`HTTP transport returned a Response whose body was already read: ${request.method} ${redactProxyUrlSecrets(request.url)}`);
-    }
-    return response;
+  const request = {...options, headers: withDefaultHeaders(options.headers), body: encodeHttpBody(options.body)};
+  if (!httpTransport) {
+    return sendHttpRequest(request);
   }
-  return sendHttpRequest(request);
+
+  // Only an error that came out of `send` is the network's. Anything else
+  // the transport throws is its own and must not be retried (see
+  // `HttpTransport`), so the errors `send` rejected with are remembered.
+  const sendErrors: unknown[] = [];
+  const send = async (outgoing: HttpRequestOptions): Promise<Response> => {
+    try {
+      return await sendHttpRequest(outgoing);
+    } catch (error) {
+      sendErrors.push(error);
+      throw error;
+    }
+  };
+
+  let response: Response;
+  try {
+    response = await httpTransport(request, caller, send);
+  } catch (error) {
+    if (sendErrors.includes(error)) throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    throw new HttpTransportError(`HTTP transport failed: ${message}`, {cause: error});
+  }
+  if (!response) {
+    throw new HttpTransportError(`HTTP transport returned no Response: ${request.method} ${redactUrlSecrets(request.url)}`);
+  }
+  if (response.bodyUsed) {
+    throw new HttpTransportError(`HTTP transport returned a Response whose body was already read: ${request.method} ${redactUrlSecrets(request.url)}`);
+  }
+  return response;
 }
 
 export function withDefaultHeaders(headers: Record<string, string> | undefined): Record<string, string> {
@@ -181,17 +312,7 @@ async function sendHttpRequest(options: HttpRequestOptions): Promise<Response> {
   const {method, url, headers, body, proxyUrl, cert, key, timeoutMs = httpTimeoutMs()} = options;
 
   const hdrs = withDefaultHeaders(headers);
-
-  let fetchBody: BodyInit | undefined;
-  if (body !== undefined && body !== null) {
-    if (typeof body === 'string' || body instanceof Uint8Array || body instanceof ArrayBuffer) {
-      fetchBody = body as BodyInit;
-    } else if (typeof body === 'object') {
-      fetchBody = JSON.stringify(body);
-    } else {
-      fetchBody = String(body);
-    }
-  }
+  const fetchBody = encodeHttpBody(body) as BodyInit | undefined;
 
   const dispatcher = buildDispatcher(proxyUrl, cert, key);
 
@@ -220,7 +341,7 @@ async function sendHttpRequest(options: HttpRequestOptions): Promise<Response> {
     // Surface timeouts with the same message shape we used before so callers
     // (and log greps) don't need to change.
     if (err?.name === 'TimeoutError' || err?.code === 'UND_ERR_ABORTED' || err?.name === 'AbortError') {
-      throw new Error(`HTTP request timed out after ${timeoutMs}ms: ${method} ${redactProxyUrlSecrets(url)}`);
+      throw new Error(`HTTP request timed out after ${timeoutMs}ms: ${method} ${redactUrlSecrets(url)}`);
     }
     throw err;
   }

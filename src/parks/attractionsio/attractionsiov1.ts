@@ -29,7 +29,7 @@ import {cache} from '../../cache.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import {CacheLib, database} from '../../cache.js';
-import {makeHttpRequest} from '../../httpProxy.js';
+import {getHttpInstanceId, makeHttpRequest} from '../../httpProxy.js';
 import {tracing} from '../../tracing.js';
 import {constructDateTime, addDays, formatInTimezone, formatDate} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
@@ -869,7 +869,12 @@ class AttractionsIOV1 extends Destination {
     };
     tracing.emitHttpEvent({eventType: 'http.request.start', retryCount: 0, ...origin});
     try {
-      const response = await makeHttpRequest(options, {className: this.constructor.name, methodName, retryCount: 0});
+      const response = await makeHttpRequest(options, {
+        className: this.constructor.name,
+        methodName,
+        instanceId: getHttpInstanceId(this),
+        retryCount: 0,
+      });
       tracing.emitHttpEvent({
         eventType: 'http.request.complete',
         status: response.status,
