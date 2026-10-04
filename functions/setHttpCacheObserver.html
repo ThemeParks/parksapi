@@ -19,6 +19,10 @@
 switches the report off. A synchronous observer runs as part of the hit,
 while an async one is not awaited. An error it throws or rejects with is
 logged and never affects the cached response.</p>
+<p>The reported request carries the auth headers the injectors added and, behind
+a scraping proxy, the rewritten URL with the proxy's key and the forwarded
+headers, and <code>caller.args</code> can carry credentials. Redact them before storing
+anything, as a transport has to (see <code>HttpTransport</code>).</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
@@ -26,7 +30,7 @@ logged and never affects the cached response.</p>
 <li><span><span class="tsd-kind-parameter">observer</span>: <a href="../types/HttpCacheObserver.html" class="tsd-signature-type tsd-kind-type-alias">HttpCacheObserver</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/daab1c655e1d51bc3a5f74c9619c80c252590906/src/http.ts#L304">src/http.ts:304</a></li></ul></aside></div></li></ul></section></div>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/d9860c51c6a6bb4312847c9d4a06e32889290efc/src/http.ts#L301">src/http.ts:301</a></li></ul></aside></div></li></ul></section></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

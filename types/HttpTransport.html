@@ -13,19 +13,32 @@
 <div class="tsd-signature"><span class="tsd-kind-type-alias">HttpTransport</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">request</span><span class="tsd-signature-symbol">:</span> <a href="HttpRequestOptions.html" class="tsd-signature-type tsd-kind-type-alias">HttpRequestOptions</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">caller</span><span class="tsd-signature-symbol">:</span> <a href="HttpCaller.html" class="tsd-signature-type tsd-kind-type-alias">HttpCaller</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">send</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">request</span><span class="tsd-signature-symbol">:</span> <a href="HttpRequestOptions.html" class="tsd-signature-type tsd-kind-type-alias">HttpRequestOptions</a><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Response</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Response</span><span class="tsd-signature-symbol">&gt;</span></div>
 <div class="tsd-comment tsd-typography"><p>A function between the <code>@http</code> queue and the network. It receives the
 request as it is about to go out (after the injectors, with the default
-<code>user-agent</code> and <code>accept-encoding</code> filled in), who makes it, and <code>send</code>,
-which performs the real request. It may call <code>send</code> (as is, or with a
-changed request) or return a <code>Response</code> of its own without touching the
-network. Whatever <code>send</code> throws (a timeout, a connection error) passes
-through unless the transport catches it. An error the transport throws
-itself counts as a failed connection and is retried like one.</p>
+<code>user-agent</code> and <code>accept-encoding</code> filled in and the body encoded as it
+is sent), who makes it, and <code>send</code>, which performs the real request. It
+may call <code>send</code> (as is, or with a changed request) or return a <code>Response</code>
+of its own without touching the network. Whatever <code>send</code> throws (a
+timeout, a connection error) passes through unless the transport catches
+it.</p>
+<p>Of the errors a transport lets through, only one that <code>send</code> rejected with
+is retried, as a failed connection is, and only when the transport rethrows
+it as is. Any other error the transport throws is its own, whether before
+<code>send</code> (a replay without a recording) or after it (a recorder whose disk is
+full), and fails the request at once without a retry, so a park that has
+already answered is not asked again. A missing or already read Response
+fails the same way. The caller receives an <code>HttpTransportError</code>, and a
+request whose injector lets one through from a nested request fails
+without a retry as well.</p>
 <p>Rules for a transport:</p>
 <ul>
 <li>Read a body only from <code>response.clone()</code>. The <code>Response</code> it returns
 must be unread, because parksapi reads it afterwards.</li>
-<li>The request carries secrets: auth headers, proxy keys in the URL and in
-<code>proxyUrl</code>, an mTLS <code>key</code>. Redact a copy before storing anything.
-<code>redactProxyUrlSecrets</code> helps with proxy URLs.</li>
+<li>The request carries secrets: auth headers, proxy keys and forwarded
+headers in the URL, <code>proxyUrl</code>, an mTLS <code>key</code>, the credentials in the
+body of a sign-in, whose response carries a token. <code>caller.args</code> can
+carry credentials too. Redact a copy before storing anything.
+<code>redactUrlSecrets(request.url)</code> masks what the URL carries of them:
+the proxy keys, the forwarded headers and the credential query
+parameters.</li>
 <li>What it returns is cached like a network response when the method
 caches.</li>
 <li>The timeout applies inside <code>send</code> only. A request from the queue holds
@@ -49,7 +62,7 @@ and should not take longer than the request it replaces.</li>
 <li><span><span class="tsd-kind-parameter">send</span>: <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">request</span><span class="tsd-signature-symbol">:</span> <a href="HttpRequestOptions.html" class="tsd-signature-type tsd-kind-type-alias">HttpRequestOptions</a><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Response</span><span class="tsd-signature-symbol">&gt;</span></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Response</span><span class="tsd-signature-symbol">&gt;</span></h4></li></ul></li></ul></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/daab1c655e1d51bc3a5f74c9619c80c252590906/src/httpProxy.ts#L126">src/httpProxy.ts:126</a></li></ul></aside></div>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/d9860c51c6a6bb4312847c9d4a06e32889290efc/src/httpProxy.ts#L218">src/httpProxy.ts:218</a></li></ul></aside></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
