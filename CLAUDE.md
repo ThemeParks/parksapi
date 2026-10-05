@@ -131,9 +131,11 @@ Key: uses `node:http`/`node:https` (not `fetch`), global queue with 100ms interv
 
 **HTTP transport:** `setHttpTransport(transport)` puts `transport(request, caller, send)` between the queue and the network. It sees every attempt after the injectors, never a cache hit. A request outside `@http` therefore goes through `makeHttpRequest(options, caller)`, never through the global `fetch`.
 
-**Cache hits:** `setHttpCacheObserver(observer)` reports every request served from the HTTP cache with the request, its caller, the cached body and its expiry.
+**HTTP cache hits:** `setHttpCacheObserver(observer)` reports every request served from the HTTP cache with the request, its caller, the cached body and its expiry.
 
 **Limits of both hooks:** a result from a park's own cache (`@cache`, `CacheLib.wrap`) makes no HTTP request and reaches neither. A replay of requests that carry today's date, as an argument or in the URL, needs the clock pinned to the time of the recording, and what a replay transport returns is cached, so a replay run uses its own `CACHE_DB_PATH`.
+
+**Method cache hits:** `setMethodCacheObserver(observer)` reports every call served from a stored `@cache` or `CacheLib.wrap()` result with the key, its caller and its expiry, never the value. A miss and a call that shares a concurrent miss are not hits. A park that calls `CacheLib.wrap()` itself passes its caller as the fourth argument, as Genting does.
 
 #### **@inject** (`src/injector.ts`)
 Event-based dependency injection using Sift.js (MongoDB-like queries). Used for auth headers, response transforms.
