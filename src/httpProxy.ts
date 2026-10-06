@@ -155,9 +155,10 @@ export type HttpCaller = {
   args?: unknown[];
   /**
    * A number that tells the instances of one class apart, e.g. `3`. It is
-   * assigned when an instance first makes a request and is unique within
-   * the process across all classes, but can differ in the next run, so do
-   * not key a recording on it.
+   * assigned when an instance first makes a request or, while a method
+   * cache observer is set, first has a call answered from the method cache.
+   * It is unique within the process across all classes, but can differ in
+   * the next run, so do not key a recording on it.
    */
   instanceId?: number;
   /** 0 for the first attempt, 1 for the first retry, and so on */

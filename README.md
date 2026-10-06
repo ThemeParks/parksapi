@@ -266,7 +266,9 @@ All parks extend the `Destination` base class using the **Template Method Patter
 
 `setHttpCacheObserver()` reports those cache hits instead: the request, its caller, the cached body and when it expires. The request carries the auth headers the injectors added and, behind a scraping proxy, the rewritten URL with the proxy's key and the forwarded headers, so redact it before storing it, as with the transport. In both hooks the caller's arguments can be credentials, since a sign-in method is called with them.
 
-Three limits of both hooks: a result a park serves from its own cache (a `@cache` method, a `CacheLib.wrap` call) makes no HTTP request, so neither the transport nor the cache observer sees it. A recording of requests that carry today's date, as an argument or in the URL (calendars, schedules), only replays with the clock pinned to the time of the recording. And whatever a replay transport returns is cached like a network response, so a replay run needs its own `CACHE_DB_PATH`.
+Three limits of both hooks: a result a park serves from its own cache (a `@cache` method, a `CacheLib.wrap` call) makes no HTTP request, so neither the transport nor the HTTP cache observer sees it. A recording of requests that carry today's date, as an argument or in the URL (calendars, schedules), only replays with the clock pinned to the time of the recording. And whatever a replay transport returns is cached like a network response, so a replay run needs its own `CACHE_DB_PATH`.
+
+`setMethodCacheObserver()` reports what the first limit hides: every call a `@cache` method or `CacheLib.wrap()` serves from a stored result, with the cache key, its caller (class, instance, method, arguments) and when the entry expires. A miss runs the method and is not reported, nor is a call that waits for a concurrent miss of the same key. The cached value is left out, since for a sign-in method it is a token or credentials. The arguments and the key, built from the arguments by default and from config by some parks, can carry secrets, so redact them before storing anything.
 
 See `CLAUDE.md` for full architecture documentation.
 

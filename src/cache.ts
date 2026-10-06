@@ -1,6 +1,7 @@
 import {DatabaseSync} from 'node:sqlite';
 import {persistentKeyExclusion} from './cacheKeys.js';
 import {getEnvConfigValue} from './config.js';
+import {getHttpInstanceId, type HttpCaller} from './httpProxy.js';
 
 const CACHE_DB_PATH = process.env.CACHE_DB_PATH || './cache.sqlite';
 const MAX_CACHE_ENTRIES = parseInt(process.env.CACHE_MAX_ENTRIES || '50000', 10);
@@ -153,6 +154,70 @@ let cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
 // so a SELECT COUNT(*) on every set() is wasted work.
 const SIZE_CHECK_INTERVAL = 100;
 let insertsSinceLastSizeCheck = 0;
+
+/**
+ * A call answered from the method cache (`@cache`, `CacheLib.wrap()`), as
+ * reported to the observer set with `setMethodCacheObserver()`. The method
+ * does not run and makes no HTTP request, so neither the transport nor the
+ * HTTP cache observer sees such a call.
+ */
+export type MethodCacheHit = {
+  /** The cache key, e.g. `Efteling:getPOIData:["en"]` */
+  key: string;
+  /**
+   * Who calls the method, without `retryCount`. Empty for a
+   * `CacheLib.wrap()` call that passes no caller.
+   */
+  caller: Omit<HttpCaller, 'retryCount'>;
+  /**
+   * When the cache entry expires, as a millisecond timestamp. Missing when
+   * the entry expired while the hit was served, or the lookup failed.
+   */
+  expiresAt?: number;
+};
+
+export type MethodCacheObserver = (hit: MethodCacheHit) => void | Promise<void>;
+
+let methodCacheObserver: MethodCacheObserver | null = null;
+
+/**
+ * Report every call served from the method cache to `observer`: a call of a
+ * `@cache` method, or of `CacheLib.wrap()`, that finds a stored result and
+ * so does not run the method. `null` switches the report off. A synchronous
+ * observer runs as part of the hit, while an async one is not awaited. An
+ * error it throws or rejects with is logged and never affects the cached
+ * result.
+ *
+ * A call that shares the running execution of a concurrent miss for the same
+ * key, from any instance, is not reported, just as neither HTTP hook sees a
+ * request the `@http` in-flight deduplication answers.
+ *
+ * The cached value is left out, since it is the object the caller receives
+ * and, for a sign-in method, a token or credentials. A synchronous observer
+ * reads a copy with `CacheLib.get(hit.key)`. `caller.args` and the key, built
+ * from the arguments by default and from config by some parks, can carry
+ * secrets, so redact them before storing anything. An observer must not call
+ * a `@cache` method or `CacheLib.wrap()`, not even through another method,
+ * since a hit there calls the observer again without end.
+ */
+export function setMethodCacheObserver(observer: MethodCacheObserver | null): void {
+  methodCacheObserver = observer;
+}
+
+/**
+ * Call the observer with the hit `build()` describes. The hit is only built
+ * when an observer is set, and an error while building or observing is
+ * logged, so an observer never fails a call the cache answers.
+ */
+function notifyMethodCacheObserver(build: () => MethodCacheHit): void {
+  if (!methodCacheObserver) return;
+  const failed = (error: unknown) => console.warn("Method cache observer failed:", error);
+  try {
+    Promise.resolve(methodCacheObserver(build())).catch(failed);
+  } catch (error) {
+    failed(error);
+  }
+}
 
 class CacheLib {
   /**
@@ -519,15 +584,24 @@ class CacheLib {
    * @param ttl Either a fixed TTL in seconds, or a callback that derives a TTL
    *            from the function's result (e.g. for OAuth tokens that expire
    *            on a server-supplied schedule).
+   * @param caller Returns who calls, for the method cache observer (see
+   *               `setMethodCacheObserver`). Called only on a hit while an
+   *               observer is set.
    */
   static async wrap<T>(
     key: string,
     fn: () => T | Promise<T>,
     ttl: number | ((result: T) => number | Promise<number>),
+    caller?: () => MethodCacheHit['caller'],
   ): Promise<T> {
     if (this.has(key)) {
       const cachedValue = this.get(key);
       if (cachedValue !== null) {
+        notifyMethodCacheObserver(() => ({
+          key,
+          caller: caller?.() ?? {},
+          expiresAt: this.expiresAt(key) ?? undefined,
+        }));
         return cachedValue as T;
       }
     }
@@ -626,6 +700,7 @@ export default function cacheDecorator({ttlSeconds = 60, callback, key, cacheVer
         cacheKey,
         () => originalMethod.apply(this, args),
         callback ?? cacheSecondsFromEnv(this, propertyKey) ?? ttlSeconds,
+        () => ({className, methodName: propertyKey, args, instanceId: getHttpInstanceId(this)}),
       );
     };
   };

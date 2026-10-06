@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { GentingSkyworlds } from '../gentingskyworlds.js';
-import { CacheLib } from '../../../cache.js';
+import { CacheLib, MethodCacheHit, setMethodCacheObserver } from '../../../cache.js';
 import { setHttpTransport, HttpCaller, HttpRequestOptions } from '../../../httpProxy.js';
 
 /**
@@ -86,6 +86,25 @@ describe('GentingSkyworlds.getAccessToken — the token-service request', () => 
 
         expect(seen).toHaveLength(1);
         expect(seen[0].caller).toMatchObject({ className: 'GentingSkyworlds', methodName: 'getAccessToken' });
+    });
+
+    test('reports the cached token to the method cache observer with its caller, not the token', async () => {
+        process.env.GENTINGSKYWORLDS_TOKENURL = 'https://token.example/f';
+        const hits: MethodCacheHit[] = [];
+        setMethodCacheObserver((hit) => { hits.push(hit); });
+        try {
+            const park = new GentingSkyworlds();
+            await park.getAccessToken();
+            await park.getAccessToken();
+
+            expect(seen).toHaveLength(1);
+            expect(hits).toHaveLength(1);
+            expect(hits[0].key).toBe('GentingSkyworlds:accessToken:https://token.example/f');
+            expect(hits[0].caller).toEqual({ className: 'GentingSkyworlds', methodName: 'getAccessToken', instanceId: seen[0].caller.instanceId });
+            expect(JSON.stringify(hits[0])).not.toContain('TOK123');
+        } finally {
+            setMethodCacheObserver(null);
+        }
     });
 
     test('returns an empty string when the token service fails, and asks again next time', async () => {

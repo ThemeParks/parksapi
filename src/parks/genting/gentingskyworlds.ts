@@ -240,7 +240,7 @@ export class GentingSkyworlds extends Destination {
         const doc = await resp.json() as GentingTokenDoc;
         if (!doc?.accessToken) throw new Error('token service returned no accessToken');
         return doc.accessToken;
-      }, 60 * 60 * 3);
+      }, 60 * 60 * 3, () => ({className: this.constructor.name, methodName: 'getAccessToken', instanceId: getHttpInstanceId(this)}));
     } catch (err: any) {
       console.warn(`[GentingSkyworlds] token fetch failed: ${err?.message ?? err}`);
       return '';
