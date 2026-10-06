@@ -142,7 +142,7 @@ describe('VQueueBuilder', () => {
     it('should default an unset price amount to null, not free', () => {
       const queue = VQueueBuilder.paidReturnTime().available().build();
 
-      expect(queue.price.amount).toBeNull();
+      expect(queue.price?.amount).toBeNull();
     });
 
     it('should not mark zero price as unknown (free is distinct)', () => {
@@ -166,7 +166,7 @@ describe('VQueueBuilder', () => {
         .build();
 
       expect(queue.state).toBe('FINISHED');
-      expect(queue.price.currency).toBe('GBP');
+      expect(queue.price?.currency).toBe('GBP');
     });
   });
 
@@ -286,7 +286,7 @@ describe('VQueueBuilder', () => {
         .build();
 
       expect(queue.state).toBe('AVAILABLE');
-      expect(queue.price.amount).toBe(0);
+      expect(queue.price?.amount).toBe(0);
     });
 
     it('should build Disney Individual Lightning Lane queue', () => {
@@ -297,7 +297,7 @@ describe('VQueueBuilder', () => {
         .withPrice('USD', 1500)
         .build();
 
-      expect(queue.price.amount).toBe(1500);
+      expect(queue.price?.amount).toBe(1500);
       expect(queue.returnEnd).toBeNull();
     });
 
