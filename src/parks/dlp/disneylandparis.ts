@@ -13,7 +13,7 @@ import {
   LanguageCode,
   TagData,
 } from '@themeparks/typelib';
-import {formatInTimezone, addDays, constructDateTime, shiftDateString} from '../../datetime.js';
+import {formatInTimezone, formatDate, addDays, constructDateTime, shiftDateString} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 // ============================================================================
@@ -103,7 +103,7 @@ const SHOW_SUBTYPES = new Set([
   MEET_AND_GREET_SUBTYPE,
 ]);
 
-/** How many days ahead buildSchedules publishes. */
+/** Default for scheduleDays: how many days ahead buildSchedules publishes. */
 const SCHEDULE_DAYS = 60;
 
 /** Wall-clock time the schedule feed publishes, e.g. `21:30:00`.
@@ -325,6 +325,16 @@ export class DisneylandParis extends Destination {
   timezone: string = 'Europe/Paris';
 
   /**
+   * How many days of schedules to fetch and publish, counting today
+   * (`DLP_SCHEDULEDAYS`). The meet & greet gate looks at the same days, so a
+   * meet & greet with no performance in them and no virtual queue switched on
+   * is left out of the entity list. Each day is one request to the schedule
+   * feed. Anything but a positive whole number falls back to 60.
+   */
+  @config
+  scheduleDays: number = SCHEDULE_DAYS;
+
+  /**
    * A seasonal show's POI and schedule entries disappear entirely once its
    * run ends — buildLiveData() has nothing to key off, so the row would
    * otherwise freeze at its last live value forever (parksapi #74). See
@@ -351,6 +361,11 @@ export class DisneylandParis extends Destination {
    */
   getCacheKeyPrefix(): string {
     return 'DisneylandParis';
+  }
+
+  private get scheduleDayCount(): number {
+    const days = this.scheduleDays;
+    return Number.isInteger(days) && days > 0 ? days : SCHEDULE_DAYS;
   }
 
   // ===== Header Injection =====
@@ -876,16 +891,26 @@ export class DisneylandParis extends Destination {
    * entities, the same trap #296 closed for schedules.
    *
    * The outage carries a flag rather than a null return because CacheLib reads
-   * a cached null as a miss: a null here would re-run the 60-day sweep on every
+   * a cached null as a miss: a null here would re-run the sweep on every
    * call, from all three public entry points, for as long as the feed is down.
+   *
+   * The key names the window by its first day and its length, so an answer is
+   * never served for another window: not after scheduleDays changes, and not
+   * after midnight, when a short window has moved on.
    */
-  @cache({ttlSeconds: 43200, key: 'dlp:getScheduledActivityIds'})
+  @cache({
+    ttlSeconds: 43200,
+    key: function (this: DisneylandParis) {
+      return `dlp:getScheduledActivityIds:${formatDate(new Date(), this.timezone)}:${this.scheduleDayCount}`;
+    },
+  })
   private async getScheduledActivityIds(): Promise<{answered: boolean; ids: string[]}> {
     const now = new Date();
     const ids = new Set<string>();
     let answered = false;
 
-    for (let i = 0; i < SCHEDULE_DAYS; i++) {
+    const days = this.scheduleDayCount;
+    for (let i = 0; i < days; i++) {
       const [mm, dd, yyyy] = formatInTimezone(addDays(now, i), this.timezone, 'date').split('/');
       let rows: DLPScheduleActivityEntry[];
       try {
@@ -1518,8 +1543,9 @@ export class DisneylandParis extends Destination {
     // When POI is unavailable, schedules publish unfiltered rather than empty.
     const publishedIds = await this.getPublishedEntityIds();
 
-    // Fetch SCHEDULE_DAYS of schedule data
-    for (let i = 0; i < SCHEDULE_DAYS; i++) {
+    // Fetch scheduleDays of schedule data
+    const days = this.scheduleDayCount;
+    for (let i = 0; i < days; i++) {
       const date = addDays(now, i);
       const dateStr = formatInTimezone(date, this.timezone, 'date');
       // Convert MM/DD/YYYY to YYYY-MM-DD

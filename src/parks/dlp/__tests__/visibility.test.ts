@@ -19,8 +19,8 @@ import {DisneylandParis} from '../disneylandparis.js';
 
 /**
  * Ids the schedule feed carries rows for. Stubbed at the sweep rather than at
- * getScheduleForDate: the sweep is cached under a fixed key, so a real one
- * would leak the first test's answer into every later test in this file.
+ * getScheduleForDate: the sweep is cached per window, not per test, so a real
+ * one would leak the first test's answer into every later test in this file.
  *
  * P1G108 is deliberately absent — it is a Stage Show, and the gate must leave
  * everything that is not a meet & greet alone. P2MG59 is deliberately present,
