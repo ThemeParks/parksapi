@@ -1,0 +1,120 @@
+<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>HistoryDailyRow | ThemeParks.wiki Parks API - v2.0.0</title><meta name="description" content="Documentation for ThemeParks.wiki Parks API"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
+<div class="tsd-toolbar-contents container"><a href="../index.html" class="title">ThemeParks.wiki Parks API - v2.0.0</a>
+<div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/>
+<ul role="listbox" id="tsd-search-results"></ul>
+<div id="tsd-search-status" aria-live="polite" aria-atomic="true">
+<div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-menu"></use></svg></a></div></header>
+<div class="container container-main">
+<div class="col-content">
+<div class="tsd-page-title">
+<ul class="tsd-breadcrumb" aria-label="Breadcrumb">
+<li><a href="" aria-current="page">HistoryDailyRow</a></li></ul>
+<h1>Type Alias HistoryDailyRow</h1></div>
+<section class="tsd-panel tsd-comment">
+<div class="tsd-comment tsd-typography"><p>One park-local day of an entity's history reduced to the numbers a crowd calendar needs. standby, singleRider and showCount are ABSENT rather than null when there is nothing to report: an absent standby means no numeric standby wait was in force while OPERATING for a whole sampled minute that day — the statistics are sampled at minute resolution, so a wait published only inside a sub-minute window produces no block at all, even though /history records it and the day's operatingMinutes count it. The same applies to singleRider. An absent showCount means the entity published no showtimes. showCount counts distinct performance start times in the local day.</p>
+</div></section>
+<div class="tsd-signature"><span class="tsd-signature-keyword">type</span> <span class="tsd-kind-type-alias">HistoryDailyRow</span> <span class="tsd-signature-symbol">=</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#changes">changes</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#date">date</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#downminutes">downMinutes</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#firstoperatingat">firstOperatingAt</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#lastclosedat">lastClosedAt</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#operatingminutes">operatingMinutes</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#showcount">showCount</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#singlerider">singleRider</a><span class="tsd-signature-symbol">?:</span> <a href="HistoryDailyStats.html" class="tsd-signature-type tsd-kind-type-alias">HistoryDailyStats</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#standby">standby</a><span class="tsd-signature-symbol">?:</span> <a href="HistoryDailyStats.html" class="tsd-signature-type tsd-kind-type-alias">HistoryDailyStats</a><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
+<ul>
+<li>Defined in node_modules/@themeparks/typelib/dist/types/history.types.d.ts:80</li></ul></aside>
+<section class="tsd-panel-group tsd-index-group">
+<section class="tsd-panel tsd-index-panel">
+<details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h5 class="tsd-index-heading uppercase">Index</h5></summary>
+<div class="tsd-accordion-details">
+<section class="tsd-index-section">
+<h3 class="tsd-index-heading tsd-anchor-link" id="properties">Properties<a href="#properties" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-index-list"><a href="#changes" class="tsd-index-link tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>changes</span></a>
+<a href="#date" class="tsd-index-link tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>date</span></a>
+<a href="#downminutes" class="tsd-index-link tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>down<wbr/>Minutes</span></a>
+<a href="#firstoperatingat" class="tsd-index-link tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>first<wbr/>Operating<wbr/>At</span></a>
+<a href="#lastclosedat" class="tsd-index-link tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>last<wbr/>Closed<wbr/>At</span></a>
+<a href="#operatingminutes" class="tsd-index-link tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>operating<wbr/>Minutes</span></a>
+<a href="#showcount" class="tsd-index-link tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>show<wbr/>Count?</span></a>
+<a href="#singlerider" class="tsd-index-link tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>single<wbr/>Rider?</span></a>
+<a href="#standby" class="tsd-index-link tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>standby?</span></a>
+</div></section></div></details></section></section>
+<details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h2 class="tsd-anchor-link" id="properties-1">Properties<a href="#properties-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
+<section>
+<section class="tsd-panel tsd-member tsd-is-external">
+<h3 class="tsd-anchor-link" id="changes"><span>changes</span><a href="#changes" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">changes</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
+<div class="tsd-comment tsd-typography"><p>Number of history rows recorded on this day, i.e. instants at which any kind changed. Short flaps are counted as they happened; this is not a cleaned figure.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in node_modules/@themeparks/typelib/dist/types/history.types.d.ts:96</li></ul></aside></section>
+<section class="tsd-panel tsd-member tsd-is-external">
+<h3 class="tsd-anchor-link" id="date"><span>date</span><a href="#date" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">date</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
+<div class="tsd-comment tsd-typography"><p>The park-local calendar day this row summarises, YYYY-MM-DD, in the entity's timezone.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in node_modules/@themeparks/typelib/dist/types/history.types.d.ts:82</li></ul></aside></section>
+<section class="tsd-panel tsd-member tsd-is-external">
+<h3 class="tsd-anchor-link" id="downminutes"><span>down<wbr/>Minutes</span><a href="#downminutes" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">downMinutes</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
+<div class="tsd-comment tsd-typography"><p>Minutes of this park-local day the entity was DOWN. As with operatingMinutes, today's count covers only the elapsed part of the day.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in node_modules/@themeparks/typelib/dist/types/history.types.d.ts:90</li></ul></aside></section>
+<section class="tsd-panel tsd-member tsd-is-external">
+<h3 class="tsd-anchor-link" id="firstoperatingat"><span>first<wbr/>Operating<wbr/>At</span><a href="#firstoperatingat" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">firstOperatingAt</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span></div>
+<div class="tsd-comment tsd-typography"><p>UTC instant (whole seconds) the entity first became OPERATING on this park-local day, or null if it never did. A day that opened already OPERATING reports the start of the local day.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in node_modules/@themeparks/typelib/dist/types/history.types.d.ts:84</li></ul></aside></section>
+<section class="tsd-panel tsd-member tsd-is-external">
+<h3 class="tsd-anchor-link" id="lastclosedat"><span>last<wbr/>Closed<wbr/>At</span><a href="#lastclosedat" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">lastClosedAt</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span></div>
+<div class="tsd-comment tsd-typography"><p>UTC instant (whole seconds) of the last transition out of OPERATING or DOWN into CLOSED or REFURBISHMENT after firstOperatingAt, or null if there was none. For a park closing after local midnight this instant falls on the following UTC day.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in node_modules/@themeparks/typelib/dist/types/history.types.d.ts:86</li></ul></aside></section>
+<section class="tsd-panel tsd-member tsd-is-external">
+<h3 class="tsd-anchor-link" id="operatingminutes"><span>operating<wbr/>Minutes</span><a href="#operatingminutes" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">operatingMinutes</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
+<div class="tsd-comment tsd-typography"><p>Minutes of this park-local day the entity was OPERATING. Minutes with no observed state count as neither operating nor down, so the two counters need not add up to the length of the day. For TODAY the count covers only the minutes that have already elapsed, so it grows through the day and is final once the day ends: a caller polling today's row sees it rise, which is the day filling in rather than the answer changing.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in node_modules/@themeparks/typelib/dist/types/history.types.d.ts:88</li></ul></aside></section>
+<section class="tsd-panel tsd-member tsd-is-external">
+<h3 class="tsd-anchor-link" id="showcount"><code class="tsd-tag">Optional</code><span>show<wbr/>Count</span><a href="#showcount" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">showCount</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
+<div class="tsd-comment tsd-typography"><p>Distinct performance start times whose park-local day is this day. Present only for entities that published showtimes on the day.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in node_modules/@themeparks/typelib/dist/types/history.types.d.ts:94</li></ul></aside></section>
+<section class="tsd-panel tsd-member tsd-is-external">
+<h3 class="tsd-anchor-link" id="singlerider"><code class="tsd-tag">Optional</code><span>single<wbr/>Rider</span><a href="#singlerider" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">singleRider</span><span class="tsd-signature-symbol">?:</span> <a href="HistoryDailyStats.html" class="tsd-signature-type tsd-kind-type-alias">HistoryDailyStats</a></div><aside class="tsd-sources">
+<ul>
+<li>Defined in node_modules/@themeparks/typelib/dist/types/history.types.d.ts:92</li></ul></aside></section>
+<section class="tsd-panel tsd-member tsd-is-external">
+<h3 class="tsd-anchor-link" id="standby"><code class="tsd-tag">Optional</code><span>standby</span><a href="#standby" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">standby</span><span class="tsd-signature-symbol">?:</span> <a href="HistoryDailyStats.html" class="tsd-signature-type tsd-kind-type-alias">HistoryDailyStats</a></div><aside class="tsd-sources">
+<ul>
+<li>Defined in node_modules/@themeparks/typelib/dist/types/history.types.d.ts:91</li></ul></aside></section></section></details></div>
+<div class="col-sidebar">
+<div class="page-menu">
+<div class="tsd-navigation settings">
+<details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h3>Settings</h3></summary>
+<div class="tsd-accordion-details">
+<div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span>
+<ul id="tsd-filter-options">
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li>
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li>
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div>
+<div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div>
+<details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h3>On This Page</h3></summary>
+<div class="tsd-accordion-details">
+<details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Properties</summary>
+<div><a href="#changes" class="tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>changes</span></a><a href="#date" class="tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>date</span></a><a href="#downminutes" class="tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>down<wbr/>Minutes</span></a><a href="#firstoperatingat" class="tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>first<wbr/>Operating<wbr/>At</span></a><a href="#lastclosedat" class="tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>last<wbr/>Closed<wbr/>At</span></a><a href="#operatingminutes" class="tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>operating<wbr/>Minutes</span></a><a href="#showcount" class="tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>show<wbr/>Count</span></a><a href="#singlerider" class="tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>single<wbr/>Rider</span></a><a href="#standby" class="tsd-is-external"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>standby</span></a></div></details></div></details></div>
+<div class="site-menu">
+<nav class="tsd-navigation"><a href="../index.html">ThemeParks.wiki Parks API - v2.0.0</a>
+<ul class="tsd-small-nested-navigation" id="tsd-nav-container">
+<li>Loading...</li></ul></nav></div></div></div><footer>
+<p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer>
+<div class="overlay"></div></body></html>
