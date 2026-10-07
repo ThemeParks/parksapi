@@ -105,12 +105,21 @@ export type HTTPRequestEntry = {
   className?: string;
 };
 
+// The parts of a request that an `httpRequest` injector rewrites in place.
+type InjectableRequestFields = Pick<
+  HTTPRequestImpl,
+  'method' | 'url' | 'headers' | 'options' | 'body' | 'queryParams' | 'tags' | 'proxyUrl'
+>;
+
 // Internal type for queue entries, includes retryAttempt for internal use only
 type InternalHTTPRequestEntry = HTTPRequestEntry & {
   // track which retry attempt this is (0 = first retry, 1 = second, etc.)
   retryAttempt?: number;
   // capture trace context when request is queued
   traceContext?: any;
+  // the request as the caller built it, taken before the first injection and
+  // put back before each retry (see fireRequest)
+  pristine?: InjectableRequestFields;
 };
 
 // Per-destination HTTP queue. Each destination gets its own so that a slow or
@@ -898,6 +907,36 @@ function calculateBackoffDelay(retryAttempt: number): number {
   // Cap at max delay after jitter
   return Math.floor(Math.min(jitteredDelay, MAX_RETRY_DELAY_MS));
 }
+
+/**
+ * A body an injector could edit in place is copied, so that a request put back
+ * later is not the edited one. Bytes, streams and the like are kept as they are.
+ */
+function copyRequestBody(body: unknown): any {
+  if (body === null || typeof body !== 'object') return body;
+  const proto = Object.getPrototypeOf(body);
+  if (!Array.isArray(body) && proto !== Object.prototype && proto !== null) return body;
+  try {
+    return structuredClone(body);
+  } catch {
+    return body;
+  }
+}
+
+/** A copy of the fields of `request` that an injector rewrites. */
+function copyInjectableFields(request: InjectableRequestFields): InjectableRequestFields {
+  return {
+    method: request.method,
+    url: request.url,
+    headers: {...request.headers},
+    options: request.options && {...request.options},
+    body: copyRequestBody(request.body),
+    queryParams: request.queryParams && {...request.queryParams},
+    tags: [...request.tags],
+    proxyUrl: request.proxyUrl,
+  };
+}
+
 /**
  * Process a single queued request end-to-end: fire the HTTP call, run the
  * injection hooks, optionally validate, and either resolve the caller's
@@ -909,6 +948,18 @@ async function fireRequest(
   requeue: (e: InternalHTTPRequestEntry) => void,
 ): Promise<void> {
   const requestStartTime = Date.now();
+
+  // The injectors below rewrite the request in place, and run again on every
+  // attempt. Take the request as the caller built it before the first, and put
+  // it back before each retry, so an attempt never starts from the last one's
+  // rewrite. Otherwise the proxy wraps its own request, a proxied POST has
+  // already lost its body, and an injector that matches on the target's host
+  // no longer sees a request for it.
+  if (entry.pristine) {
+    Object.assign(entry.request, copyInjectableFields(entry.pristine));
+  } else {
+    entry.pristine = copyInjectableFields(entry.request);
+  }
 
   // Emit trace start event (use captured context if available)
   tracing.emitHttpEvent({
