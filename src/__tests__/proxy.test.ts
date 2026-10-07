@@ -246,6 +246,24 @@ describe('Per-Destination Proxy Injection', () => {
     expect(req.url).toBe('https://api.scrapfly.io/scrape');
   });
 
+  it('should fold the request queryParams into the CrawlBase target url', async () => {
+    process.env.PROXYTESTDESTINATION_CRAWLBASE = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest('https://example.com/api/data');
+    // Same as Scrapfly: the target's own query params must travel inside the
+    // encoded `url`, not be left to buildUrl() to append to the CrawlBase URL.
+    req.queryParams = {region: 'jp', limit: '10'};
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    const target = encodeURIComponent('https://example.com/api/data?region=jp&limit=10');
+    expect(req.url).toBe(`https://api.crawlbase.com/?url=${target}&token=test-key`);
+    // Nothing is left for buildUrl() to append to the CrawlBase call.
+    expect(req.queryParams ?? {}).toEqual({});
+  });
+
   it('should forward Content-Type/Accept for options.json requests', async () => {
     process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
 

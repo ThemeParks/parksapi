@@ -32,7 +32,12 @@ class ParkDestination extends Destination {
 
   @http({cacheSeconds: 0, retries: 1})
   async fetchPois(): Promise<HTTPObj> {
-    return {method: 'GET', url: `${PARK}/api/poi`, tags: ['poi']} as any as HTTPObj;
+    return {
+      method: 'GET',
+      url: `${PARK}/api/poi`,
+      queryParams: {language: 'en', park: 'plopsa'},
+      tags: ['poi'],
+    } as any as HTTPObj;
   }
 
   @http({cacheSeconds: 0, retries: 1})
@@ -74,10 +79,12 @@ describe('a request retried through a proxy', () => {
 
     await Promise.all([crawlbase.fetchPois(), scrapfly.postQuery()]);
 
-    // CrawlBase: the target once, then the same request again.
+    // CrawlBase: the target once, with its own query inside `url` and none left
+    // on the CrawlBase call, then the same request again.
     const cb = sent['api.crawlbase.com'];
     expect(cb).toHaveLength(2);
-    expect(cb[0].url).toBe(`https://api.crawlbase.com/?url=${encodeURIComponent(`${PARK}/api/poi`)}&token=crawl-key`);
+    const target = encodeURIComponent(`${PARK}/api/poi?language=en&park=plopsa`);
+    expect(cb[0].url).toBe(`https://api.crawlbase.com/?url=${target}&token=crawl-key`);
     expect(cb[1]).toEqual(cb[0]);
 
     // Scrapfly: a POST with its body and the park's header, the same each time.
