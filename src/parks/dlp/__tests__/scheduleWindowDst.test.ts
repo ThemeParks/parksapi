@@ -1,7 +1,6 @@
 import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
 import {DisneylandParis} from '../disneylandparis.js';
 import {CacheLib} from '../../../cache.js';
-import {formatDate, shiftDateString} from '../../../datetime.js';
 
 /**
  * The schedule window is a run of Paris calendar dates, one request to the
@@ -53,9 +52,17 @@ async function publishedDates(days: number): Promise<string[]> {
   return schedules.find((s) => s.id === 'P1')?.schedule.map((day) => day.date) ?? [];
 }
 
+/**
+ * The Paris dates a window of `days` starting at `now` must have, worked out
+ * from Intl and UTC calendar arithmetic alone so that it does not share a
+ * helper with the code under test.
+ */
 function expectedWindow(now: Date, days: number): string[] {
-  const today = formatDate(now, PARIS);
-  return Array.from({length: days}, (_, i) => shiftDateString(today, i));
+  const parts = new Intl.DateTimeFormat('en-GB', {timeZone: PARIS, year: 'numeric', month: 'numeric', day: 'numeric'})
+    .formatToParts(now);
+  const part = (type: string) => Number(parts.find((p) => p.type === type)!.value);
+  return Array.from({length: days}, (_, i) =>
+    new Date(Date.UTC(part('year'), part('month') - 1, part('day') + i)).toISOString().slice(0, 10));
 }
 
 describe('DLP schedule window across a Paris clock change, on a UTC host', () => {
@@ -64,8 +71,11 @@ describe('DLP schedule window across a Paris clock change, on a UTC host', () =>
   beforeEach(() => {
     hostZone = process.env.TZ;
     process.env.TZ = 'UTC';
-    // A run that is not really in UTC would pass for the wrong reason.
-    expect(new Date(2026, 9, 25, 12).getTimezoneOffset()).toBe(0);
+    // A run that is not really in UTC would pass for the wrong reason. Checked
+    // in winter and in summer: London reads 0 in winter, and a worker thread
+    // does not take a TZ set at run time.
+    expect(new Date(2026, 0, 15, 12).getTimezoneOffset()).toBe(0);
+    expect(new Date(2026, 6, 15, 12).getTimezoneOffset()).toBe(0);
     vi.useFakeTimers({toFake: ['Date']});
   });
 
