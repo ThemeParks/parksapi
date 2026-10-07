@@ -909,13 +909,31 @@ function calculateBackoffDelay(retryAttempt: number): number {
 }
 
 /**
+ * Whether `value` is made of primitives, arrays and plain objects alone, which
+ * a structured clone reproduces as it is. A class instance, a Buffer or a
+ * cycle is not: a clone would turn the first into its fields.
+ */
+function isPlainData(value: unknown, path = new Set<object>()): boolean {
+  if (value === null || typeof value !== 'object') return typeof value !== 'function' && typeof value !== 'symbol';
+  if (path.has(value)) return false;
+  if (!Array.isArray(value)) {
+    const proto = Object.getPrototypeOf(value);
+    if (proto !== Object.prototype && proto !== null) return false;
+  }
+  path.add(value);
+  const plain = Object.values(value).every((item) => isPlainData(item, path));
+  path.delete(value);
+  return plain;
+}
+
+/**
  * A body an injector could edit in place is copied, so that a request put back
- * later is not the edited one. Bytes, streams and the like are kept as they are.
+ * later is not the edited one. Anything that is not plain data, bytes and
+ * value objects among it, is kept as it is, since a copy would send something
+ * else on the retry.
  */
 function copyRequestBody(body: unknown): any {
-  if (body === null || typeof body !== 'object') return body;
-  const proto = Object.getPrototypeOf(body);
-  if (!Array.isArray(body) && proto !== Object.prototype && proto !== null) return body;
+  if (!isPlainData(body)) return body;
   try {
     return structuredClone(body);
   } catch {
@@ -932,7 +950,9 @@ function copyInjectableFields(request: InjectableRequestFields): InjectableReque
     options: request.options && {...request.options},
     body: copyRequestBody(request.body),
     queryParams: request.queryParams && {...request.queryParams},
-    tags: [...request.tags],
+    // Not what the types allow, but a caller that gets it wrong still gets a
+    // request: a throw here would leave it waiting for good.
+    tags: Array.isArray(request.tags) ? [...request.tags] : request.tags,
     proxyUrl: request.proxyUrl,
   };
 }
@@ -954,10 +974,11 @@ async function fireRequest(
   // it back before each retry, so an attempt never starts from the last one's
   // rewrite. Otherwise the proxy wraps its own request, a proxied POST has
   // already lost its body, and an injector that matches on the target's host
-  // no longer sees a request for it.
+  // no longer sees a request for it. Only a request that can be retried needs
+  // the copy, so the others do not pay for it, large bodies least of all.
   if (entry.pristine) {
     Object.assign(entry.request, copyInjectableFields(entry.pristine));
-  } else {
+  } else if (entry.request.retries > 0) {
     entry.pristine = copyInjectableFields(entry.request);
   }
 

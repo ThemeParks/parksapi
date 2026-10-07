@@ -154,6 +154,8 @@ async injectAuth(req: HTTPObj): Promise<void> {
 
 **Priority:** Lower number runs first. Default is 0. Same priority runs in parallel.
 
+**Retries:** Every attempt of a retried `@http` request runs the `httpRequest` injectors again, on the request as the caller built it, so an injector must not rely on an earlier attempt's changes to the `url`, `headers`, `tags`, `body`, `options`, `queryParams` or `proxyUrl`, and an `httpError` handler cannot change them for the retry. `response` and `retries` carry over.
+
 #### **@reusable** (`src/promiseReuse.ts`)
 Promise reuse to prevent duplicate async execution. `@reusable({forever: true})` for singletons.
 
