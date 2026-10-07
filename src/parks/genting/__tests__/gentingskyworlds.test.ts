@@ -88,8 +88,11 @@ describe('GentingSkyworlds.getAccessToken — the token-service request', () => 
         expect(seen[0].caller).toMatchObject({ className: 'GentingSkyworlds', methodName: 'getAccessToken' });
     });
 
-    test('reports the cached token to the method cache observer with its caller, not the token', async () => {
-        process.env.GENTINGSKYWORLDS_TOKENURL = 'https://token.example/f';
+    test('reports the cached token to the method cache observer with its caller, not the token or the URL', async () => {
+        // tokenUrl is configuration and can carry a credential, so neither the
+        // key nor the caller an observer is handed may carry it.
+        const tokenUrl = 'https://user:url-password@token.example/f?api_key=url-secret';
+        process.env.GENTINGSKYWORLDS_TOKENURL = tokenUrl;
         const hits: MethodCacheHit[] = [];
         setMethodCacheObserver((hit) => { hits.push(hit); });
         try {
@@ -99,12 +102,43 @@ describe('GentingSkyworlds.getAccessToken — the token-service request', () => 
 
             expect(seen).toHaveLength(1);
             expect(hits).toHaveLength(1);
-            expect(hits[0].key).toBe('GentingSkyworlds:accessToken:https://token.example/f');
+            expect(hits[0].key).toMatch(/^GentingSkyworlds:accessToken:[0-9a-f]{16}$/);
             expect(hits[0].caller).toEqual({ className: 'GentingSkyworlds', methodName: 'getAccessToken', instanceId: seen[0].caller.instanceId });
-            expect(JSON.stringify(hits[0])).not.toContain('TOK123');
+
+            const reported = JSON.stringify(hits[0]);
+            for (const secret of ['TOK123', 'url-secret', 'url-password', 'token.example', tokenUrl]) {
+                expect(reported).not.toContain(secret);
+            }
         } finally {
             setMethodCacheObserver(null);
         }
+    });
+
+    test('keeps the token service URL out of the stored cache key', async () => {
+        process.env.GENTINGSKYWORLDS_TOKENURL = 'https://token.example/g?api_key=url-secret';
+
+        await new GentingSkyworlds().getAccessToken();
+
+        const keys = CacheLib.keys().filter((key) => key.includes('accessToken'));
+        expect(keys).toHaveLength(1);
+        expect(keys[0]).toMatch(/^GentingSkyworlds:accessToken:[0-9a-f]{16}$/);
+    });
+
+    test('asks again when the token service URL changes, and not when it comes back', async () => {
+        const park = () => new GentingSkyworlds();
+
+        process.env.GENTINGSKYWORLDS_TOKENURL = 'https://token.example/one';
+        await park().getAccessToken();
+        process.env.GENTINGSKYWORLDS_TOKENURL = 'https://token.example/two';
+        await park().getAccessToken();
+
+        // A new URL must not be served the old URL's token.
+        expect(seen.map((s) => s.request.url)).toEqual(['https://token.example/one', 'https://token.example/two']);
+
+        // Each URL keeps its own entry, so going back to the first is a hit.
+        process.env.GENTINGSKYWORLDS_TOKENURL = 'https://token.example/one';
+        await park().getAccessToken();
+        expect(seen).toHaveLength(2);
     });
 
     test('returns an empty string when the token service fails, and asks again next time', async () => {

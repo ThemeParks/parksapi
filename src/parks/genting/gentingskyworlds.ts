@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import {Destination, DestinationConstructor} from '../../destination.js';
 import config from '../../config.js';
 import {cache, CacheLib} from '../../cache.js';
@@ -227,7 +228,12 @@ export class GentingSkyworlds extends Destination {
    */
   async getAccessToken(): Promise<string> {
     if (!this.tokenUrl) return '';
-    const cacheKey = `${this.constructor.name}:accessToken:${this.tokenUrl}`;
+    // The key changes with the token service URL, so a new configuration is
+    // never served the old one's token. It carries a hash of the URL, not the
+    // URL: that is configuration, can hold a credential, and a method cache
+    // observer is handed the key of every hit.
+    const urlHash = createHash('sha256').update(this.tokenUrl).digest('hex').slice(0, 16);
+    const cacheKey = `${this.constructor.name}:accessToken:${urlHash}`;
     try {
       return await CacheLib.wrap(cacheKey, async () => {
         const headers: Record<string, string> = {'Accept': 'application/json'};
