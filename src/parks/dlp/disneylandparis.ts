@@ -13,7 +13,7 @@ import {
   LanguageCode,
   TagData,
 } from '@themeparks/typelib';
-import {formatInTimezone, formatDate, addDays, constructDateTime, shiftDateString} from '../../datetime.js';
+import {formatInTimezone, formatDate, constructDateTime, shiftDateString} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 
 // ============================================================================
@@ -910,11 +910,13 @@ export class DisneylandParis extends Destination {
     let answered = false;
 
     const days = this.scheduleDayCount;
+    const today = formatDate(now, this.timezone);
     for (let i = 0; i < days; i++) {
-      const [mm, dd, yyyy] = formatInTimezone(addDays(now, i), this.timezone, 'date').split('/');
       let rows: DLPScheduleActivityEntry[];
       try {
-        rows = await this.getScheduleForDate(`${yyyy}-${mm}-${dd}`);
+        // Step the Paris date, not the instant: on a UTC host a 24 hour step
+        // lands on the same Paris date twice, or skips one, across a clock change.
+        rows = await this.getScheduleForDate(shiftDateString(today, i));
       } catch {
         continue;
       }
@@ -1545,12 +1547,10 @@ export class DisneylandParis extends Destination {
 
     // Fetch scheduleDays of schedule data
     const days = this.scheduleDayCount;
+    const today = formatDate(now, this.timezone);
     for (let i = 0; i < days; i++) {
-      const date = addDays(now, i);
-      const dateStr = formatInTimezone(date, this.timezone, 'date');
-      // Convert MM/DD/YYYY to YYYY-MM-DD
-      const [mm, dd, yyyy] = dateStr.split('/');
-      const dateString = `${yyyy}-${mm}-${dd}`;
+      // Step the Paris date, not the instant: see getScheduledActivityIds.
+      const dateString = shiftDateString(today, i);
 
       let dateData: DLPScheduleActivityEntry[];
       try {
