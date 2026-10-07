@@ -35,7 +35,7 @@ class ParkDestination extends Destination {
     return {
       method: 'GET',
       url: `${PARK}/api/poi`,
-      queryParams: {language: 'en', park: 'plopsa'},
+      queryParams: {language: 'en', park: 'x'},
       tags: ['poi'],
     } as any as HTTPObj;
   }
@@ -83,7 +83,7 @@ describe('a request retried through a proxy', () => {
     // on the CrawlBase call, then the same request again.
     const cb = sent['api.crawlbase.com'];
     expect(cb).toHaveLength(2);
-    const target = encodeURIComponent(`${PARK}/api/poi?language=en&park=plopsa`);
+    const target = encodeURIComponent(`${PARK}/api/poi?language=en&park=x`);
     expect(cb[0].url).toBe(`https://api.crawlbase.com/?url=${target}&token=crawl-key`);
     expect(cb[1]).toEqual(cb[0]);
 

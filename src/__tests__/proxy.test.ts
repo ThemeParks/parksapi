@@ -264,6 +264,21 @@ describe('Per-Destination Proxy Injection', () => {
     expect(req.queryParams ?? {}).toEqual({});
   });
 
+  it('should add CrawlBase queryParams to the target query as a direct request does, repeated keys kept', async () => {
+    process.env.PROXYTESTDESTINATION_CRAWLBASE = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest('https://example.com/api/data?a=1');
+    // buildUrl() appends, so a param already in the URL is kept beside a new one
+    // of the same name, and a space is encoded the way URLSearchParams does.
+    req.queryParams = {a: '2', b: 'x y'};
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(new URL(req.url).searchParams.get('url')).toBe('https://example.com/api/data?a=1&a=2&b=x+y');
+  });
+
   it('should forward Content-Type/Accept for options.json requests', async () => {
     process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
 

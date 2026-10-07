@@ -197,12 +197,12 @@ Per-destination HTTP proxy for routing through CrawlBase, Scrapfly, or basic HTT
 
 **Per-destination:** Each time a destination registers a config prefix via `addConfigPrefix('MYPARK')`, the matching env vars (`MYPARK_CRAWLBASE`, `MYPARK_SCRAPFLY`, `MYPARK_BASICPROXY`) are auto-loaded and merged into `proxyConfig`. No opt-in required — if the env var is set, the proxy is used. Consumers can also assign `destInstance.proxyConfig` directly after construction for fully explicit wiring.
 
-Priority: CrawlBase > Scrapfly > Basic proxy. Per-destination overrides global. Proxy injection runs at priority 999 (after all auth/header injectors), and runs again on every retry, each attempt starting from the request as the caller built it. What each proxy forwards:
-- **CrawlBase** rewrites the URL only, with the request's `queryParams` folded into the encoded target. Custom headers and POST bodies are not forwarded.
-- **Scrapfly** forwards the request's headers, method and body as explicit parameters, with `queryParams` folded into the target URL.
+Priority: CrawlBase > Scrapfly > Basic proxy, among whichever are configured. A destination's setting overrides the global one of the same proxy type. Proxy injection runs at priority 999 (after all auth/header injectors), and runs again on every retry, each attempt starting from the request as the caller built it. What each proxy does with the request:
+- **CrawlBase** rewrites the URL only, with the request's `queryParams` folded into the encoded target. The request's headers and body stay on the call to CrawlBase and are not passed on to the target.
+- **Scrapfly** passes the request's headers (except connection-level ones such as `host`, `content-length` and `accept-encoding`) and, for a non-GET request, its method and body to the target as explicit parameters, with `queryParams` folded into the target URL. The call to Scrapfly itself carries none of them.
 - **Basic proxy** sets the request's `proxyUrl` and leaves the request itself as it is.
 
-Use `BASICPROXY` for authenticated API proxying.
+A request that needs its own headers or body to reach the target should go through Scrapfly or `BASICPROXY`, not CrawlBase.
 
 ## Destination Registration
 
