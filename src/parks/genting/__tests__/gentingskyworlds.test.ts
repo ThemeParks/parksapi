@@ -91,7 +91,7 @@ describe('GentingSkyworlds.getAccessToken — the token-service request', () => 
     test('reports the cached token to the method cache observer with its caller, not the token or the URL', async () => {
         // tokenUrl is configuration and can carry a credential, so neither the
         // key nor the caller an observer is handed may carry it.
-        const tokenUrl = 'https://user:url-password@token.example/f?api_key=url-secret';
+        const tokenUrl = 'https://token.example/url-path-secret/f?api_key=url-secret';
         process.env.GENTINGSKYWORLDS_TOKENURL = tokenUrl;
         const hits: MethodCacheHit[] = [];
         setMethodCacheObserver((hit) => { hits.push(hit); });
@@ -106,7 +106,7 @@ describe('GentingSkyworlds.getAccessToken — the token-service request', () => 
             expect(hits[0].caller).toEqual({ className: 'GentingSkyworlds', methodName: 'getAccessToken', instanceId: seen[0].caller.instanceId });
 
             const reported = JSON.stringify(hits[0]);
-            for (const secret of ['TOK123', 'url-secret', 'url-password', 'token.example', tokenUrl]) {
+            for (const secret of ['TOK123', 'url-secret', 'url-path-secret', 'token.example', tokenUrl]) {
                 expect(reported).not.toContain(secret);
             }
         } finally {
@@ -139,6 +139,23 @@ describe('GentingSkyworlds.getAccessToken — the token-service request', () => 
         process.env.GENTINGSKYWORLDS_TOKENURL = 'https://token.example/one';
         await park().getAccessToken();
         expect(seen).toHaveLength(2);
+    });
+
+    test('still resolves a token when the configured tokenUrl is not a plain string', async () => {
+        // Instance config is typed string | string[] and is not coerced, so a
+        // caller can hand over a URL object or a one-element list. The key used
+        // to be a template string, which accepted both.
+        const href = 'https://token.example/h';
+        for (const tokenUrl of [new URL(href), [href]]) {
+            CacheLib.clear();
+            seen = [];
+            const park = new GentingSkyworlds({ config: { tokenUrl: tokenUrl as any } });
+
+            await expect(park.getAccessToken()).resolves.toBe('TOK123');
+            await expect(park.getAccessToken()).resolves.toBe('TOK123');
+
+            expect(seen).toHaveLength(1);
+        }
     });
 
     test('returns an empty string when the token service fails, and asks again next time', async () => {

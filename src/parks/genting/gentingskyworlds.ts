@@ -232,7 +232,9 @@ export class GentingSkyworlds extends Destination {
     // never served the old one's token. It carries a hash of the URL, not the
     // URL: that is configuration, can hold a credential, and a method cache
     // observer is handed the key of every hit.
-    const urlHash = createHash('sha256').update(this.tokenUrl).digest('hex').slice(0, 16);
+    // String() because instance config is not coerced: the key was a template
+    // string, which took a URL object or a one-element list as well.
+    const urlHash = createHash('sha256').update(String(this.tokenUrl)).digest('hex').slice(0, 16);
     const cacheKey = `${this.constructor.name}:accessToken:${urlHash}`;
     try {
       return await CacheLib.wrap(cacheKey, async () => {
