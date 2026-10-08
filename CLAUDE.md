@@ -154,6 +154,8 @@ async injectAuth(req: HTTPObj): Promise<void> {
 
 **Priority:** Lower number runs first. Default is 0. Same priority runs in parallel.
 
+**Retries:** Every attempt of a retried `@http` request runs the `httpRequest` injectors again, on the request as the caller built it, so an injector must not rely on an earlier attempt's changes to the `url`, `headers`, `tags`, `body`, `options`, `queryParams` or `proxyUrl`, and an `httpError` handler cannot change them for the retry. `response` and `retries` carry over.
+
 #### **@reusable** (`src/promiseReuse.ts`)
 Promise reuse to prevent duplicate async execution. `@reusable({forever: true})` for singletons.
 
@@ -197,7 +199,12 @@ Per-destination HTTP proxy for routing through CrawlBase, Scrapfly, or basic HTT
 
 **Per-destination:** Each time a destination registers a config prefix via `addConfigPrefix('MYPARK')`, the matching env vars (`MYPARK_CRAWLBASE`, `MYPARK_SCRAPFLY`, `MYPARK_BASICPROXY`) are auto-loaded and merged into `proxyConfig`. No opt-in required — if the env var is set, the proxy is used. Consumers can also assign `destInstance.proxyConfig` directly after construction for fully explicit wiring.
 
-Priority: CrawlBase > Scrapfly > Basic proxy. Per-destination overrides global. Proxy injection runs at priority 999 (after all auth/header injectors). Note: CrawlBase/Scrapfly rewrite URLs and are scraping services — they don't forward custom headers or POST bodies. Use `BASICPROXY` for authenticated API proxying.
+Priority: CrawlBase > Scrapfly > Basic proxy, among whichever are configured. A destination's setting overrides the global one of the same proxy type. Proxy injection runs at priority 999 (after all auth/header injectors), and runs again on every retry, each attempt starting from the request as the caller built it. What each proxy does with the request:
+- **CrawlBase** rewrites the URL only, with the request's `queryParams` folded into the encoded target. The request's headers and body stay on the call to CrawlBase and are not passed on to the target.
+- **Scrapfly** passes the request's headers (except connection-level ones such as `host`, `content-length` and `accept-encoding`) and, for a non-GET request, its method and body to the target as explicit parameters, with `queryParams` folded into the target URL. The call to Scrapfly itself carries none of them.
+- **Basic proxy** sets the request's `proxyUrl` and leaves the request itself as it is.
+
+A request that needs its own headers or body to reach the target should go through Scrapfly or `BASICPROXY`, not CrawlBase.
 
 ## Destination Registration
 

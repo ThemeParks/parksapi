@@ -424,8 +424,17 @@ export abstract class Destination {
 
     // Apply in priority order: CrawlBase > Scrapfly > BasicProxy
     if (this.proxyConfig.crawlbase) {
-      const originalUrl = req.url;
-      req.url = `https://api.crawlbase.com/?url=${encodeURIComponent(originalUrl)}&token=${this.proxyConfig.crawlbase.apikey}`;
+      // Fold the request's own query params into the target URL, as Scrapfly
+      // does below. buildUrl() would otherwise append them to the CrawlBase
+      // call, which fetches the target without them.
+      let targetUrl = req.url;
+      if (req.queryParams && Object.keys(req.queryParams).length > 0) {
+        const target = new URL(req.url);
+        for (const [k, v] of Object.entries(req.queryParams)) target.searchParams.append(k, v);
+        targetUrl = target.toString();
+        req.queryParams = undefined;
+      }
+      req.url = `https://api.crawlbase.com/?url=${encodeURIComponent(targetUrl)}&token=${this.proxyConfig.crawlbase.apikey}`;
       return;
     }
 

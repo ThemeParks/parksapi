@@ -246,6 +246,39 @@ describe('Per-Destination Proxy Injection', () => {
     expect(req.url).toBe('https://api.scrapfly.io/scrape');
   });
 
+  it('should fold the request queryParams into the CrawlBase target url', async () => {
+    process.env.PROXYTESTDESTINATION_CRAWLBASE = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest('https://example.com/api/data');
+    // Same as Scrapfly: the target's own query params must travel inside the
+    // encoded `url`, not be left to buildUrl() to append to the CrawlBase URL.
+    req.queryParams = {region: 'jp', limit: '10'};
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    const target = encodeURIComponent('https://example.com/api/data?region=jp&limit=10');
+    expect(req.url).toBe(`https://api.crawlbase.com/?url=${target}&token=test-key`);
+    // Nothing is left for buildUrl() to append to the CrawlBase call.
+    expect(req.queryParams ?? {}).toEqual({});
+  });
+
+  it('should add CrawlBase queryParams to the target query as a direct request does, repeated keys kept', async () => {
+    process.env.PROXYTESTDESTINATION_CRAWLBASE = JSON.stringify({apikey: 'test-key'});
+
+    const dest = new ProxyTestDestination();
+    dest.addConfigPrefix('PROXYTESTDESTINATION');
+
+    const req = createMockRequest('https://example.com/api/data?a=1');
+    // buildUrl() appends, so a param already in the URL is kept beside a new one
+    // of the same name, and a space is encoded the way URLSearchParams does.
+    req.queryParams = {a: '2', b: 'x y'};
+    await broadcast(dest, {eventName: 'httpRequest', hostname: 'example.com', url: req.url, method: req.method, tags: req.tags}, req);
+
+    expect(new URL(req.url).searchParams.get('url')).toBe('https://example.com/api/data?a=1&a=2&b=x+y');
+  });
+
   it('should forward Content-Type/Accept for options.json requests', async () => {
     process.env.PROXYTESTDESTINATION_SCRAPFLY = JSON.stringify({apikey: 'test-key'});
 

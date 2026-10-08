@@ -80,6 +80,8 @@ describe('redactUrlSecrets', () => {
   });
 });
 
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 describe('the retry and failure log lines', () => {
   class ProxiedDestination extends Destination {
     constructor(private readonly baseURL: string) {
@@ -129,13 +131,14 @@ describe('the retry and failure log lines', () => {
       expect(retryLine).toMatch(/^HTTP request failed, retrying in \d+s \(attempt 1, 0 retries left\): GET https:\/\/api\.crawlbase\.com\/\?url=http%3A%2F%2F127\.0\.0\.1%3A9%2Fstatus%2F500%3Fkey%3D\*\*\*&token=\*\*\*$/);
       expect(String(retryError)).toContain('URL: GET https://api.crawlbase.com/?url=http%3A%2F%2F127.0.0.1%3A9%2Fstatus%2F500%3Fkey%3D***&token=***');
 
-      // The retry runs the injectors again and wraps the already rewritten URL
-      // for CrawlBase a second time, so the failure line and the rejection are
-      // pinned only at their ends.
+      // The retry starts from the request the caller built, so it is wrapped
+      // for CrawlBase once, like the first attempt, and its lines read the same.
+      expect(sent[1]).toBe(sent[0]);
+      const masked = 'https://api.crawlbase.com/?url=http%3A%2F%2F127.0.0.1%3A9%2Fstatus%2F500%3Fkey%3D***&token=***';
       expect(error).toHaveBeenCalledTimes(1);
       const [failureLine] = error.mock.calls[0];
-      expect(failureLine).toMatch(/^HTTP request failed, no retries left: GET https:\/\/api\.crawlbase\.com\/\?url=.*&token=\*\*\* HTTP request not OK: 500/);
-      expect(rejection).toMatch(/^GET https:\/\/api\.crawlbase\.com\/\?url=.*&token=\*\*\*: HTTP request not OK: 500/);
+      expect(failureLine).toMatch(new RegExp(`^HTTP request failed, no retries left: GET ${escapeRegExp(masked)} HTTP request not OK: 500`));
+      expect(rejection).toMatch(new RegExp(`^GET ${escapeRegExp(masked)}: HTTP request not OK: 500`));
 
       for (const text of [retryLine, String(retryError), failureLine, rejection]) {
         expect(text).not.toContain('crawlbase-secret');

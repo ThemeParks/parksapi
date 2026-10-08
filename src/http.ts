@@ -105,12 +105,21 @@ export type HTTPRequestEntry = {
   className?: string;
 };
 
+// The parts of a request that an `httpRequest` injector rewrites in place.
+type InjectableRequestFields = Pick<
+  HTTPRequestImpl,
+  'method' | 'url' | 'headers' | 'options' | 'body' | 'queryParams' | 'tags' | 'proxyUrl'
+>;
+
 // Internal type for queue entries, includes retryAttempt for internal use only
 type InternalHTTPRequestEntry = HTTPRequestEntry & {
   // track which retry attempt this is (0 = first retry, 1 = second, etc.)
   retryAttempt?: number;
   // capture trace context when request is queued
   traceContext?: any;
+  // the request as the caller built it, taken before the first injection and
+  // put back before each retry (see fireRequest)
+  pristine?: InjectableRequestFields;
 };
 
 // Per-destination HTTP queue. Each destination gets its own so that a slow or
@@ -898,6 +907,56 @@ function calculateBackoffDelay(retryAttempt: number): number {
   // Cap at max delay after jitter
   return Math.floor(Math.min(jitteredDelay, MAX_RETRY_DELAY_MS));
 }
+
+/**
+ * Whether `value` is made of primitives, arrays and plain objects alone, which
+ * a structured clone reproduces as it is. A class instance, a Buffer or a
+ * cycle is not: a clone would turn the first into its fields.
+ */
+function isPlainData(value: unknown, path = new Set<object>()): boolean {
+  if (value === null || typeof value !== 'object') return typeof value !== 'function' && typeof value !== 'symbol';
+  if (path.has(value)) return false;
+  if (!Array.isArray(value)) {
+    const proto = Object.getPrototypeOf(value);
+    if (proto !== Object.prototype && proto !== null) return false;
+  }
+  path.add(value);
+  const plain = Object.values(value).every((item) => isPlainData(item, path));
+  path.delete(value);
+  return plain;
+}
+
+/**
+ * A body an injector could edit in place is copied, so that a request put back
+ * later is not the edited one. Anything that is not plain data, bytes and
+ * value objects among it, is kept as it is, since a copy would send something
+ * else on the retry.
+ */
+function copyRequestBody(body: unknown): any {
+  if (!isPlainData(body)) return body;
+  try {
+    return structuredClone(body);
+  } catch {
+    return body;
+  }
+}
+
+/** A copy of the fields of `request` that an injector rewrites. */
+function copyInjectableFields(request: InjectableRequestFields): InjectableRequestFields {
+  return {
+    method: request.method,
+    url: request.url,
+    headers: {...request.headers},
+    options: request.options && {...request.options},
+    body: copyRequestBody(request.body),
+    queryParams: request.queryParams && {...request.queryParams},
+    // Not what the types allow, but a caller that gets it wrong still gets a
+    // request: a throw here would leave it waiting for good.
+    tags: Array.isArray(request.tags) ? [...request.tags] : request.tags,
+    proxyUrl: request.proxyUrl,
+  };
+}
+
 /**
  * Process a single queued request end-to-end: fire the HTTP call, run the
  * injection hooks, optionally validate, and either resolve the caller's
@@ -909,6 +968,19 @@ async function fireRequest(
   requeue: (e: InternalHTTPRequestEntry) => void,
 ): Promise<void> {
   const requestStartTime = Date.now();
+
+  // The injectors below rewrite the request in place, and run again on every
+  // attempt. Take the request as the caller built it before the first, and put
+  // it back before each retry, so an attempt never starts from the last one's
+  // rewrite. Otherwise the proxy wraps its own request, a proxied POST has
+  // already lost its body, and an injector that matches on the target's host
+  // no longer sees a request for it. Only a request that can be retried needs
+  // the copy, so the others do not pay for it, large bodies least of all.
+  if (entry.pristine) {
+    Object.assign(entry.request, copyInjectableFields(entry.pristine));
+  } else if (entry.request.retries > 0) {
+    entry.pristine = copyInjectableFields(entry.request);
+  }
 
   // Emit trace start event (use captured context if available)
   tracing.emitHttpEvent({
