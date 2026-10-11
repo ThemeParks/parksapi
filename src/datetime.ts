@@ -3,6 +3,23 @@
  * Uses native Intl API instead of moment-timezone to reduce bundle size
  */
 
+// Building an Intl.DateTimeFormat loads ICU timezone data and costs far more
+// than formatting with one. Schedule builders call these helpers thousands of
+// times per sync with a handful of distinct zones, so formatters are cached by
+// locale and options. Formatters are immutable, so sharing them is safe.
+const formatterCache = new Map<string, Intl.DateTimeFormat>();
+
+function getFormatter(locale: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let formatter = formatterCache.get(key);
+  if (!formatter) {
+    // An invalid timeZone throws here, before anything is cached.
+    formatter = new Intl.DateTimeFormat(locale, options);
+    formatterCache.set(key, formatter);
+  }
+  return formatter;
+}
+
 /**
  * Normalize a `timeZoneName: 'shortOffset'` string from Intl.DateTimeFormat
  * into a standard ISO 8601 offset like "+HH:MM" or "-HH:MM".
@@ -51,7 +68,7 @@ export function formatInTimezone(
 ): string {
   if (format === 'iso') {
     // ISO 8601 format with timezone offset: YYYY-MM-DDTHH:mm:ss±HH:mm
-    const parts = new Intl.DateTimeFormat('en-US', {
+    const parts = getFormatter('en-US', {
       timeZone: timezone,
       year: 'numeric',
       month: '2-digit',
@@ -79,7 +96,7 @@ export function formatInTimezone(
 
   if (format === 'date') {
     // MM/DD/YYYY format
-    return new Intl.DateTimeFormat('en-US', {
+    return getFormatter('en-US', {
       timeZone: timezone,
       year: 'numeric',
       month: '2-digit',
@@ -88,7 +105,7 @@ export function formatInTimezone(
   }
 
   // datetime format
-  return new Intl.DateTimeFormat('en-US', {
+  return getFormatter('en-US', {
     timeZone: timezone,
     year: 'numeric',
     month: '2-digit',
@@ -245,7 +262,7 @@ export function constructDateTime(dateStr: string, timeStr: string, tz: string):
   // Format a UTC ms timestamp as a wall-clock string in the target timezone
   // (no offset, just the components).
   const wallClockIn = (ms: number): string => {
-    const parts = new Intl.DateTimeFormat('en-CA', {
+    const parts = getFormatter('en-CA', {
       timeZone: tz,
       year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit', second: '2-digit',
@@ -319,7 +336,7 @@ export function isBefore(date1: Date, date2: Date): boolean {
  */
 export function formatDate(date: Date, inTimezone?: string): string {
   if (inTimezone) {
-    const parts = new Intl.DateTimeFormat('en-CA', {
+    const parts = getFormatter('en-CA', {
       timeZone: inTimezone,
       year: 'numeric',
       month: '2-digit',

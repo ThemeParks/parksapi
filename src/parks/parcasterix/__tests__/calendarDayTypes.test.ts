@@ -49,6 +49,9 @@ function packageDb(days: Array<[string, string]>, legend: Record<string, string>
   const file = join(dir, 'pax_en.sqlite');
   try {
     const db = new DatabaseSync(file);
+    // A throwaway fixture: without these every statement fsyncs, and on a busy
+    // disk that took each test past its 5 s timeout.
+    db.exec('PRAGMA journal_mode = MEMORY; PRAGMA synchronous = OFF;');
     db.exec(`
       CREATE TABLE attractions (drupal_id INTEGER, title TEXT, experience TEXT, latitude REAL, longitude REAL, min_age INTEGER, min_size INTEGER, min_size_unaccompanied INTEGER);
       CREATE TABLE restaurants (drupal_id INTEGER, title TEXT, meal_types TEXT, latitude REAL, longitude REAL, menu_url TEXT, mobile_url TEXT);
