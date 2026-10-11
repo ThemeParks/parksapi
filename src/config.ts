@@ -11,31 +11,24 @@
  */
 
 
-// Map of classes to their property keys and associated symbols
-const classPropertyMap: Record<any, Record<string, Symbol>> = {};
-// Track registered classes for prototype chain lookup
-const registeredClasses: Set<any> = new Set();
+// Map of classes to their property keys and associated symbols. Keyed by the
+// class itself: a plain object would coerce the class to a string key, which
+// stringifies its entire source on every lookup.
+const classPropertyMap: Map<any, Record<string, Symbol>> = new Map();
+// Every property name registered with @config on any class. The Proxy getter
+// runs on every property access of every @config instance (methods included),
+// so the "is this a config property at all" check has to be O(1).
+const configPropertyNames: Set<string> = new Set();
 
 // Symbol used to store the real class name on proxied instances
 const REAL_CLASS_NAME = Symbol('configRealClassName');
 
 function getConfigValue(target: any, propertyKey: string): any {
-    // Find config property registration.
-    // Check target.constructor first (direct match), then search all
-    // registered classes for this property name (handles inheritance
-    // through @config Proxy wrappers which break prototype chain identity).
-    let privateSym: Symbol | undefined;
-    privateSym = classPropertyMap[target.constructor]?.[String(propertyKey)];
-    if (!privateSym) {
-        for (const registeredClass of registeredClasses) {
-            const sym = classPropertyMap[registeredClass]?.[String(propertyKey)];
-            if (sym) {
-                privateSym = sym;
-                break;
-            }
-        }
-    }
-    if (privateSym) {
+    // A property counts as config when ANY registered class declares it with
+    // @config, not only target.constructor: inheritance through @config Proxy
+    // wrappers breaks prototype chain identity, so a per-class lookup misses
+    // properties declared on a base class.
+    if (configPropertyNames.has(String(propertyKey))) {
         // 1. check if there is a config value set on the instance
         if (target.config && target.config.hasOwnProperty(propertyKey)) {
             return target.config[propertyKey];
@@ -98,7 +91,7 @@ export function getConfigKeys(instance: any): Map<string, any> {
     // Walk up the prototype chain to get config properties from all classes
     let currentProto = instance.constructor;
     while (currentProto) {
-        const properties = classPropertyMap[currentProto];
+        const properties = classPropertyMap.get(currentProto);
         if (properties) {
             // Iterate through all config properties and resolve their values
             // Access through the instance to trigger the proxy getter and get the actual value
@@ -132,11 +125,13 @@ export default function config(target: any, propertyKey?: string | symbol) {
         const privateSym = Symbol("_" + propertyKey.toString() + "_config");
 
         // associate the symbol with the class and property key
-        if (!classPropertyMap[target.constructor]) {
-            classPropertyMap[target.constructor] = {};
+        let properties = classPropertyMap.get(target.constructor);
+        if (!properties) {
+            properties = {};
+            classPropertyMap.set(target.constructor, properties);
         }
-        classPropertyMap[target.constructor][propertyKey as string] = privateSym;
-        registeredClasses.add(target.constructor);
+        properties[propertyKey as string] = privateSym;
+        configPropertyNames.add(String(propertyKey));
 
         // delete the original property
         if (target.hasOwnProperty(propertyKey)) {
