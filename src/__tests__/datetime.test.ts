@@ -574,6 +574,27 @@ describe('DateTime Utilities', () => {
         .toThrow(RangeError);
     });
 
+    test('reads hours 24-47 as the next day (late closes past midnight)', () => {
+      // A park publishing "9:00 - 25:00" on New Year's Eve closes at 01:00 on the 1st.
+      expect(constructDateTime('2026-12-31', '25:00:00', 'Asia/Tokyo')).toBe('2027-01-01T01:00:00+09:00');
+      expect(constructDateTime('2026-12-31', '25:00', 'Asia/Tokyo')).toBe('2027-01-01T01:00:00+09:00');
+      expect(constructDateTime('2026-02-28', '24:30', 'Asia/Tokyo')).toBe('2026-03-01T00:30:00+09:00');
+      expect(constructDateTime('2026-10-12', '47:59:59', 'Asia/Tokyo')).toBe('2026-10-13T23:59:59+09:00');
+      // The offset is the one in force on the NEXT day: the night US clocks fall back.
+      expect(constructDateTime('2026-10-31', '26:00', 'America/New_York')).toBe('2026-11-01T02:00:00-05:00');
+    });
+
+    test('24:00 still means midnight at the end of the day', () => {
+      expect(constructDateTime('2026-12-31', '24:00', 'Asia/Tokyo')).toBe('2027-01-01T00:00:00+09:00');
+      expect(constructDateTime('2024-07-15', '24:00:00', 'Europe/Amsterdam')).toBe('2024-07-16T00:00:00+02:00');
+    });
+
+    test('hours of 48 and over, and non-clock strings, still throw', () => {
+      expect(() => constructDateTime('2026-12-31', '48:00', 'Asia/Tokyo')).toThrow(RangeError);
+      expect(() => constructDateTime('2026-12-31', '25:60', 'Asia/Tokyo')).toThrow(RangeError);
+      expect(() => constructDateTime('2026-12-31', '25:00-26:00', 'Asia/Tokyo')).toThrow(RangeError);
+    });
+
     test('should construct ISO datetime from date + time + timezone', () => {
       const result = constructDateTime('2024-07-15', '10:00', 'Europe/Amsterdam');
       // Summer CEST = UTC+2

@@ -325,12 +325,17 @@ export class FujiQHighland extends Destination {
     for (let i = 0; i < months; i++) {
       const monthDays = await this.getMonthSchedule(year, month).catch(() => []);
       for (const d of monthDays) {
-        days.push({
-          date: d.date,
-          type: 'OPERATING',
-          openingTime: constructDateTime(d.date, d.open, this.timezone),
-          closingTime: constructDateTime(d.date, d.close, this.timezone),
-        } as any);
+        // One unreadable day costs that day, never the whole schedule.
+        try {
+          days.push({
+            date: d.date,
+            type: 'OPERATING',
+            openingTime: constructDateTime(d.date, d.open, this.timezone),
+            closingTime: constructDateTime(d.date, d.close, this.timezone),
+          } as any);
+        } catch (err) {
+          console.warn(`[FUJIQ] Skipping schedule day ${d.date} (${d.open} - ${d.close}): ${(err as Error).message}`);
+        }
       }
       // Roll forward one month.
       month += 1;
