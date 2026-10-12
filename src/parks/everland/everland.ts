@@ -34,23 +34,26 @@ const PARKS: ParkConfig[] = [
 
 // ── Status mapping ─────────────────────────────────────────────
 
-function mapStatus(operStatusCd: string): string {
+export function mapStatus(operStatusCd: string): string {
   switch (operStatusCd) {
     case 'OPEN':
     case 'RSVP':
       return 'OPERATING';
+    // DOWN is a ride that is meant to be running and is not.
     case 'RAIN':   // heavy rain
-    case 'SMMR':   // summer suspension
     case 'SNOW':   // snow
     case 'THUN':   // thunderstorm
     case 'WIND':   // heavy wind
     case 'LTMP':   // low temperature
     case 'HTMP':   // high temperature
     case 'PMCH':   // PM inspection
-    case 'WNTR':   // winter suspension
       return 'DOWN';
     case 'CONR':
       return 'REFURBISHMENT';
+    // A seasonal suspension or a private hire is not an interruption: the ride
+    // is not meant to be running, so it is CLOSED.
+    case 'SMMR':   // summer suspension
+    case 'WNTR':   // winter suspension
     case 'CLOS':
     case 'OVER':
     case 'STND':

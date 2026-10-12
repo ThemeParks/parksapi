@@ -150,8 +150,8 @@ const MOCK_AVAILABILITY_SWO = {
     {Id: 'ride-003', Minutes: 0, Status: '', StatusDisplay: '', Title: 'Walk On Ride', LastUpDateTime: FRESH_STAMP},
     // Genuinely closed, with the closure reason in both status fields
     {Id: 'ride-004', Minutes: -1, Status: 'Closed Temporarily', StatusDisplay: 'Closed Temporarily', Title: 'Closed Ride', LastUpDateTime: FRESH_STAMP},
-    // Closure string that did not exist when this park was first implemented —
-    // guards against anyone reintroducing a hardcoded list of known strings
+    // A weather hold: the ride is meant to be running and is not, so DOWN while
+    // the park is open (see the "weather" tests below for the other cases)
     {Id: 'ride-005', Minutes: -1, Status: 'Closed Due To Weather', StatusDisplay: 'Closed Due To Weather', Title: 'Weathered Ride', LastUpDateTime: FRESH_STAMP},
   ],
   ShowTimes: [
@@ -432,12 +432,13 @@ describe('SeaworldOrlando', () => {
       expect(ride004.queue?.STANDBY?.waitTime).toBeNull();
     });
 
-    it('honours a closure string it has never seen before', async () => {
+    it('marks a weather hold DOWN while the park is open', async () => {
       const park = createMockedOrlando();
       const liveData = await (park as any).buildLiveData();
       const ride005 = liveData.find((ld: any) => ld.id === 'ride-005');
       expect(ride005).toBeDefined();
-      expect(ride005.status).toBe('CLOSED');
+      expect(ride005.status).toBe('DOWN');
+      expect(ride005.queue?.STANDBY?.waitTime).toBeNull();
     });
 
     it('handles zero wait time (walk-on) as OPERATING', async () => {
@@ -528,7 +529,7 @@ describe('SeaworldOrlando', () => {
       {
         label: 'weather closure',
         row: {Id: 'r', Minutes: -1, Status: 'Closed Due To Weather', StatusDisplay: 'Closed Due To Weather', Title: 'Sunny Day Carousel', LastUpDateTime: 'x'},
-        expected: {status: 'CLOSED', waitTime: null},
+        expected: {status: 'DOWN', waitTime: null},
       },
       {
         label: 'reporting a walk-on',
@@ -565,6 +566,71 @@ describe('SeaworldOrlando', () => {
       ]);
       const liveData = await (park as any).buildLiveData();
       expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+    });
+
+    // The closure set is open: three strings were seen in a 41-round census and
+    // the newest was the most frequent. These tests keep the rule generic, so a
+    // string nobody has seen yet is CLOSED unless it says weather.
+    describe('weather versus other closures', () => {
+      const closureRow = (text: string) =>
+        ({Id: 'r', Minutes: -1, Status: text, StatusDisplay: text, Title: 'A', LastUpDateTime: 'x'});
+
+      for (const text of ['Closed Temporarily', 'Closed For The Day', 'Closed For A Private Event', 'Closed']) {
+        it(`keeps "${text}" CLOSED while the park is open`, async () => {
+          const park = parkReturning([closureRow(text)]);
+          const liveData = await (park as any).buildLiveData();
+          expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+        });
+      }
+
+      for (const text of ['Closed Due To Weather', 'CLOSED DUE TO WEATHER', 'Temporarily Closed - Weather', 'weather delay']) {
+        it(`reads "${text}" as a weather hold, DOWN while the park is open`, async () => {
+          const park = parkReturning([closureRow(text)]);
+          const liveData = await (park as any).buildLiveData();
+          expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('DOWN');
+        });
+      }
+
+      it('reads a weather hold in StatusDisplay alone', async () => {
+        const park = parkReturning([
+          {Id: 'r', Minutes: -1, Status: '', StatusDisplay: 'Closed Due To Weather', Title: 'A', LastUpDateTime: 'x'},
+        ]);
+        const liveData = await (park as any).buildLiveData();
+        expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('DOWN');
+      });
+
+      it('reports the same weather text as CLOSED once the park has shut', async () => {
+        // The feed keeps publishing after close. DOWN claims the ride is meant
+        // to be running, so a stale weather string overnight must not say so.
+        const park = parkReturning([closureRow('Closed Due To Weather')], false);
+        const liveData = await (park as any).buildLiveData();
+        const row = liveData.find((ld: any) => ld.id === 'r');
+        expect(row.status).toBe('CLOSED');
+        expect(row.queue?.STANDBY?.waitTime).toBeNull();
+      });
+
+      it('does not call a weather string DOWN when the hours are unknown and nothing vouches for the park', async () => {
+        // Same conservative rule as an unmeasured ride: never claim a status on a guess.
+        const park = parkReturning([closureRow('Closed Due To Weather')]);
+        (park as any).getParkDetail = async () => {
+          throw new Error('park detail unavailable');
+        };
+        const liveData = await (park as any).buildLiveData();
+        expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('CLOSED');
+      });
+
+      it('keeps a weather hold DOWN when the hours are unknown but another ride has a fresh positive reading', async () => {
+        const park = parkReturning([
+          closureRow('Closed Due To Weather'),
+          {Id: 'measured', Minutes: 45, Status: '', StatusDisplay: '', Title: 'B', LastUpDateTime: FRESH_STAMP},
+        ]);
+        (park as any).getParkDetail = async () => {
+          throw new Error('park detail unavailable');
+        };
+        const liveData = await (park as any).buildLiveData();
+        expect(liveData.find((ld: any) => ld.id === 'r').status).toBe('DOWN');
+        expect(liveData.find((ld: any) => ld.id === 'measured').status).toBe('OPERATING');
+      });
     });
 
     it('reports unmeasured rides as CLOSED once the park has shut', async () => {
