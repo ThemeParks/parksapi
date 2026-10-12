@@ -249,11 +249,27 @@ export function shiftDateString(dateStr: string, days: number): string {
  * Replaces the per-park getXxxOffset() helpers that every park reimplemented.
  *
  * @param dateStr Date in YYYY-MM-DD format
- * @param timeStr Time in HH:mm or HH:mm:ss format
+ * @param timeStr Time in HH:mm or HH:mm:ss format. Hours 24-47 are read as the
+ *   next day, the convention Japanese parks use for late closes ("25:00" on the
+ *   31st is 01:00 on the 1st).
  * @param tz IANA timezone name (e.g., 'Europe/Amsterdam', 'America/New_York')
  * @returns ISO 8601 string with correct timezone offset (e.g., '2024-07-15T10:00:00+02:00')
  */
 export function constructDateTime(dateStr: string, timeStr: string, tz: string): string {
+  // Past-midnight hours ("24:30", "25:00") roll onto the next calendar day.
+  // Only a plain clock time is rolled, so a range or a note still throws below.
+  const overnight = timeStr.match(/^(\d{1,2}):(\d{2})(:\d{2})?$/);
+  if (overnight) {
+    const hour = parseInt(overnight[1], 10);
+    if (hour >= 24 && hour < 48) {
+      return constructDateTime(
+        shiftDateString(dateStr, 1),
+        `${String(hour - 24).padStart(2, '0')}:${overnight[2]}${overnight[3] ?? ''}`,
+        tz,
+      );
+    }
+  }
+
   // Ensure seconds are present
   const timeParts = timeStr.split(':');
   const fullTime = timeParts.length === 2 ? `${timeStr}:00` : timeStr;
