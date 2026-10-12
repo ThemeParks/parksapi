@@ -851,7 +851,14 @@ export class SeaworldDestination extends Destination {
         const minutes = typeof wt.Minutes === 'number' ? wt.Minutes : NaN;
 
         if (closureText) {
-          entry.status = 'CLOSED';
+          // A weather hold is DOWN: the ride is meant to be running and is not,
+          // which is how the other parks' weather signals are read. Every other
+          // closure text stays CLOSED. The feed keeps publishing after close, so
+          // DOWN is claimed only while the park is demonstrably operating; the
+          // same text overnight, or with unknown hours and nothing vouching for
+          // the park, is just a closed ride. Match on the word rather than a list
+          // of strings, because the set of closure strings is open.
+          entry.status = parkOperating && /weather/i.test(closureText) ? 'DOWN' : 'CLOSED';
           entry.queue = {STANDBY: {waitTime: null}};
           closedByStatus.add(wt.Id);
         } else if (Number.isFinite(minutes) && minutes >= 0) {
