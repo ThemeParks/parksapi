@@ -158,8 +158,21 @@ const MIN_RIDES_UP_TO_OPEN_CLOSED_DAY = 3;
 /**
  * True when enough rides are running to treat the feed's hours as a real
  * opening on a calendar closed day. See MIN_RIDES_UP_TO_OPEN_CLOSED_DAY.
+ *
+ * Ride statuses only count once the day's opening time has passed. The feed
+ * moves `operationHour` to the new day overnight, but the ride statuses stay
+ * frozen at the previous day's closing snapshot until opening time. After a
+ * normal day that snapshot has most rides UP, so before 10:00 a closed day
+ * would otherwise look opened. With no parseable opening time, the ride count
+ * decides on its own.
  */
-function closedDayOpened(rides: GentingWaitTime[] | undefined): boolean {
+function closedDayOpened(
+  rides: GentingWaitTime[] | undefined,
+  openingTime: string | undefined,
+  nowMs: number,
+): boolean {
+  const openMs = openingTime ? new Date(openingTime).getTime() : NaN;
+  if (Number.isFinite(openMs) && nowMs < openMs) return false;
   const up = (rides ?? []).filter((r) => r.status === 'UP').length;
   return up >= MIN_RIDES_UP_TO_OPEN_CLOSED_DAY;
 }
@@ -411,7 +424,8 @@ export class GentingSkyworlds extends Destination {
     // so the park is only open if enough rides are running to rule out a test
     // run (see MIN_RIDES_UP_TO_OPEN_CLOSED_DAY).
     const today = formatDate(new Date(), this.timezone);
-    const parkOpenNow = isCalendarClosed(today) && !closedDayOpened(wait.rideWaitTimes)
+    const parkOpenNow = isCalendarClosed(today)
+      && !closedDayOpened(wait.rideWaitTimes, wait.operationHour?.startTime, Date.now())
       ? false
       : this.isParkCurrentlyOpen(wait.operationHour);
 
@@ -543,7 +557,8 @@ export class GentingSkyworlds extends Destination {
       if (Number.isFinite(startDate.getTime()) && Number.isFinite(endDate.getTime())) {
         const startLocalDate = formatDate(startDate, this.timezone);
         const endLocalDate = formatDate(endDate, this.timezone);
-        if (isCalendarClosed(startLocalDate) && !closedDayOpened(wait.rideWaitTimes)) {
+        if (isCalendarClosed(startLocalDate)
+          && !closedDayOpened(wait.rideWaitTimes, live.startTime, Date.now())) {
           // The feed's default hours, not an opening: leave the day closed.
           return [{id: PARK_ID, schedule} as EntitySchedule];
         }

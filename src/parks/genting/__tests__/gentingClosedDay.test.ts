@@ -322,3 +322,77 @@ describe('Genting 2026 calendar transcription', () => {
     expect((park.schedule as any[]).some((s) => s.date === '2026-03-24')).toBe(false);
   });
 });
+
+/**
+ * Before opening time the feed already shows the new day's operationHour, but
+ * the ride statuses are still the previous day's closing snapshot. After a
+ * normal Monday most rides read UP, so on the closed Tuesday that follows, the
+ * snapshot must not count as an opening until 10:00.
+ */
+describe('Genting closed day before opening time', () => {
+  beforeEach(() => {
+    CacheLib.clear();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    CacheLib.clear();
+  });
+
+  // Monday's closing snapshot: 16 rides UP.
+  const frozen = () => ridesWithUp(16);
+
+  test.each([
+    ['00:05'],
+    ['06:56'],
+    ['09:59'],
+  ])('at %s the frozen snapshot does not schedule the day', async (time) => {
+    vi.setSystemTime(new Date(`${CLOSED_TUESDAY}T${time}:00+08:00`));
+    const p = probeFor(CLOSED_TUESDAY, frozen());
+
+    expect(await scheduleDay(p, CLOSED_TUESDAY)).toEqual([]);
+  });
+
+  test('before opening, live data reads CLOSED with no queues', async () => {
+    vi.setSystemTime(new Date(`${CLOSED_TUESDAY}T08:56:00+08:00`));
+    const live = await probeFor(CLOSED_TUESDAY, frozen()).liveForTest();
+
+    expect(live.every((l) => l.status === 'CLOSED')).toBe(true);
+    expect(live.some((l: any) => l.queue)).toBe(false);
+  });
+
+  test('from opening time, rides running do schedule the day', async () => {
+    vi.setSystemTime(new Date(`${CLOSED_TUESDAY}T10:00:00+08:00`));
+    const day = await scheduleDay(probeFor(CLOSED_TUESDAY, frozen()), CLOSED_TUESDAY);
+
+    expect(day).toHaveLength(1);
+    expect(day[0].openingTime).toBe('2026-09-29T10:00:00+08:00');
+  });
+
+  test('after closing, a day that really opened stays scheduled', async () => {
+    vi.setSystemTime(new Date(`${CLOSED_TUESDAY}T18:30:00+08:00`));
+    const day = await scheduleDay(probeFor(CLOSED_TUESDAY, frozen()), CLOSED_TUESDAY);
+
+    expect(day).toHaveLength(1);
+  });
+
+  test('a normal day is scheduled before opening whatever the rides read', async () => {
+    vi.setSystemTime(new Date(`${OPEN_MONDAY}T06:56:00+08:00`));
+    const day = await scheduleDay(probeFor(OPEN_MONDAY, closedDayRides()), OPEN_MONDAY);
+
+    expect(day).toHaveLength(1);
+  });
+
+  test('with no opening time in the feed, the ride count decides', async () => {
+    vi.setSystemTime(new Date(`${CLOSED_TUESDAY}T08:56:00+08:00`));
+    const p = probeFor(CLOSED_TUESDAY, frozen());
+    p.wait = {rideWaitTimes: frozen()};
+
+    // No operationHour means no overlay, so the closed day stays off the
+    // schedule; live data falls through to the ride statuses.
+    expect(await scheduleDay(p, CLOSED_TUESDAY)).toEqual([]);
+    const live = await p.liveForTest();
+    expect(live.filter((l) => l.status === 'OPERATING')).toHaveLength(16);
+  });
+});
