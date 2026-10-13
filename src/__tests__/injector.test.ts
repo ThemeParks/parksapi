@@ -417,4 +417,74 @@ describe('Injector System', () => {
       expect(spy).not.toHaveBeenCalled();
     });
   });
+
+  // Gate for sift upgrades. These are the filter shapes the parks use to route
+  // auth: `tags: {$nin: [...]}`, `tags: {$in: [...]}` and `hostname: {$in: [...]}`.
+  // sift 17.1.4 changed how $ne/$in/$nin/$exists behave on paths through arrays,
+  // and a wrong match here puts auth headers on the auth request itself, or
+  // leaves them off everything else. Expected results are MongoDB semantics,
+  // written by hand, never copied from what sift currently returns.
+  describe('Production filter shapes', () => {
+    class FilterShapes {
+      calls: string[] = [];
+
+      @inject({eventName: 'httpRequest', tags: {$nin: ['auth']}})
+      async notAuth() { this.calls.push('notAuth'); }
+
+      @inject({eventName: 'httpRequest', tags: {$in: ['auth']}})
+      async onlyAuth() { this.calls.push('onlyAuth'); }
+
+      @inject({eventName: 'httpRequest', hostname: {$in: ['a.example.com', 'b.example.com']}})
+      async knownHost() { this.calls.push('knownHost'); }
+
+      @inject({eventName: 'httpRequest', hostname: {$in: ['a.example.com', 'b.example.com']}, tags: {$nin: ['auth']}})
+      async knownHostNotAuth() { this.calls.push('knownHostNotAuth'); }
+    }
+
+    const cases: Array<{name: string; event: Record<string, unknown>; expected: string[]}> = [
+      {name: 'tags undefined', event: {hostname: 'other.example.com', tags: undefined}, expected: ['notAuth']},
+      {name: 'tags missing', event: {hostname: 'other.example.com'}, expected: ['notAuth']},
+      {name: 'tags null', event: {hostname: 'other.example.com', tags: null}, expected: ['notAuth']},
+      {name: 'tags empty', event: {hostname: 'other.example.com', tags: []}, expected: ['notAuth']},
+      {name: 'only the auth tag', event: {hostname: 'other.example.com', tags: ['auth']}, expected: ['onlyAuth']},
+      {name: 'auth among several tags', event: {hostname: 'other.example.com', tags: ['vqueue', 'auth']}, expected: ['onlyAuth']},
+      {name: 'auth listed first among several tags', event: {hostname: 'other.example.com', tags: ['auth', 'vqueue']}, expected: ['onlyAuth']},
+      {name: 'unrelated tags only', event: {hostname: 'other.example.com', tags: ['vqueue']}, expected: ['notAuth']},
+      {name: 'tag that merely contains auth', event: {hostname: 'other.example.com', tags: ['oauth', 'authz']}, expected: ['notAuth']},
+      {name: 'known host, no tags', event: {hostname: 'a.example.com', tags: []}, expected: ['notAuth', 'knownHost', 'knownHostNotAuth']},
+      {name: 'known host, tags undefined', event: {hostname: 'a.example.com'}, expected: ['notAuth', 'knownHost', 'knownHostNotAuth']},
+      {name: 'second known host, unrelated tag', event: {hostname: 'b.example.com', tags: ['x']}, expected: ['notAuth', 'knownHost', 'knownHostNotAuth']},
+      {name: 'known host with the auth tag', event: {hostname: 'a.example.com', tags: ['auth']}, expected: ['onlyAuth', 'knownHost']},
+      {name: 'hostname missing', event: {tags: []}, expected: ['notAuth']},
+      {name: 'hostname only a prefix of a known host', event: {hostname: 'a.example.com.evil.test', tags: []}, expected: ['notAuth']},
+      {name: 'hostname is a subdomain of a known host', event: {hostname: 'x.a.example.com', tags: []}, expected: ['notAuth']},
+    ];
+
+    it.each(cases)('routes $name', async ({event, expected}) => {
+      const instance = new FilterShapes();
+
+      await broadcast(instance, {eventName: 'httpRequest', ...event});
+
+      expect([...instance.calls].sort()).toEqual([...expected].sort());
+    });
+
+    it('does not route events with a different eventName, whatever their tags', async () => {
+      const instance = new FilterShapes();
+
+      await broadcast(instance, {eventName: 'httpResponse', hostname: 'a.example.com', tags: ['auth']});
+      await broadcast(instance, {eventName: 'httpResponse', hostname: 'a.example.com', tags: []});
+
+      expect(instance.calls).toEqual([]);
+    });
+
+    it('does not mutate the event while matching', async () => {
+      const instance = new FilterShapes();
+      const event = {eventName: 'httpRequest', hostname: 'a.example.com', tags: ['vqueue', 'auth']};
+      const before = JSON.parse(JSON.stringify(event));
+
+      await broadcast(instance, event);
+
+      expect(event).toEqual(before);
+    });
+  });
 });
