@@ -72,6 +72,16 @@ export function stripMapNumberPrefix(name: string): string {
   return name.replace(CIRCLED_NUMBER_PREFIX, '');
 }
 
+/**
+ * A category name reduced for comparison: runs of whitespace of any kind
+ * (including no-break spaces) become one space, the ends are trimmed and the
+ * case is folded. The parks type these names by hand, and some already pad
+ * them ("Summer ", "Howl’o’ween ").
+ */
+function normaliseCategoryName(name: string): string {
+  return name.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Category names used for entity classification
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1292,11 +1302,14 @@ class AttractionsIOV1 extends Destination {
    * is not a place, so it is published as nothing, whichever category holds
    * it. False for every park unless it names the product.
    *
-   * No field on the record separates a package from a ride: both are
-   * "Buy ..." call-to-actions on a record with a name and a summary, and a
-   * ride that sells a package carries the package's call-to-action itself.
-   * A park that lists packages therefore matches them by the name its own
-   * feed gives the product, never by the call-to-action or the summary.
+   * The record's other fields do not make a safe rule here. A package and the
+   * rides that sell it carry the same "Buy ..." call-to-actions. At Alton
+   * Towers the packages are the only published attractions that are off the
+   * map (VisibleOnMap and WayfindingEnabled false) with no classifications,
+   * but real rides in other Merlin parks share that combination (LEGOLAND
+   * Billund's pirate boats, Djurs Sommerland's fireworks show). A park that
+   * lists packages therefore matches them by the name its own feed gives the
+   * product, never by the flags, the call-to-actions or the summary.
    */
   protected isPaidProductListing(_item: RecordItem): boolean {
     return false;
@@ -1311,6 +1324,11 @@ class AttractionsIOV1 extends Destination {
    * hotel's "Dining" is a list of real restaurants. Only the named parent
    * says that what sits below it is food sold at an outlet that is already
    * listed on its own.
+   *
+   * A parent is matched on its whole name, ignoring case and the amount or
+   * kind of whitespace (see normaliseCategoryName), so a category the park
+   * re-types as "BRICK OR TREAT" still counts and "Brick or Treat Hotel" does
+   * not.
    */
   protected getSeasonalMenuParentCategories(): string[] {
     return [];
@@ -1322,7 +1340,7 @@ class AttractionsIOV1 extends Destination {
    * with a cycle guard, since the records are external data.
    */
   private async getSeasonalMenuItemIds(): Promise<Set<number>> {
-    const parents = new Set(this.getSeasonalMenuParentCategories().map(name => name.trim()));
+    const parents = new Set(this.getSeasonalMenuParentCategories().map(normaliseCategoryName));
     if (parents.size === 0) return new Set();
 
     const data = await this.getCatalogue();
@@ -1334,7 +1352,7 @@ class AttractionsIOV1 extends Destination {
         seen.add(current._id);
         const parent: CategoryRecord | undefined =
           current.Parent === undefined || current.Parent === null ? undefined : byId.get(current.Parent);
-        if (parent && parents.has(extractName(parent.Name))) return true;
+        if (parent && parents.has(normaliseCategoryName(extractName(parent.Name)))) return true;
         current = parent;
       }
       return false;
@@ -1484,7 +1502,9 @@ class AttractionsIOV1 extends Destination {
     );
 
     // Restaurants, less a seasonal event's menu specials (see
-    // getSeasonalMenuParentCategories)
+    // getSeasonalMenuParentCategories). The specials stay out of the
+    // scheduled-show fallback below as well: left out of `classified`, one
+    // that carried a schedule would come back as a SHOW.
     const seasonalMenuIds = await this.getSeasonalMenuItemIds();
     const restaurantItems = (await this.getItemsForCategories(RESTAURANT_CATEGORIES))
       .filter(item => !seasonalMenuIds.has(item._id));
@@ -1521,6 +1541,7 @@ class AttractionsIOV1 extends Destination {
       .filter(item =>
         !classified.has(item._id) &&
         !this.isPaidProductListing(item) &&
+        !seasonalMenuIds.has(item._id) &&
         parseShowTimes(item.ShowTimes) !== null,
       )
       .map(item => buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'SHOW'));

@@ -4,10 +4,13 @@
  *   - Alton Towers lists its paid queue-skip packages as items of its
  *     "Attractions" categories ("Fastrack Packages" under Thrills, "CBeebies
  *     Land Fastrack" under CBeebies Land, "Thrills Combi Fastrack"). They are
- *     off the map (VisibleOnMap and WayfindingEnabled false) and carry only
- *     "Buy ..." product call-to-actions. The rides they sell carry the same
- *     call-to-actions, and so does every ride, so no field on the record
- *     separates a package from a ride except its name.
+ *     off the map (VisibleOnMap and WayfindingEnabled false), have no
+ *     classifications and carry only "Buy ..." product call-to-actions. The
+ *     rides they sell carry the same call-to-actions. At Alton that
+ *     combination of flags matches the three packages and nothing else, but
+ *     real rides in other Merlin parks share it (LEGOLAND Billund's pirate
+ *     boats, Djurs Sommerland's fireworks show), so it is no rule for the
+ *     shared base class. The name the park gives the product is.
  *
  *   - LEGOLAND Florida's Halloween season keeps a "Dining" category under the
  *     "Brick or Treat" event category. Its items are the season's menu
@@ -62,6 +65,8 @@ function altonRecords(): any {
       {_id: 513, Name: 'Sales and Information', Parent: 502},
       {_id: 520, Name: 'Food & Drink'},
       {_id: 521, Name: 'Fast Food', Parent: 520},
+      // A seasonal category no list names: only a scheduled item is picked up.
+      {_id: 530, Name: 'Scarefest'},
     ],
     Item: [
       // The three packages Alton publishes as attractions.
@@ -91,18 +96,29 @@ function altonRecords(): any {
       // A food outlet whose name carries a different "Express".
       {_id: 4276, Name: 'Eastern Express - Mutiny Bay', Location: '52.9890,-1.8895',
         VisibleOnMap: true, WayfindingEnabled: true, Category: 521, entityIds: [], Classifications: [156]},
+      // Boundary cases (made up for this test): "fast" inside a longer word,
+      // and Fastrack as the stem of one.
+      {_id: 9001, Name: 'Breakfast Buffet', Category: 521, entityIds: [], Classifications: []},
+      {_id: 9002, Name: 'Fastracker Karts', Category: 507, entityIds: [], Classifications: [119]},
+      // A scheduled item in the unlisted category is a SHOW; one of the
+      // packages listed there with a schedule must not be.
+      {_id: 9003, Name: 'Scarefest Maze Show', Category: 530, ShowTimes: POINT_SHOW},
+      {_id: 9004, Name: 'Scarefest Fastrack', Category: 530, ShowTimes: POINT_SHOW,
+        VisibleOnMap: false, WayfindingEnabled: false, Classifications: []},
     ],
   };
 }
+
+const POINT_SHOW = JSON.stringify({type: 'period', offset_date: '2020-01-01 13:00:00', period_length: {day: 1}});
 
 describe('Alton Towers: Fastrack packages are not attractions', () => {
   test('the three packages are not published, whichever category they are filed under', async () => {
     const entities = await stub(new AltonTowers(), altonRecords()).getEntities();
     const ids = entities.map((e: any) => e.id);
-    for (const id of ['47752', '43139', '47829', '50979']) {
+    for (const id of ['47752', '43139', '47829', '50979', '9004']) {
       expect(ids).not.toContain(id);
     }
-    expect(entities.some((e: any) => /fastrack/i.test(e.name))).toBe(false);
+    expect(entities.some((e: any) => /\bfastrack\b/i.test(e.name))).toBe(false);
   });
 
   test('rides that sell a package keep their place, type and height tag', async () => {
@@ -126,8 +142,27 @@ describe('Alton Towers: Fastrack packages are not attractions', () => {
   test('every other entity survives: the only difference is the three packages', async () => {
     const entities = await stub(new AltonTowers(), altonRecords()).getEntities();
     expect(entities.map((e: any) => e.id).sort()).toEqual(
-      ['4188', '4194', '4205', '4276', 'altontowers', 'altontowersresort'].sort(),
+      ['4188', '4194', '4205', '4276', '9001', '9002', '9003', 'altontowers', 'altontowersresort'].sort(),
     );
+  });
+
+  test('a package in an unlisted category is not rescued by its schedule, a real show there is', async () => {
+    const entities = await stub(new AltonTowers(), altonRecords()).getEntities();
+    expect(entities.find((e: any) => e.id === '9003')).toMatchObject({name: 'Scarefest Maze Show', entityType: 'SHOW'});
+    expect(entities.find((e: any) => e.id === '9004')).toBeUndefined();
+  });
+
+  test('the name is matched as a whole word, in any case', async () => {
+    const park: any = new AltonTowers();
+    const listed = (name: any) => park.isPaidProductListing({_id: 1, Name: name});
+    for (const name of ['Fastrack', 'fastrack packages', 'FASTRACK', 'Summer Passholder Fastrack', 'Buy Fastrack!',
+      {'en-GB': 'Thrills Combi Fastrack'}]) {
+      expect(listed(name)).toBe(true);
+    }
+    for (const name of ['Breakfast Buffet', 'Fastracker Karts', 'Unfastrack', 'Fast Food Court', 'Fast Track Racers',
+      'Spinball Whizzer', '', undefined]) {
+      expect(listed(name)).toBe(false);
+    }
   });
 
   test('live data is emitted for the rides and for none of the packages', async () => {
@@ -142,8 +177,10 @@ describe('Alton Towers: Fastrack packages are not attractions', () => {
         },
       },
     };
-    const rows = await stub(new AltonTowers(), altonRecords(), live).getLiveData();
-    expect(rows.map((r: any) => r.id)).toEqual(['4194']);
+    const ids = (await stub(new AltonTowers(), altonRecords(), live).getLiveData()).map((r: any) => r.id);
+    expect(ids).toContain('4194');
+    expect(ids).not.toContain('47752');
+    expect(ids).not.toContain('43139');
   });
 
   test('other Merlin parks are untouched: the same record is still published elsewhere', async () => {
@@ -157,11 +194,12 @@ describe('Alton Towers: Fastrack packages are not attractions', () => {
 // LEGOLAND Florida
 // ---------------------------------------------------------------------------
 
-const BOT_SERVED_AT = 'Try this special Halloween treat only available throughout Brick or Treat season!';
+const BOT_TEASER = 'Try this special Halloween treat only available throughout Brick or Treat season!';
 
+// Names and outlets are the ones in the live pack; descriptions are shortened.
 function floridaRecords(): any {
   const special = (id: number, name: string, served: string) => ({
-    _id: id, Name: name, Summary: `${BOT_SERVED_AT}\n\nServed at ${served}.`,
+    _id: id, Name: name, Summary: `${BOT_TEASER}\n\nServed at ${served}.`,
     VisibleOnMap: true, WayfindingEnabled: true, Category: 5823, entityIds: [], Classifications: [],
   });
   return {
@@ -182,11 +220,11 @@ function floridaRecords(): any {
     Item: [
       // The seven menu specials from the Halloween season.
       special(52588, 'Hex Wrap', "Kick'n Chicken Co."),
-      special(52589, 'Green Machine', 'the Burger Kitchen'),
+      special(52589, 'Green Machine', 'Firehouse Ice Cream'),
       special(52590, 'Pumpkin Pie Apple Fries ', "Granny's Apple Fries"),
-      special(52591, 'Monster Loaded Fries ', 'Loop & Kernel'),
+      special(52591, 'Monster Loaded Fries ', "Dragon's Den"),
       special(52592, 'Spider Slush', 'LEGOLAND® Coffee Co.'),
-      special(52593, 'Franken-slice  ', "Pepper & Roni's Pizza Stop"),
+      special(52593, 'Franken-slice  ', "Brickolini's Pizza and Pasta"),
       special(52594, 'Broomstick Berry Shake ', 'Kingdom Cones'),
       // Real outlets: top-level Dining and a Dining sub-category.
       {_id: 11550, Name: 'Shipwreck Restaurant', Category: 575, entityIds: [], Classifications: [279, 632]},
@@ -195,8 +233,7 @@ function floridaRecords(): any {
       {_id: 5505, Name: 'Bricks Family Restaurant (LEGOLAND Hotel)', Category: 701, entityIds: [], Classifications: [280]},
       // The season's other content stays: a show with a schedule, and an
       // item in a category no list names.
-      {_id: 25366, Name: 'Zombie Cheer Crew', Category: 4917,
-        ShowTimes: JSON.stringify({type: 'period', offset_date: '2020-01-01 13:00:00', period_length: {day: 1}})},
+      {_id: 25366, Name: 'Zombie Cheer Crew', Category: 4917, ShowTimes: POINT_SHOW},
       {_id: 25363, Name: 'Candy Station - The Beginning', Category: 4914},
       // A ride.
       {_id: 6307, Name: 'The Dragon', Category: 578},
@@ -245,6 +282,15 @@ describe('LEGOLAND Florida: Brick or Treat menu specials are not restaurants', (
     expect(ids).toContain('25366'); // the season's show, with its showtimes
   });
 
+  test('a special that carries a schedule is not promoted to a SHOW by the fallback', async () => {
+    const records = floridaRecords();
+    records.Item.find((item: any) => item._id === 52588).ShowTimes = POINT_SHOW;
+    const entities = await stub(new LegolandOrlando(), records).getEntities();
+    expect(entities.find((e: any) => e.id === '52588')).toBeUndefined();
+    // The same schedule on a real show still makes it a SHOW.
+    expect(entities.find((e: any) => e.id === '25366')?.entityType).toBe('SHOW');
+  });
+
   test('only Florida opts in: the same records elsewhere keep every restaurant', async () => {
     const entities = await stub(new LegolandCalifornia(), floridaRecords()).getEntities();
     const restaurants = entities.filter((e: any) => e.entityType === 'RESTAURANT').map((e: any) => e.id);
@@ -268,5 +314,90 @@ describe('the hooks are opt-in on the base class', () => {
   test('a park that overrides nothing publishes a seasonal menu item', async () => {
     const entities = await new Probe(floridaRecords()).getEntities();
     expect(entities.some((e: any) => e.id === '52588')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// How the seasonal parent is found
+// ---------------------------------------------------------------------------
+
+// One Dining category under a parent of the given name, holding one item.
+function underParent(parentName: string, extraCategories: any[] = []): any {
+  return {
+    Resort: [{_id: 61, Name: {'en-US': 'LEGOLAND Florida'}}],
+    Category: [
+      {_id: 575, Name: {'en-US': 'Dining'}},
+      {_id: 900, Name: {'en-US': parentName}},
+      {_id: 901, Name: {'en-US': 'Dining'}, Parent: 900},
+      ...extraCategories,
+    ],
+    Item: [
+      {_id: 11550, Name: 'Shipwreck Restaurant', Category: 575},
+      {_id: 53000, Name: 'Under The Parent', Category: 901},
+    ],
+  };
+}
+
+const published = async (park: any, records: any) =>
+  (await stub(park, records).getEntities()).map((e: any) => e.id);
+
+describe('LEGOLAND Florida: finding the seasonal parent', () => {
+  test('a Dining category two levels below the parent is a list of specials too', async () => {
+    const records = underParent('Brick or Treat');
+    records.Category.push(
+      {_id: 902, Name: {'en-US': 'Weekends'}, Parent: 900},
+      {_id: 903, Name: {'en-US': 'Dining'}, Parent: 902},
+    );
+    records.Item.push({_id: 53001, Name: 'Two Levels Down', Category: 903});
+    const ids = await published(new LegolandOrlando(), records);
+    expect(ids).not.toContain('53000');
+    expect(ids).not.toContain('53001');
+    expect(ids).toContain('11550');
+  });
+
+  test('a parent link that loops back on itself ends the walk and keeps the item', async () => {
+    const records = underParent('Brick or Treat', [
+      {_id: 910, Name: {'en-US': 'Dining'}, Parent: 911},
+      {_id: 911, Name: {'en-US': 'Loop'}, Parent: 910},
+    ]);
+    records.Item.push({_id: 53002, Name: 'Looping Outlet', Category: 910});
+    const ids = await published(new LegolandOrlando(), records);
+    expect(ids).toContain('53002');
+    expect(ids).not.toContain('53000');
+  });
+
+  test.each([
+    ['as published', 'Brick or Treat'],
+    ['in capitals', 'BRICK OR TREAT'],
+    ['in lower case', 'brick or treat'],
+    ['with a double space', 'Brick  or Treat'],
+    ['with no-break spaces', 'Brick\u00a0or\u00a0Treat'],
+    ['padded, as Chessington\'s season categories are', ' Brick or Treat '],
+    ['with a tab', 'Brick or\tTreat'],
+  ])('a parent named %s is the seasonal parent', async (_label, name) => {
+    const ids = await published(new LegolandOrlando(), underParent(name));
+    expect(ids).not.toContain('53000');
+    expect(ids).toContain('11550');
+  });
+
+  test.each([
+    ['Brick or Treat Hotel'],      // longer name: whole-name match only
+    ['The Brick or Treat'],
+    ['Hotel'],
+    ['Brick or Treats'],
+  ])('a parent named %j is not', async name => {
+    const ids = await published(new LegolandOrlando(), underParent(name));
+    expect(ids).toContain('53000');
+  });
+
+  test('the name a park configures is compared the same way', async () => {
+    class Padded extends LegolandOrlando {
+      protected getSeasonalMenuParentCategories(): string[] {
+        return ['  BRICK  or Treat '];
+      }
+    }
+    const ids = await published(new Padded(), underParent('Brick or Treat'));
+    expect(ids).not.toContain('53000');
+    expect(ids).toContain('11550');
   });
 });
