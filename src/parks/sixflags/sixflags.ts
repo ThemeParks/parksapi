@@ -1331,6 +1331,23 @@ export class SixFlags extends Destination {
     return 'OPERATING';
   }
 
+  /**
+   * Map a show's venue-status row to a framework status.
+   *
+   * The same feed that reads a ride "Not Scheduled" reads a show "Not
+   * Scheduled" when it has no performance today, and the show is CLOSED. A
+   * show with performances reads "On Time" (sampled 2026-10-14: 325 show rows
+   * "Not Scheduled", 10 "On Time"), which stays OPERATING, as does anything
+   * else this module has not seen.
+   *
+   * Not routed through mapStatus(): a blank show status must stay OPERATING,
+   * where a blank ride status falls back to a posted wait, and a show posts
+   * none.
+   */
+  private mapShowStatus(status: string | undefined): string {
+    return (status ?? '').toLowerCase() === 'not scheduled' ? 'CLOSED' : 'OPERATING';
+  }
+
   // ============================================================================
   // Entity Building
   // ============================================================================
@@ -1750,12 +1767,15 @@ export class SixFlags extends Destination {
         if (addedIds.has(show.fimsId)) continue;
         addedIds.add(show.fimsId);
 
+        const status = this.mapShowStatus(show.status);
         const ld: LiveData = {
           id: show.fimsId,
-          status: 'OPERATING',
+          status,
         } as LiveData;
 
-        const starts = showtimesById.get(show.fimsId);
+        // A show that is not running today has no performances to publish,
+        // whatever the operating-hours feed still lists for it.
+        const starts = status === 'OPERATING' ? showtimesById.get(show.fimsId) : undefined;
         if (starts?.length) {
           (ld as any).showtimes = starts.map(startTime => ({
             startTime,
