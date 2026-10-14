@@ -169,6 +169,10 @@ type RecordItem = {
   MinimumUnaccompaniedHeightRequirement?: number | null;
   /** Recurring schedule tree (stringified JSON) for shows/animations. */
   ShowTimes?: string | null;
+  /** Whether the app draws the record on its map. */
+  VisibleOnMap?: boolean;
+  /** Whether the app will route a guest to the record. */
+  WayfindingEnabled?: boolean;
 };
 
 type CategoryRecord = {
@@ -1316,6 +1320,22 @@ class AttractionsIOV1 extends Destination {
   }
 
   /**
+   * Whether a record filed under a restaurant category is not somewhere a
+   * guest can eat: an information page about the park's food, or a kiosk that
+   * only the queue of a ride can reach. Such a record is published as nothing
+   * (no entity, no live row), the way a seasonal menu special is. False for
+   * every park unless it names the signal its own feed gives.
+   *
+   * Only records the restaurant lists would publish are asked, so a ride or a
+   * show is never affected, and a park names a signal that holds for its own
+   * restaurant records rather than for every record in the pack: the same
+   * flags mark real rides as unroutable in other parks.
+   */
+  protected isNonVenueRestaurantListing(_item: RecordItem): boolean {
+    return false;
+  }
+
+  /**
    * Names of seasonal event categories whose restaurant sub-categories list
    * the event's menu specials rather than outlets. Empty unless a park names
    * the container its own feed uses.
@@ -1504,13 +1524,16 @@ class AttractionsIOV1 extends Destination {
     );
 
     // Restaurants, less a seasonal event's menu specials (see
-    // getSeasonalMenuParentCategories). Only the restaurant-listed items under
-    // that parent are specials; the rest of what sits there is classified as
-    // usual.
+    // getSeasonalMenuParentCategories) and the records that are no venue (see
+    // isNonVenueRestaurantListing). Only the restaurant-listed items under the
+    // seasonal parent are specials; the rest of what sits there is classified
+    // as usual.
     const belowSeasonalParent = await this.getItemIdsBelowSeasonalParents();
     const restaurantCandidates = await this.getItemsForCategories(RESTAURANT_CATEGORIES);
-    const menuSpecialItems = restaurantCandidates.filter(item => belowSeasonalParent.has(item._id));
-    const restaurantItems = restaurantCandidates.filter(item => !belowSeasonalParent.has(item._id));
+    const isNotVenue = (item: RecordItem) =>
+      belowSeasonalParent.has(item._id) || this.isNonVenueRestaurantListing(item);
+    const nonVenueItems = restaurantCandidates.filter(isNotVenue);
+    const restaurantItems = restaurantCandidates.filter(item => !isNotVenue(item));
     const restaurantEntities = restaurantItems.map(item =>
       buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'RESTAURANT')
     );
@@ -1523,11 +1546,11 @@ class AttractionsIOV1 extends Destination {
     // signal for rides: a height requirement also sits on Thorpe Park's
     // per-ride "Ride Access Pass" duplicates, so unlisted items without a
     // schedule stay unclassified.
-    // The menu specials count as classified although they are not published:
-    // left out of this set, one that carried a schedule would come back from
-    // the fallback below as a SHOW.
+    // The records that are no venue count as classified although they are not
+    // published: left out of this set, one that carried a schedule would come
+    // back from the fallback below as a SHOW.
     const classified = new Set(
-      [...attractionItems, ...showItems, ...restaurantItems, ...menuSpecialItems].map(item => item._id),
+      [...attractionItems, ...showItems, ...restaurantItems, ...nonVenueItems].map(item => item._id),
     );
 
     // Walk-through areas the park files in a category of their own with an
@@ -1937,6 +1960,19 @@ export class ThorpePark extends AttractionsIOV1 {
         ...options?.config,
       },
     });
+  }
+
+  /**
+   * Thorpe Park files two information pages ("Allergies & Intolerances",
+   * "Food & Drink Information") and three kiosks inside a ride's queue
+   * ("Q-line Kiosk" for Colossus, The Swarm and SAW - The Ride) among its
+   * restaurants. The app does not route a guest to any of them
+   * (WayfindingEnabled is false). Every other restaurant record in the pack
+   * is routable, including the two Q-line kiosks at a ride's entrance, so the
+   * flag separates the five where the name does not.
+   */
+  protected isNonVenueRestaurantListing(item: RecordItem): boolean {
+    return item.WayfindingEnabled === false;
   }
 }
 

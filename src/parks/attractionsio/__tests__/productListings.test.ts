@@ -17,19 +17,26 @@
  *     specials ("Hex Wrap ... Served at Kick'n Chicken Co."), each sold at an
  *     outlet that is already a restaurant of its own.
  *
+ *   - Thorpe Park files two information pages ("Allergies & Intolerances",
+ *     "Food & Drink Information") and three kiosks that only the queue of a ride
+ *     can reach ("Q-line Kiosk (Colossus)", "... (The Swarm)", "... (SAW - The
+ *     Ride)") among its restaurants. The app will not route a guest to any of
+ *     them (WayfindingEnabled false); every real venue it lists can be routed to.
+ *
  * Near-misses are kept on purpose: rides that merely sell a package, food
- * outlets whose names contain "Express", and hotel restaurants nested under a
- * non-seasonal parent.
+ * outlets whose names contain "Express", hotel restaurants nested under a
+ * non-seasonal parent, and the Q-line kiosks the park does route to.
  *
  * The raw network methods are stubbed with payload-shaped fixtures; the real
  * subclasses build the entity list.
  */
 
-import {describe, test, expect, beforeEach} from 'vitest';
+import {describe, test, expect, beforeEach, afterEach, vi} from 'vitest';
 import {
   AltonTowers,
   LegolandCalifornia,
   LegolandOrlando,
+  ThorpePark,
   AttractionsIOV1,
 } from '../attractionsiov1.js';
 import {CacheLib} from '../../../cache.js';
@@ -310,6 +317,161 @@ describe('LEGOLAND Florida: Brick or Treat menu specials are not restaurants', (
   });
 });
 
+// ---------------------------------------------------------------------------
+// Thorpe Park
+// ---------------------------------------------------------------------------
+
+// Shapes copied from the live asset pack: the two information pages and the
+// three queue-only kiosks, beside the kiosks and restaurants the park does
+// route guests to. Locations and call-to-actions are shortened.
+function thorpeRecords(): any {
+  const SPOT = '51.405195,-0.513011'; // the pin both information pages share
+  return {
+    Resort: [{_id: 3, Name: 'Thorpe Park Resort'}],
+    Category: [
+      {_id: 459, Name: 'Rides & Shows'},
+      {_id: 920, Name: 'Thrill Rides', Parent: 459},
+      {_id: 460, Name: 'Food & Drink'},
+      {_id: 1702, Name: 'Drinks & Snacks', Parent: 460},
+      {_id: 925, Name: 'Restaurant'},
+      {_id: 926, Name: 'Fast Food'},
+    ],
+    Item: [
+      // The two information pages: off the map, no way to route to them.
+      {_id: 32088, Name: 'Allergies & Intolerances', Location: SPOT, Category: 460,
+        VisibleOnMap: false, WayfindingEnabled: false, entityIds: [], Classifications: []},
+      {_id: 36913, Name: 'Food & Drink Information', Location: SPOT, Category: 460,
+        VisibleOnMap: false, WayfindingEnabled: false, entityIds: [], Classifications: [60]},
+      // The three kiosks inside a ride's queue: drawn on the map, not routable.
+      {_id: 3885, Name: 'Q-line Kiosk (Colossus)', Summary: 'This kiosk can only be accessed by those in the Q-line for Colossus.',
+        Location: '51.403289202108,-0.51280192527008', Category: 1702,
+        VisibleOnMap: true, WayfindingEnabled: false, entityIds: [], Classifications: [61]},
+      {_id: 3891, Name: 'Q-line Kiosk (The Swarm)', Location: '51.405589870052,-0.51553509625626', Category: 1702,
+        VisibleOnMap: true, WayfindingEnabled: false, entityIds: [], Classifications: [61]},
+      {_id: 3897, Name: 'Q-line Kiosk (SAW - The Ride)', Location: '51.4023571895,-0.51166869196129', Category: 1702,
+        VisibleOnMap: true, WayfindingEnabled: false, entityIds: [], Classifications: [61]},
+      // Near-miss: two more kiosks with the same name pattern that the park
+      // does route to, one of them at the exit of a ride.
+      {_id: 3849, Name: 'Q-line Kiosk (Nemesis Inferno)', Location: '51.403566961618,-0.51619626077843', Category: 1702,
+        VisibleOnMap: true, WayfindingEnabled: true, entityIds: [], Classifications: [61]},
+      {_id: 47032, Name: 'Q-line Kiosk (Fearless Fuel)', Location: '51.402240059103,-0.51339992030715', Category: 1702,
+        VisibleOnMap: true, WayfindingEnabled: true, entityIds: [], Classifications: [61]},
+      // Real venues, in the three restaurant categories the park uses.
+      {_id: 10816, Name: 'Vibes Bar & Kitchen', Location: '51.404980831766,-0.51225475463105', Category: 460,
+        VisibleOnMap: true, WayfindingEnabled: true, entityIds: [], Classifications: [60]},
+      {_id: 3876, Name: 'KFC', Location: '51.4044,-0.5121', Category: 925,
+        VisibleOnMap: true, WayfindingEnabled: true, entityIds: [], Classifications: [60]},
+      {_id: 7034, Name: 'Boulevard Bites', Location: '51.4046,-0.5124', Category: 926,
+        VisibleOnMap: true, WayfindingEnabled: true, entityIds: [], Classifications: [60]},
+      // Made up for this test. A venue with "Information" in its name is kept:
+      // the name is not the signal.
+      {_id: 9101, Name: 'Information Point Cafe', Location: '51.4045,-0.5122', Category: 460,
+        VisibleOnMap: true, WayfindingEnabled: true, entityIds: [], Classifications: []},
+      // Made up for this test. A feed that does not carry the flags at all
+      // (older packs) keeps its restaurants.
+      {_id: 9102, Name: 'Flagless Grill', Location: '51.4047,-0.5125', Category: 460, entityIds: [], Classifications: []},
+      // Made up for this test. A ride the app cannot route to stays a ride: the
+      // rule belongs to the restaurant lists alone.
+      {_id: 9103, Name: 'Pinless Ride', Location: '51.4033,-0.5130', Category: 920,
+        VisibleOnMap: false, WayfindingEnabled: false, entityIds: [], Classifications: [119]},
+    ],
+  };
+}
+
+const THORPE_NOT_VENUES = ['32088', '36913', '3885', '3891', '3897'];
+
+describe('Thorpe Park: information pages and queue-only kiosks are not restaurants', () => {
+  test('the two pages and the three queue-only kiosks are not published', async () => {
+    const entities = await stub(new ThorpePark(), thorpeRecords()).getEntities();
+    const ids = entities.map((e: any) => e.id);
+    for (const id of THORPE_NOT_VENUES) expect(ids).not.toContain(id);
+    expect(entities.some((e: any) => /intolerances|food & drink information/i.test(e.name))).toBe(false);
+  });
+
+  test('every other entity survives: the only difference is those five records', async () => {
+    const entities = await stub(new ThorpePark(), thorpeRecords()).getEntities();
+    expect(entities.map((e: any) => e.id).sort()).toEqual(
+      ['10816', '3849', '3876', '47032', '7034', '9101', '9102', '9103', 'thorpepark', 'thorpeparkresort'].sort(),
+    );
+  });
+
+  test('kiosks the park does route to keep their place, whatever their name says', async () => {
+    const entities = await stub(new ThorpePark(), thorpeRecords()).getEntities();
+    for (const [id, name] of [['3849', 'Q-line Kiosk (Nemesis Inferno)'], ['47032', 'Q-line Kiosk (Fearless Fuel)']]) {
+      expect(entities.find((e: any) => e.id === id)).toMatchObject({name, entityType: 'RESTAURANT'});
+    }
+  });
+
+  test('real venues stay RESTAURANTs, in each restaurant category, and the name is not the signal', async () => {
+    const entities = await stub(new ThorpePark(), thorpeRecords()).getEntities();
+    for (const id of ['10816', '3876', '7034', '9101']) {
+      expect(entities.find((e: any) => e.id === id)?.entityType).toBe('RESTAURANT');
+    }
+  });
+
+  test('a record without the flag is kept: only an explicit false counts', async () => {
+    const entities = await stub(new ThorpePark(), thorpeRecords()).getEntities();
+    expect(entities.find((e: any) => e.id === '9102')?.entityType).toBe('RESTAURANT');
+    const park: any = new ThorpePark();
+    const listed = (flag: any) => park.isNonVenueRestaurantListing({_id: 1, Name: 'x', WayfindingEnabled: flag});
+    expect(listed(false)).toBe(true);
+    for (const flag of [true, undefined, null, 0, '', 'false']) expect(listed(flag)).toBe(false);
+  });
+
+  test('a ride the app cannot route to is still an ATTRACTION', async () => {
+    const entities = await stub(new ThorpePark(), thorpeRecords()).getEntities();
+    expect(entities.find((e: any) => e.id === '9103')?.entityType).toBe('ATTRACTION');
+  });
+
+  test('a page or kiosk with a schedule is not promoted to a SHOW by the fallback', async () => {
+    const records = thorpeRecords();
+    for (const item of records.Item) {
+      if (['3885', '32088'].includes(String(item._id))) item.ShowTimes = POINT_SHOW;
+    }
+    const entities = await stub(new ThorpePark(), records).getEntities();
+    expect(entities.find((e: any) => e.id === '3885')).toBeUndefined();
+    expect(entities.find((e: any) => e.id === '32088')).toBeUndefined();
+  });
+
+  describe('live data', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({toFake: ['Date']});
+      vi.setSystemTime(new Date('2026-10-14T12:00:00Z'));
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    test('no row is emitted for a page or a queue-only kiosk even when the feed carries one', async () => {
+      const live = {
+        entities: {
+          Item: {
+            records: [
+              {_id: 32088, IsOpen: true},
+              {_id: 36913, IsOpen: true},
+              {_id: 3885, IsOpen: true},
+              {_id: 3897, IsOpen: false},
+              {_id: 3849, IsOpen: true},
+              {_id: 10816, IsOpen: false},
+            ],
+          },
+        },
+      };
+      const rows = await stub(new ThorpePark(), thorpeRecords(), live).getLiveData();
+      const ids = rows.map((r: any) => r.id);
+      for (const id of THORPE_NOT_VENUES) expect(ids).not.toContain(id);
+      expect(rows.find((r: any) => r.id === '3849')?.status).toBe('OPERATING');
+      expect(rows.find((r: any) => r.id === '10816')?.status).toBe('CLOSED');
+    });
+  });
+
+  test('only Thorpe opts in: the same records elsewhere keep every restaurant', async () => {
+    const entities = await stub(new AltonTowers(), thorpeRecords()).getEntities();
+    const restaurants = entities.filter((e: any) => e.entityType === 'RESTAURANT').map((e: any) => e.id);
+    for (const id of THORPE_NOT_VENUES) expect(restaurants).toContain(id);
+  });
+});
+
 describe('the hooks are opt-in on the base class', () => {
   class Probe extends AttractionsIOV1 {
     constructor(records: any) {
@@ -326,6 +488,11 @@ describe('the hooks are opt-in on the base class', () => {
   test('a park that overrides nothing publishes a seasonal menu item', async () => {
     const entities = await new Probe(floridaRecords()).getEntities();
     expect(entities.some((e: any) => e.id === '52588')).toBe(true);
+  });
+
+  test('a park that overrides nothing publishes an information page and a queue-only kiosk', async () => {
+    const ids = (await new Probe(thorpeRecords()).getEntities()).map((e: any) => e.id);
+    for (const id of THORPE_NOT_VENUES) expect(ids).toContain(id);
   });
 });
 
