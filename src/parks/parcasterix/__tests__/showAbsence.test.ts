@@ -5,7 +5,7 @@ import {CacheLib} from '../../../cache.js';
 /**
  * `paxSchedules` is a same-day bill: it carries one entry per show performing
  * today and nothing at all for the rest. A show that is dark today therefore
- * has no live row to key off, and the collector is upsert-only — so the wiki
+ * has no live row to key off, and a downstream store only upserts — so the wiki
  * kept serving whichever showtimes the show last performed to, still reading
  * OPERATING. Three Parc Asterix shows were sitting on 11-day-old times when a
  * user reported it.

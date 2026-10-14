@@ -463,11 +463,11 @@ class EnchantedParks extends Destination {
   /**
    * Optional snapshot of per-attraction coordinates, keyed by attraction
    * name. The EP WordPress source does not expose ride-level lat/lng, so
-   * without this every collector tick proposes deleting the existing
+   * without this every sync proposes deleting the existing
    * location data on each attraction. Subclasses load a static JSON
    * snapshot from `locations/<slug>.json` taken when the park was migrated.
-   * Attractions added by EP later will land without coordinates and need
-   * the moderation queue.
+   * Attractions added by EP later will land without coordinates until theirs
+   * are added by hand.
    */
   protected attractionLocations?: Record<string, {latitude: number; longitude: number}>;
 

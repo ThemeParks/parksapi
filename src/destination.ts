@@ -77,8 +77,8 @@ function sanitizeEntityName(name: string): string {
  * Remove keys whose value is `undefined` anywhere in the object graph.
  * Mutates in place. Arrays and nulls pass through unchanged.
  *
- * The collector's hashObject() refuses `undefined` values — a parity with
- * JSON, where `{a: undefined}` serialises to `{}`. Parks occasionally leak
+ * Downstream hashing refuses `undefined` values, matching JSON, where
+ * `{a: undefined}` serialises to `{}`. Parks occasionally leak
  * undefined via patterns like `{waitTime: cond ? n : undefined}` or
  * `location: {lat, lng: maybeNumber}`. Scrubbing at the framework boundary
  * means every park's output is hash-safe without each one needing to
@@ -268,7 +268,7 @@ export abstract class Destination {
   /**
    * Whether this destination supports a real-time live data stream.
    * Parks with WebSocket or database sync feeds set this to true.
-   * The collector checks this to decide whether to run a stream loop.
+   * Consumers read this to decide whether to run a stream loop.
    * @default false
    */
   hasLiveStream: boolean = false;
@@ -291,8 +291,8 @@ export abstract class Destination {
    * from a full buildLiveData() snapshot for longer than
    * {@link liveEntityRetirementMs}.
    *
-   * The collector is upsert-only with no delete path, so simply omitting a
-   * retired entity from buildLiveData() output achieves nothing — the last
+   * A downstream store only upserts, so simply omitting a retired entity
+   * from buildLiveData() output achieves nothing — the last
    * value sits there indefinitely (see nigloland.ts RIDE_RETIREMENT_MS for
    * the same trap on a wait-time signal). Confirmed independently on two
    * park modules: a seasonal show run ends, the entity leaves the upstream
@@ -328,21 +328,20 @@ export abstract class Destination {
    * before it can retire, on top of {@link liveEntityRetirementMs}.
    *
    * Age alone is wall-clock, and nothing advances it while the source is
-   * down: a proxy block, a container stop or a deploy gap longer than the
+   * down: a block, an outage or a gap in polling longer than the
    * window all leave every timestamp stale, so the first poll to succeed
    * afterwards would retire everything missing from that one sample on the
    * strength of a single observation. Requiring the absence to repeat means
    * a close always rests on several builds.
    *
    * This also sets how long a collapse must persist before the degraded-feed
-   * guard arms, which couples it to the collector's polling interval across
-   * repo boundaries: `liveEntityRetirementMinMisses × pollInterval` has to
-   * land comfortably inside {@link liveEntityRetirementMs}, or the guard
-   * cannot arm before the age window opens and a mistimed recovery is closed
-   * silently again. Universal is the tightest case at 3 × 45 minutes against
-   * a four hour window, a 1.78x margin; the boundary sits at a 80 minute
-   * poll. Raising the collector's closed-park interval past that, or dropping
-   * a destination's window below 135 minutes, reopens the hole.
+   * guard arms, which couples it to how often the destination is polled:
+   * `liveEntityRetirementMinMisses × pollInterval` has to land comfortably
+   * inside {@link liveEntityRetirementMs}, or the guard cannot arm before the
+   * age window opens and a mistimed recovery is closed silently again. The
+   * tightest case is a destination polled least often while its park is shut.
+   * Lengthening that interval, or shrinking the window until it no longer
+   * clears `MinMisses × pollInterval` with room to spare, reopens the hole.
    *
    * @default 3
    */
@@ -367,8 +366,8 @@ export abstract class Destination {
    * source shedding rows in waves, with a retirement window between them,
    * keeps every wave under the threshold and is genuinely indistinguishable
    * from progressive retirement without venue-level grouping. Every
-   * simultaneity-based guard shares this, the collector's own bulk-close
-   * guard included. Grouping the fraction per `parkId` is the refinement if
+   * simultaneity-based guard shares this, a downstream bulk-close guard
+   * included. Grouping the fraction per `parkId` is the refinement if
    * it ever bites in practice.
    *
    * @default 0.5
@@ -1166,9 +1165,9 @@ export abstract class Destination {
    * whose rides pages began redirecting and were dropped by a scraper that
    * treats a failed page as an empty one.
    *
-   * Throwing is the point. The collector is upsert-only with no delete path of
-   * its own, so a truncated list does not quietly under-report — it proposes
-   * deleting everything missing from it. An error means the poll is skipped and
+   * Throwing is the point. A consumer that reconciles against this list reads
+   * a truncated one as a request to remove everything missing from it, so it
+   * does not quietly under-report. An error means the poll is skipped and
    * the last good list stands, which is always the better of the two.
    *
    * A destination that genuinely has no content sets
@@ -1319,8 +1318,8 @@ export abstract class Destination {
    * than {@link liveEntityRetirementMs} and across
    * {@link liveEntityRetirementMinMisses} consecutive snapshots gets a
    * synthetic `{id, status: 'CLOSED'}` row appended — a genuine value change,
-   * so the collector's hash-dedup actually writes it and clears the frozen
-   * row. Entities that reappear reset both counters and drop out of
+   * so a consumer that skips unchanged values still writes it and clears
+   * the frozen row. Entities that reappear reset both counters and drop out of
    * consideration; nothing here mutates entries buildLiveData() returned.
    *
    * Two things stop this speaking with more confidence than it has. The

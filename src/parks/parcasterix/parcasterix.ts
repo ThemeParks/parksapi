@@ -284,7 +284,7 @@ export class ParcAsterix extends Destination {
    * A backstop for the one absence buildLiveData() cannot read: a show that
    * leaves the offline package as well as the bill, taking its POI row with
    * it. Nothing then names the id, so there is no row to close it against, and
-   * the collector being upsert-only means omitting it achieves nothing — four
+   * because a downstream store only upserts, omitting it achieves nothing — four
    * retired shows read OPERATING on the wiki for 8 to 24 days that way. See
    * Destination.retireMissingLiveEntities for the mechanism.
    *
@@ -1134,7 +1134,7 @@ export class ParcAsterix extends Destination {
 
     // `paxSchedules` is a same-day bill: one entry per show performing today,
     // nothing at all for the rest. A show that is dark therefore produces no
-    // row, and because the collector is upsert-only the wiki went on serving
+    // row, and because a downstream store only upserts the wiki went on serving
     // the times of whichever day it last performed, still reading OPERATING —
     // three shows were 11 days stale when a user reported it.
     //

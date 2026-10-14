@@ -1,8 +1,8 @@
 /**
  * Cross-check that emitted rows are keyed to entities that actually exist.
  *
- * Deliberately dependency-free. It lives outside testRunner so the collector
- * can assert the same invariant on the push path, where orphan rows reach
+ * Deliberately dependency-free. It lives outside testRunner so a consumer
+ * can assert the same invariant on its push path, where orphan rows reach
  * consumers continuously, rather than only when someone runs the harness by
  * hand — and so its unit tests don't drag in the HTTP queue's interval timer
  * and the SQLite cache to exercise a pure function.

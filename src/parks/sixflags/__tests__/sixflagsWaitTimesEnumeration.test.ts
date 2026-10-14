@@ -15,8 +15,8 @@ import type {LiveData} from '@themeparks/typelib';
  * Confirmed live on 2026-07-23 for Canada's Wonderland (park 40): "The
  * Daredeviler" (RIDE-040-00072) was serving a 60 minute standby wait in
  * /wait-times/park/40, was absent from /venue-status/park/40 (79 rides) and
- * absent from /poi/park/40. Because parksapi emitted no record for it, the
- * hosted collector never wrote an update and themeparks.wiki kept serving a
+ * absent from /poi/park/40. Because parksapi emitted no record for it, no
+ * update was ever written and themeparks.wiki kept serving a
  * CLOSED record frozen at 2026-04-20 for three months, while the ride was
  * physically operating.
  *

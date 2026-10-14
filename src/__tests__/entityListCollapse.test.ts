@@ -86,8 +86,8 @@ describe('collapsed entity list', () => {
     },
   );
 
-  // Throwing is the point: the collector is upsert-only, so a truncated list
-  // does not under-report, it proposes deleting everything missing from it.
+  // Throwing is the point: a consumer that reconciles against the list reads a
+  // truncated one as a request to remove everything missing from it.
   // An error skips the poll and leaves the last good list standing.
   it('throws rather than returning the truncated list', async () => {
     let returned: Entity[] | undefined;

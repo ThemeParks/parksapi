@@ -590,8 +590,8 @@ describe('Energylandia — failures must not be cached', () => {
   test('a Proximiio outage is not persisted, so the next poll recovers', async () => {
     // The regression: the catch used to live INSIDE the @cache'd method, so the
     // empty result was written under a 12h TTL and every attraction lost its
-    // coordinates for half a day — across restarts and every other collector
-    // host — because of one transient blip.
+    // coordinates for half a day, even across restarts, because of one
+    // transient blip.
     const p = park();
     p.getShowDocs = async () => [];
     p.getAttractionDocs = async () => ATTRACTIONS;
@@ -719,8 +719,8 @@ describe('Energylandia — auth reuses one identity', () => {
 
   test('signs up once, then refreshes — it does not mint an account per token', async () => {
     // Anonymous sign-up creates a PERMANENT account in the park's Firebase
-    // project. At a 50-minute TTL, minting per renewal is ~10k accounts a year
-    // per collector host, accumulating in a third party's user list.
+    // project, so a token renewal must refresh the existing account rather than
+    // sign up again.
     const p: any = new Energylandia({config: CFG});
     let signUps = 0, refreshes = 0;
     p.fetchAnonymousSignUp = async () => {

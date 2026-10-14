@@ -348,7 +348,7 @@ export function parkLocalDateTime(now: Date, timezone: string): {date: string; t
  * Separate from `parkLocalDateTime` rather than folded into it: that function's
  * exact `{date, time}` shape is asserted by its tests, and a show timetable is
  * keyed by weekday alone. Derived from the same timezone rather than from
- * `Date.getDay()`, which would read the collector host's day and put the park on
+ * `Date.getDay()`, which would read the host's day and put the park on
  * the wrong timetable for the hours either side of local midnight.
  */
 export function parkLocalWeekday(now: Date, timezone: string): Weekday {
@@ -525,7 +525,7 @@ export function resolveShowVenueId(slots: ShowSlot[]): string | undefined {
  * the entity list, which downstream is a deletion. No real ride will ever
  * carry the product's own name, so a name match can only catch the pins.
  * Every locale is checked because `displayNameFor` picks one locale, and the
- * pin must be recognised regardless of which the collector is running in.
+ * pin must be recognised regardless of which it picks.
  */
 export function isEnergyPassEntrance(doc: FsDoc): boolean {
   const names = fsLocalised(doc.fields?.name);
@@ -609,15 +609,13 @@ export class Energylandia extends Destination {
    * A Firebase id token for the park's project, valid ~1 hour.
    *
    * The app signs in anonymously, so there is no credential to configure and
-   * nothing secret to hold. But anonymous sign-up MINTS A PERMANENT ACCOUNT in
-   * the park's Firebase project, so treating it as the renewal mechanism is
-   * abusive: at a 50 minute TTL that is ~29 accounts per day per collector
-   * host, ~10k a year, accumulating for ever in a third party's user list and
-   * billable to them as monthly active users. An app install mints one account
-   * and then *refreshes* it; this now does the same.
+   * nothing secret to hold. But anonymous sign-up mints a permanent account in
+   * the park's Firebase project, so it must not be the renewal mechanism. An
+   * app install signs up once and then *refreshes* that account; this does the
+   * same.
    *
    * The refresh token is long-lived and is cached separately for 30 days, so
-   * steady state is one account per host that renews itself. A fresh account is
+   * steady state is one account that renews itself. A fresh account is
    * minted only when there is no usable refresh token — first run, or after the
    * park revokes it.
    *
@@ -868,8 +866,8 @@ export class Energylandia extends Destination {
    * THROWS on failure, deliberately. This method is `@cache`d, and a cache
    * stores whatever the function *resolves* to — so catching in here and
    * returning `{}` would write an empty index under a 12 hour TTL, stripping
-   * coordinates from every attraction for half a day, across process restarts
-   * and every other collector host, because of one transient Proximiio blip.
+   * coordinates from every attraction for half a day, even across process
+   * restarts, because of one transient Proximiio blip.
    * A thrown error is never cached, so the next poll simply retries. The
    * caller is responsible for tolerating the throw — see `getLocationIndexSafe`
    * and the same split in `flamingoland.ts`, where the `.catch` lives at the

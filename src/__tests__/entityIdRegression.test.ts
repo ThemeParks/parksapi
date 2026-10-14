@@ -3,8 +3,8 @@
  *
  * These tests verify that entity IDs produced by TS park implementations
  * match the expected format and don't change unexpectedly. Entity ID
- * stability is critical because the ThemeParks.wiki collector agent
- * references entities by ID — changed IDs would corrupt the database.
+ * stability is critical because ThemeParks.wiki references entities by ID —
+ * changed IDs would corrupt the database.
  *
  * Tests cover:
  * 1. ID format validation (string, non-empty, no null/undefined)

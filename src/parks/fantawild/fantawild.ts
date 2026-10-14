@@ -677,8 +677,8 @@ export class Fantawild extends Destination {
    * works against the public API (observed comfortably with 50 concurrent
    * probes during discovery), but the shared @http queue throttles to
    * one request per 100ms anyway — so this is closer to staggered than
-   * truly parallel. @reusable() coalesces in-flight calls so a collector
-   * burst doesn't multiply work.
+   * truly parallel. @reusable() coalesces in-flight calls so a burst of
+   * callers doesn't multiply work.
    */
   @reusable()
   protected async buildEntityList(): Promise<Entity[]> {

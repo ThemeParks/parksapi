@@ -305,7 +305,7 @@ export function constructDateTime(dateStr: string, timeStr: string, tz: string):
   // (a range, a note, an empty string). Without this guard the first
   // formatToParts() below throws a bare "Invalid time value" with no clue
   // which park, date or field produced it — an expensive thing to diagnose
-  // from a collector log.
+  // from a log.
   if (!Number.isFinite(ms)) {
     throw new RangeError(
       `constructDateTime: invalid date/time (date="${dateStr}", time="${timeStr}", timezone="${tz}")`,

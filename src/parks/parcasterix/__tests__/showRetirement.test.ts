@@ -9,8 +9,8 @@ import {CacheLib} from '../../../cache.js';
  *
  * The gate covers the case the bill cannot see: a show that leaves the offline
  * package as well, taking its POI row with it. Nothing then names the id at
- * all, so there is nothing to close it against, and the collector being
- * upsert-only means dropping the row changes nothing on the wiki. Four retired
+ * all, so there is nothing to close it against, and because a downstream store
+ * only upserts, dropping the row changes nothing on the wiki. Four retired
  * shows read OPERATING for 8 to 24 days that way.
  */
 const DAY = 24 * 60 * 60 * 1000;

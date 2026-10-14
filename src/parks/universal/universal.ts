@@ -1003,9 +1003,9 @@ class Universal extends Destination {
    * night, so a week would never fire mid-season.
    *
    * Four hours sits between the two bounds that matter. The event runs while
-   * the day park is shut, when the collector polls every 45 minutes, so the
-   * window has to clear a gap of that order: four hours spans roughly five
-   * consecutive polls. It also has to fire inside the daytime absence, which
+   * the day park is shut, when polls are furthest apart, so the window has to
+   * clear several consecutive polls, which four hours does. It also has to
+   * fire inside the daytime absence, which
    * runs from a 01:00-02:00 close to 18:30 doors, and a close at 05:00-06:00
    * leaves over twelve hours of margin. Eight hours would not: after a peak
    * weekend it fires at 10:00, and #519 was reported at 10:51.

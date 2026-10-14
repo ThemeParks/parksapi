@@ -434,7 +434,7 @@ describe('Mirabilandia — wait-time microsite live data', () => {
 
   test('a feed failure emits nothing rather than fabricating a status', async () => {
     // Publishing a guessed status here would overwrite good data written by a
-    // healthy collector on another host.
+    // healthy poll elsewhere.
     const park = new Mirabilandia();
     park.waitTimesUrl = FEED_URL;
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});

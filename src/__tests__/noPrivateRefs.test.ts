@@ -1,5 +1,5 @@
 import {describe, it, expect} from 'vitest';
-import {readFileSync, readdirSync, statSync} from 'node:fs';
+import {existsSync, readFileSync, readdirSync, statSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {dirname, resolve, relative} from 'node:path';
 
@@ -25,10 +25,19 @@ import {dirname, resolve, relative} from 'node:path';
  * transcript URL, and a transcript is not something to hand to a park's legal
  * team.
  *
- * Kept narrow deliberately, so it stays switched on: it reads `src/` and the
- * README, which is where prose that ships publicly actually lives. It cannot
- * see commit messages or PR bodies, which are the other half of the exposure
- * and have to stay a matter of discipline.
+ * The same applies to how our own pipeline runs. A comment describes what this
+ * library emits and what happens to a row it leaves out; it does not name the
+ * downstream sync agent, say how often or from where it polls, or point at a
+ * directory on someone's machine. Those say how the data is collected in
+ * production, which is not for a competitor or a park's legal team to read.
+ * The rules for them below are shaped too: a word that is never right in this
+ * tree, an absolute path under a home directory, and any host under the
+ * project's own domain other than the public API.
+ *
+ * Kept narrow deliberately, so it stays switched on: it reads `src/`, the
+ * README, the TODO list and the skill docs, which is where prose that ships
+ * publicly actually lives. It cannot see commit messages or PR bodies, which
+ * are the other half of the exposure and have to stay a matter of discipline.
  */
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -42,7 +51,7 @@ const PUBLIC_REPOS = [
   'ThemeParks_Python',
 ];
 
-const FORBIDDEN: Array<{name: string; pattern: RegExp}> = [
+export const FORBIDDEN: Array<{name: string; pattern: RegExp}> = [
   // A cross-repo card reference, written `name#123` with no space. The space
   // matters: "PR #567" and "see #12" are same-repo and fine, while `name#123`
   // names another tracker. PUBLIC_REPOS is the allowlist.
@@ -60,6 +69,19 @@ const FORBIDDEN: Array<{name: string; pattern: RegExp}> = [
   // Session transcript links, in either the trailer or bare URL form.
   {name: 'session transcript link', pattern: /claude\.ai\/code\/session_/i},
   {name: 'session trailer', pattern: /^\s*Claude-Session\s*:/im},
+  // The downstream sync agent. Describe the contract from this library's side
+  // ("a consumer that only upserts") instead. A garbage collector is fine.
+  {name: 'mention of the downstream sync agent', pattern: /(?<!garbage\s)\bcollector\b/i},
+  // A path on someone's machine, such as a usage example that writes under a
+  // home directory. Use a relative path.
+  {name: 'absolute path under a user home directory', pattern: /\/(?:home|Users)\/[A-Za-z0-9._-]+\//},
+  // The wiki's review queue is part of how the pipeline runs.
+  {name: 'reference to the wiki moderation queue', pattern: /\bmoderation\s+(?:queue|backlog)\b/i},
+  // Any host under the project's domain except the public API.
+  {
+    name: 'host under the project domain that is not the public API',
+    pattern: /\b(?!(?:api|www)\.)[a-z0-9-]+\.themeparks\.wiki\b/i,
+  },
 ];
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -75,9 +97,16 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+/** Prose that ships publicly. CLAUDE.md is left out: it states the rules, so it names what they forbid. */
+const SKILL_DOCS = resolve(ROOT, '.claude/skills');
+
 describe('no private references leak into the public repository', () => {
-  const files = [...walk(resolve(ROOT, 'src')), resolve(ROOT, 'README.md')]
-    .filter((f) => f !== SELF);
+  const files = [
+    ...walk(resolve(ROOT, 'src')),
+    resolve(ROOT, 'README.md'),
+    resolve(ROOT, 'TODO.MD'),
+    ...(existsSync(SKILL_DOCS) ? walk(SKILL_DOCS) : []),
+  ].filter((f) => f !== SELF);
 
   it('has files to check (the walk itself must not silently find nothing)', () => {
     expect(files.length).toBeGreaterThan(100);
@@ -99,4 +128,70 @@ describe('no private references leak into the public repository', () => {
       expect(hits, `remove the ${name} at:\n  ${hits.join('\n  ')}`).toEqual([]);
     });
   }
+});
+
+describe('the patterns fire on what they were written for', () => {
+  const find = (name: string) => {
+    const hit = FORBIDDEN.find((f) => f.name === name);
+    if (!hit) throw new Error(`no rule named ${name}`);
+    return hit.pattern;
+  };
+
+  const cases: Array<{rule: string; flagged: string[]; allowed: string[]}> = [
+    {
+      rule: 'mention of the downstream sync agent',
+      flagged: [
+        'the collector is upsert-only',
+        '// Collector clock skew, not a retirement.',
+        'per collector host',
+        'multi-collector deployments',
+      ],
+      allowed: ['a consumer that only upserts', 'the garbage collector ran', 'a collection of rides', 'a Collect button'],
+    },
+    {
+      rule: 'absolute path under a user home directory',
+      flagged: ['--out=/home/someone/data/capture.jsonl', 'cd /Users/someone/work/'],
+      allowed: ['--out=./capture.jsonl', '/usr/src/app/dist', 'a /home page route', 'home/someone/relative'],
+    },
+    {
+      rule: 'reference to the wiki moderation queue',
+      flagged: ['land without coordinates and need the moderation queue', 'never reach the entity list / Moderation  Queue'],
+      allowed: ['the entity list', 'moderation is manual', 'a queue of requests'],
+    },
+    {
+      rule: 'host under the project domain that is not the public API',
+      flagged: ['ssh box.themeparks.wiki', 'https://admin.themeparks.wiki/v1', 'x-1.themeparks.wiki'],
+      allowed: ['https://api.themeparks.wiki/v1/entity', 'https://themeparks.wiki/', 'www.themeparks.wiki', 'themeparks.wiki.example.com'],
+    },
+    {
+      rule: 'session transcript link',
+      flagged: ['https://claude.ai/code/session_abc123'],
+      allowed: ['https://claude.ai/docs'],
+    },
+  ];
+
+  for (const {rule, flagged, allowed} of cases) {
+    it(`${rule}: flags ${flagged.length} samples, allows ${allowed.length}`, () => {
+      const pattern = find(rule);
+      for (const s of flagged) {
+        expect(new RegExp(pattern.source, pattern.flags.replace('m', '')).test(s), `should flag: ${s}`).toBe(true);
+      }
+      for (const s of allowed) {
+        expect(new RegExp(pattern.source, pattern.flags.replace('m', '')).test(s), `should allow: ${s}`).toBe(false);
+      }
+    });
+  }
+
+  it('has a sample case for every rule, so a new rule cannot ship untested', () => {
+    const covered = new Set(cases.map((c) => c.rule));
+    const missing = FORBIDDEN.map((f) => f.name).filter((n) => !covered.has(n));
+    // The two tracker rules and the project/field id and trailer rules predate this table.
+    const predates = new Set([
+      'cross-repo card reference to a non-public tracker',
+      'repository path under this org that is not a public repo',
+      'project/field id',
+      'session trailer',
+    ]);
+    expect(missing.filter((n) => !predates.has(n))).toEqual([]);
+  });
 });

@@ -114,8 +114,8 @@ export type PlopsaAttractionStatus = 'OPERATING' | 'DOWN' | 'CLOSED';
  * A *positive* wait-times reading is treated as ground truth: it means the
  * ride is taking guests right now, so it wins over a stale POI
  * `temporarily_closed` hint. Without that priority, a stale 12h-cached POI
- * snapshot on one collector instance disagreeing with another instance's
- * cached snapshot causes lockstep OPERATING ↔ DOWN flapping for the
+ * snapshot in one poller disagreeing with another poller's cached
+ * snapshot causes lockstep OPERATING ↔ DOWN flapping for the
  * affected rides.
  *
  * `hasWait` must only be true for a genuine positive reading — the
@@ -292,7 +292,7 @@ class PlopsaBase extends Destination {
    * after a ride opens, is already rescued by the `hasWait` priority.)
    *
    * 5 minutes tracks the flag closely enough while still collapsing the
-   * per-poll fetches of a collector running on a shorter interval. The feed is
+   * per-poll fetches of a caller running on a shorter interval. The feed is
    * ~220 KB per language, and `languages` holds one or two entries per park.
    *
    * The shorter TTL puts this fetch on the live path — it now runs on almost
@@ -348,8 +348,8 @@ class PlopsaBase extends Destination {
    *
    * `retries: 5` gives a ~31s exponential-backoff window
    * (1+2+4+8+16, ±10% jitter — see `calculateBackoffDelay` in
-   * src/http.ts). Without retries (and especially when running multiple
-   * collector instances), a single transient failure here causes
+   * src/http.ts). Without retries (and especially with several independent
+   * pollers), a single transient failure here causes
    * `parkOpenNow` to evaluate false in `buildLiveData`, which marks
    * every ride as CLOSED for that poll — exactly the kind of lockstep
    * flapping that previously surfaced in wiki history.
@@ -588,8 +588,8 @@ class PlopsaBase extends Destination {
     //
     // Caching is one-way: we persist TRUE for an hour but never FALSE. A
     // previous code revision cached both, which let one quirky upstream
-    // response lock a sibling collector into CLOSED for an hour and
-    // produce lockstep flapping when paired with a sibling that had cached
+    // response lock one poller into CLOSED for an hour and
+    // produce lockstep flapping when paired with another that had cached
     // TRUE. The cache key carries a `:v2` suffix so any cached FALSE from
     // that revision is unreachable on first deploy.
     const openCacheKey = `${this.getCacheKeyPrefix()}:parkOpenNow:v2:${today}`;

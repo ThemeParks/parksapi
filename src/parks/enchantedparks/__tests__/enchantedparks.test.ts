@@ -400,7 +400,7 @@ describe('attraction location lookup', () => {
 describe('attractionLocations wiring on every EnchantedParks subclass', () => {
   // Each subclass MUST wire up a locations/<slug>.json snapshot in its
   // constructor. Without it, updateSource() on the wiki does a full replace
-  // (not a merge) on every collector sync, silently wiping out any
+  // (not a merge) on every sync, silently wiping out any
   // real lat/lng the entity previously had — this happened for real to
   // Valleyfair (79 attractions/dining/shows lost their coordinates) because
   // it was the one subclass missing the wiring the other 5 already had.

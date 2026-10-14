@@ -202,7 +202,7 @@ describe('Template method pattern', () => {
   });
 
   test('framework strips undefined values from live data, entities, and schedules', async () => {
-    // Guards against the collector's hashObject() which rejects undefined.
+    // Guards against downstream hashing, which rejects undefined.
     // Parks sometimes produce undefined via patterns like
     //   { waitTime: cond ? n : undefined }
     //   location: { latitude, longitude: maybe }

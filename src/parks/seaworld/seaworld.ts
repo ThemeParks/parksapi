@@ -527,8 +527,8 @@ export class SeaworldDestination extends Destination {
     // Parks, Attractions, Shows, Restaurants
     //
     // Deliberately NOT wrapped in a per-park try/catch (unlike buildLiveData).
-    // The collector diffs this list against the live API and issues
-    // `DELETE v1/entity/<id>` for anything present remotely but missing here.
+    // A consumer diffs this list against the live API and removes anything
+    // present remotely but missing here.
     // Swallowing a fetch failure would emit a partial list and delete every
     // entity of the failed park from the wiki — far worse than the outage it
     // would be papering over. Throwing aborts the sync and changes nothing.

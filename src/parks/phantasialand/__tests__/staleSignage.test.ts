@@ -184,7 +184,7 @@ describe('Phantasialand stale signage rows', () => {
     });
 
     it('keeps a row stamped slightly in the future', async () => {
-      // Collector clock skew, not a retirement.
+      // Clock skew, not a retirement.
       const rows = await live(stubbedPark([row(52, -0.05, {waitTime: 5, open: true})]));
       expect(rows.find((l) => l.id === '52')?.queue).toBeDefined();
     });

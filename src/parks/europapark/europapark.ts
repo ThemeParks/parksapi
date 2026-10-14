@@ -1108,7 +1108,7 @@ class EuropaParkBase extends Destination {
     const nowDate = formatInTimezone(now, TIMEZONE, 'date');
     // Cap the emission horizon. Some seasons (e.g. Rulantica) run to 2099 as
     // a "always open" placeholder. Without a cap the inner loop formats
-    // ~28,000 days per call and dominates the collector's CPU time.
+    // ~28,000 days per call and dominates the CPU time.
     const horizonDate = (() => {
       const raw = formatInTimezone(addDays(now, 180), TIMEZONE, 'date');
       const [mm, dd, yyyy] = raw.split('/');
