@@ -205,19 +205,137 @@ describe('Djurs Sommerland schedules: regular days are unchanged', () => {
     ]);
     expect(on(entries, '2026-09-12').map(e => e.type)).toEqual(['OPERATING']);
   });
+});
 
-  // Not seen upstream: no published day carries both a regular and a Halloween
-  // entry. Pinned so that the day cannot end up with two OPERATING windows if
-  // one ever does: the regular hours stand and the event stays visible as INFO.
-  test('a day with regular hours and a Halloween window keeps ONE OPERATING entry', async () => {
+/**
+ * The page lays each day out from the events that cover it, first event of a
+ * kind winning: a Halloween window if there is one (and then only that window),
+ * otherwise the park hours with the water park beside them, otherwise closed.
+ * The module follows the same precedence.
+ *
+ * No published day carries two events of the same kind or a regular and a
+ * Halloween entry together at the moment; these pin what happens if one does.
+ */
+describe('Djurs Sommerland schedules: a date covered by more than one event', () => {
+  test('a Halloween window is the OPERATING entry and the regular window is left out', async () => {
     const entries = await schedule(page([
       ev(1, '10:00', '18:00', [day(OCT, 5)]),
       ev(4, '10:00', '21:00', [day(OCT, 5)]),
     ]));
 
+    expect(on(entries, '2026-10-05').map(e => [e.type, e.description, e.closingTime])).toEqual([
+      ['OPERATING', undefined, '2026-10-05T21:00:00+02:00'],
+      ['INFO', 'Magical Halloween', '2026-10-05T21:00:00+02:00'],
+    ]);
+  });
+
+  test('the regular window is left out whichever event the feed lists first', async () => {
+    const entries = await schedule(page([
+      ev(4, '10:00', '21:00', [day(OCT, 5)]),
+      ev(1, '10:00', '18:00', [day(OCT, 5)]),
+    ]));
+
     expect(on(entries, '2026-10-05').map(e => [e.type, e.closingTime])).toEqual([
-      ['OPERATING', '2026-10-05T18:00:00+02:00'],
+      ['OPERATING', '2026-10-05T21:00:00+02:00'],
       ['INFO', '2026-10-05T21:00:00+02:00'],
+    ]);
+  });
+
+  test('only dates a Halloween window covers lose their regular window', async () => {
+    const entries = await schedule(page([
+      ev(1, '10:00', '18:00', [day(OCT, 5), day(OCT, 6)]),
+      ev(4, '10:00', '21:00', [day(OCT, 6)]),
+    ]));
+
+    expect(on(entries, '2026-10-05').map(e => [e.type, e.closingTime])).toEqual([['OPERATING', '2026-10-05T18:00:00+02:00']]);
+    expect(on(entries, '2026-10-06').filter(e => e.type === 'OPERATING').map(e => e.closingTime)).toEqual(['2026-10-06T21:00:00+02:00']);
+  });
+
+  test('two Halloween windows on one date: the first in the feed gives the one OPERATING entry', async () => {
+    const entries = await schedule(page([
+      ev(4, '10:00', '21:00', [day(OCT, 10)]),
+      ev(4, '10:00', '18:00', [day(OCT, 10)]),
+    ]));
+
+    expect(on(entries, '2026-10-10').map(e => [e.type, e.closingTime])).toEqual([
+      ['OPERATING', '2026-10-10T21:00:00+02:00'],
+      ['INFO', '2026-10-10T21:00:00+02:00'],
+    ]);
+  });
+
+  test('and it is the feed order that decides, not the hours', async () => {
+    const entries = await schedule(page([
+      ev(4, '10:00', '18:00', [day(OCT, 10)]),
+      ev(4, '10:00', '21:00', [day(OCT, 10)]),
+    ]));
+
+    expect(on(entries, '2026-10-10').filter(e => e.type === 'OPERATING').map(e => e.closingTime)).toEqual(['2026-10-10T18:00:00+02:00']);
+  });
+});
+
+describe('Djurs Sommerland schedules: event codes the page does not use', () => {
+  let warn: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => { warn = vi.spyOn(console, 'warn').mockImplementation(() => {}); });
+
+  test('an unknown code is skipped, never read as park hours, and reported once', async () => {
+    const entries = await schedule(page([
+      ev(8, '10:00', '18:00', [day(OCT, 5), day(OCT, 6)]),
+      ev(3, '10:00', '18:00', [day(OCT, 7)]),
+      ev(1, '10:00', '18:00', [day(OCT, 8)]),
+    ]));
+
+    expect(entries.map(e => e.date)).toEqual(['2026-10-08']);
+    expect(warn).toHaveBeenCalledTimes(1);
+    const message = String(warn.mock.calls[0][0]);
+    expect(message).toContain('DjursSommerland');
+    expect(message).toContain('3');
+    expect(message).toContain('8');
+  });
+
+  test('the codes the page uses raise no warning', async () => {
+    await schedule(page(REAL_SHAPE));
+
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  test('a code sent as text is not one of them', async () => {
+    const entries = await schedule(page([ev('1' as unknown as number, '10:00', '18:00', [day(OCT, 5)])]));
+
+    expect(entries).toEqual([]);
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Djurs Sommerland schedules: ordering and overnight windows', () => {
+  test('park hours come before an event that starts in the same minute, whichever the feed lists first', async () => {
+    const entries = await schedule(page([
+      ev(2, '10:00', '16:00', [day(SEP, 5)]),
+      ev(1, '10:00', '18:00', [day(SEP, 5)]),
+    ]));
+
+    expect(on(entries, '2026-09-05').map(e => e.type)).toEqual(['OPERATING', 'INFO']);
+  });
+
+  test('a window that runs past midnight closes on the next calendar day', async () => {
+    const entries = await schedule(page([
+      ev(4, '18:00', '01:00', [day(OCT, 12)]),
+      ev(1, '22:00', '02:00', [day(SEP, 5)]),
+    ]));
+
+    expect(on(entries, '2026-10-12').map(e => [e.type, e.openingTime, e.closingTime])).toEqual([
+      ['OPERATING', '2026-10-12T18:00:00+02:00', '2026-10-13T01:00:00+02:00'],
+      ['INFO', '2026-10-12T18:00:00+02:00', '2026-10-13T01:00:00+02:00'],
+    ]);
+    expect(on(entries, '2026-09-05').map(e => [e.openingTime, e.closingTime])).toEqual([
+      ['2026-09-05T22:00:00+02:00', '2026-09-06T02:00:00+02:00'],
+    ]);
+  });
+
+  test('a window that closes in the same minute it opens is left as it is', async () => {
+    const entries = await schedule(page([ev(1, '10:00', '10:00', [day(SEP, 5)])]));
+
+    expect(on(entries, '2026-09-05').map(e => [e.openingTime, e.closingTime])).toEqual([
+      ['2026-09-05T10:00:00+02:00', '2026-09-05T10:00:00+02:00'],
     ]);
   });
 });
