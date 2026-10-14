@@ -835,14 +835,33 @@ describe('LEGOLAND Florida: finding the seasonal parent', () => {
   });
 
   test('a parent link that loops back on itself ends the walk and keeps the item', async () => {
+    // Without a cycle guard the walk never returns, and a loop that never
+    // yields cannot be stopped by the test timeout. The two looping categories
+    // therefore count every read of their parent link and fail the test with a
+    // message once a walk has gone round far more often than a guarded one
+    // would.
+    const READ_LIMIT = 1000;
+    let reads = 0;
+    const loopingCategory = (id: number, name: string, parent: number) => ({
+      _id: id,
+      Name: {'en-US': name},
+      get Parent() {
+        if (++reads > READ_LIMIT) {
+          expect.unreachable(`a parent link was read more than ${READ_LIMIT} times: the walk has no cycle guard`);
+        }
+        return parent;
+      },
+    });
     const records = underParent('Brick or Treat', [
-      {_id: 910, Name: {'en-US': 'Dining'}, Parent: 911},
-      {_id: 911, Name: {'en-US': 'Loop'}, Parent: 910},
+      loopingCategory(910, 'Dining', 911),
+      loopingCategory(911, 'Loop', 910),
     ]);
     records.Item.push({_id: 53002, Name: 'Looping Outlet', Category: 910});
     const ids = await published(new LegolandOrlando(), records);
     expect(ids).toContain('53002');
     expect(ids).not.toContain('53000');
+    expect(reads).toBeGreaterThan(0); // the looping links were walked
+    expect(reads).toBeLessThan(READ_LIMIT);
   });
 
   test.each([
