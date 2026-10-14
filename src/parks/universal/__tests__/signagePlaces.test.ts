@@ -10,8 +10,9 @@
  *
  * Fixture places keep the live ids, names, types and attributes.
  */
-import {describe, test, expect, afterEach, vi} from 'vitest';
+import {describe, test, expect, afterEach, beforeEach, vi} from 'vitest';
 import {UniversalStudios, isSignagePlace, type UniversalPlace} from '../universal.js';
+import {CacheLib} from '../../../cache.js';
 
 const attrs = (isEvent: boolean) => [
   {name: 'express_pass', value: 'false'},
@@ -101,7 +102,7 @@ describe('isSignagePlace', () => {
   });
 });
 
-function stub(places: UniversalPlace[], waits: unknown[] = []): any {
+function stub(places: UniversalPlace[], waits: unknown[] = [], retire = false): any {
   const park: any = new UniversalStudios();
   park._init = async () => undefined;
   park.getPlaces = async () => places;
@@ -110,7 +111,7 @@ function stub(places: UniversalPlace[], waits: unknown[] = []): any {
   park.getVirtualQueueStates = async () => [];
   park.getVenueSchedule = async () => [];
   park.getExpressNowOffers = async () => ({});
-  park.retireMissingLiveEntities = false;
+  park.retireMissingLiveEntities = retire;
   return park;
 }
 
@@ -145,5 +146,69 @@ describe('Universal Hollywood publishes no signage place', () => {
       waitRow('ush.upper_lot.rides.mario_kart_bowsers_challenge', 35),
     ]).getLiveData();
     expect(rows.map((r: any) => r.id)).toEqual(['ush.upper_lot.rides.mario_kart_bowsers_challenge']);
+  });
+});
+
+describe('a signage id that was already live before it was filtered', () => {
+  const SIGNAGE_ID = 'ush.lower_lot.rides.snw.park.signage';
+  const RIDE_ID = 'ush.upper_lot.rides.mario_kart_bowsers_challenge';
+  const PLACES = [PARK, LAND, SIGNAGE, BOWSER_JR, MARIO_KART];
+  const T0 = Date.parse('2026-10-14T20:00:00Z');
+  const HOUR = 3600_000;
+
+  beforeEach(() => {
+    CacheLib.clearByClassName('UniversalStudios', {includePersistent: true});
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    CacheLib.clearByClassName('UniversalStudios', {includePersistent: true});
+  });
+
+  // The feed still lists the signage place, as it did while it was published.
+  const waits = () => [
+    waitRow(SIGNAGE_ID, 0),
+    waitRow(RIDE_ID, 35),
+    waitRow('ush.lower_lot.rides.bowser.jr.challenge', 5),
+  ];
+
+  // The gate's tracker as an earlier build left it: both ids seen five hours ago.
+  async function seed() {
+    const probe = stub(PLACES, waits(), true);
+    const key = await probe.liveEntityRetirementCacheKey();
+    CacheLib.set(key, {
+      [SIGNAGE_ID]: {seenAt: T0 - 5 * HOUR, misses: 0},
+      [RIDE_ID]: {seenAt: T0 - 5 * HOUR, misses: 0},
+    }, 400 * 24 * 3600);
+  }
+
+  test('the retirement gate closes it once the absence has held, with one CLOSED row', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(T0);
+    await seed();
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const rowsFor = async () => (await stub(PLACES, waits(), true).getLiveData())
+      .filter((r: any) => r.id === SIGNAGE_ID);
+
+    // The build drops the row, so the gate sees an absence. It needs three in
+    // a row, 45 minutes apart, on top of the four-hour window.
+    vi.setSystemTime(T0 + 45 * 60_000);
+    expect(await rowsFor()).toEqual([]);
+    vi.setSystemTime(T0 + 90 * 60_000);
+    expect(await rowsFor()).toEqual([]);
+    vi.setSystemTime(T0 + 135 * 60_000);
+    expect(await rowsFor()).toEqual([{id: SIGNAGE_ID, status: 'CLOSED'}]);
+  });
+
+  test('every row it does emit while waiting is for a published entity', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(T0);
+    await seed();
+    vi.setSystemTime(T0 + 45 * 60_000);
+    const rows = await stub(PLACES, waits(), true).getLiveData();
+    expect(rows.map((r: any) => r.id).sort()).toEqual([
+      'ush.lower_lot.rides.bowser.jr.challenge',
+      RIDE_ID,
+    ].sort());
   });
 });
