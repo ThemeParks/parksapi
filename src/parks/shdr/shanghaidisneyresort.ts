@@ -278,9 +278,16 @@ export class ShanghaiDisneylandResort extends Destination {
 
   /**
    * Check if this is a non-ride attraction (merchandise, priority entrances,
-   * disability services, land entrances/exits, standby-pass-only items).
+   * disability services, land entrances/exits, standby-pass-only items, and a
+   * ride's single-rider queue filed as a record of its own).
    * SHDR tags all of these as type=Attraction with no distinguishing metadata,
    * so we filter by name patterns.
+   *
+   * The single-rider queue record ("“Zootopia: Hot Pursuit” Single Rider Line")
+   * is told apart by the park's wording of it. The `single-rider-line` facet
+   * cannot do it: the ride and its queue record both carry it, as does Seven
+   * Dwarfs Mine Train, which has a line and no second record. The ride's own
+   * single-rider queue comes from its wait-time row.
    */
   private isNonRideAttraction(name: string): boolean {
     const lower = name.toLowerCase();
@@ -295,6 +302,7 @@ export class ShanghaiDisneylandResort extends Destination {
       lower.includes('early park entry') ||
       lower.includes('disability access') ||
       lower.includes('standby pass required') ||
+      /\bsingle[\s-]+rider\s+line\b/i.test(name) ||
       /\b(entrance|exit)\s*(\(|$)/i.test(name)
     );
   }
