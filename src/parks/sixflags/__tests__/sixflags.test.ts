@@ -14,7 +14,7 @@ function jsonResponse(payload: unknown) {
  * (poi.parkId is always a real number from the POI API), the bundled
  * waterpark lookup silently returns zero POIs, and the /poi/park/{id}
  * standalone fallback 404s for BUNDLED-pattern waterparks — net effect,
- * the waterpark's entities vanish from every sync and the collector
+ * the waterpark's entities vanish from every sync and a consumer
  * proposes deleting them. Confirmed live for 5 of 7 Six Flags waterparks
  * (Cedar Point Shores, Knott's Soak City, and the NJ/LA/Chicago Hurricane
  * Harbors) before the fix.

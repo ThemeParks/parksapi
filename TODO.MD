@@ -41,7 +41,7 @@ The following parks are out of scope for this repository:
 
 ## Post-Migration: Entity ID Changes
 
-These parks have different entity IDs in TS vs JS. Before switching the collector,
+These parks have different entity IDs in TS vs JS. Before switching a park over,
 run `npm run migrate -- <parkId>` to update externalIds on api.themeparks.wiki.
 
 - ~~**Walibi Holland**~~ — done (attractions switched from `attr_gforce` slugified name to API UUIDs)
@@ -58,13 +58,13 @@ run `npm run migrate -- <parkId>` to update externalIds on api.themeparks.wiki.
 ## Legacy → TS parity regressions
 
 Surfaced by a legacy-vs-new audit. Each item represents a feature the JS
-collector emitted that the TS port doesn't — or emits differently. Listed
+implementation emitted that the TS port doesn't — or emits differently. Listed
 roughly by user impact. Legacy source is in git at `abd939ff^:lib/parks/`.
 
 ### Resolved
 
 - ~~**Disneyland Paris free virtual queue**~~ — restored via new x-api-key
-  endpoint (`91f0da3a`). Requires collector env: `DLP_VQUEUEAPIBASE`,
+  endpoint (`91f0da3a`). Requires env: `DLP_VQUEUEAPIBASE`,
   `DLP_VQUEUEAPIKEY`, `DLP_VQUEUEACTIVITIES=HeroTrainingCenter`.
 - ~~**Paultons operatingHours**~~ — structurally restored; dormant until
   upstream re-adds `openingTime`/`closingTime` fields (`396487d3`).

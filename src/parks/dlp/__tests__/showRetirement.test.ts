@@ -6,7 +6,7 @@ import {CacheLib} from '../../../cache.js';
  * parksapi #74: a DLP show ("Angel's Pop Star Party") ran its last
  * performance, left the POI/schedule feeds entirely, and its live row froze
  * OPERATING with a 7-week-old showtime — dropping a row achieves nothing,
- * the collector is upsert-only. DLP opts into the shared retirement gate
+ * since a downstream store only upserts. DLP opts into the shared retirement gate
  * (destination.ts) to force-close a show once it's been gone this long.
  */
 function stubbedPark(entertainment: Array<Record<string, unknown>>, schedule: unknown[]): DisneylandParis {

@@ -1230,10 +1230,10 @@ describe('SeaworldOrlando', () => {
       await expect((park as any).buildLiveData()).resolves.toEqual([]);
     });
 
-    // The next two guard the deliberate asymmetry. The collector diffs the
-    // entity list and issues DELETE v1/entity/<id> for anything missing, so
-    // swallowing a failure here would delete the failed park's entities from
-    // the wiki. These must keep throwing.
+    // The next two guard the deliberate asymmetry. A consumer that diffs the
+    // entity list removes whatever is missing, so swallowing a failure here
+    // would delete the failed park's entities from the wiki. These must keep
+    // throwing.
     it('buildEntityList still throws when a park fetch fails', async () => {
       const park = createMockedOrlando();
       park.getParkDetail = async (parkId: string) => {
@@ -1373,7 +1373,7 @@ describe('Park UUID assignment across destinations', () => {
 
   it('assigns every park UUID to exactly one destination', () => {
     // A UUID pasted into two destinations would publish the same PARK twice
-    // under different parents, and the collector would see it flap between them.
+    // under different parents, and a consumer would see it flap between them.
     const all = ALL().flatMap((p) => p.resortIds);
     expect(new Set(all).size).toBe(all.length);
   });

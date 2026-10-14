@@ -420,7 +420,7 @@ This rule also applies to **comments** — do not document specific API URLs or 
 ```
 
 ### Entity IDs — Backwards Compatibility
-Entity IDs must match the JS implementation exactly — the ThemeParks.wiki collector references entities by ID. Always verify with `npm run harness -- compare parkname`.
+Entity IDs must match the JS implementation exactly — ThemeParks.wiki references entities by ID. Always verify with `npm run harness -- compare parkname`.
 
 ### Entity IDs Must Be Strings
 Even if the API returns numbers: `id: String(apiId)`.

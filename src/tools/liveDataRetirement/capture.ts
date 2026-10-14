@@ -15,7 +15,7 @@
  * Usage:
  *   tsx --env-file=.env src/tools/liveDataRetirement/capture.ts \
  *     --only=disneylandparis,shanghaidisneylandresort \
- *     --out=/home/cube/monitoring/parksapi-show-retirement/capture.jsonl
+ *     --out=./capture.jsonl
  */
 import {appendFileSync, mkdirSync} from 'node:fs';
 import {dirname} from 'node:path';

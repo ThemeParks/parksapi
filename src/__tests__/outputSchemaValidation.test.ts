@@ -3,7 +3,7 @@
  *
  * Validates that every entity, live data entry, and schedule entry
  * produced by park implementations conforms to the @themeparks/typelib
- * types. These are the contracts the collector agent depends on.
+ * types. These are the contracts consumers depend on.
  *
  * Does NOT make live API calls — validates the structure and types
  * of output objects using mock/snapshot data and framework helpers.

@@ -278,7 +278,7 @@ describe('_isWaitsGlitch', () => {
 // Some upstream shows (e.g. Rulantica show 133 "TALENT ACADEMY on Stage")
 // arrive with an empty public `name` while the title sits in `analyticsName`.
 // Without a fallback they are dropped by the `if (!name) return` guard and
-// never reach the entity list / moderation queue.
+// never reach the entity list.
 class EntityProbe extends EuropaPark {
   private readonly _pois: any[];
   constructor(pois: any[]) {

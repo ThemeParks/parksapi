@@ -506,8 +506,8 @@ export class UniversalStudiosJapan extends Destination {
 
   protected async buildLiveData(): Promise<LiveData[]> {
     // Fetch independently so one CDN endpoint failing doesn't suppress the other.
-    // Previously a single Promise.all rejection killed the whole emission and the
-    // collector skipped the write, producing a multi-hour staleness gap.
+    // Previously a single Promise.all rejection killed the whole emission and
+    // nothing was written, producing a multi-hour staleness gap.
     const [waitTimeResult, showListResult] = await Promise.allSettled([
       this.getWaitTimeData(),
       this.getShowListData(),
@@ -525,7 +525,7 @@ export class UniversalStudiosJapan extends Destination {
       console.error('USJ: fetchShowList failed', showListResult.reason);
     }
 
-    // If both fetches failed, throw so the collector logs and skips this cycle
+    // If both fetches failed, throw so the caller logs and skips this cycle
     // rather than emitting an empty live-data set (which would mark every
     // attraction CLOSED via the wiki's implicit-closed semantics). Wrap both
     // reasons in an AggregateError so neither is lost and stack traces stay

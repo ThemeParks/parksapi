@@ -1052,7 +1052,7 @@ export class SixFlags extends Destination {
       // a real number), the bundled lookup silently returns zero POIs, and
       // the /poi/park/{id} standalone fallback 404s for BUNDLED-pattern
       // waterparks. Net effect: the waterpark's entities vanish from every
-      // sync and the collector proposes deleting them. Confirmed live for
+      // sync and a consumer proposes deleting them. Confirmed live for
       // Cedar Point Shores, Knott's Soak City, and 3 Hurricane Harbors
       // (NJ/LA/Chicago) — all had string fimsId and an empty entity list.
       const waterParks = (park.otherParks || [])
@@ -1601,9 +1601,9 @@ export class SixFlags extends Destination {
   // ============================================================================
 
   /**
-   * The collector creates one ResortSync per destination entity (33 of them)
-   * but they all share a single SixFlags instance. Without dedup, each poll
-   * fires 33 concurrent buildLiveData() calls that assemble the same 1446-item
+   * Every destination entity is polled separately, but they all share a single
+   * SixFlags instance. Without dedup, each poll fires one concurrent
+   * buildLiveData() call per destination, each assembling the same 1446-item
    * array. @reusable() coalesces the in-flight calls so only one runs per
    * burst; the next poll starts fresh.
    */
@@ -1703,7 +1703,7 @@ export class SixFlags extends Destination {
     // live wait for a ride it has dropped from that roster. Enumerating
     // venue-status alone silently discards the wait even though we already
     // fetched it, so the ride goes missing from live output entirely and the
-    // downstream collector, which only stamps a record when we emit one, keeps
+    // downstream store, which only stamps a record when we emit one, keeps
     // serving whatever it last stored.
     //
     // Confirmed at Canada's Wonderland (park 40) on 2026-07-23: "The

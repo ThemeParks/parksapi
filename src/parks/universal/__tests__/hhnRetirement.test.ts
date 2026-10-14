@@ -28,7 +28,7 @@ const RIDE_ID = 'uor.usf.rides.revenge_of_the_mummy';
 const MINUTES = 60 * 1000;
 const HOURS = 60 * MINUTES;
 
-/** Gap between two polls while the day park is shut, per the collector. */
+/** Assumed gap between two polls while the day park is shut. */
 const CLOSED_PARK_POLL_GAP = 45 * MINUTES;
 /** Event close (01:00-02:00) to the next night's doors (18:30). */
 const DAYTIME_ABSENCE = 16 * HOURS;

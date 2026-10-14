@@ -4,8 +4,8 @@
  * The full decision matrix for the status a ride emits: OPERATING, DOWN,
  * or CLOSED. The interesting cases are:
  *  - a *positive* wait time + a stale `temporarily_closed: true` from POI
- *    must NOT downgrade to DOWN, or multi-collector deployments will flap
- *    any ride whose POI snapshot disagrees between instances.
+ *    must NOT downgrade to DOWN, or independent pollers will flap any ride
+ *    whose POI snapshot disagrees between them.
  *  - `temporarily_closed: true` + a `0` wait time (the feed's default/
  *    no-signal value, present even for closed rides) MUST report DOWN,
  *    not OPERATING — `0` is not evidence of a live reading.

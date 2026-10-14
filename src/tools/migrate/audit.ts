@@ -3,8 +3,8 @@
  *
  * For every park in the parksapi registry, fetch the destinations it emits
  * and check whether each one's externalId matches what's currently on the
- * wiki. Any mismatch means the new TS collector will 400 on init for that
- * park ("Resort <id> isn't available on remote API server").
+ * wiki. Any mismatch means the wiki rejects syncs for that park until the id
+ * is renamed.
  *
  * Optionally rename mismatches with --fix. Uses WIKI_TOKEN from env.
  *
@@ -125,7 +125,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.log(`✗ ${mismatches.length} mismatch(es) — will 400 on collector init until renamed:\n`);
+  console.log(`✗ ${mismatches.length} mismatch(es) — will be rejected until renamed:\n`);
   for (const m of mismatches) {
     console.log(`  ${m.parksApiId}:`);
     console.log(`    emits    : ${m.emittedExternalId}`);

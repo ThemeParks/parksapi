@@ -1,7 +1,7 @@
 /**
  * Drop-vs-CLOSED retirement gate (parksapi #83 / #74).
  *
- * The collector is upsert-only with no delete path: dropping an entity from
+ * A downstream store only upserts: dropping an entity from
  * buildLiveData() output changes nothing, so a show that leaves the upstream
  * feed permanently freezes at its last live value forever. Confirmed
  * independently on DLP and SHDR. This is the shared, opt-in fix — a
@@ -244,7 +244,7 @@ describe('live entity retirement gate', () => {
       park.liveIds = ['show1', 'show2'];
       await park.getLiveData();
 
-      // Collector down for a month, then one successful poll that happens to
+      // Polling stopped for a month, then one successful poll that happens to
       // be missing show2.
       vi.setSystemTime(Date.now() + 30 * 24 * 60 * 60 * 1000);
       park.liveIds = ['show1'];

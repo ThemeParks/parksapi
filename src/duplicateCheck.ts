@@ -1,8 +1,8 @@
 /**
  * Cross-check that an entity list claims each id exactly once.
  *
- * Deliberately dependency-free, for the same reasons as orphanCheck: the
- * collector can assert the invariant on the push path rather than only when
+ * Deliberately dependency-free, for the same reasons as orphanCheck: a
+ * consumer can assert the invariant on its own push path rather than only when
  * someone runs the harness, and the unit tests stay clear of the HTTP queue
  * and the SQLite cache.
  *
