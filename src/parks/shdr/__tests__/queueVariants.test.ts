@@ -121,6 +121,9 @@ describe('SHDR single-rider queue records', () => {
     ['Seven Dwarfs Mine Train'],
     ['Rider Switch Adventure'],
     ['Single Rider Express Coaster'],
+    // Made-up names that only embed the phrase in a longer word.
+    ['Multisingle Rider Line'],
+    ['Single Rider Lineup'],
   ])('%j is a ride', async name => {
     const entities = await park([PARK, attraction('attX', name)]).getEntities();
     expect(entities.some((e: any) => e.id === idOf(`attX${SUFFIX}`))).toBe(true);
