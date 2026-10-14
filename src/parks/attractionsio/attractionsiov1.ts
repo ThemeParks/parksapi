@@ -72,6 +72,16 @@ export function stripMapNumberPrefix(name: string): string {
   return name.replace(CIRCLED_NUMBER_PREFIX, '');
 }
 
+/**
+ * A category name reduced for comparison: runs of whitespace of any kind
+ * (including no-break spaces) become one space, the ends are trimmed and the
+ * case is folded. The parks type these names by hand, and some already pad
+ * them ("Summer ", "Howl’o’ween ").
+ */
+function normaliseCategoryName(name: string): string {
+  return name.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Category names used for entity classification
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1279,7 +1289,78 @@ class AttractionsIOV1 extends Destination {
     }
 
     const data = await this.getCatalogue();
-    return data.Item.filter(item => item.Category !== undefined && allCatIds.includes(item.Category));
+    return data.Item.filter(item =>
+      item.Category !== undefined &&
+      allCatIds.includes(item.Category) &&
+      !this.isPaidProductListing(item),
+    );
+  }
+
+  /**
+   * Whether a record is a paid product the park files among its places, such
+   * as a queue-skip package listed beside the rides it sells. Such a record
+   * is not a place, so it is published as nothing, whichever category holds
+   * it. False for every park unless it names the product.
+   *
+   * The record's other fields do not make a safe rule here. A package and the
+   * rides that sell it carry the same "Buy ..." call-to-actions. At Alton
+   * Towers the packages are the only published attractions that are off the
+   * map (VisibleOnMap and WayfindingEnabled false) with no classifications,
+   * but real rides in other Merlin parks share that combination (LEGOLAND
+   * Billund's pirate boats, Djurs Sommerland's fireworks show). A park that
+   * lists packages therefore matches them by the name its own feed gives the
+   * product, never by the flags, the call-to-actions or the summary.
+   */
+  protected isPaidProductListing(_item: RecordItem): boolean {
+    return false;
+  }
+
+  /**
+   * Names of seasonal event categories whose restaurant sub-categories list
+   * the event's menu specials rather than outlets. Empty unless a park names
+   * the container its own feed uses.
+   *
+   * A restaurant category nested under any other parent is not affected: a
+   * hotel's "Dining" is a list of real restaurants. Only the named parent
+   * says that what sits below it is food sold at an outlet that is already
+   * listed on its own.
+   *
+   * A parent is matched on its whole name, ignoring case and the amount or
+   * kind of whitespace (see normaliseCategoryName), so a category the park
+   * re-types as "BRICK OR TREAT" still counts and "Brick or Treat Hotel" does
+   * not.
+   */
+  protected getSeasonalMenuParentCategories(): string[] {
+    return [];
+  }
+
+  /**
+   * The items whose category sits below one of the seasonal parents named by
+   * getSeasonalMenuParentCategories(), at any depth, whatever kind of item
+   * they are: the same parent holds the season's shows, meet and greets and
+   * rides. Walks the parent links with a cycle guard, since the records are
+   * external data.
+   */
+  private async getItemIdsBelowSeasonalParents(): Promise<Set<number>> {
+    const parents = new Set(this.getSeasonalMenuParentCategories().map(normaliseCategoryName));
+    if (parents.size === 0) return new Set();
+
+    const data = await this.getCatalogue();
+    const byId = new Map(data.Category.map(category => [category._id, category]));
+    const sitsBelowSeasonalParent = (categoryId: number | undefined): boolean => {
+      const seen = new Set<number>();
+      let current = categoryId === undefined ? undefined : byId.get(categoryId);
+      while (current && !seen.has(current._id)) {
+        seen.add(current._id);
+        const parent: CategoryRecord | undefined =
+          current.Parent === undefined || current.Parent === null ? undefined : byId.get(current.Parent);
+        if (parent && parents.has(normaliseCategoryName(extractName(parent.Name)))) return true;
+        current = parent;
+      }
+      return false;
+    };
+
+    return new Set(data.Item.filter(item => sitsBelowSeasonalParent(item.Category)).map(item => item._id));
   }
 
   /**
@@ -1422,8 +1503,14 @@ class AttractionsIOV1 extends Destination {
       buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'SHOW')
     );
 
-    // Restaurants
-    const restaurantItems = await this.getItemsForCategories(RESTAURANT_CATEGORIES);
+    // Restaurants, less a seasonal event's menu specials (see
+    // getSeasonalMenuParentCategories). Only the restaurant-listed items under
+    // that parent are specials; the rest of what sits there is classified as
+    // usual.
+    const belowSeasonalParent = await this.getItemIdsBelowSeasonalParents();
+    const restaurantCandidates = await this.getItemsForCategories(RESTAURANT_CATEGORIES);
+    const menuSpecialItems = restaurantCandidates.filter(item => belowSeasonalParent.has(item._id));
+    const restaurantItems = restaurantCandidates.filter(item => !belowSeasonalParent.has(item._id));
     const restaurantEntities = restaurantItems.map(item =>
       buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'RESTAURANT')
     );
@@ -1436,8 +1523,11 @@ class AttractionsIOV1 extends Destination {
     // signal for rides: a height requirement also sits on Thorpe Park's
     // per-ride "Ride Access Pass" duplicates, so unlisted items without a
     // schedule stay unclassified.
+    // The menu specials count as classified although they are not published:
+    // left out of this set, one that carried a schedule would come back from
+    // the fallback below as a SHOW.
     const classified = new Set(
-      [...attractionItems, ...showItems, ...restaurantItems].map(item => item._id),
+      [...attractionItems, ...showItems, ...restaurantItems, ...menuSpecialItems].map(item => item._id),
     );
 
     // Walk-through areas the park files in a category of their own with an
@@ -1454,7 +1544,11 @@ class AttractionsIOV1 extends Destination {
     for (const item of walkThroughItems) classified.add(item._id);
 
     const scheduledShowEntities = data.Item
-      .filter(item => !classified.has(item._id) && parseShowTimes(item.ShowTimes) !== null)
+      .filter(item =>
+        !classified.has(item._id) &&
+        !this.isPaidProductListing(item) &&
+        parseShowTimes(item.ShowTimes) !== null,
+      )
       .map(item => buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'SHOW'));
 
     return [
@@ -1813,6 +1907,17 @@ export class AltonTowers extends AttractionsIOV1 {
       },
     });
   }
+
+  /**
+   * Alton Towers lists its paid queue-skip packages as items of its
+   * "Attractions" categories: "Fastrack Packages" under Thrills, "CBeebies
+   * Land Fastrack" under CBeebies Land and "Thrills Combi Fastrack". Fastrack
+   * is the name of the product, and no ride at the park carries it, so the
+   * name is what separates a package from the rides that sell one.
+   */
+  protected isPaidProductListing(item: RecordItem): boolean {
+    return /\bFastrack\b/i.test(extractName(item.Name));
+  }
 }
 
 /**
@@ -1904,6 +2009,16 @@ export class LegolandOrlando extends AttractionsIOV1 {
         ...options?.config,
       },
     });
+  }
+
+  /**
+   * The Halloween season keeps its own "Dining" category under "Brick or
+   * Treat". Its items are the season's menu specials ("Hex Wrap", "Spider
+   * Slush", "Franken-slice"), each sold at an outlet that is already a
+   * restaurant of its own: the summary says "Served at <outlet>".
+   */
+  protected getSeasonalMenuParentCategories(): string[] {
+    return ['Brick or Treat'];
   }
 }
 

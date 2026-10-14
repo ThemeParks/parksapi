@@ -250,6 +250,24 @@ export function isNonPoiNamespace(place: UniversalPlace): boolean {
 }
 
 /**
+ * True for a land's signage typed as a point of interest.
+ *
+ * Hollywood publishes `ush.lower_lot.rides.snw.park.signage` as a `Ride`
+ * named "Super Nintendo World", after the land that is also a Land place. It
+ * is a walk-through marker, not an attraction. Nothing in its attributes says
+ * so: it has the same type, categories (kid-friendly, walk-thru-attraction)
+ * and `is_event=true` as `ush.lower_lot.rides.bowser.jr.challenge`, a real
+ * walk-through attraction in the same land. The place's own id is what names
+ * it, so that is what is matched: a final dotted segment of exactly
+ * `signage`. A name that mentions signage, or an id that carries the word
+ * anywhere else, does not count.
+ */
+export function isSignagePlace(place: UniversalPlace): boolean {
+  const last = (place.place_id ?? '').split('.').pop() ?? '';
+  return last.toLowerCase() === 'signage';
+}
+
+/**
  * True for an Orlando accessibility-return-time POI — the feed publishes each
  * Halloween Horror Nights house's accessibility return service as its OWN
  * `Ride` place ("Sinners Accessibility Return Time" beside "Sinners"), the
@@ -1719,6 +1737,8 @@ class Universal extends Destination {
       if (isAccessibilityReturnTimeVariant(place, knownPlaceIds)) continue;
       // Passholder marketing copy typed as a ride/show/dining place.
       if (isNonPoiNamespace(place)) continue;
+      // A land's signage typed as a ride (Super Nintendo World's).
+      if (isSignagePlace(place)) continue;
       const entity = placeToEntity(place, destinationId, this.timezone);
       if (entity) out.push(entity);
     }
