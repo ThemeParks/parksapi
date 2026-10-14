@@ -1279,7 +1279,68 @@ class AttractionsIOV1 extends Destination {
     }
 
     const data = await this.getCatalogue();
-    return data.Item.filter(item => item.Category !== undefined && allCatIds.includes(item.Category));
+    return data.Item.filter(item =>
+      item.Category !== undefined &&
+      allCatIds.includes(item.Category) &&
+      !this.isPaidProductListing(item),
+    );
+  }
+
+  /**
+   * Whether a record is a paid product the park files among its places, such
+   * as a queue-skip package listed beside the rides it sells. Such a record
+   * is not a place, so it is published as nothing, whichever category holds
+   * it. False for every park unless it names the product.
+   *
+   * No field on the record separates a package from a ride: both are
+   * "Buy ..." call-to-actions on a record with a name and a summary, and a
+   * ride that sells a package carries the package's call-to-action itself.
+   * A park that lists packages therefore matches them by the name its own
+   * feed gives the product, never by the call-to-action or the summary.
+   */
+  protected isPaidProductListing(_item: RecordItem): boolean {
+    return false;
+  }
+
+  /**
+   * Names of seasonal event categories whose restaurant sub-categories list
+   * the event's menu specials rather than outlets. Empty unless a park names
+   * the container its own feed uses.
+   *
+   * A restaurant category nested under any other parent is not affected: a
+   * hotel's "Dining" is a list of real restaurants. Only the named parent
+   * says that what sits below it is food sold at an outlet that is already
+   * listed on its own.
+   */
+  protected getSeasonalMenuParentCategories(): string[] {
+    return [];
+  }
+
+  /**
+   * The items whose category sits below one of the seasonal parents named by
+   * getSeasonalMenuParentCategories(), at any depth. Walks the parent links
+   * with a cycle guard, since the records are external data.
+   */
+  private async getSeasonalMenuItemIds(): Promise<Set<number>> {
+    const parents = new Set(this.getSeasonalMenuParentCategories().map(name => name.trim()));
+    if (parents.size === 0) return new Set();
+
+    const data = await this.getCatalogue();
+    const byId = new Map(data.Category.map(category => [category._id, category]));
+    const sitsBelowSeasonalParent = (categoryId: number | undefined): boolean => {
+      const seen = new Set<number>();
+      let current = categoryId === undefined ? undefined : byId.get(categoryId);
+      while (current && !seen.has(current._id)) {
+        seen.add(current._id);
+        const parent: CategoryRecord | undefined =
+          current.Parent === undefined || current.Parent === null ? undefined : byId.get(current.Parent);
+        if (parent && parents.has(extractName(parent.Name))) return true;
+        current = parent;
+      }
+      return false;
+    };
+
+    return new Set(data.Item.filter(item => sitsBelowSeasonalParent(item.Category)).map(item => item._id));
   }
 
   /**
@@ -1422,8 +1483,11 @@ class AttractionsIOV1 extends Destination {
       buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'SHOW')
     );
 
-    // Restaurants
-    const restaurantItems = await this.getItemsForCategories(RESTAURANT_CATEGORIES);
+    // Restaurants, less a seasonal event's menu specials (see
+    // getSeasonalMenuParentCategories)
+    const seasonalMenuIds = await this.getSeasonalMenuItemIds();
+    const restaurantItems = (await this.getItemsForCategories(RESTAURANT_CATEGORIES))
+      .filter(item => !seasonalMenuIds.has(item._id));
     const restaurantEntities = restaurantItems.map(item =>
       buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'RESTAURANT')
     );
@@ -1454,7 +1518,11 @@ class AttractionsIOV1 extends Destination {
     for (const item of walkThroughItems) classified.add(item._id);
 
     const scheduledShowEntities = data.Item
-      .filter(item => !classified.has(item._id) && parseShowTimes(item.ShowTimes) !== null)
+      .filter(item =>
+        !classified.has(item._id) &&
+        !this.isPaidProductListing(item) &&
+        parseShowTimes(item.ShowTimes) !== null,
+      )
       .map(item => buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'SHOW'));
 
     return [
@@ -1813,6 +1881,17 @@ export class AltonTowers extends AttractionsIOV1 {
       },
     });
   }
+
+  /**
+   * Alton Towers lists its paid queue-skip packages as items of its
+   * "Attractions" categories: "Fastrack Packages" under Thrills, "CBeebies
+   * Land Fastrack" under CBeebies Land and "Thrills Combi Fastrack". Fastrack
+   * is the name of the product, and no ride at the park carries it, so the
+   * name is what separates a package from the rides that sell one.
+   */
+  protected isPaidProductListing(item: RecordItem): boolean {
+    return /\bFastrack\b/i.test(extractName(item.Name));
+  }
 }
 
 /**
@@ -1904,6 +1983,16 @@ export class LegolandOrlando extends AttractionsIOV1 {
         ...options?.config,
       },
     });
+  }
+
+  /**
+   * The Halloween season keeps its own "Dining" category under "Brick or
+   * Treat". Its items are the season's menu specials ("Hex Wrap", "Spider
+   * Slush", "Franken-slice"), each sold at an outlet that is already a
+   * restaurant of its own: the summary says "Served at <outlet>".
+   */
+  protected getSeasonalMenuParentCategories(): string[] {
+    return ['Brick or Treat'];
   }
 }
 
