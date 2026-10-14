@@ -51,6 +51,7 @@ npx vitest run \
   src/__tests__/utcDateTrap.test.ts \
   src/__tests__/readmeDestinations.test.ts \
   src/__tests__/noPrivateRefs.test.ts \
+  src/__tests__/scheduleTypeLiterals.test.ts \
   src/__tests__/typecheckCoverage.test.ts \
   || fail "structural gate failed"
 

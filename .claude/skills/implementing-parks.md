@@ -270,6 +270,17 @@ protected async buildSchedules(): Promise<EntitySchedule[]> {
 }
 ```
 
+**An entry's `type` is one of the five the schedule definition has:** `OPERATING`,
+`TICKETED_EVENT`, `PRIVATE_EVENT`, `EXTRA_HOURS`, `INFO`. `OPERATING` is the park's
+open hours, and it is the one open/closed logic counts, so a day the park is open
+needs one. An event on that day is its own `INFO` or `TICKETED_EVENT` entry beside
+it, never instead of it. Anything else (`PARK_OPEN` was one) is dropped by
+`getSchedules()` with a warning, so that park's days vanish.
+`src/__tests__/scheduleTypeLiterals.test.ts` reads every park's entry types from
+source and fails the build on one the definition lacks; build the type from string
+literals (a literal, a ternary of them, or a variable or parameter typed as them)
+so it can read it.
+
 **Never derive "today" from `toISOString()`.** That gives the UTC day, which is
 not the park's day for several hours of every evening — 4-7h behind for US
 parks, ahead for Asia-Pacific. A request keyed on it silently asks for the wrong
