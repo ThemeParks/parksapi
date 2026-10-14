@@ -23,9 +23,14 @@
  *     Ride)") among its restaurants. The app will not route a guest to any of
  *     them (WayfindingEnabled false); every real venue it lists can be routed to.
  *
+ *   - Djurs Sommerland files its bookable barbecue packages ("Barbecue
+ *     packages", "Grillpakker" in Danish) among its restaurants, in the same
+ *     category and with the same flags as the grill area they are cooked on.
+ *
  * Near-misses are kept on purpose: rides that merely sell a package, food
  * outlets whose names contain "Express", hotel restaurants nested under a
- * non-seasonal parent, and the Q-line kiosks the park does route to.
+ * non-seasonal parent, the Q-line kiosks the park does route to, and Djurs'
+ * real restaurants, buffets and grill area.
  *
  * The raw network methods are stubbed with payload-shaped fixtures; the real
  * subclasses build the entity list.
@@ -37,6 +42,7 @@ import {
   LegolandCalifornia,
   LegolandOrlando,
   ThorpePark,
+  DjursSommerland,
   AttractionsIOV1,
 } from '../attractionsiov1.js';
 import {CacheLib} from '../../../cache.js';
@@ -472,6 +478,137 @@ describe('Thorpe Park: information pages and queue-only kiosks are not restauran
   });
 });
 
+// ---------------------------------------------------------------------------
+// Djurs Sommerland
+// ---------------------------------------------------------------------------
+
+// Names, categories and flags are the ones in the live pack; texts are left out.
+// Djurs publishes every name in Danish and English.
+function djursRecords(): any {
+  const both = (da: string, en: string) => ({'da-DK': da, 'en-GB': en});
+  return {
+    Resort: [{_id: 12, Name: both('Djurs Sommerland', 'Djurs Sommerland')}],
+    Category: [
+      {_id: 1138, Name: both('Mad og drikke', 'Food & drinks')},
+      {_id: 1139, Name: both('Restauranter og buffeter', 'Restaurants & buffets')},
+      {_id: 1140, Name: both('Mad på farten', 'Food on to go')},
+      {_id: 1153, Name: both('Is, kaffe og lækkerier', 'Ice cream, coffee & treats')},
+      {_id: 1154, Name: both('Grill og mad hjemmefra', 'Barbecue & food from home')},
+      {_id: 1100, Name: both('Forlystelser', 'Rides')},
+    ],
+    Item: [
+      // The package: bookable on the webshop, filed beside the grill area.
+      {_id: 7655, Name: both('Grillpakker', 'Barbecue packages'), Location: '56.425054467885,10.549884001544',
+        Category: 1154, VisibleOnMap: true, WayfindingEnabled: true, entityIds: [], Classifications: [],
+        CallToActions: ['16f32754-bc95-4d00-b245-5d4d28abe324']},
+      // The grill area itself: same category, same flags, a place to go.
+      {_id: 7656, Name: both('Grill selv', 'Bring your own barbecue food'), Location: '56.425217634357,10.55078120046',
+        Category: 1154, VisibleOnMap: true, WayfindingEnabled: true, entityIds: [], Classifications: [],
+        CallToActions: ['2aefdeb2-6412-4414-8acd-6ca66b5d96ce']},
+      // Real restaurants, in each restaurant category the park uses.
+      {_id: 7640, Name: both('Laredo', 'Laredo'), Category: 1139, entityIds: [], Classifications: [469, 470]},
+      {_id: 7642, Name: both("Uncle's Fresh Sandwiches and Salads", "Uncle's Fresh Sandwiches and Salads"),
+        Category: 1140, entityIds: [], Classifications: [469, 470, 471]},
+      {_id: 7657, Name: both('Kiosker', 'Kiosks'), Category: 1153, entityIds: [], Classifications: []},
+      {_id: 22387, Name: both('Karlos Købmandsbutik', 'Karlos Købmandsbutik'), Category: 1138, entityIds: [], Classifications: []},
+      // Real buffets that bundle a drink into the price, as the wiki lists them.
+      {_id: 7639, Name: 'Pizzabuffet including free soft drink', Category: 1139, entityIds: [], Classifications: []},
+      {_id: 7569, Name: 'Westernbuffet incl. free softdrink', Category: 1139, entityIds: [], Classifications: []},
+      // Made up for this test: names that carry "grill", "barbecue" or the word
+      // for a package in Danish ("pakke") or German ("Paket").
+      {_id: 9201, Name: 'Barbecue Corner', Category: 1139, entityIds: [], Classifications: []},
+      {_id: 9202, Name: 'Pakke Pizza', Category: 1140, entityIds: [], Classifications: []},
+      {_id: 9203, Name: 'Paketstation Bistro', Category: 1140, entityIds: [], Classifications: []},
+      {_id: 9204, Name: both('Grillen', 'The Grill House'), Category: 1139, entityIds: [], Classifications: []},
+      // A ride.
+      {_id: 7001, Name: both('Tornado', 'Tornado'), Category: 1100, entityIds: [], Classifications: [119]},
+    ],
+  };
+}
+
+describe('Djurs Sommerland: the barbecue packages are not a restaurant', () => {
+  test('the package is not published, the grill area beside it is', async () => {
+    const entities = await stub(new DjursSommerland(), djursRecords()).getEntities();
+    const ids = entities.map((e: any) => e.id);
+    expect(ids).not.toContain('7655');
+    expect(entities.find((e: any) => e.id === '7656')).toMatchObject({
+      name: 'Bring your own barbecue food',
+      entityType: 'RESTAURANT',
+    });
+  });
+
+  test('every other entity survives: the only difference is the package', async () => {
+    const entities = await stub(new DjursSommerland(), djursRecords()).getEntities();
+    expect(entities.map((e: any) => e.id).sort()).toEqual(
+      ['22387', '7001', '7569', '7639', '7640', '7642', '7656', '7657', '9201', '9202', '9203', '9204',
+        'djurs-sommerland', 'djurs-sommerland-destination'].sort(),
+    );
+  });
+
+  test('real restaurants stay RESTAURANTs in every category, buffets and look-alike names included', async () => {
+    const entities = await stub(new DjursSommerland(), djursRecords()).getEntities();
+    for (const id of ['7640', '7642', '7657', '22387', '7639', '7569', '9201', '9202', '9203', '9204']) {
+      expect(entities.find((e: any) => e.id === id)?.entityType).toBe('RESTAURANT');
+    }
+    expect(entities.find((e: any) => e.id === '7001')?.entityType).toBe('ATTRACTION');
+  });
+
+  test('the whole name is matched, in either language, ignoring case and spacing', () => {
+    const park: any = new DjursSommerland();
+    const listed = (name: any) => park.isPaidProductListing({_id: 1, Name: name});
+    for (const name of [
+      'Barbecue packages',
+      '  BARBECUE   Packages ',
+      'Grillpakker',
+      {'da-DK': 'Grillpakker'},
+      {'en-GB': 'Barbecue packages', 'da-DK': 'Grillpakker'},
+      {'en-GB': 'Anything', 'da-DK': 'Grillpakker'}, // a language other than the first that is read
+    ]) {
+      expect(listed(name)).toBe(true);
+    }
+    for (const name of [
+      'Bring your own barbecue food', {'da-DK': 'Grill selv', 'en-GB': 'Bring your own barbecue food'},
+      'Barbecue', 'Barbecue Corner', 'Grill', 'The Grill House', 'Packages', 'Pakke Pizza', 'Paketstation Bistro',
+      'Barbecue packages bar', // a longer name is a different record
+      'Pizzabuffet including free soft drink', '', undefined, {},
+    ]) {
+      expect(listed(name)).toBe(false);
+    }
+  });
+
+  test('a package with a schedule in an unlisted category is not rescued by the fallback', async () => {
+    const records = djursRecords();
+    records.Category.push({_id: 1200, Name: 'Season'});
+    records.Item.push({_id: 9205, Name: {'da-DK': 'Grillpakker', 'en-GB': 'Barbecue packages'}, Category: 1200, ShowTimes: POINT_SHOW});
+    const ids = (await stub(new DjursSommerland(), records).getEntities()).map((e: any) => e.id);
+    expect(ids).not.toContain('9205');
+  });
+
+  describe('live data', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({toFake: ['Date']});
+      vi.setSystemTime(new Date('2026-10-14T11:00:00Z'));
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    test('no row is emitted for the package even when the feed carries one; the grill area keeps its row', async () => {
+      const live = {entities: {Item: {records: [{_id: 7655, IsOpen: true}, {_id: 7656, IsOpen: true}, {_id: 7640, IsOpen: false}]}}};
+      const rows = await stub(new DjursSommerland(), djursRecords(), live).getLiveData();
+      const ids = rows.map((r: any) => r.id);
+      expect(ids).not.toContain('7655');
+      expect(ids).toContain('7656');
+      expect(ids).toContain('7640');
+    });
+  });
+
+  test('only Djurs opts in: the same record is still published elsewhere', async () => {
+    const entities = await stub(new AltonTowers(), djursRecords()).getEntities();
+    expect(entities.find((e: any) => e.id === '7655')?.entityType).toBe('RESTAURANT');
+  });
+});
+
 describe('the hooks are opt-in on the base class', () => {
   class Probe extends AttractionsIOV1 {
     constructor(records: any) {
@@ -493,6 +630,11 @@ describe('the hooks are opt-in on the base class', () => {
   test('a park that overrides nothing publishes an information page and a queue-only kiosk', async () => {
     const ids = (await new Probe(thorpeRecords()).getEntities()).map((e: any) => e.id);
     for (const id of THORPE_NOT_VENUES) expect(ids).toContain(id);
+  });
+
+  test('a park that overrides nothing publishes a barbecue package', async () => {
+    const entities = await new Probe(djursRecords()).getEntities();
+    expect(entities.some((e: any) => e.id === '7655')).toBe(true);
   });
 });
 

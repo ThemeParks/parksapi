@@ -73,13 +73,24 @@ export function stripMapNumberPrefix(name: string): string {
 }
 
 /**
- * A category name reduced for comparison: runs of whitespace of any kind
- * (including no-break spaces) become one space, the ends are trimmed and the
- * case is folded. The parks type these names by hand, and some already pad
+ * A category or item name reduced for comparison: runs of whitespace of any
+ * kind (including no-break spaces) become one space, the ends are trimmed and
+ * the case is folded. The parks type these names by hand, and some already pad
  * them ("Summer ", "Howl’o’ween ").
  */
-function normaliseCategoryName(name: string): string {
+function normaliseName(name: string): string {
   return name.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+/**
+ * The text of a name field in every language it carries. extractName() picks
+ * one by priority; a match that must not depend on which language the park
+ * lists first reads them all.
+ */
+function allNames(name: string | Record<string, string> | undefined): string[] {
+  if (!name) return [];
+  if (typeof name === 'string') return [name];
+  return Object.values(name).filter((text): text is string => typeof text === 'string');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1346,7 +1357,7 @@ class AttractionsIOV1 extends Destination {
    * listed on its own.
    *
    * A parent is matched on its whole name, ignoring case and the amount or
-   * kind of whitespace (see normaliseCategoryName), so a category the park
+   * kind of whitespace (see normaliseName), so a category the park
    * re-types as "BRICK OR TREAT" still counts and "Brick or Treat Hotel" does
    * not.
    */
@@ -1362,7 +1373,7 @@ class AttractionsIOV1 extends Destination {
    * external data.
    */
   private async getItemIdsBelowSeasonalParents(): Promise<Set<number>> {
-    const parents = new Set(this.getSeasonalMenuParentCategories().map(normaliseCategoryName));
+    const parents = new Set(this.getSeasonalMenuParentCategories().map(normaliseName));
     if (parents.size === 0) return new Set();
 
     const data = await this.getCatalogue();
@@ -1374,7 +1385,7 @@ class AttractionsIOV1 extends Destination {
         seen.add(current._id);
         const parent: CategoryRecord | undefined =
           current.Parent === undefined || current.Parent === null ? undefined : byId.get(current.Parent);
-        if (parent && parents.has(normaliseCategoryName(extractName(parent.Name)))) return true;
+        if (parent && parents.has(normaliseName(extractName(parent.Name)))) return true;
         current = parent;
       }
       return false;
@@ -2287,8 +2298,28 @@ type DjursCalendarModel = {
   parkEvents?: DjursParkEvent[];
 };
 
+/**
+ * The names Djurs Sommerland gives its bookable barbecue packages, in English
+ * and in Danish, as compared by normaliseName().
+ */
+const BARBECUE_PACKAGE_NAMES = new Set(['barbecue packages', 'grillpakker']);
+
 @config
 class DjursSommerlandBase extends AttractionsIOV1 {
+  /**
+   * Djurs files its bookable barbecue packages ("Barbecue packages",
+   * "Grillpakker", sold on the park's webshop) among the restaurants, in
+   * "Barbecue & food from home" beside "Bring your own barbecue food", the
+   * grill area itself. Nothing on the two records separates them (same
+   * category, same flags, no classifications, a call-to-action each), so the
+   * package is matched by the name its own feed gives it, whole and in either
+   * language. The park's restaurants, buffets and the grill area do not carry
+   * it.
+   */
+  protected isPaidProductListing(item: RecordItem): boolean {
+    return allNames(item.Name).some(name => BARBECUE_PACKAGE_NAMES.has(normaliseName(name)));
+  }
+
   /**
    * Fetch the opening-hours page HTML.
    * Cached for 2 hours.
