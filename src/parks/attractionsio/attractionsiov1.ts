@@ -73,6 +73,40 @@ export function stripMapNumberPrefix(name: string): string {
 }
 
 /**
+ * A German age rating typed onto the end of a name, with the park's own quotes
+ * around it: Heide Park publishes "Mission Meeresgrund “Halloween Edition ab
+ * 10 Jahren“" ("ab 10 Jahren" is "from 10 years"). The rating is not part of
+ * the title, and the quotes are unbalanced, as both are the same opening mark.
+ * The group captures a closing mark after the rating, if there is one.
+ */
+const AGE_RATING_SUFFIX = /\s+ab\s+\d+\s+Jahren?\b\s*([\u201C\u201D\u201E\u201F"])?$/i;
+const DOUBLE_QUOTE_MARKS = new Set(['\u201C', '\u201D', '\u201E', '\u201F', '"']);
+
+/**
+ * Remove a trailing "ab N Jahren" age rating from a name, and the quotes it
+ * sat in. Nothing is touched unless the name ends in the rating, so quotes
+ * that belong to a title are safe: `Hot Dog “Freestyle” ab 6 Jahren` keeps its
+ * pair. When the rating was inside a quote that was never closed (an odd
+ * number of marks before it) the mark that opened it goes as well, and so does
+ * a mark closing the rating. A name that is only the rating is kept as it is.
+ */
+export function stripAgeRatingTag(name: string): string {
+  const match = AGE_RATING_SUFFIX.exec(name.trimEnd());
+  if (!match) return name;
+  let head = name.slice(0, match.index);
+  let marks = 0;
+  let lastMark = -1;
+  for (let i = 0; i < head.length; i++) {
+    if (DOUBLE_QUOTE_MARKS.has(head[i])) {
+      marks++;
+      lastMark = i;
+    }
+  }
+  if (marks % 2 === 1) head = head.slice(0, lastMark) + head.slice(lastMark + 1);
+  return head.replace(/\s{2,}/g, ' ').trim() || name;
+}
+
+/**
  * A category name reduced for comparison: runs of whitespace of any kind
  * (including no-break spaces) become one space, the ends are trimmed and the
  * case is folded. The parks type these names by hand, and some already pad
@@ -2121,6 +2155,19 @@ type HeideParkScheduleResponse = {
 
 @config
 class HeideParkBase extends AttractionsIOV1 {
+  /**
+   * Heide Park types a German age rating onto the end of an event's name (see
+   * stripAgeRatingTag). No other park of the family names an age this way, so
+   * the rule is applied here and not to every attractions.io park.
+   */
+  protected async buildEntityList(): Promise<Entity[]> {
+    const entities = await super.buildEntityList();
+    for (const entity of entities) {
+      if (typeof entity.name === 'string') entity.name = stripAgeRatingTag(entity.name);
+    }
+    return entities;
+  }
+
   /**
    * Fetch the v2 resort-opening-times endpoint (specific to HeidePark).
    * Cached for 2 hours.
