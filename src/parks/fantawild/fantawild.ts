@@ -222,25 +222,6 @@ export function stripFantawildStars(name: string): string {
 const INVISIBLE_FILLER_RE = /[\u115F\u1160\u3164\uFFA0\u200B-\u200D\u2060\uFEFF]/gu;
 
 /**
- * True when the park itself labels an item a paid add-on SERVICE.
- *
- * The label is 增值服务 ("value-added service"), written into the item name in
- * whichever bracket style the editor used (`卡丁车【增值服务】`,
- * `冰雪城堡(增值服务）`, `冰雪世界[增值服务]`), sometimes with trailing tabs.
- * Dreamland Wuhu and Oriental Heritage Wuhu carried nine of them in 2026: a
- * boat dock, a go-kart track, a VR hall. The park lists them as services it
- * sells, not as rides, so they are not published.
- *
- * Only this label is matched. The feed's sibling labels (增值体验
- * "value-added experience", 付费 "paid", 商业项目 "commercial project") sit on
- * attractions with their own staff and queue, such as the scare maze 南洋诡校,
- * which is published as an attraction; none of them is matched here.
- */
-export function isValueAddedService(itemName: string | null | undefined): boolean {
-  return typeof itemName === 'string' && itemName.includes('增值服务');
-}
-
-/**
  * Classify an item as SHOW vs RIDE based on showTimeList shape + feature tags.
  *
  * Precedence: an explicit `巡游` (parade) tag always wins. An explicit `真人表演`
@@ -697,7 +678,6 @@ export class Fantawild extends Destination {
       const items = await this.getStableRoster(park.parkId, park.timezone);
       for (const item of items) {
         if (!item.id) continue;
-        if (isValueAddedService(item.itemName)) continue;
         const cleanName = stripFantawildStars(item.itemName || '');
         if (!cleanName) continue;
         const isShow = this.isStickyShow(park.parkId, item);
@@ -752,8 +732,6 @@ export class Fantawild extends Destination {
       const out: LiveData[] = [];
       for (const rosterItem of roster) {
         if (!rosterItem.id) continue;
-        // Not an entity (see buildEntityList), so no live row either.
-        if (isValueAddedService(rosterItem.itemName)) continue;
         const item = freshById.get(rosterItem.id);
         // Ride is in the stable roster but missing from this tick's fresh
         // response → upstream is pruning it (overnight / closed-today /
