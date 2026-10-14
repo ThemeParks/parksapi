@@ -8,8 +8,10 @@ import {Destination} from '../destination.js';
  * has five (OPERATING, TICKETED_EVENT, PRIVATE_EVENT, EXTRA_HOURS, INFO), and
  * whatever reads the entries downstream decides open or closed from that
  * string. A type outside the definition has no defined meaning there.
- * `getSchedules()` therefore refuses to pass one on, and says so, the way
- * `getLiveData()` already scrubs a bad waitTime at the same boundary.
+ * `getSchedules()` says so with a warning and leaves the entries exactly as
+ * the park built them: it does not turn a wrong type into a missing day. What
+ * keeps a bad type from being written at all is the typing of the entries and
+ * scheduleTypeLiterals.test.ts.
  */
 
 type Raw = Record<string, unknown>;
@@ -43,8 +45,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('getSchedules(): the schedule type guard', () => {
-  test.each(Object.values(ScheduleTypeEnum))('passes %s through untouched', async (type) => {
+describe('getSchedules(): the schedule type warning', () => {
+  test.each(Object.values(ScheduleTypeEnum))('passes %s through untouched, without a warning', async (type) => {
     const park = new SchedulePark([{id: 'p', schedule: [entry(type)]}]);
 
     const out = await park.getSchedules();
@@ -53,25 +55,24 @@ describe('getSchedules(): the schedule type guard', () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
-  test('drops an entry whose type is not in the definition and keeps its neighbours in order', async () => {
-    const park = new SchedulePark([{
-      id: 'p',
-      schedule: [
-        entry('OPERATING', '2026-10-06'),
-        entry('PARK_OPEN', '2026-10-07'),
-        entry('INFO', '2026-10-08'),
-      ],
-    }]);
+  test('keeps an entry whose type is not in the definition, in place, and every neighbour', async () => {
+    const built = [
+      entry('OPERATING', '2026-10-06'),
+      entry('PARK_OPEN', '2026-10-07'),
+      entry('INFO', '2026-10-08'),
+    ];
+    const park = new SchedulePark([{id: 'p', schedule: built}]);
 
     const out = await park.getSchedules();
 
     expect(out[0].schedule.map(e => [e.date, e.type])).toEqual([
       ['2026-10-06', 'OPERATING'],
+      ['2026-10-07', 'PARK_OPEN'],
       ['2026-10-08', 'INFO'],
     ]);
   });
 
-  test('says what it dropped: the park, the type, how many, and where it starts', async () => {
+  test('says what it kept: the park, the type, how many, and where it starts', async () => {
     const park = new SchedulePark([{
       id: 'p',
       schedule: [entry('PARK_OPEN', '2026-10-07'), entry('PARK_OPEN', '2026-10-08'), entry('OPERATING')],
@@ -82,7 +83,9 @@ describe('getSchedules(): the schedule type guard', () => {
     expect(warn).toHaveBeenCalledTimes(1);
     const message = String(warn.mock.calls[0][0]);
     expect(message).toContain('[SchedulePark]');
+    expect(message).toContain('kept schedule entries');
     expect(message).toContain('"PARK_OPEN" x2 (first 2026-10-07)');
+    expect(message).toContain('Allowed: OPERATING, TICKETED_EVENT, PRIVATE_EVENT, EXTRA_HOURS, INFO');
   });
 
   test('one warning per call, however many types and parks are involved', async () => {
@@ -105,12 +108,12 @@ describe('getSchedules(): the schedule type guard', () => {
     ['a null type', null],
     ['a number', 1],
     ['an empty string', ''],
-  ])('drops %s', async (_label, type) => {
+  ])('warns about %s and keeps the entry', async (_label, type) => {
     const park = new SchedulePark([{id: 'p', schedule: [entry(type), entry('OPERATING')]}]);
 
     const out = await park.getSchedules();
 
-    expect(out[0].schedule.map(e => e.type)).toEqual(['OPERATING']);
+    expect(out[0].schedule).toHaveLength(2);
     expect(warn).toHaveBeenCalledTimes(1);
   });
 
@@ -125,24 +128,26 @@ describe('getSchedules(): the schedule type guard', () => {
     expect(message).not.toContain('secret');
   });
 
-  test('a park left with no valid entries still reports its (empty) schedule', async () => {
-    const park = new SchedulePark([{id: 'p', schedule: [entry('PARK_OPEN')]}]);
+  test('a park whose every entry is wrong still publishes them all', async () => {
+    const built = [entry('PARK_OPEN', '2026-10-07'), entry('PARK_OPEN', '2026-10-08')];
+    const park = new SchedulePark([{id: 'p', schedule: built}]);
 
-    expect(await park.getSchedules()).toEqual([{id: 'p', schedule: []}]);
+    const out = await park.getSchedules();
+
+    expect(out).toEqual([{id: 'p', schedule: built}]);
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
-  test('does not reach into anything but the type', async () => {
-    const park = new SchedulePark([{
-      id: 'p',
-      schedule: [{...entry('INFO'), description: 'Magical Halloween', extra: {nested: [1, 2]}}],
-    }]);
+  test('does not touch anything but the report: other fields and shapes are as built', async () => {
+    const built = {...entry('INFO'), description: 'Magical Halloween', extra: {nested: [1, 2]}};
+    const park = new SchedulePark([{id: 'p', schedule: [built]}]);
 
     const out = await park.getSchedules();
 
     expect(out[0].schedule[0]).toEqual({...entry('INFO'), description: 'Magical Halloween', extra: {nested: [1, 2]}});
   });
 
-  test('the allowed set follows the schedule definition: a type added there is accepted', async () => {
+  test('the allowed set follows the schedule definition: a type added there raises no warning', async () => {
     const enumObject = ScheduleTypeEnum as unknown as Record<string, string>;
     enumObject.GUARD_PROBE_TYPE = 'GUARD_PROBE_TYPE';
     try {
