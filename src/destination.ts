@@ -32,6 +32,8 @@ const NAME_SUFFIX_PATTERNS = [
   /\s*[-–—]\s*closed(?:\s+for\s+the\s+season)?[!]?$/i,
   /\s*[-–—]\s*coming (?:soon|spring|summer|fall|winter|autumn)\s*\d{0,4}[!]?$/i,
   /\s*[-–—]\s*now open[!]?$/i,
+  // Show status: "ONE Dolphin Presentation – NOW SHOWING"
+  /\s*[-–—]\s*now\s+showing[!]?$/i,
   /\s*[-–—]\s*new[!]?$/i,
   /\s*[-–—]\s*opening\s+(?:\w+\s+)?\d{1,4}[!]?$/i,
   /\s*[-–—]\s*opens\s+\w+\s+\d{1,2},?\s*\d{0,4}[!]?$/i,
@@ -46,9 +48,22 @@ const NAME_PREFIX_PATTERNS = [
   /^new!\s+/i,
 ];
 
-/** Strip HTML tags, decode entities, and remove promotional/status affixes */
+/**
+ * Zero-width characters with no part in spelling a word: the zero width space,
+ * the word joiner and the byte order mark. They render as nothing and trim()
+ * keeps all of them but the byte order mark, so a feed that ends a name with
+ * one (Shanghai Disney, Disneyland Paris and Universal Studios Singapore do)
+ * renames the entity to something that looks identical and cannot be typed.
+ *
+ * The zero width non-joiner (U+200C) and joiner (U+200D) are not in the set:
+ * they shape emoji sequences and Persian, Arabic-script and Indic words, and
+ * removing them would change what a name says.
+ */
+const ZERO_WIDTH_CHARS = /[\u200B\u2060\uFEFF]/g;
+
+/** Strip HTML tags, decode entities, zero-width characters, and promotional/status affixes */
 function sanitizeEntityName(name: string): string {
-  let clean = decodeHtmlEntities(stripHtmlTags(name)).trim();
+  let clean = decodeHtmlEntities(stripHtmlTags(name)).replace(ZERO_WIDTH_CHARS, '').trim();
   for (const pattern of NAME_SUFFIX_PATTERNS) {
     clean = clean.replace(pattern, '');
   }
@@ -1113,7 +1128,8 @@ export abstract class Destination {
 
     // Sanitize entity names:
     // 1. Strip HTML tags and decode entities (e.g., "Balloon <em>Race</em>")
-    // 2. Remove promotional/status suffixes (e.g., " - Now Open!", " - Temporarily Closed")
+    // 2. Remove zero-width characters (the id is untouched, so the entity is the same)
+    // 3. Remove promotional/status suffixes (e.g., " - Now Open!", " - Temporarily Closed")
     // If sanitization would produce an empty string (e.g., the entire name was
     // a promotional pattern), keep the original to avoid losing the entity.
     for (const entity of resolved) {
