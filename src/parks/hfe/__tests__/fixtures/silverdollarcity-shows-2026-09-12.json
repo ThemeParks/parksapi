@@ -1,0 +1,627 @@
+{
+  "activities": [
+    {
+      "id": "68f726da-3b5e-43e9-a3ef-a5fa25b258bc",
+      "title": "Boatworks Theater",
+      "activityListId": "58a4e3a3-c889-4130-93d1-5ba802442444",
+      "activityCategories": [
+        "Venues"
+      ],
+      "showVenueLocation": null,
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": null,
+      "latitudeForDirections": "36.6703",
+      "longitudeForDirections": "-93.3381"
+    },
+    {
+      "id": "8715075e-bc78-49ba-8f9e-55a57862a3a2",
+      "title": "Dockside Theater",
+      "activityListId": "58a4e3a3-c889-4130-93d1-5ba802442444",
+      "activityCategories": [
+        "Venues"
+      ],
+      "showVenueLocation": null,
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": null,
+      "latitudeForDirections": "36.66994",
+      "longitudeForDirections": "-93.339721"
+    },
+    {
+      "id": "fbc761ff-873e-4bc9-bf85-fe6018ab6865",
+      "title": "Gazebo Stage",
+      "activityListId": "58a4e3a3-c889-4130-93d1-5ba802442444",
+      "activityCategories": [
+        "Venues"
+      ],
+      "showVenueLocation": null,
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": null,
+      "latitudeForDirections": "36.668216",
+      "longitudeForDirections": "-93.339867"
+    },
+    {
+      "id": "98ad0201-9f53-4780-89e2-5de0e333615d",
+      "title": "McHaffie's Homestead",
+      "activityListId": "6cbebd47-facc-4c26-b1b2-4e0da4de0e6e",
+      "activityCategories": [
+        "Rides & Attractions"
+      ],
+      "showVenueLocation": null,
+      "seasonalStartDate": "2026-03-13T00:00:00",
+      "seasonalEndDate": "2027-01-02T00:00:00",
+      "duration": null,
+      "latitudeForDirections": "36.667963",
+      "longitudeForDirections": "-93.340366"
+    },
+    {
+      "id": "b0ff3553-1bc1-41d7-bc3c-3a8066f08e7a",
+      "title": "Plaza Stage",
+      "activityListId": "58a4e3a3-c889-4130-93d1-5ba802442444",
+      "activityCategories": [
+        "Venues"
+      ],
+      "showVenueLocation": null,
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": null,
+      "latitudeForDirections": "36.670311",
+      "longitudeForDirections": "-93.337066"
+    },
+    {
+      "id": "da3204d2-fd0f-4606-97ed-f60ea6fdbfbe",
+      "title": "Riverfront Playhouse",
+      "activityListId": "58a4e3a3-c889-4130-93d1-5ba802442444",
+      "activityCategories": [
+        "Venues"
+      ],
+      "showVenueLocation": null,
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": null,
+      "latitudeForDirections": "36.669994",
+      "longitudeForDirections": "-93.338872"
+    },
+    {
+      "id": "13c2526d-cd86-41c4-8b44-538ece07c7b5",
+      "title": "Arbour Season",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "68f726da-3b5e-43e9-a3ef-a5fa25b258bc",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 Minutes",
+      "latitudeForDirections": "36.670326",
+      "longitudeForDirections": "-93.338110"
+    },
+    {
+      "id": "aafbc4c9-f15d-4125-85ae-e1f434093f08",
+      "title": "Arbour Season",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "8715075e-bc78-49ba-8f9e-55a57862a3a2",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 Minutes",
+      "latitudeForDirections": "36.669951",
+      "longitudeForDirections": "-93.339662"
+    },
+    {
+      "id": "c7095f82-45d6-4174-bfc5-f4c1145ad88e",
+      "title": "Arbour Season",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [
+        "Shows Entertainment",
+        "Spring Break"
+      ],
+      "showVenueLocation": "fbc761ff-873e-4bc9-bf85-fe6018ab6865",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 Minutes",
+      "latitudeForDirections": "36.668156",
+      "longitudeForDirections": " -93.339903"
+    },
+    {
+      "id": "ca0dc3af-ae87-4750-9406-3585ece8afc9",
+      "title": "Arbour Season",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "b0ff3553-1bc1-41d7-bc3c-3a8066f08e7a",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 Minutes",
+      "latitudeForDirections": "36.6709497",
+      "longitudeForDirections": "-93.3372423"
+    },
+    {
+      "id": "e9cba5ef-67a2-4667-aa37-d735e00f6ffc",
+      "title": "Arbour Season",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [
+        "Christmas Entertainment"
+      ],
+      "showVenueLocation": "fbc761ff-873e-4bc9-bf85-fe6018ab6865",
+      "seasonalStartDate": "2023-11-04T00:00:00",
+      "seasonalEndDate": "2023-12-30T00:00:00",
+      "duration": "15 Minutes",
+      "latitudeForDirections": "36.668156",
+      "longitudeForDirections": "-93.339903"
+    },
+    {
+      "id": "a602f762-1b7b-4e58-83e3-f7cc09e80b13",
+      "title": "Casey & The Atta Boys",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "68f726da-3b5e-43e9-a3ef-a5fa25b258bc",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 Minutes",
+      "latitudeForDirections": "36.670326",
+      "longitudeForDirections": "-93.338110"
+    },
+    {
+      "id": "f6660954-5f61-4f43-9f68-49373e933e8f",
+      "title": "Casey & The Atta Boys",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [
+        "Shows Entertainment",
+        "Spring Break"
+      ],
+      "showVenueLocation": "fbc761ff-873e-4bc9-bf85-fe6018ab6865",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": null,
+      "latitudeForDirections": "36.668156",
+      "longitudeForDirections": "-93.339903"
+    },
+    {
+      "id": "1655dade-179b-4d4f-9f8f-0e980bfc8b07",
+      "title": "Chris Stanley",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [
+        "Shows Entertainment",
+        "Spring Break"
+      ],
+      "showVenueLocation": "68f726da-3b5e-43e9-a3ef-a5fa25b258bc",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 minutes",
+      "latitudeForDirections": "36.6703",
+      "longitudeForDirections": "-93.3381"
+    },
+    {
+      "id": "7114c6e9-047a-4d57-96b7-a8fdf32aa0f0",
+      "title": "Chris Stanley",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [
+        "Signature Shows"
+      ],
+      "showVenueLocation": "8715075e-bc78-49ba-8f9e-55a57862a3a2",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 minutes",
+      "latitudeForDirections": "36.669951",
+      "longitudeForDirections": "-93.339662"
+    },
+    {
+      "id": "5bc5faf0-266d-4363-97b8-60af63251d41",
+      "title": "David Howarth",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": null,
+      "seasonalStartDate": "2023-03-11T00:00:00",
+      "seasonalEndDate": "2023-04-30T00:00:00",
+      "duration": "30 minutes",
+      "latitudeForDirections": null,
+      "longitudeForDirections": null
+    },
+    {
+      "id": "a9d33366-9b8d-4124-9acf-12c72bca0587",
+      "title": "David Howarth",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "8715075e-bc78-49ba-8f9e-55a57862a3a2",
+      "seasonalStartDate": "2023-04-06T00:00:00",
+      "seasonalEndDate": "2023-04-30T00:00:00",
+      "duration": "30 minutes",
+      "latitudeForDirections": "36.669951",
+      "longitudeForDirections": "-93.339662"
+    },
+    {
+      "id": "c982ad9d-c379-433b-b48d-2d1949151419",
+      "title": "David Howarth",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [
+        "Signature Shows"
+      ],
+      "showVenueLocation": "fbc761ff-873e-4bc9-bf85-fe6018ab6865",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 minutes",
+      "latitudeForDirections": "36.668156",
+      "longitudeForDirections": "-93.339903"
+    },
+    {
+      "id": "ee2335b6-b825-4acd-9a08-9b80ff1d8382",
+      "title": "David Howarth",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [
+        "Shows Entertainment",
+        "Spring Break"
+      ],
+      "showVenueLocation": "68f726da-3b5e-43e9-a3ef-a5fa25b258bc",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 minutes",
+      "latitudeForDirections": "36.670326",
+      "longitudeForDirections": "-93.338110"
+    },
+    {
+      "id": "26bee96c-a051-4cfb-9531-ed064a19dcc4",
+      "title": "Dawson Hollow",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "68f726da-3b5e-43e9-a3ef-a5fa25b258bc",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 minutes",
+      "latitudeForDirections": "36.670326",
+      "longitudeForDirections": "-93.338110"
+    },
+    {
+      "id": "8e7dfd0d-8978-46ca-be45-5a02de0318c2",
+      "title": "Dawson Hollow",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "8715075e-bc78-49ba-8f9e-55a57862a3a2",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 Minutes",
+      "latitudeForDirections": "36.669951",
+      "longitudeForDirections": "-93.339662"
+    },
+    {
+      "id": "8a18d4fc-14da-46b2-9539-bca7eeba6aec",
+      "title": "Homestead Pickers",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "98ad0201-9f53-4780-89e2-5de0e333615d",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 Minutes",
+      "latitudeForDirections": "36.66792",
+      "longitudeForDirections": "-93.340278"
+    },
+    {
+      "id": "afa2cd9f-3b39-46c8-ae3e-7a683f8da1eb",
+      "title": "Homestead Pickers",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [
+        "Shows Entertainment",
+        "Signature Shows",
+        "Spring Break",
+        "Expo Entertainment"
+      ],
+      "showVenueLocation": "98ad0201-9f53-4780-89e2-5de0e333615d",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 Minutes",
+      "latitudeForDirections": "36.66792",
+      "longitudeForDirections": "-93.340278"
+    },
+    {
+      "id": "f133f71e-15cd-4575-b101-56a6546dda42",
+      "title": "Horse Creek Band",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [
+        "Shows Entertainment",
+        "Signature Shows"
+      ],
+      "showVenueLocation": "fbc761ff-873e-4bc9-bf85-fe6018ab6865",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 minutes",
+      "latitudeForDirections": "36.668156",
+      "longitudeForDirections": "-93.339903"
+    },
+    {
+      "id": "fcd0a6c7-5a2a-49bb-9d4b-b61531e951ef",
+      "title": "Horse Creek Band",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "b0ff3553-1bc1-41d7-bc3c-3a8066f08e7a",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": null,
+      "latitudeForDirections": "36.3709497",
+      "longitudeForDirections": "-93.3372423"
+    },
+    {
+      "id": "4b59eb33-a1dc-40be-9d2a-4cbabd6cef3a",
+      "title": "Kimberly Barber",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "68f726da-3b5e-43e9-a3ef-a5fa25b258bc",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 Minutes",
+      "latitudeForDirections": "36.670326",
+      "longitudeForDirections": "-93.338110"
+    },
+    {
+      "id": "70adb599-b20f-4e89-8561-34a0d185784c",
+      "title": "Kimberly Barber",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "b0ff3553-1bc1-41d7-bc3c-3a8066f08e7a",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 minutes",
+      "latitudeForDirections": "36.6709497",
+      "longitudeForDirections": "-93.3372423"
+    },
+    {
+      "id": "e8483dcb-a964-4dd6-86b7-227f219419d9",
+      "title": "Kimberly Barber",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "8715075e-bc78-49ba-8f9e-55a57862a3a2",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 minutes",
+      "latitudeForDirections": "36.669951",
+      "longitudeForDirections": "-93.339662"
+    },
+    {
+      "id": "980730e3-6095-47b2-bd23-11a327e34cc5",
+      "title": "Kinfolk Bluegrass Band",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [
+        "Shows Entertainment",
+        "Expo Entertainment",
+        "Signature Shows"
+      ],
+      "showVenueLocation": "b0ff3553-1bc1-41d7-bc3c-3a8066f08e7a",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": null,
+      "latitudeForDirections": "36.6709497",
+      "longitudeForDirections": "-93.3372423"
+    },
+    {
+      "id": "adebba7e-510a-4474-87bd-c40802816d7e",
+      "title": "Kinfolk Bluegrass Band",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [
+        "Expo Entertainment",
+        "Shows Entertainment"
+      ],
+      "showVenueLocation": "fbc761ff-873e-4bc9-bf85-fe6018ab6865",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": null,
+      "latitudeForDirections": "36.668156",
+      "longitudeForDirections": "-93.339903"
+    },
+    {
+      "id": "b9e56aa1-ec19-45bf-bd2d-1d1618bbfce2",
+      "title": "Kinfolk Bluegrass Band",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [
+        "Shows Entertainment"
+      ],
+      "showVenueLocation": null,
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": null,
+      "latitudeForDirections": "36.670418",
+      "longitudeForDirections": "-93.337031"
+    },
+    {
+      "id": "e2e74e56-dbf0-4f26-8c3e-61d6aeb2258f",
+      "title": "Kinfolk Bluegrass Band",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "8715075e-bc78-49ba-8f9e-55a57862a3a2",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": null,
+      "latitudeForDirections": "36.669951",
+      "longitudeForDirections": "-93.339662"
+    },
+    {
+      "id": "f7fe4ce7-44a5-4613-946d-dad3535b85ed",
+      "title": "Kinfolk Bluegrass Band",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "68f726da-3b5e-43e9-a3ef-a5fa25b258bc",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": null,
+      "latitudeForDirections": "36.670326",
+      "longitudeForDirections": "-93.338110"
+    },
+    {
+      "id": "8341f29c-a5ed-4432-9c66-062584d9c1c6",
+      "title": "Lindley Creek",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "da3204d2-fd0f-4606-97ed-f60ea6fdbfbe",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": null,
+      "latitudeForDirections": "36.669994",
+      "longitudeForDirections": "-93.338872"
+    },
+    {
+      "id": "8ac28cd2-f3fc-442b-bfab-0a84611a0069",
+      "title": "Lindley Creek",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "68f726da-3b5e-43e9-a3ef-a5fa25b258bc",
+      "seasonalStartDate": "2025-01-02T00:00:00",
+      "seasonalEndDate": "2025-01-02T00:00:00",
+      "duration": null,
+      "latitudeForDirections": "36.670326",
+      "longitudeForDirections": "-93.338110"
+    },
+    {
+      "id": "c212be28-2f70-4a68-8327-3c0089ab0ee1",
+      "title": "Lindley Creek",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "fbc761ff-873e-4bc9-bf85-fe6018ab6865",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": null,
+      "latitudeForDirections": "36.668156",
+      "longitudeForDirections": "-93.339903"
+    },
+    {
+      "id": "cefda16a-954c-4146-9e69-aca791daf59e",
+      "title": "Lindley Creek",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [
+        "Live Music"
+      ],
+      "showVenueLocation": null,
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 Minutes",
+      "latitudeForDirections": "36.668156",
+      "longitudeForDirections": "-93.339903"
+    },
+    {
+      "id": "9303a5ec-5017-4c1d-b36b-c7ce3760ab60",
+      "title": "Pam Setser",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "68f726da-3b5e-43e9-a3ef-a5fa25b258bc",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 Minutes",
+      "latitudeForDirections": "36.670326",
+      "longitudeForDirections": "-93.338110"
+    },
+    {
+      "id": "f5eaed22-8d88-4bed-abde-0c5aa2b3a6e2",
+      "title": "Pam Setser",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "8715075e-bc78-49ba-8f9e-55a57862a3a2",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 Minutes",
+      "latitudeForDirections": "36.669951",
+      "longitudeForDirections": "-93.339662"
+    },
+    {
+      "id": "fd8fc17a-abc0-400c-b6db-71bbe031f663",
+      "title": "Pam Setser",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": null,
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 Minutes",
+      "latitudeForDirections": "36.668156",
+      "longitudeForDirections": "-93.339903"
+    },
+    {
+      "id": "3215eb58-6589-440b-afff-c4c5d8f8ee6b",
+      "title": "Spoken 4 Quartet",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "68f726da-3b5e-43e9-a3ef-a5fa25b258bc",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 Minutes",
+      "latitudeForDirections": "36.670326",
+      "longitudeForDirections": "-93.338110"
+    },
+    {
+      "id": "bb3bf7ce-611a-4e77-a738-f25d51eb4dc4",
+      "title": "Spoken 4 Quartet",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [
+        "Shows Entertainment",
+        "Live Music",
+        "Expo Entertainment",
+        "Signature Shows"
+      ],
+      "showVenueLocation": "da3204d2-fd0f-4606-97ed-f60ea6fdbfbe",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 Minutes",
+      "latitudeForDirections": "36.669994",
+      "longitudeForDirections": "-93.338872"
+    },
+    {
+      "id": "cf8ba7bb-7ab4-45e3-a5c0-d1ab0523879e",
+      "title": "Spoken 4 Quartet",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [
+        "Southern Gospel Other"
+      ],
+      "showVenueLocation": "fbc761ff-873e-4bc9-bf85-fe6018ab6865",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": null,
+      "latitudeForDirections": "36.668156",
+      "longitudeForDirections": "-93.339903"
+    },
+    {
+      "id": "13b075b1-4b37-460d-8ef6-2fc79a209192",
+      "title": "The Creek Rocks",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [
+        "Shows Entertainment",
+        "Spring Break"
+      ],
+      "showVenueLocation": "fbc761ff-873e-4bc9-bf85-fe6018ab6865",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 Minutes",
+      "latitudeForDirections": "36.668156",
+      "longitudeForDirections": "-93.339903"
+    },
+    {
+      "id": "da0ce446-a160-4263-b94d-18e3485a45f7",
+      "title": "The Creek Rocks",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "8715075e-bc78-49ba-8f9e-55a57862a3a2",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": null,
+      "latitudeForDirections": "36.669951",
+      "longitudeForDirections": "-93.339662"
+    },
+    {
+      "id": "e0c02a9b-9838-4ecb-8b01-ce544836ee53",
+      "title": "The Creek Rocks",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "68f726da-3b5e-43e9-a3ef-a5fa25b258bc",
+      "seasonalStartDate": null,
+      "seasonalEndDate": null,
+      "duration": "30 minutes",
+      "latitudeForDirections": "36.670326",
+      "longitudeForDirections": "-93.338110"
+    },
+    {
+      "id": "37912325-fd99-4a38-b052-1ba16c0b695b",
+      "title": "The Ferguson Family",
+      "activityListId": "9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d",
+      "activityCategories": [],
+      "showVenueLocation": "37912325-fd99-4a38-b052-1ba16c0b695b",
+      "seasonalStartDate": "2025-08-21T00:00:00",
+      "seasonalEndDate": "2025-08-22T00:00:00",
+      "duration": "30 Minutes",
+      "latitudeForDirections": "36.670418",
+      "longitudeForDirections": "-93.337031"
+    }
+  ]
+}
