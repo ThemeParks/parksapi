@@ -107,13 +107,24 @@ export function stripAgeRatingTag(name: string): string {
 }
 
 /**
- * A category name reduced for comparison: runs of whitespace of any kind
- * (including no-break spaces) become one space, the ends are trimmed and the
- * case is folded. The parks type these names by hand, and some already pad
+ * A category or item name reduced for comparison: runs of whitespace of any
+ * kind (including no-break spaces) become one space, the ends are trimmed and
+ * the case is folded. The parks type these names by hand, and some already pad
  * them ("Summer ", "Howl’o’ween ").
  */
-function normaliseCategoryName(name: string): string {
+function normaliseName(name: string): string {
   return name.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+/**
+ * The text of a name or summary field in every language it carries.
+ * extractName() picks one by priority; a match that must not depend on which
+ * language the park lists first reads them all.
+ */
+function textInAllLanguages(field: string | Record<string, string> | undefined): string[] {
+  if (!field) return [];
+  if (typeof field === 'string') return [field];
+  return Object.values(field).filter((text): text is string => typeof text === 'string');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -203,6 +214,12 @@ type RecordItem = {
   MinimumUnaccompaniedHeightRequirement?: number | null;
   /** Recurring schedule tree (stringified JSON) for shows/animations. */
   ShowTimes?: string | null;
+  /** Free text about the record; a plain string or one string per language. */
+  Summary?: string | Record<string, string>;
+  /** Whether the app draws the record on its map. */
+  VisibleOnMap?: boolean;
+  /** Whether the app will route a guest to the record. */
+  WayfindingEnabled?: boolean;
 };
 
 type CategoryRecord = {
@@ -1350,6 +1367,22 @@ class AttractionsIOV1 extends Destination {
   }
 
   /**
+   * Whether a record filed under a restaurant category is not somewhere a
+   * guest can eat: an information page about the park's food, or a kiosk that
+   * only the queue of a ride can reach. Such a record is published as nothing
+   * (no entity, no live row), the way a seasonal menu special is. False for
+   * every park unless it names the signal its own feed gives.
+   *
+   * Only records the restaurant lists would publish are asked, so a ride or a
+   * show is never affected, and a park names a signal that holds for its own
+   * restaurant records rather than for every record in the pack: the same
+   * flags mark real rides as unroutable in other parks.
+   */
+  protected isNonVenueRestaurantListing(_item: RecordItem): boolean {
+    return false;
+  }
+
+  /**
    * Names of seasonal event categories whose restaurant sub-categories list
    * the event's menu specials rather than outlets. Empty unless a park names
    * the container its own feed uses.
@@ -1360,7 +1393,7 @@ class AttractionsIOV1 extends Destination {
    * listed on its own.
    *
    * A parent is matched on its whole name, ignoring case and the amount or
-   * kind of whitespace (see normaliseCategoryName), so a category the park
+   * kind of whitespace (see normaliseName), so a category the park
    * re-types as "BRICK OR TREAT" still counts and "Brick or Treat Hotel" does
    * not.
    */
@@ -1376,7 +1409,7 @@ class AttractionsIOV1 extends Destination {
    * external data.
    */
   private async getItemIdsBelowSeasonalParents(): Promise<Set<number>> {
-    const parents = new Set(this.getSeasonalMenuParentCategories().map(normaliseCategoryName));
+    const parents = new Set(this.getSeasonalMenuParentCategories().map(normaliseName));
     if (parents.size === 0) return new Set();
 
     const data = await this.getCatalogue();
@@ -1388,7 +1421,7 @@ class AttractionsIOV1 extends Destination {
         seen.add(current._id);
         const parent: CategoryRecord | undefined =
           current.Parent === undefined || current.Parent === null ? undefined : byId.get(current.Parent);
-        if (parent && parents.has(normaliseCategoryName(extractName(parent.Name)))) return true;
+        if (parent && parents.has(normaliseName(extractName(parent.Name)))) return true;
         current = parent;
       }
       return false;
@@ -1538,13 +1571,16 @@ class AttractionsIOV1 extends Destination {
     );
 
     // Restaurants, less a seasonal event's menu specials (see
-    // getSeasonalMenuParentCategories). Only the restaurant-listed items under
-    // that parent are specials; the rest of what sits there is classified as
-    // usual.
+    // getSeasonalMenuParentCategories) and the records that are no venue (see
+    // isNonVenueRestaurantListing). Only the restaurant-listed items under the
+    // seasonal parent are specials; the rest of what sits there is classified
+    // as usual.
     const belowSeasonalParent = await this.getItemIdsBelowSeasonalParents();
     const restaurantCandidates = await this.getItemsForCategories(RESTAURANT_CATEGORIES);
-    const menuSpecialItems = restaurantCandidates.filter(item => belowSeasonalParent.has(item._id));
-    const restaurantItems = restaurantCandidates.filter(item => !belowSeasonalParent.has(item._id));
+    const isNotVenue = (item: RecordItem) =>
+      belowSeasonalParent.has(item._id) || this.isNonVenueRestaurantListing(item);
+    const nonVenueItems = restaurantCandidates.filter(isNotVenue);
+    const restaurantItems = restaurantCandidates.filter(item => !isNotVenue(item));
     const restaurantEntities = restaurantItems.map(item =>
       buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'RESTAURANT')
     );
@@ -1557,11 +1593,11 @@ class AttractionsIOV1 extends Destination {
     // signal for rides: a height requirement also sits on Thorpe Park's
     // per-ride "Ride Access Pass" duplicates, so unlisted items without a
     // schedule stay unclassified.
-    // The menu specials count as classified although they are not published:
-    // left out of this set, one that carried a schedule would come back from
-    // the fallback below as a SHOW.
+    // The records that are no venue count as classified although they are not
+    // published: left out of this set, one that carried a schedule would come
+    // back from the fallback below as a SHOW.
     const classified = new Set(
-      [...attractionItems, ...showItems, ...restaurantItems, ...menuSpecialItems].map(item => item._id),
+      [...attractionItems, ...showItems, ...restaurantItems, ...nonVenueItems].map(item => item._id),
     );
 
     // Walk-through areas the park files in a category of their own with an
@@ -1972,6 +2008,19 @@ export class ThorpePark extends AttractionsIOV1 {
       },
     });
   }
+
+  /**
+   * Thorpe Park files two information pages ("Allergies & Intolerances",
+   * "Food & Drink Information") and three kiosks inside a ride's queue
+   * ("Q-line Kiosk" for Colossus, The Swarm and SAW - The Ride) among its
+   * restaurants. The app does not route a guest to any of them
+   * (WayfindingEnabled is false). Every other restaurant record in the pack
+   * is routable, including the two Q-line kiosks at a ride's entrance, so the
+   * flag separates the five where the name does not.
+   */
+  protected isNonVenueRestaurantListing(item: RecordItem): boolean {
+    return item.WayfindingEnabled === false;
+  }
 }
 
 /**
@@ -2027,6 +2076,14 @@ export class LegolandWindsor extends AttractionsIOV1 {
 }
 
 /**
+ * A sentence of a menu item's summary that names the outlet selling it:
+ * "Served at <Outlet>", "Pick yours up (now) at the <Outlet>". The outlet's
+ * name starts with a capital, which leaves out a time ("served at 7 a.m.") and
+ * a place described in lower case ("pick yours up at the window").
+ */
+const SOLD_AT_AN_OUTLET = /\b(?:[Ss]erved|[Pp]ick (?:it|yours|them) up(?: now)?) at (?:the )?[A-Z]/;
+
+/**
  * LEGOLAND Florida Resort, Winter Haven, FL
  */
 @destinationController({category: ['Merlin', 'Legoland']})
@@ -2053,6 +2110,22 @@ export class LegolandOrlando extends AttractionsIOV1 {
    */
   protected getSeasonalMenuParentCategories(): string[] {
     return ['Brick or Treat'];
+  }
+
+  /**
+   * Menu items also turn up in the top-level "Dining" category, outside the
+   * Halloween parent ("NEW! Brick Ice Lolly"). No flag, classification or
+   * category sets one apart: real Dining venues have the same empty
+   * classifications and the same flags. What does is the summary, which sends
+   * the guest to the outlets that sell it ("Pick yours up now at the Pop Cart,
+   * Traffic Cart or Beach-N-Bricks Grill", "Served at Kick'n Chicken Co.").
+   * A venue's summary describes its own menu and hours.
+   *
+   * The sentence is matched with an outlet's name after it, so "Breakfast is
+   * served at 7 a.m." and "pick yours up at the window" are not.
+   */
+  protected isNonVenueRestaurantListing(item: RecordItem): boolean {
+    return textInAllLanguages(item.Summary).some(text => SOLD_AT_AN_OUTLET.test(text));
   }
 }
 
@@ -2298,8 +2371,28 @@ type DjursCalendarModel = {
   parkEvents?: DjursParkEvent[];
 };
 
+/**
+ * The names Djurs Sommerland gives its bookable barbecue packages, in English
+ * and in Danish, as compared by normaliseName().
+ */
+const BARBECUE_PACKAGE_NAMES = new Set(['barbecue packages', 'grillpakker']);
+
 @config
 class DjursSommerlandBase extends AttractionsIOV1 {
+  /**
+   * Djurs files its bookable barbecue packages ("Barbecue packages",
+   * "Grillpakker", sold on the park's webshop) among the restaurants, in
+   * "Barbecue & food from home" beside "Bring your own barbecue food", the
+   * grill area itself. Nothing on the two records separates them (same
+   * category, same flags, no classifications, a call-to-action each), so the
+   * package is matched by the name its own feed gives it, whole and in either
+   * language. The park's restaurants, buffets and the grill area do not carry
+   * it.
+   */
+  protected isPaidProductListing(item: RecordItem): boolean {
+    return textInAllLanguages(item.Name).some(name => BARBECUE_PACKAGE_NAMES.has(normaliseName(name)));
+  }
+
   /**
    * Fetch the opening-hours page HTML.
    * Cached for 2 hours.

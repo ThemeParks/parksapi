@@ -497,8 +497,8 @@ class ParcsReunidosDestination extends Destination {
   // day. The shape is identical, so nothing detects the difference — an entry
   // cached by the old code is silently still wrong, and at a 24h TTL that is
   // a full day of an already-deployed fix doing nothing. Observed exactly
-  // that on the first deploy: the collector synced with the corrected build
-  // and republished the same inverted rows straight out of this cache.
+  // that on the first deploy: the corrected build kept serving the same
+  // inverted rows straight out of this cache.
   @cache({ttlSeconds: 86400, cacheVersion: 2})
   async parseCalendar(): Promise<EntitySchedule['schedule']> {
     const resp = await this.fetchCalendarHTML();

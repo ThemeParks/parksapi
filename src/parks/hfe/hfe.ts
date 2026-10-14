@@ -40,11 +40,17 @@ type HFEHeightRequirement = {
 };
 
 /** Activity from the HFE Corp activities endpoint */
-type HFEActivity = {
+export type HFEActivity = {
   id: string;
   title: string;
   activityCategories: string[];
   activityListId?: string;
+  /**
+   * The stage a show plays at: the id of another activity in the same payload
+   * (a venue such as "Gazebo Stage", though nothing guarantees it is filed in
+   * the venue list). Null or missing on some shows.
+   */
+  showVenueLocation?: string | null;
   duration?: string | null;
   latitudeForDirections?: string | number;
   longitudeForDirections?: string | number;
@@ -92,6 +98,145 @@ type HFEWaitTime = {
   waitTime: number | null;
   waitTimeDisplay: string;
 };
+
+// ============================================================================
+// Same-stage show folding
+// ============================================================================
+
+/** One published show: the feed records it stands for, and the name it goes by. */
+export type HFEShowGroup = {
+  /** The record whose id and details the entity takes. */
+  canonical: HFEActivity;
+  /** Every record folded into the entity, the canonical one included, by id. */
+  members: HFEActivity[];
+  /** The title, with the stage added where the act plays more than one. */
+  name: string;
+};
+
+/** Case, punctuation and script insensitive comparison key; '' if nothing is left. */
+function textKey(value: unknown): string {
+  return typeof value === 'string'
+    ? value.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '')
+    : '';
+}
+
+/** A categorised record clears the ghost filter on its own, whatever the schedule says. */
+const isCategorised = (a: HFEActivity): boolean => (a.activityCategories?.length ?? 0) > 0;
+
+/**
+ * Where a show plays, as a comparison key and the name to print; both '' when
+ * the feed does not say. A venue the payload cannot resolve, one with no name,
+ * and one that is the show itself (some records name themselves) all count as
+ * "does not say": there is nothing to print, and keying on a dangling id would
+ * split copies of one act that the park cannot tell apart.
+ */
+function stageOf(show: HFEActivity, byId: Map<string, HFEActivity>): {key: string; label: string} {
+  const venue = show.showVenueLocation ? byId.get(show.showVenueLocation) : undefined;
+  const label = typeof venue?.title === 'string' ? venue.title.trim() : '';
+  const key = textKey(label);
+  if (!key || key === textKey(show.title)) return {key: '', label: ''};
+  return {key, label};
+}
+
+/**
+ * Fold a park's emitted show records to one entity per act and stage.
+ *
+ * Silver Dollar City lists an act as a separate record for every stage and
+ * every season it plays, all under the same title: "Arbour Season" is five
+ * records, "Kinfolk Bluegrass Band" five more. Published as they stand they
+ * are same-name entities side by side.
+ *
+ * - Records with the same title AND the same stage are the seasonal copies of
+ *   one stage's act. They fold into one group, and `members` is the lot, so
+ *   the caller can merge their showtimes.
+ * - Records on different stages stay in different groups.
+ * - The stage is added to the name ("Arbour Season (Gazebo Stage)") whenever
+ *   the feed lists the same title on more than one named stage, ghost records
+ *   included. So a single-stage act carries its stage in its name if the feed
+ *   also lists the title on another stage, and the name does not move with the
+ *   season: the other stage's copy is only published while the schedule lists
+ *   it, but its record is in the feed all year. A stage the feed does not name
+ *   (missing, unresolvable, or the show itself) counts as no stage: it is never
+ *   printed and never makes another stage a second one. A group with no named
+ *   stage keeps the plain title, as does the only named stage of a title whose
+ *   other records are unplaced.
+ *
+ * `shows` is what the park would publish anyway (already through the ghost
+ * filter), and a ghost record does not join a group. `activities` is the whole
+ * payload: where a stage's name is looked up, and where the other records of
+ * the same title (from the same list as `shows`) are counted.
+ *
+ * The canonical record, whose id the entity takes, is the first of:
+ *
+ *   1. the lowest id in `options.preferredIds`: ids already in use that must
+ *      not move, which also covers a new copy turning up with a lower id;
+ *   2. the lowest categorised id. A categorised record is always published,
+ *      but an uncategorised one only while the schedule lists it, so it comes
+ *      and goes with the season. An id taken from one of those would move
+ *      every time it left;
+ *   3. the lowest id.
+ *
+ * Where it still moves: when the record the id came from leaves the feed, and
+ * when every copy is uncategorised and the lowest leaves the schedule. Input
+ * order does not matter.
+ */
+export function foldShowsByStage(
+  shows: HFEActivity[],
+  activities: HFEActivity[],
+  options: {preferredIds?: ReadonlySet<string>} = {},
+): HFEShowGroup[] {
+  const preferred = options.preferredIds ?? new Set<string>();
+  // The payload as the fold sees it. `shows` are part of it even if a caller
+  // leaves one out of `activities`.
+  const feed = new Map(activities.map(a => [a.id, a]));
+  for (const s of shows) feed.set(s.id, s);
+  const position = new Map(shows.map((s, i) => [s.id, i]));
+  const byIdAsc = (a: HFEActivity, b: HFEActivity) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+  // A title with nothing comparable in it is its own act, never folded.
+  const titleKeyOf = (s: HFEActivity) => textKey(s.title) || `\0${s.id}`;
+
+  const buckets = new Map<string, {titleKey: string; members: HFEActivity[]}>();
+  for (const s of shows) {
+    const titleKey = titleKeyOf(s);
+    const bucketKey = `${titleKey}\0${stageOf(s, feed).key}`;
+    const bucket = buckets.get(bucketKey);
+    if (bucket) bucket.members.push(s);
+    else buckets.set(bucketKey, {titleKey, members: [s]});
+  }
+
+  // Named stages per title over the whole feed, published or not, so the count
+  // does not move with the schedule.
+  const showLists = new Set(shows.map(s => s.activityListId));
+  const namedStagesPerTitle = new Map<string, Set<string>>();
+  for (const record of feed.values()) {
+    if (!showLists.has(record.activityListId)) continue;
+    const stage = stageOf(record, feed).key;
+    if (!stage) continue;
+    const titleKey = titleKeyOf(record);
+    const stages = namedStagesPerTitle.get(titleKey) ?? new Set<string>();
+    stages.add(stage);
+    namedStagesPerTitle.set(titleKey, stages);
+  }
+
+  const groups: HFEShowGroup[] = [];
+  for (const {titleKey, members} of buckets.values()) {
+    members.sort(byIdAsc);
+    const canonical =
+      members.find(m => preferred.has(m.id)) ??
+      members.find(isCategorised) ??
+      members[0];
+    const {label} = stageOf(canonical, feed);
+    const named = label !== '' && (namedStagesPerTitle.get(titleKey)?.size ?? 0) > 1;
+    groups.push({
+      canonical,
+      members,
+      name: named ? `${canonical.title.trim()} (${label})` : canonical.title,
+    });
+  }
+
+  return groups.sort((a, b) => position.get(a.canonical.id)! - position.get(b.canonical.id)!);
+}
 
 // ============================================================================
 // HFE Base Class (not registered as a destination)
@@ -160,6 +305,16 @@ class HFEBase extends Destination {
    * genuinely unscheduled off-season shows until they reappear on the calendar.
    */
   protected showsRequireSchedule: boolean = false;
+
+  /**
+   * When true, shows are published one entity per act and stage (see
+   * foldShowsByStage). Off by default: the fold renames and removes entities, so
+   * a park opts in once that has been decided for it.
+   */
+  protected foldStageShows: boolean = false;
+
+  /** Show ids that stay the entity id when copies fold (see foldShowsByStage). */
+  protected preferredShowIds: ReadonlySet<string> = new Set();
 
   /** Destination entity ID (set by subclass) */
   protected destinationSlug: string = '';
@@ -452,38 +607,62 @@ class HFEBase extends Destination {
     // a few uncategorised real shows for one cache cycle than readmit 100+ ghosts.
     const shows: Entity[] = [];
     if (this.showCategoryListId) {
-      let scheduledIds: Set<string | undefined> = new Set();
+      let scheduledIds = new Set<string>();
       try {
-        const scheduleDays = await this.getSchedule();
-        scheduledIds = new Set(
-          scheduleDays.flatMap(day => (day.activities ?? []).map(a => a.cmsKey)),
-        );
+        scheduledIds = this.scheduledActivityIds(await this.getSchedule());
       } catch {
         // Schedule API totally unavailable — proceed with category-only filter
       }
 
-      const showActivities = activities.filter(
-        a => a.activityListId === this.showCategoryListId &&
-          (this.showsRequireSchedule
-            ? scheduledIds.has(a.id)
-            : ((a.activityCategories?.length ?? 0) > 0 || scheduledIds.has(a.id))),
-      );
+      const groups = this.groupShows(this.selectShows(activities, scheduledIds), activities);
 
-      shows.push(...this.mapEntities(showActivities, {
-        idField: 'id',
-        nameField: 'title',
+      shows.push(...this.mapEntities(groups, {
+        idField: (g: HFEShowGroup) => g.canonical.id,
+        nameField: (g: HFEShowGroup) => g.name,
         entityType: 'SHOW',
         parentIdField: () => this.parkSlug,
         destinationId: this.destinationSlug,
         timezone: this.timezone,
         locationFields: {
-          lat: (item: HFEActivity) => this.parseCoord(item.latitudeForDirections),
-          lng: (item: HFEActivity) => this.parseCoord(item.longitudeForDirections),
+          lat: (g: HFEShowGroup) => this.parseCoord(g.canonical.latitudeForDirections),
+          lng: (g: HFEShowGroup) => this.parseCoord(g.canonical.longitudeForDirections),
         },
       }));
     }
 
     return [parkEntity, ...attractions, ...restaurants, ...shows];
+  }
+
+  /** Ids the daily schedule lists an activity for. */
+  private scheduledActivityIds(days: HFEScheduleDay[]): Set<string> {
+    const ids = new Set<string>();
+    for (const day of days) {
+      for (const a of day.activities ?? []) {
+        if (a.cmsKey) ids.add(a.cmsKey);
+      }
+    }
+    return ids;
+  }
+
+  /**
+   * The show records worth publishing. Shared by buildEntityList and
+   * buildSchedules so both agree on the set, and so on which copies fold.
+   */
+  private selectShows(activities: HFEActivity[], scheduledIds: Set<string>): HFEActivity[] {
+    return activities.filter(
+      a => a.activityListId === this.showCategoryListId &&
+        (this.showsRequireSchedule
+          ? scheduledIds.has(a.id)
+          : ((a.activityCategories?.length ?? 0) > 0 || scheduledIds.has(a.id))),
+    );
+  }
+
+  /** One group per published show: a single record each, unless the park folds. */
+  private groupShows(shows: HFEActivity[], activities: HFEActivity[]): HFEShowGroup[] {
+    if (!this.foldStageShows) {
+      return shows.map(s => ({canonical: s, members: [s], name: s.title}));
+    }
+    return foldShowsByStage(shows, activities, {preferredIds: this.preferredShowIds});
   }
 
   // ============================================================================
@@ -696,7 +875,21 @@ class HFEBase extends Destination {
           .map(a => [a.id, a]),
       );
 
-      const showSchedules = new Map<string, EntitySchedule['schedule']>();
+      // Which entity each record publishes under. A folded-away record has no
+      // entity of its own, so its showtimes go to the canonical one and it gets
+      // no schedule row, which would otherwise be an orphan.
+      const publishedAs = new Map<string, string>();
+      const recordsPerEntity = new Map<string, number>();
+      const published = this.selectShows(activities, this.scheduledActivityIds(scheduleDays));
+      for (const group of this.groupShows(published, activities)) {
+        recordsPerEntity.set(group.canonical.id, group.members.length);
+        for (const member of group.members) publishedAs.set(member.id, group.canonical.id);
+      }
+
+      type Slot = EntitySchedule['schedule'][number];
+      const showSchedules = new Map<string, Slot[]>();
+      // Showtimes of folded entities, kept apart until every record is read.
+      const foldedSlots = new Map<string, Array<{slot: Slot; fromCanonical: boolean}>>();
 
       for (const day of scheduleDays) {
         if (!Array.isArray(day.activities)) continue;
@@ -707,6 +900,7 @@ class HFEBase extends Destination {
 
           const show = showById.get(activity.cmsKey);
           if (!show) continue;
+          const entityId = publishedAs.get(show.id) ?? show.id;
 
           for (const event of activity.events) {
             if (!event.from) continue;
@@ -729,17 +923,38 @@ class HFEBase extends Destination {
 
             if (!closingTime) continue; // closingTime required by schema
 
-            if (!showSchedules.has(show.id)) {
-              showSchedules.set(show.id, []);
-            }
-            showSchedules.get(show.id)!.push({
+            const slot: Slot = {
               date: dateStr,
               type: 'OPERATING',
               openingTime,
               closingTime,
-            });
+            };
+            if ((recordsPerEntity.get(entityId) ?? 1) > 1) {
+              if (!foldedSlots.has(entityId)) foldedSlots.set(entityId, []);
+              foldedSlots.get(entityId)!.push({slot, fromCanonical: show.id === entityId});
+              continue;
+            }
+            if (!showSchedules.has(entityId)) {
+              showSchedules.set(entityId, []);
+            }
+            showSchedules.get(entityId)!.push(slot);
           }
         }
+      }
+
+      // Seasonal copies of one stage's act can list the same start. That is one
+      // performance, and the canonical record's reading of it (its own end or
+      // duration) wins. Each entity's times are then in time order, because the
+      // copies were read record by record, not clock by clock.
+      for (const [id, candidates] of foldedSlots) {
+        const byStart = new Map<string, Slot>();
+        for (const {slot} of [...candidates].sort((a, b) => Number(b.fromCanonical) - Number(a.fromCanonical))) {
+          if (!byStart.has(slot.openingTime)) byStart.set(slot.openingTime, slot);
+        }
+        showSchedules.set(
+          id,
+          [...byStart.values()].sort((a, b) => Date.parse(a.openingTime) - Date.parse(b.openingTime)),
+        );
       }
 
       for (const [id, schedule] of showSchedules) {
@@ -853,6 +1068,17 @@ export class SilverDollarCity extends HFEBase {
     this.attractionsListId = '6cbebd47-facc-4c26-b1b2-4e0da4de0e6e';
     this.diningCategory = 'Dining';
     this.showCategoryListId = '9e8b88c7-6a31-46e2-b696-aad5a5ecfe3d';
+    // The feed lists an act once per stage and season under one title; publish
+    // one entity per act and stage instead of same-name copies.
+    this.foldStageShows = true;
+    // Ids already in use for acts the feed lists more than once on one stage
+    // (two Arbour Season records on the Gazebo Stage, two Homestead Pickers
+    // records at McHaffie's Homestead). A copy added later with a lower id must
+    // not take over.
+    this.preferredShowIds = new Set([
+      'c7095f82-45d6-4174-bfc5-f4c1145ad88e',
+      'afa2cd9f-3b39-46c8-ae3e-7a683f8da1eb',
+    ]);
   }
 }
 
