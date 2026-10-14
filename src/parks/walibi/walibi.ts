@@ -510,7 +510,7 @@ class WalibiBase extends Destination {
 
     if (!calData?.calendar) return [];
 
-    const schedule: Array<{date: string; type: string; openingTime: string; closingTime: string}> = [];
+    const schedule: EntitySchedule['schedule'] = [];
 
     for (const year of Object.keys(calData.calendar)) {
       const yearData = calData.calendar[year];

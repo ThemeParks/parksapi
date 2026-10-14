@@ -1531,7 +1531,7 @@ export class DisneylandParis extends Destination {
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const now = new Date();
-    const scheduleMap = new Map<string, any[]>();
+    const scheduleMap = new Map<string, EntitySchedule['schedule']>();
 
     // Keyed by published id, which is what scheduleId already is — the alias is
     // applied before the lookup below, so the folded PhilharMagic twin resolves
@@ -1588,7 +1588,7 @@ export class DisneylandParis extends Destination {
             closeTime = constructDateTime(shiftDateString(dateString, 1), hours.endTime, this.timezone);
           }
 
-          let type: string = 'OPERATING';
+          let type: EntitySchedule['schedule'][number]['type'] = 'OPERATING';
           let description: string | undefined;
 
           if (hours.status === 'EXTRA_MAGIC_HOURS') {

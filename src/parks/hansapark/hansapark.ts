@@ -157,7 +157,7 @@ export class HansaPark extends Destination {
         closeTime: s.parkOpeningHoursTo as string,
       }));
 
-    const schedule: Array<{date: string; type: string; openingTime: string; closingTime: string}> = [];
+    const schedule: EntitySchedule['schedule'] = [];
 
     // Iterate day-by-day for 6 months
     for (let d = new Date(now); d <= sixMonths; d = addDays(d, 1)) {

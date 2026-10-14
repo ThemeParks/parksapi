@@ -31,7 +31,7 @@ import {destinationController} from '../../destinationRegistry.js';
 import {CacheLib, database} from '../../cache.js';
 import {getHttpInstanceId, makeHttpRequest} from '../../httpProxy.js';
 import {tracing} from '../../tracing.js';
-import {constructDateTime, addDays, formatInTimezone, formatDate} from '../../datetime.js';
+import {constructDateTime, addDays, formatInTimezone, formatDate, shiftDateString} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
 import type {Entity, LiveData, EntitySchedule, LiveTimeSlot} from '@themeparks/typelib';
 import AdmZip from 'adm-zip';
@@ -2299,19 +2299,32 @@ class DjursSommerlandBase extends AttractionsIOV1 {
       return [{id: this.parkId, schedule: []}];
     }
 
-    const schedule: Array<{
-      date: string;
-      type: string;
-      openingTime: string;
-      closingTime: string;
-      description?: string;
-    }> = [];
+    const schedule: EntitySchedule['schedule'] = [];
 
     const currentYear = new Date().getFullYear();
+
+    // The page lists three kinds of hours, by event code: 1 "Park opening
+    // hours", 2 "Water park opening hours" and 4 "Magical Halloween opening
+    // hours". It lays each day out from the events that cover it, the first
+    // event of a code winning: a Halloween window if there is one (and then only
+    // that window), otherwise the park hours with the water park beside them,
+    // otherwise closed. A Halloween day usually has no code-1 event at all (the
+    // "Open today" banner reads the Halloween window on those days), so the
+    // Halloween window is what says the park itself is open. The water park is
+    // a part of the park and never does. Any other code is not read.
+    type Row = {kind: 'regular' | 'waterPark' | 'halloween'; date: string; openTime: string; closeTime: string; description?: string};
+    const rows: Row[] = [];
+    const unknownCodes = new Set<string>();
 
     for (const event of calendarData.parkEvents) {
       const {type, start, end, days} = event;
       if (!start || !end || !days?.ranges) continue;
+
+      const kind = type === 1 ? 'regular' : type === 2 ? 'waterPark' : type === 4 ? 'halloween' : undefined;
+      if (!kind) {
+        unknownCodes.add(String(JSON.stringify(type)));
+        continue;
+      }
 
       const startMatch = start.match(/^(\d{1,2}):(\d{2})/);
       const endMatch = end.match(/^(\d{1,2}):(\d{2})/);
@@ -2325,13 +2338,9 @@ class DjursSommerlandBase extends AttractionsIOV1 {
       const openTime = `${String(openHour).padStart(2, '0')}:${String(openMinute).padStart(2, '0')}`;
       const closeTime = `${String(closeHour).padStart(2, '0')}:${String(closeMinute).padStart(2, '0')}`;
 
-      // type 1 = Regular, type 2 = Water park, type 4 = Magical Halloween
-      const isWaterPark = type === 2;
-      const isSpecialEvent = type === 4;
-      const scheduleType = (isWaterPark || isSpecialEvent) ? 'INFO' : 'OPERATING';
-      const description = isWaterPark
+      const description = kind === 'waterPark'
         ? 'Water Park'
-        : isSpecialEvent
+        : kind === 'halloween'
           ? (event.description || 'Magical Halloween')
           : undefined;
 
@@ -2344,34 +2353,61 @@ class DjursSommerlandBase extends AttractionsIOV1 {
         const testDate = new Date(currentYear, month, day);
         if (testDate.getMonth() !== month || testDate.getDate() !== day) continue;
 
-        const dateStr = `${currentYear}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-        const entry: {
-          date: string;
-          type: string;
-          openingTime: string;
-          closingTime: string;
-          description?: string;
-        } = {
-          date: dateStr,
-          type: scheduleType,
-          openingTime: constructDateTime(dateStr, openTime, this.timezone),
-          closingTime: constructDateTime(dateStr, closeTime, this.timezone),
-        };
-
-        if (description) entry.description = description;
-
-        schedule.push(entry);
+        const date = `${currentYear}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        rows.push({kind, date, openTime, closeTime, description});
       }
     }
 
-    // Sort by date then opening time
+    if (unknownCodes.size) {
+      console.warn(
+        `[${this.constructor.name}] skipped calendar events with a type code the page does not use: ${[...unknownCodes].join(', ')}`,
+      );
+    }
+
+    // The window the page shows for a Halloween date: the first one in the feed.
+    const halloweenWindow = new Map<string, Row>();
+    for (const r of rows) {
+      if (r.kind === 'halloween' && !halloweenWindow.has(r.date)) halloweenWindow.set(r.date, r);
+    }
+
+    const entry = (r: Row, scheduleType: 'OPERATING' | 'INFO', description?: string) => {
+      // A window running past midnight closes on the next calendar day.
+      const closeDate = r.closeTime < r.openTime ? shiftDateString(r.date, 1) : r.date;
+      const out: EntitySchedule['schedule'][number] = {
+        date: r.date,
+        type: scheduleType,
+        openingTime: constructDateTime(r.date, r.openTime, this.timezone),
+        closingTime: constructDateTime(closeDate, r.closeTime, this.timezone),
+      };
+      if (description) out.description = description;
+      return out;
+    };
+
+    for (const r of rows) {
+      if (r.kind === 'regular') {
+        // On a Halloween date the page shows the Halloween window only.
+        if (!halloweenWindow.has(r.date)) schedule.push(entry(r, 'OPERATING'));
+      } else if (r.kind === 'waterPark') {
+        schedule.push(entry(r, 'INFO', r.description));
+      } else if (halloweenWindow.get(r.date) === r) {
+        // The park's own hours on a Halloween day, with the event kept as its
+        // own INFO entry beside it.
+        schedule.push(entry(r, 'OPERATING'));
+        schedule.push(entry(r, 'INFO', r.description));
+      }
+    }
+
+    // Sort by date, then opening time, the park's own hours before an event
+    // that starts at the same minute.
     schedule.sort((a, b) => {
       const dc = a.date.localeCompare(b.date);
-      return dc !== 0 ? dc : a.openingTime.localeCompare(b.openingTime);
+      if (dc !== 0) return dc;
+      const oc = a.openingTime.localeCompare(b.openingTime);
+      if (oc !== 0) return oc;
+      return Number(b.type === 'OPERATING') - Number(a.type === 'OPERATING');
     });
 
-    return [{id: this.parkId, schedule: schedule as any}];
+    return [{id: this.parkId, schedule}];
   }
 }
 

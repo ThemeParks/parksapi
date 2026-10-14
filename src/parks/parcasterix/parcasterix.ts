@@ -132,7 +132,7 @@ interface TimeRange {
 
 interface ScheduleEntry {
   date: string;
-  type: string;
+  type: EntitySchedule['schedule'][number]['type'];
   openingTime: string;
   closingTime: string;
 }
@@ -870,7 +870,7 @@ export class ParcAsterix extends Destination {
       for (const range of dayType) {
         if (!range.start || !range.end) continue;
 
-        let openingType = 'OPERATING';
+        let openingType: ScheduleEntry['type'] = 'OPERATING';
 
         const openTime = `${String(range.start.hour).padStart(2, '0')}:${String(range.start.minute).padStart(2, '0')}`;
         const closeTime = `${String(range.end.hour).padStart(2, '0')}:${String(range.end.minute).padStart(2, '0')}`;

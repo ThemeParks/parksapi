@@ -1,4 +1,4 @@
-import {LiveData, Entity, EntitySchedule, LocalisedString, LanguageCode, LiveQueue, ReturnTimeState, BoardingGroupState} from "@themeparks/typelib";
+import {LiveData, Entity, EntitySchedule, LocalisedString, LanguageCode, LiveQueue, ReturnTimeState, BoardingGroupState, ScheduleTypeEnum} from "@themeparks/typelib";
 import {trace} from "./tracing.js";
 import {reusable} from "./promiseReuse.js";
 import {loadProxyConfig, hasProxyConfig, type ProxyConfig} from "./proxy.js";
@@ -84,6 +84,45 @@ function stripUndefinedDeep(value: unknown): void {
       stripUndefinedDeep(v);
     }
   }
+}
+
+/**
+ * The schedule types a schedule entry may carry, read from the schedule
+ * definition so a type added there is accepted here without a second list.
+ */
+const SCHEDULE_TYPES: ReadonlySet<string> = new Set(Object.values(ScheduleTypeEnum));
+
+/**
+ * Warn about schedule entries whose `type` the schedule definition does not
+ * have. Every entry is kept and nothing is changed.
+ *
+ * A type outside the definition has no defined meaning to whatever reads the
+ * entry, but removing the entry would turn a wrong type into a missing day, and
+ * a park whose entries are all wrong would simply go dark with nothing to say
+ * so. What stops a bad type reaching here is the typing of the entries and the
+ * source scan in scheduleTypeLiterals.test.ts; this is the run-time signal for
+ * what they cannot see. One warning per call names the types, how many entries
+ * each covers and the first one seen.
+ */
+function warnOnUnknownScheduleTypes(owner: string, schedules: EntitySchedule[]): void {
+  const unknown = new Map<string, {count: number; first: string}>();
+  for (const s of schedules) {
+    if (!Array.isArray(s.schedule)) continue;
+    for (const e of s.schedule) {
+      const t: unknown = e?.type;
+      if (typeof t === 'string' && SCHEDULE_TYPES.has(t)) continue;
+      const label = typeof t === 'string' ? JSON.stringify(t.slice(0, 40)) : `(${t == null ? 'missing' : typeof t})`;
+      const seen = unknown.get(label);
+      if (seen) seen.count++;
+      else unknown.set(label, {count: 1, first: String(e?.date)});
+    }
+  }
+  if (!unknown.size) return;
+  const detail = [...unknown].map(([type, d]) => `${type} x${d.count} (first ${d.first})`).join(', ');
+  console.warn(
+    `[${owner}] kept schedule entries with a type the schedule definition lacks: ${detail}. ` +
+    `Allowed: ${[...SCHEDULE_TYPES].join(', ')}`,
+  );
 }
 
 /**
@@ -1499,6 +1538,7 @@ export abstract class Destination {
     await this.init();
     const schedules = await this.buildSchedules();
     for (const s of schedules) stripUndefinedDeep(s);
+    warnOnUnknownScheduleTypes(this.constructor.name, schedules);
     return schedules;
   }
 

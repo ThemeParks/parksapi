@@ -525,7 +525,7 @@ export class Efteling extends Destination {
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const now = new Date();
-    const scheduleEntries: any[] = [];
+    const scheduleEntries: EntitySchedule['schedule'] = [];
 
     // Fetch 4 months of calendar data (current + 3 forward)
     for (let i = 0; i < 4; i++) {

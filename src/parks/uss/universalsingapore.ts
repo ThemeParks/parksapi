@@ -593,7 +593,9 @@ export class UniversalSingapore extends Destination {
       availabilityMap.set(entry.Date, entry.IsAvailable);
     }
 
-    const scheduleEntries: object[] = [];
+    // Typed against the schedule definition so a type it does not define
+    // fails the compile instead of reaching the output.
+    const scheduleEntries: EntitySchedule['schedule'] = [];
 
     for (const [date, hours] of hoursMap) {
       // Skip days explicitly marked unavailable; include days not yet in the API window
@@ -601,18 +603,18 @@ export class UniversalSingapore extends Destination {
 
       scheduleEntries.push({
         date,
-        type: 'PARK_OPEN',
+        type: 'OPERATING',
         openingTime: constructDateTime(date, hours.start, TIMEZONE),
         closingTime: constructDateTime(date, hours.end, TIMEZONE),
       });
     }
 
     // Sort chronologically
-    scheduleEntries.sort((a: any, b: any) => a.date.localeCompare(b.date));
+    scheduleEntries.sort((a, b) => a.date.localeCompare(b.date));
 
     return [{
       id: PARK_ID,
       schedule: scheduleEntries,
-    } as unknown as EntitySchedule];
+    }];
   }
 }

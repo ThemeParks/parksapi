@@ -276,7 +276,7 @@ export class Hersheypark extends Destination {
     const parkApiId = parkData?.id;
     if (!parkApiId) return [];
 
-    const scheduleEntries: any[] = [];
+    const scheduleEntries: EntitySchedule['schedule'] = [];
 
     for (const date of Object.keys(exploreHours)) {
       const hours = exploreHours[date];

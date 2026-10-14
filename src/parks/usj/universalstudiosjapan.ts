@@ -746,7 +746,7 @@ export class UniversalStudiosJapan extends Destination {
       throw new Error('USJ: webApiBase, webApiKey and webApiSecret must be configured for schedules');
     }
 
-    const schedule: Array<{date: string; type: string; openingTime: string; closingTime: string}> = [];
+    const schedule: EntitySchedule['schedule'] = [];
 
     // Fetch 3 months of schedule data
     const now = new Date();

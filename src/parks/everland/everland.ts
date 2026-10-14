@@ -231,7 +231,7 @@ export class Everland extends Destination {
     const now = new Date();
 
     for (const park of PARKS) {
-      const schedule: Array<{date: string; type: string; openingTime: string; closingTime: string}> = [];
+      const schedule: EntitySchedule['schedule'] = [];
 
       for (let i = 0; i < 30; i++) {
         const day = addDays(now, i);

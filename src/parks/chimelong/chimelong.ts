@@ -306,7 +306,7 @@ export class Chimelong extends Destination {
   }
 
   @cache({ttlSeconds: 3600})
-  async getScheduleForPark(park: ParkConfig): Promise<Array<{date: string; type: string; openingTime: string; closingTime: string}>> {
+  async getScheduleForPark(park: ParkConfig): Promise<EntitySchedule['schedule']> {
     const resp = await this.fetchCalendarPage(park.calendarURL);
     const html: string = await resp.text();
     if (!html) return [];
@@ -322,11 +322,11 @@ export class Chimelong extends Destination {
    *   2. Date range + day-of-week:     10月8日-10月31日：周一至周五：10:00-18:00
    *   3. Fallback (today only):        园区营业时间 ... HH:mm-HH:mm
    */
-  private parseScheduleHtml(html: string): Array<{date: string; type: string; openingTime: string; closingTime: string}> {
+  private parseScheduleHtml(html: string): EntitySchedule['schedule'] {
     const now = new Date();
     const year = parseInt(formatDate(now, TIMEZONE).split('-')[0], 10);
 
-    const results: Array<{date: string; type: string; openingTime: string; closingTime: string}> = [];
+    const results: EntitySchedule['schedule'] = [];
     const seen = new Set<string>();
 
     const normalizeTime = (t: string): string => {

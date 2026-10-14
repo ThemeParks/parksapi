@@ -588,7 +588,7 @@ export class ShanghaiDisneylandResort extends Destination {
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const activities = await this.getScheduleActivities();
-    const scheduleMap = new Map<string, any[]>();
+    const scheduleMap = new Map<string, EntitySchedule['schedule']>();
 
     for (const activity of activities) {
       if (!activity.schedule?.schedules) continue;

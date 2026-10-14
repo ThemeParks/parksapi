@@ -223,7 +223,7 @@ export class Toverland extends Destination {
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const now = new Date();
-    const schedule: Array<{date: string; type: string; openingTime: string; closingTime: string}> = [];
+    const schedule: EntitySchedule['schedule'] = [];
 
     // Fetch 6 months of calendar data
     for (let i = 0; i < 6; i++) {

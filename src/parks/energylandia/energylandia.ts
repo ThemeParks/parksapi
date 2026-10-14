@@ -1381,7 +1381,7 @@ export class Energylandia extends Destination {
     const periods = await this.getCalendarPeriods();
     const index = buildScheduleIndex(periods);
 
-    const schedule = [...index.entries()]
+    const schedule: EntitySchedule['schedule'] = [...index.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, hours]) => ({
         date,

@@ -585,7 +585,7 @@ export class Phantasialand extends Destination {
       this.getCalendarJSON(),
       this.getParkInfos(),
     ]);
-    const scheduleEntries: any[] = [];
+    const scheduleEntries: EntitySchedule['schedule'] = [];
 
     for (const event of calendar) {
       const title = event.title || '';
