@@ -83,14 +83,14 @@ function normaliseName(name: string): string {
 }
 
 /**
- * The text of a name field in every language it carries. extractName() picks
- * one by priority; a match that must not depend on which language the park
- * lists first reads them all.
+ * The text of a name or summary field in every language it carries.
+ * extractName() picks one by priority; a match that must not depend on which
+ * language the park lists first reads them all.
  */
-function allNames(name: string | Record<string, string> | undefined): string[] {
-  if (!name) return [];
-  if (typeof name === 'string') return [name];
-  return Object.values(name).filter((text): text is string => typeof text === 'string');
+function textInAllLanguages(field: string | Record<string, string> | undefined): string[] {
+  if (!field) return [];
+  if (typeof field === 'string') return [field];
+  return Object.values(field).filter((text): text is string => typeof text === 'string');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -180,6 +180,8 @@ type RecordItem = {
   MinimumUnaccompaniedHeightRequirement?: number | null;
   /** Recurring schedule tree (stringified JSON) for shows/animations. */
   ShowTimes?: string | null;
+  /** Free text about the record; a plain string or one string per language. */
+  Summary?: string | Record<string, string>;
   /** Whether the app draws the record on its map. */
   VisibleOnMap?: boolean;
   /** Whether the app will route a guest to the record. */
@@ -2040,6 +2042,14 @@ export class LegolandWindsor extends AttractionsIOV1 {
 }
 
 /**
+ * A sentence of a menu item's summary that names the outlet selling it:
+ * "Served at <Outlet>", "Pick yours up (now) at the <Outlet>". The outlet's
+ * name starts with a capital, which leaves out a time ("served at 7 a.m.") and
+ * a place described in lower case ("pick yours up at the window").
+ */
+const SOLD_AT_AN_OUTLET = /\b(?:[Ss]erved|[Pp]ick (?:it|yours|them) up(?: now)?) at (?:the )?[A-Z]/;
+
+/**
  * LEGOLAND Florida Resort, Winter Haven, FL
  */
 @destinationController({category: ['Merlin', 'Legoland']})
@@ -2066,6 +2076,22 @@ export class LegolandOrlando extends AttractionsIOV1 {
    */
   protected getSeasonalMenuParentCategories(): string[] {
     return ['Brick or Treat'];
+  }
+
+  /**
+   * Menu items also turn up in the top-level "Dining" category, outside the
+   * Halloween parent ("NEW! Brick Ice Lolly"). No flag, classification or
+   * category sets one apart: real Dining venues have the same empty
+   * classifications and the same flags. What does is the summary, which sends
+   * the guest to the outlets that sell it ("Pick yours up now at the Pop Cart,
+   * Traffic Cart or Beach-N-Bricks Grill", "Served at Kick'n Chicken Co.").
+   * A venue's summary describes its own menu and hours.
+   *
+   * The sentence is matched with an outlet's name after it, so "Breakfast is
+   * served at 7 a.m." and "pick yours up at the window" are not.
+   */
+  protected isNonVenueRestaurantListing(item: RecordItem): boolean {
+    return textInAllLanguages(item.Summary).some(text => SOLD_AT_AN_OUTLET.test(text));
   }
 }
 
@@ -2317,7 +2343,7 @@ class DjursSommerlandBase extends AttractionsIOV1 {
    * it.
    */
   protected isPaidProductListing(item: RecordItem): boolean {
-    return allNames(item.Name).some(name => BARBECUE_PACKAGE_NAMES.has(normaliseName(name)));
+    return textInAllLanguages(item.Name).some(name => BARBECUE_PACKAGE_NAMES.has(normaliseName(name)));
   }
 
   /**

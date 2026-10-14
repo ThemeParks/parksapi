@@ -27,10 +27,16 @@
  *     packages", "Grillpakker" in Danish) among its restaurants, in the same
  *     category and with the same flags as the grill area they are cooked on.
  *
+ *   - LEGOLAND Florida also files a menu item ("NEW! Brick Ice Lolly") in its
+ *     top-level "Dining" category, outside the Halloween parent. Nothing but its
+ *     summary tells it from a venue: it sends the guest to the outlets that sell
+ *     it ("Pick yours up now at the Pop Cart, Traffic Cart or ...").
+ *
  * Near-misses are kept on purpose: rides that merely sell a package, food
  * outlets whose names contain "Express", hotel restaurants nested under a
- * non-seasonal parent, the Q-line kiosks the park does route to, and Djurs'
- * real restaurants, buffets and grill area.
+ * non-seasonal parent, the Q-line kiosks the park does route to, Djurs' real
+ * restaurants, buffets and grill area, and LEGOLAND Florida's real Dining
+ * venues, which mention hours and menus but send nobody to another outlet.
  *
  * The raw network methods are stubbed with payload-shaped fixtures; the real
  * subclasses build the entity list.
@@ -320,6 +326,153 @@ describe('LEGOLAND Florida: Brick or Treat menu specials are not restaurants', (
     const entities = await stub(new LegolandCalifornia(), floridaRecords()).getEntities();
     const restaurants = entities.filter((e: any) => e.entityType === 'RESTAURANT').map((e: any) => e.id);
     for (const id of MENU_IDS) expect(restaurants).toContain(id);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// LEGOLAND Florida: a menu item in the top-level Dining category
+// ---------------------------------------------------------------------------
+
+// The Dining records of the live pack, with the summaries shortened to the
+// sentences that matter, plus the menu item that sits among them.
+function floridaDiningRecords(): any {
+  return {
+    Resort: [{_id: 61, Name: {'en-US': 'LEGOLAND Florida'}}],
+    Category: [
+      {_id: 575, Name: {'en-US': 'Dining'}},
+      {_id: 842, Name: {'en-US': 'American'}, Parent: 575},
+      {_id: 846, Name: {'en-US': 'Dessert'}, Parent: 575},
+      {_id: 578, Name: {'en-US': 'Rides'}},
+    ],
+    Item: [
+      // The menu item: no flag, classification or category sets it apart.
+      {_id: 52601, Name: 'NEW! Brick Ice Lolly', Category: 575, VisibleOnMap: true, WayfindingEnabled: true,
+        entityIds: [], Classifications: [], Location: '27.993543681907,-81.691292509262',
+        Summary: 'Refresh your bricktastic adventure with the all-new Brick Ice Lolly! Built to help you beat the heat, ' +
+          'these sweet frozen treats are available in Strawberry or Mango. Pick yours up now at the Pop Cart, ' +
+          'Traffic Cart or Beach-N-Bricks Grill. Which flavor will you choose?'},
+      // Real Dining venues, with the same empty classifications and the same flags.
+      {_id: 11550, Name: 'Shipwreck Restaurant', Category: 575, VisibleOnMap: true, WayfindingEnabled: true,
+        entityIds: [], Classifications: [279, 632],
+        Summary: 'Hours: Breakfast- 7am-11am, Dinner- 5pm-9pm\n\nAnchors down for your 3-course family style feast.'},
+      {_id: 9791, Name: 'Traffic Cart', Category: 575, VisibleOnMap: true, WayfindingEnabled: true,
+        entityIds: [], Classifications: [],
+        Summary: 'Worked up an appetite buzzing around Driving School? Traffic Cart serves soft pretzels, churros, novelty ice creams, and more!'},
+      {_id: 9790, Name: 'Loop & Kernel', Category: 575, VisibleOnMap: true, WayfindingEnabled: true,
+        entityIds: [], Classifications: [],
+        Summary: 'Safari Cart offers fresh popped popcorn, novelty ice cream, and bottled beverages that will satisfy any snack attack!'},
+      {_id: 5505, Name: 'Bricks Family Restaurant (LEGOLAND Hotel)', Category: 575, VisibleOnMap: true, WayfindingEnabled: true,
+        entityIds: [], Classifications: [280],
+        Summary: 'Bricks Family Restaurant offers a family style breakfast where each table receives a skillet full of all the breakfast classics.'},
+      {_id: 5078, Name: 'Beach-N-Bricks Grill (Water Park)', Category: 842, VisibleOnMap: true, WayfindingEnabled: true,
+        entityIds: [], Classifications: [318, 270],
+        Summary: 'Enjoy a vast assortment of yummy meals at this outdoor eatery.'},
+      // A venue whose summary is a map of languages, only one of which is read first.
+      {_id: 4967, Name: 'Firehouse Ice Cream', Category: 846, entityIds: [], Classifications: [316],
+        Summary: {'en-US': 'Satisfy your sweet tooth at our ice cream parlor!',
+          'es-419': 'En nuestra heladería, podrás calmar tu sed y disfrutar de delicias dulces.'}},
+      // Made up for this test: venues that put a time, a counter or a lower-case
+      // word after "served at" or "pick ... up at".
+      {_id: 9301, Name: 'Breakfast Cafe', Category: 575, entityIds: [], Classifications: [],
+        Summary: 'Breakfast is served at 7 a.m. and dinner is served at 5 p.m.'},
+      {_id: 9302, Name: 'Pickup Window', Category: 575, entityIds: [], Classifications: [],
+        Summary: 'Pick yours up at the window by the entrance, or pick up your order at the counter.'},
+      // A ride.
+      {_id: 6307, Name: 'The Dragon', Category: 578, entityIds: [], Classifications: []},
+    ],
+  };
+}
+
+describe('LEGOLAND Florida: a menu item filed under Dining is not a restaurant', () => {
+  test('the Brick Ice Lolly is not published', async () => {
+    const ids = (await stub(new LegolandOrlando(), floridaDiningRecords()).getEntities()).map((e: any) => e.id);
+    expect(ids).not.toContain('52601');
+  });
+
+  test('every other entity survives: the only difference is the menu item', async () => {
+    const entities = await stub(new LegolandOrlando(), floridaDiningRecords()).getEntities();
+    expect(entities.map((e: any) => e.id).sort()).toEqual(
+      ['11550', '4967', '5078', '5505', '6307', '9301', '9302', '9790', '9791',
+        'legolandorlando', 'legolandorlandoresort'].sort(),
+    );
+  });
+
+  test('real Dining venues stay RESTAURANTs, including ones that name no other outlet or a time', async () => {
+    const entities = await stub(new LegolandOrlando(), floridaDiningRecords()).getEntities();
+    for (const id of ['11550', '9791', '9790', '5505', '5078', '4967', '9301', '9302']) {
+      expect(entities.find((e: any) => e.id === id)?.entityType).toBe('RESTAURANT');
+    }
+    expect(entities.find((e: any) => e.id === '6307')?.entityType).toBe('ATTRACTION');
+  });
+
+  test('the sentence is what is matched: an outlet after "served at" or "pick ... up at", in any language', () => {
+    const park: any = new LegolandOrlando();
+    const listed = (summary: any) => park.isNonVenueRestaurantListing({_id: 1, Name: 'x', Summary: summary});
+    for (const summary of [
+      'Pick yours up now at the Pop Cart, Traffic Cart or Beach-N-Bricks Grill.',
+      'Pick it up at Kingdom Cones.',
+      'Pick them up now at The Grove',
+      'Served at Kick\'n Chicken Co.',
+      'Try this special treat!\n\nServed at LEGOLAND® Coffee Co.',
+      'A sweet treat served at Kingdom Cones exclusively this week',
+      {'en-US': 'Served at Kingdom Cones', 'es-419': 'Se sirve en Kingdom Cones'},
+      {'es-419': 'Se sirve en Kingdom Cones', 'en-US': 'Served at Kingdom Cones'},
+    ]) {
+      expect(listed(summary)).toBe(true);
+    }
+    for (const summary of [
+      'Breakfast is served at 7 a.m.',
+      'Dinner served at 5pm',
+      'Pick yours up at the window by the entrance',
+      'Pick up your order at The Grove',
+      'Served with fries',
+      'Lunch available: 12 p.m. - 4 p.m.',
+      'Hours: Breakfast- 7am-11am, Dinner- 5pm-9pm',
+      {'en-US': 'Satisfy your sweet tooth', 'es-419': 'Se sirve en Kingdom Cones'},
+      '', null, undefined, {}, 42,
+    ]) {
+      expect(listed(summary)).toBe(false);
+    }
+  });
+
+  test('the Halloween specials are caught by their summary too, wherever they are filed', async () => {
+    const records = floridaDiningRecords();
+    records.Item.push({_id: 52588, Name: 'Hex Wrap', Category: 575, entityIds: [], Classifications: [],
+      Summary: `${BOT_TEASER}\n\nServed at Kick'n Chicken Co.`});
+    const ids = (await stub(new LegolandOrlando(), records).getEntities()).map((e: any) => e.id);
+    expect(ids).not.toContain('52588');
+  });
+
+  test('a menu item with a schedule is not promoted to a SHOW by the fallback', async () => {
+    const records = floridaDiningRecords();
+    records.Item.find((item: any) => item._id === 52601).ShowTimes = POINT_SHOW;
+    const ids = (await stub(new LegolandOrlando(), records).getEntities()).map((e: any) => e.id);
+    expect(ids).not.toContain('52601');
+  });
+
+  describe('live data', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({toFake: ['Date']});
+      vi.setSystemTime(new Date('2026-10-14T16:00:00Z'));
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    test('no row is emitted for the menu item even when the feed carries one; the outlets keep theirs', async () => {
+      const live = {entities: {Item: {records: [
+        {_id: 52601, IsOpen: true}, {_id: 9791, IsOpen: true}, {_id: 5078, IsOpen: false},
+      ]}}};
+      const ids = (await stub(new LegolandOrlando(), floridaDiningRecords(), live).getLiveData()).map((r: any) => r.id);
+      expect(ids).not.toContain('52601');
+      expect(ids).toContain('9791');
+      expect(ids).toContain('5078');
+    });
+  });
+
+  test('only Florida opts in: the same records elsewhere keep the menu item', async () => {
+    const entities = await stub(new LegolandCalifornia(), floridaDiningRecords()).getEntities();
+    expect(entities.find((e: any) => e.id === '52601')?.entityType).toBe('RESTAURANT');
   });
 });
 
@@ -635,6 +788,11 @@ describe('the hooks are opt-in on the base class', () => {
   test('a park that overrides nothing publishes a barbecue package', async () => {
     const entities = await new Probe(djursRecords()).getEntities();
     expect(entities.some((e: any) => e.id === '7655')).toBe(true);
+  });
+
+  test('a park that overrides nothing publishes a menu item filed under Dining', async () => {
+    const entities = await new Probe(floridaDiningRecords()).getEntities();
+    expect(entities.some((e: any) => e.id === '52601')).toBe(true);
   });
 });
 
