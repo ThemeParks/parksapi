@@ -1761,21 +1761,32 @@ export class SixFlags extends Destination {
     // Process shows (venueId: 2) from venue status
     const showsVenue = venueStatus.venues.find(v => v.venueId === SHOW_VENUE_ID);
     if (showsVenue?.details) {
-      const showtimesById = await this.getShowStartTimes(parkId, tz);
+      const showtimes = await this.getShowStartTimes(parkId, tz);
 
       for (const show of showsVenue.details) {
         if (addedIds.has(show.fimsId)) continue;
         addedIds.add(show.fimsId);
 
-        const status = this.mapShowStatus(show.status);
+        let status = this.mapShowStatus(show.status);
+        let starts = status === 'CLOSED' ? undefined : showtimes.all.get(show.fimsId);
+
+        // The row reads the new day. A performance carried from last night's
+        // listing is on stage or still ahead, and "Not Scheduled" for the new
+        // day does not take it off. It publishes only those performances: the
+        // row is still the word on what today's own listing holds.
+        if (status === 'CLOSED' && showtimes.carriedRunning.has(show.fimsId)) {
+          status = 'OPERATING';
+          starts = showtimes.carried.get(show.fimsId);
+        }
+
         const ld: LiveData = {
           id: show.fimsId,
           status,
         } as LiveData;
 
-        // A show that is not running today has no performances to publish,
-        // whatever the operating-hours feed still lists for it.
-        const starts = status === 'OPERATING' ? showtimesById.get(show.fimsId) : undefined;
+        // A show the feed reads "Not Scheduled" publishes no performances,
+        // whatever the operating-hours feed still lists for it. A temp-closed
+        // one keeps its listing: the schedule stands and DOWN is the signal.
         if (starts?.length) {
           (ld as any).showtimes = starts.map(startTime => ({
             startTime,
@@ -1800,25 +1811,48 @@ export class SixFlags extends Destination {
    * vanish from the list at midnight, half an hour before it starts.
    * Today's own listing is asked for as a single day because the month query
    * leaves today out.
+   *
+   * `carried` holds only the performances that came from yesterday's
+   * listing, and `carriedRunning` the shows among them with one that has not
+   * ended. A performance ends when its published end time passes: its start
+   * plus DEFAULT_SHOW_DURATION_MINUTES, the same length every showtime is
+   * published with, so a show leaves the set at the moment its own end time
+   * says it is over.
    */
-  private async getShowStartTimes(parkId: number, tz: string, now: Date = new Date()): Promise<Map<string, string[]>> {
+  private async getShowStartTimes(parkId: number, tz: string, now: Date = new Date()): Promise<{
+    all: Map<string, string[]>;
+    carried: Map<string, string[]>;
+    carriedRunning: Set<string>;
+  }> {
     const dayEntry = async (day: {key: string; label: string}) =>
       (await this.getOperatingHours(parkId, day.key))?.dates?.find(d => d.date === day.label);
 
-    const starts: Array<{id: string; startTime: string}> = [];
+    const today: Array<{id: string; startTime: string}> = [];
     const todayEntry = await dayEntry(parkLocalDay(now, tz));
-    if (todayEntry) starts.push(...showStartTimes(todayEntry, tz));
+    if (todayEntry) today.push(...showStartTimes(todayEntry, tz));
+    const carried: Array<{id: string; startTime: string}> = [];
     const yesterdayEntry = await dayEntry(parkLocalDay(now, tz, -1));
-    if (yesterdayEntry) starts.push(...showStartTimes(yesterdayEntry, tz).filter(s => s.carried));
+    if (yesterdayEntry) carried.push(...showStartTimes(yesterdayEntry, tz).filter(s => s.carried));
 
     // Two listings can place the same performance at the same instant.
-    const byShow = new Map<string, string[]>();
-    for (const {id, startTime} of [...starts].sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime))) {
-      const times = byShow.get(id) ?? [];
-      if (!times.includes(startTime)) times.push(startTime);
-      byShow.set(id, times);
-    }
-    return byShow;
+    const byShow = (starts: Array<{id: string; startTime: string}>) => {
+      const grouped = new Map<string, string[]>();
+      for (const {id, startTime} of [...starts].sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime))) {
+        const times = grouped.get(id) ?? [];
+        if (!times.includes(startTime)) times.push(startTime);
+        grouped.set(id, times);
+      }
+      return grouped;
+    };
+
+    const duration = DEFAULT_SHOW_DURATION_MINUTES * 60 * 1000;
+    return {
+      all: byShow([...today, ...carried]),
+      carried: byShow(carried),
+      carriedRunning: new Set(
+        carried.filter(s => now.getTime() < Date.parse(s.startTime) + duration).map(s => s.id),
+      ),
+    };
   }
 
   // ============================================================================

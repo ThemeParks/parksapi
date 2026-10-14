@@ -28,6 +28,8 @@ const OCCULTUM = 'SHOW-004-00208';
 const FIREMANS_DUO = 'SHOW-004-00139';
 const SNOOPY = 'SHOW-004-00008';
 const UNLISTED = 'SHOW-004-00036';
+const BLIND_TIGER = 'SHOW-004-00155';
+const PEANUTS_FRIENDS = 'SHOW-004-00159';
 
 type Show = {showId: number; extLocationID: string; showName: string; items: Array<Record<string, string>>};
 
@@ -79,7 +81,7 @@ class Probe extends SixFlags {
   }
 
   override async getVenueStatus(): Promise<any> {
-    const ids = [THE_HANGING, OCCULTUM, FIREMANS_DUO, SNOOPY, UNLISTED];
+    const ids = [THE_HANGING, OCCULTUM, BLIND_TIGER, FIREMANS_DUO, SNOOPY, PEANUTS_FRIENDS, UNLISTED];
     return {
       venues: [
         {venueId: 1, details: [{fimsId: 'RIDE-004-00172', status: 'Opened'}]},
@@ -466,5 +468,144 @@ describe('after park-local midnight, last night\'s late shows are still publishe
     await probe.liveForTest();
 
     expect(probe.requests).toEqual(['20261101', '20261031']);
+  });
+});
+
+describe('a performance carried from last night keeps its show OPERATING', () => {
+  // The real shape of Sunday 18 and Monday 19 October at Knott's. Sunday has a
+  // haunt window to 01:00 and three shows with a 12:00 or 12:05 AM performance.
+  // Monday lists times only for three daytime shows and carries the other
+  // three with empty times. After midnight the late shows may read "Not
+  // Scheduled" for the new day.
+  const sunday = () => day('2026-10-18', [
+    show(THE_HANGING, 'The Hanging', '12:00 AM, 08:15 PM, 10:15 PM'),
+    show(OCCULTUM, 'Occultum, Curated by The Magic Castle', '12:00 AM, 07:45 PM, 09:00 PM, 10:45 PM'),
+    show(BLIND_TIGER, 'Blind Tiger Balcony Soir\u00e9e', '12:05 AM, 08:15 PM, 09:30 PM, 11:00 PM'),
+  ], {open: '09:00', close: '17:00', haunt: ['19:00', '01:00']});
+
+  const monday = () => day('2026-10-19', [
+    show(SNOOPY, 'Meet Snoopy in Camp Snoopy', '10:30 AM, 11:00 AM'),
+    show(FIREMANS_DUO, "Fireman's Duo", '12:30 PM, 01:45 PM'),
+    show(PEANUTS_FRIENDS, 'Meet Your Favorite Peanuts Friends in Camp Snoopy', '10:15 AM, 11:15 AM'),
+    show(THE_HANGING, 'The Hanging', ''),
+    show(OCCULTUM, 'Occultum, Curated by The Magic Castle', ''),
+    show(BLIND_TIGER, 'Blind Tiger Balcony Soir\u00e9e', ''),
+  ], {open: '10:00', close: '18:00'});
+
+  const lateShows = [THE_HANGING, OCCULTUM, BLIND_TIGER];
+
+  function weekend(): Probe {
+    const probe = new Probe();
+    probe.calendar = [sunday(), monday()];
+    for (const id of lateShows) probe.showStatus[id] = 'Not Scheduled';
+    return probe;
+  }
+
+  // 00:10 PDT on Monday 19 October.
+  const MON_0010 = new Date('2026-10-19T07:10:00Z');
+
+  test('00:10 on Monday: the three late shows are still performing and publish OPERATING with their times', async () => {
+    vi.setSystemTime(MON_0010);
+
+    const live = await weekend().liveForTest();
+
+    expect(lateShows.map(id => liveShow(live, id).status)).toEqual(['OPERATING', 'OPERATING', 'OPERATING']);
+    expect(showtimesOf(live, THE_HANGING)).toEqual(['2026-10-19T00:00:00-07:00']);
+    expect(showtimesOf(live, OCCULTUM)).toEqual(['2026-10-19T00:00:00-07:00']);
+    expect(showtimesOf(live, BLIND_TIGER)).toEqual(['2026-10-19T00:05:00-07:00']);
+  });
+
+  test('the daytime shows Monday lists are unaffected', async () => {
+    vi.setSystemTime(MON_0010);
+
+    const live = await weekend().liveForTest();
+
+    expect(liveShow(live, SNOOPY).status).toBe('OPERATING');
+    expect(showtimesOf(live, SNOOPY)).toEqual(['2026-10-19T10:30:00-07:00', '2026-10-19T11:00:00-07:00']);
+  });
+
+  // The Hanging and Occultum start at 00:00 and end at 00:30 (the half hour
+  // every showtime is published with). Blind Tiger starts at 00:05, ends 00:35.
+  test.each([
+    ['00:29:59', '2026-10-19T07:29:59Z', ['OPERATING', 'OPERATING', 'OPERATING']],
+    ['00:30:00', '2026-10-19T07:30:00Z', ['CLOSED', 'CLOSED', 'OPERATING']],
+    ['00:34:59', '2026-10-19T07:34:59Z', ['CLOSED', 'CLOSED', 'OPERATING']],
+    ['00:35:00', '2026-10-19T07:35:00Z', ['CLOSED', 'CLOSED', 'CLOSED']],
+    ['01:10:00', '2026-10-19T08:10:00Z', ['CLOSED', 'CLOSED', 'CLOSED']],
+  ])('at %s (%s) the three late shows read %j', async (_label, now, expected) => {
+    vi.setSystemTime(new Date(now));
+
+    const live = await weekend().liveForTest();
+
+    expect(lateShows.map(id => liveShow(live, id).status)).toEqual(expected);
+  });
+
+  test('once a carried performance has ended the show reads CLOSED and publishes no showtimes', async () => {
+    vi.setSystemTime(new Date('2026-10-19T07:35:00Z'));
+
+    const live = await weekend().liveForTest();
+
+    for (const id of lateShows) expect(liveShow(live, id).showtimes).toBeUndefined();
+  });
+
+  test('a show with no carried performance that reads Not Scheduled at 00:10 is still CLOSED', async () => {
+    vi.setSystemTime(MON_0010);
+    const probe = weekend();
+    probe.showStatus[SNOOPY] = 'Not Scheduled'; // listed Monday, but never carried
+    probe.showStatus[UNLISTED] = 'Not Scheduled'; // not listed at all
+
+    const live = await probe.liveForTest();
+
+    for (const id of [SNOOPY, UNLISTED]) {
+      expect(liveShow(live, id).status).toBe('CLOSED');
+      expect(liveShow(live, id).showtimes).toBeUndefined();
+    }
+  });
+
+  test('the override publishes only the carried performances, not what today lists', async () => {
+    vi.setSystemTime(MON_0010);
+    const probe = weekend();
+    probe.calendar = [sunday(), day('2026-10-19', [show(THE_HANGING, 'The Hanging', '02:00 PM')], {open: '10:00', close: '18:00'})];
+
+    const live = await probe.liveForTest();
+
+    expect(liveShow(live, THE_HANGING).status).toBe('OPERATING');
+    expect(showtimesOf(live, THE_HANGING)).toEqual(['2026-10-19T00:00:00-07:00']);
+  });
+
+  describe('at 23:50 on Sunday, before the day rolls over', () => {
+    const SUN_2350 = new Date('2026-10-19T06:50:00Z');
+
+    test('shows Sunday lists read On Time and publish their evening times and the one after midnight', async () => {
+      vi.setSystemTime(SUN_2350);
+      const probe = weekend();
+      for (const id of lateShows) probe.showStatus[id] = 'On Time';
+
+      const live = await probe.liveForTest();
+
+      expect(lateShows.map(id => liveShow(live, id).status)).toEqual(['OPERATING', 'OPERATING', 'OPERATING']);
+      expect(showtimesOf(live, THE_HANGING)).toEqual([
+        '2026-10-18T20:15:00-07:00', '2026-10-18T22:15:00-07:00', '2026-10-19T00:00:00-07:00',
+      ]);
+      expect(showtimesOf(live, BLIND_TIGER)).toEqual([
+        '2026-10-18T20:15:00-07:00', '2026-10-18T21:30:00-07:00', '2026-10-18T23:00:00-07:00', '2026-10-19T00:05:00-07:00',
+      ]);
+    });
+
+    test('a Not Scheduled reading is CLOSED: the tail of tonight is not yesterday\'s', async () => {
+      vi.setSystemTime(SUN_2350);
+      const probe = weekend();
+      // Saturday's late shows carried onto Sunday and ended 23 hours ago.
+      probe.calendar = [sunday(), monday(), day('2026-10-17', [show(THE_HANGING, 'The Hanging', '12:00 AM, 08:15 PM')], {
+        open: '09:00', close: '17:00', haunt: ['19:00', '01:00'],
+      })];
+
+      const live = await probe.liveForTest();
+
+      for (const id of lateShows) {
+        expect(liveShow(live, id).status).toBe('CLOSED');
+        expect(liveShow(live, id).showtimes).toBeUndefined();
+      }
+    });
   });
 });
