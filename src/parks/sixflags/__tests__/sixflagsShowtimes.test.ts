@@ -6,15 +6,15 @@ import type {LiveData} from '@themeparks/typelib';
 /**
  * The operating-hours `shows` entries are keyed by `extLocationID`, the same
  * string the POI and venue-status rows call `fimsId` ("SHOW-004-00036"). An
- * entry carries no `fimsId` at all: 0 of 8,380 entries across 26 parks and
- * three months of days sampled on 2026-10-14. The module used to match on
- * `fimsId`, so no show ever received times.
+ * entry carries no `fimsId` at all: 0 of 8,323 entries across 33 park ids
+ * and 1,592 park-days (13 October to 30 November 2026), sampled on
+ * 2026-10-14. The module used to match on `fimsId`, so no show ever received
+ * times.
  *
- * Knott's Berry Farm also lists shows at "12:00 AM" and "12:30 AM" on its
- * Scary Farm nights (24 entries on 10 nights in that sample, no other park
- * had a time between midnight and 09:00). They belong to the NEXT calendar
- * day: the same listing carries a haunt window that runs 19:00-01:00 or
- * 19:00-02:00.
+ * Knott's Berry Farm also lists shows at "12:00 AM", "12:05 AM" and "12:30 AM"
+ * on its Scary Farm nights (24 entries on 8 nights in that sample; no other
+ * park had a time before 09:00). They belong to the NEXT calendar day: the
+ * same listing carries a haunt window that runs 19:00-01:00 or 19:00-02:00.
  *
  * Every fixture below has the shape of that payload, trimmed. The tests that
  * reach the clock pin it, because the shows are read for the park-local day.
@@ -151,7 +151,7 @@ describe('shows are matched on extLocationID', () => {
   });
 
   test('a show listed with an empty times string publishes no showtimes', async () => {
-    // Most entries are like this: 8,380 sampled, 1,481 with any time at all.
+    // Most entries are like this: 8,323 sampled, 1,475 with any time at all.
     const probe = new Probe();
     probe.calendar = [day('2026-10-13', [show(UNLISTED, 'Bob Baker Marionette Theater', '')])];
 
