@@ -803,13 +803,7 @@ class TE2Destination extends Destination {
     if (!Array.isArray(scheduleData.days)) return [];
 
     const parkId = this.destinationId;
-    const scheduleEntries: Array<{
-      date: string;
-      type: string;
-      description?: string;
-      openingTime: string;
-      closingTime: string;
-    }> = [];
+    const scheduleEntries: EntitySchedule['schedule'] = [];
 
     for (const day of scheduleData.days) {
       const hours = Array.isArray(day.hours) ? day.hours : [];

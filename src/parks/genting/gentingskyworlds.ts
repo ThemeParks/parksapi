@@ -529,7 +529,7 @@ export class GentingSkyworlds extends Destination {
     const today = new Date();
     const horizon = addDays(today, 90);
 
-    const schedule: Array<{date: string; type: string; openingTime: string; closingTime: string}> = [];
+    const schedule: EntitySchedule['schedule'] = [];
 
     for (let d = new Date(today); d <= horizon; d = addDays(d, 1)) {
       const dateStr = formatDate(d, this.timezone);
@@ -564,7 +564,7 @@ export class GentingSkyworlds extends Destination {
         }
         const localHHmm = (d: Date) =>
           formatInTimezone(d, this.timezone, 'iso').slice(11, 16);
-        const entry = {
+        const entry: EntitySchedule['schedule'][number] = {
           date: startLocalDate,
           type: 'OPERATING',
           openingTime: constructDateTime(startLocalDate, localHHmm(startDate), this.timezone),

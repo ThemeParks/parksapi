@@ -772,7 +772,7 @@ export class TokyoDisneyResort extends Destination {
     const calendar = await this.getCalendar();
 
     // Initialize schedule map for both parks
-    const scheduleMap = new Map<string, any[]>();
+    const scheduleMap = new Map<string, EntitySchedule['schedule']>();
     scheduleMap.set('tdl', []);
     scheduleMap.set('tds', []);
 

@@ -260,7 +260,7 @@ export class PaultonsPark extends Destination {
     const parkHours: OpeningHoursEntry[] = data?.open?.park;
     if (!parkHours || !Array.isArray(parkHours)) return [];
 
-    const schedule = parkHours.map((entry) => {
+    const schedule: EntitySchedule['schedule'] = parkHours.map((entry) => {
       // start/end are ISO 8601 strings (e.g., "2026-04-01T09:00:00.000Z")
       const startDate = new Date(entry.start);
       const endDate = new Date(entry.end);

@@ -338,7 +338,7 @@ export class PortAventuraWorld extends Destination {
     const schedules: EntitySchedule[] = [];
 
     for (const [parkKey, entries] of byPark) {
-      const scheduleEntries: any[] = [];
+      const scheduleEntries: EntitySchedule['schedule'] = [];
 
       for (const entry of entries) {
         const date = entry.date;

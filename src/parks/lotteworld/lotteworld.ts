@@ -220,7 +220,7 @@ export class LotteWorld extends Destination {
   // ── Schedules ────────────────────────────────────────────────
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
-    const schedule: Array<{date: string; type: string; openingTime: string; closingTime: string}> = [];
+    const schedule: EntitySchedule['schedule'] = [];
     const now = new Date();
 
     for (let i = 0; i < 40; i++) {

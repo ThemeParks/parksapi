@@ -320,7 +320,7 @@ export class UniversalStudiosBeijing extends Destination {
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const now = new Date();
-    const schedule: Array<{date: string; type: string; openingTime: string; closingTime: string}> = [];
+    const schedule: EntitySchedule['schedule'] = [];
 
     // Collect unique months for next 90 days
     const monthsSeen = new Set<string>();

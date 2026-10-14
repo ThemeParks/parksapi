@@ -145,7 +145,7 @@ export function buildTodayScheduleFromDashboard(
   dashboard: QiddiyaDashboardResponse['data'] | undefined,
   today: Date,
   timezone: string,
-): Array<{date: string; type: string; openingTime: string; closingTime: string}> {
+): EntitySchedule['schedule'] {
   if (dashboard?.parkInfo?.isOpen === false) return [];
 
   const hours = parseDashboardHours(dashboard?.parkInfo?.openingHours || '');
@@ -571,7 +571,7 @@ export class QiddiyaCity extends Destination {
     }
 
     // Project the weekly pattern onto the next N days.
-    const schedule: any[] = [];
+    const schedule: EntitySchedule['schedule'] = [];
     const today = new Date();
     for (let i = 0; i < SCHEDULE_DAYS; i++) {
       const date = addDays(today, i);

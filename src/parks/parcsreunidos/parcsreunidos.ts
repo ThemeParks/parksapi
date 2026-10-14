@@ -500,7 +500,7 @@ class ParcsReunidosDestination extends Destination {
   // that on the first deploy: the collector synced with the corrected build
   // and republished the same inverted rows straight out of this cache.
   @cache({ttlSeconds: 86400, cacheVersion: 2})
-  async parseCalendar(): Promise<Array<{date: string; type: string; openingTime: string; closingTime: string}>> {
+  async parseCalendar(): Promise<EntitySchedule['schedule']> {
     const resp = await this.fetchCalendarHTML();
     const html = await resp.text();
 
@@ -528,7 +528,7 @@ class ParcsReunidosDestination extends Destination {
 
     // Extract year data from hidden inputs (handle both quote styles + HTML entities)
     const yearRegex = /id="data-hour-(\d{4})"\s+value=["']([^"']*)["']/g;
-    const scheduleEntries: Array<{date: string; type: string; openingTime: string; closingTime: string}> = [];
+    const scheduleEntries: EntitySchedule['schedule'] = [];
     let yearMatch;
 
     while ((yearMatch = yearRegex.exec(html)) !== null) {
@@ -594,7 +594,7 @@ class ParcsReunidosDestination extends Destination {
             });
           } else {
             for (let i = 0; i < emitted.length; i++) {
-              const entry: {date: string; type: string; openingTime: string; closingTime: string; description?: string} = {
+              const entry: EntitySchedule['schedule'][number] = {
                 date: dateStr,
                 type: i === 0 ? 'OPERATING' : 'INFO',
                 openingTime: emitted[i].openingTime,

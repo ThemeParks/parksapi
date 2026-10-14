@@ -713,7 +713,7 @@ describe('calendar legend parsing', () => {
 describe('showBillAuthority', () => {
   const hours = (date: string, open: string, close: string) => ({
     date,
-    type: 'OPERATING',
+    type: 'OPERATING' as const,
     openingTime: `${date}T${open}+02:00`,
     closingTime: `${date}T${close}+02:00`,
   });
@@ -740,7 +740,7 @@ describe('showBillAuthority', () => {
   it('stays silent past midnight when the next day is a closed day', () => {
     const night = {
       date: '2026-10-17',
-      type: 'TICKETED_EVENT',
+      type: 'TICKETED_EVENT' as const,
       openingTime: '2026-10-17T19:00:00+02:00',
       closingTime: '2026-10-18T01:00:00+02:00',
     };
@@ -756,7 +756,7 @@ describe('showBillAuthority', () => {
   it('calls the shows dark once an event night has actually closed', () => {
     const night = {
       date: '2026-10-17',
-      type: 'TICKETED_EVENT',
+      type: 'TICKETED_EVENT' as const,
       openingTime: '2026-10-17T19:00:00+02:00',
       closingTime: '2026-10-18T01:00:00+02:00',
     };
@@ -871,7 +871,7 @@ describe('showBillAuthority', () => {
   it('keeps reading the bill through an event night, past midnight', () => {
     const night = {
       date: '2026-10-17',
-      type: 'TICKETED_EVENT',
+      type: 'TICKETED_EVENT' as const,
       openingTime: '2026-10-17T19:00:00+02:00',
       closingTime: '2026-10-18T01:00:00+02:00',
     };
@@ -883,7 +883,7 @@ describe('showBillAuthority', () => {
   it('stops trusting the bill the moment the night closes', () => {
     const night = {
       date: '2026-10-17',
-      type: 'TICKETED_EVENT',
+      type: 'TICKETED_EVENT' as const,
       openingTime: '2026-10-17T19:00:00+02:00',
       closingTime: '2026-10-18T01:00:00+02:00',
     };

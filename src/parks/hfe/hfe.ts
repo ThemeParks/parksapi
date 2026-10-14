@@ -644,12 +644,7 @@ class HFEBase extends Destination {
 
     if (!scheduleDays.length) return [];
 
-    const scheduleEntries: Array<{
-      date: string;
-      type: string;
-      openingTime: string;
-      closingTime: string;
-    }> = [];
+    const scheduleEntries: EntitySchedule['schedule'] = [];
 
     for (const day of scheduleDays) {
       if (!day.parkHours || !day.parkHours.length) continue;
@@ -701,7 +696,7 @@ class HFEBase extends Destination {
           .map(a => [a.id, a]),
       );
 
-      const showSchedules = new Map<string, Array<{date: string; type: string; openingTime: string; closingTime: string}>>();
+      const showSchedules = new Map<string, EntitySchedule['schedule']>();
 
       for (const day of scheduleDays) {
         if (!Array.isArray(day.activities)) continue;

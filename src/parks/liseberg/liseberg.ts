@@ -152,7 +152,7 @@ export class Liseberg extends Destination {
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
     const now = new Date();
-    const scheduleEntries: any[] = [];
+    const scheduleEntries: EntitySchedule['schedule'] = [];
 
     // Fetch 60 days in 7-day batches
     for (let dayOffset = 0; dayOffset < 60; dayOffset += 7) {
