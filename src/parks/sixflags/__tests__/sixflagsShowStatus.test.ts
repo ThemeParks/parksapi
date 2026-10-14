@@ -13,9 +13,16 @@ import type {LiveData} from '@themeparks/typelib';
  * park) stayed OPERATING, unchanged from the night before. A third park on
  * the same poll had 43 rides "Opened".
  *
- * The same venue-status feed marks a show that has performances today "On
- * Time" (sampled 2026-10-14: 325 show rows "Not Scheduled", 10 "On Time"),
- * and that stays OPERATING.
+ * What the feed does with shows, sampled 2026-10-14 with every park shut: 325
+ * show rows read "Not Scheduled" and none of them had a time in its park-local
+ * day's listing; 10 read "On Time", nine with times listed that day and one
+ * (a park closed that day) with none. "On Time" stays OPERATING. The status is
+ * the vendor's reading for the day, not a statement that a show is on stage.
+ *
+ * The status strings are matched the way the vendor's own mobile app reads
+ * this feed: lower-cased, not trimmed, "not scheduled" is closed, "temp
+ * closed" and "temp closed due weather" are temporarily closed, and anything
+ * else is open.
  */
 
 const DORNEY = 8;
@@ -261,10 +268,31 @@ describe('show status follows the show\'s own row', () => {
     expect((shows[2] as any).showtimes).toHaveLength(2);
   });
 
+  test('a temp-closed show is DOWN and keeps its listed showtimes; a not-scheduled one loses them', async () => {
+    const shows = await liveWith(['Temp Closed', 'Temp Closed Due Weather', 'Not Scheduled', 'On Time']);
+
+    expect(shows.map(s => s.status)).toEqual(['DOWN', 'DOWN', 'CLOSED', 'OPERATING']);
+    expect((shows[0] as any).showtimes).toHaveLength(2);
+    expect((shows[1] as any).showtimes).toHaveLength(2);
+    expect((shows[2] as any).showtimes).toBeUndefined();
+    expect((shows[3] as any).showtimes).toHaveLength(2);
+  });
+
   test.each([
     ['Not Scheduled', 'CLOSED'],
     ['not scheduled', 'CLOSED'],
     ['NOT SCHEDULED', 'CLOSED'],
+    ['Temp Closed', 'DOWN'],
+    ['temp closed', 'DOWN'],
+    ['Temp Closed Due Weather', 'DOWN'],
+    ['TEMP CLOSED DUE WEATHER', 'DOWN'],
+    // Exact match, no trimming and no substring match, as the app does it.
+    [' Not Scheduled', 'OPERATING'],
+    ['Not Scheduled ', 'OPERATING'],
+    ['Temp Closed ', 'OPERATING'],
+    ['Notice', 'OPERATING'],
+    ['Not Yet Open', 'OPERATING'],
+    ['Temp Closed Due To Weather', 'OPERATING'],
     ['On Time', 'OPERATING'],
     ['Opened', 'OPERATING'],
     ['Open', 'OPERATING'],

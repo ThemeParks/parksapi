@@ -6,10 +6,11 @@ import type {LiveData} from '@themeparks/typelib';
 /**
  * The operating-hours `shows` entries are keyed by `extLocationID`, the same
  * string the POI and venue-status rows call `fimsId` ("SHOW-004-00036"). An
- * entry carries no `fimsId` at all: 0 of 8,323 entries across 33 park ids
- * and 1,592 park-days (13 October to 30 November 2026), sampled on
- * 2026-10-14. The module used to match on `fimsId`, so no show ever received
- * times.
+ * entry carries no `fimsId` at all. Sampled on 2026-10-14 across 33 park ids,
+ * 13 October to 30 November 2026: 1,617 day answers, 1,592 distinct
+ * park-days, 8,323 distinct show entries (8,380 counting the 25 days answered
+ * twice), none with a `fimsId`. The module used to match on `fimsId`, so no
+ * show ever received times.
  *
  * Knott's Berry Farm also lists shows at "12:00 AM", "12:05 AM" and "12:30 AM"
  * on its Scary Farm nights (24 entries on 8 nights in that sample; no other
@@ -153,7 +154,7 @@ describe('shows are matched on extLocationID', () => {
   });
 
   test('a show listed with an empty times string publishes no showtimes', async () => {
-    // Most entries are like this: 8,323 sampled, 1,475 with any time at all.
+    // Most entries are like this: of 8,323 distinct entries sampled, 1,475 list any time.
     const probe = new Probe();
     probe.calendar = [day('2026-10-13', [show(UNLISTED, 'Bob Baker Marionette Theater', '')])];
 
@@ -192,6 +193,48 @@ describe('shows are matched on extLocationID', () => {
     const live = await probe.liveForTest();
 
     expect(liveShow(live, SNOOPY).showtimes).toBeUndefined();
+  });
+
+  test.each([
+    ['13:00 PM'], ['12:60 PM'], ['00:30 AM'], ['25:00 PM'], ['11:99 PM'], ['12:30'],
+  ])('%j is not a 12-hour clock time: nothing is published and nothing rolls into the next day', async (times) => {
+    // A haunt window that closes at 02:00 is there so that a value read as a
+    // small hour would be carried to the 16th, and 13:00 PM as 25:00 would roll.
+    const probe = new Probe();
+    probe.calendar = [day('2026-10-13', [show(SNOOPY, 'Meet Snoopy', times)], {haunt: ['19:00', '02:00']})];
+
+    const live = await probe.liveForTest();
+
+    expect(liveShow(live, SNOOPY)).toBeDefined();
+    expect(liveShow(live, SNOOPY).showtimes).toBeUndefined();
+  });
+
+  test('a malformed time in a list does not take the valid ones with it', async () => {
+    const probe = new Probe();
+    probe.calendar = [day('2026-10-13', [show(SNOOPY, 'Meet Snoopy', '13:00 PM, 08:15 PM, 12:60 PM')], {haunt: ['19:00', '02:00']})];
+
+    const live = await probe.liveForTest();
+
+    expect(showtimesOf(live, SNOOPY)).toEqual(['2026-10-13T20:15:00-07:00']);
+  });
+
+  test('items without a times string, and a show without items, publish nothing and do not throw', async () => {
+    const probe = new Probe();
+    const noTimes = {showId: 1, extLocationID: SNOOPY, showName: 'No times key', items: [{assignmentLocation: ''}]};
+    const nullTimes = {showId: 2, extLocationID: FIREMANS_DUO, showName: 'Null times', items: [{times: null}]};
+    const noItems = {showId: 3, extLocationID: UNLISTED, showName: 'No items'};
+    const nullItems = {showId: 4, extLocationID: PEANUTS_FRIENDS, showName: 'Null items', items: null};
+    probe.calendar = [day('2026-10-13', [
+      noTimes, nullTimes, noItems, nullItems, show(THE_HANGING, 'The Hanging', '08:15 PM'),
+    ] as unknown as Show[])];
+
+    const live = await probe.liveForTest();
+
+    for (const id of [SNOOPY, FIREMANS_DUO, UNLISTED, PEANUTS_FRIENDS]) {
+      expect(liveShow(live, id)).toBeDefined();
+      expect(liveShow(live, id).showtimes).toBeUndefined();
+    }
+    expect(showtimesOf(live, THE_HANGING)).toEqual(['2026-10-13T20:15:00-07:00']);
   });
 
   test('the same show listed twice in one day keeps both lists', async () => {
@@ -300,6 +343,20 @@ describe('shows listed after midnight belong to the next calendar day', () => {
     const live = await probe.liveForTest();
 
     expect(showtimesOf(live, SNOOPY)).toEqual(['2026-10-15T21:00:00-07:00', '2026-10-16T00:00:00-07:00']);
+  });
+
+  test('park and haunt windows that both run past midnight carry to the later close', async () => {
+    // Park 11:00-00:00 and haunt 19:00-02:00: the day runs until 02:00.
+    const probe = new Probe();
+    probe.calendar = [day('2026-10-15', [show(SNOOPY, 'Late Show', '12:00 AM, 01:30 AM, 02:00 AM, 02:01 AM')], {
+      open: '11:00', close: '00:00', haunt: ['19:00', '02:00'],
+    })];
+
+    const live = await probe.liveForTest();
+
+    expect(showtimesOf(live, SNOOPY)).toEqual([
+      '2026-10-15T02:01:00-07:00', '2026-10-16T00:00:00-07:00', '2026-10-16T01:30:00-07:00', '2026-10-16T02:00:00-07:00',
+    ]);
   });
 
   test('a day with no hours at all leaves a midnight time where it was listed', async () => {
@@ -434,6 +491,23 @@ describe('after park-local midnight, last night\'s late shows are still publishe
     expect(showtimesOf(live, OCCULTUM)).toEqual(['2026-10-16T14:00:00-07:00']);
   });
 
+  test('an evening in Pacific time reads the park-local yesterday, not the UTC one', async () => {
+    // 22:00 PDT on the 15th is 05:00Z on the 16th. Yesterday is the 14th.
+    vi.setSystemTime(new Date('2026-10-16T05:00:00Z'));
+    const probe = new Probe();
+    probe.calendar = [
+      lateShow('2026-10-14'),
+      day('2026-10-15', [show(OCCULTUM, 'Occultum', '02:00 PM')]),
+      lateShow('2026-10-16'),
+    ];
+
+    const live = await probe.liveForTest();
+
+    expect(probe.requests).toEqual(['20261015', '20261014']);
+    // The 14th's 12:30 AM landed on the 15th. The 16th's listing is not read.
+    expect(showtimesOf(live, OCCULTUM)).toEqual(['2026-10-15T00:30:00-07:00', '2026-10-15T14:00:00-07:00']);
+  });
+
   test('a performance both listings place at the same instant is published once', async () => {
     // Yesterday's haunt carries its 12:00 AM onto today. Today has no late
     // window, so its own 12:00 AM stays at the start of today: the same instant.
@@ -560,6 +634,17 @@ describe('a performance carried from last night keeps its show OPERATING', () =>
       expect(liveShow(live, id).status).toBe('CLOSED');
       expect(liveShow(live, id).showtimes).toBeUndefined();
     }
+  });
+
+  test('a carried performance only overrides Not Scheduled: Temp Closed stays DOWN', async () => {
+    vi.setSystemTime(MON_0010);
+    const probe = weekend();
+    probe.showStatus[THE_HANGING] = 'Temp Closed';
+
+    const live = await probe.liveForTest();
+
+    expect(liveShow(live, THE_HANGING).status).toBe('DOWN');
+    expect(liveShow(live, OCCULTUM).status).toBe('OPERATING');
   });
 
   test('the override publishes only the carried performances, not what today lists', async () => {

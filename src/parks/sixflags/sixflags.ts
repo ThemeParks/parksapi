@@ -1334,18 +1334,30 @@ export class SixFlags extends Destination {
   /**
    * Map a show's venue-status row to a framework status.
    *
-   * The same feed that reads a ride "Not Scheduled" reads a show "Not
-   * Scheduled" when it has no performance today, and the show is CLOSED. A
-   * show with performances reads "On Time" (sampled 2026-10-14: 325 show rows
-   * "Not Scheduled", 10 "On Time"), which stays OPERATING, as does anything
-   * else this module has not seen.
+   * "Not Scheduled" is CLOSED. "Temp Closed" and "Temp Closed Due Weather"
+   * are DOWN, as they are for rides. Anything else is OPERATING, including a
+   * blank or unseen status and "On Time".
+   *
+   * Sampled 2026-10-14 with every park shut: 325 show rows read "Not
+   * Scheduled" and none of them had a time in its park-local day's listing;
+   * 10 read "On Time", nine of them with times listed that day and one (a
+   * park closed that day) with none. The status is the vendor's reading for
+   * the day, not a statement that a show is on stage. "Temp Closed" on a show
+   * has not been observed.
+   *
+   * The match mirrors the vendor's own mobile app, which reads this feed
+   * lower-cased and not trimmed: the whole string must be one of those
+   * values, so "Notice" or a padded " Not Scheduled" is not "not scheduled".
    *
    * Not routed through mapStatus(): a blank show status must stay OPERATING,
    * where a blank ride status falls back to a posted wait, and a show posts
    * none.
    */
   private mapShowStatus(status: string | undefined): string {
-    return (status ?? '').toLowerCase() === 'not scheduled' ? 'CLOSED' : 'OPERATING';
+    const s = (status ?? '').toLowerCase();
+    if (s === 'not scheduled') return 'CLOSED';
+    if (s === 'temp closed' || s === 'temp closed due weather') return 'DOWN';
+    return 'OPERATING';
   }
 
   // ============================================================================
