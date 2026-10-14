@@ -241,6 +241,16 @@ export function isValueAddedService(itemName: string | null | undefined): boolea
 }
 
 /**
+ * Fireworks shows: 烟花 and 焰火 both mean fireworks, and a fireworks display
+ * is a show, so a name containing either makes the item a SHOW whatever its
+ * tags and times. The rule is narrow on purpose: neither word occurs in the
+ * name of any other item the parks list today, 烈焰神龙, 赤焰小摆锤 and
+ * 穿越火焰山 are rides that contain neither, and 烟火 ("worldly life") is not
+ * matched.
+ */
+const FIREWORKS_NAME_RE = /烟花|焰火/;
+
+/**
  * Classify an item as SHOW vs RIDE based on showTimeList shape + feature tags.
  *
  * Precedence: an explicit `巡游` (parade) tag always wins. An explicit `真人表演`
@@ -251,11 +261,15 @@ export function isValueAddedService(itemName: string | null | undefined): boolea
  * walk-through with live actors (a scare maze such as `南洋诡校`), not a
  * performance, so it falls through to the shape test and is an ATTRACTION.
  * Otherwise falls back to showTimeList shape inspection.
+ *
+ * A fireworks name (FIREWORKS_NAME_RE) is checked straight after the parade
+ * tag and makes the item a SHOW whatever its tags or times.
  */
 export function isFantawildShow(item: FantawildItem): boolean {
   const features = item.featureList ?? [];
   const times = item.showTimeList ?? [];
   if (features.includes('巡游')) return true;
+  if (FIREWORKS_NAME_RE.test(item.itemName ?? '')) return true;
   if (features.includes('真人表演') && !isSingleOperatingWindow(times)) return true;
   if (times.length === 0) return false;
   // If every entry is a single time (no dash range) it's a discrete-showtime SHOW.
