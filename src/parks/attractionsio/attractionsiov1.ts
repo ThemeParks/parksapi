@@ -1336,10 +1336,12 @@ class AttractionsIOV1 extends Destination {
 
   /**
    * The items whose category sits below one of the seasonal parents named by
-   * getSeasonalMenuParentCategories(), at any depth. Walks the parent links
-   * with a cycle guard, since the records are external data.
+   * getSeasonalMenuParentCategories(), at any depth, whatever kind of item
+   * they are: the same parent holds the season's shows, meet and greets and
+   * rides. Walks the parent links with a cycle guard, since the records are
+   * external data.
    */
-  private async getSeasonalMenuItemIds(): Promise<Set<number>> {
+  private async getItemIdsBelowSeasonalParents(): Promise<Set<number>> {
     const parents = new Set(this.getSeasonalMenuParentCategories().map(normaliseCategoryName));
     if (parents.size === 0) return new Set();
 
@@ -1502,12 +1504,13 @@ class AttractionsIOV1 extends Destination {
     );
 
     // Restaurants, less a seasonal event's menu specials (see
-    // getSeasonalMenuParentCategories). The specials stay out of the
-    // scheduled-show fallback below as well: left out of `classified`, one
-    // that carried a schedule would come back as a SHOW.
-    const seasonalMenuIds = await this.getSeasonalMenuItemIds();
-    const restaurantItems = (await this.getItemsForCategories(RESTAURANT_CATEGORIES))
-      .filter(item => !seasonalMenuIds.has(item._id));
+    // getSeasonalMenuParentCategories). Only the restaurant-listed items under
+    // that parent are specials; the rest of what sits there is classified as
+    // usual.
+    const belowSeasonalParent = await this.getItemIdsBelowSeasonalParents();
+    const restaurantCandidates = await this.getItemsForCategories(RESTAURANT_CATEGORIES);
+    const menuSpecialItems = restaurantCandidates.filter(item => belowSeasonalParent.has(item._id));
+    const restaurantItems = restaurantCandidates.filter(item => !belowSeasonalParent.has(item._id));
     const restaurantEntities = restaurantItems.map(item =>
       buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'RESTAURANT')
     );
@@ -1520,8 +1523,11 @@ class AttractionsIOV1 extends Destination {
     // signal for rides: a height requirement also sits on Thorpe Park's
     // per-ride "Ride Access Pass" duplicates, so unlisted items without a
     // schedule stay unclassified.
+    // The menu specials count as classified although they are not published:
+    // left out of this set, one that carried a schedule would come back from
+    // the fallback below as a SHOW.
     const classified = new Set(
-      [...attractionItems, ...showItems, ...restaurantItems].map(item => item._id),
+      [...attractionItems, ...showItems, ...restaurantItems, ...menuSpecialItems].map(item => item._id),
     );
 
     // Walk-through areas the park files in a category of their own with an
@@ -1541,7 +1547,6 @@ class AttractionsIOV1 extends Destination {
       .filter(item =>
         !classified.has(item._id) &&
         !this.isPaidProductListing(item) &&
-        !seasonalMenuIds.has(item._id) &&
         parseShowTimes(item.ShowTimes) !== null,
       )
       .map(item => buildItemEntity(item, this.parkId, this.destinationId, this.timezone, 'SHOW'));

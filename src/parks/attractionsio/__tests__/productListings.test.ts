@@ -211,6 +211,7 @@ function floridaRecords(): any {
       {_id: 579, Name: {'en-US': 'Shows'}},
       {_id: 657, Name: {'en-US': 'Brick or Treat'}},
       {_id: 4914, Name: {'en-US': 'Candy Stations'}, Parent: 657},
+      {_id: 4916, Name: {'en-US': 'Meet & Greet'}, Parent: 657},
       {_id: 4917, Name: {'en-US': 'Show'}, Parent: 657},
       {_id: 5823, Name: {'en-US': 'Dining'}, Parent: 657},
       // A hotel's own dining category, nested under a non-seasonal parent.
@@ -235,6 +236,9 @@ function floridaRecords(): any {
       // item in a category no list names.
       {_id: 25366, Name: 'Zombie Cheer Crew', Category: 4917, ShowTimes: POINT_SHOW},
       {_id: 25363, Name: 'Candy Station - The Beginning', Category: 4914},
+      // A scheduled meet & greet in a season category no list names: a SHOW by
+      // the fallback, though it sits below the same parent as the specials.
+      {_id: 7003, Name: 'Meet LEGO® Mummy', Category: 4916, ShowTimes: POINT_SHOW},
       // A ride.
       {_id: 6307, Name: 'The Dragon', Category: 578},
     ],
@@ -280,6 +284,14 @@ describe('LEGOLAND Florida: Brick or Treat menu specials are not restaurants', (
     expect(ids).not.toContain('52588');
     expect(ids).toContain('5111'); // the outlet it is sold at
     expect(ids).toContain('25366'); // the season's show, with its showtimes
+  });
+
+  test('a scheduled meet & greet below the same parent is still a SHOW', async () => {
+    const entities = await stub(new LegolandOrlando(), floridaRecords()).getEntities();
+    expect(entities.find((e: any) => e.id === '7003')).toMatchObject({
+      name: 'Meet LEGO® Mummy',
+      entityType: 'SHOW',
+    });
   });
 
   test('a special that carries a schedule is not promoted to a SHOW by the fallback', async () => {
