@@ -265,8 +265,8 @@ describe('the months follow the park\'s calendar, not the machine clock', () => 
 
 describe('showtimes when the month query leaves out today', () => {
   const shows = [
-    {fimsId: 'SHOW-004-00010', items: [{times: '02:00 PM, 05:15 PM'}]},
-    {fimsId: 'SHOW-004-00011', items: [{times: '11:30 AM'}]},
+    {extLocationID: 'SHOW-004-00010', items: [{times: '02:00 PM, 05:15 PM'}]},
+    {extLocationID: 'SHOW-004-00011', items: [{times: '11:30 AM'}]},
   ];
 
   const showtimesOf = (live: LiveData[], id: string) =>
@@ -287,8 +287,8 @@ describe('showtimes when the month query leaves out today', () => {
     const probe = new Probe();
     probe.vendorToday = '20261001';
     probe.calendar = probe.calendar.map(d => {
-      if (d.date === '09/30/2026') return day('2026-09-30', {shows: [{fimsId: 'SHOW-004-00010', items: [{times: '11:00 PM'}]}]});
-      if (d.date === '10/01/2026') return day('2026-10-01', {shows: [{fimsId: 'SHOW-004-00010', items: [{times: '01:00 PM'}]}]});
+      if (d.date === '09/30/2026') return day('2026-09-30', {shows: [{extLocationID: 'SHOW-004-00010', items: [{times: '11:00 PM'}]}]});
+      if (d.date === '10/01/2026') return day('2026-10-01', {shows: [{extLocationID: 'SHOW-004-00010', items: [{times: '01:00 PM'}]}]});
       return d;
     });
 
@@ -297,15 +297,16 @@ describe('showtimes when the month query leaves out today', () => {
     expect(showtimesOf(live, 'SHOW-004-00010')).toEqual(['2026-09-30T23:00:00-07:00']);
   });
 
-  test('one request per park, not per show, and none again while cached', async () => {
+  test('one request per park and day, not per show, and none again while cached', async () => {
     const probe = new Probe();
     probe.calendar = probe.calendar.map(d => d.date === '09/28/2026' ? day('2026-09-28', {shows}) : d);
 
+    // Today, and yesterday for last night's after-midnight shows.
     await probe.liveForTest();
-    expect(probe.requests).toEqual(['20260928']);
+    expect(probe.requests).toEqual(['20260928', '20260927']);
 
     await probe.liveForTest();
-    expect(probe.requests).toEqual(['20260928']);
+    expect(probe.requests).toEqual(['20260928', '20260927']);
   });
 
   test('schedules and showtimes share the one single-day request', async () => {
@@ -314,7 +315,7 @@ describe('showtimes when the month query leaves out today', () => {
     await probe.liveForTest();
     await probe.schedulesForTest();
 
-    // Today once, shared; yesterday for the schedule only.
+    // Today and yesterday, once each, shared by the showtimes and the schedule.
     expect(dayRequests(probe)).toEqual(['20260928', '20260927']);
   });
 });

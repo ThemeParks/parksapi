@@ -141,11 +141,19 @@ type SixFlagsOperatingHours = {
         timeTo: string;
       }>;
     }>;
+    /**
+     * Show performances for the day. Each entry is keyed by `extLocationID`,
+     * the same string the POI and venue-status rows call `fimsId`
+     * ("SHOW-004-00036"). An entry carries no `fimsId` field.
+     */
     shows?: Array<{
-      fimsId: string;
+      showId?: number;
+      extLocationID: string;
+      showName?: string;
       items: Array<{
-        times: string; // "hh:mm AM, ..."
+        times: string; // "hh:mm AM, ..." or "" when nothing is scheduled
         assignmentLocation?: string;
+        assignmentDescription?: string;
       }>;
     }>;
   }>;
@@ -535,6 +543,93 @@ function latestClosingTime(windows: Array<{from: string; to: string}>): string {
 function timeToMinutes(time: string): number {
   const [hours, minutes] = time.split(':');
   return Number(hours) * 60 + Number(minutes);
+}
+
+/** One day of the operating-hours answer. */
+type OperatingDay = SixFlagsOperatingHours['dates'][0];
+
+/**
+ * Minutes since midnight for a vendor showtime ("12:30 AM", "08:15 PM"), or
+ * null for anything that is not a 12-hour clock time. An out-of-range value
+ * must not reach constructDateTime(), which reads hours past 23 as the next
+ * day.
+ */
+function showClockMinutes(timeStr: string): number | null {
+  const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return null;
+
+  const hour = parseInt(match[1], 10);
+  const minute = parseInt(match[2], 10);
+  if (hour < 1 || hour > 12 || minute > 59) return null;
+
+  const isPm = match[3].toUpperCase() === 'PM';
+  return ((hour % 12) + (isPm ? 12 : 0)) * 60 + minute;
+}
+
+/**
+ * How late into the next calendar day a day's operation runs, as minutes
+ * after midnight, or null when none of its windows runs past midnight.
+ *
+ * Only the day's own hours can say a showtime is a next-day showtime, so this
+ * reads the park window and the haunt window the same way the schedule does
+ * and takes the later close.
+ */
+function pastMidnightCloseMinutes(entry: OperatingDay): number | null {
+  const park = parkWindowForDate(entry);
+  if (!park) return null;
+
+  const closes = [park, hauntWindowForDate(entry, park.open)]
+    .filter((w): w is {open: string; close: string} => w !== null && closeTimeCrossesMidnight(w.open, w.close))
+    .map(w => timeToMinutes(w.close));
+  return closes.length > 0 ? Math.max(...closes) : null;
+}
+
+/**
+ * Every show start time one operating-hours day lists, as ISO timestamps in
+ * the park's zone, with the show they belong to.
+ *
+ * A listing is the day's session, and a session can run past midnight:
+ * Knott's lists "12:00 AM" and "12:30 AM" performances beside "08:15 PM" on
+ * Scary Farm nights, under a haunt window that closes at 01:00 or 02:00.
+ * Read as clock times on the listed date they would sit at the very start of
+ * that day, a day before they happen. A time at or before the close of a
+ * window that runs past midnight is dated the next calendar day and flagged
+ * `carried`.
+ *
+ * Evidence for the carry is the day's own hours, so a midnight time on a day
+ * whose windows end before midnight (or that has none) stays where the
+ * vendor listed it. The next day is found by calendar date, not by adding 24
+ * hours, so the offset follows the park through a DST change.
+ */
+function showStartTimes(
+  entry: OperatingDay,
+  tz: string,
+): Array<{id: string; startTime: string; carried: boolean}> {
+  const dateParts = entry.date.split('/');
+  if (dateParts.length !== 3) return [];
+  const listedDate = `${dateParts[2]}-${dateParts[0]}-${dateParts[1]}`;
+  const carryUntil = pastMidnightCloseMinutes(entry);
+
+  const starts: Array<{id: string; startTime: string; carried: boolean}> = [];
+  for (const show of entry.shows ?? []) {
+    if (typeof show.extLocationID !== 'string' || show.extLocationID === '') continue;
+
+    for (const item of show.items ?? []) {
+      if (typeof item.times !== 'string') continue;
+
+      // Comma-separated times, e.g. "02:00 PM, 05:15 PM"
+      for (const timeStr of item.times.split(',').map(t => t.trim()).filter(t => t)) {
+        const minutes = showClockMinutes(timeStr);
+        if (minutes === null) continue;
+
+        const carried = carryUntil !== null && minutes <= carryUntil;
+        const date = carried ? shiftDateString(listedDate, 1) : listedDate;
+        const clock = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+        starts.push({id: show.extLocationID, startTime: constructDateTime(date, clock, tz), carried});
+      }
+    }
+  }
+  return starts;
 }
 
 /**
@@ -1649,30 +1744,7 @@ export class SixFlags extends Destination {
     // Process shows (venueId: 2) from venue status
     const showsVenue = venueStatus.venues.find(v => v.venueId === SHOW_VENUE_ID);
     if (showsVenue?.details) {
-
-      // Today's show times, asked for as the park-local day: the month
-      // query leaves today out.
-      const today = parkLocalDay(new Date(), tz);
-      const todayFormatted = today.label;
-
-      let todayShows: SixFlagsOperatingHours['dates'][0]['shows'] = [];
-      const hoursData = await this.getOperatingHours(parkId, today.key);
-      if (hoursData?.dates) {
-        const todayEntry = hoursData.dates.find(d => d.date === todayFormatted);
-        if (todayEntry?.shows) {
-          todayShows = todayEntry.shows;
-        }
-      }
-
-      // Build show times lookup
-      const showTimesMap = new Map<string, SixFlagsOperatingHours['dates'][0]['shows']>();
-      if (todayShows) {
-        for (const show of todayShows) {
-          const existing = showTimesMap.get(show.fimsId) || [];
-          existing.push(show);
-          showTimesMap.set(show.fimsId, existing as any);
-        }
-      }
+      const showtimesById = await this.getShowStartTimes(parkId, tz);
 
       for (const show of showsVenue.details) {
         if (addedIds.has(show.fimsId)) continue;
@@ -1683,35 +1755,13 @@ export class SixFlags extends Destination {
           status: 'OPERATING',
         } as LiveData;
 
-        // Parse show times
-        const showTimeEntries = showTimesMap.get(show.fimsId);
-        if (showTimeEntries) {
-          const showtimes: Array<{startTime: string; endTime: string; type: string}> = [];
-
-          for (const entry of showTimeEntries) {
-            for (const item of (entry as any).items || []) {
-              if (!item.times?.trim()) continue;
-
-              // Parse comma-separated times (e.g., "02:00 PM, 05:15 PM")
-              const times = item.times.split(',').map((t: string) => t.trim()).filter((t: string) => t);
-
-              for (const timeStr of times) {
-                const startTime = this.parseShowTime(timeStr, todayFormatted, tz);
-                if (startTime) {
-                  const endTime = addMinutes(new Date(startTime), DEFAULT_SHOW_DURATION_MINUTES);
-                  showtimes.push({
-                    startTime,
-                    endTime: formatInTimezone(endTime, tz, 'iso'),
-                    type: 'Performance Time',
-                  });
-                }
-              }
-            }
-          }
-
-          if (showtimes.length > 0) {
-            (ld as any).showtimes = showtimes;
-          }
+        const starts = showtimesById.get(show.fimsId);
+        if (starts?.length) {
+          (ld as any).showtimes = starts.map(startTime => ({
+            startTime,
+            endTime: formatInTimezone(addMinutes(new Date(startTime), DEFAULT_SHOW_DURATION_MINUTES), tz, 'iso'),
+            type: 'Performance Time',
+          }));
         }
 
         liveData.push(ld);
@@ -1720,29 +1770,35 @@ export class SixFlags extends Destination {
   }
 
   /**
-   * Parse a time string in "hh:mm AM/PM" format into an ISO string
-   * in the park's timezone.
+   * Show start times for the park-local day, by show id, in chronological
+   * order.
+   *
+   * The id is the operating-hours `extLocationID`, which is the `fimsId` of
+   * the POI and venue-status rows. Reads today's listing, plus the tail of
+   * yesterday's: a show listed after midnight on a night that began
+   * yesterday is today's performance, and without it a 12:30 AM show would
+   * vanish from the list at midnight, half an hour before it starts.
+   * Today's own listing is asked for as a single day because the month query
+   * leaves today out.
    */
-  private parseShowTime(timeStr: string, dateFormatted: string, tz: string): string | null {
-    // Match "02:00 PM" or "5:15 AM" format
-    const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-    if (!match) return null;
+  private async getShowStartTimes(parkId: number, tz: string, now: Date = new Date()): Promise<Map<string, string[]>> {
+    const dayEntry = async (day: {key: string; label: string}) =>
+      (await this.getOperatingHours(parkId, day.key))?.dates?.find(d => d.date === day.label);
 
-    let hour = parseInt(match[1], 10);
-    const minute = parseInt(match[2], 10);
-    const isPm = match[3].toUpperCase() === 'PM';
+    const starts: Array<{id: string; startTime: string}> = [];
+    const todayEntry = await dayEntry(parkLocalDay(now, tz));
+    if (todayEntry) starts.push(...showStartTimes(todayEntry, tz));
+    const yesterdayEntry = await dayEntry(parkLocalDay(now, tz, -1));
+    if (yesterdayEntry) starts.push(...showStartTimes(yesterdayEntry, tz).filter(s => s.carried));
 
-    if (isPm && hour !== 12) hour += 12;
-    if (!isPm && hour === 12) hour = 0;
-
-    // Build date from MM/DD/YYYY format
-    const dateParts = dateFormatted.split('/');
-    if (dateParts.length !== 3) return null;
-
-    const dateStr = `${dateParts[2]}-${dateParts[0]}-${dateParts[1]}`;
-    const timeFormatted = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-
-    return constructDateTime(dateStr, timeFormatted, tz);
+    // Two listings can place the same performance at the same instant.
+    const byShow = new Map<string, string[]>();
+    for (const {id, startTime} of [...starts].sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime))) {
+      const times = byShow.get(id) ?? [];
+      if (!times.includes(startTime)) times.push(startTime);
+      byShow.set(id, times);
+    }
+    return byShow;
   }
 
   // ============================================================================
