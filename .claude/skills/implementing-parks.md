@@ -273,13 +273,26 @@ protected async buildSchedules(): Promise<EntitySchedule[]> {
 **An entry's `type` is one of the five the schedule definition has:** `OPERATING`,
 `TICKETED_EVENT`, `PRIVATE_EVENT`, `EXTRA_HOURS`, `INFO`. `OPERATING` is the park's
 open hours, and it is the one open/closed logic counts, so a day the park is open
-needs one. An event on that day is its own `INFO` or `TICKETED_EVENT` entry beside
-it, never instead of it. Anything else (`PARK_OPEN` was one) is dropped by
-`getSchedules()` with a warning, so that park's days vanish.
-`src/__tests__/scheduleTypeLiterals.test.ts` reads every park's entry types from
-source and fails the build on one the definition lacks; build the type from string
-literals (a literal, a ternary of them, or a variable or parameter typed as them)
-so it can read it.
+needs one. An event on that day is normally its own `INFO` or `TICKETED_EVENT`
+entry beside it. The exception is a feed that gives only the event's window: Parc
+Asterix publishes a session that crosses midnight as a `TICKETED_EVENT` with no
+`OPERATING`, so look at what the park's own page shows for that day before adding
+one. A type outside the five (`PARK_OPEN` was one) has no defined meaning to
+whatever reads the schedule; `getSchedules()` keeps the entry and logs a warning,
+so it is on the park to get it right.
+
+What keeps it right is the compiler, so give it something to check. Type the array
+that feeds `schedule` as `EntitySchedule['schedule']`, never `any[]` or entries
+with `type: string`, and build the type from a string literal or a
+`ScheduleTypeEnum` member (`type: ScheduleTypeEnum.OPERATING` is the safest
+spelling, and a member that does not exist fails to compile).
+`src/__tests__/scheduleTypeLiterals.test.ts` then fails the build on: an entry
+literal whose type is not one of the five or cannot be read from source; a
+`{id, schedule}` whose entries are typed `string` or `any`; and a late
+`x.type = ...` that sets something else. It cannot see an entry built where none
+of those apply, or a cast such as `x as ScheduleType` that hides a wider value.
+An assignment to a property called `type` that is not a schedule entry takes a
+`schedule-type-ok: <reason>` comment.
 
 **Never derive "today" from `toISOString()`.** That gives the UTC day, which is
 not the park's day for several hours of every evening — 4-7h behind for US
