@@ -32,6 +32,8 @@ const NAME_SUFFIX_PATTERNS = [
   /\s*[-–—]\s*closed(?:\s+for\s+the\s+season)?[!]?$/i,
   /\s*[-–—]\s*coming (?:soon|spring|summer|fall|winter|autumn)\s*\d{0,4}[!]?$/i,
   /\s*[-–—]\s*now open[!]?$/i,
+  // Show status: "ONE Dolphin Presentation – NOW SHOWING"
+  /\s*[-–—]\s*now\s+showing[!]?$/i,
   /\s*[-–—]\s*new[!]?$/i,
   /\s*[-–—]\s*opening\s+(?:\w+\s+)?\d{1,4}[!]?$/i,
   /\s*[-–—]\s*opens\s+\w+\s+\d{1,2},?\s*\d{0,4}[!]?$/i,
