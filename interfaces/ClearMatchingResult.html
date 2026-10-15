@@ -15,7 +15,7 @@
 </div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">ClearMatchingResult</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#capped">capped</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#cleared">cleared</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#groups">groups</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">group</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span> <span class="tsd-kind-property">rows</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span> <span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#matched">matched</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/c1db66f2f629c627d7d4a8ffdffbc31f3b91f0c5/src/cache.ts#L23">src/cache.ts:23</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/ece09cb72f9f396b0a7d32cc1ae80d540b020ac0/src/cache.ts#L23">src/cache.ts:23</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -37,28 +37,28 @@
 <div class="tsd-comment tsd-typography"><p>True when <code>matched</code> exceeded <code>maxRows</code>. Reported for a dry run too.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/c1db66f2f629c627d7d4a8ffdffbc31f3b91f0c5/src/cache.ts#L29">src/cache.ts:29</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/ece09cb72f9f396b0a7d32cc1ae80d540b020ac0/src/cache.ts#L29">src/cache.ts:29</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="cleared"><span>cleared</span><a href="#cleared" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">cleared</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Rows deleted: 0 for a dry run, or when <code>capped</code>.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/c1db66f2f629c627d7d4a8ffdffbc31f3b91f0c5/src/cache.ts#L27">src/cache.ts:27</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/ece09cb72f9f396b0a7d32cc1ae80d540b020ac0/src/cache.ts#L27">src/cache.ts:27</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="groups"><span>groups</span><a href="#groups" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">groups</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">group</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span> <span class="tsd-kind-property">rows</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span> <span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol">[]</span></div>
 <div class="tsd-comment tsd-typography"><p>Matched rows by <code>&lt;Class&gt;:&lt;method or HTTP verb&gt;</code>, at most 20 entries.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/c1db66f2f629c627d7d4a8ffdffbc31f3b91f0c5/src/cache.ts#L31">src/cache.ts:31</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/ece09cb72f9f396b0a7d32cc1ae80d540b020ac0/src/cache.ts#L31">src/cache.ts:31</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="matched"><span>matched</span><a href="#matched" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">matched</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Live (unexpired) rows that matched, persistent state excluded.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/c1db66f2f629c627d7d4a8ffdffbc31f3b91f0c5/src/cache.ts#L25">src/cache.ts:25</a></li></ul></aside></section></section></details></div>
+<li>Defined in <a href="https://github.com/ThemeParks/parksapi/blob/ece09cb72f9f396b0a7d32cc1ae80d540b020ac0/src/cache.ts#L25">src/cache.ts:25</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
