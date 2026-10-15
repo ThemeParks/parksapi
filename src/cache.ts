@@ -9,6 +9,113 @@ const CLEANUP_INTERVAL_MS = parseInt(process.env.CACHE_CLEANUP_INTERVAL_MS || '3
 // SQLite contention is handled by PRAGMA busy_timeout=5000 (waits up to 5s for
 // the lock). No application-level retry needed.
 
+/** Options for {@link CacheLib.clearMatching}. */
+export interface ClearMatchingOptions {
+  /** Substring the full cache key must contain. Case-sensitive, must be non-empty. */
+  contains: string;
+  /** Delete nothing when more rows than this match. Default: no cap. */
+  maxRows?: number;
+  /** Count and group the matches without deleting them. */
+  dryRun?: boolean;
+}
+
+/** Outcome of {@link CacheLib.clearMatching}. Carries no raw cache keys. */
+export interface ClearMatchingResult {
+  /** Live (unexpired) rows that matched, persistent state excluded. */
+  matched: number;
+  /** Rows deleted: 0 for a dry run, or when `capped`. */
+  cleared: number;
+  /** True when `matched` exceeded `maxRows`. Reported for a dry run too. */
+  capped: boolean;
+  /** Matched rows by `<Class>:<method or HTTP verb>`, at most 20 entries. */
+  groups: Array<{group: string; rows: number}>;
+}
+
+const MAX_CLEAR_GROUPS = 20;
+// The segment after the class name is a method name or an HTTP verb for every
+// key the decorators build. Anything else (a custom key carrying data) is not
+// echoed back: HTTP-layer keys embed the request headers, so a raw key can hold
+// a credential.
+const GROUP_SEGMENT = /^[A-Za-z][A-Za-z0-9_.-]{0,47}$/;
+
+const HTTP_VERB = /^(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$/;
+
+/** Where the class name starts in a key (`Class:...` or `prefix:Class:...`). */
+function classOffset(className: string, key: string): number {
+  if (key.startsWith(`${className}:`)) return 0;
+  const at = key.indexOf(`:${className}:`);
+  return at === -1 ? 0 : at + 1;
+}
+
+// A path segment that looks like a credential: 16 or more letters, digits, `_`
+// or `-` including at least one digit, after any short extension. Real tokens
+// (hex, base64url) virtually always contain a digit; ordinary words and dotted
+// ids do not. A heuristic, so a narrow defence in depth rather than a guarantee.
+const TOKEN_SEGMENT = /^(?=.*\d)[A-Za-z0-9_-]{16,}$/;
+
+/** `scheme://host/path` with credentials in the host and token-like path segments masked. */
+function maskUrlCredentials(url: string): string {
+  const parts = /^([a-z][a-z0-9+.-]*:\/\/)([^/]*)(\/.*)?$/i.exec(url);
+  if (!parts) return url;
+  const [, scheme, authority, path = ''] = parts;
+  const host = authority.slice(authority.lastIndexOf('@') + 1);
+  const masked = path
+    .split('/')
+    .map(segment => {
+      const stem = segment.replace(/\.[A-Za-z0-9]{1,5}$/, '');
+      return TOKEN_SEGMENT.test(stem) ? `*${segment.slice(stem.length)}` : segment;
+    })
+    .join('/');
+  return scheme + host + masked;
+}
+
+/**
+ * The part of a key that `clearMatching`'s substring is tested against.
+ *
+ * An HTTP-layer key is `Class:VERB:url:{headers}:body`, so the request headers,
+ * the query string and the body are all in it, and any of them can carry a
+ * credential. A caller who can choose the substring and read the match count
+ * could recover one a character at a time, so for those keys only the class, the
+ * verb and the URL up to its query string are searchable, with any credentials in
+ * the host and token-like path segments masked. Every other key (a
+ * decorated method's `Class:method:[args]`, a fixed name) is searchable whole.
+ */
+function searchableKey(className: string, key: string): string {
+  const verbStart = classOffset(className, key) + className.length + 1;
+  const verbEnd = key.indexOf(':', verbStart);
+  if (verbEnd === -1 || !HTTP_VERB.test(key.slice(verbStart, verbEnd))) return key;
+  const afterVerb = key.slice(verbEnd + 1);
+  // The headers are always a JSON object, so they start `:{`. Without that marker
+  // nothing says where the URL ends, so expose none of it.
+  const headersAt = afterVerb.indexOf(':{');
+  const url = headersAt === -1 ? '' : afterVerb.slice(0, headersAt);
+  const query = url.search(/[?#]/);
+  return key.slice(0, verbEnd + 1) + maskUrlCredentials(query === -1 ? url : url.slice(0, query));
+}
+
+/** Roll matched keys up into `<Class>:<method or verb>` counts, biggest first. */
+function groupCacheKeys(className: string, keys: string[]): Array<{group: string; rows: number}> {
+  const other = `${className}:(other)`;
+  const counts = new Map<string, number>();
+  for (const key of keys) {
+    const at = classOffset(className, key);
+    const segment = key.slice(at + className.length + 1).split(':', 1)[0];
+    const group = GROUP_SEGMENT.test(segment) ? `${className}:${segment}` : other;
+    counts.set(group, (counts.get(group) ?? 0) + 1);
+  }
+  let otherRows = counts.get(other) ?? 0;
+  counts.delete(other);
+  const named = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+    .map(([group, rows]) => ({group, rows}));
+  // Leave a slot for the roll-up when it is needed.
+  const keep = otherRows > 0 || named.length > MAX_CLEAR_GROUPS ? MAX_CLEAR_GROUPS - 1 : MAX_CLEAR_GROUPS;
+  for (const dropped of named.slice(keep)) otherRows += dropped.rows;
+  const groups = named.slice(0, keep);
+  if (otherRows > 0) groups.push({group: other, rows: otherRows});
+  return groups;
+}
+
 // Track if we're in temporary mode
 let isTemporaryMode = false;
 
@@ -552,6 +659,107 @@ class CacheLib {
     } catch (error) {
       console.error("Cache clearByClassName error:", error);
       return 0;
+    }
+  }
+
+  /**
+   * Targeted flush: delete one class's live cache rows whose key contains a
+   * substring. For operator tooling that needs to drop one stale value, such as
+   * a cached upstream version, without refetching everything the class holds.
+   *
+   * Differences from {@link clearByClassName}, all deliberate:
+   * - A row must also contain `contains`. Matching is literal (`_` and `%` are
+   *   not wildcards) and case-sensitive, class name included, where
+   *   `clearByClassName` ignores case. A class is matched the same two ways:
+   *   `Class:...` and `prefix:Class:...`. The substring is tested against the
+   *   class name and arguments, so a short or common one reaches far: pair it
+   *   with `maxRows`.
+   * - For an HTTP-layer key (`Class:VERB:url:{headers}:body`) only the class, the
+   *   verb and the URL up to its query string are searchable. Headers, query and
+   *   body can carry credentials, and a match count would let a caller recover
+   *   one a character at a time. A method argument that is itself a secret is
+   *   still searchable in a decorated method's key, so rate-limit untrusted
+   *   callers.
+   * - Persistent operational state is always stepped over, counted as neither
+   *   matched nor cleared. There is no `includePersistent`: this is a flush,
+   *   never a reset.
+   * - Only live rows count. An expired row is already unreachable.
+   * - `maxRows` makes the call refuse rather than delete a surprising amount:
+   *   when more rows match, nothing is deleted and `capped` is true.
+   * - It throws on bad arguments and on a database error instead of returning 0,
+   *   because "nothing was cleared" and "the clear failed" must not look alike.
+   * - The count and the delete run in one transaction, so what was counted is
+   *   exactly what is deleted.
+   *
+   * The result never contains a raw key (see {@link ClearMatchingResult}); a
+   * group label is the class plus the identifier-shaped segment after it, which
+   * is a method name or HTTP verb for every key the decorators build.
+   * Only this process's stored rows are touched. A fetch already in flight when
+   * the delete runs can store its result again afterwards, and a value memoised
+   * in memory rather than in this cache is not affected.
+   *
+   * It only reaches keys that carry the class name. A row stored under a fixed
+   * key (`@cache({key: 'someConstant'})`) has no class segment, so remove it
+   * with an exact `CacheLib.delete`.
+   *
+   * A large match set is deleted row by row inside the transaction: tens of
+   * thousands of rows stall the event loop for seconds and hold the write lock,
+   * so set `maxRows`.
+   */
+  static clearMatching(className: string, options: ClearMatchingOptions): ClearMatchingResult {
+    const {contains, maxRows, dryRun = false} = options ?? ({} as ClearMatchingOptions);
+    if (typeof className !== 'string' || className === '') {
+      throw new TypeError('clearMatching: className must be a non-empty string');
+    }
+    if (typeof contains !== 'string' || contains === '') {
+      throw new TypeError('clearMatching: contains must be a non-empty string');
+    }
+    if (maxRows !== undefined && (!Number.isInteger(maxRows) || maxRows < 0)) {
+      throw new TypeError('clearMatching: maxRows must be a non-negative integer');
+    }
+    // Not coerced: a caller forwarding an unset flag (null, 0, '') must not
+    // get a delete it did not ask for.
+    if (typeof dryRun !== 'boolean') {
+      throw new TypeError('clearMatching: dryRun must be a boolean');
+    }
+
+    const exclusion = persistentKeyExclusion();
+    const where = [
+      'timestamp > ?',
+      '(instr(key, ?) = 1 OR instr(key, ?) > 0)',
+      'instr(key, ?) > 0',
+      ...exclusion.clauses,
+    ].join(' AND ');
+
+    // A dry run only reads, so it must not take the write lock and block other
+    // writers of a shared cache file.
+    database.exec(dryRun ? 'BEGIN' : 'BEGIN IMMEDIATE');
+    try {
+      const rows = database
+        .prepare(`SELECT key FROM cache WHERE ${where}`)
+        .all(Date.now(), `${className}:`, `:${className}:`, contains, ...exclusion.params) as {key: string}[];
+      // The SQL tested the whole key, which is only a prefilter. What counts is the
+      // searchable view, so a match count never depends on a header or a body.
+      const keys = rows.map(row => row.key).filter(key => searchableKey(className, key).includes(contains));
+      const capped = maxRows !== undefined && keys.length > maxRows;
+      // Built before COMMIT: once rows are deleted, a throw here would report an
+      // error for a clear that had already happened.
+      const groups = groupCacheKeys(className, keys);
+
+      let cleared = 0;
+      if (!dryRun && !capped && keys.length > 0) {
+        const remove = database.prepare('DELETE FROM cache WHERE key = ?');
+        for (const key of keys) cleared += Number(remove.run(key).changes || 0);
+      }
+      database.exec('COMMIT');
+      return {matched: keys.length, cleared, capped, groups};
+    } catch (error) {
+      try {
+        database.exec('ROLLBACK');
+      } catch {
+        // No transaction left to roll back; the original error is the one that matters.
+      }
+      throw error;
     }
   }
 
