@@ -47,6 +47,28 @@ function classOffset(className: string, key: string): number {
   return at === -1 ? 0 : at + 1;
 }
 
+// A path segment that looks like a credential: 16 or more letters, digits, `_`
+// or `-` including at least one digit, after any short extension. Real tokens
+// (hex, base64url) virtually always contain a digit; ordinary words and dotted
+// ids do not. A heuristic, so a narrow defence in depth rather than a guarantee.
+const TOKEN_SEGMENT = /^(?=.*\d)[A-Za-z0-9_-]{16,}$/;
+
+/** `scheme://host/path` with credentials in the host and token-like path segments masked. */
+function maskUrlCredentials(url: string): string {
+  const parts = /^([a-z][a-z0-9+.-]*:\/\/)([^/]*)(\/.*)?$/i.exec(url);
+  if (!parts) return url;
+  const [, scheme, authority, path = ''] = parts;
+  const host = authority.slice(authority.lastIndexOf('@') + 1);
+  const masked = path
+    .split('/')
+    .map(segment => {
+      const stem = segment.replace(/\.[A-Za-z0-9]{1,5}$/, '');
+      return TOKEN_SEGMENT.test(stem) ? `*${segment.slice(stem.length)}` : segment;
+    })
+    .join('/');
+  return scheme + host + masked;
+}
+
 /**
  * The part of a key that `clearMatching`'s substring is tested against.
  *
@@ -54,7 +76,8 @@ function classOffset(className: string, key: string): number {
  * the query string and the body are all in it, and any of them can carry a
  * credential. A caller who can choose the substring and read the match count
  * could recover one a character at a time, so for those keys only the class, the
- * verb and the URL up to its query string are searchable. Every other key (a
+ * verb and the URL up to its query string are searchable, with any credentials in
+ * the host and token-like path segments masked. Every other key (a
  * decorated method's `Class:method:[args]`, a fixed name) is searchable whole.
  */
 function searchableKey(className: string, key: string): string {
@@ -67,7 +90,7 @@ function searchableKey(className: string, key: string): string {
   const headersAt = afterVerb.indexOf(':{');
   const url = headersAt === -1 ? '' : afterVerb.slice(0, headersAt);
   const query = url.search(/[?#]/);
-  return key.slice(0, verbEnd + 1) + (query === -1 ? url : url.slice(0, query));
+  return key.slice(0, verbEnd + 1) + maskUrlCredentials(query === -1 ? url : url.slice(0, query));
 }
 
 /** Roll matched keys up into `<Class>:<method or verb>` counts, biggest first. */
