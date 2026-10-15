@@ -109,7 +109,7 @@ export type HFEShowGroup = {
   canonical: HFEActivity;
   /** Every record folded into the entity, the canonical one included, by id. */
   members: HFEActivity[];
-  /** The title, with the stage added where the act plays more than one. */
+  /** The title without a sponsor credit, with the stage added where the act plays more than one. */
   name: string;
 };
 
@@ -118,6 +118,25 @@ function textKey(value: unknown): string {
   return typeof value === 'string'
     ? value.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '')
     : '';
+}
+
+/**
+ * A trailing sponsor credit: "Santa's Cottage Presented by Acme". The credit
+ * runs to the end of the title, may follow a dash, comma or colon, and needs
+ * words before it, so a title that opens with the credit is left whole.
+ * "Presented by" and "Powered by" are the two wordings the park feeds use.
+ */
+const SPONSOR_SUFFIX = /^(.*?\S)(?:\s+[–—-]\s+|\s*[,:]\s*|\s+)(?:presented|powered)\s+by\s+\S.*$/is;
+
+/**
+ * The title a show goes by: the feed title without a trailing sponsor credit.
+ * A title with no credit comes back exactly as it came in, whitespace
+ * included, so no published name moves for a reason other than the credit.
+ */
+export function stripSponsorSuffix(title: string): string {
+  if (typeof title !== 'string') return title;
+  const match = SPONSOR_SUFFIX.exec(title);
+  return match ? match[1] : title;
 }
 
 /** A categorised record clears the ghost filter on its own, whatever the schedule says. */
@@ -194,7 +213,9 @@ export function foldShowsByStage(
   const byIdAsc = (a: HFEActivity, b: HFEActivity) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
   // A title with nothing comparable in it is its own act, never folded.
-  const titleKeyOf = (s: HFEActivity) => textKey(s.title) || `\0${s.id}`;
+  // The sponsor credit is not part of the act: a record that carries one and a
+  // plain copy of the same act on the same stage are one entity.
+  const titleKeyOf = (s: HFEActivity) => textKey(stripSponsorSuffix(s.title)) || `\0${s.id}`;
 
   const buckets = new Map<string, {titleKey: string; members: HFEActivity[]}>();
   for (const s of shows) {
@@ -228,10 +249,11 @@ export function foldShowsByStage(
       members[0];
     const {label} = stageOf(canonical, feed);
     const named = label !== '' && (namedStagesPerTitle.get(titleKey)?.size ?? 0) > 1;
+    const title = stripSponsorSuffix(canonical.title);
     groups.push({
       canonical,
       members,
-      name: named ? `${canonical.title.trim()} (${label})` : canonical.title,
+      name: named ? `${title.trim()} (${label})` : title,
     });
   }
 
@@ -660,7 +682,7 @@ class HFEBase extends Destination {
   /** One group per published show: a single record each, unless the park folds. */
   private groupShows(shows: HFEActivity[], activities: HFEActivity[]): HFEShowGroup[] {
     if (!this.foldStageShows) {
-      return shows.map(s => ({canonical: s, members: [s], name: s.title}));
+      return shows.map(s => ({canonical: s, members: [s], name: stripSponsorSuffix(s.title)}));
     }
     return foldShowsByStage(shows, activities, {preferredIds: this.preferredShowIds});
   }
