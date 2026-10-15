@@ -67,6 +67,8 @@ class MyPark extends Destination {
 
 Precedence: method option > class `getCacheVersion()` > class `cacheVersion` > unversioned.
 
+**Dropping one stale value:** never hand-write a key for `CacheLib.delete`. `@cache` appends every argument to the key (`Class:method:["a","b"]`), so a key built from fewer arguments than the call passed never matches, and the stale value then lives out its whole TTL. `CacheLib.clearMatching(className, {contains, maxRows?, dryRun?})` deletes one class's live rows whose key contains a substring, in one transaction. It steps over persistent state, refuses (`capped`) rather than delete more than `maxRows`, throws on a database error, and returns counts and `<Class>:<method>` groups, never raw keys (HTTP-layer keys embed request headers). It clears stored rows only: a fetch in flight can store its result again, and an in-memory `@reusable` value is not touched.
+
 #### **@http** (`src/http.ts`)
 Queue-based HTTP with automatic retry, validation, and caching.
 

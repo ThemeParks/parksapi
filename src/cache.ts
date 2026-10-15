@@ -9,6 +9,58 @@ const CLEANUP_INTERVAL_MS = parseInt(process.env.CACHE_CLEANUP_INTERVAL_MS || '3
 // SQLite contention is handled by PRAGMA busy_timeout=5000 (waits up to 5s for
 // the lock). No application-level retry needed.
 
+/** Options for {@link CacheLib.clearMatching}. */
+export interface ClearMatchingOptions {
+  /** Substring the full cache key must contain. Case-sensitive, must be non-empty. */
+  contains: string;
+  /** Delete nothing when more rows than this match. Default: no cap. */
+  maxRows?: number;
+  /** Count and group the matches without deleting them. */
+  dryRun?: boolean;
+}
+
+/** Outcome of {@link CacheLib.clearMatching}. Carries no raw cache keys. */
+export interface ClearMatchingResult {
+  /** Live (unexpired) rows that matched, persistent state excluded. */
+  matched: number;
+  /** Rows deleted: 0 for a dry run, or when `capped`. */
+  cleared: number;
+  /** True when `matched` exceeded `maxRows`. Reported for a dry run too. */
+  capped: boolean;
+  /** Matched rows by `<Class>:<method or HTTP verb>`, at most 20 entries. */
+  groups: Array<{group: string; rows: number}>;
+}
+
+const MAX_CLEAR_GROUPS = 20;
+// The segment after the class name is a method name or an HTTP verb for every
+// key the decorators build. Anything else (a custom key carrying data) is not
+// echoed back: HTTP-layer keys embed the request headers, so a raw key can hold
+// a credential.
+const GROUP_SEGMENT = /^[A-Za-z][A-Za-z0-9_.-]{0,47}$/;
+
+/** Roll matched keys up into `<Class>:<method or verb>` counts, biggest first. */
+function groupCacheKeys(className: string, keys: string[]): Array<{group: string; rows: number}> {
+  const other = `${className}:(other)`;
+  const counts = new Map<string, number>();
+  for (const key of keys) {
+    const at = key.startsWith(`${className}:`) ? 0 : key.indexOf(`:${className}:`) + 1;
+    const segment = key.slice(at + className.length + 1).split(':', 1)[0];
+    const group = GROUP_SEGMENT.test(segment) ? `${className}:${segment}` : other;
+    counts.set(group, (counts.get(group) ?? 0) + 1);
+  }
+  let otherRows = counts.get(other) ?? 0;
+  counts.delete(other);
+  const named = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+    .map(([group, rows]) => ({group, rows}));
+  // Leave a slot for the roll-up when it is needed.
+  const keep = otherRows > 0 || named.length > MAX_CLEAR_GROUPS ? MAX_CLEAR_GROUPS - 1 : MAX_CLEAR_GROUPS;
+  for (const dropped of named.slice(keep)) otherRows += dropped.rows;
+  const groups = named.slice(0, keep);
+  if (otherRows > 0) groups.push({group: other, rows: otherRows});
+  return groups;
+}
+
 // Track if we're in temporary mode
 let isTemporaryMode = false;
 
@@ -552,6 +604,76 @@ class CacheLib {
     } catch (error) {
       console.error("Cache clearByClassName error:", error);
       return 0;
+    }
+  }
+
+  /**
+   * Targeted flush: delete one class's live cache rows whose key contains a
+   * substring. For operator tooling that needs to drop one stale value, such as
+   * a cached upstream version, without refetching everything the class holds.
+   *
+   * Differences from {@link clearByClassName}, all deliberate:
+   * - A row must also contain `contains` (case-sensitive, matched literally, so
+   *   `_` and `%` are not wildcards). A class is matched the same two ways:
+   *   `Class:...` and `prefix:Class:...`.
+   * - Persistent operational state is always stepped over, counted as neither
+   *   matched nor cleared. There is no `includePersistent`: this is a flush,
+   *   never a reset.
+   * - Only live rows count. An expired row is already unreachable.
+   * - `maxRows` makes the call refuse rather than delete a surprising amount:
+   *   when more rows match, nothing is deleted and `capped` is true.
+   * - It throws on bad arguments and on a database error instead of returning 0,
+   *   because "nothing was cleared" and "the clear failed" must not look alike.
+   * - The count and the delete run in one transaction, so what was counted is
+   *   exactly what is deleted.
+   *
+   * The result never contains a raw key (see {@link ClearMatchingResult}).
+   * Only this process's stored rows are touched. A fetch already in flight when
+   * the delete runs can store its result again afterwards, and a value memoised
+   * in memory rather than in this cache is not affected.
+   */
+  static clearMatching(className: string, options: ClearMatchingOptions): ClearMatchingResult {
+    const {contains, maxRows, dryRun = false} = options ?? ({} as ClearMatchingOptions);
+    if (typeof className !== 'string' || className === '') {
+      throw new TypeError('clearMatching: className must be a non-empty string');
+    }
+    if (typeof contains !== 'string' || contains === '') {
+      throw new TypeError('clearMatching: contains must be a non-empty string');
+    }
+    if (maxRows !== undefined && (!Number.isInteger(maxRows) || maxRows < 0)) {
+      throw new TypeError('clearMatching: maxRows must be a non-negative integer');
+    }
+
+    const exclusion = persistentKeyExclusion();
+    const where = [
+      'timestamp > ?',
+      '(instr(key, ?) = 1 OR instr(key, ?) > 0)',
+      'instr(key, ?) > 0',
+      ...exclusion.clauses,
+    ].join(' AND ');
+
+    database.exec('BEGIN IMMEDIATE');
+    try {
+      const rows = database
+        .prepare(`SELECT key FROM cache WHERE ${where}`)
+        .all(Date.now(), `${className}:`, `:${className}:`, contains, ...exclusion.params) as {key: string}[];
+      const keys = rows.map(row => row.key);
+      const capped = maxRows !== undefined && keys.length > maxRows;
+
+      let cleared = 0;
+      if (!dryRun && !capped && keys.length > 0) {
+        const remove = database.prepare('DELETE FROM cache WHERE key = ?');
+        for (const key of keys) cleared += Number(remove.run(key).changes || 0);
+      }
+      database.exec('COMMIT');
+      return {matched: keys.length, cleared, capped, groups: groupCacheKeys(className, keys)};
+    } catch (error) {
+      try {
+        database.exec('ROLLBACK');
+      } catch {
+        // No transaction left to roll back; the original error is the one that matters.
+      }
+      throw error;
     }
   }
 
