@@ -613,9 +613,12 @@ class CacheLib {
    * a cached upstream version, without refetching everything the class holds.
    *
    * Differences from {@link clearByClassName}, all deliberate:
-   * - A row must also contain `contains` (case-sensitive, matched literally, so
-   *   `_` and `%` are not wildcards). A class is matched the same two ways:
-   *   `Class:...` and `prefix:Class:...`.
+   * - A row must also contain `contains`. Matching is literal (`_` and `%` are
+   *   not wildcards) and case-sensitive, class name included, where
+   *   `clearByClassName` ignores case. A class is matched the same two ways:
+   *   `Class:...` and `prefix:Class:...`. The substring is tested against the
+   *   whole key, class name and arguments included, so a short or common one
+   *   reaches far: pair it with `maxRows`.
    * - Persistent operational state is always stepped over, counted as neither
    *   matched nor cleared. There is no `includePersistent`: this is a flush,
    *   never a reset.
@@ -627,10 +630,20 @@ class CacheLib {
    * - The count and the delete run in one transaction, so what was counted is
    *   exactly what is deleted.
    *
-   * The result never contains a raw key (see {@link ClearMatchingResult}).
+   * The result never contains a raw key (see {@link ClearMatchingResult}); a
+   * group label is the class plus the identifier-shaped segment after it, which
+   * is a method name or HTTP verb for every key the decorators build.
    * Only this process's stored rows are touched. A fetch already in flight when
    * the delete runs can store its result again afterwards, and a value memoised
    * in memory rather than in this cache is not affected.
+   *
+   * It only reaches keys that carry the class name. A row stored under a fixed
+   * key (`@cache({key: 'someConstant'})`) has no class segment, so remove it
+   * with an exact `CacheLib.delete`.
+   *
+   * A large match set is deleted row by row inside the transaction: tens of
+   * thousands of rows stall the event loop for seconds and hold the write lock,
+   * so set `maxRows`.
    */
   static clearMatching(className: string, options: ClearMatchingOptions): ClearMatchingResult {
     const {contains, maxRows, dryRun = false} = options ?? ({} as ClearMatchingOptions);
@@ -643,6 +656,11 @@ class CacheLib {
     if (maxRows !== undefined && (!Number.isInteger(maxRows) || maxRows < 0)) {
       throw new TypeError('clearMatching: maxRows must be a non-negative integer');
     }
+    // Not coerced: a caller forwarding an unset flag (null, 0, '') must not
+    // get a delete it did not ask for.
+    if (typeof dryRun !== 'boolean') {
+      throw new TypeError('clearMatching: dryRun must be a boolean');
+    }
 
     const exclusion = persistentKeyExclusion();
     const where = [
@@ -652,13 +670,18 @@ class CacheLib {
       ...exclusion.clauses,
     ].join(' AND ');
 
-    database.exec('BEGIN IMMEDIATE');
+    // A dry run only reads, so it must not take the write lock and block other
+    // writers of a shared cache file.
+    database.exec(dryRun ? 'BEGIN' : 'BEGIN IMMEDIATE');
     try {
       const rows = database
         .prepare(`SELECT key FROM cache WHERE ${where}`)
         .all(Date.now(), `${className}:`, `:${className}:`, contains, ...exclusion.params) as {key: string}[];
       const keys = rows.map(row => row.key);
       const capped = maxRows !== undefined && keys.length > maxRows;
+      // Built before COMMIT: once rows are deleted, a throw here would report an
+      // error for a clear that had already happened.
+      const groups = groupCacheKeys(className, keys);
 
       let cleared = 0;
       if (!dryRun && !capped && keys.length > 0) {
@@ -666,7 +689,7 @@ class CacheLib {
         for (const key of keys) cleared += Number(remove.run(key).changes || 0);
       }
       database.exec('COMMIT');
-      return {matched: keys.length, cleared, capped, groups: groupCacheKeys(className, keys)};
+      return {matched: keys.length, cleared, capped, groups};
     } catch (error) {
       try {
         database.exec('ROLLBACK');

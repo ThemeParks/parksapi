@@ -1,5 +1,6 @@
 import {CacheLib as Cache, database} from '../cache.js';
 import cache from '../cache.js';
+import {PERSISTENT_KEY_FRAGMENTS} from '../cacheKeys.js';
 
 // Silence the library's own console.error noise, like the other cache suites.
 const originalConsoleError = console.error;
@@ -82,8 +83,8 @@ describe('CacheLib.clearMatching', () => {
 
   describe('persistent operational state', () => {
     // A flush means "refetch", never "forget what we have observed". The
-    // protected list lives in cacheKeys.ts and is deliberately not exported, so
-    // this method has to apply it itself.
+    // protected list lives in cacheKeys.ts and stays out of the package entry
+    // point, so a caller cannot honour it itself: this method has to.
     test('never matches, counts or deletes a persistent key even when the substring hits it', () => {
       Cache.set('TestPark:getToken:["abc"]', 'tok');
       Cache.set('TestPark:liveEntityRetirement:abc', {seen: 1});
@@ -201,6 +202,14 @@ describe('CacheLib.clearMatching', () => {
       ['empty class name', '', {contains: 'abc'}],
       ['negative cap', 'TestPark', {contains: 'abc', maxRows: -1}],
       ['fractional cap', 'TestPark', {contains: 'abc', maxRows: 1.5}],
+      // NaN would silently switch the cap off (`n > NaN` is false).
+      ['NaN cap', 'TestPark', {contains: 'abc', maxRows: NaN}],
+      ['infinite cap', 'TestPark', {contains: 'abc', maxRows: Infinity}],
+      ['null cap', 'TestPark', {contains: 'abc', maxRows: null as any}],
+      // A caller forwarding an unset flag must not get a destructive default.
+      ['null dryRun', 'TestPark', {contains: 'abc', dryRun: null as any}],
+      ['numeric dryRun', 'TestPark', {contains: 'abc', dryRun: 0 as any}],
+      ['empty-string dryRun', 'TestPark', {contains: 'abc', dryRun: '' as any}],
     ])('throws on %s', (_label, className, options) => {
       Cache.set('TestPark:getVersion:["abc"]', 'a');
 
@@ -247,5 +256,122 @@ describe('CacheLib.clearMatching', () => {
     // The failed call must not leave a transaction open: a normal write still works.
     Cache.set('TestPark:after:["abc"]', 1);
     expect(Cache.has('TestPark:after:["abc"]')).toBe(true);
+  });
+});
+
+describe('CacheLib.clearMatching: guards the first test file left open', () => {
+  test('a class name only matches at a segment boundary, never as a suffix', () => {
+    Cache.set('TokyoDisneyResort:getVersion:["abc"]', 'a');
+    Cache.set('Resort:getVersion:["abc"]', 'b');
+
+    expect(Cache.clearMatching('Resort', {contains: 'abc'}).cleared).toBe(1);
+    expect(Cache.has('TokyoDisneyResort:getVersion:["abc"]')).toBe(true);
+    expect(Cache.has('Resort:getVersion:["abc"]')).toBe(false);
+  });
+
+  test('a cap of 0 refuses as soon as anything matches', () => {
+    Cache.set('TestPark:getVersion:["abc"]', 'a');
+
+    expect(Cache.clearMatching('TestPark', {contains: 'abc', maxRows: 0})).toMatchObject({matched: 1, cleared: 0, capped: true});
+    expect(Cache.has('TestPark:getVersion:["abc"]')).toBe(true);
+  });
+
+  test.each([
+    ["a quote and a statement in the substring", 'TestPark', "'; DROP TABLE cache; --"],
+    ["an always-true clause in the substring", 'TestPark', "x' OR '1'='1"],
+    ["a quote in the class name", "Test'Park", 'abc'],
+  ])('values are bound, never interpolated: %s', (_label, className, contains) => {
+    Cache.set('TestPark:getVersion:["abc"]', 'a');
+
+    expect(Cache.clearMatching(className, {contains})).toMatchObject({matched: 0, cleared: 0});
+    expect(Cache.has('TestPark:getVersion:["abc"]')).toBe(true);
+    expect(Cache.size()).toBe(1); // the table is still there
+  });
+
+  test('a failure part-way through the deletes leaves every row, no open transaction, and the next call works', () => {
+    for (let i = 0; i < 4; i++) Cache.set(`TestPark:getVersion:["k${i}"]`, i);
+    const realPrepare = database.prepare.bind(database);
+    let removed = 0;
+    const spy = vi.spyOn(database, 'prepare').mockImplementation(((sql: string) => {
+      const statement: any = realPrepare(sql);
+      if (!sql.startsWith('DELETE FROM cache WHERE key')) return statement;
+      return new Proxy(statement, {
+        get(target, prop) {
+          if (prop === 'run') {
+            return (...args: any[]) => {
+              if (++removed === 3) throw new Error('disk full');
+              return target.run(...args);
+            };
+          }
+          const value = target[prop];
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      });
+    }) as any);
+
+    expect(() => Cache.clearMatching('TestPark', {contains: 'getVersion'})).toThrow('disk full');
+    spy.mockRestore();
+
+    // The transaction rolled back as a whole, and is closed.
+    expect(database.isTransaction).toBe(false);
+    expect(Cache.size()).toBe(4);
+    expect(Cache.clearMatching('TestPark', {contains: 'getVersion'})).toMatchObject({matched: 4, cleared: 4});
+  });
+
+  describe('persistent state', () => {
+    test.each(PERSISTENT_KEY_FRAGMENTS.map(fragment => [fragment]))('honours the protected fragment %s', fragment => {
+      const key = `TestPark${fragment}abc`;
+      Cache.set(key, 'kept');
+      Cache.set('TestPark:getVersion:["abc"]', 'dropped');
+
+      const result = Cache.clearMatching('TestPark', {contains: 'abc'});
+
+      expect(result).toMatchObject({matched: 1, cleared: 1});
+      expect(Cache.has(key)).toBe(true);
+    });
+
+    test('protected rows never show up in the groups either', () => {
+      Cache.set('TestPark:liveEntityRetirement:abc', {seen: 1});
+      Cache.set('TestPark:dlp:queueBearingHistory:abc', ['x']);
+      Cache.set('TestPark:getVersion:["abc"]', 'a');
+
+      const result = Cache.clearMatching('TestPark', {contains: 'abc', dryRun: true});
+
+      expect(result.groups).toEqual([{group: 'TestPark:getVersion', rows: 1}]);
+    });
+
+    // The sticky-SHOW record is a 30-day observation that is refreshed on every
+    // sighting; losing it flips a show back to an attraction until the next one.
+    test('protects the sticky-show record', () => {
+      Cache.set('fantawild:seenAsShow:v1:5:1455', true, 60 * 60 * 24 * 30);
+      Cache.set('fantawild:getParks:[]', ['x']);
+
+      const result = Cache.clearMatching('fantawild', {contains: ':'});
+
+      expect(result).toMatchObject({matched: 1, cleared: 1});
+      expect(Cache.has('fantawild:seenAsShow:v1:5:1455')).toBe(true);
+    });
+  });
+
+  test('a class name that recurs later in the key is still grouped by its first segment', () => {
+    Cache.set('TestPark:getVersion:["TestPark:getOther"]', 'a');
+
+    expect(Cache.clearMatching('TestPark', {contains: 'getOther', dryRun: true}).groups)
+      .toEqual([{group: 'TestPark:getVersion', rows: 1}]);
+  });
+
+  test('a dry run takes no write lock, so it cannot block other writers', () => {
+    Cache.set('TestPark:getVersion:["abc"]', 'a');
+    const exec = vi.spyOn(database, 'exec');
+
+    Cache.clearMatching('TestPark', {contains: 'abc', dryRun: true});
+    const dryBegin = exec.mock.calls.map(c => c[0]).find(sql => String(sql).startsWith('BEGIN'));
+    exec.mockClear();
+    Cache.clearMatching('TestPark', {contains: 'abc'});
+    const realBegin = exec.mock.calls.map(c => c[0]).find(sql => String(sql).startsWith('BEGIN'));
+    exec.mockRestore();
+
+    expect(dryBegin).toBe('BEGIN');
+    expect(realBegin).toBe('BEGIN IMMEDIATE');
   });
 });
