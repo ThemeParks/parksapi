@@ -291,14 +291,15 @@ export class TokyoDisneyResort extends Destination {
    *
    * Listens for `httpError`: a rejected request fails before any `httpResponse`
    * event, so a handler on that event never sees a 400 or a 503.
+   *
+   * No `hostname` filter, unlike the header injectors above. The event carries
+   * the URL as it is sent, and a request routed through a proxy has been
+   * rewritten to the proxy's host by then, so a filter on the API host would
+   * stop this from running for exactly those requests. Events are already
+   * scoped to this instance, and the handler only acts on the API's own error
+   * codes.
    */
-  @inject({
-    eventName: 'httpError',
-    hostname: function () {
-      if (!this.apiBase) return '__noop__';
-      return new URL(this.apiBase).hostname;
-    },
-  })
+  @inject({eventName: 'httpError'})
   async handleAPIError(requestObj: HTTPObj): Promise<void> {
     const status = requestObj.response?.status;
     if (status !== 400 && status !== 503) return;

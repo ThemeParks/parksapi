@@ -103,18 +103,51 @@ describe('TokyoDisneyResort: the API rejects the app version we send', () => {
     expect(feedHits).toBe(1); // still served from the cache
   });
 
-  test('a maintenance response is logged, does not throw, and keeps the cached version', async () => {
+  test('a maintenance response is logged through the real stack and keeps the cached version', async () => {
     const park = newPark();
-    await expect(park.fetchCalendar()).rejects.toThrow(/400/); // seeds the cache, then drops it
     CacheLib.set(`TokyoDisneyResort:getAppwatchVersion:["${PACKAGE}","3.0.16"]`, '3.12.4', 60);
+    setHttpTransport(async request => {
+      if (request.url.startsWith('https://api.themeparks.wiki/')) return json({version: '3.12.4'});
+      return json({errors: [{code: 'error.systemMaintenance', message: 'down for maintenance'}]}, 503);
+    });
 
-    const maintenance = {
-      response: new Response('{}', {status: 503}),
-      clone: () => ({json: async () => ({errors: [{code: 'error.systemMaintenance'}]})}),
-    };
+    await expect(park.fetchCalendar()).rejects.toThrow(/503/);
 
-    await expect(park.handleAPIError(maintenance as any)).resolves.toBeUndefined();
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('system maintenance'));
     expect(CacheLib.has(`TokyoDisneyResort:getAppwatchVersion:["${PACKAGE}","3.0.16"]`)).toBe(true);
+  });
+
+  // A proxy rewrites the request to its own host before the error event is
+  // built, so a handler filtered on the API host would never run for it.
+  test('also recovers when the request goes through a proxy that rewrites the host', async () => {
+    const park = newPark();
+    park.proxyConfig = {crawlbase: {apikey: 'proxy-key'}};
+    const hosts: string[] = [];
+    // The proxy wraps EVERY request of this instance, the version feed included:
+    // the real target travels in the `url` query parameter.
+    const target = (url: string) =>
+      new URL(url).hostname === 'api.crawlbase.com' ? new URL(url).searchParams.get('url')! : url;
+    setHttpTransport(async request => {
+      if (target(request.url).startsWith('https://api.themeparks.wiki/')) {
+        feedHits++;
+        return json({version: feedVersion});
+      }
+      hosts.push(new URL(request.url).hostname);
+      const sent = header(request.headers, 'x-portal-app-version');
+      versionsSent.push(sent);
+      return sent === acceptedVersion ? json([]) : json({errors: [{code: rejectionCode}]}, 400);
+    });
+
+    await expect(park.fetchCalendar()).rejects.toThrow(/400/);
+    // The version really came from the feed, through the proxy, not the fallback.
+    expect(new Set(versionsSent)).toEqual(new Set(['3.12.3'])); // device registration sends it too
+    // The proof the request really was rewritten: the API host never appears.
+    expect(hosts.length).toBeGreaterThan(0);
+    expect(hosts.every(h => h !== 'tdr.invalid')).toBe(true);
+    expect(CacheLib.keys().filter(k => k.includes(PACKAGE))).toEqual([]);
+
+    feedVersion = '3.12.4';
+    await expect(park.fetchCalendar()).resolves.toBeDefined();
+    expect(versionsSent.at(-1)).toBe('3.12.4');
   });
 });
