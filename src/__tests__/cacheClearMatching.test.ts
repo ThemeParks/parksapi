@@ -375,3 +375,76 @@ describe('CacheLib.clearMatching: guards the first test file left open', () => {
     expect(realBegin).toBe('BEGIN IMMEDIATE');
   });
 });
+
+describe('CacheLib.clearMatching: the substring cannot be used to read credentials out of a key', () => {
+  // An HTTP-layer key is `Class:VERB:url:{headers}:body`, so the headers, the
+  // query string and the body of a request are all in it. A caller that can
+  // choose the substring and read the match count could recover a credential
+  // one character at a time. The substring is therefore tested only against the
+  // class, the verb and the URL up to its query string.
+  const httpKey = (url: string, headers: object, body = '') =>
+    `TestPark:GET:${url}:${JSON.stringify(headers)}:${body}`;
+
+  beforeEach(() => {
+    Cache.set(
+      httpKey('https://api.example.test/v1/things?token=QUERYSECRET9', {authorization: 'Bearer tok_ABCDEF', 'x-api-key': 'KEYSECRET7'}, '{"password":"hunter2"}'),
+      'body',
+    );
+  });
+
+  test.each([
+    ['a header value', 'Bearer tok_A'],
+    ['a header name', 'x-api-key'],
+    ['a header secret', 'KEYSECRET7'],
+    ['a query string value', 'QUERYSECRET9'],
+    ['the query string marker', '?token='],
+    ['a body value', 'hunter2'],
+  ])('does not match %s', (_label, probe) => {
+    expect(Cache.clearMatching('TestPark', {contains: probe, dryRun: true})).toMatchObject({matched: 0, cleared: 0});
+    expect(Cache.clearMatching('TestPark', {contains: probe})).toMatchObject({matched: 0, cleared: 0});
+    expect(Cache.size()).toBe(1);
+  });
+
+  test.each([
+    ['the host', 'api.example.test'],
+    ['the path', '/v1/things'],
+    ['the verb and URL as stored', 'TestPark:GET:https://api.example.test'],
+  ])('still matches %s', (_label, probe) => {
+    expect(Cache.clearMatching('TestPark', {contains: probe, dryRun: true})).toMatchObject({matched: 1});
+  });
+
+  test('a fixed-name key (no verb after the class) is still matched on the whole key', () => {
+    Cache.set('TestPark:customName:abc-123', 'x');
+
+    expect(Cache.clearMatching('TestPark', {contains: 'abc-123', dryRun: true})).toMatchObject({matched: 1});
+  });
+
+  test('method arguments of a decorated method are still matched', () => {
+    Cache.set('TestPark:getVersion:["pkg.name","3.0.16"]', 'x');
+
+    expect(Cache.clearMatching('TestPark', {contains: '3.0.16', dryRun: true})).toMatchObject({matched: 1});
+  });
+
+  test('a prefixed HTTP key is narrowed the same way', () => {
+    Cache.set(`prefix:1:${httpKey('https://api.example.test/p', {authorization: 'Bearer PREFIXSECRET'})}`, 'x');
+
+    expect(Cache.clearMatching('TestPark', {contains: 'PREFIXSECRET', dryRun: true}).matched).toBe(0);
+    expect(Cache.clearMatching('TestPark', {contains: '/p', dryRun: true}).matched).toBe(1);
+  });
+
+  test('the real run deletes exactly the rows the dry run counted', () => {
+    Cache.set(httpKey('https://api.example.test/v1/other', {authorization: 'Bearer different'}), 'y');
+
+    const dry = Cache.clearMatching('TestPark', {contains: 'api.example.test', dryRun: true});
+    const real = Cache.clearMatching('TestPark', {contains: 'api.example.test'});
+
+    expect(dry.matched).toBe(2);
+    expect(real).toMatchObject({matched: 2, cleared: 2});
+  });
+
+  test('a key with no recognisable header block exposes only its class and verb, never the tail', () => {
+    Cache.set('TestPark:POST:https://api.example.test/x:BODYSECRET', 'x');
+
+    expect(Cache.clearMatching('TestPark', {contains: 'BODYSECRET', dryRun: true}).matched).toBe(0);
+  });
+});

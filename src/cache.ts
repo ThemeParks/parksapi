@@ -38,12 +38,44 @@ const MAX_CLEAR_GROUPS = 20;
 // a credential.
 const GROUP_SEGMENT = /^[A-Za-z][A-Za-z0-9_.-]{0,47}$/;
 
+const HTTP_VERB = /^(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$/;
+
+/** Where the class name starts in a key (`Class:...` or `prefix:Class:...`). */
+function classOffset(className: string, key: string): number {
+  if (key.startsWith(`${className}:`)) return 0;
+  const at = key.indexOf(`:${className}:`);
+  return at === -1 ? 0 : at + 1;
+}
+
+/**
+ * The part of a key that `clearMatching`'s substring is tested against.
+ *
+ * An HTTP-layer key is `Class:VERB:url:{headers}:body`, so the request headers,
+ * the query string and the body are all in it, and any of them can carry a
+ * credential. A caller who can choose the substring and read the match count
+ * could recover one a character at a time, so for those keys only the class, the
+ * verb and the URL up to its query string are searchable. Every other key (a
+ * decorated method's `Class:method:[args]`, a fixed name) is searchable whole.
+ */
+function searchableKey(className: string, key: string): string {
+  const verbStart = classOffset(className, key) + className.length + 1;
+  const verbEnd = key.indexOf(':', verbStart);
+  if (verbEnd === -1 || !HTTP_VERB.test(key.slice(verbStart, verbEnd))) return key;
+  const afterVerb = key.slice(verbEnd + 1);
+  // The headers are always a JSON object, so they start `:{`. Without that marker
+  // nothing says where the URL ends, so expose none of it.
+  const headersAt = afterVerb.indexOf(':{');
+  const url = headersAt === -1 ? '' : afterVerb.slice(0, headersAt);
+  const query = url.search(/[?#]/);
+  return key.slice(0, verbEnd + 1) + (query === -1 ? url : url.slice(0, query));
+}
+
 /** Roll matched keys up into `<Class>:<method or verb>` counts, biggest first. */
 function groupCacheKeys(className: string, keys: string[]): Array<{group: string; rows: number}> {
   const other = `${className}:(other)`;
   const counts = new Map<string, number>();
   for (const key of keys) {
-    const at = key.startsWith(`${className}:`) ? 0 : key.indexOf(`:${className}:`) + 1;
+    const at = classOffset(className, key);
     const segment = key.slice(at + className.length + 1).split(':', 1)[0];
     const group = GROUP_SEGMENT.test(segment) ? `${className}:${segment}` : other;
     counts.set(group, (counts.get(group) ?? 0) + 1);
@@ -617,8 +649,14 @@ class CacheLib {
    *   not wildcards) and case-sensitive, class name included, where
    *   `clearByClassName` ignores case. A class is matched the same two ways:
    *   `Class:...` and `prefix:Class:...`. The substring is tested against the
-   *   whole key, class name and arguments included, so a short or common one
-   *   reaches far: pair it with `maxRows`.
+   *   class name and arguments, so a short or common one reaches far: pair it
+   *   with `maxRows`.
+   * - For an HTTP-layer key (`Class:VERB:url:{headers}:body`) only the class, the
+   *   verb and the URL up to its query string are searchable. Headers, query and
+   *   body can carry credentials, and a match count would let a caller recover
+   *   one a character at a time. A method argument that is itself a secret is
+   *   still searchable in a decorated method's key, so rate-limit untrusted
+   *   callers.
    * - Persistent operational state is always stepped over, counted as neither
    *   matched nor cleared. There is no `includePersistent`: this is a flush,
    *   never a reset.
@@ -677,7 +715,9 @@ class CacheLib {
       const rows = database
         .prepare(`SELECT key FROM cache WHERE ${where}`)
         .all(Date.now(), `${className}:`, `:${className}:`, contains, ...exclusion.params) as {key: string}[];
-      const keys = rows.map(row => row.key);
+      // The SQL tested the whole key, which is only a prefilter. What counts is the
+      // searchable view, so a match count never depends on a header or a body.
+      const keys = rows.map(row => row.key).filter(key => searchableKey(className, key).includes(contains));
       const capped = maxRows !== undefined && keys.length > maxRows;
       // Built before COMMIT: once rows are deleted, a throw here would report an
       // error for a clear that had already happened.
