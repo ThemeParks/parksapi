@@ -61,6 +61,12 @@ export const PERSISTENT_KEY_FRAGMENTS = Object.freeze([
   // design; losing it re-suppresses live waits until one is next seen.
   ':liveWaitsObserved:v1:',
 
+  // Whether a Fantawild item has ever been seen as a SHOW. A 30-day record,
+  // refreshed on every sighting and only ever written true, so a day with no
+  // performance windows cannot lock a show into ATTRACTION. Losing it flips the
+  // item's published type back to what the feed says until the next sighting.
+  ':seenAsShow:v1:',
+
   // Long-lived upstream refresh tokens. Losing one is self-healing for us and
   // not free for the operator: a park whose auth mints a fresh anonymous
   // account per sign-up gets a permanent extra account every time we flush.
