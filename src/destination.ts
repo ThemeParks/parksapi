@@ -1027,9 +1027,10 @@ export abstract class Destination {
   /**
    * Get the latest published version string of a mobile app, via appwatch.
    * Returns `fallback` when appwatch is unreachable or doesn't have the
-   * version field. Cached 12h per (subclass, packageId) — invalidate the
-   * cache entry from a response-error handler if the upstream API ever
-   * starts gating on version.
+   * version field. Cached 12h per (subclass, packageId) — call
+   * `invalidateAppwatchVersion()` from an `httpError` handler if the upstream
+   * API ever starts gating on version. Do not delete the cache key by hand: the
+   * key carries every argument, including the fallback.
    *
    * @example
    * ```typescript
@@ -1045,6 +1046,24 @@ export abstract class Destination {
       return data?.version || fallback;
     } catch {
       return fallback;
+    }
+  }
+
+  /**
+   * Forget the cached latest version of an app, so the next
+   * `getAppwatchVersion()` asks appwatch again. Drops both layers that hold it:
+   * the stored result and the fetched response it was read from. Call it when
+   * the upstream API rejects the version that was sent.
+   *
+   * Never throws: this runs inside an error handler, and a failure to tidy the
+   * cache must not replace the error being handled. Returns the rows dropped.
+   */
+  protected invalidateAppwatchVersion(packageId: string): number {
+    try {
+      return CacheLib.clearMatching(this.constructor.name, {contains: packageId}).cleared;
+    } catch (error) {
+      console.error(`[${this.constructor.name}] could not drop the cached app version: ${error}`);
+      return 0;
     }
   }
 

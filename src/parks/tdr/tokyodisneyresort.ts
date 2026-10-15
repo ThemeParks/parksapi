@@ -1,5 +1,5 @@
 import {Destination, DestinationConstructor} from '../../destination.js';
-import {cache, CacheLib} from '../../cache.js';
+import {cache} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
 import config from '../../config.js';
@@ -177,6 +177,9 @@ export function mapAttractionStatus(
 // Destination Implementation
 // ============================================================================
 
+/** The app whose latest version is sent to the API, read via appwatch. */
+const APPWATCH_PACKAGE = 'jp.tokyodisneyresort.portalapp';
+
 @destinationController({category: 'Disney'})
 export class TokyoDisneyResort extends Destination {
   @config
@@ -231,7 +234,7 @@ export class TokyoDisneyResort extends Destination {
     tags: {$nin: ['deviceRegistration']},
   })
   async injectAPIHeaders(requestObj: HTTPObj): Promise<void> {
-    const appVersion = await this.getAppwatchVersion('jp.tokyodisneyresort.portalapp', this.apiVersion);
+    const appVersion = await this.getAppwatchVersion(APPWATCH_PACKAGE, this.apiVersion);
     const deviceId = await this.getDeviceId();
 
     requestObj.headers = {
@@ -262,7 +265,7 @@ export class TokyoDisneyResort extends Destination {
     tags: {$in: ['deviceRegistration']},
   })
   async injectDeviceRegistrationHeaders(requestObj: HTTPObj): Promise<void> {
-    const appVersion = await this.getAppwatchVersion('jp.tokyodisneyresort.portalapp', this.apiVersion);
+    const appVersion = await this.getAppwatchVersion(APPWATCH_PACKAGE, this.apiVersion);
 
     requestObj.headers = {
       ...requestObj.headers,
@@ -280,31 +283,43 @@ export class TokyoDisneyResort extends Destination {
 
   /**
    * Handle HTTP error responses from TDR API.
-   * - 400: clear cached app version (API version enforcement)
+   * - 400 `error.invalidVersion`: the API only accepts a window of app versions
+   *   and the one we sent is outside it. Drop the cached version so the next
+   *   call asks appwatch again instead of repeating the rejected one until its
+   *   12 hour cache expires.
    * - 503 with systemMaintenance: log and handle gracefully
+   *
+   * Listens for `httpError`: a rejected request fails before any `httpResponse`
+   * event, so a handler on that event never sees a 400 or a 503.
    */
   @inject({
-    eventName: 'httpResponse',
+    eventName: 'httpError',
     hostname: function () {
       if (!this.apiBase) return '__noop__';
       return new URL(this.apiBase).hostname;
     },
   })
-  async handleAPIResponse(requestObj: HTTPObj): Promise<void> {
-    if (requestObj.status === 400) {
-      console.log('[TDR] API returned 400, clearing cached app version...');
-      CacheLib.delete('TokyoDisneyResort:getAppwatchVersion:["jp.tokyodisneyresort.portalapp"]');
+  async handleAPIError(requestObj: HTTPObj): Promise<void> {
+    const status = requestObj.response?.status;
+    if (status !== 400 && status !== 503) return;
+
+    let errors: Array<{code?: string}> = [];
+    try {
+      const body = await requestObj.clone().json();
+      if (Array.isArray(body?.errors)) errors = body.errors;
+    } catch {
+      // could not parse response body
     }
 
-    if (requestObj.status === 503) {
-      try {
-        const body = await requestObj.clone().json();
-        const maintenance = body?.errors?.find((x: any) => x.code === 'error.systemMaintenance');
-        if (maintenance) {
-          console.log(`[TDR] API in system maintenance: ${JSON.stringify(maintenance)}`);
-        }
-      } catch {
-        // could not parse response body
+    if (status === 400 && errors.some(x => x.code === 'error.invalidVersion')) {
+      const dropped = this.invalidateAppwatchVersion(APPWATCH_PACKAGE);
+      console.log(`[TDR] API rejected the app version, dropped ${dropped} cached version row(s)`);
+    }
+
+    if (status === 503) {
+      const maintenance = errors.find(x => x.code === 'error.systemMaintenance');
+      if (maintenance) {
+        console.log(`[TDR] API in system maintenance: ${JSON.stringify(maintenance)}`);
       }
     }
   }
