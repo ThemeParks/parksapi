@@ -448,3 +448,67 @@ describe('CacheLib.clearMatching: the substring cannot be used to read credentia
     expect(Cache.clearMatching('TestPark', {contains: 'BODYSECRET', dryRun: true}).matched).toBe(0);
   });
 });
+
+describe('CacheLib.clearMatching: credentials carried in the URL path', () => {
+  // Some upstreams put the API key in the path itself
+  // (`https://host/<32 hex>.json`). A path segment that looks like a token is
+  // masked, so it cannot be recovered one character at a time either. This is a
+  // heuristic: 16 or more letters, digits, `_` or `-` including at least one
+  // digit (an extension such as `.json` is set aside first).
+  const key = (url: string) => `TestPark:GET:${url}:${JSON.stringify({accept: 'application/json'})}:`;
+  const HEX = '0123456789abcdef0123456789abcdef';
+
+  beforeEach(() => {
+    Cache.set(key(`https://live-data.attractions.example/${HEX}.json`), 'body');
+  });
+
+  test.each([
+    ['the whole token', HEX],
+    ['a prefix of the token', HEX.slice(0, 8)],
+    ['the token with its extension', `${HEX}.json`],
+    ['a slice from the middle', HEX.slice(10, 20)],
+  ])('does not match %s', (_label, probe) => {
+    expect(Cache.clearMatching('TestPark', {contains: probe, dryRun: true}).matched).toBe(0);
+  });
+
+  test.each([
+    ['the host', 'live-data.attractions.example'],
+    ['the extension', '.json'],
+    ['the verb and host as stored', 'TestPark:GET:https://live-data.attractions.example/'],
+  ])('still matches %s', (_label, probe) => {
+    expect(Cache.clearMatching('TestPark', {contains: probe, dryRun: true}).matched).toBe(1);
+  });
+
+  test('ordinary path segments stay searchable, including long words and dotted ids', () => {
+    Cache.set(key('https://api.example.test/appwatch/latest/jp.tokyodisneyresort.portalapp'), 'a');
+    Cache.set(key('https://api.example.test/liveentertainmentservice/rides'), 'b');
+    Cache.set(key('https://api.example.test/v2/parks/12345/rides'), 'c');
+
+    expect(Cache.clearMatching('TestPark', {contains: 'jp.tokyodisneyresort.portalapp', dryRun: true}).matched).toBe(1);
+    expect(Cache.clearMatching('TestPark', {contains: 'liveentertainmentservice', dryRun: true}).matched).toBe(1);
+    expect(Cache.clearMatching('TestPark', {contains: '/parks/12345/rides', dryRun: true}).matched).toBe(1);
+  });
+
+  test('the length boundary: 16 characters with a digit is masked, 15 is not', () => {
+    Cache.set(key('https://api.example.test/abcdefghijklmno1'), 'sixteen');
+    Cache.set(key('https://api.example.test/abcdefghijklmn1'), 'fifteen');
+
+    expect(Cache.clearMatching('TestPark', {contains: 'abcdefghijklmno1', dryRun: true}).matched).toBe(0);
+    expect(Cache.clearMatching('TestPark', {contains: 'abcdefghijklmn1', dryRun: true}).matched).toBe(1);
+  });
+
+  test('credentials in the host part (user:password@) are not searchable', () => {
+    Cache.set(key('https://svc-user:S3cretPassw0rd@host.example.test/path'), 'x');
+
+    expect(Cache.clearMatching('TestPark', {contains: 'S3cretPassw0rd', dryRun: true}).matched).toBe(0);
+    expect(Cache.clearMatching('TestPark', {contains: 'svc-user', dryRun: true}).matched).toBe(0);
+    expect(Cache.clearMatching('TestPark', {contains: 'host.example.test/path', dryRun: true}).matched).toBe(1);
+  });
+
+  test('a real clear deletes exactly what the dry run counted', () => {
+    Cache.set(key('https://live-data.attractions.example/other-path'), 'y');
+
+    expect(Cache.clearMatching('TestPark', {contains: 'live-data.attractions.example', dryRun: true}).matched).toBe(2);
+    expect(Cache.clearMatching('TestPark', {contains: 'live-data.attractions.example'})).toMatchObject({matched: 2, cleared: 2});
+  });
+});
