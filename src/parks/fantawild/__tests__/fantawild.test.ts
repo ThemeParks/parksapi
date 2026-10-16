@@ -376,6 +376,89 @@ describe('isFantawildShow', () => {
   });
 });
 
+describe('isFantawildShow: height limit', () => {
+  // A guest is measured before boarding a ride, so a numeric height limit is evidence of
+  // an attraction. The feed also gives rides discrete "HH:MM" dispatch times, which look
+  // exactly like show times, and it does so for one park and not another: 飓风飞椅 (a swing
+  // ride) lists dispatch times at Tai'an and a single window at Datong.
+  // The rows below are real feed rows, observed on 2026-10-16.
+  const swingTaian = baseItem({
+    parkId: 17, id: 555, itemName: '飓风飞椅【受天气影响】',
+    showTimeList: ['10:00', '11:00', '13:00', '14:00', '14:30', '15:00', '15:30', '16:00', '17:00', '18:00', '19:00', '20:00', '20:30'],
+    featureList: ['旋转', '惊吓'], heightStr: '适合1.2米或以上',
+  });
+  const flyingTheatreTaian = baseItem({
+    parkId: 17, id: 107, itemName: '飞越极限【飞越中华】',
+    showTimeList: ['10:00', '11:30', '12:00', '13:00', '14:00', '15:00', '15:30', '16:00', '16:30', '17:00', '18:00', '19:00', '20:00', '20:40'],
+    featureList: ['刺激', 'VR/AR', '科普'], heightStr: '适合1.2米到2.0米',
+  });
+  // Same ride, published as a single window: already an ATTRACTION without the height.
+  const swingDatong = baseItem({
+    parkId: 47, id: 561, itemName: '飓风飞椅（室外项目）', showTimeList: ['10:00-20:30'],
+    featureList: ['旋转', '刺激', '浪漫'], heightStr: '适合1.4米或以上',
+  });
+
+  test('a ride that lists dispatch times is not a SHOW when it has a height limit', () => {
+    expect(isFantawildShow(swingTaian)).toBe(false);
+    expect(isFantawildShow(flyingTheatreTaian)).toBe(false);
+    expect(isFantawildShow(swingDatong)).toBe(false);
+  });
+
+  test('"suitable for all heights" is no evidence: discrete times are still a SHOW', () => {
+    // Real row: 决战金山寺【水幕实景】 (Fantawild Dreamland Zhengzhou), a water-screen show.
+    expect(isFantawildShow(baseItem({
+      parkId: 51, id: 414, itemName: '决战金山寺【水幕实景】',
+      showTimeList: ['13:30', '14:30', '16:00', '17:00', '18:00', '20:30'],
+      featureList: ['观赏', '水花四溅'], heightStr: '适合所有身高',
+    }))).toBe(true);
+    expect(isFantawildShow(baseItem({showTimeList: ['14:00', '15:30']}))).toBe(true);
+  });
+
+  test('every shape of numeric limit counts: a minimum, a range and a maximum', () => {
+    const times = ['11:00', '13:00', '15:00'];
+    for (const heightStr of ['适合1.2米或以上', '适合1.2米到2.0米', '适合1.2米或以下']) {
+      expect(isFantawildShow(baseItem({showTimeList: times, heightStr}))).toBe(false);
+    }
+  });
+
+  test('a digit that is not a height in metres is no evidence', () => {
+    // Made up: only "N米" shapes occur in the feed today. Anything else must leave an item
+    // as it was, because a missed limit changes nothing while a false one misclassifies.
+    const times = ['11:00', '13:00', '15:00'];
+    for (const heightStr of ['限乘2人', '适合3岁以上', '', undefined]) {
+      expect(isFantawildShow(baseItem({showTimeList: times, heightStr}))).toBe(true);
+    }
+  });
+
+  test('a live performance with a 1.0 m minimum is still a SHOW', () => {
+    // Real rows: stunt shows beside a splash zone carry a height limit.
+    expect(isFantawildShow(baseItem({
+      parkId: 21, id: 163, itemName: '水漫金山',
+      showTimeList: ['11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '17:40', '18:40', '20:00', '20:30'],
+      featureList: ['真人表演', '电影/动画', '水花四溅'], heightStr: '适合1.0米或以上',
+    }))).toBe(true);
+    expect(isFantawildShow(baseItem({
+      parkId: 79, id: 722, itemName: '马六甲勇士',
+      showTimeList: ['13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '20:30', '21:00', '21:30'],
+      featureList: ['真人表演', '观赏', '水花四溅'], heightStr: '适合1.0米或以上',
+    }))).toBe(true);
+  });
+
+  test('a parade or a fireworks show is a SHOW whatever the height says', () => {
+    // Made up: no parade or fireworks item in the feed carries a height limit.
+    expect(isFantawildShow(baseItem({featureList: ['巡游'], heightStr: '适合1.2米或以上'}))).toBe(true);
+    expect(isFantawildShow(baseItem({itemName: '烟花表演秀', showTimeList: ['19:30-20:00'], heightStr: '适合1.2米或以上'}))).toBe(true);
+  });
+
+  test('a walk-through with live actors in one all-day window stays an ATTRACTION', () => {
+    // Real row: 怨灵诡校 (Dreamland Xiamen) has a 1.1 m minimum and the park's evening window.
+    expect(isFantawildShow(baseItem({
+      parkId: 31, id: 1429, itemName: '怨灵诡校', showTimeList: ['16:00-20:50'],
+      featureList: ['刺激', '惊吓', '真人表演'], heightStr: '适合1.1米或以上',
+    }))).toBe(false);
+  });
+});
+
 describe('Fantawild.parkIsOpenNow', () => {
   // We test the protected helper directly via casting — it has subtle edge cases
   // (the post-midnight tail in particular) that need explicit coverage.
@@ -728,5 +811,47 @@ describe('Fantawild sticky SHOW classification', () => {
     expect(day2.theatre.entityType).toBe('SHOW');
     expect(day2.theatre.attractionType).toBeUndefined();
     expect(day2.teacups).toMatchObject({entityType: 'ATTRACTION', attractionType: 'RIDE'});
+  });
+
+  // A swing ride (Tai'an, item 555): dispatch times on one day, which a height limit shows to
+  // be a ride. Shape of the real row; the ids are moved to the test park.
+  const swing = {parkId: XUZHOU, id: 555, itemName: '飓风飞椅【受天气影响】', waitTime: 0, itemOpened: true,
+    statusStr: null, showTimeList: ['10:00', '11:00', '13:00', '14:00', '15:00', '16:00'],
+    featureList: ['旋转', '惊吓'], heightStr: '适合1.2米或以上'};
+  const swingWindow = {...swing, showTimeList: ['10:00-20:30']};
+
+  test('a height limit wins over an earlier SHOW sighting', async () => {
+    const d = await dest();
+    const park = ++nextPark;
+    // The same item seen with dispatch times and no height limit is remembered as a SHOW...
+    expect((d as any).isStickyShow(park, item({...swing, heightStr: undefined}))).toBe(true);
+    // ...but once the feed gives it a height limit it is a ride, whatever the memory says.
+    expect((d as any).isStickyShow(park, item(swingWindow))).toBe(false);
+    expect((d as any).isStickyShow(park, item(swing))).toBe(false);
+  });
+
+  test('a ride seen with dispatch times and a height limit is never remembered as a SHOW', async () => {
+    const d = await dest();
+    const park = ++nextPark;
+    expect((d as any).isStickyShow(park, item(swing))).toBe(false);
+    // Had that sighting been recorded, a day with a plain window and no limit would stay a SHOW.
+    expect((d as any).isStickyShow(park, item({...swingWindow, heightStr: undefined}))).toBe(false);
+  });
+
+  test('buildEntityList publishes a height-limited ride as an ATTRACTION even after a SHOW sighting', async () => {
+    const {CacheLib} = await import('../../../cache.js');
+    const d = await dest();
+    const key = `${(d as any).getCacheKeyPrefix()}:seenAsShow:v1:${XUZHOU}:555`;
+    CacheLib.delete(key);
+    (d as any).getStableRoster = async (parkId: number) => (parkId === XUZHOU ? [swing] : []);
+    const typeOf = async () => ((await (d as any).buildEntityList() as any[])
+      .find(x => x.id === `fantawild_attraction_${XUZHOU}_555`));
+    expect(await typeOf()).toMatchObject({entityType: 'ATTRACTION', attractionType: 'RIDE'});
+    CacheLib.set(key, true, 60 * 60 * 24 * 30);   // an earlier day recorded it as a SHOW
+    try {
+      expect(await typeOf()).toMatchObject({entityType: 'ATTRACTION', attractionType: 'RIDE'});
+    } finally {
+      CacheLib.delete(key);
+    }
   });
 });

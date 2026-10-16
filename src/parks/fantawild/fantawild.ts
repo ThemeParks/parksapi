@@ -264,6 +264,10 @@ const FIREWORKS_NAME_RE = /烟花|焰火/;
  *
  * A fireworks name (FIREWORKS_NAME_RE) is checked straight after the parade
  * tag and makes the item a SHOW whatever its tags or times.
+ *
+ * Past those explicit tags, a numeric height limit (hasHeightLimit) makes the
+ * item an ATTRACTION whatever its times: rides publish discrete dispatch times
+ * that look exactly like show times.
  */
 export function isFantawildShow(item: FantawildItem): boolean {
   const features = item.featureList ?? [];
@@ -271,10 +275,28 @@ export function isFantawildShow(item: FantawildItem): boolean {
   if (features.includes('巡游')) return true;
   if (FIREWORKS_NAME_RE.test(item.itemName ?? '')) return true;
   if (features.includes('真人表演') && !isSingleOperatingWindow(times)) return true;
+  if (hasHeightLimit(item)) return false;
   if (times.length === 0) return false;
   // If every entry is a single time (no dash range) it's a discrete-showtime SHOW.
   // A single "HH:MM-HH:MM" range is the operating-hours pattern used for attractions.
   return times.every(t => /^\d{1,2}:\d{2}$/.test(t.trim()));
+}
+
+/**
+ * True when the park states a height requirement with a number in it
+ * (`适合1.2米或以上` at least 1.2 m, `适合1.2米到2.0米` a range, `适合1.2米或以下`
+ * at most 1.2 m). A guest is measured before boarding a ride, so this is
+ * evidence of an attraction. `适合所有身高` ("suitable for all heights") says
+ * nothing and does not count.
+ *
+ * The feed's showTimeList is a weaker signal: it changes shape for the same
+ * item from park to park and day to day, and rides list dispatch times too (a
+ * swing ride and a flying theatre at Tai'an do). A live performance can carry a
+ * minimum height as well, beside a splash zone, so this is weighed only after
+ * the performance tags in isFantawildShow.
+ */
+export function hasHeightLimit(item: FantawildItem): boolean {
+  return /\d(?:\.\d+)?\s*米/.test(item.heightStr ?? '');
 }
 
 /**
@@ -589,6 +611,10 @@ export class Fantawild extends Destination {
    * written: a single all-day-window day must not lock a show into ATTRACTION.
    * Each SHOW sighting refreshes the 30 days, so an item that stops publishing
    * performances for a month falls back to what the feed says.
+   *
+   * The memory does not apply to an item with a height limit (hasHeightLimit):
+   * that is a ride whatever an earlier day's dispatch times looked like. It is
+   * left as it is, not erased, and a ride with a limit is never recorded in it.
    */
   protected isStickyShow(parkId: number, item: FantawildItem): boolean {
     const key = `${this.getCacheKeyPrefix()}:seenAsShow:v1:${parkId}:${item.id}`;
@@ -596,6 +622,7 @@ export class Fantawild extends Destination {
       CacheLib.set(key, true, 60 * 60 * 24 * 30);
       return true;
     }
+    if (hasHeightLimit(item)) return false;
     return CacheLib.get(key) === true;
   }
 
