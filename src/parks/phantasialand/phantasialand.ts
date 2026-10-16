@@ -84,6 +84,32 @@ function signageRowAge(entry: any, nowMs: number): number | null {
   return nowMs - Math.max(...stamps);
 }
 
+/**
+ * Positions the signage endpoint will answer for, as a lat/lng box.
+ *
+ * `/signage-snapshots?loc=lat,lng` refuses a position outside the park's
+ * outline with 403 FORBIDDEN (a bad or missing token gets 401). The previous
+ * box reached outside the outline at its south-west corner. A retry re-sends
+ * the request as built, so a refused position stays refused; the box has to
+ * keep clear of the edge. Check any change with `npm run probe:phantasialand`.
+ */
+export const SIGNAGE_BOX = {
+  latMin: 50.80020,
+  latMax: 50.80060,
+  lngMin: 6.87760,
+  lngMax: 6.87830,
+} as const;
+
+/**
+ * A random position inside SIGNAGE_BOX. Latitude is drawn first, then
+ * longitude. `rng` is injectable so a test can pin the draw.
+ */
+export function signageLocation(rng: () => number = Math.random): {lat: number; lng: number} {
+  const lat = SIGNAGE_BOX.latMin + rng() * (SIGNAGE_BOX.latMax - SIGNAGE_BOX.latMin);
+  const lng = SIGNAGE_BOX.lngMin + rng() * (SIGNAGE_BOX.lngMax - SIGNAGE_BOX.lngMin);
+  return {lat, lng};
+}
+
 @destinationController({category: 'Phantasialand'})
 export class Phantasialand extends Destination {
   @config
@@ -178,14 +204,14 @@ export class Phantasialand extends Destination {
    *
    * 401 — unambiguous: token is invalid. Invalidate immediately.
    *
-   * 403 — ambiguous: phlsys returns the same body for brief per-IP rate
-   * limits AND for revoked/expired tokens. Eager re-login on every 403
-   * doubles our request rate in rate-limit windows and makes the limit
-   * stick longer. So we only invalidate on the *final* retry — by which
-   * point any transient rate limit has had its full ~31s exponential-
-   * backoff window to clear. If the request is still 403 after all
-   * retries, the cause is much more likely a stale token, and the next
-   * polling cycle will pick up a fresh one.
+   * 403 — not a token verdict by itself. A bad or missing token gets 401;
+   * 403 FORBIDDEN is what the signage endpoint answers for a position
+   * outside the park (see SIGNAGE_BOX). Eager re-login on every 403 would
+   * double our request rate for no gain, so we only invalidate on the
+   * *final* retry, after the full ~31s exponential-backoff window. That
+   * stays as a hedge for a token that stops working in a way that shows up
+   * as 403; none has been reproduced, so a 403 that survives every retry
+   * with the location inside SIGNAGE_BOX is worth a look.
    */
   @inject({
     eventName: 'httpError',
@@ -289,18 +315,17 @@ export class Phantasialand extends Destination {
 
   /**
    * Fetch signage/wait time data.
-   * Requires random coordinates within park bounds.
+   * The endpoint wants the caller's position, drawn here from SIGNAGE_BOX.
    *
    * `retries: 5` gives an exponential-backoff window of ~31s
-   * (1+2+4+8+16). phlsys rate-limits this endpoint per IP and the
-   * window typically clears within a few seconds, but a shorter retry
-   * budget (e.g. 2 → 3s) gives up too early during sustained bursts.
+   * (1+2+4+8+16). That can ride out a transient failure, but it cannot
+   * rescue a refused position: every retry re-sends the request as built,
+   * so the same `loc` goes out again. Keeping the position inside
+   * SIGNAGE_BOX is what keeps the refusals away.
    */
   @http({cacheSeconds: 60, retries: 5}) // 1 minute
   async fetchSignage(): Promise<HTTPObj> {
-    // Generate random coordinates within park bounds
-    const lat = 50.799683077 + (Math.random() * (50.800659529 - 50.799683077));
-    const lng = 6.877570152 + (Math.random() * (6.878342628 - 6.877570152));
+    const {lat, lng} = signageLocation();
     return {
       method: 'GET',
       url: `${this.apiBase}/signage-snapshots?loc=${lat},${lng}`,
