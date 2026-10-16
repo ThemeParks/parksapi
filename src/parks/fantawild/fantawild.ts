@@ -184,11 +184,19 @@ export interface FantawildItem {
   latitude?: number;
   /**
    * Mixed-purpose. For attractions, typically a single "HH:MM-HH:MM" range of
-   * operating hours. For shows, a list of discrete "HH:MM" start times. We use
-   * this both to classify entity type and to surface SHOWTIMES.
+   * operating hours. For shows, a list of discrete "HH:MM" start times. Rides
+   * can list discrete dispatch times too, and the shape for one item changes
+   * between parks and days, so it is a weak signal on its own (see
+   * `hasHeightLimit`). We use this both to classify entity type and to surface
+   * SHOWTIMES.
    */
   showTimeList?: string[];
   nextShowTimeList?: string[];
+  /**
+   * Height requirement as the park words it: `适合1.2米或以上` (at least),
+   * `适合1.2米到2.0米` (range), `适合1.2米或以下` (at most), or `适合所有身高`
+   * (all heights, which says nothing). See `hasHeightLimit`.
+   */
   heightStr?: string;
   featureList?: string[];
   mainPic?: string;
@@ -250,6 +258,9 @@ export function isValueAddedService(itemName: string | null | undefined): boolea
  */
 const FIREWORKS_NAME_RE = /烟花|焰火/;
 
+/** Feature tag for a live performance (stunt show, theatre with actors). */
+const LIVE_PERFORMANCE_TAG = '真人表演';
+
 /**
  * Classify an item as SHOW vs RIDE based on showTimeList shape + feature tags.
  *
@@ -274,7 +285,7 @@ export function isFantawildShow(item: FantawildItem): boolean {
   const times = item.showTimeList ?? [];
   if (features.includes('巡游')) return true;
   if (FIREWORKS_NAME_RE.test(item.itemName ?? '')) return true;
-  if (features.includes('真人表演') && !isSingleOperatingWindow(times)) return true;
+  if (features.includes(LIVE_PERFORMANCE_TAG) && !isSingleOperatingWindow(times)) return true;
   if (hasHeightLimit(item)) return false;
   if (times.length === 0) return false;
   // If every entry is a single time (no dash range) it's a discrete-showtime SHOW.
@@ -287,7 +298,9 @@ export function isFantawildShow(item: FantawildItem): boolean {
  * (`适合1.2米或以上` at least 1.2 m, `适合1.2米到2.0米` a range, `适合1.2米或以下`
  * at most 1.2 m). A guest is measured before boarding a ride, so this is
  * evidence of an attraction. `适合所有身高` ("suitable for all heights") says
- * nothing and does not count.
+ * nothing and does not count, even with a note about small children after it.
+ * Only a number of metres counts; any other digit (an age, a rider count) does
+ * not, so an unfamiliar wording leaves an item as it was.
  *
  * The feed's showTimeList is a weaker signal: it changes shape for the same
  * item from park to park and day to day, and rides list dispatch times too (a
@@ -296,7 +309,8 @@ export function isFantawildShow(item: FantawildItem): boolean {
  * the performance tags in isFantawildShow.
  */
 export function hasHeightLimit(item: FantawildItem): boolean {
-  return /\d(?:\.\d+)?\s*米/.test(item.heightStr ?? '');
+  const height = item.heightStr ?? '';
+  return !height.includes('所有身高') && /\d米/.test(height);
 }
 
 /**
@@ -615,6 +629,9 @@ export class Fantawild extends Destination {
    * The memory does not apply to an item with a height limit (hasHeightLimit):
    * that is a ride whatever an earlier day's dispatch times looked like. It is
    * left as it is, not erased, and a ride with a limit is never recorded in it.
+   * The exception is an item tagged as a live performance: a stunt show beside
+   * a splash zone has a limit too, and the memory is what keeps it a SHOW on a
+   * day its times collapse into one all-day window.
    */
   protected isStickyShow(parkId: number, item: FantawildItem): boolean {
     const key = `${this.getCacheKeyPrefix()}:seenAsShow:v1:${parkId}:${item.id}`;
@@ -622,7 +639,7 @@ export class Fantawild extends Destination {
       CacheLib.set(key, true, 60 * 60 * 24 * 30);
       return true;
     }
-    if (hasHeightLimit(item)) return false;
+    if (hasHeightLimit(item) && !(item.featureList ?? []).includes(LIVE_PERFORMANCE_TAG)) return false;
     return CacheLib.get(key) === true;
   }
 
