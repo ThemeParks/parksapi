@@ -639,6 +639,61 @@ describe('Fantawild.buildEntityList walk-through classification', () => {
   });
 });
 
+describe('Fantawild.buildEntityList coordinates', () => {
+  // Fantawild's API and its park list give coordinates in GCJ-02, the datum
+  // used by Chinese map providers. Entities must carry WGS-84. Expected
+  // values are the GCJ-02 to WGS-84 inverse of the fixture coordinates: at
+  // Jining the GCJ-02 offset is about 490 m east and 45 m south.
+  const JINING = 87;
+  const roster = [
+    {parkId: JINING, id: 2016, itemName: '南洋诡校（增值体验）', waitTime: 0, itemOpened: true, statusStr: null,
+      showTimeList: ['09:30-21:00'], latitude: 35.33, longitude: 116.69},
+    {parkId: JINING, id: 1714, itemName: '圆明园【盛世遗韵】', waitTime: 0, itemOpened: true, statusStr: null,
+      showTimeList: ['11:30', '14:30', '17:00']},
+  ];
+
+  function makeDest(Fantawild: typeof import('../fantawild.js').Fantawild) {
+    const d = new Fantawild({config: {
+      baseUrl: 'https://image.fangte.com',
+      apiBaseUrl: 'https://leyou.fangte.com',
+    }});
+    (d as any).getStableRoster = async (parkId: number) => (parkId === JINING ? roster : []);
+    return d;
+  }
+
+  test('a ride coordinate from the API is converted to WGS-84', async () => {
+    const {Fantawild} = await import('../fantawild.js');
+    const all = await (makeDest(Fantawild) as any).buildEntityList() as any[];
+    const e = all.find(x => x.id === 'fantawild_attraction_87_2016');
+    expect(e.location.latitude).toBeCloseTo(35.330408, 5);
+    expect(e.location.longitude).toBeCloseTo(116.684551, 5);
+  });
+
+  test('an item without coordinates gets no location', async () => {
+    const {Fantawild} = await import('../fantawild.js');
+    const all = await (makeDest(Fantawild) as any).buildEntityList() as any[];
+    expect(all.find(x => x.id === 'fantawild_attraction_87_1714').location).toBeUndefined();
+  });
+
+  test('the park and destination centroids are converted to WGS-84', async () => {
+    const {Fantawild, FANTAWILD_PARKS} = await import('../fantawild.js');
+    const d = makeDest(Fantawild);
+    const all = await (d as any).buildEntityList() as any[];
+    const dests = await d.getDestinations();
+    const raw = FANTAWILD_PARKS.find(p => p.parkId === JINING)!.location;
+    expect(raw).toEqual({latitude: 35.3352, longitude: 116.6941});
+    for (const e of [
+      all.find(x => x.id === 'fantawild_park_87'),
+      all.find(x => x.id === 'fantawild_destination_87'),
+      dests.find(x => x.id === 'fantawild_destination_87'),
+    ]) {
+      expect(e).toBeDefined();
+      expect(e!.location!.latitude).toBeCloseTo(35.335595, 5);
+      expect(e!.location!.longitude).toBeCloseTo(116.688640, 5);
+    }
+  });
+});
+
 describe('Fantawild sticky SHOW classification', () => {
   // The feed changes showTimeList's shape for the same item from day to day.
   // Real rows for 熊出没剧场 (Fantawild Park Xuzhou, parkId 105, item 1455):

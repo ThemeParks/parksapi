@@ -111,7 +111,9 @@ describe('Fantawild.buildEntityList: fireworks', () => {
       parkId: 'fantawild_park_83',
     });
     expect(e.attractionType).toBeUndefined();
-    expect(e.location).toEqual({latitude: 28.6, longitude: 121.4});
+    // The fixture's GCJ-02 point (28.6, 121.4), converted to WGS-84.
+    expect(e.location.latitude).toBeCloseTo(28.602972, 5);
+    expect(e.location.longitude).toBeCloseTo(121.395568, 5);
   });
 
   test('stays a SHOW on a day the feed lists no times, or a different window', async () => {

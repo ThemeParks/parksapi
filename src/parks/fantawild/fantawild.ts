@@ -22,6 +22,11 @@
  *         lat/lng, and `showTimeList` of operating-hours range or discrete
  *         show times.
  *
+ * Coordinates: both the API's per-ride lat/lng and the CityPark park
+ * locations are GCJ-02, the datum Chinese map providers use, which sits a
+ * few hundred metres off WGS-84. Every location is converted with
+ * `gcj02ToWgs84` before it goes on an entity.
+ *
  * Pattern follows SixFlags: one `@destinationController` class that loops
  * the FANTAWILD_PARKS array inside getDestinations/buildEntityList/etc.
  */
@@ -34,6 +39,7 @@ import {destinationController} from '../../destinationRegistry.js';
 import {reusable} from '../../promiseReuse.js';
 import type {Entity, LiveData, EntitySchedule, ScheduleEntry} from '@themeparks/typelib';
 import {constructDateTime, formatInTimezone, formatDate} from '../../datetime.js';
+import {gcj02ToWgs84} from '../../geo.js';
 
 // ── Curated park list ───────────────────────────────────────────────────────
 
@@ -59,7 +65,11 @@ export interface FantawildParkConfig {
   name: string;
   /** IANA timezone (almost always `Asia/Shanghai` for mainland China). */
   timezone: string;
-  /** Park-level geographic centroid (lat/lng). */
+  /**
+   * Park-level geographic centroid, in GCJ-02 as CityPark gives it. Kept in
+   * the upstream datum so entries can be copied straight from CityPark;
+   * converted to WGS-84 when entities are built.
+   */
   location: {latitude: number; longitude: number};
   /** Whether the live API broadcasts real waitTime values for this park. */
   hasLiveWaitTimes: boolean;
@@ -668,7 +678,7 @@ export class Fantawild extends Destination {
       name: park.name,
       entityType: 'DESTINATION',
       timezone: park.timezone,
-      location: park.location,
+      location: gcj02ToWgs84(park.location),
     } as Entity));
   }
 
@@ -692,7 +702,7 @@ export class Fantawild extends Destination {
         name: park.name,
         entityType: 'DESTINATION',
         timezone: park.timezone,
-        location: park.location,
+        location: gcj02ToWgs84(park.location),
       } as Entity);
 
       entities.push({
@@ -702,7 +712,7 @@ export class Fantawild extends Destination {
         parentId: destinationId,
         destinationId,
         timezone: park.timezone,
-        location: park.location,
+        location: gcj02ToWgs84(park.location),
       } as Entity);
 
       // Use the stable roster, not the raw fresh items. This protects the
@@ -730,10 +740,11 @@ export class Fantawild extends Destination {
           (entity as Entity & {attractionType?: string}).attractionType = 'RIDE';
         }
         if (Number.isFinite(item.latitude) && Number.isFinite(item.longitude)) {
-          (entity as Entity & {location?: {latitude: number; longitude: number}}).location = {
+          // The API gives GCJ-02; entities carry WGS-84.
+          (entity as Entity & {location?: {latitude: number; longitude: number}}).location = gcj02ToWgs84({
             latitude: item.latitude!,
             longitude: item.longitude!,
-          };
+          });
         }
         entities.push(entity);
       }
