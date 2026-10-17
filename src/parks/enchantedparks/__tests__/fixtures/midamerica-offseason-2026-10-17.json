@@ -1,0 +1,180 @@
+{
+ "_comment": "Mid-America Parks upstream as served 2026-10-17, off-season. masterListing: [slug, name] parsed from the attractions listing. waterParkListing: HTTP 404. category: the WP categories lookup for hurricane-harbor (count 0); its pages query returned [] with X-WP-Total 0. Every waterParkRides page returned 404; they are the water park's rides from the last season they were published.",
+ "masterListing": [
+  [
+   "american-thunder",
+   "American Thunder"
+  ],
+  [
+   "batman-the-ride",
+   "BATMAN™: The Ride"
+  ],
+  [
+   "boomerang",
+   "Boomerang"
+  ],
+  [
+   "bugs-bunny-fort-fun",
+   "Bugs Bunny Fort Fun"
+  ],
+  [
+   "bugs-bunny-ranger-pilots",
+   "Bugs Bunny Ranger Pilots"
+  ],
+  [
+   "catwoman-whip",
+   "CATWOMAN™ Whip"
+  ],
+  [
+   "colossus",
+   "Colossus"
+  ],
+  [
+   "daffy-duck-stars-on-parade",
+   "Daffy Duck Stars on Parade"
+  ],
+  [
+   "elmer-fudd-weather-balloons",
+   "Elmer Fudd Weather Balloons"
+  ],
+  [
+   "fireball",
+   "Fireball"
+  ],
+  [
+   "foghorn-leghorn-national-park-railway",
+   "Foghorn Leghorn National Park Railway"
+  ],
+  [
+   "grand-ole-carousel",
+   "Grand Ole Carousel"
+  ],
+  [
+   "justice-league",
+   "JUSTICE LEAGUE™"
+  ],
+  [
+   "log-flume",
+   "Log Flume"
+  ],
+  [
+   "marvin-the-martian-camp-invasion",
+   "Marvin the Martian Camp Invasion"
+  ],
+  [
+   "mr-freeze-reverse-blast",
+   "MR. FREEZE™: Reverse Blast"
+  ],
+  [
+   "ninja",
+   "Ninja"
+  ],
+  [
+   "pandemonium",
+   "Pandemonium"
+  ],
+  [
+   "river-king-mine-train",
+   "River King Mine Train"
+  ],
+  [
+   "rookie-racer",
+   "Rookie Racer"
+  ],
+  [
+   "screamin-eagle",
+   "Screamin’ Eagle"
+  ],
+  [
+   "shazam",
+   "SHAZAM!™"
+  ],
+  [
+   "skyscreamer",
+   "SkyScreamer"
+  ],
+  [
+   "spinsanity",
+   "Spinsanity"
+  ],
+  [
+   "supergirl-sky-flyer",
+   "SUPERGIRL™ Sky Flyer"
+  ],
+  [
+   "taz-twisters",
+   "Taz Twisters"
+  ],
+  [
+   "the-boss",
+   "The Boss"
+  ],
+  [
+   "the-buccaneer",
+   "The Buccaneer"
+  ],
+  [
+   "the-joker-carnival-of-chaos",
+   "THE JOKER™: Carnival of Chaos"
+  ],
+  [
+   "thunder-river",
+   "Thunder River"
+  ],
+  [
+   "tommy-g-robertson-railroad",
+   "Tommy G. Robertson Railroad"
+  ],
+  [
+   "tweety-twee-house",
+   "Tweety Twee House"
+  ],
+  [
+   "yosemite-sam-tugboat-tailspin",
+   "Yosemite Sam Tugboat Tailspin"
+  ]
+ ],
+ "waterParkListing": 404,
+ "category": [
+  {
+   "id": 388,
+   "slug": "hurricane-harbor"
+  }
+ ],
+ "categoryPages": [],
+ "categoryTotalPages": 0,
+ "waterParkRides": [
+  [
+   "adventure-cove",
+   "Adventure Cove"
+  ],
+  [
+   "big-kahuna",
+   "Big Kahuna"
+  ],
+  [
+   "gulley-washer-creek",
+   "Gulley Washer Creek"
+  ],
+  [
+   "hurricane-bay",
+   "Hurricane Bay"
+  ],
+  [
+   "tornado",
+   "Tornado"
+  ],
+  [
+   "tube-slides",
+   "Tube Slides"
+  ],
+  [
+   "typhoon-twister",
+   "Typhoon Twister"
+  ],
+  [
+   "wahoo-ricer",
+   "Wahoo Racer"
+  ]
+ ]
+}

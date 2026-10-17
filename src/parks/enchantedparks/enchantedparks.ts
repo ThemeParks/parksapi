@@ -28,6 +28,8 @@ export type TribeEventsResponse = {
 
 /** How long a failed water-park listing is skipped when a category can stand in. */
 const LISTING_RETRY_MS = 60 * 60 * 1000;
+/** How long a master listing re-read past its cache is preferred: the cache's own TTL. */
+const MASTER_REFRESH_HOLD_MS = 24 * 60 * 60 * 1000;
 
 export function parseTribeEvents(
   json: TribeEventsResponse,
@@ -237,8 +239,29 @@ export function parseCategoryRideSlugs(pages: WpPage[]): string[] {
   return out;
 }
 
-/** Where a water park's ride membership came from on this build. */
-export type WaterParkSource = 'listing' | 'category';
+/**
+ * Where a water park's ride membership came from on this build.
+ *
+ * - `listing`: the park's own listing page.
+ * - `category`: the WP category, with the listing down.
+ * - `roster`: the configured {@link ParkConfig.knownRides}, with the listing
+ *   down and the category present but tagging no pages.
+ * - `off-season`: as `roster`, but none of the known rides is on the master
+ *   listing either, so the water park has no published rides.
+ */
+export type WaterParkSource = 'listing' | 'category' | 'roster' | 'off-season';
+
+/**
+ * The WP category exists and tags no pages at all. This is the operator's
+ * own answer (the category is there, it is empty), unlike a failed request
+ * or a missing category, which say nothing about the park.
+ */
+export class EmptyCategoryError extends Error {
+  constructor(message: string, options?: {cause?: unknown}) {
+    super(message, options);
+    this.name = 'EmptyCategoryError';
+  }
+}
 
 // ===== Live ride status (operator guest-experience API) =====
 //
@@ -399,6 +422,21 @@ export type ParkConfig = {
    * the site's category is unused (empty).
    */
   ridesCategory?: string;
+  /**
+   * Slugs of this water park's rides, for the off-season. Some operators
+   * unpublish a water park's listing page and every one of its ride pages
+   * when it closes for the year, and untag the {@link ridesCategory}. With
+   * the listing failing and the category present but empty, membership is
+   * the master listing's rides that appear here. If none of them appear,
+   * the water park has no published rides and the theme park builds on its
+   * own. Without this list that case rejects the build, as before.
+   *
+   * Consulted only on that positive answer from the category. A failed
+   * category request, or a category that is gone, still rejects. A ride
+   * that is not listed here and is on the master listing while both
+   * sources are down lands under the theme park, so keep it current.
+   */
+  knownRides?: string[];
   /** Path under `/rides-and-experiences/` whose page lists this park's dining locations. Omit if not scraped. */
   diningPath?: string;
   /** Path/category under `/rides-and-experiences/` whose page lists this park's shows. Omit if not scraped. */
@@ -753,7 +791,10 @@ class EnchantedParks extends Destination {
    *
    * Throws if the category is unknown, a page fails, or no ride pages are
    * tagged: every one of those would otherwise re-home the rides it was
-   * meant to place. A rejected call is not cached.
+   * meant to place. A category that exists and tags no pages at all throws
+   * {@link EmptyCategoryError}, which the off-season roster may answer. A
+   * rejected call is not cached, so the season's first tagged page is seen
+   * on the next build.
    */
   @cache({ttlSeconds: 60 * 60 * 24})
   async scrapeCategoryRides(categorySlug: string): Promise<string[]> {
@@ -777,13 +818,18 @@ class EnchantedParks extends Destination {
           break;
         }
       }
+      // Zero tagged pages is the category's own answer. Pages that carry no
+      // ride link are a format change, which proves nothing about the park.
+      if (!pages.length) throw new EmptyCategoryError('no ride pages tagged');
       const slugs = parseCategoryRideSlugs(pages);
       if (!slugs.length) throw new Error('no ride pages tagged');
       return slugs;
     } catch (err) {
       const reason = (err instanceof Error ? err.message.split('\n')[0] : String(err))
         .replace(/https?:\/\/[^\s/]+/gi, '');
-      throw new Error(`category "${categorySlug}" could not be resolved (${reason})`, {cause: err});
+      const message = `category "${categorySlug}" could not be resolved (${reason})`;
+      if (err instanceof EmptyCategoryError) throw new EmptyCategoryError(message, {cause: err});
+      throw new Error(message, {cause: err});
     }
   }
 
@@ -794,13 +840,21 @@ class EnchantedParks extends Destination {
    * included; the water park's own listing says which are its. If that
    * listing fails (or parses empty) and the park has a {@link
    * ParkConfig.ridesCategory}, membership comes from the WP category instead,
-   * with names still taken from the master list. If both fail this throws:
-   * reading the master list alone would re-home every water-park ride under
-   * the theme park.
+   * with names still taken from the master list. If the category exists but
+   * tags nothing and the park has {@link ParkConfig.knownRides}, membership is
+   * the master list's rides on that roster, which is empty in the off-season.
+   * Otherwise, if both fail this throws: reading the master list alone would
+   * re-home every water-park ride under the theme park.
    */
   /** Water-park listings seen failing, by path: when, and why (instance memory, never cached). */
   private listingDownAt = new Map<string, number>();
   private listingDownReason = new Map<string, string>();
+  /**
+   * A master listing re-read past its cache because the category named rides
+   * the cached copy lacked (instance memory). The cached copy can be a day old,
+   * and at the season's start that day is the water park's first.
+   */
+  private freshMaster?: {at: number; rides: AttractionStub[]};
 
   protected async resolveParkRides(): Promise<{
     water: AttractionStub[];
@@ -810,8 +864,11 @@ class EnchantedParks extends Destination {
     let water: AttractionStub[] = [];
     let waterSource: WaterParkSource | undefined;
     let master: AttractionStub[] | undefined;
+    const holdingFresh = () =>
+      !!this.freshMaster && Date.now() - this.freshMaster.at < MASTER_REFRESH_HOLD_MS;
     const getMaster = async () => {
       if (!this.themePark) return [];
+      if (holdingFresh()) master ??= this.freshMaster!.rides;
       master ??= await this.scrapeAttractions(this.themePark.ridesPath);
       return master;
     };
@@ -836,23 +893,43 @@ class EnchantedParks extends Destination {
         const listingReason = listingErr instanceof Error ? listingErr.message : String(listingErr);
         const firstFailure = !skipListing;
         let members: string[];
+        let fromRoster = false;
         try {
           members = await this.scrapeCategoryRides(category);
         } catch (catErr) {
-          throw new Error(
-            `${listingReason}; fallback ${catErr instanceof Error ? catErr.message : catErr}`,
-            {cause: catErr},
-          );
+          const roster = this.waterPark.knownRides;
+          if (!(catErr instanceof EmptyCategoryError) || !roster?.length) {
+            throw new Error(
+              `${listingReason}; fallback ${catErr instanceof Error ? catErr.message : catErr}`,
+              {cause: catErr},
+            );
+          }
+          // The operator has untagged the category as well as pulling the
+          // listing: the off-season. The roster still claims any of its rides
+          // the master listing carries, so none is re-homed.
+          members = roster;
+          fromRoster = true;
         }
         const memberSet = new Set(members);
         water = (await getMaster()).filter(r => memberSet.has(r.slug));
-        if (!water.length) {
+        if (!water.length && !fromRoster && !holdingFresh()) {
+          // Tagged rides missing from the cached master listing: re-read it
+          // once, uncached. Rides republished for a new season appear on the
+          // site before the cached copy expires.
+          const rides = parseAttractionsPage(await this.fetchListingHtml(this.themePark.ridesPath));
+          if (rides.some(r => memberSet.has(r.slug))) {
+            this.freshMaster = {at: Date.now(), rides};
+            master = rides;
+            water = rides.filter(r => memberSet.has(r.slug));
+          }
+        }
+        if (!water.length && !fromRoster) {
           throw new Error(
             `${listingReason}; fallback category "${category}" matched no rides on the ` +
             `"${this.themePark.ridesPath}" listing`,
           );
         }
-        waterSource = 'category';
+        waterSource = !fromRoster ? 'category' : water.length ? 'roster' : 'off-season';
         // Only a listing whose stand-in actually worked is skipped next time: if
         // the category failed too, keep trying the listing so a recovery is seen.
         if (firstFailure) {
@@ -861,7 +938,11 @@ class EnchantedParks extends Destination {
         }
         if (firstFailure) console.warn(
           `${this.constructor.name}: water-park listing "${this.waterPark.ridesPath}" unavailable; ` +
-          `membership taken from category "${category}" (${water.length} rides)`,
+          (fromRoster
+            ? `category "${category}" tags no pages; membership taken from the known-rides roster ` +
+              `(${water.length} of ${members.length} on the "${this.themePark.ridesPath}" listing` +
+              `${water.length ? '' : ', water park off-season'})`
+            : `membership taken from category "${category}" (${water.length} rides)`),
         );
       }
     }

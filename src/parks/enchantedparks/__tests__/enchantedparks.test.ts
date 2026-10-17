@@ -1057,11 +1057,12 @@ describe('water-park listing failure (buildEntityList)', () => {
     await expect((park as any).buildEntityList()).rejects.toThrow(/category not found/);
   });
 
-  test('a category with zero pages counts as a failure', async () => {
+  test('a category with zero pages counts as a failure for a park with no known-rides roster', async () => {
     const {park} = await makePark(
       {...base, 'hurricane-harbor-water-park': notFound()},
       {category: CATEGORY, pages: [[]], totalPages: 0},
     );
+    (park as any).waterPark.knownRides = undefined;
     await expect((park as any).buildEntityList()).rejects.toThrow(/no ride pages tagged/);
   });
 
@@ -1137,6 +1138,150 @@ describe('water-park listing failure (buildEntityList)', () => {
       'enchantedparks_attraction_MAP_american-thunder',
     ]);
   });
+
+  // ----- Off-season: listing, ride pages and category tags all withdrawn -----
+
+  // The master listing as served out of season: theme-park rides only.
+  const MASTER_OFF = page(
+    card('american-thunder', 'American Thunder'),
+    card('screamin-eagle', 'Screamin&#8217; Eagle'),
+  );
+  const EMPTY_CATEGORY: WpStub = {category: CATEGORY, pages: [[]], totalPages: 0};
+  const offSeason = (): Record<string, string | Error> =>
+    ({...base, 'attractions': MASTER_OFF, 'hurricane-harbor-water-park': notFound()});
+
+  test('off-season: an empty category and no roster ride on the master listing builds the theme park alone', async () => {
+    const {park} = await makePark(offSeason(), EMPTY_CATEGORY);
+    const {result: entities, warnings} = await captureWarn(() => (park as any).buildEntityList());
+    expect(ridesOf(entities as any[], 'enchantedparks_park_MAP')).toEqual(MAP_IDS);
+    expect(ridesOf(entities as any[], 'enchantedparks_park_HH')).toEqual([]);
+    // The water park itself stays, so its schedule and next season's rides have a parent.
+    expect((entities as any[]).some(e => e.id === 'enchantedparks_park_HH' && e.entityType === 'PARK')).toBe(true);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('off-season');
+    expect(warnings[0]).toContain('0 of 8');
+    expect(warnings[0]).not.toContain('example.test');
+  });
+
+  test('off-season is reported as its own source', async () => {
+    const {park} = await makePark(offSeason(), EMPTY_CATEGORY);
+    const {result} = await captureWarn(() => (park as any).resolveParkRides());
+    expect((result as any).waterSource).toBe('off-season');
+    expect((result as any).water).toEqual([]);
+  });
+
+  test('an empty category with roster rides still on the master listing claims them for the water park', async () => {
+    // The re-homing guard holds without the listing or the category: a known
+    // water-park ride never lands under the theme park.
+    const {park} = await makePark({...base, 'hurricane-harbor-water-park': notFound()}, EMPTY_CATEGORY);
+    const {result: entities, warnings} = await captureWarn(() => (park as any).buildEntityList());
+    expect(ridesOf(entities as any[], 'enchantedparks_park_HH')).toEqual(HH_IDS);
+    expect(ridesOf(entities as any[], 'enchantedparks_park_MAP')).toEqual(MAP_IDS);
+    expect(warnings[0]).toContain('2 of 8');
+    expect(warnings[0]).not.toContain('off-season');
+    const {result} = await captureWarn(() => (park as any).resolveParkRides());
+    expect((result as any).waterSource).toBe('roster');
+  });
+
+  test('a failed category request still rejects, roster or not', async () => {
+    const {park} = await makePark(offSeason(), {category: wpDown()});
+    await expect((park as any).buildEntityList()).rejects.toThrow(/could not be resolved \(GET .*503/);
+  });
+
+  test('a category that is gone still rejects, roster or not', async () => {
+    const {park} = await makePark(offSeason(), {category: []});
+    await expect((park as any).buildEntityList()).rejects.toThrow(/category not found/);
+  });
+
+  test('a failed category page still rejects, roster or not', async () => {
+    const {park} = await makePark(offSeason(), {category: CATEGORY, pages: [wpDown()]});
+    await expect((park as any).buildEntityList()).rejects.toThrow(/could not be resolved/);
+  });
+
+  test('tagged pages with no ride link are a format change, not the off-season', async () => {
+    const {park} = await makePark(offSeason(), {category: CATEGORY, pages: [[wpPage('cowabunga-burger', 'dining')]], totalPages: 1});
+    await expect((park as any).buildEntityList()).rejects.toThrow(/no ride pages tagged/);
+  });
+
+  test('an empty category is not cached: the season opening is seen on the next build', async () => {
+    const wp: WpStub = {...EMPTY_CATEGORY};
+    const pages = offSeason();
+    const {park, wpFetched} = await makePark(pages, wp);
+    const off = await captureWarn(() => (park as any).buildEntityList());
+    expect(ridesOf(off.result as any[], 'enchantedparks_park_HH')).toEqual([]);
+
+    // Pages republished and tagged; the listing is still within its skip hour.
+    pages['attractions'] = MASTER;
+    wp.pages = [CATEGORY_PAGES];
+    wp.totalPages = 1;
+    const on = await captureWarn(() => (park as any).buildEntityList());
+    expect(wpFetched.filter(f => f.startsWith('category:'))).toHaveLength(2);
+    expect(ridesOf(on.result as any[], 'enchantedparks_park_HH')).toEqual(HH_IDS);
+    expect(ridesOf(on.result as any[], 'enchantedparks_park_MAP')).toEqual(MAP_IDS);
+  });
+
+  test('tagged rides missing from a cached master listing re-read it once, then hold the fresh copy', async () => {
+    // The cached master is up to a day old; at the season's start the tagged
+    // rides are on the site but not in that copy.
+    const wp: WpStub = {...EMPTY_CATEGORY};
+    const pages = offSeason();
+    const {park, fetched} = await makePark(pages, wp);
+    await captureWarn(() => (park as any).buildEntityList());
+    expect(fetched.filter(p => p === 'attractions')).toHaveLength(1);
+
+    pages['attractions'] = MASTER;
+    wp.pages = [CATEGORY_PAGES];
+    wp.totalPages = 1;
+    await captureWarn(() => (park as any).buildEntityList());
+    expect(fetched.filter(p => p === 'attractions')).toHaveLength(2);
+    const third = await captureWarn(() => (park as any).buildEntityList());
+    expect(fetched.filter(p => p === 'attractions')).toHaveLength(2);
+    expect(ridesOf(third.result as any[], 'enchantedparks_park_HH')).toEqual(HH_IDS);
+    expect(ridesOf(third.result as any[], 'enchantedparks_park_MAP')).toEqual(MAP_IDS);
+  });
+
+  test('a fresh re-read that still lacks the tagged rides rejects and is not held', async () => {
+    const {park, fetched} = await makePark(
+      {...base, 'hurricane-harbor-water-park': notFound()},
+      {category: CATEGORY, pages: [[wpPage('not-a-listed-ride')]], totalPages: 1},
+    );
+    await expect(captureWarn(() => (park as any).buildEntityList())).rejects.toThrow(/matched no rides/);
+    await expect(captureWarn(() => (park as any).buildEntityList())).rejects.toThrow(/matched no rides/);
+    // Cached read once, then one uncached re-read per failing build.
+    expect(fetched.filter(p => p === 'attractions')).toHaveLength(3);
+    expect((park as any).freshMaster).toBeUndefined();
+  });
+
+  test('off-season does not re-request the dead listing within the hour, and warns once', async () => {
+    vi.useFakeTimers({toFake: ['Date']});
+    vi.setSystemTime(new Date('2026-10-17T18:00:00Z'));
+    try {
+      const {park, fetched} = await makePark(offSeason(), EMPTY_CATEGORY);
+      const first = await captureWarn(() => (park as any).buildEntityList());
+      const second = await captureWarn(() => (park as any).buildEntityList());
+      expect(fetched.filter(p => p === 'hurricane-harbor-water-park')).toHaveLength(1);
+      expect(first.warnings).toHaveLength(1);
+      expect(second.warnings).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('off-season live data reports the theme park instead of blacking out the destination', async () => {
+    const {park} = await makePark(offSeason(), EMPTY_CATEGORY);
+    (park as any).liveStatusEndpoint = 'https://example.invalid/graphql';
+    (park as any).liveStatusApiKey = 'test-key';
+    (park as any).liveStatusSiteIds = ['test-site'];
+    (park as any).getFeatures = async (): Promise<LiveFeature[]> => [
+      {name: 'SFSTL - Big Kahuna', siteId: 'test-site', operationalStatus: 'Closed'},
+      {name: 'SFSTL - American Thunder', siteId: 'test-site', operationalStatus: 'Open'},
+      {name: 'SFSTL - Screamin Eagle', siteId: 'test-site', operationalStatus: 'Open'},
+    ];
+    const {result: live} = await captureWarn(() => (park as any).buildLiveData());
+    // Never Big Kahuna under the theme-park id.
+    expect((live as any[]).map(l => l.id).sort()).toEqual(MAP_IDS);
+  });
+
 });
 
 describe('water-park listing paths', () => {

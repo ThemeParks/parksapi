@@ -37,6 +37,19 @@ export class MidAmericaParks extends EnchantedParks {
       // The listing page has been unpublished (404) while its ride pages stay
       // up; membership then comes from this category.
       ridesCategory: 'hurricane-harbor',
+      // Out of season the listing, every ride page and the category's tags are
+      // all withdrawn (seen October 2026). Slugs as the site publishes them,
+      // `wahoo-ricer` included.
+      knownRides: [
+        'adventure-cove',
+        'big-kahuna',
+        'gulley-washer-creek',
+        'hurricane-bay',
+        'tornado',
+        'tube-slides',
+        'typhoon-twister',
+        'wahoo-ricer',
+      ],
       scheduleCategory: 'Waterpark Hours',
       location: {latitude: 38.5128, longitude: -90.6724},
     };
