@@ -16,7 +16,9 @@
  * positions via reference_points.json + per-category JSON files. Each map
  * entry now carries a `url` field pointing at the canonical website page, so
  * entities are joined to coordinates by URL slug instead of the old numeric
- * extEntityCode.
+ * extEntityCode. The map is an illustration, not a survey: its scale changes
+ * from area to area, so each pin is projected through the reference points
+ * around it (see projectPixel), not through one fit for the whole map.
  *
  * Known gaps vs. the old app-based implementation (the website simply doesn't
  * expose these): FastPass/paid-return-time flags, pregnancy/wet-ride warnings,
@@ -620,18 +622,20 @@ export function addDaysToDateString(dateStr: string, days: number): string {
  * Solves lat = a*x + b*y + c and lng = d*x + e*y + f using least-squares
  * normal equations (Cramer's rule on the 3×3 system).
  */
-export function computeAffineTransform(refPoints: OceanParkReferencePoint[]): AffineCoeffs | null {
+export function computeAffineTransform(refPoints: OceanParkReferencePoint[], weights?: number[]): AffineCoeffs | null {
   let sumX = 0, sumY = 0, sumXX = 0, sumXY = 0, sumYY = 0;
   let sumLat = 0, sumXLat = 0, sumYLat = 0;
   let sumLng = 0, sumXLng = 0, sumYLng = 0;
-  const n = refPoints.length;
+  let n = 0;
 
-  for (const p of refPoints) {
+  for (const [i, p] of refPoints.entries()) {
     const {pixelX: x, pixelY: y, latitude: lat, longitude: lng} = p;
-    sumX += x; sumY += y;
-    sumXX += x * x; sumXY += x * y; sumYY += y * y;
-    sumLat += lat; sumXLat += x * lat; sumYLat += y * lat;
-    sumLng += lng; sumXLng += x * lng; sumYLng += y * lng;
+    const w = weights?.[i] ?? 1;
+    n += w;
+    sumX += w * x; sumY += w * y;
+    sumXX += w * x * x; sumXY += w * x * y; sumYY += w * y * y;
+    sumLat += w * lat; sumXLat += w * x * lat; sumYLat += w * y * lat;
+    sumLng += w * lng; sumXLng += w * x * lng; sumYLng += w * y * lng;
   }
 
   const M: [number, number, number][] = [
@@ -658,6 +662,58 @@ export function computeAffineTransform(refPoints: OceanParkReferencePoint[]): Af
   const [a, b, c] = cramer([sumXLat, sumYLat, sumLat]);
   const [d, e, f] = cramer([sumXLng, sumYLng, sumLng]);
   return {a, b, c, d, e, f};
+}
+
+/** Reference points a local fit starts from; more are added while they all lie along one line. */
+const LOCAL_FIT_POINTS = 8;
+/** The neighbourhood must spread at least this many pixels across its thinnest direction (or a quarter of the whole
+ * map's spread, on a map smaller than that). */
+const LOCAL_FIT_MIN_SPREAD_PX = 15;
+/** Pixels added to each distance before weighting, so a pin sitting on a reference point does not take it alone. */
+const LOCAL_FIT_SOFTEN_PX = 20;
+
+const round7 = (v: number) => Math.round(v * 1e7) / 1e7;
+
+/** Standard deviation of the points' pixels across their thinnest direction (the smaller principal axis). */
+function thinnestSpread(points: OceanParkReferencePoint[]): number {
+  const n = points.length;
+  const mx = points.reduce((s, p) => s + p.pixelX, 0) / n;
+  const my = points.reduce((s, p) => s + p.pixelY, 0) / n;
+  let xx = 0, xy = 0, yy = 0;
+  for (const p of points) {
+    xx += (p.pixelX - mx) ** 2; xy += (p.pixelX - mx) * (p.pixelY - my); yy += (p.pixelY - my) ** 2;
+  }
+  xx /= n; xy /= n; yy /= n;
+  const minEigen = (xx + yy) / 2 - Math.sqrt(((xx - yy) / 2) ** 2 + xy * xy);
+  return Math.sqrt(Math.max(0, minEigen));
+}
+
+/**
+ * Project a map pixel to lat/lng through the reference points around it: a weighted affine fit over the nearest
+ * LOCAL_FIT_POINTS, widened until they spread in two directions. The park map is drawn, not surveyed, so one fit over
+ * every reference point puts pins hundreds of metres off in areas drawn at a different scale; the local fit keeps
+ * them within tens of metres. Returns null when no neighbourhood, up to every point, can be fitted.
+ */
+export function projectPixel(refPoints: OceanParkReferencePoint[], x: number, y: number): {latitude: number; longitude: number} | null {
+  const byDistance = refPoints
+    .map(p => ({p, d: Math.hypot(p.pixelX - x, p.pixelY - y)}))
+    .sort((a, b) => a.d - b.d);
+  const minSpread = Math.min(LOCAL_FIT_MIN_SPREAD_PX, 0.25 * thinnestSpread(refPoints));
+  if (!(minSpread > 0)) return null;
+  for (let k = Math.min(LOCAL_FIT_POINTS, byDistance.length); ; k = Math.min(k * 2, byDistance.length)) {
+    const near = byDistance.slice(0, k);
+    const points = near.map(q => q.p);
+    if (thinnestSpread(points) >= minSpread) {
+      // Fitted with the pin at the origin: the answer is the intercept, and the sums stay small.
+      const centred = points.map(p => ({...p, pixelX: p.pixelX - x, pixelY: p.pixelY - y}));
+      // Weights scaled so the nearest is 1: raw inverse squares are small enough to trip the degenerate check.
+      const nearest = near[0]!.d + LOCAL_FIT_SOFTEN_PX;
+      const coeffs = computeAffineTransform(centred, near.map(q => (nearest / (q.d + LOCAL_FIT_SOFTEN_PX)) ** 2));
+      // Seven places is a centimetre, far finer than a drawn map can say, and it drops the solve's float noise.
+      if (coeffs) return {latitude: round7(coeffs.c), longitude: round7(coeffs.f)};
+    }
+    if (k >= byDistance.length) return null;
+  }
 }
 
 // ── Implementation ──────────────────────────────────────────────────────────
@@ -863,10 +919,10 @@ export class OceanParkHongKong extends Destination {
         typeof v === 'number' ? v
           : typeof v === 'string' && v.trim() !== '' ? Number(v)
             : NaN;
-      const project = (e: OceanParkMapEntity) => ({
-        latitude:  coeffs.a * pixel(e.x) + coeffs.b * pixel(e.y) + coeffs.c,
-        longitude: coeffs.d * pixel(e.x) + coeffs.e * pixel(e.y) + coeffs.f,
-      });
+      // The whole-map fit above only proves the reference points are usable; each pin is projected through the
+      // points around it. A pixel with no usable neighbourhood projects off the earth and is filtered out below.
+      const project = (e: OceanParkMapEntity) =>
+        projectPixel(refPoints, pixel(e.x), pixel(e.y)) ?? {latitude: NaN, longitude: NaN};
       // A pixel is a number or a non-blank numeric string. Number() alone
       // would turn null, "", false and [] into 0 — a real position at the
       // top-left of the map — which is the coercion trap this codebase bans
