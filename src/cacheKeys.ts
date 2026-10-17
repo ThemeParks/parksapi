@@ -65,6 +65,8 @@ export const PERSISTENT_KEY_FRAGMENTS = Object.freeze([
   // refreshed on every sighting and only ever written true, so a day with no
   // performance windows cannot lock a show into ATTRACTION. Losing it flips the
   // item's published type back to what the feed says until the next sighting.
+  // Not consulted for an item with a height limit unless it is tagged as a live
+  // performance: a ride's dispatch times must not lock it into SHOW.
   ':seenAsShow:v1:',
 
   // Long-lived upstream refresh tokens. Losing one is self-healing for us and

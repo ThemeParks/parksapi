@@ -729,4 +729,112 @@ describe('Fantawild sticky SHOW classification', () => {
     expect(day2.theatre.attractionType).toBeUndefined();
     expect(day2.teacups).toMatchObject({entityType: 'ATTRACTION', attractionType: 'RIDE'});
   });
+
+  // A swing ride (Tai'an, item 555): dispatch times on one day, which a height limit shows to
+  // be a ride. Shape of the real row; the ids are moved to the test park.
+  const swing = {parkId: XUZHOU, id: 555, itemName: '飓风飞椅【受天气影响】', waitTime: 0, itemOpened: true,
+    statusStr: null, showTimeList: ['10:00', '11:00', '13:00', '14:00', '15:00', '16:00'],
+    featureList: ['旋转', '惊吓'], heightStr: '适合1.2米或以上'};
+  const swingWindow = {...swing, showTimeList: ['10:00-20:30']};
+
+  test('a height limit wins over an earlier SHOW sighting', async () => {
+    const d = await dest();
+    const park = ++nextPark;
+    // The same item seen with dispatch times and no height limit is remembered as a SHOW...
+    expect((d as any).isStickyShow(park, item({...swing, heightStr: undefined}))).toBe(true);
+    // ...but once the feed gives it a height limit it is a ride, whatever the memory says.
+    expect((d as any).isStickyShow(park, item(swingWindow))).toBe(false);
+    expect((d as any).isStickyShow(park, item(swing))).toBe(false);
+  });
+
+  test('a ride seen with dispatch times and a height limit is never remembered as a SHOW', async () => {
+    const d = await dest();
+    const park = ++nextPark;
+    expect((d as any).isStickyShow(park, item(swing))).toBe(false);
+    // Had that sighting been recorded, a day with a plain window and no limit would stay a SHOW.
+    expect((d as any).isStickyShow(park, item({...swingWindow, heightStr: undefined}))).toBe(false);
+  });
+
+  test('buildEntityList publishes a height-limited ride as an ATTRACTION even after a SHOW sighting', async () => {
+    const {CacheLib} = await import('../../../cache.js');
+    const d = await dest();
+    const key = `${(d as any).getCacheKeyPrefix()}:seenAsShow:v1:${XUZHOU}:555`;
+    CacheLib.delete(key);
+    (d as any).getStableRoster = async (parkId: number) => (parkId === XUZHOU ? [swing] : []);
+    const typeOf = async () => ((await (d as any).buildEntityList() as any[])
+      .find(x => x.id === `fantawild_attraction_${XUZHOU}_555`));
+    expect(await typeOf()).toMatchObject({entityType: 'ATTRACTION', attractionType: 'RIDE'});
+    CacheLib.set(key, true, 60 * 60 * 24 * 30);   // an earlier day recorded it as a SHOW
+    try {
+      expect(await typeOf()).toMatchObject({entityType: 'ATTRACTION', attractionType: 'RIDE'});
+    } finally {
+      CacheLib.delete(key);
+    }
+  });
+
+  test('the height limit leaves the memory alone: a later day without one reads it again', async () => {
+    const d = await dest();
+    const park = ++nextPark;
+    expect((d as any).isStickyShow(park, item({...swing, heightStr: undefined}))).toBe(true);
+    expect((d as any).isStickyShow(park, item(swing))).toBe(false);
+    // The record from the first call is still there, not erased by the limited call between.
+    expect((d as any).isStickyShow(park, item({...swingWindow, heightStr: undefined}))).toBe(true);
+  });
+
+  // A live stunt show with a 1.0 m minimum (real row: 水漫金山, Dreamland Qingdao, item 163),
+  // and the same item on a day the feed collapses its times to one all-day window.
+  const stuntShow = {parkId: XUZHOU, id: 163, itemName: '水漫金山', waitTime: 0, itemOpened: true,
+    statusStr: null, showTimeList: ['11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'],
+    featureList: ['真人表演', '电影/动画', '水花四溅'], heightStr: '适合1.0米或以上'};
+  const stuntShowAllDay = {...stuntShow, showTimeList: ['11:00-20:30']};
+
+  test('a live performance with a height limit is a SHOW through isStickyShow', async () => {
+    const d = await dest();
+    const park = ++nextPark;
+    expect((d as any).isStickyShow(park, item(stuntShow))).toBe(true);
+  });
+
+  test('a live performance with a height limit is held as a SHOW on a day its times collapse to one window', async () => {
+    // The memory exists for exactly this day (see the theatre above). A height limit must not
+    // switch it off for an item that carries the live-performance tag.
+    const d = await dest();
+    const park = ++nextPark;
+    expect((d as any).isStickyShow(park, item(stuntShow))).toBe(true);
+    expect((d as any).isStickyShow(park, item(stuntShowAllDay))).toBe(true);
+  });
+
+  test('buildEntityList keeps a live performance with a height limit a SHOW across the collapsed day', async () => {
+    const {CacheLib} = await import('../../../cache.js');
+    const d = await dest();
+    const key = `${(d as any).getCacheKeyPrefix()}:seenAsShow:v1:${XUZHOU}:163`;
+    CacheLib.delete(key);
+    const typeOf = async (roster: any[]) => {
+      (d as any).getStableRoster = async (parkId: number) => (parkId === XUZHOU ? roster : []);
+      return ((await (d as any).buildEntityList() as any[]).find(x => x.id === `fantawild_attraction_${XUZHOU}_163`));
+    };
+    try {
+      expect((await typeOf([stuntShow])).entityType).toBe('SHOW');
+      expect((await typeOf([stuntShowAllDay])).entityType).toBe('SHOW');
+    } finally {
+      CacheLib.delete(key);
+    }
+  });
+
+  test('a parade or a fireworks show is a SHOW through isStickyShow whatever the height says', async () => {
+    // Made up: no parade or fireworks item in the feed carries a height limit. The explicit
+    // evidence must win here as it does in isFantawildShow.
+    const d = await dest();
+    expect((d as any).isStickyShow(++nextPark, item({...swing, showTimeList: [], featureList: ['巡游']}))).toBe(true);
+    expect((d as any).isStickyShow(++nextPark, item({...swing, itemName: '烟花表演秀', showTimeList: ['19:30-20:00']}))).toBe(true);
+  });
+
+  test('a live-actor walk-through with a height limit in one all-day window is never remembered as a SHOW', async () => {
+    // Real row: 怨灵诡校 (Dreamland Xiamen), the walk-through rule in isFantawildShow.
+    const d = await dest();
+    const park = ++nextPark;
+    const maze = {parkId: XUZHOU, id: 1429, itemName: '怨灵诡校', waitTime: 0, itemOpened: true, statusStr: null,
+      showTimeList: ['16:00-20:50'], featureList: ['刺激', '惊吓', '真人表演'], heightStr: '适合1.1米或以上'};
+    expect((d as any).isStickyShow(park, item(maze))).toBe(false);
+    expect((d as any).isStickyShow(park, item(maze))).toBe(false);
+  });
 });
