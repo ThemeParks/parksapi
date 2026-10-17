@@ -77,6 +77,13 @@ export const FORBIDDEN: Array<{name: string; pattern: RegExp}> = [
   {name: 'absolute path under a user home directory', pattern: /\/(?:home|Users)\/[A-Za-z0-9._-]+\//},
   // The wiki's review queue is part of how the pipeline runs.
   {name: 'reference to the wiki moderation queue', pattern: /\bmoderation\s+(?:queue|backlog)\b/i},
+  // A note from the maintainers' private working memory, cited by file name
+  // ("per feedback_x.md") or by kind ("the memory note"). The reader cannot open
+  // it, so the comment has to carry the reason itself.
+  {
+    name: 'reference to a private memory note',
+    pattern: /\b(?:feedback|project|reference|user)_[a-z0-9]+(?:_[a-z0-9]+)*\.md\b|\b[Mm]emory[ -][Nn]otes?\b/,
+  },
   // Any host under the project's domain except the public API.
   {
     name: 'host under the project domain that is not the public API',
@@ -162,6 +169,16 @@ describe('the patterns fire on what they were written for', () => {
       rule: 'host under the project domain that is not the public API',
       flagged: ['ssh box.themeparks.wiki', 'https://admin.themeparks.wiki/v1', 'x-1.themeparks.wiki'],
       allowed: ['https://api.themeparks.wiki/v1/entity', 'https://themeparks.wiki/', 'www.themeparks.wiki', 'themeparks.wiki.example.com'],
+    },
+    {
+      rule: 'reference to a private memory note',
+      flagged: [
+        'Per `feedback_cache_only_true.md`: only ever writes the larger value',
+        '// feedback_cache_only_true.md memory).',
+        'see project_fantawild_sticky_show.md',
+        'as the memory note says',
+      ],
+      allowed: ['README.md', 'TAG_DEVELOPMENT_GUIDE.md', 'a project_root directory', 'already in memory', 'feedback.md', 'user_agent.mdx'],
     },
     {
       rule: 'session transcript link',

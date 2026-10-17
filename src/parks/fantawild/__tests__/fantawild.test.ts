@@ -462,8 +462,7 @@ describe('Fantawild.parkIsOpenNow', () => {
 });
 
 describe('Fantawild.recordLiveWaitObservation', () => {
-  // Verify the "Cache only TRUE, never FALSE" invariant (per the
-  // feedback_cache_only_true.md memory).
+  // Verify the "cache only TRUE, never FALSE" invariant.
   let dest: import('../fantawild.js').Fantawild;
 
   beforeAll(async () => {

@@ -66,7 +66,7 @@ export interface FantawildParkConfig {
 }
 
 /**
- * Every Fantawild park we ship to TP.wiki. Curated from CityPark master list
+ * Every Fantawild park this library exposes. Curated from CityPark master list
  * (50 parks across 30 cities, 49 of which return ride data). Excluded:
  * `Boonie Cubs 熊熊乐园` Shenzhen (parkId 133) — returns no items, app
  * placeholder for an unfinished sub-park. Names are English where Fantawild
@@ -320,8 +320,8 @@ function closeDateAcrossMidnight(date: string, openTime: string, closeTime: stri
   const closes = hhmmToMinutes(closeTime);
   if (!Number.isFinite(opens) || !Number.isFinite(closes)) return date;
   // `closes > opens` would leave the equality case (e.g. 09:00-09:00) folded
-  // into a zero-length same-day window; downstream consumers prefer the
-  // 24-hour-window interpretation, so equal times also roll to next day.
+  // into a zero-length same-day window. Equal times are read as a 24-hour
+  // window instead, so they also roll to the next day.
   if (closes > opens) return date;
   // YYYY-MM-DD → next day. Date.UTC handles month/year rollover correctly.
   const [y, m, d] = date.split('-').map(Number);
@@ -532,11 +532,11 @@ export class Fantawild extends Destination {
    *
    * After 7 days of sustained shrinkage the cache entry expires and the
    * smaller roster becomes the new baseline — so legitimately deleted
-   * rides eventually clear from the wiki. New rides surface immediately
+   * rides eventually drop out of the entity list. New rides surface immediately
    * via the merge-on-id (no need to wait for cache expiry).
    *
-   * Per `feedback_cache_only_true.md`: only ever writes the at-least-
-   * as-large value, never the shrunken one.
+   * The cache only ever takes the at-least-as-large roster, never the
+   * shrunken one.
    */
   async getStableRoster(parkId: number, timezone: string): Promise<FantawildItem[]> {
     const fresh = await this.getItems(parkId, timezone);
@@ -585,8 +585,8 @@ export class Fantawild extends Destination {
    * flipped back and forth with the feed.
    *
    * Once an item has been seen as a SHOW, that is remembered for 30 days and
-   * it stays a SHOW. Per `feedback_cache_only_true.md` only TRUE is ever
-   * written: a single all-day-window day must not lock a show into ATTRACTION.
+   * it stays a SHOW. Only TRUE is ever written, never FALSE: a single
+   * all-day-window day must not lock a show into ATTRACTION.
    * Each SHOW sighting refreshes the 30 days, so an item that stops publishing
    * performances for a month falls back to what the feed says.
    */
@@ -607,9 +607,9 @@ export class Fantawild extends Destination {
    * deleted). New Fantawild parks that roll out live waits after this PR
    * ships will self-correct without manual flag flips.
    *
-   * Per the `feedback_cache_only_true.md` rule: only ever write TRUE to
-   * this cache, never FALSE — a single quiet observation must not lock
-   * the park into "no live waits" until cache expiry.
+   * Only TRUE is ever written to this cache, never FALSE: a single quiet
+   * observation must not lock the park into "no live waits" until cache
+   * expiry.
    *
    * Returns true if any item has `waitTime > 0`, and persists that fact
    * for 90 days (the cache file outlives any individual deploy).
@@ -658,8 +658,8 @@ export class Fantawild extends Destination {
 
   async getDestinations(): Promise<Entity[]> {
     // Force env-validation BEFORE returning destinations. Otherwise 49 ghost
-    // destinations get registered with the wiki and every subsequent live-data
-    // poll fails with the same misleading "request failed" error. The base
+    // destinations are returned and every subsequent live-data call fails with
+    // the same misleading "request failed" error. The base
     // getEntities()/getLiveData()/getSchedules() already call init(); mirror
     // that here so getDestinations() fails the same way.
     await this.init();
@@ -749,8 +749,8 @@ export class Fantawild extends Destination {
       //   - fresh: drives status mapping for rides the API knows about
       //     right now (waitTime, itemOpened, statusStr).
       //   - stable roster: the entity list `buildEntityList` emits; rides
-      //     in here but missing from `fresh` get CLOSED so the wiki sees
-      //     a consistent ride count + statuses even during overnight
+      //     in here but missing from `fresh` get CLOSED so the live data
+      //     keeps a consistent ride count + statuses even during overnight
       //     pruning.
       const [fresh, roster, schedule] = await Promise.all([
         this.getItems(park.parkId, park.timezone),
@@ -771,8 +771,8 @@ export class Fantawild extends Destination {
         const item = freshById.get(rosterItem.id);
         // Ride is in the stable roster but missing from this tick's fresh
         // response → upstream is pruning it (overnight / closed-today /
-        // timeout). Emit CLOSED so the wiki keeps the entity but reflects
-        // that it's not running right now.
+        // timeout). Emit CLOSED so the entity stays in the live data and
+        // reflects that it is not running right now.
         if (!item) {
           out.push({
             id: this.attractionIdFor(park.parkId, rosterItem.id),
