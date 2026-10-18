@@ -3,6 +3,7 @@
 //  The HTTP library will then execute the request and return an HTTPResponse object
 
 import {CacheLib, cacheSecondsFromEnv} from "./cache.js";
+import {httpCacheBypassed} from './httpCacheBypass.js';
 import {broadcast} from "./injector.js";
 import {tracing} from "./tracing.js";
 import Ajv, {type DefinedError} from "ajv";
@@ -341,6 +342,8 @@ class HTTPRequestImpl implements HTTPObj {
   public tags: string[];
   public className?: string; // Class name for cache key uniqueness
   public proxyUrl?: string; // Per-request proxy URL (set by Destination._injectProxy)
+  /** Skip the response-cache read, still write (see httpCacheBypass.ts). Set when queued. */
+  public bypassCacheRead = false;
 
   // Private promise handlers
   private _resolve?: (value: HTTPObj) => void;
@@ -483,8 +486,8 @@ class HTTPRequestImpl implements HTTPObj {
     const startTime = Date.now();
     const {className, methodName} = caller;
 
-    // first, check the cache
-    if (this.cacheKey && CacheLib.has(this.cacheKey)) {
+    // first, check the cache (unless this request was queued inside bypassHttpCache)
+    if (this.cacheKey && !this.bypassCacheRead && CacheLib.has(this.cacheKey)) {
       const cachedValue = CacheLib.get(this.cacheKey);
       if (cachedValue) {
         try {
@@ -751,7 +754,10 @@ function httpDecoratorFactory(options?: {
       // This prevents race conditions where concurrent callers (e.g. multiple
       // buildEntityList / buildLiveData calls hitting the same auth token endpoint
       // simultaneously) each fire independent requests.
-      const dedupKey = `${getHttpInstanceId(this)}:${propertyKey}:${args.length > 0 ? JSON.stringify(args) : ''}`;
+      // A call inside bypassHttpCache coalesces only with other bypassing calls:
+      // one queued outside the scope may still be answered from the cache.
+      const bypassing = httpCacheBypassed();
+      const dedupKey = `${getHttpInstanceId(this)}:${propertyKey}:${args.length > 0 ? JSON.stringify(args) : ''}${bypassing ? ':bypass' : ''}`;
       const existingInflight = httpInflightMap.get(dedupKey);
       if (existingInflight) {
         return existingInflight;
@@ -812,6 +818,10 @@ function httpDecoratorFactory(options?: {
           const queue: HttpQueue = (instance as any).httpQueue instanceof HttpQueue
             ? (instance as any).httpQueue
             : defaultHttpQueue;
+
+          // Decided now, while the caller's async context is still current: the
+          // queue may run this request after that context has gone.
+          internalRequest.bypassCacheRead = bypassing;
 
           queue.push({
             instance: instance,
