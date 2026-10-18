@@ -20,6 +20,7 @@ import {
   parseHourRange,
   addDaysToDateString,
   computeAffineTransform,
+  projectPixel,
   SHOW_ALIASES,} from '../oceanpark.js';
 
 const TZ = 'Asia/Hong_Kong';
@@ -761,6 +762,56 @@ describe('computeAffineTransform', () => {
       {pixelX: 2, pixelY: 2, latitude: 22.2, longitude: 114.2},
     ];
     expect(computeAffineTransform(refPoints)).toBeNull();
+  });
+});
+
+// ── projectPixel ──────────────────────────────────────────────────────────
+
+describe('projectPixel', () => {
+  // A map drawn at two scales, as the park's illustrated map is: left of x = 1000 a pixel is 0.00001 deg, right of it
+  // 0.0001 deg (that side drawn ten times smaller). Reference points on a 100 px grid over both halves.
+  const truth = (x: number, y: number) => ({
+    latitude: 22.25 - 0.00001 * y,
+    longitude: 114.16 + (x <= 1000 ? 0.00001 * x : 0.01 + 0.0001 * (x - 1000)),
+  });
+  const grid: Array<{pixelX: number; pixelY: number; latitude: number; longitude: number}> = [];
+  for (let x = 0; x <= 2000; x += 100) for (let y = 0; y <= 1000; y += 100) grid.push({pixelX: x, pixelY: y, ...truth(x, y)});
+  const metresOff = (a: {latitude: number; longitude: number}, b: {latitude: number; longitude: number}) =>
+    Math.hypot((a.latitude - b.latitude) * 110_540, (a.longitude - b.longitude) * 111_320 * Math.cos((22.25 * Math.PI) / 180));
+
+  test('a pin in either half lands within a few metres, where one whole-map fit is hundreds of metres off', () => {
+    for (const [x, y] of [[450, 450], [1550, 650], [1950, 50]] as const) {
+      expect(metresOff(projectPixel(grid, x, y)!, truth(x, y))).toBeLessThan(5);
+    }
+    const whole = computeAffineTransform(grid)!;
+    const at = {latitude: whole.a * 1550 + whole.b * 650 + whole.c, longitude: whole.d * 1550 + whole.e * 650 + whole.f};
+    expect(metresOff(at, truth(1550, 650))).toBeGreaterThan(100);
+  });
+
+  test('nearest points along one footpath are widened until the fit has width', () => {
+    // Twelve points in a row along y = 500 next to the pin, then a sparse grid around them.
+    const path = Array.from({length: 12}, (_, i) => ({pixelX: 400 + 10 * i, pixelY: 500, ...truth(400 + 10 * i, 500)}));
+    const sparse = grid.filter(p => p.pixelX <= 1000 && (p.pixelX % 300 === 0 || p.pixelY % 300 === 0));
+    expect(metresOff(projectPixel([...path, ...sparse], 460, 520)!, truth(460, 520))).toBeLessThan(5);
+  });
+
+  test('duplicate reference points (the live file repeats some) do not upset the fit', () => {
+    const doubled = [...grid, ...grid.slice(0, 40)];
+    expect(metresOff(projectPixel(doubled, 300, 300)!, truth(300, 300))).toBeLessThan(5);
+  });
+
+  test('the park\'s coordinate map projects each pin through the points around it', async () => {
+    const park = new OceanParkHongKong();
+    vi.spyOn(park, 'fetchReferencePoints').mockResolvedValue({json: async () => grid} as any);
+    vi.spyOn(park, 'fetchMapCategoryData').mockImplementation(async category =>
+      ({json: async () => (category === 'attractions' ? [{url: '/en/attractions/the-flash', x: 1550, y: 650}] : [])}) as any);
+    const coords = new Map(await park.getCoordinateMapEntries());
+    expect(metresOff(coords.get('the-flash')!, truth(1550, 650))).toBeLessThan(5);
+  });
+
+  test('points that all lie on one line cannot place anything', () => {
+    const line = Array.from({length: 20}, (_, i) => ({pixelX: i * 10, pixelY: i * 10, latitude: 22 + i * 1e-4, longitude: 114 + i * 1e-4}));
+    expect(projectPixel(line, 50, 60)).toBeNull();
   });
 });
 
