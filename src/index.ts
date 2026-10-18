@@ -9,6 +9,7 @@ export * from './destination.js';
 export * from './destinationRegistry.js';
 export * from './tracing.js';
 export * from './http.js';
+export * from './httpCacheBypass.js';
 export * from './injector.js';
 export * from './cache.js';
 export * from './datetime.js';
