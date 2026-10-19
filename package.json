@@ -51,7 +51,7 @@
   },
   "homepage": "https://github.com/ThemeParks/parksapi#readme",
   "devDependencies": {
-    "@types/adm-zip": "^0.5.8",
+    "@types/adm-zip": "^0.6.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^26.0.0",
