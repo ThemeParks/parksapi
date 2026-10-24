@@ -1,6 +1,6 @@
 import {describe, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll} from 'vitest';
 import {createServer, IncomingMessage, ServerResponse} from 'http';
-import {MovieParkGermany, Mirabilandia, mapStayAppAttractionStatus, codeattrFeedShowsTrading} from '../parcsreunidos.js';
+import {MovieParkGermany, Mirabilandia, mapStayAppAttractionStatus, codeattrFeedShowsTrading, scheduledStateAt} from '../parcsreunidos.js';
 import {CacheLib} from '../../../cache.js';
 import type {HTTPObj} from '../../../http.js';
 
@@ -552,6 +552,112 @@ describe('Mirabilandia — wait-time microsite live data', () => {
     test('the timestamp is read in park time, not UTC', async () => {
       // Read as UTC, 14:54:18 would be two hours in the future and refused.
       expect(katun(await liveAt(FEED_AT_MS + 60_000, TRADING))?.status).toBe('OPERATING');
+    });
+  });
+
+  describe('the override judged against the park\'s published hours', () => {
+    // 24 Oct 2026: open 10:30-23:00 Rome (08:30-21:00Z).
+    const DAY = [{
+      date: '2026-10-24', type: 'OPERATING',
+      openingTime: '2026-10-24T10:30:00+02:00', closingTime: '2026-10-24T23:00:00+02:00',
+    }] as any;
+    const at = (iso: string) => Date.parse(iso);
+    const romeStamp = (ms: number) => {
+      // Feed timestamps are park local time; CEST is UTC+2 on this date.
+      const d = new Date(ms + 2 * 3600_000).toISOString();
+      return `${d.slice(0, 10)} ${d.slice(11, 19)}`;
+    };
+    const RIDES = {
+      katun: {closed: 0, wait_time: 30},
+      diavel_ring: {closed: 0, note_en: 'Not available'},
+    };
+
+    beforeEach(() => vi.useFakeTimers({toFake: ['Date']}));
+    afterEach(() => vi.useRealTimers());
+
+    async function liveWith(opts: {nowIso: string; feedAgeMin: number; calendar?: () => Promise<any>}) {
+      const nowMs = at(opts.nowIso);
+      vi.setSystemTime(nowMs);
+      const park = parkWithFeed(RIDES, {isopen: false});
+      const ts = romeStamp(nowMs - opts.feedAgeMin * 60_000);
+      park.fetchWaitTimes = async () => ({json: async () => ({timestamp: ts, attrazioni: RIDES})} as any as HTTPObj);
+      if (opts.calendar) {
+        park.calendarUrl = 'https://calendar.example/';
+        park.parseCalendar = opts.calendar as any;
+      } else {
+        park.calendarUrl = '';
+      }
+      const live = await park.getLiveData();
+      return live.find((l) => l.id === KATUN)?.status;
+    }
+
+    test('inside hours, a feed 45 minutes old still overrules the flag (no flapping between rebuilds)', async () => {
+      expect(await liveWith({nowIso: '2026-10-24T17:07:00Z', feedAgeMin: 45, calendar: async () => DAY})).toBe('OPERATING');
+    });
+
+    test('inside hours, a feed older than an hour no longer does', async () => {
+      expect(await liveWith({nowIso: '2026-10-24T17:07:00Z', feedAgeMin: 60, calendar: async () => DAY})).toBe('OPERATING');
+      expect(await liveWith({nowIso: '2026-10-24T17:07:00Z', feedAgeMin: 61, calendar: async () => DAY})).toBe('CLOSED');
+    });
+
+    test('after the published close, even a fresh feed full of waits cannot reopen the park', async () => {
+      expect(await liveWith({nowIso: '2026-10-24T21:00:00Z', feedAgeMin: 1, calendar: async () => DAY})).toBe('CLOSED');
+      expect(await liveWith({nowIso: '2026-10-24T20:59:00Z', feedAgeMin: 1, calendar: async () => DAY})).toBe('OPERATING');
+    });
+
+    test('before the published open, likewise', async () => {
+      expect(await liveWith({nowIso: '2026-10-24T08:29:00Z', feedAgeMin: 1, calendar: async () => DAY})).toBe('CLOSED');
+    });
+
+    test('a calendar failure falls back to the 20-minute rule rather than costing the live data', async () => {
+      const boom = async () => { throw new Error('calendar down'); };
+      expect(await liveWith({nowIso: '2026-10-24T17:07:00Z', feedAgeMin: 8, calendar: boom})).toBe('OPERATING');
+      expect(await liveWith({nowIso: '2026-10-24T17:07:00Z', feedAgeMin: 25, calendar: boom})).toBe('CLOSED');
+    });
+
+    test('an empty calendar is unknown, not "closed all day"', async () => {
+      expect(await liveWith({nowIso: '2026-10-24T17:07:00Z', feedAgeMin: 8, calendar: async () => []})).toBe('OPERATING');
+      expect(await liveWith({nowIso: '2026-10-24T17:07:00Z', feedAgeMin: 25, calendar: async () => []})).toBe('CLOSED');
+    });
+
+    test('no calendar configured keeps the 20-minute rule', async () => {
+      expect(await liveWith({nowIso: '2026-10-24T17:07:00Z', feedAgeMin: 8})).toBe('OPERATING');
+      expect(await liveWith({nowIso: '2026-10-24T17:07:00Z', feedAgeMin: 25})).toBe('CLOSED');
+    });
+
+    test('with no calendar configured the calendar is never fetched from the live path', async () => {
+      vi.setSystemTime(at('2026-10-24T17:07:00Z'));
+      const park = parkWithFeed(RIDES, {isopen: false});
+      park.calendarUrl = '';
+      const spy = vi.fn(async () => DAY);
+      park.parseCalendar = spy as any;
+      await park.getLiveData();
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('scheduledStateAt', () => {
+    const W = (open: string, close: string, type = 'OPERATING') => ({date: open.slice(0, 10), type, openingTime: open, closingTime: close}) as any;
+    const day = [W('2026-10-24T10:30:00+02:00', '2026-10-24T18:00:00+02:00'), W('2026-10-24T19:00:00+02:00', '2026-10-24T23:00:00+02:00', 'INFO')];
+
+    test('open inside either window, including an INFO evening session', () => {
+      expect(scheduledStateAt(day, Date.parse('2026-10-24T12:00:00Z'))).toBe('open');
+      expect(scheduledStateAt(day, Date.parse('2026-10-24T18:00:00Z'))).toBe('open');
+    });
+
+    test('closed between and outside windows; the close instant itself is closed', () => {
+      expect(scheduledStateAt(day, Date.parse('2026-10-24T16:30:00Z'))).toBe('closed');
+      expect(scheduledStateAt(day, Date.parse('2026-10-24T21:00:00Z'))).toBe('closed');
+      expect(scheduledStateAt(day, Date.parse('2026-10-24T08:30:00Z'))).toBe('open');
+      expect(scheduledStateAt(day, Date.parse('2026-10-24T08:29:59Z'))).toBe('closed');
+    });
+
+    test('unknown when there is no usable entry; unusable ones are skipped', () => {
+      expect(scheduledStateAt(undefined, 0)).toBe('unknown');
+      expect(scheduledStateAt([], 0)).toBe('unknown');
+      const junk = [W('nonsense', '2026-10-24T23:00:00+02:00'), W('2026-10-24T23:00:00+02:00', '2026-10-24T10:30:00+02:00'), {date: '2026-10-24', type: 'OPERATING'} as any];
+      expect(scheduledStateAt(junk, Date.parse('2026-10-24T12:00:00Z'))).toBe('unknown');
+      expect(scheduledStateAt([...junk, day[0]], Date.parse('2026-10-24T12:00:00Z'))).toBe('open');
     });
   });
 
