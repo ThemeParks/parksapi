@@ -844,6 +844,60 @@ function classifyMirabilandiaNote(note: string): 'CLOSED' | 'DOWN' {
 }
 
 /**
+ * How recent `attrazioni.json`'s own `timestamp` must be for its contents to
+ * count as a live observation. The feed regenerates every few minutes while
+ * the park is open.
+ */
+const CODEATTR_LIVE_MAX_AGE_MS = 20 * 60 * 1000;
+
+/**
+ * Whether the attraction feed shows the park trading, which overrules a stale
+ * `info.json`.
+ *
+ * `isopen` is a separate flag in `info.json` that is not regenerated with the
+ * ride feed. It has been seen left at `false` for a whole open day while
+ * `attrazioni.json` kept refreshing with real waits and "opening at 16" notes.
+ * Believing the flag then reports a trading park as entirely closed.
+ *
+ * Both conditions are required, so a genuinely shut park still reads as shut:
+ *  - the feed's own `timestamp` is recent. A feed that stopped regenerating
+ *    holds whatever waits it last had, which are not evidence of anything;
+ *  - at least one listed ride is taking guests: not `closed: 1`, no note, and a
+ *    finite `wait_time`. A note-only feed ("Currently closed") agrees with the
+ *    flag rather than contradicting it.
+ *
+ * `timestamp` is `YYYY-MM-DD HH:mm:ss` in the park's local time. An unparseable
+ * or missing one never overrules the flag.
+ */
+export function codeattrFeedShowsTrading(
+  payload: CodeattrAttractionsResponse | undefined,
+  nowMs: number,
+  timezone: string,
+): boolean {
+  const m = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})$/.exec(payload?.timestamp ?? '');
+  if (!m) return false;
+  let generatedMs: number;
+  try {
+    generatedMs = Date.parse(constructDateTime(m[1], m[2], timezone));
+  } catch {
+    return false;
+  }
+  if (!Number.isFinite(generatedMs)) return false;
+  const ageMs = nowMs - generatedMs;
+  // A few minutes into the future is clock skew between us and the park; more
+  // than that is not a timestamp we can reason about.
+  if (ageMs > CODEATTR_LIVE_MAX_AGE_MS || ageMs < -5 * 60 * 1000) return false;
+
+  return Object.values(payload?.attrazioni ?? {}).some((item) => {
+    if (!item || item.closed === 1) return false;
+    if ((item.note_en || item.note_it || '').trim()) return false;
+    const raw = item.wait_time as unknown;
+    if (raw === undefined || raw === null || raw === '') return false;
+    return Number.isFinite(Number(raw));
+  });
+}
+
+/**
  * Mirabilandia - Ravenna, Italy
  *
  * Wait times do NOT come from Stay-App. Mirabilandia's Stay-App establishment
@@ -896,9 +950,11 @@ export class Mirabilandia extends ParcsReunidosDestination {
   /**
    * Fetch the microsite's park-level open/closed flag.
    *
-   * Separate from the attraction feed because the park publishes it separately
-   * and it gates the whole response: when `isopen` is false the microsite hides
-   * every wait time regardless of what `attrazioni.json` still contains.
+   * Separate from the attraction feed because the park publishes it separately.
+   * When `isopen` is false the microsite hides every wait time regardless of
+   * what `attrazioni.json` still contains, but the flag is not regenerated with
+   * the ride feed, so a fresh ride feed overrules it: see
+   * `codeattrFeedShowsTrading`.
    */
   @http({cacheSeconds: 30})
   async fetchWaitTimesInfo(): Promise<HTTPObj> {
@@ -915,6 +971,7 @@ export class Mirabilandia extends ParcsReunidosDestination {
     if (!this.waitTimesUrl) return [];
 
     let info: CodeattrInfo;
+    let payload: CodeattrAttractionsResponse;
     let attractions: Record<string, CodeattrAttraction>;
     try {
       const [infoResp, waitResp] = await Promise.all([
@@ -922,7 +979,7 @@ export class Mirabilandia extends ParcsReunidosDestination {
         this.fetchWaitTimes(),
       ]);
       info = (await infoResp.json()) as CodeattrInfo;
-      const payload = (await waitResp.json()) as CodeattrAttractionsResponse;
+      payload = (await waitResp.json()) as CodeattrAttractionsResponse;
       attractions = payload?.attrazioni ?? {};
     } catch (err: any) {
       // Emitting nothing lets the previous values age out honestly. Emitting a
@@ -930,6 +987,11 @@ export class Mirabilandia extends ParcsReunidosDestination {
       console.warn(`[${this.constructor.name}] wait-time feed unavailable: ${err?.message ?? err}`);
       return [];
     }
+
+    // `isopen: false` closes every ride, unless a fresh ride feed shows the
+    // park trading: the flag is not regenerated with the feed and can be stale.
+    const parkShut = info?.isopen === false
+      && !codeattrFeedShowsTrading(payload, Date.now(), this.timezone);
 
     const liveData: LiveData[] = [];
     const push = (entityIds: readonly string[], build: (id: string) => LiveData) => {
@@ -943,7 +1005,7 @@ export class Mirabilandia extends ParcsReunidosDestination {
       // The park is shut: every ride it lists is closed, which is a current
       // observation and not a stale one, so say so rather than going quiet and
       // letting the entities rot on the dashboard.
-      if (info?.isopen === false) {
+      if (parkShut) {
         push(entityIds, (id) => ({id, status: 'CLOSED'}) as LiveData);
         continue;
       }
