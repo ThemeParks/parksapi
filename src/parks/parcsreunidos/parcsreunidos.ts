@@ -873,10 +873,42 @@ function codeattrWaitMinutes(item: CodeattrAttraction): number | null {
 
 /**
  * How recent `attrazioni.json`'s own `timestamp` must be for its contents to
- * count as a live observation. The feed rebuilds about every 10 minutes while
- * the park trades, so this allows one missed rebuild.
+ * count as a live observation when the park's hours are unknown. The feed
+ * usually rebuilds about every 10 minutes, so this allows one missed rebuild.
  */
 const CODEATTR_LIVE_MAX_AGE_MS = 20 * 60 * 1000;
+
+/**
+ * The same limit inside the park's scheduled hours. Rebuilds have been seen
+ * more than 20 minutes apart during an evening, and each such gap flipped the
+ * whole park to CLOSED until the next rebuild. Within published hours a feed
+ * up to an hour old still overrules the flag; a feed older than that is a stale
+ * feed, not evidence the park shut.
+ */
+const CODEATTR_IN_HOURS_MAX_AGE_MS = 60 * 60 * 1000;
+
+/**
+ * Whether `nowMs` falls inside a published window of the park's own schedule.
+ *
+ * Any entry with both times counts: the first window of a day is OPERATING and
+ * later sessions (an evening event) are INFO rows. `unknown` when the schedule
+ * is empty or none of its entries has usable times, so a calendar that failed
+ * to parse is never read as "closed all day".
+ */
+export function scheduledStateAt(
+  schedule: EntitySchedule['schedule'] | undefined,
+  nowMs: number,
+): 'open' | 'closed' | 'unknown' {
+  let usable = 0;
+  for (const entry of schedule ?? []) {
+    const open = Date.parse(entry?.openingTime ?? '');
+    const close = Date.parse(entry?.closingTime ?? '');
+    if (!Number.isFinite(open) || !Number.isFinite(close) || close <= open) continue;
+    usable++;
+    if (nowMs >= open && nowMs < close) return 'open';
+  }
+  return usable ? 'closed' : 'unknown';
+}
 
 /** How far ahead of our clock a feed `timestamp` may be: clock skew, no more. */
 const CODEATTR_MAX_FUTURE_SKEW_MS = 5 * 60 * 1000;
@@ -906,6 +938,7 @@ export function codeattrFeedShowsTrading(
   payload: CodeattrAttractionsResponse | undefined,
   nowMs: number,
   timezone: string,
+  maxAgeMs: number = CODEATTR_LIVE_MAX_AGE_MS,
 ): boolean {
   const ts = payload?.timestamp;
   const m = typeof ts === 'string'
@@ -924,7 +957,7 @@ export function codeattrFeedShowsTrading(
   if (!Number.isFinite(generatedMs)) return false;
   if (formatInTimezone(new Date(generatedMs), timezone, 'iso').slice(0, 10) !== m[1]) return false;
   const ageMs = nowMs - generatedMs;
-  if (ageMs > CODEATTR_LIVE_MAX_AGE_MS || ageMs < -CODEATTR_MAX_FUTURE_SKEW_MS) return false;
+  if (ageMs > maxAgeMs || ageMs < -CODEATTR_MAX_FUTURE_SKEW_MS) return false;
 
   const attrazioni = payload?.attrazioni ?? {};
   return Object.keys(MIRABILANDIA_WAIT_TIME_ENTITY_IDS).some((key) => {
@@ -1002,6 +1035,32 @@ export class Mirabilandia extends ParcsReunidosDestination {
     } as any as HTTPObj;
   }
 
+  /**
+   * Whether a fresh ride feed overrules `isopen: false`, judged against the
+   * park's own published hours:
+   *  - inside a scheduled window, a feed up to an hour old overrules it;
+   *  - outside every window, nothing does. The park is shut on its own
+   *    schedule, whatever waits the feed is still holding after close;
+   *  - with no usable schedule (no calendar configured, or it failed), the
+   *    stricter 20-minute rule applies on its own.
+   */
+  private async rideFeedOverrulesShutFlag(
+    payload: CodeattrAttractionsResponse,
+    nowMs: number,
+  ): Promise<boolean> {
+    let state: 'open' | 'closed' | 'unknown' = 'unknown';
+    if (this.calendarUrl) {
+      try {
+        state = scheduledStateAt(await this.parseCalendar(), nowMs);
+      } catch {
+        // A calendar failure must not cost the live data; judge on the feed.
+      }
+    }
+    if (state === 'closed') return false;
+    const maxAgeMs = state === 'open' ? CODEATTR_IN_HOURS_MAX_AGE_MS : CODEATTR_LIVE_MAX_AGE_MS;
+    return codeattrFeedShowsTrading(payload, nowMs, this.timezone, maxAgeMs);
+  }
+
   protected async buildLiveData(): Promise<LiveData[]> {
     // Without the feed there is no wait-time source at all for this park —
     // Stay-App carries none — so emit nothing rather than a page of guesses.
@@ -1028,7 +1087,7 @@ export class Mirabilandia extends ParcsReunidosDestination {
     // `isopen: false` closes every ride, unless a fresh ride feed shows the
     // park trading: the flag is not regenerated with the feed and can be stale.
     const parkShut = info?.isopen === false
-      && !codeattrFeedShowsTrading(payload, Date.now(), this.timezone);
+      && !(await this.rideFeedOverrulesShutFlag(payload, Date.now()));
 
     const liveData: LiveData[] = [];
     const push = (entityIds: readonly string[], build: (id: string) => LiveData) => {
