@@ -1,6 +1,6 @@
 import {describe, test, expect, vi, beforeEach, afterEach, beforeAll, afterAll} from 'vitest';
 import {createServer, IncomingMessage, ServerResponse} from 'http';
-import {MovieParkGermany, Mirabilandia, mapStayAppAttractionStatus} from '../parcsreunidos.js';
+import {MovieParkGermany, Mirabilandia, mapStayAppAttractionStatus, codeattrFeedShowsTrading} from '../parcsreunidos.js';
 import {CacheLib} from '../../../cache.js';
 import type {HTTPObj} from '../../../http.js';
 
@@ -345,12 +345,13 @@ describe('Mirabilandia — wait-time microsite live data', () => {
   function parkWithFeed(
     attrazioni: Record<string, unknown>,
     info: Record<string, unknown> = {isopen: true},
+    timestamp: unknown = '2026-08-09 10:54:14',
   ): Mirabilandia {
     const park = new Mirabilandia();
     park.waitTimesUrl = FEED_URL;
     park.fetchWaitTimesInfo = async () => ({json: async () => info} as any as HTTPObj);
     park.fetchWaitTimes = async () => ({
-      json: async () => ({timestamp: '2026-08-09 10:54:14', attrazioni}),
+      json: async () => ({timestamp, attrazioni}),
     } as any as HTTPObj);
     return park;
   }
@@ -405,6 +406,92 @@ describe('Mirabilandia — wait-time microsite live data', () => {
   test('when the park is shut every listed ride is CLOSED regardless of wait_time', async () => {
     expect(await statusFor({closed: 0, wait_time: 25}, {isopen: false}))
       .toEqual({status: 'CLOSED', waitTime: undefined, emitted: 1});
+  });
+
+  describe('a stale isopen:false against a fresh ride feed', () => {
+    // 14:54:18 Rome (CEST, UTC+2) on a Saturday the park traded until 23:00
+    // while info.json still said isopen:false from the afternoon before.
+    const FEED_AT = '2026-10-24 14:54:18';
+    const FEED_AT_MS = Date.parse('2026-10-24T12:54:18Z');
+    const TRADING = {
+      katun: {closed: 0, wait_time: 30},
+      desmo_race: {closed: 0, note_en: 'opening at 16', note_it: 'dalle 16'},
+    };
+
+    beforeEach(() => vi.useFakeTimers({toFake: ['Date']}));
+    afterEach(() => vi.useRealTimers());
+
+    // `timestamp` is passed through as given: a default here would turn the
+    // `undefined` case back into a fresh feed.
+    async function liveAt(nowMs: number, attrazioni: Record<string, unknown>, ...timestamp: [unknown?]) {
+      vi.setSystemTime(nowMs);
+      const park = parkWithFeed(attrazioni, {isopen: false, halloween_open: false});
+      const ts = timestamp.length ? timestamp[0] : FEED_AT;
+      park.fetchWaitTimes = async () => ({json: async () => ({timestamp: ts, attrazioni})} as any as HTTPObj);
+      return park.getLiveData();
+    }
+    const katun = (live: any[]) => live.find((l) => l.id === KATUN);
+
+    test('a feed regenerated minutes ago with real waits overrules the flag', async () => {
+      const live = await liveAt(FEED_AT_MS + 8 * 60_000, TRADING);
+      expect(katun(live)).toMatchObject({status: 'OPERATING', queue: {STANDBY: {waitTime: 30}}});
+      // Rides with a note keep their note's meaning, not a blanket CLOSED.
+      expect(live.find((l) => l.id === '126292')?.status).toBe('CLOSED');
+    });
+
+    test('a feed older than 20 minutes does not: its waits are not a live observation', async () => {
+      const live = await liveAt(FEED_AT_MS + 21 * 60_000, TRADING);
+      expect(katun(live)?.status).toBe('CLOSED');
+      expect(katun(live)?.queue).toBeUndefined();
+    });
+
+    // In the next two, Katun's note would read DOWN if the park counted as
+    // trading, so CLOSED proves the flag still won.
+    test('a fresh feed whose rides all carry notes agrees with the flag', async () => {
+      const live = await liveAt(FEED_AT_MS + 60_000, {
+        katun: {closed: 0, wait_time: 0, note_en: 'Not available'},
+        desmo_race: {closed: 0, note_en: 'Currently closed'},
+      });
+      expect(katun(live)?.status).toBe('CLOSED');
+    });
+
+    test('closed:1 rides with a leftover wait_time are not evidence of trading', async () => {
+      const live = await liveAt(FEED_AT_MS + 60_000, {
+        aquila: {closed: 1, wait_time: 15},
+        katun: {closed: 0, note_en: 'Not available'},
+      });
+      expect(katun(live)?.status).toBe('CLOSED');
+    });
+
+    test('an empty or null wait_time is not evidence of trading', async () => {
+      for (const wait_time of ['', null]) {
+        const live = await liveAt(FEED_AT_MS + 60_000, {
+          aquila: {closed: 0, wait_time},
+          katun: {closed: 0, note_en: 'Not available'},
+        });
+        expect(katun(live)?.status).toBe('CLOSED');
+      }
+    });
+
+    test('a missing or unparseable timestamp never overrules the flag', async () => {
+      for (const ts of [undefined, '', '24/10/2026 14:54', 'garbage', 12345]) {
+        expect(katun(await liveAt(FEED_AT_MS + 60_000, TRADING, ts))?.status).toBe('CLOSED');
+      }
+    });
+
+    test('a timestamp far in the future is not trusted; small clock skew is', async () => {
+      expect(katun(await liveAt(FEED_AT_MS - 10 * 60_000, TRADING))?.status).toBe('CLOSED');
+      expect(katun(await liveAt(FEED_AT_MS - 2 * 60_000, TRADING))?.status).toBe('OPERATING');
+    });
+
+    test('the timestamp is read in park time, not UTC', async () => {
+      // Read as UTC, 14:54:18 would be two hours in the future and refused.
+      expect(katun(await liveAt(FEED_AT_MS + 60_000, TRADING))?.status).toBe('OPERATING');
+    });
+  });
+
+  test('codeattrFeedShowsTrading is false for an absent payload', () => {
+    expect(codeattrFeedShowsTrading(undefined, Date.now(), 'Europe/Rome')).toBe(false);
   });
 
   test('the single oil_tower queue is published to both Oil Tower entities', async () => {
