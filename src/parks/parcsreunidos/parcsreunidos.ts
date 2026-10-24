@@ -15,7 +15,7 @@ import {cache, CacheLib} from '../../cache.js';
 import {inject} from '../../injector.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule} from '@themeparks/typelib';
-import {constructDateTime, shiftDateString} from '../../datetime.js';
+import {constructDateTime, formatInTimezone, shiftDateString} from '../../datetime.js';
 import {decodeHtmlEntities} from '../../htmlUtils.js';
 
 // ============================================================================
@@ -844,38 +844,77 @@ function classifyMirabilandiaNote(note: string): 'CLOSED' | 'DOWN' {
 }
 
 /**
+ * The ride's note, or null when it has none.
+ *
+ * Either language may be present. A non-string or blank note is no note, so
+ * malformed JSON can never throw from `.trim()` or pass as an announcement.
+ */
+function codeattrNote(item: CodeattrAttraction): string | null {
+  for (const raw of [item.note_en, item.note_it] as unknown[]) {
+    if (typeof raw === 'string' && raw.trim()) return raw;
+  }
+  return null;
+}
+
+/**
+ * The ride's wait in minutes, or null when it carries none.
+ *
+ * `wait_time` is unvalidated JSON: only a number or a numeric string counts,
+ * and only when finite and non-negative. `''`, `' '`, `null`, booleans and
+ * arrays are rejected before `Number()`, which would turn them into 0 or 1.
+ */
+function codeattrWaitMinutes(item: CodeattrAttraction): number | null {
+  const raw = item.wait_time as unknown;
+  if (typeof raw === 'number') return Number.isFinite(raw) && raw >= 0 ? raw : null;
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/**
  * How recent `attrazioni.json`'s own `timestamp` must be for its contents to
- * count as a live observation. The feed regenerates every few minutes while
- * the park is open.
+ * count as a live observation. The feed rebuilds about every 10 minutes while
+ * the park trades, so this allows one missed rebuild.
  */
 const CODEATTR_LIVE_MAX_AGE_MS = 20 * 60 * 1000;
+
+/** How far ahead of our clock a feed `timestamp` may be: clock skew, no more. */
+const CODEATTR_MAX_FUTURE_SKEW_MS = 5 * 60 * 1000;
 
 /**
  * Whether the attraction feed shows the park trading, which overrules a stale
  * `info.json`.
  *
  * `isopen` is a separate flag in `info.json` that is not regenerated with the
- * ride feed. It has been seen left at `false` for a whole open day while
- * `attrazioni.json` kept refreshing with real waits and "opening at 16" notes.
- * Believing the flag then reports a trading park as entirely closed.
+ * ride feed, and the microsite treats it as "the wait-time service is
+ * unavailable" rather than as park hours. It has been seen left at `false` for
+ * a whole open day while `attrazioni.json` kept rebuilding with real waits and
+ * "opening at 16" notes. Believing the flag then reports a trading park as
+ * entirely closed.
  *
  * Both conditions are required, so a genuinely shut park still reads as shut:
- *  - the feed's own `timestamp` is recent. A feed that stopped regenerating
+ *  - the feed's own `timestamp` is recent. A feed that stopped rebuilding
  *    holds whatever waits it last had, which are not evidence of anything;
- *  - at least one listed ride is taking guests: not `closed: 1`, no note, and a
- *    finite `wait_time`. A note-only feed ("Currently closed") agrees with the
- *    flag rather than contradicting it.
+ *  - at least one ride we publish is taking guests: not `closed: 1`, no note,
+ *    and a valid `wait_time`. Feed-only keys (the seasonal mazes) do not count,
+ *    and a note-only feed ("Currently closed") agrees with the flag.
  *
- * `timestamp` is `YYYY-MM-DD HH:mm:ss` in the park's local time. An unparseable
- * or missing one never overrules the flag.
+ * `timestamp` is `YYYY-MM-DD HH:mm:ss` in the park's local time. A missing,
+ * malformed or impossible one never overrules the flag.
  */
 export function codeattrFeedShowsTrading(
   payload: CodeattrAttractionsResponse | undefined,
   nowMs: number,
   timezone: string,
 ): boolean {
-  const m = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})$/.exec(payload?.timestamp ?? '');
+  const ts = payload?.timestamp;
+  const m = typeof ts === 'string'
+    ? /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})$/.exec(ts)
+    : null;
   if (!m) return false;
+  // constructDateTime throws on an out-of-range minute or second. It rolls an
+  // hour of 24-47 onto the next day, and an impossible date like 31 Sep onto a
+  // real one, so the date must also survive the round trip.
   let generatedMs: number;
   try {
     generatedMs = Date.parse(constructDateTime(m[1], m[2], timezone));
@@ -883,17 +922,15 @@ export function codeattrFeedShowsTrading(
     return false;
   }
   if (!Number.isFinite(generatedMs)) return false;
+  if (formatInTimezone(new Date(generatedMs), timezone, 'iso').slice(0, 10) !== m[1]) return false;
   const ageMs = nowMs - generatedMs;
-  // A few minutes into the future is clock skew between us and the park; more
-  // than that is not a timestamp we can reason about.
-  if (ageMs > CODEATTR_LIVE_MAX_AGE_MS || ageMs < -5 * 60 * 1000) return false;
+  if (ageMs > CODEATTR_LIVE_MAX_AGE_MS || ageMs < -CODEATTR_MAX_FUTURE_SKEW_MS) return false;
 
-  return Object.values(payload?.attrazioni ?? {}).some((item) => {
-    if (!item || item.closed === 1) return false;
-    if ((item.note_en || item.note_it || '').trim()) return false;
-    const raw = item.wait_time as unknown;
-    if (raw === undefined || raw === null || raw === '') return false;
-    return Number.isFinite(Number(raw));
+  const attrazioni = payload?.attrazioni ?? {};
+  return Object.keys(MIRABILANDIA_WAIT_TIME_ENTITY_IDS).some((key) => {
+    const item = attrazioni[key];
+    if (!item || typeof item !== 'object' || item.closed === 1) return false;
+    return codeattrNote(item) === null && codeattrWaitMinutes(item) !== null;
   });
 }
 
@@ -1021,22 +1058,17 @@ export class Mirabilandia extends ParcsReunidosDestination {
 
       // A note replaces the wait time; check it before `wait_time` so a ride
       // that is out of service is never reported as a zero-minute walk-on.
-      const note = item.note_en || item.note_it;
-      if (note && note.trim()) {
+      const note = codeattrNote(item);
+      if (note) {
         const status = classifyMirabilandiaNote(note);
         push(entityIds, (id) => ({id, status}) as LiveData);
         continue;
       }
 
-      // Guard the numeric conversion: `wait_time` is unvalidated JSON, and
-      // Number.isFinite does not coerce, so a numeric string would otherwise
-      // fall through as a non-finite value. `''`/null must not become 0 —
-      // Number('') is 0, hence the explicit nullish/empty check first.
-      if (item.wait_time === undefined || item.wait_time === null || (item.wait_time as unknown) === '') {
-        continue;
-      }
-      const waitTime = Number(item.wait_time);
-      if (!Number.isFinite(waitTime) || waitTime < 0) continue;
+      // The same parse the trading check uses, so a wait that counts as
+      // evidence is always one that gets published.
+      const waitTime = codeattrWaitMinutes(item);
+      if (waitTime === null) continue;
 
       push(entityIds, (id) => ({
         id,

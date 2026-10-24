@@ -345,13 +345,12 @@ describe('Mirabilandia — wait-time microsite live data', () => {
   function parkWithFeed(
     attrazioni: Record<string, unknown>,
     info: Record<string, unknown> = {isopen: true},
-    timestamp: unknown = '2026-08-09 10:54:14',
   ): Mirabilandia {
     const park = new Mirabilandia();
     park.waitTimesUrl = FEED_URL;
     park.fetchWaitTimesInfo = async () => ({json: async () => info} as any as HTTPObj);
     park.fetchWaitTimes = async () => ({
-      json: async () => ({timestamp, attrazioni}),
+      json: async () => ({timestamp: '2026-08-09 10:54:14', attrazioni}),
     } as any as HTTPObj);
     return park;
   }
@@ -403,9 +402,17 @@ describe('Mirabilandia — wait-time microsite live data', () => {
     expect((await statusFor({closed: 1, wait_time: 0})).status).toBe('CLOSED');
   });
 
-  test('when the park is shut every listed ride is CLOSED regardless of wait_time', async () => {
-    expect(await statusFor({closed: 0, wait_time: 25}, {isopen: false}))
-      .toEqual({status: 'CLOSED', waitTime: undefined, emitted: 1});
+  test('isopen:false with a stale ride feed closes every listed ride regardless of wait_time', async () => {
+    // The feed is stamped 2026-08-09 10:54:14; pin the clock a day later so
+    // the stamp is stale on purpose, not by accident of when the suite runs.
+    vi.useFakeTimers({toFake: ['Date']});
+    try {
+      vi.setSystemTime(Date.parse('2026-08-10T09:00:00Z'));
+      expect(await statusFor({closed: 0, wait_time: 25}, {isopen: false}))
+        .toEqual({status: 'CLOSED', waitTime: undefined, emitted: 1});
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   describe('a stale isopen:false against a fresh ride feed', () => {
@@ -416,7 +423,10 @@ describe('Mirabilandia — wait-time microsite live data', () => {
     const TRADING = {
       katun: {closed: 0, wait_time: 30},
       desmo_race: {closed: 0, note_en: 'opening at 16', note_it: 'dalle 16'},
+      // DOWN only when the park counts as trading; a shut park reads CLOSED.
+      diavel_ring: {closed: 0, note_en: 'Not available', note_it: 'Non disponibile'},
     };
+    const DIAVEL_RING = '125994';
 
     beforeEach(() => vi.useFakeTimers({toFake: ['Date']}));
     afterEach(() => vi.useRealTimers());
@@ -436,6 +446,7 @@ describe('Mirabilandia — wait-time microsite live data', () => {
       const live = await liveAt(FEED_AT_MS + 8 * 60_000, TRADING);
       expect(katun(live)).toMatchObject({status: 'OPERATING', queue: {STANDBY: {waitTime: 30}}});
       // Rides with a note keep their note's meaning, not a blanket CLOSED.
+      expect(live.find((l) => l.id === DIAVEL_RING)?.status).toBe('DOWN');
       expect(live.find((l) => l.id === '126292')?.status).toBe('CLOSED');
     });
 
@@ -443,6 +454,60 @@ describe('Mirabilandia — wait-time microsite live data', () => {
       const live = await liveAt(FEED_AT_MS + 21 * 60_000, TRADING);
       expect(katun(live)?.status).toBe('CLOSED');
       expect(katun(live)?.queue).toBeUndefined();
+    });
+
+    test('the 20-minute limit is inclusive and exact', async () => {
+      expect(katun(await liveAt(FEED_AT_MS + 20 * 60_000, TRADING))?.status).toBe('OPERATING');
+      expect(katun(await liveAt(FEED_AT_MS + 20 * 60_000 + 1, TRADING))?.status).toBe('CLOSED');
+      expect(katun(await liveAt(FEED_AT_MS + 19 * 60_000 + 59_000, TRADING))?.status).toBe('OPERATING');
+    });
+
+    test('the 5-minute future skew limit is inclusive and exact', async () => {
+      expect(katun(await liveAt(FEED_AT_MS - 5 * 60_000, TRADING))?.status).toBe('OPERATING');
+      expect(katun(await liveAt(FEED_AT_MS - 5 * 60_000 - 1, TRADING))?.status).toBe('CLOSED');
+    });
+
+    // Katun carries "Not available" in these: DOWN if the park counted as
+    // trading, CLOSED if the flag still won.
+    const SHUT_PROBE = {katun: {closed: 0, note_en: 'Not available'}};
+    const flagWon = async (extra: Record<string, unknown>) =>
+      katun(await liveAt(FEED_AT_MS + 60_000, {...SHUT_PROBE, ...extra}))?.status === 'CLOSED';
+
+    test('only rides we publish count: a trading seasonal maze does not', async () => {
+      expect(await flagWon({mini_zombie: {closed: 0, wait_time: 30}})).toBe(true);
+      expect(await flagWon({aquila: {closed: 0, wait_time: 30}})).toBe(false);
+    });
+
+    test('a wait must be a valid non-negative number to count', async () => {
+      for (const wait_time of [-1, ' ', 'abc', true, [], {}, Infinity]) {
+        expect(await flagWon({aquila: {closed: 0, wait_time}})).toBe(true);
+      }
+      expect(await flagWon({aquila: {closed: 0, wait_time: '15'}})).toBe(false);
+      expect(await flagWon({aquila: {closed: 0, wait_time: 0}})).toBe(false);
+    });
+
+    test('a note in either language, but not a blank or non-string one, disqualifies a ride', async () => {
+      expect(await flagWon({aquila: {closed: 0, wait_time: 10, note_it: 'Attualmente chiuso'}})).toBe(true);
+      expect(await flagWon({aquila: {closed: 0, wait_time: 10, note_en: '   '}})).toBe(false);
+      expect(await flagWon({aquila: {closed: 0, wait_time: 10, note_en: 5}})).toBe(false);
+    });
+
+    test('null or non-object feed entries are ignored, not thrown on', async () => {
+      expect(await flagWon({aquila: null, autosplash: 'x', balloons: 7})).toBe(true);
+    });
+
+    test('a well-shaped but impossible timestamp never overrules the flag', async () => {
+      // Each clock is pinned one minute after the instant the impossible stamp
+      // would roll over to, so only the validation, not freshness, refuses it.
+      const cases: Array<[string, string]> = [
+        ['2026-09-31 14:54:18', '2026-10-01T12:55:18Z'], // 31 Sep -> 1 Oct
+        ['2026-10-23 24:54:18', '2026-10-23T22:55:18Z'], // 24:54 -> 00:54 next day
+        ['2026-10-24 14:60:18', '2026-10-24T13:01:18Z'], // 14:60 -> 15:00
+        ['2026-13-45 10:00:00', '2026-10-24T13:00:00Z'],
+      ];
+      for (const [ts, now] of cases) {
+        expect(katun(await liveAt(Date.parse(now), TRADING, ts))?.status, ts).toBe('CLOSED');
+      }
     });
 
     // In the next two, Katun's note would read DOWN if the park counted as
@@ -531,6 +596,12 @@ describe('Mirabilandia — wait-time microsite live data', () => {
     await expect(park.getLiveData()).resolves.toEqual([]);
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
+  });
+
+  test('a blank, boolean or negative wait_time is skipped, never published as a wait', async () => {
+    for (const wait_time of [' ', true, -3]) {
+      expect((await statusFor({closed: 0, wait_time: wait_time as any})).emitted).toBe(0);
+    }
   });
 
   test('a note wins over a stray wait_time if the feed ever emits both', async () => {
