@@ -8,8 +8,10 @@
  * is exercised via `npm run dev -- oceanparkhongkong`.
  */
 import {describe, test, expect, vi, beforeEach, afterEach} from 'vitest';
+import {formatDate} from '../../../datetime.js';
 import {
   OceanParkHongKong,
+  SHOW_ROSTER_DAYS,
   extractRscArray,
   findMatchingBracket,
   slugFromUrl,
@@ -823,17 +825,31 @@ class Probe extends OceanParkHongKong {
   private readonly _attractions: any[];
   private readonly _diningTabs: any[];
   private readonly _scheduleItems: any[];
+  private readonly _scheduleByDate: Record<string, any[]>;
   private readonly _hoursByDate: Record<string, string | null>;
   private readonly _coordEntries: CoordEntry[];
+  private static instances = 0;
+  private readonly instanceNo = ++Probe.instances;
+
+  /** Dates whose daily-schedule request rejects. Mutable so a test can heal one between builds. */
+  public failDates = new Set<string>();
+  /** Every date asked of the daily-schedule route, in call order. */
+  public requestedDates: string[] = [];
 
   constructor(opts: {
     attractions?: any[];
     diningTabs?: any[];
+    /** The programme for today (Asia/Hong_Kong, by the test's clock). */
     scheduleItems?: any[];
+    /** The programme for named dates; today falls back to `scheduleItems`. */
+    scheduleByDate?: Record<string, any[]>;
+    failDates?: string[];
     hoursByDate?: Record<string, string | null>;
     coordEntries?: CoordEntry[];
   } = {}) {
     super();
+    this._scheduleByDate = opts.scheduleByDate ?? {};
+    this.failDates = new Set(opts.failDates ?? []);
     this._attractions = opts.attractions ?? [];
     this._diningTabs = opts.diningTabs ?? [];
     this._scheduleItems = opts.scheduleItems ?? [];
@@ -849,8 +865,16 @@ class Probe extends OceanParkHongKong {
     return this._diningTabs;
   }
 
-  override async getDailyScheduleItems(_date: string): Promise<any[]> {
-    return this._scheduleItems;
+  override async getDailyScheduleItems(date: string): Promise<any[]> {
+    this.requestedDates.push(date);
+    if (this.failDates.has(date)) throw new Error(`daily schedule ${date} unavailable`);
+    if (date in this._scheduleByDate) return this._scheduleByDate[date];
+    return date === formatDate(new Date(), TZ) ? this._scheduleItems : [];
+  }
+
+  /** One cache namespace per Probe, so a stored roster never leaks between tests. */
+  getCacheKeyPrefix(): string {
+    return `probe:${this.instanceNo}`;
   }
 
   override async getParkOpeningHoursValue(date: string): Promise<string | null> {
@@ -1708,5 +1732,171 @@ describe('injectUserAgent', () => {
   test('throws a clear config error instead of silently sending an unauthenticated request', async () => {
     const park = new OceanParkHongKong({config: {baseURL: 'https://www.oceanpark.com.hk', userAgent: ''} as any});
     await expect(park.injectUserAgent({headers: {}} as any)).rejects.toThrow('OCEANPARK_USERAGENT');
+  });
+});
+
+// ── Show roster window ───────────────────────────────────────────────────────
+//
+// The daily-schedule route lists a show only on the days it performs. A roster
+// read from today alone therefore changes with the day of the week: weekend
+// event shows vanish on Monday and return on Friday.
+
+describe('show roster window', () => {
+  const MONDAY = '2026-10-26';
+  const at = (n: number) => addDaysToDateString(MONDAY, n);
+  const showIds = (entities: any[]) => entities.filter((e) => e.entityType === 'SHOW').map((e) => e.id).sort();
+  const liveShows = (live: any[]) => live.filter((l) => l.id.startsWith('show_'));
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(`${MONDAY}T04:00:00Z`)); // Monday noon in Hong Kong
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  test('lists a show that performs later in the window, though today lacks it', async () => {
+    const probe = new Probe({
+      scheduleItems: [{title: 'Animal Fun Talk'}],
+      scheduleByDate: {[at(4)]: [{title: 'Sway Pole Spectacle'}]},
+    });
+    expect(showIds(await probe.entities())).toEqual(['show_animal-fun-talk', 'show_sway-pole-spectacle']);
+  });
+
+  test('the roster is the same on every day of the week', async () => {
+    // Daily talk all week; two event shows on Friday to Sunday only.
+    const programme: Record<string, any[]> = {};
+    for (let n = -7; n < 60; n++) {
+      const weekday = new Date(`${at(n)}T00:00:00Z`).getUTCDay();
+      programme[at(n)] = [
+        {title: 'Daily Animal Talk'},
+        ...([5, 6, 0].includes(weekday) ? [{title: 'Sway Pole Spectacle'}, {title: 'Spooky Live Band'}] : []),
+      ];
+    }
+    for (const day of ['2026-10-26', '2026-10-29', '2026-10-30', '2026-11-01', '2026-11-02']) {
+      vi.setSystemTime(new Date(`${day}T04:00:00Z`));
+      const probe = new Probe({scheduleByDate: programme});
+      expect(showIds(await probe.entities()), day).toEqual([
+        'show_daily-animal-talk', 'show_spooky-live-band', 'show_sway-pole-spectacle',
+      ]);
+    }
+  });
+
+  test('a show leaves the roster once nothing in the window schedules it', async () => {
+    const probe = new Probe({
+      scheduleItems: [{title: 'Animal Fun Talk'}],
+      scheduleByDate: {[at(-1)]: [{title: 'Skelebration Fiesta'}]},
+    });
+    expect(showIds(await probe.entities())).toEqual(['show_animal-fun-talk']);
+  });
+
+  test('the window is SHOW_ROSTER_DAYS long, today included', async () => {
+    const probe = new Probe({
+      scheduleByDate: {
+        [at(SHOW_ROSTER_DAYS - 1)]: [{title: 'Last Day In Window'}],
+        [at(SHOW_ROSTER_DAYS)]: [{title: 'First Day Outside'}],
+      },
+    });
+    expect(showIds(await probe.entities())).toEqual(['show_last-day-in-window']);
+  });
+
+  test('asks for each date of the window once, today first', async () => {
+    const probe = new Probe({});
+    await probe.entities();
+    expect(probe.requestedDates).toEqual(Array.from({length: SHOW_ROSTER_DAYS}, (_, i) => at(i)));
+  });
+
+  test('a complete roster is kept, so a repeat build asks the route for nothing', async () => {
+    // Every request to this site waits its turn in the park's own queue, a
+    // cached answer included, so rebuilding the roster per call would hold
+    // up the live-data requests behind it.
+    const probe = new Probe({scheduleItems: [{title: 'Animal Fun Talk'}]});
+    await probe.entities();
+    const asked = probe.requestedDates.length;
+    expect(showIds(await probe.entities())).toEqual(['show_animal-fun-talk']);
+    expect(probe.requestedDates).toHaveLength(asked);
+  });
+
+  test('one failed date costs only the shows exclusive to it, and is logged', async () => {
+    const probe = new Probe({
+      failDates: [at(0)],
+      scheduleByDate: {
+        [at(2)]: [{title: 'Sway Pole Spectacle'}],
+        [at(3)]: [{title: 'Spooky Live Band'}],
+      },
+    });
+    await expect(probe.entities()).resolves.toBeDefined();
+    expect(showIds(await probe.entities())).toEqual(['show_spooky-live-band', 'show_sway-pole-spectacle']);
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining(`1/${SHOW_ROSTER_DAYS}`));
+  });
+
+  test('a roster with a failed date is not kept: the next build asks again', async () => {
+    const probe = new Probe({
+      failDates: [at(3)],
+      scheduleByDate: {[at(3)]: [{title: 'Spooky Live Band'}]},
+    });
+    expect(showIds(await probe.entities())).toEqual([]);
+    probe.failDates.clear();
+    expect(showIds(await probe.entities())).toEqual(['show_spooky-live-band']);
+  });
+
+  test('every date failing yields no shows and still builds the rest', async () => {
+    const probe = new Probe({
+      attractions: [mkAttraction()],
+      failDates: Array.from({length: SHOW_ROSTER_DAYS}, (_, i) => at(i)),
+    });
+    const entities = await probe.entities();
+    expect(showIds(entities)).toEqual([]);
+    expect(entities.find((e) => e.id === 'attraction_node-1')).toBeDefined();
+  });
+
+  test('live data: a rostered show not performing today is CLOSED with no showtimes', async () => {
+    const probe = new Probe({
+      scheduleItems: [{title: 'Animal Fun Talk', timeSlot: ['15:00:00']}],
+      scheduleByDate: {[at(4)]: [{title: 'Sway Pole Spectacle', timeSlot: ['19:00:00']}]},
+    });
+    const live = liveShows(await probe.liveData());
+    const byId = Object.fromEntries(live.map((l) => [l.id, l]));
+    expect(byId['show_animal-fun-talk'].status).toBe('OPERATING');
+    expect(byId['show_sway-pole-spectacle']).toEqual({id: 'show_sway-pole-spectacle', status: 'CLOSED'});
+  });
+
+  test('live data: publishes every rostered show under the id the entity list uses', async () => {
+    const probe = new Probe({
+      scheduleItems: [{title: 'Gala of Lights', timeSlot: ['18:00:00']}],
+      scheduleByDate: {
+        [at(5)]: [{title: 'Gala Of Lights - Winter Celebration', timeSlot: ['19:00:00']}],
+        [at(6)]: [{title: 'Spooky Live Band', timeSlot: ['20:00:00']}],
+      },
+    });
+    const entityIds = showIds(await probe.entities());
+    const liveIds = liveShows(await probe.liveData()).map((l) => l.id).sort();
+    expect(liveIds).toEqual(entityIds);
+    expect(entityIds).toEqual(['show_gala-of-lights', 'show_spooky-live-band']);
+  });
+
+  test("live data: showtimes come from today's programme only", async () => {
+    const probe = new Probe({
+      scheduleItems: [{title: 'Animal Fun Talk', timeSlot: ['15:00:00']}],
+      scheduleByDate: {[at(1)]: [{title: 'Animal Fun Talk', timeSlot: ['16:00:00']}]},
+    });
+    const [show] = liveShows(await probe.liveData());
+    expect(show.showtimes).toHaveLength(1);
+    expect(show.showtimes[0].startTime).toBe(`${MONDAY}T15:00:00+08:00`);
+  });
+
+  test("live data: with today's programme unavailable, no show is published, not even CLOSED", async () => {
+    // Without today's rows every rostered show would read as idle.
+    const probe = new Probe({
+      attractions: [mkAttraction({queueTime: {text: ' 10  mins'}})],
+      failDates: [at(0)],
+      scheduleByDate: {[at(2)]: [{title: 'Sway Pole Spectacle', timeSlot: ['19:00:00']}]},
+    });
+    const live = await probe.liveData();
+    expect(liveShows(live)).toEqual([]);
+    expect(live.find((l) => l.id === 'attraction_node-1').queue.STANDBY.waitTime).toBe(10);
   });
 });
