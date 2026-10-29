@@ -75,6 +75,18 @@ const MAP_CATEGORIES = ['attractions', 'animals', 'dining', 'transportations', '
 const SCHEDULE_DAYS = 60;
 
 /**
+ * How many days of the programme (today included) decide which shows exist.
+ *
+ * The daily-schedule route lists a show only on the days it performs, so a
+ * roster read from today alone loses every weekend-only event show from
+ * Monday to Thursday and finds it again on Friday. A show belongs to the
+ * roster when it performs anywhere in this window. Two weeks reaches past a
+ * weekly gap with room for a skipped week, and stops short of listing a
+ * season's shows weeks before the park has anything to say about them.
+ */
+export const SHOW_ROSTER_DAYS = 14;
+
+/**
  * Real RSC payloads for these pages run a few hundred KB. Anything wildly
  * larger is either a bug upstream, a WAF/CDN interstitial swapped in for the
  * real page, or a truncated response — bail out before attempting to scan it
@@ -166,6 +178,22 @@ interface ShowGroup {
   alias?: string;
   mapKey?: string;
 }
+
+/** One show the programme lists somewhere in the roster window. JSON-safe: it is stored in the cache. */
+interface OceanParkRosterShow {
+  slug: string;
+  title: string;
+  mapKey?: string;
+}
+
+interface OceanParkShowRoster {
+  shows: OceanParkRosterShow[];
+  /** Dates in the window whose programme could not be read. */
+  failedDates: string[];
+}
+
+/** A roster is no staler than the HTTP answers it was read from. */
+const SHOW_ROSTER_CACHE_SECONDS = 1800;
 
 // Every title the park has published for one physical show, so that a
 // seasonal rename keeps the show's entity id instead of minting a new one
@@ -870,6 +898,60 @@ export class OceanParkHongKong extends Destination {
     return Array.isArray(body?.items) ? body.items : [];
   }
 
+  /**
+   * The shows that exist: every one the programme lists on any of the
+   * SHOW_ROSTER_DAYS days from `today`, grouped to one identity apiece.
+   *
+   * Cached as one unit. Each request to this site waits its turn in the
+   * park's own queue, a cached answer included, so reading the window date
+   * by date on every call would put the live-data requests behind a queue of
+   * their own roster. A roster with a date missing is stored for no time at
+   * all: it would otherwise hide the shows exclusive to that date for the
+   * whole lifetime of a cached answer. `today` is part of the key, so the
+   * window moves on at midnight in Hong Kong.
+   *
+   * Days are read in date order and a show is named by the first title that
+   * claims its slug, so today's titles win over later ones.
+   */
+  @cache({callback: (roster: OceanParkShowRoster) => (roster.failedDates.length > 0 ? 0 : SHOW_ROSTER_CACHE_SECONDS)})
+  async getShowRoster(today: string): Promise<OceanParkShowRoster> {
+    const dates = Array.from({length: SHOW_ROSTER_DAYS}, (_, i) => addDaysToDateString(today, i));
+    // allSettled, not all: one unreadable date must not discard the others.
+    const results = await Promise.allSettled(dates.map(d => this.getDailyScheduleItems(d)));
+
+    const failedDates: string[] = [];
+    const rows: OceanParkScheduleItem[] = [];
+    const seen = new Set<string>();
+    results.forEach((result, i) => {
+      if (result.status === 'rejected') {
+        failedDates.push(dates[i]);
+        return;
+      }
+      for (const item of result.value) {
+        // A show performs on many dates; one row per title is all the roster
+        // needs. A row with no usable title is kept, once, so that grouping
+        // still logs it.
+        const key = typeof item?.title === 'string' ? item.title : JSON.stringify(item);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        rows.push(typeof item?.title === 'string'
+          ? {title: item.title, ...(item.locations ? {locations: item.locations} : {})}
+          : item);
+      }
+    });
+
+    if (failedDates.length > 0) {
+      console.warn(`[OceanPark] ${failedDates.length}/${dates.length} daily-schedule requests failed; shows that only perform on those dates are missing from the roster`);
+    }
+
+    const shows = [...groupShowsBySlug(rows).entries()].map(([slug, group]) => ({
+      slug,
+      title: group.title,
+      ...(group.mapKey ? {mapKey: group.mapKey} : {}),
+    }));
+    return {shows, failedDates};
+  }
+
   async getParkOpeningHoursValue(date: string): Promise<string | null> {
     const resp = await this.fetchParkOpeningHours(date);
     const body: OceanParkParkOpeningHoursResponse = await resp.json();
@@ -1005,7 +1087,7 @@ export class OceanParkHongKong extends Destination {
     // page, the daily-schedule API route, and the map subdomain) — each
     // isolated with its own .catch() so one flaky source degrades that
     // category to empty rather than throwing away the whole entity list.
-    const [attractionItems, diningTabs, scheduleItems, coordEntries] = await Promise.all([
+    const [attractionItems, diningTabs, showRoster, coordEntries] = await Promise.all([
       this.getAttractionItems().catch((err: unknown) => {
         console.warn(`[OceanPark] attractions fetch failed (${errMsg(err)}); no attractions this cycle`);
         return [] as OceanParkAttractionItem[];
@@ -1014,9 +1096,9 @@ export class OceanParkHongKong extends Destination {
         console.warn(`[OceanPark] dining fetch failed (${errMsg(err)}); no restaurants this cycle`);
         return [] as OceanParkDiningTab[];
       }),
-      this.getDailyScheduleItems(today).catch((err: unknown) => {
-        console.warn(`[OceanPark] daily schedule fetch failed (${errMsg(err)}); no shows this cycle`);
-        return [] as OceanParkScheduleItem[];
+      this.getShowRoster(today).catch((err: unknown) => {
+        console.warn(`[OceanPark] show roster failed (${errMsg(err)}); no shows this cycle`);
+        return {shows: [], failedDates: []} as OceanParkShowRoster;
       }),
       this.getCoordinateMapEntries().catch((err: unknown) => {
         console.warn(`[OceanPark] coordinate map unavailable (${errMsg(err)}); entities will use default location`);
@@ -1084,11 +1166,13 @@ export class OceanParkHongKong extends Destination {
       });
 
     // Shows have no id/URL from the website at all — only a title, via the
-    // daily-schedule endpoint. groupShowsBySlug() resolves slug collisions
-    // once, consistently with buildLiveData. Coordinate lookup is independent
-    // of identity: explicit map aliases, unique names, then full-title URL slug.
-    const showGroups = groupShowsBySlug(scheduleItems);
-    const showEntities: Entity[] = [...showGroups.entries()].map(([slug, group]) => {
+    // daily-schedule endpoint. A show exists if the programme lists it
+    // anywhere in the roster window, not only today (see getShowRoster).
+    // groupShowsBySlug() resolved slug collisions once, in the roster, which
+    // buildLiveData reads too. Coordinate lookup is independent of identity:
+    // explicit map aliases, unique names, then full-title URL slug.
+    const showEntities: Entity[] = showRoster.shows.map((group) => {
+      const slug = group.slug;
       // The group carries its own map key, so this never re-resolves against
       // the module table and can't disagree with the grouping that produced
       // it. The canonical slug is tried before the display title: a merged
@@ -1136,17 +1220,23 @@ export class OceanParkHongKong extends Destination {
   protected async buildLiveData(): Promise<LiveData[]> {
     const today = formatDate(new Date(), TIMEZONE);
 
-    // Two independent sources (SSR attractions page vs. the daily-schedule
-    // API route) — isolated so one going down doesn't wipe out live data
-    // that came from the other, healthy one.
-    const [attractionItems, scheduleItems] = await Promise.all([
+    // Independent sources (SSR attractions page vs. the daily-schedule API
+    // route) — isolated so one going down doesn't wipe out live data that
+    // came from the other, healthy one. `scheduleItems` is null, not empty,
+    // when today's programme could not be read: an empty programme is an
+    // answer, a failed request is not.
+    const [attractionItems, scheduleItems, showRoster] = await Promise.all([
       this.getAttractionItems().catch((err: unknown) => {
         console.warn(`[OceanPark] attractions fetch failed (${errMsg(err)}); no attraction wait times this cycle`);
         return [] as OceanParkAttractionItem[];
       }),
       this.getDailyScheduleItems(today).catch((err: unknown) => {
         console.warn(`[OceanPark] daily schedule fetch failed (${errMsg(err)}); no show live data this cycle`);
-        return [] as OceanParkScheduleItem[];
+        return null;
+      }),
+      this.getShowRoster(today).catch((err: unknown) => {
+        console.warn(`[OceanPark] show roster failed (${errMsg(err)}); no idle-show live data this cycle`);
+        return {shows: [], failedDates: []} as OceanParkShowRoster;
       }),
     ]);
 
@@ -1173,7 +1263,7 @@ export class OceanParkHongKong extends Destination {
     // buildEntityList uses, so ids always agree) and emit remaining
     // showtimes. Most entries are a bare start time; event-tab entries can be
     // a start-to-end window instead, which carries a real end time.
-    const showGroups = groupShowsBySlug(scheduleItems);
+    const showGroups = groupShowsBySlug(scheduleItems ?? []);
     const now = Date.now();
     for (const [slug, group] of showGroups) {
       const parsed = group.items
@@ -1228,6 +1318,16 @@ export class OceanParkHongKong extends Destination {
       if (showtimes.length > 0) ld.showtimes = showtimes;
 
       liveData.push(ld);
+    }
+
+    // A show the roster lists but today's programme does not is not
+    // performing today. Say so: left alone, it keeps whatever state its last
+    // performance day ended on. Only once today's programme has been read,
+    // because without it every show on the roster would look idle.
+    if (scheduleItems) {
+      for (const {slug} of showRoster.shows) {
+        if (!showGroups.has(slug)) liveData.push({id: `show_${slug}`, status: 'CLOSED'} as LiveData);
+      }
     }
 
     return liveData;
