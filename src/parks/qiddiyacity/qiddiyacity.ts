@@ -1,5 +1,5 @@
 import {Destination, DestinationConstructor} from '../../destination.js';
-import {cache} from '../../cache.js';
+import {cache, CacheLib} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
 import config from '../../config.js';
@@ -97,6 +97,35 @@ const DAY_NAME_TO_INDEX: Record<string, number> = {
 
 // Number of days of schedule data to project from the weekly pattern.
 const SCHEDULE_DAYS = 30;
+
+type WeeklyHours = Record<number, {open: string; close: string}>;
+
+/** A good website scrape is reused for 12 h; the CMS changes rarely. */
+const WEBSITE_SCHEDULE_TTL_SECONDS = 60 * 60 * 12;
+/**
+ * An EMPTY scrape (Cloudflare 403, markup change) is retried after 15 min
+ * instead of being cached for 12 h: the block is intermittent, and caching
+ * the `{}` used to drop the multi-day schedule to today-only for half a day.
+ */
+const EMPTY_WEBSITE_SCHEDULE_TTL_SECONDS = 60 * 15;
+/** How long the last good weekly pattern stands in for a blocked scrape. */
+const LAST_GOOD_WEEKLY_HOURS_TTL_SECONDS = 60 * 60 * 24 * 7;
+const LAST_GOOD_WEEKLY_HOURS_KEY = 'qiddiyacity:lastGoodWeeklyHours';
+
+/** Cache TTL for getWebsiteSchedule: full for a parsed week, short for `{}`. */
+export const websiteScheduleTtl = (hours: WeeklyHours) =>
+  (Object.keys(hours ?? {}).length ? WEBSITE_SCHEDULE_TTL_SECONDS : EMPTY_WEBSITE_SCHEDULE_TTL_SECONDS);
+
+/**
+ * Pick the weekly pattern to project: the fresh scrape when it parsed,
+ * otherwise the last good one (up to LAST_GOOD_WEEKLY_HOURS_TTL_SECONDS old),
+ * otherwise `{}` so buildSchedules falls back to the dashboard's same-day hours.
+ */
+export function chooseWeeklyHours(fresh: WeeklyHours, lastGood: WeeklyHours | null): WeeklyHours {
+  if (Object.keys(fresh ?? {}).length) return fresh;
+  if (lastGood && typeof lastGood === 'object' && Object.keys(lastGood).length) return lastGood;
+  return {};
+}
 
 /** Convert a 12h hour + AM/PM period to a 24h hour. */
 function to24Hour(hour: number, period: string): number {
@@ -397,11 +426,13 @@ export class QiddiyaCity extends Destination {
    * can 403 this fetch independently of the api.* subdomain used for
    * activities/live data (confirmed 2026-07-19: browser UA didn't help,
    * bot-management blocks are fingerprint/reputation-based, not header-
-   * based). When that happens this returns {} and buildSchedules() falls
-   * back to buildTodayScheduleFromDashboard() for a same-day-only schedule.
+   * based). When that happens this returns {}, cached for 15 min only
+   * (websiteScheduleTtl), and getWeeklyHours() falls back to the last good
+   * pattern, then buildSchedules() to buildTodayScheduleFromDashboard() for a
+   * same-day-only schedule.
    */
-  @cache({ttlSeconds: 43200}) // 12h
-  async getWebsiteSchedule(): Promise<Record<number, {open: string; close: string}>> {
+  @cache({callback: websiteScheduleTtl})
+  async getWebsiteSchedule(): Promise<WeeklyHours> {
     try {
       const resp = await this.fetchWebsite();
       const html = await resp.text();
@@ -423,6 +454,20 @@ export class QiddiyaCity extends Destination {
       console.warn('QiddiyaCity: failed to scrape website schedule:', err);
       return {};
     }
+  }
+
+  /**
+   * The weekly pattern buildSchedules projects. A parsed scrape is stored as
+   * the last good pattern for 7 days, so an intermittent Cloudflare block
+   * keeps the multi-day schedule instead of collapsing it to today only.
+   */
+  async getWeeklyHours(): Promise<WeeklyHours> {
+    const fresh = await this.getWebsiteSchedule();
+    if (Object.keys(fresh).length) {
+      CacheLib.set(LAST_GOOD_WEEKLY_HOURS_KEY, fresh, LAST_GOOD_WEEKLY_HOURS_TTL_SECONDS);
+      return fresh;
+    }
+    return chooseWeeklyHours(fresh, CacheLib.get(LAST_GOOD_WEEKLY_HOURS_KEY));
   }
 
   // ─── Destination + entities ─────────────────────────────────────────────
@@ -557,7 +602,7 @@ export class QiddiyaCity extends Destination {
   // ─── Schedules ───────────────────────────────────────────────────────────
 
   protected async buildSchedules(): Promise<EntitySchedule[]> {
-    const weeklyHours = await this.getWebsiteSchedule();
+    const weeklyHours = await this.getWeeklyHours();
 
     // Six Flags schedule from sixflagsqiddiyacity.com. Aqua Rabia's dedicated
     // schedule isn't available yet; return an empty schedule for it until we
