@@ -7,12 +7,16 @@
  * pure fallback logic that derives a single-day schedule from the
  * (separately-sourced, unaffected) dashboard endpoint when that happens.
  */
-import {describe, test, expect} from 'vitest';
+import {describe, test, expect, vi, afterEach} from 'vitest';
+import {CacheLib} from '../../../cache.js';
 import {
+  QiddiyaCity,
   parseDashboardHours,
   buildTodayScheduleFromDashboard,
   closesNextDay,
   buildWeeklyScheduleFromMegaMenu,
+  websiteScheduleTtl,
+  chooseWeeklyHours,
 } from '../qiddiyacity.js';
 
 describe('buildWeeklyScheduleFromMegaMenu', () => {
@@ -135,5 +139,54 @@ describe('buildTodayScheduleFromDashboard', () => {
   test('returns no schedule when openingHours is missing or unparseable', () => {
     expect(buildTodayScheduleFromDashboard({parkInfo: {}}, today, TZ)).toEqual([]);
     expect(buildTodayScheduleFromDashboard(undefined, today, TZ)).toEqual([]);
+  });
+});
+
+// The website scrape 403s intermittently behind Cloudflare. Before this, the
+// {} it returned on a block was cached for 12 h, so one blocked request cut
+// the 30-day schedule to today only for half a day.
+describe('weekly hours survive an intermittent website block', () => {
+  const WEEK = {0: {open: '16:00', close: '00:00'}, 5: {open: '16:00', close: '00:00'}};
+  const LAST_GOOD_KEY = 'qiddiyacity:lastGoodWeeklyHours';
+
+  afterEach(() => {
+    CacheLib.delete(LAST_GOOD_KEY);
+    vi.restoreAllMocks();
+  });
+
+  test('a parsed week is cached 12 h, an empty scrape only 15 min', () => {
+    expect(websiteScheduleTtl(WEEK)).toBe(12 * 60 * 60);
+    expect(websiteScheduleTtl({})).toBe(15 * 60);
+  });
+
+  test('chooseWeeklyHours prefers fresh, then last good, then nothing', () => {
+    const older = {3: {open: '15:00', close: '23:00'}};
+    expect(chooseWeeklyHours(WEEK, older)).toBe(WEEK);
+    expect(chooseWeeklyHours({}, older)).toBe(older);
+    expect(chooseWeeklyHours({}, null)).toEqual({});
+    expect(chooseWeeklyHours({}, {} as any)).toEqual({});
+  });
+
+  test('a blocked scrape after a good one keeps the multi-day schedule', async () => {
+    const park = new QiddiyaCity();
+    const scrape = vi.spyOn(park, 'getWebsiteSchedule').mockResolvedValueOnce(WEEK).mockResolvedValueOnce({});
+    vi.spyOn(park, 'getDashboard').mockResolvedValue({parkInfo: {isOpen: true, openingHours: '4:00 PM - 12:00 AM KSA'}} as any);
+
+    const good = await (park as any).buildSchedules();
+    const blocked = await (park as any).buildSchedules();
+
+    expect(scrape).toHaveBeenCalledTimes(2);
+    const days = (s: any[]) => s.find((e) => e.id === 'sixflagsqiddiyacity')?.schedule.length ?? 0;
+    expect(days(good)).toBeGreaterThan(1);
+    // Same projection from the stored pattern, not the dashboard's one day.
+    expect(days(blocked)).toBe(days(good));
+  });
+
+  test('with no last good pattern, a blocked scrape still falls back to today', async () => {
+    const park = new QiddiyaCity();
+    vi.spyOn(park, 'getWebsiteSchedule').mockResolvedValue({});
+    const dash = vi.spyOn(park, 'getDashboard').mockResolvedValue({parkInfo: {isOpen: true, openingHours: '4:00 PM - 12:00 AM KSA'}} as any);
+    await (park as any).buildSchedules();
+    expect(dash).toHaveBeenCalled();
   });
 });
