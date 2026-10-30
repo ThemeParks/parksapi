@@ -1,5 +1,5 @@
 import {Destination, DestinationConstructor} from '../../destination.js';
-import {cache} from '../../cache.js';
+import {cache, CacheLib} from '../../cache.js';
 import {http, HTTPObj} from '../../http.js';
 import {inject} from '../../injector.js';
 import {reusable} from '../../promiseReuse.js';
@@ -93,7 +93,7 @@ type EuropaParkSeason = {
 };
 
 /** Live calendar overlay for today */
-type EuropaParkLiveCalendar = {
+export type EuropaParkLiveCalendar = {
   today?: {
     date: string;
     start: string | null;
@@ -184,6 +184,81 @@ const EP_EXPRESS_STATION_TO_POI: Record<number, number> = {
 const EP_EXPRESS_ENTITY_IDS = new Set(
   Object.values(EP_EXPRESS_STATION_TO_POI).map((poiId) => `pois_${poiId}`),
 );
+
+// ─── Overnight ride carry-forward ─────────────────────────────────────────────
+//
+// Around midnight local time the waiting-times feed stops listing the main
+// park's rides and keeps only restaurants; the rides reappear one by one before
+// opening. Rulantica's and Traumatica's rides drop the same way. A ride the feed
+// dropped would otherwise vanish from live data for the night. Rides listed in
+// the last week are remembered, and while a ride's own park is outside its
+// published hours, a remembered ride the feed no longer lists is reported
+// CLOSED. Inside published hours an absent ride is still left out, as before.
+
+/** Cache key for the rides the waiting-times feed listed recently. */
+export const RECENT_RIDES_KEY = 'europapark:recentRideIds';
+
+/** How long a ride stays remembered after the feed last listed it. */
+export const RECENT_RIDES_TTL_SECONDS = 60 * 60 * 24 * 7;
+
+/**
+ * Merge the rides seen this tick into the remembered set (entity id → last seen,
+ * epoch ms) and drop any not seen within the TTL. Pure.
+ */
+export function rememberRides(
+  previous: Record<string, number> | null | undefined,
+  seenIds: Iterable<string>,
+  nowMs: number,
+): Record<string, number> {
+  const cutoff = nowMs - RECENT_RIDES_TTL_SECONDS * 1000;
+  const next: Record<string, number> = {};
+  if (previous && typeof previous === 'object') {
+    for (const [id, at] of Object.entries(previous)) {
+      if (typeof at === 'number' && Number.isFinite(at) && at > cutoff) next[id] = at;
+    }
+  }
+  for (const id of seenIds) next[id] = nowMs;
+  return next;
+}
+
+/**
+ * Whether `now` falls inside the main park's published hours today, from the
+ * live calendar. `null` when the calendar cannot say (missing, malformed, or a
+ * `today` block for another day). A closed day is outside hours. Pure.
+ */
+export function insideMainParkHours(
+  calendar: EuropaParkLiveCalendar | null | undefined,
+  parkDate: string,
+  now: Date,
+): boolean | null {
+  const today = calendar?.today;
+  if (!today || typeof today !== 'object' || typeof today.date !== 'string') return null;
+  if (today.date.substring(0, 10) !== parkDate) return null;
+  if (today.start === null || today.end === null) return false;
+  if (typeof today.start !== 'string' || typeof today.end !== 'string') return null;
+  const start = Date.parse(today.start);
+  const end = Date.parse(today.end);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  const t = now.getTime();
+  return t >= start && t < end;
+}
+
+/**
+ * Whether `now` falls inside any of a park's season opening windows. A park
+ * with no window covering `now` (including one with no season at all) is
+ * outside hours. Windows whose times cannot be parsed are ignored. Pure.
+ */
+export function insideSeasonHours(
+  windows: Array<{openingTime: string; closingTime: string}>,
+  now: Date,
+): boolean {
+  const t = now.getTime();
+  return windows.some((w) => {
+    const open = Date.parse(w.openingTime);
+    const close = Date.parse(w.closingTime);
+    return Number.isFinite(open) && Number.isFinite(close) && t >= open && t < close;
+  });
+}
 
 // ─── Main class ───────────────────────────────────────────────────────────────
 
@@ -888,6 +963,8 @@ class EuropaParkBase extends Destination {
     // During the winter closure the waiting-times feed keeps listing the
     // main park's rides but sends `time: 0` instead of the closed code 333,
     // which the pass above maps to OPERATING with a 0-minute wait.
+    await this._carryForwardAbsentRides(liveDataMap, entities, liveCalendar, now);
+
     await this._applyMainParkClosure(liveDataMap, entities, waits, liveCalendar, now);
 
     // ── Show times ────────────────────────────────────────────────────────
@@ -1030,6 +1107,79 @@ class EuropaParkBase extends Destination {
    * rides do run on some days the season calendar leaves out. If the seasons
    * feed is also unavailable, the feed mapping is left as it is.
    */
+  /**
+   * Remember the rides the feed listed this tick, then report every remembered
+   * ride the feed no longer lists as CLOSED when its own park is outside
+   * published hours. Rides the feed does list are never touched, and a ride
+   * whose park's hours cannot be read is left out, as before.
+   */
+  protected async _carryForwardAbsentRides(
+    liveDataMap: Map<string, LiveData>,
+    entities: EuropaParkEntity[],
+    calendar: EuropaParkLiveCalendar | null,
+    now: Date,
+  ): Promise<void> {
+    const rideScope = new Map<string, string>();
+    for (const entity of entities) {
+      if (entity.entityType !== 'ATTRACTION' || EP_EXPRESS_ENTITY_IDS.has(entity.id)) continue;
+      const scope = this._rideScope(entity);
+      if (scope) rideScope.set(entity.id, scope);
+    }
+    const seen = [...rideScope.keys()].filter((id) => liveDataMap.has(id));
+
+    const remembered = rememberRides(CacheLib.get(RECENT_RIDES_KEY), seen, now.getTime());
+    CacheLib.set(RECENT_RIDES_KEY, remembered, RECENT_RIDES_TTL_SECONDS);
+
+    const absent = Object.keys(remembered).filter((id) => rideScope.has(id) && !liveDataMap.has(id));
+    if (absent.length === 0) return;
+
+    const openNow = await this._parkScopesOpenNow(calendar, now);
+    for (const id of absent) {
+      if (openNow.get(rideScope.get(id)!) !== false) continue;
+      liveDataMap.set(id, {id, status: 'CLOSED'} as LiveData);
+    }
+  }
+
+  /** The park a ride belongs to: another park's scope wins over the main park's. */
+  private _rideScope(entity: EuropaParkEntity): string | undefined {
+    const other = OTHER_PARK_SCOPES.find((scope) => entity.scopes.includes(scope));
+    if (other) return other;
+    return entity.scopes.includes(MAIN_PARK_SCOPE) ? MAIN_PARK_SCOPE : undefined;
+  }
+
+  /**
+   * Whether each park is inside its published hours right now: `true`, `false`,
+   * or `null` when that cannot be read. The main park uses the live calendar and
+   * falls back to the seasons feed; the other parks use the seasons feed, from
+   * yesterday on so a closing time after midnight still counts.
+   */
+  protected async _parkScopesOpenNow(
+    calendar: EuropaParkLiveCalendar | null,
+    now: Date,
+  ): Promise<Map<string, boolean | null>> {
+    let seasons: EuropaParkSeason[] | null = null;
+    try {
+      const resp = await this.getSeasons();
+      seasons = Array.isArray(resp) ? resp : null;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`Europa-Park seasons unavailable (${msg}); not carrying absent rides`);
+    }
+
+    const result = new Map<string, boolean | null>();
+    for (const park of PARK_CONFIGS) {
+      let open: boolean | null = null;
+      if (park.scope === MAIN_PARK_SCOPE) {
+        open = insideMainParkHours(calendar, this._parkDate(now), now);
+      }
+      if (open === null && seasons) {
+        open = insideSeasonHours(this._seasonTimesForPark(seasons, park, addDays(now, -1)), now);
+      }
+      result.set(park.scope, open);
+    }
+    return result;
+  }
+
   protected async _applyMainParkClosure(
     liveDataMap: Map<string, LiveData>,
     entities: EuropaParkEntity[],
