@@ -229,6 +229,7 @@ export const SHOW_ALIASES: ShowAlias[] = [{
     'Gala Of Lights – New Year Celebration',
     'Gala Of Lights - Winter Celebration',
     'Gala Of Lights -- Panda Birthday Edition',
+    'Gala of Lights: Let in the Dark',
   ],
 }];
 
