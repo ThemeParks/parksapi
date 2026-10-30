@@ -207,6 +207,25 @@ describe('groupShowsBySlug', () => {
     }
   });
 
+  test('the "Let in the Dark" edition is the bare Gala show, in any order, and is not flagged as stale', () => {
+    // The park retitled the Halloween-season Gala without a dash, so it read
+    // as an unlisted edition and minted its own id (#561 again).
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const rows = [
+        {title: 'Gala of Lights', timeSlot: ['19:00:00']},
+        {title: 'Gala of Lights: Let in the Dark', timeSlot: ['20:00:00']},
+      ];
+      for (const order of [rows, [...rows].reverse()]) {
+        const groups = groupShowsBySlug(order);
+        expect([...groups.keys()]).toEqual(['gala-of-lights']);
+        expect(groups.get('gala-of-lights')!.items).toHaveLength(2);
+        expect(groups.get('gala-of-lights')!.title).toBe('Gala of Lights: Let in the Dark');
+      }
+      expect(warn).not.toHaveBeenCalled();
+    } finally { warn.mockRestore(); }
+  });
+
   test.each([
     ['ascii dash', 'Gala Of Lights - Lunar Splash Edition'],
     ['colon', 'Gala Of Lights: A Brand New Season'],
@@ -1195,6 +1214,17 @@ describe('buildEntityList', () => {
       .find(e => e.entityType === 'SHOW');
     expect(show.id).toBe('show_gala-of-lights');
     expect(show.location).toEqual({latitude: 5, longitude: 6});
+  });
+
+  test('the "Let in the Dark" edition keeps the Gala id in entities and live data, with the curated pin', async () => {
+    const coordEntries = [['show-key:galaoflights', {latitude: 5, longitude: 6}]] as CoordEntry[];
+    const probe = new Probe({scheduleItems: [{title: 'Gala of Lights: Let in the Dark', timeSlot: ['19:00:00']}], coordEntries});
+    const show = (await probe.entities()).find(e => e.entityType === 'SHOW');
+    expect(show.id).toBe('show_gala-of-lights');
+    expect(show.name).toBe('Gala of Lights: Let in the Dark');
+    expect(show.location).toEqual({latitude: 5, longitude: 6});
+    const live = (await probe.liveData()).filter(l => l.id.startsWith('show_'));
+    expect(live.map(l => l.id)).toEqual(['show_gala-of-lights']);
   });
 
   test('the curated map key wins over a disagreeing name match, and the clash is flagged', async () => {
