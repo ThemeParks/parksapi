@@ -4,7 +4,6 @@
  */
 
 import express from 'express';
-import cors from 'cors';
 import path from 'path';
 import {fileURLToPath} from 'url';
 import {getAllDestinations, getDestinationById} from './destinationRegistry.js';
@@ -13,15 +12,18 @@ import {Destination} from './destination.js';
 import {tracing} from './tracing.js';
 import type {HttpTraceEvent} from './tracing.js';
 import {CacheLib} from './cache.js';
+import {resolveBindHost, webAdminGuard} from './webServerSecurity.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 8888;
+const HOST = resolveBindHost(process.env);
 
-// Middleware
-app.use(cors());
+// Middleware. The guard comes first so nothing below it, static files included,
+// answers a request that did not come from this machine.
+app.use(webAdminGuard(process.env));
 app.use(express.json());
 
 /**
@@ -465,9 +467,9 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 ParksAPI Web Admin running on http://localhost:${PORT}`);
-  console.log(`   - API: http://localhost:${PORT}/api`);
+app.listen(Number(PORT), HOST, () => {
+  console.log(`🚀 ParksAPI Web Admin running on http://${HOST}:${PORT}`);
+  console.log(`   - API: http://${HOST}:${PORT}/api`);
   if (process.env.NODE_ENV !== 'production') {
     console.log(`   - UI: Run 'npm run web:dev' for development mode`);
   }
