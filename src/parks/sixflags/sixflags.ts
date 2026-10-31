@@ -139,6 +139,12 @@ type SixFlagsOperatingHours = {
         assignmentDisplayName?: string;
         timeFrom: string;
         timeTo: string;
+        /**
+         * True when the window is a private buyout: the park runs, but only
+         * for the group that bought it out. Absent on parks that never
+         * publish one.
+         */
+        isBuyout?: boolean;
       }>;
     }>;
     /**
@@ -493,7 +499,34 @@ function hauntWindowForDate(
  * the ride venue's detailHours.
  */
 function parkWindowForDate(dateObj: SixFlagsOperatingHours['dates'][0]): {open: string; close: string} | null {
-  if (dateObj.isParkClosed) return null;
+  const {open, buyout} = parkWindowsForDate(dateObj);
+  return envelopeOf([...open, ...buyout]);
+}
+
+type TimeWindow = {from: string; to: string};
+
+/** The earliest open and latest close across windows, or null for none. */
+function envelopeOf(windows: TimeWindow[]): {open: string; close: string} | null {
+  if (windows.length === 0) return null;
+  return {open: windows.map(w => w.from).sort()[0], close: latestClosingTime(windows)};
+}
+
+/**
+ * The park's windows for one date, split by who they are for.
+ *
+ * `open` is for the public. `buyout` holds the windows the feed flags
+ * `isBuyout: true`: private events, where the park runs for the group that
+ * bought it out and nobody else. Publishing those as ordinary opening hours
+ * showed Six Flags Over Texas open on five November days the park's own
+ * calendar leaves out.
+ *
+ * The ride venue's detailHours carry no such flag, so the fallback to them
+ * is always public.
+ */
+function parkWindowsForDate(
+  dateObj: SixFlagsOperatingHours['dates'][0],
+): {open: TimeWindow[]; buyout: TimeWindow[]} {
+  if (dateObj.isParkClosed) return {open: [], buyout: []};
 
   const parkOperatings = (dateObj.operatings || []).flatMap(op =>
     (op.operatingTypeName === 'Park' || op.operatingTypeId === 24)
@@ -501,16 +534,19 @@ function parkWindowForDate(dateObj: SixFlagsOperatingHours['dates'][0]): {open: 
       : [],
   );
 
-  const windows = parkOperatings.length > 0
-    ? parkOperatings
-      .filter(i => isWallClockTime(i.timeFrom) && isWallClockTime(i.timeTo))
-      .map(i => ({from: i.timeFrom, to: i.timeTo}))
-    : (dateObj.venues?.find(v => v.venueId === RIDE_VENUE_ID)?.detailHours || [])
+  if (parkOperatings.length === 0) {
+    const detail = (dateObj.venues?.find(v => v.venueId === RIDE_VENUE_ID)?.detailHours || [])
       .filter(h => isWallClockTime(h.operatingTimeFrom) && isWallClockTime(h.operatingTimeTo))
       .map(h => ({from: h.operatingTimeFrom, to: h.operatingTimeTo}));
-  if (windows.length === 0) return null;
+    return {open: detail, buyout: []};
+  }
 
-  return {open: windows.map(w => w.from).sort()[0], close: latestClosingTime(windows)};
+  const wellFormed = parkOperatings.filter(i => isWallClockTime(i.timeFrom) && isWallClockTime(i.timeTo));
+  const asWindow = (i: {timeFrom: string; timeTo: string}) => ({from: i.timeFrom, to: i.timeTo});
+  return {
+    open: wellFormed.filter(i => i.isBuyout !== true).map(asWindow),
+    buyout: wellFormed.filter(i => i.isBuyout === true).map(asWindow),
+  };
 }
 
 /**
@@ -1918,29 +1954,36 @@ export class SixFlags extends Destination {
       if (!hoursData?.dates) continue;
 
       for (const dateObj of hoursData.dates) {
-        const parkWindow = parkWindowForDate(dateObj);
+        const windows = parkWindowsForDate(dateObj);
+        const publicWindow = envelopeOf(windows.open);
+        const buyoutWindow = envelopeOf(windows.buyout);
+        const parkWindow = publicWindow ?? buyoutWindow;
         if (!parkWindow) continue;
         const earliestOpen = parkWindow.open;
-        const latestClose = parkWindow.close;
 
         // Parse date from MM/DD/YYYY format
         const dateParts = dateObj.date.split('/');
         if (dateParts.length !== 3) continue;
         const dateStr = `${dateParts[2]}-${dateParts[0]}-${dateParts[1]}`;
 
-        scheduleEntries.push({
+        // Park hours cross midnight too, not just the haunt window. Cedar
+        // Point runs 11:00-00:00 on HalloWeekends dates and Six Flags Mexico
+        // does it year-round. Anchoring the close on the same calendar date
+        // emitted a window that ended before it began — 151 of 866 rows
+        // across 11 parks on 2026-09-17.
+        const entryFor = (type: 'OPERATING' | 'PRIVATE_EVENT', w: {open: string; close: string}): ScheduleEntry => ({
           date: dateStr,
-          type: 'OPERATING',
-          openingTime: constructDateTime(dateStr, earliestOpen, tz),
-          // Park hours cross midnight too, not just the haunt window. Cedar
-          // Point runs 11:00-00:00 on HalloWeekends dates and Six Flags Mexico
-          // does it year-round. Anchoring the close on the same calendar date
-          // emitted a window that ended before it began — 151 of 866 rows
-          // across 11 parks on 2026-09-17.
-          closingTime: closeTimeCrossesMidnight(earliestOpen, latestClose)
-            ? constructDateTime(shiftDateString(dateStr, 1), latestClose, tz)
-            : constructDateTime(dateStr, latestClose, tz),
-        });
+          type,
+          openingTime: constructDateTime(dateStr, w.open, tz),
+          closingTime: closeTimeCrossesMidnight(w.open, w.close)
+            ? constructDateTime(shiftDateString(dateStr, 1), w.close, tz)
+            : constructDateTime(dateStr, w.close, tz),
+        } as ScheduleEntry);
+
+        if (publicWindow) scheduleEntries.push(entryFor('OPERATING', publicWindow));
+        // A buyout window is the park running for one group. Published as
+        // OPERATING it read as open to everyone.
+        if (buyoutWindow) scheduleEntries.push(entryFor('PRIVATE_EVENT', buyoutWindow));
 
         const hauntWindow = hauntWindowForDate(dateObj, earliestOpen);
         if (hauntWindow) {
