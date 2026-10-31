@@ -1295,6 +1295,11 @@ export class SixFlags extends Destination {
    * last night's window (park hours or the haunt event) is still running
    * past midnight.
    *
+   * A private buyout day counts as open. The rides run for the group that
+   * bought the park out, so an all-"Not Scheduled" snapshot on that day is
+   * as stale as on any other. Whether the public may come in is the
+   * schedule's question (PRIVATE_EVENT), not this one.
+   *
    * Only positive evidence counts. A day the vendor lists as closed, a day
    * listed with no hours (how a water park reads off-season), a day missing
    * from the response and a failed fetch all return false, so the caller
@@ -1957,7 +1962,9 @@ export class SixFlags extends Destination {
         const windows = parkWindowsForDate(dateObj);
         const publicWindow = envelopeOf(windows.open);
         const buyoutWindow = envelopeOf(windows.buyout);
-        const parkWindow = publicWindow ?? buyoutWindow;
+        // The park's open for the haunt's maze filter is the earliest gate
+        // time on the day, buyout or not, as it was before the two were split.
+        const parkWindow = envelopeOf([...windows.open, ...windows.buyout]);
         if (!parkWindow) continue;
         const earliestOpen = parkWindow.open;
 

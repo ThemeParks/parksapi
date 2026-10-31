@@ -21,11 +21,11 @@ import type {EntitySchedule} from '@themeparks/typelib';
 const SFOT = 901;
 const DALLAS = {latitude: '32.76', longitude: '-97.07'};
 
-type Item = {timeFrom: string; timeTo: string; isBuyout?: boolean};
+type Item = {timeFrom: string; timeTo: string; isBuyout?: unknown};
 type Day = {date: string; isParkClosed: boolean; venues: unknown[]; operatings: unknown[]};
 
 /** One feed day whose Park window is made of `items`. */
-function day(iso: string, items: Item[]): Day {
+function day(iso: string, items: Item[], extra: Partial<Day> = {}): Day {
   return {
     date: `${iso.slice(5, 7)}/${iso.slice(8, 10)}/${iso.slice(0, 4)}`,
     isParkClosed: false,
@@ -35,8 +35,13 @@ function day(iso: string, items: Item[]): Day {
       operatingTypeName: 'Park',
       items: items.map(i => ({assignmentDisplayName: 'Park', assignmentDescription: '', ...i})),
     }],
+    ...extra,
   };
 }
+
+/** A venue's per-ride hours, as the feed lists them under `venues`. */
+const venue = (venueId: number, hours: Array<[string, string]>) =>
+  ({venueId, detailHours: hours.map(([operatingTimeFrom, operatingTimeTo]) => ({operatingTimeFrom, operatingTimeTo}))});
 
 const toYmd = (mdy: string) => `${mdy.slice(6, 10)}${mdy.slice(0, 2)}${mdy.slice(3, 5)}`;
 
@@ -160,4 +165,110 @@ describe('buyout days in the schedule', () => {
     expect(datesOf('OPERATING')).toEqual(['2026-11-01', '2026-11-14', '2026-11-22']);
     expect(datesOf('PRIVATE_EVENT')).toEqual(['2026-11-07', '2026-11-08', '2026-11-13', '2026-11-15', '2026-11-21']);
   });
+
+  test('two buyout windows on one day publish one PRIVATE_EVENT from the first open to the last close', async () => {
+    const probe = new Probe();
+    probe.calendar = [day('2026-11-09', [
+      {timeFrom: '09:00', timeTo: '12:00', isBuyout: true},
+      {timeFrom: '18:00', timeTo: '23:00', isBuyout: true},
+    ])];
+
+    expect(on(await probe.scheduleForTest(), '2026-11-09')).toEqual([
+      {type: 'PRIVATE_EVENT', open: '2026-11-09T09:00:00-06:00', close: '2026-11-09T23:00:00-06:00'},
+    ]);
+  });
+
+  test('a closed day publishes nothing, whatever it lists', async () => {
+    const probe = new Probe();
+    probe.calendar = [day('2026-11-10', [{timeFrom: '11:00', timeTo: '18:00', isBuyout: true}], {isParkClosed: true})];
+
+    expect(on(await probe.scheduleForTest(), '2026-11-10')).toEqual([]);
+  });
+
+  test('Park items with unusable times publish nothing and do not fall back to the ride hours', async () => {
+    const probe = new Probe();
+    probe.calendar = [day(
+      '2026-11-11',
+      [{timeFrom: 'TBD', timeTo: '18:00', isBuyout: true}, {timeFrom: '', timeTo: '', isBuyout: false}],
+      {venues: [venue(1, [['10:00', '18:00']])]},
+    )];
+
+    expect(on(await probe.scheduleForTest(), '2026-11-11')).toEqual([]);
+  });
+
+  test('a buyout window with an unusable time leaves the public window alone', async () => {
+    const probe = new Probe();
+    probe.calendar = [day('2026-11-12', [
+      {timeFrom: '11:00', timeTo: '17:00', isBuyout: false},
+      {timeFrom: 'TBD', timeTo: '23:00', isBuyout: true},
+    ])];
+
+    expect(on(await probe.scheduleForTest(), '2026-11-12')).toEqual([
+      {type: 'OPERATING', open: '2026-11-12T11:00:00-06:00', close: '2026-11-12T17:00:00-06:00'},
+    ]);
+  });
+
+  test.each([['the string "true"', 'true'], ['the number 1', 1], ['null', null]])(
+    'isBuyout as %s is not a buyout: only a boolean true is',
+    async (_label, flag) => {
+      const probe = new Probe();
+      probe.calendar = [day('2026-11-16', [{timeFrom: '10:00', timeTo: '18:00', isBuyout: flag}])];
+
+      expect(on(await probe.scheduleForTest(), '2026-11-16').map(e => e.type)).toEqual(['OPERATING']);
+    },
+  );
+
+  test('a day with no Park window falls back to the ride hours, always public', async () => {
+    const probe = new Probe();
+    probe.calendar = [day('2026-11-17', [], {venues: [venue(1, [['10:00', '18:00']])]})];
+
+    expect(on(await probe.scheduleForTest(), '2026-11-17')).toEqual([
+      {type: 'OPERATING', open: '2026-11-17T10:00:00-06:00', close: '2026-11-17T18:00:00-06:00'},
+    ]);
+  });
 });
+
+/**
+ * Haunt hours inferred from the mazes ignore any maze filed before the park
+ * opens. "The park opens" has to mean the same thing it did before buyouts
+ * were split out: the earliest open across everything the Park block lists.
+ * Anchoring on the public window alone moved the haunt's open on any day a
+ * buyout started earlier.
+ */
+describe('haunt hours on a day with a buyout', () => {
+  const mazes = venue(3, [['06:00', '23:00'], ['10:00', '23:00']]);
+
+  test('a buyout that opens earlier than the public window still anchors the haunt open', async () => {
+    const probe = new Probe();
+    probe.calendar = [day('2026-11-18', [
+      {timeFrom: '09:00', timeTo: '12:00', isBuyout: true},
+      {timeFrom: '17:00', timeTo: '22:00', isBuyout: false},
+    ], {venues: [mazes]})];
+
+    const haunt = (await probe.scheduleForTest()).filter(e => e.date === '2026-11-18' && e.type === 'TICKETED_EVENT');
+
+    // 06:00 is before the 09:00 gates and is dropped; 10:00 is the first plausible start.
+    expect(haunt.map(e => e.openingTime)).toEqual(['2026-11-18T10:00:00-06:00']);
+  });
+
+  test('a buyout-only day anchors the haunt on the buyout open', async () => {
+    const probe = new Probe();
+    probe.calendar = [day('2026-11-19', [{timeFrom: '09:00', timeTo: '12:00', isBuyout: true}], {venues: [mazes]})];
+
+    const haunt = (await probe.scheduleForTest()).filter(e => e.date === '2026-11-19' && e.type === 'TICKETED_EVENT');
+
+    expect(haunt.map(e => e.openingTime)).toEqual(['2026-11-19T10:00:00-06:00']);
+  });
+});
+
+describe('the frozen-feed check on a buyout day', () => {
+  test('a park bought out for the day still counts as running', async () => {
+    const probe = new Probe();
+    probe.calendar = [day('2026-11-07', [{timeFrom: '11:00', timeTo: '18:00', isBuyout: true}])];
+    // Saturday 7 November, 13:00 Central.
+    const now = new Date('2026-11-07T19:00:00Z');
+
+    expect(await probe.scheduleSaysOpen(SFOT, 'America/Chicago', now)).toBe(true);
+  });
+});
+
