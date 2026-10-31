@@ -1855,15 +1855,17 @@ class Universal extends Destination {
         const expressTarget = expressVariants.get(rideId);
         if (expressTarget) {
           if (queue.queue_type !== 'STANDBY') continue;
-          if (queue.status !== 'OPEN' && queue.status !== 'RIDE_NOW') continue;
+          if (queue.status !== 'OPEN' && queue.status !== 'RIDE_NOW' && queue.status !== 'NO_WAIT') continue;
           // `?? undefined` because a null reading must be treated as absent,
           // not published as PAID_STANDBY:null — that is byte-identical to the
           // EXPRESS branch's "sold, wait unknown" and no consumer could tell
           // the two provenances apart.
           const raw = queue.display_wait_time ?? undefined;
           // 995 is Universal's "not available" sentinel; RIDE_NOW with no
-          // reading is a walk-on, matching the STANDBY branch below.
-          const waitTime = queue.status === 'RIDE_NOW' && raw === undefined ? 0 : raw;
+          // reading and NO_WAIT are walk-ons, matching the STANDBY branch below.
+          const waitTime = queue.status === 'NO_WAIT'
+            ? 0
+            : (queue.status === 'RIDE_NOW' && raw === undefined ? 0 : raw);
           if (waitTime === undefined || waitTime === 995) continue;
           const target = getOrCreateLiveData(expressTarget);
           if (!target.queue) {
@@ -1879,7 +1881,7 @@ class Universal extends Destination {
 
         switch (queue.queue_type) {
           case 'STANDBY':
-            if (queue.status === 'OPEN' || queue.status === 'RIDE_NOW') {
+            if (queue.status === 'OPEN' || queue.status === 'RIDE_NOW' || queue.status === 'NO_WAIT') {
               let waitTime = queue.display_wait_time ?? undefined;
               if (waitTime === undefined && queue.status === 'RIDE_NOW') {
                 waitTime = 0;
@@ -1888,6 +1890,13 @@ class Universal extends Destination {
               // EXPRESS branch: the queue is open but has no reading.
               if (waitTime === 995) {
                 waitTime = undefined;
+              }
+              // NO_WAIT is the feed saying nobody is queuing (the app prints
+              // "No wait"). It used to fall through to CLOSED. The
+              // display_wait_time beside it is a placeholder, not a reading:
+              // CLOSED rows carry the same 5. Publish the walk-on.
+              if (queue.status === 'NO_WAIT') {
+                waitTime = 0;
               }
 
               if (!attractionLiveData.queue) {
