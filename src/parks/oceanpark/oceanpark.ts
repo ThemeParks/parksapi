@@ -5,7 +5,7 @@
  * along with the app itself — every endpoint now returns a permanent 502 from
  * Ocean Park's own gateway. All data is instead scraped from the public website
  * (www.oceanpark.com.hk), which server-renders attraction/dining data —
- * including live wait times — as an embedded React Server Component (RSC) JSON
+ * including a per-ride queue figure — as an embedded React Server Component (RSC) JSON
  * payload. No auth, no token, same page anyone gets in a browser.
  *
  * Entity IDs changed as a result: the app's numeric IDs don't exist in the
@@ -535,7 +535,12 @@ export function groupShowsBySlug(
  * Parse "10 mins" / " 0  mins" style queue text into minutes. Requires the
  * number to actually be adjacent to "min" so incidental digits elsewhere in
  * a status string (e.g. a future "Reopens at 5pm") can't be misread as a
- * wait time.
+ * minute figure.
+ *
+ * The figure is a presence signal only. The site's queue text moves in coarse
+ * steps (mostly 0 and 5) and does not track the line, so callers use
+ * "is there a figure" to decide open or closed and never publish the number as
+ * a wait time.
  *
  * Returns null for missing/unparseable text — the website uses an explicit
  * `null` queueTime for attractions with no queue mechanic (walkthroughs,
@@ -558,7 +563,7 @@ export function parseQueueMinutes(text: string | null | undefined): number | nul
  * halloween-2026 tab's Bulu Boo Trick-or-Treat Party), which is a range, not
  * a start time. Handing that string straight to constructDateTime() built an
  * Invalid Date and threw a bare RangeError out of buildLiveData(), so one
- * event item took every attraction wait time down with it on every sync.
+ * event item took every attraction status down with it on every sync.
  *
  * Returns null for anything that is not a valid time or time range, so no
  * unvalidated feed text ever reaches date construction. A range whose end is
@@ -791,7 +796,7 @@ export class OceanParkHongKong extends Destination {
 
   // ── HTTP Fetch Methods ────────────────────────────────────────────────────
 
-  /** SSR attractions listing — embeds live queue times. Short cache since wait times refresh often. */
+  /** SSR attractions listing — embeds a per-ride queue figure, used as the open/closed signal. Short cache since it refreshes often. */
   @http({cacheSeconds: 60})
   async fetchAttractionsPage(): Promise<HTTPObj> {
     return {
@@ -869,7 +874,7 @@ export class OceanParkHongKong extends Destination {
     const html = await resp.text();
     const items = extractRscArray(html, '"items":', firstItemHasKey('nodeId')) as OceanParkAttractionItem[] | null;
     if (!items) {
-      console.warn('[OceanPark] attractions page RSC data not found; entity list and wait times will be empty this cycle');
+      console.warn('[OceanPark] attractions page RSC data not found; entity list and ride status will be empty this cycle');
       return [];
     }
     return items;
@@ -895,7 +900,7 @@ export class OceanParkHongKong extends Destination {
     // serving `items` as an object, a number or a bare `0`, and `0 ?? []`
     // keeps the zero. Both builders iterate this, and buildLiveData does so
     // after its per-source catch has already run, so a non-array here takes
-    // every attraction wait time down with it.
+    // every attraction status down with it.
     return Array.isArray(body?.items) ? body.items : [];
   }
 
@@ -1228,7 +1233,7 @@ export class OceanParkHongKong extends Destination {
     // answer, a failed request is not.
     const [attractionItems, scheduleItems, showRoster] = await Promise.all([
       this.getAttractionItems().catch((err: unknown) => {
-        console.warn(`[OceanPark] attractions fetch failed (${errMsg(err)}); no attraction wait times this cycle`);
+        console.warn(`[OceanPark] attractions fetch failed (${errMsg(err)}); no attraction status this cycle`);
         return [] as OceanParkAttractionItem[];
       }),
       this.getDailyScheduleItems(today).catch((err: unknown) => {
@@ -1244,20 +1249,21 @@ export class OceanParkHongKong extends Destination {
     const liveData: LiveData[] = [];
 
     for (const item of attractionItems.filter(isValidAttractionItem)) {
-      const wt = parseQueueMinutes(item.queueTime?.text);
+      // The website gives no explicit open/closed flag — queueTime is the
+      // only live signal. Its minute figure is not a measured queue: it moves
+      // in coarse steps (mostly 0 and 5) and does not track the
+      // line, so it is read only for whether a figure is present and is never
+      // published as a wait time. Any figure, 0 included, means the
+      // attraction is running. No figure (null) means either "no queue
+      // mechanic" or "currently closed" and we can't tell which, so it falls
+      // through to CLOSED rather than fabricating an OPERATING status with no
+      // evidence behind it.
+      const hasQueueReading = parseQueueMinutes(item.queueTime?.text) !== null;
 
-      const ld: LiveData = {
+      liveData.push({
         id: `attraction_${item.nodeId}`,
-        // The website gives no explicit open/closed flag — queueTime is the
-        // only live signal. No signal (null) means either "no queue
-        // mechanic" or "currently closed" and we can't tell which, so it
-        // falls through to CLOSED rather than fabricating an OPERATING
-        // status with no evidence behind it.
-        status: wt !== null ? 'OPERATING' : 'CLOSED',
-      } as LiveData;
-
-      if (wt !== null) ld.queue = {STANDBY: {waitTime: wt}};
-      liveData.push(ld);
+        status: hasQueueReading ? 'OPERATING' : 'CLOSED',
+      } as LiveData);
     }
 
     // Shows — group today's programme entries by slug (same grouping

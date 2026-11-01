@@ -1528,20 +1528,43 @@ describe('buildLiveData', () => {
     expect(showtimes[0].startTime).toContain('19:00:00+08:00');
   });
 
-  test('a numeric queueTime maps to OPERATING with that standby wait', async () => {
+  // The site's per-ride queue text behaves like a coarse flag, not a measured
+  // queue, so it is used as an open/closed signal and never published as a
+  // wait time.
+  test('a numeric queueTime maps to OPERATING and publishes no queue', async () => {
     const probe = new Probe({attractions: [mkAttraction({queueTime: {text: ' 10  mins'}})]});
     const live = await probe.liveData();
     const entry = live.find((l) => l.id === 'attraction_node-1');
     expect(entry.status).toBe('OPERATING');
-    expect(entry.queue.STANDBY.waitTime).toBe(10);
+    expect(entry.queue).toBeUndefined();
   });
 
-  test('a "0 mins" queueTime is OPERATING with a zero wait, not CLOSED', async () => {
+  test('a "0 mins" queueTime is OPERATING with no queue, not CLOSED', async () => {
     const probe = new Probe({attractions: [mkAttraction({queueTime: {text: ' 0  mins'}})]});
     const live = await probe.liveData();
     const entry = live.find((l) => l.id === 'attraction_node-1');
     expect(entry.status).toBe('OPERATING');
-    expect(entry.queue.STANDBY.waitTime).toBe(0);
+    expect(entry.queue).toBeUndefined();
+  });
+
+  test.each([' 0  mins', ' 5  mins', ' 10  mins', ' 15  mins', '25 mins'])(
+    'queueTime %j yields exactly an id and an OPERATING status, with no queue key at all',
+    async (text) => {
+      const probe = new Probe({attractions: [mkAttraction({queueTime: {text}})]});
+      const live = await probe.liveData();
+      const entry = live.find((l) => l.id === 'attraction_node-1');
+      expect(entry).toEqual({id: 'attraction_node-1', status: 'OPERATING'});
+      expect('queue' in entry).toBe(false);
+    },
+  );
+
+  test('status does not depend on the minute value: 0 and 5 give the same status', async () => {
+    const statusFor = async (text: string) => {
+      const probe = new Probe({attractions: [mkAttraction({queueTime: {text}})]});
+      return (await probe.liveData()).find((l) => l.id === 'attraction_node-1').status;
+    };
+    expect(await statusFor(' 0  mins')).toBe(await statusFor(' 5  mins'));
+    expect(await statusFor(' 5  mins')).toBe('OPERATING');
   });
 
   test('an explicit null queueTime (no queue mechanic / no signal) is CLOSED with no queue', async () => {
@@ -1550,6 +1573,35 @@ describe('buildLiveData', () => {
     const entry = live.find((l) => l.id === 'attraction_node-1');
     expect(entry.status).toBe('CLOSED');
     expect(entry.queue).toBeUndefined();
+  });
+
+  test.each([
+    ['a missing queueTime', undefined],
+    ['a queueTime with no text', {}],
+    ['a queueTime with null text', {text: null}],
+    ['a queueTime whose text carries no minutes', {text: 'Closed'}],
+  ])('%s is CLOSED with no queue', async (_label, queueTime) => {
+    const probe = new Probe({attractions: [mkAttraction({queueTime})]});
+    const live = await probe.liveData();
+    const entry = live.find((l) => l.id === 'attraction_node-1');
+    expect(entry).toEqual({id: 'attraction_node-1', status: 'CLOSED'});
+  });
+
+  test('a mixed listing keeps per-ride status and publishes no queue for any ride', async () => {
+    const probe = new Probe({
+      attractions: [
+        mkAttraction({nodeId: 'a', queueTime: {text: ' 5  mins'}}),
+        mkAttraction({nodeId: 'b', queueTime: {text: ' 0  mins'}}),
+        mkAttraction({nodeId: 'c', queueTime: null}),
+      ],
+    });
+    const rides = (await probe.liveData()).filter((l) => l.id.startsWith('attraction_'));
+    expect(rides.map((r) => [r.id, r.status])).toEqual([
+      ['attraction_a', 'OPERATING'],
+      ['attraction_b', 'OPERATING'],
+      ['attraction_c', 'CLOSED'],
+    ]);
+    expect(rides.some((r) => 'queue' in r)).toBe(false);
   });
 
   test('a show with only future showtimes today is OPERATING and lists them', async () => {
@@ -1597,7 +1649,7 @@ describe('buildLiveData', () => {
     expect(new Set(ids).size).toBe(ids.length); // no duplicate ids in the emitted array
   });
 
-  test('a shows-fetch failure degrades to no show live data without losing attraction wait times', async () => {
+  test('a shows-fetch failure degrades to no show live data without losing attraction status', async () => {
     const probe = new Probe({attractions: [mkAttraction({queueTime: {text: ' 10  mins'}})]});
     (probe as any).getDailyScheduleItems = () => Promise.reject(new Error('daily schedule route down'));
 
@@ -1605,15 +1657,15 @@ describe('buildLiveData', () => {
     expect(live.find((l) => l.id.startsWith('show_'))).toBeUndefined();
     const attraction = live.find((l) => l.id === 'attraction_node-1');
     expect(attraction.status).toBe('OPERATING');
-    expect(attraction.queue.STANDBY.waitTime).toBe(10);
+    expect(attraction.queue).toBeUndefined();
   });
 
-  test('a range timeSlot does not reject the whole live-data build and take wait times with it', async () => {
+  test('a range timeSlot does not reject the whole live-data build and take ride status with it', async () => {
     // Regression: Ocean Park's halloween-2026 tab publishes a window
     // ("11:00:00-17:00:00") in timeSlot instead of a start time. Handed
     // straight to constructDateTime() that produced an Invalid Date and a
     // RangeError that rejected buildLiveData() outright, so one event item
-    // zeroed out every attraction wait time as well as every show.
+    // zeroed out every attraction status as well as every show.
     const probe = new Probe({
       attractions: [mkAttraction({queueTime: {text: ' 10  mins'}})],
       scheduleItems: [{title: 'Bulu Boo Trick-or-Treat Party', timeSlot: ['11:00:00-17:00:00']}],
@@ -1622,7 +1674,7 @@ describe('buildLiveData', () => {
     const live = await probe.liveData();
     const attraction = live.find((l) => l.id === 'attraction_node-1');
     expect(attraction.status).toBe('OPERATING');
-    expect(attraction.queue.STANDBY.waitTime).toBe(10);
+    expect(attraction.queue).toBeUndefined();
   });
 
   test('a range timeSlot still running is OPERATING with both a start and an end time', async () => {
@@ -1659,7 +1711,7 @@ describe('buildLiveData', () => {
     expect(entry.showtimes[0].startTime.startsWith('2026-07-07T13:00')).toBe(true);
   });
 
-  test('an attractions-fetch failure degrades to no attraction wait times without losing show live data', async () => {
+  test('an attractions-fetch failure degrades to no attraction status without losing show live data', async () => {
     const probe = new Probe({scheduleItems: [{title: 'All Star Jam', timeSlot: ['13:00:00']}]});
     (probe as any).getAttractionItems = () => Promise.reject(new Error('attractions page down'));
 
@@ -1927,6 +1979,8 @@ describe('show roster window', () => {
     });
     const live = await probe.liveData();
     expect(liveShows(live)).toEqual([]);
-    expect(live.find((l) => l.id === 'attraction_node-1').queue.STANDBY.waitTime).toBe(10);
+    const attraction = live.find((l) => l.id === 'attraction_node-1');
+    expect(attraction.status).toBe('OPERATING');
+    expect(attraction.queue).toBeUndefined();
   });
 });
