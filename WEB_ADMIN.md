@@ -171,6 +171,8 @@ Execute an HTTP method with custom parameters.
 
 ### Environment Variables
 - `PORT`: Server port (default: 8888)
+- `WEB_ADMIN_HOST`: Interface to listen on (default: `127.0.0.1`, this machine only). Set it to `0.0.0.0` to reach the server from another machine, for example from a container with a published port.
+- `WEB_ADMIN_ALLOWED_HOSTS`: Comma separated hostnames, without ports, that may use the server besides `localhost`, `127.0.0.1` and `::1`. Needed when you open the UI by a machine name or LAN address. A request whose `Host` or `Origin` header names any other host gets a 403, which stops other websites from driving the admin API through your browser.
 - `NODE_ENV`: Set to `production` for optimized builds
 
 All other environment variables (API credentials, etc.) are loaded from `.env` file via the `@config` decorator system.
