@@ -6,6 +6,16 @@
  * Generates old→new entity ID mappings for a park, then serves
  * a browser-based review UI for approving and committing changes
  * to the ThemeParks.wiki API.
+ *
+ * The review server listens on every interface so it can be used from another
+ * machine. Open the address it prints: it carries a token made for that run,
+ * and anything without the token gets a 401. Environment:
+ *
+ *   MIGRATE_PORT           port to listen on (default 9900)
+ *   MIGRATE_HOST           machine name used in the printed address
+ *   MIGRATE_ALLOWED_HOSTS  extra hostnames the browser may use (comma
+ *                          separated, no ports), for opening it by an address
+ *                          other than MIGRATE_HOST or this machine's name
  */
 
 import {getAllDestinations} from '../../destinationRegistry.js';

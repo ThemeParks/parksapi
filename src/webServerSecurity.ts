@@ -19,7 +19,7 @@
 import cors from 'cors';
 import type {RequestHandler, Response} from 'express';
 
-const LOOPBACK_HOSTNAMES = ['localhost', '127.0.0.1', '::1'];
+export const LOOPBACK_HOSTNAMES = ['localhost', '127.0.0.1', '::1'];
 
 /** Where to listen. Loopback by default; WEB_ADMIN_HOST opts in to another interface. */
 export function resolveBindHost(env: NodeJS.ProcessEnv): string {
@@ -52,25 +52,40 @@ export function allowedHostnames(env: NodeJS.ProcessEnv): Set<string> {
   return new Set([...LOOPBACK_HOSTNAMES, ...extra]);
 }
 
-function refuse(res: Response): void {
-  res.status(403).json({error: 'Forbidden'});
+/**
+ * Refuses (403) a request whose Host header, or Origin header when it has one,
+ * does not name an allowed host. Shared with the migration review server.
+ */
+export function refuseForeignHostOrOrigin(allowed: Set<string>, message = 'Forbidden'): RequestHandler {
+  return (req, res, next) => {
+    const host = hostnameOf(req.headers.host);
+    if (!host || !allowed.has(host)) return refuse(res, message);
+
+    if (req.headers.origin !== undefined) {
+      const origin = hostnameOf(req.headers.origin);
+      if (!origin || !allowed.has(origin)) return refuse(res, message);
+    }
+
+    next();
+  };
+}
+
+function refuse(res: Response, message: string): void {
+  res.status(403).json({error: message});
 }
 
 /** Refuses foreign Host and Origin headers, then answers CORS for the rest. */
 export function webAdminGuard(env: NodeJS.ProcessEnv): RequestHandler {
   const allowed = allowedHostnames(env);
-  // Only allowed origins get past the checks below, so reflecting is safe.
-  const answerCors = cors({origin: true});
+  const refuseForeign = refuseForeignHostOrOrigin(allowed);
+  // The check above already refuses foreign origins; this repeats it so the
+  // CORS policy never depends on code somewhere else.
+  const answerCors = cors({
+    origin: (origin, callback) => {
+      const name = hostnameOf(origin);
+      callback(null, origin === undefined || (name !== undefined && allowed.has(name)));
+    },
+  });
 
-  return (req, res, next) => {
-    const host = hostnameOf(req.headers.host);
-    if (!host || !allowed.has(host)) return refuse(res);
-
-    if (req.headers.origin !== undefined) {
-      const origin = hostnameOf(req.headers.origin);
-      if (!origin || !allowed.has(origin)) return refuse(res);
-    }
-
-    answerCors(req, res, next);
-  };
+  return (req, res, next) => refuseForeign(req, res, () => answerCors(req, res, next));
 }

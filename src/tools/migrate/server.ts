@@ -10,8 +10,9 @@ import {readFileSync} from 'fs';
 import {join} from 'path';
 import os from 'node:os';
 import type {Mapping, NewEntity} from './matcher.js';
+import {accessUrl, migrateAccessGuard, migrateHostnames, newAccessToken, type Access} from './access.js';
 
-interface ServerConfig {
+export interface ServerConfig {
   mappings: Mapping[];
   unmatchedNew: NewEntity[];
   allNewEntities: NewEntity[];
@@ -23,8 +24,13 @@ interface ServerConfig {
   port: number;
 }
 
-export function startMigrationServer(config: ServerConfig): void {
+/**
+ * Builds the review app without listening, so it can be tested. The access
+ * guard is mounted first: no route, the page included, answers without it.
+ */
+export function createMigrationApp(config: ServerConfig, access: Access): express.Express {
   const app = express();
+  app.use(migrateAccessGuard(access));
   app.use(express.json());
 
   // State
@@ -281,18 +287,21 @@ export function startMigrationServer(config: ServerConfig): void {
     }
   }
 
-  // ── Start ────────────────────────────────────────────────────
+  return app;
+}
+
+/** Builds the app and listens on every interface, printing the address to open. */
+export function startMigrationServer(config: ServerConfig): void {
+  const access: Access = {token: newAccessToken(), allowed: migrateHostnames(process.env, os.hostname())};
+  const app = createMigrationApp(config, access);
 
   app.listen(config.port, '0.0.0.0', () => {
-    const rawHost = process.env.MIGRATE_HOST || os.hostname();
-    // Bracket IPv6 literals (`::1`, `fe80::1`) for the printed URL — `http://::1:9900/`
-    // isn't a valid URL, but `http://[::1]:9900/` is.
-    const isBracketedIPv6 = /^\[.+\]$/.test(rawHost);
-    const looksIPv6 = !isBracketedIPv6 && rawHost.includes(':');
-    const host = looksIPv6 ? `[${rawHost}]` : rawHost;
+    const host = process.env.MIGRATE_HOST || os.hostname();
     console.log(`\nMigration review server running on :${config.port} (bound 0.0.0.0)`);
     console.log(`  ${config.parkName}`);
-    console.log(`  ${mappings.length} mappings to review`);
-    console.log(`\nOpen http://${host}:${config.port}/ in your browser to review (or http://localhost:${config.port}/ when running on the same machine).\n`);
+    console.log(`  ${config.mappings.length} mappings to review`);
+    console.log(`\nOpen ${accessUrl(host, config.port, access.token)} in your browser to review.`);
+    console.log(`The link carries a token made for this run; anyone without it gets a 401.`);
+    console.log(`To open it by any other name or address, set MIGRATE_ALLOWED_HOSTS to that name.\n`);
   });
 }
