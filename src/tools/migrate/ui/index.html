@@ -182,19 +182,7 @@ function render() {
     if (m.status === 'skip') rowClasses.push('skip');
     tr.className = rowClasses.join(' ');
 
-    const distStr = m.distance !== null ? `<span class="distance">${m.distance}m</span>` : '';
-    const noopTag = m.noop ? '<span class="tag-noop">No-op</span>' : '';
-
-    tr.innerHTML = `
-      <td class="mono">${esc(m.oldExternalId)}</td>
-      <td>${esc(m.oldName)}${noopTag}</td>
-      <td class="arrow arrow-${m.confidence}">${m.newExternalId ? '→' : '—'}</td>
-      <td class="mono">${m.newExternalId ? esc(m.newExternalId.substring(0, 12) + '...') : renderPairDropdown(idx, m)}</td>
-      <td>${m.newName ? esc(m.newName) : ''} ${distStr}</td>
-      <td style="font-size:11px;color:#888">${m.entityType}</td>
-      <td class="confidence conf-${m.confidence}">${renderConfidence(m)}</td>
-      <td class="actions">${renderActions(idx, m)}</td>
-    `;
+    tr.innerHTML = renderRowHtml(idx, m);
     tbody.appendChild(tr);
   });
 
@@ -204,11 +192,38 @@ function render() {
   commitBtn.disabled = confirmed === 0;
 }
 
-function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+// Names and ids come from park APIs and the wiki, so none of them is trusted.
+// Quotes are escaped as well because some of this output lands inside
+// double-quoted attributes. Plain string work, so the unit tests can run it
+// without a DOM.
+function esc(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderRowHtml(idx, m) {
+  const distStr = m.distance !== null ? `<span class="distance">${esc(m.distance)}m</span>` : '';
+  const noopTag = m.noop ? '<span class="tag-noop">No-op</span>' : '';
+
+  return `
+      <td class="mono">${esc(m.oldExternalId)}</td>
+      <td>${esc(m.oldName)}${noopTag}</td>
+      <td class="arrow arrow-${esc(m.confidence)}">${m.newExternalId ? '→' : '—'}</td>
+      <td class="mono">${m.newExternalId ? esc(m.newExternalId.substring(0, 12) + '...') : renderPairDropdown(idx, m)}</td>
+      <td>${m.newName ? esc(m.newName) : ''} ${distStr}</td>
+      <td style="font-size:11px;color:#888">${esc(m.entityType)}</td>
+      <td class="confidence conf-${esc(m.confidence)}">${renderConfidence(m)}</td>
+      <td class="actions">${renderActions(idx, m)}</td>
+    `;
+}
 
 function renderConfidence(m) {
   if (m.confidence === 'exact') return '● Exact';
-  if (m.confidence === 'fuzzy') return `● Fuzzy (${m.confidenceScore}%)`;
+  if (m.confidence === 'fuzzy') return `● Fuzzy (${esc(m.confidenceScore)}%)`;
   return '● None';
 }
 
@@ -314,6 +329,11 @@ function hideConfirm() {
   document.getElementById('confirmOverlay').classList.remove('active');
 }
 
+function renderProgressLine(d) {
+  const cls = d.success ? 'success' : 'fail';
+  return `<div class="${cls}">${d.success ? '✓' : '✗'} ${esc(d.name)} ${esc(d.oldId)} → ${esc(d.newId)} ${d.error ? '(' + esc(d.error) + ')' : ''}</div>`;
+}
+
 async function doCommit() {
   hideConfirm();
   document.getElementById('progressOverlay').classList.add('active');
@@ -332,8 +352,7 @@ async function doCommit() {
     document.getElementById('progressFill').style.width = pct + '%';
     document.getElementById('progressStatus').textContent = `${d.index}/${d.total}`;
     const log = document.getElementById('progressLog');
-    const cls = d.success ? 'success' : 'fail';
-    log.innerHTML += `<div class="${cls}">${d.success ? '✓' : '✗'} ${esc(d.name || '')} ${d.oldId || ''} → ${d.newId || ''} ${d.error ? '(' + esc(d.error) + ')' : ''}</div>`;
+    log.innerHTML += renderProgressLine(d);
     log.scrollTop = log.scrollHeight;
   });
   evtSource.addEventListener('complete', (e) => {
