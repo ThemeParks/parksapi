@@ -8,7 +8,7 @@ import {cache, CacheLib} from "./cache.js";
 import {LIVE_ENTITY_RETIREMENT_FRAGMENT} from "./cacheKeys.js";
 import {VQueueBuilder} from "./virtualQueue/builder.js";
 import {calculateReturnWindow} from "./virtualQueue/timeWindows.js";
-import {formatInTimezone} from "./datetime.js";
+import {formatInTimezone, rollPastMidnightClose} from "./datetime.js";
 import {stripHtmlTags, decodeHtmlEntities} from "./htmlUtils.js";
 
 /**
@@ -106,6 +106,26 @@ function stripUndefinedDeep(value: unknown): void {
  * definition so a type added there is accepted here without a second list.
  */
 const SCHEDULE_TYPES: ReadonlySet<string> = new Set(Object.values(ScheduleTypeEnum));
+
+/**
+ * Past-midnight closes stamped with the opening date (closingTime at or before
+ * openingTime) move to the next day, in place, for every park. Read literally,
+ * such a day is an empty window: anything downstream deciding "open now" from
+ * the hours sees the park closed through the whole open day. Parks did this on
+ * Halloween event nights (19:00 to "00:00"/"01:00") and on a late opening to
+ * midnight. Each park's own builder could be fixed, but a new source with the
+ * same shape would bring it back, so the final getSchedules() pass fixes it.
+ */
+function rollPastMidnightCloses(schedules: EntitySchedule[], tz: string): void {
+  for (const s of schedules) {
+    if (!Array.isArray(s.schedule)) continue;
+    for (const e of s.schedule) {
+      if (typeof e?.openingTime !== 'string' || typeof e?.closingTime !== 'string') continue;
+      const rolled = rollPastMidnightClose(e.openingTime, e.closingTime, tz);
+      if (rolled) e.closingTime = rolled;
+    }
+  }
+}
 
 /**
  * Warn about schedule entries whose `type` the schedule definition does not
@@ -1572,6 +1592,7 @@ export abstract class Destination {
     await this.init();
     const schedules = await this.buildSchedules();
     for (const s of schedules) stripUndefinedDeep(s);
+    rollPastMidnightCloses(schedules, this.timezone);
     warnOnUnknownScheduleTypes(this.constructor.name, schedules);
     return schedules;
   }

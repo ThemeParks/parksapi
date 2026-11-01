@@ -395,6 +395,36 @@ export function localFromFakeUtc(fakeUtcStr: string, tz: string): string {
 }
 
 /**
+ * A closing time at or before its opening time, less than a day before it, is
+ * a past-midnight close stamped with the opening date: an event night of
+ * 19:00 to "00:00" or "01:00", or a late opening to midnight, written on the
+ * date it opened. Returns the same wall-clock time on the next calendar day, or
+ * null when the pair needs no change (close after open, unparseable, or a close
+ * a full day or more before the open, which is not this shape).
+ *
+ * With a real IANA `tz` the offset is recomputed, so a close on the night the
+ * clocks change gets the right one. With no zone (or the 'UTC' default while
+ * the string carries another offset) the string's own offset is kept.
+ *
+ * @param openingTime ISO 8601 opening time
+ * @param closingTime ISO 8601 closing time
+ * @param tz IANA timezone of the park, if known
+ */
+export function rollPastMidnightClose(openingTime: string, closingTime: string, tz?: string): string | null {
+  const openMs = Date.parse(openingTime);
+  const closeMs = Date.parse(closingTime);
+  if (!Number.isFinite(openMs) || !Number.isFinite(closeMs)) return null;
+  if (closeMs > openMs || openMs - closeMs >= 24 * 60 * 60 * 1000) return null;
+  const m = closingTime.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}(?::\d{2})?)(?:\.\d+)?(Z|[+-]\d{2}:\d{2})$/i);
+  if (!m) return null;
+  const [, date, time, offset] = m;
+  const next = shiftDateString(date, 1);
+  const zoneless = !tz || (tz === 'UTC' && !/^(Z|[+-]00:00)$/i.test(offset));
+  const rolled = zoneless ? `${next}T${time.length === 5 ? `${time}:00` : time}${offset}` : constructDateTime(next, time, tz);
+  return Date.parse(rolled) > openMs ? rolled : null;
+}
+
+/**
  * Extract a hostname from a URL string, returning undefined if invalid.
  * Commonly used in @inject hostname filters for dynamic API base URLs.
  *
