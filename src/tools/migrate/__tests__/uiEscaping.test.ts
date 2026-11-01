@@ -15,7 +15,12 @@ import vm from 'node:vm';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const html = readFileSync(join(HERE, '..', 'ui', 'index.html'), 'utf-8');
-const script = /<script[^>]*>([\s\S]*)<\/script\s*>/i.exec(html)![1];
+// The page has one inline script and no other <script> text, so slice by position.
+const SCRIPT_OPEN = '<script>';
+const scriptStart = html.indexOf(SCRIPT_OPEN);
+const scriptEnd = html.lastIndexOf('</script>');
+if (scriptStart === -1 || scriptEnd < scriptStart) throw new Error('ui/index.html has no inline script');
+const script = html.slice(scriptStart + SCRIPT_OPEN.length, scriptEnd);
 
 /** Breaks out of a double-quoted attribute and adds an event handler. */
 const ATTRIBUTE_BREAKOUT = '" onfocus="alert(1)" autofocus="';
