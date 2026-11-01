@@ -76,9 +76,16 @@ function refuse(res: Response, message: string): void {
 
 /** Refuses foreign Host and Origin headers, then answers CORS for the rest. */
 export function webAdminGuard(env: NodeJS.ProcessEnv): RequestHandler {
-  const refuseForeign = refuseForeignHostOrOrigin(allowedHostnames(env));
-  // Only allowed origins get past the check above, so reflecting is safe.
-  const answerCors = cors({origin: true});
+  const allowed = allowedHostnames(env);
+  const refuseForeign = refuseForeignHostOrOrigin(allowed);
+  // The check above already refuses foreign origins; this repeats it so the
+  // CORS policy never depends on code somewhere else.
+  const answerCors = cors({
+    origin: (origin, callback) => {
+      const name = hostnameOf(origin);
+      callback(null, origin === undefined || (name !== undefined && allowed.has(name)));
+    },
+  });
 
   return (req, res, next) => refuseForeign(req, res, () => answerCors(req, res, next));
 }

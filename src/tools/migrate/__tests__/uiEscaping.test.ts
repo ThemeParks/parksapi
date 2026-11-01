@@ -15,7 +15,7 @@ import vm from 'node:vm';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const html = readFileSync(join(HERE, '..', 'ui', 'index.html'), 'utf-8');
-const script = /<script>([\s\S]*)<\/script>/.exec(html)![1];
+const script = /<script[^>]*>([\s\S]*)<\/script\s*>/i.exec(html)![1];
 
 /** Breaks out of a double-quoted attribute and adds an event handler. */
 const ATTRIBUTE_BREAKOUT = '" onfocus="alert(1)" autofocus="';
