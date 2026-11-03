@@ -105,8 +105,8 @@ export class UniversalStudiosBeijing extends Destination {
     } as any as HTTPObj;
   }
 
-  /** Shows with show times — cache 3 hours */
-  @http({cacheSeconds: 10800})
+  /** Shows with show times and live status — cache 1 minute (live data, like the attraction list) */
+  @http({cacheSeconds: 60})
   async fetchShowData(): Promise<HTTPObj> {
     return {
       method: 'GET',
@@ -145,7 +145,7 @@ export class UniversalStudiosBeijing extends Destination {
     return data?.data?.list || [];
   }
 
-  @cache({ttlSeconds: 10800})
+  @cache({ttlSeconds: 60})
   async getShowData(): Promise<any[]> {
     const resp = await this.fetchShowData();
     const data = await resp.json();
