@@ -1147,10 +1147,12 @@ async function fireRequest(
         console.error(`HTTP request failed, no retries left: ${entry.request.method} ${redactedUrl} ${errMsg}`);
       }
       // A transport error keeps its class, so a request whose injector ran into
-      // it through a nested request is not retried either
+      // it through a nested request is not retried either. Every rejection keeps
+      // the original error as `cause`: a network failure reads only "fetch failed",
+      // and why it failed (refused, reset, DNS, connect timeout) is on its cause.
       const message = `${entry.request.method} ${redactedUrl}: ${errMsg}`;
       entry.request.rejectPromise(
-        transportFailed ? new HttpTransportError(message, {cause: error}) : new Error(message)
+        transportFailed ? new HttpTransportError(message, {cause: error}) : new Error(message, {cause: error})
       );
     }
   }
