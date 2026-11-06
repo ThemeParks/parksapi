@@ -4,6 +4,7 @@ import {fileURLToPath} from 'node:url';
 import {dirname, resolve} from 'node:path';
 import {
   Tivoli,
+  tivoliBatchMissing,
   tivoliDateWindow,
   tivoliHeightTags,
   tivoliHoursEntry,
@@ -284,6 +285,34 @@ describe('tivoliRideSchedules', () => {
   });
 });
 
+describe('tivoliBatchMissing', () => {
+  // The hours API answers 200 for assets it does not know, with the ids under
+  // `errors` and nothing under `items`.
+  const notFound = {
+    items: [],
+    errors: [{assetId: '00000000-0000-0000-0000-000000000000', code: 'not_found', detail: 'No opening-hours view was found for this asset.'}],
+  };
+
+  test('nothing back for a non-empty request is a failure, not "no ride has hours"', () => {
+    expect(() => tivoliBatchMissing(33, notFound)).toThrow(/no assets for 33 requested \(not_found\)/);
+    expect(() => tivoliBatchMissing(33, {items: []})).toThrow(/no assets/);
+    expect(() => tivoliBatchMissing(33, undefined as any)).toThrow(/no assets/);
+  });
+
+  test('a clean answer has nothing missing', () => {
+    expect(tivoliBatchMissing(33, {...openWeek, errors: []})).toBe(0);
+    expect(tivoliBatchMissing(33, openWeek)).toBe(0);
+  });
+
+  test('some assets found and some not reports how many were missing', () => {
+    expect(tivoliBatchMissing(33, {items: openWeek.items, errors: notFound.errors})).toBe(1);
+  });
+
+  test('an empty request is not an error', () => {
+    expect(tivoliBatchMissing(0, {items: []})).toBe(0);
+  });
+});
+
 describe('tivoliDateWindow', () => {
   test('"today" is the park day, not the UTC day', () => {
     // 23:30 UTC on 6 November is 00:30 on 7 November in Copenhagen.
@@ -342,6 +371,28 @@ describe('Tivoli', () => {
     ];
     expect(await park.getLiveData()).toEqual([]);
     for (const spy of fetched) expect(spy).not.toHaveBeenCalled();
+  });
+
+  test('schedules fail loudly when the hours API knows none of the rides', async () => {
+    const park = make();
+    vi.spyOn(park, 'getRides').mockResolvedValue(ridesFeed.items);
+    vi.spyOn(park, 'fetchParkHours').mockResolvedValue({json: async () => parkHours} as any);
+    vi.spyOn(park, 'fetchRideHours').mockResolvedValue({json: async () => ({
+      items: [],
+      errors: [{assetId: 'x', code: 'not_found'}],
+    })} as any);
+    await expect((park as any).buildSchedules()).rejects.toThrow(/no assets/);
+  });
+
+  test('with no rides the park hours still publish and the batch is not called', async () => {
+    const park = make();
+    vi.spyOn(park, 'getRides').mockResolvedValue([]);
+    vi.spyOn(park, 'fetchParkHours').mockResolvedValue({json: async () => parkHours} as any);
+    const batch = vi.spyOn(park, 'fetchRideHours');
+    const schedules = await (park as any).buildSchedules();
+    expect(schedules).toHaveLength(1);
+    expect(schedules[0].id).toBe('tivoligardens');
+    expect(batch).not.toHaveBeenCalled();
   });
 
   test('schedules are the park first, then each ride that has hours', async () => {

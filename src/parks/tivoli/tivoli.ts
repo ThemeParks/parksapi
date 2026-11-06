@@ -68,6 +68,8 @@ export interface TivoliAssetHours {
 
 export interface TivoliBatchHours {
   items: TivoliAssetHours[];
+  /** Assets the hours API could not find. It still answers 200 for these. */
+  errors?: {assetId: string; code?: string; detail?: string}[];
 }
 
 type ScheduleEntry = EntitySchedule['schedule'][number];
@@ -220,6 +222,22 @@ export function tivoliRideSchedules(
   return out;
 }
 
+/**
+ * Check a batch answer against what was asked. The hours API answers 200 even
+ * when it knows none of the assets, listing them under `errors`, so a changed
+ * id scheme would otherwise read as "no ride has hours". When nothing came back
+ * for a non-empty request, that is the feed failing: throw. Returns how many
+ * requested assets were not found, so the caller can say so.
+ */
+export function tivoliBatchMissing(requested: number, batch: TivoliBatchHours): number {
+  const returned = Array.isArray(batch?.items) ? batch.items.length : 0;
+  if (requested > 0 && returned === 0) {
+    const detail = batch?.errors?.[0]?.code ? ` (${batch.errors[0].code})` : '';
+    throw new Error(`Tivoli ride-hours batch returned no assets for ${requested} requested${detail}`);
+  }
+  return batch?.errors?.length ?? 0;
+}
+
 /** The park's own calendar day and the day `days` later, as the API's date strings. */
 export function tivoliDateWindow(now: Date, timezone: string, days: number): {from: string; to: string} {
   return {
@@ -262,7 +280,7 @@ export class Tivoli extends Destination {
 
   // ── HTTP ───────────────────────────────────────────────────
 
-  @http({cacheSeconds: 43200})
+  @http({cacheSeconds: 43200, healthCheckArgs: ['rideEntity']})
   async fetchContent(contentType: string): Promise<HTTPObj> {
     return {
       method: 'GET',
@@ -280,7 +298,13 @@ export class Tivoli extends Destination {
     } as any as HTTPObj;
   }
 
-  @http({cacheSeconds: 43200})
+  // The health check has no real ride ids to send, so it sends a placeholder.
+  // The API answers 200 with the id under `errors`, which is enough to show the
+  // endpoint is reachable and accepting the body.
+  @http({
+    cacheSeconds: 43200,
+    healthCheckArgs: [['00000000-0000-0000-0000-000000000000'], '{today}', '{date+7}'],
+  })
   async fetchRideHours(assetIds: string[], fromDate: string, toDate: string): Promise<HTTPObj> {
     return {
       method: 'POST',
@@ -374,8 +398,19 @@ export class Tivoli extends Destination {
 
     const rides = await this.getRides();
     const crmIds = rides.map(r => r.properties.crmId).filter((id): id is string => Boolean(id));
-    const rideResp = await this.fetchRideHours(crmIds, from, to);
-    const rideSchedules = tivoliRideSchedules(rides, (await rideResp.json()) as TivoliBatchHours, this.timezone);
+
+    // The batch endpoint rejects an empty id list, so with no rides the park's
+    // own hours still publish and the ride hours are simply absent.
+    let rideSchedules: EntitySchedule[] = [];
+    if (crmIds.length > 0) {
+      const rideResp = await this.fetchRideHours(crmIds, from, to);
+      const batch = (await rideResp.json()) as TivoliBatchHours;
+      const missing = tivoliBatchMissing(crmIds.length, batch);
+      if (missing > 0) {
+        console.warn(`[Tivoli] ride-hours batch could not find ${missing} of ${crmIds.length} assets`);
+      }
+      rideSchedules = tivoliRideSchedules(rides, batch, this.timezone);
+    }
 
     return [{id: 'tivoligardens', schedule: parkSchedule} as EntitySchedule, ...rideSchedules];
   }
