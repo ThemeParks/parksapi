@@ -1,6 +1,6 @@
 # ThemeParks.wiki Park Data Backend
 
-An open-source TypeScript library for fetching real-time theme park data — wait times, schedules, and entity metadata — from <!-- destinations:count -->82<!-- /destinations:count -->+ destinations worldwide.
+An open-source TypeScript library for fetching real-time theme park data — wait times, schedules, and entity metadata — from <!-- destinations:count -->83<!-- /destinations:count -->+ destinations worldwide.
 
 This library powers the free API at [ThemeParks.wiki](https://themeparks.wiki).
 
@@ -116,7 +116,7 @@ make COMPOSE="podman-compose --env-file /dev/null --podman-run-args=--userns=kee
 ## Supported Destinations
 
 <!-- destinations:table -->
-82 destinations across Disney, Universal, Cedar Fair, Six Flags, Merlin, and many more.
+83 destinations across Disney, Universal, Cedar Fair, Six Flags, Merlin, and many more.
 
 Some parks are served through a parent destination rather than an id of their own — Cedar Point and Knott's Berry Farm arrive under the Six Flags controller, for instance — so they are entities in the output rather than rows here.
 
@@ -195,6 +195,7 @@ Run `npm run dev -- --list` for the same list with categories.
 | Silver Dollar City | `silverdollarcity` |
 | Six Flags | `sixflags` |
 | Thorpe Park | `thorpepark` |
+| Tivoli | `tivoli` |
 | Tokyo Disney Resort | `tokyodisneyresort` |
 | Toverland | `toverland` |
 | Universal Orlando | `universalorlando` |
