@@ -1,0 +1,85 @@
+{
+ "total": 77,
+ "items": [
+  {
+   "contentType": "foodEntity",
+   "id": "4d659bff-2a59-4b58-9f4f-23b5b52f3564",
+   "properties": {
+    "entityName": "A Hereford Beefstouw",
+    "crmId": null,
+    "latitude": 55.6746656,
+    "longitude": 12.5660171,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "restaurant",
+    "shortDescription": "A legendary steakhouse",
+    "priceCategory": "$$$"
+   }
+  },
+  {
+   "contentType": "foodEntity",
+   "id": "8a830a8f-606e-4789-af68-8c39383d4ba9",
+   "properties": {
+    "entityName": "Anarkist Bar",
+    "crmId": null,
+    "latitude": 55.6727376,
+    "longitude": 12.5669914,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "restaurant",
+    "shortDescription": "Craft beer with zest and verve",
+    "priceCategory": "$$"
+   }
+  },
+  {
+   "contentType": "foodEntity",
+   "id": "3f457661-ebe6-4447-8f36-9ea70f1cd371",
+   "properties": {
+    "entityName": "Apollo Brew",
+    "crmId": null,
+    "latitude": 55.6748558,
+    "longitude": 12.5660564,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "bar",
+    "shortDescription": "Freshly brewed beer ",
+    "priceCategory": "$$"
+   }
+  },
+  {
+   "contentType": "foodEntity",
+   "id": "5c5e1c13-9ebc-402f-ba09-daa03567642a",
+   "properties": {
+    "entityName": "Arkadens Isbod",
+    "crmId": null,
+    "latitude": 55.6725012,
+    "longitude": 12.5688777,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "sweets",
+    "shortDescription": "A haven of handmade delights",
+    "priceCategory": "$"
+   }
+  },
+  {
+   "contentType": "foodEntity",
+   "id": "b28b2315-1819-4279-aa50-d61076583b12",
+   "properties": {
+    "entityName": "Bazar Isen",
+    "crmId": null,
+    "latitude": 55.6735078,
+    "longitude": 12.5712303,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "sweets",
+    "shortDescription": "Sweet treats in an oriental setting ",
+    "priceCategory": "$"
+   }
+  }
+ ]
+}

@@ -1,0 +1,41 @@
+{
+ "items": [
+  {
+   "id": "c8c2197f-5d6c-ee11-9ae7-6045bd905937",
+   "name": "Aquila",
+   "status": "Open",
+   "assetType": "Amusement",
+   "canBuyTickets": true,
+   "lastModified": "2026-11-06T02:17:21Z",
+   "hours": []
+  },
+  {
+   "id": "a3579f17-8574-f111-ab0d-70a8a56385cc",
+   "name": "Hotel Hikari",
+   "status": "Open",
+   "assetType": "Amusement",
+   "canBuyTickets": true,
+   "lastModified": "2026-11-06T02:18:24Z",
+   "hours": []
+  },
+  {
+   "id": "e6ba9247-e192-ef11-8a69-7c1e5250c8f0",
+   "name": "Skøjtebanen",
+   "status": "Closed",
+   "assetType": "Amusement",
+   "canBuyTickets": false,
+   "lastModified": "2025-08-14T14:12:33Z",
+   "hours": []
+  },
+  {
+   "id": "7beac726-e192-ef11-8a69-7c1e5250c8f0",
+   "name": "Scary House",
+   "status": "Closed",
+   "assetType": "Amusement",
+   "canBuyTickets": false,
+   "lastModified": "2026-11-03T10:18:39Z",
+   "hours": []
+  }
+ ],
+ "errors": []
+}
