@@ -336,7 +336,11 @@ describe('Parc Asterix dark-show guards', () => {
   // Before opening the bill is still the last open day's, so republishing its
   // performances would assert a passed day's programme as today's — which is
   // how the wiki came to serve a 19:00-close day's showtimes on an 18:00 day.
-  it('publishes nothing about shows before the park opens', async () => {
+  //
+  // But the park is shut, which the calendar does settle, so every show is
+  // CLOSED, the stale bill's performances included. Leaving the shows out of
+  // the build entirely made them vanish every morning until opening.
+  it('closes every show before the park opens, without the stale bill’s times', async () => {
     vi.setSystemTime(new Date('2026-09-09T05:30:00Z')); // 07:30 Europe/Paris
     const live = await stubbedPark(
       ATTRACTIONS,
@@ -344,9 +348,39 @@ describe('Parc Asterix dark-show guards', () => {
       [...ATTRACTION_POI, show(31483), show(31513)],
     ).getLiveData();
 
-    expect(live.find((l) => l.id === '31483')).toBeUndefined();
-    expect(live.find((l) => l.id === '31513')).toBeUndefined();
-    expect(live).toHaveLength(ATTRACTIONS.length);
+    expect(live.find((l) => l.id === '31483')).toEqual({id: '31483', status: 'CLOSED'});
+    expect(live.find((l) => l.id === '31513')).toEqual({id: '31513', status: 'CLOSED'});
+    expect(live).toHaveLength(ATTRACTIONS.length + 2);
+  });
+
+  // After the last close the feed serves a default programme (2026-09-09: it
+  // reverted at 18:50 for an 18:00 close). Its shows must stay in the build,
+  // as CLOSED, through to local midnight: on 2026-11-08 leaving them out took
+  // 23 of 67 rows out of every build from 19:01 to 23:58 local.
+  it('keeps every show in the build as CLOSED after the park has closed', async () => {
+    vi.setSystemTime(new Date('2026-09-09T17:30:00Z')); // 19:30 Europe/Paris, closed at 18:00
+    const live = await stubbedPark(
+      ATTRACTIONS,
+      [performance('31483', [{at: '19:45:00', startAt: null, endAt: null}])],
+      [...ATTRACTION_POI, show(31483), show(31513)],
+    ).getLiveData();
+
+    expect(live.find((l) => l.id === '31483')).toEqual({id: '31483', status: 'CLOSED'});
+    expect(live.find((l) => l.id === '31513')).toEqual({id: '31513', status: 'CLOSED'});
+    expect(live).toHaveLength(ATTRACTIONS.length + 2);
+  });
+
+  it('never closes a show the attraction bill itself observes, outside hours too', async () => {
+    vi.setSystemTime(new Date('2026-09-09T17:30:00Z'));
+    const live = await stubbedPark(
+      [...ATTRACTIONS, latency('31513', true, 5)],
+      [],
+      [...ATTRACTION_POI, show(31513)],
+    ).getLiveData();
+
+    expect(live.filter((l) => l.id === '31513')).toEqual([
+      {id: '31513', status: 'OPERATING', queue: {STANDBY: {waitTime: 5}}},
+    ]);
   });
 
   // The small hours are different: an event night's bill is still that night's
