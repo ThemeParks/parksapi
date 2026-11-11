@@ -1,0 +1,420 @@
+{
+ "_note": "paxLatencies + paxSchedules as served on 2026-11-11 ~15:55Z, an attested closed day in the off-season",
+ "latencies": [
+  {
+   "drupalId": "31304",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31306",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31307",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31310",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31311",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31312",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31316",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31317",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31319",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31320",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31321",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31324",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31325",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31326",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31328",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31356",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31357",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31358",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31359",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31360",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31364",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31365",
+   "latency": null,
+   "isOpen": true,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31366",
+   "latency": null,
+   "isOpen": true,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31367",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31372",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31373",
+   "latency": null,
+   "isOpen": true,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31375",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": null
+  },
+  {
+   "drupalId": "31376",
+   "latency": null,
+   "isOpen": true,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31377",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31378",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31380",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": null
+  },
+  {
+   "drupalId": "31383",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31386",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": null
+  },
+  {
+   "drupalId": "31387",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31388",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  },
+  {
+   "drupalId": "31389",
+   "latency": null,
+   "isOpen": false,
+   "message": null,
+   "openingTime": null,
+   "closingTime": "18:00:00"
+  }
+ ],
+ "schedules": [
+  {
+   "drupalId": "31488",
+   "times": [
+    {
+     "at": "12:00:00",
+     "startAt": null,
+     "endAt": null
+    },
+    {
+     "at": "13:30:00",
+     "startAt": null,
+     "endAt": null
+    },
+    {
+     "at": "15:00:00",
+     "startAt": null,
+     "endAt": null
+    },
+    {
+     "at": "16:30:00",
+     "startAt": null,
+     "endAt": null
+    }
+   ]
+  },
+  {
+   "drupalId": "31496",
+   "times": [
+    {
+     "at": "12:30:00",
+     "startAt": null,
+     "endAt": null
+    },
+    {
+     "at": "14:30:00",
+     "startAt": null,
+     "endAt": null
+    },
+    {
+     "at": "16:00:00",
+     "startAt": null,
+     "endAt": null
+    }
+   ]
+  },
+  {
+   "drupalId": "31505",
+   "times": [
+    {
+     "at": null,
+     "startAt": "12:00:00",
+     "endAt": "18:00:00"
+    }
+   ]
+  },
+  {
+   "drupalId": "31510",
+   "times": [
+    {
+     "at": "13:45:00",
+     "startAt": null,
+     "endAt": null
+    },
+    {
+     "at": "14:45:00",
+     "startAt": null,
+     "endAt": null
+    }
+   ]
+  },
+  {
+   "drupalId": "31513",
+   "times": [
+    {
+     "at": "11:45:00",
+     "startAt": null,
+     "endAt": null
+    },
+    {
+     "at": "14:15:00",
+     "startAt": null,
+     "endAt": null
+    },
+    {
+     "at": "15:15:00",
+     "startAt": null,
+     "endAt": null
+    }
+   ]
+  },
+  {
+   "drupalId": "31519",
+   "times": [
+    {
+     "at": "12:15:00",
+     "startAt": null,
+     "endAt": null
+    },
+    {
+     "at": "13:15:00",
+     "startAt": null,
+     "endAt": null
+    },
+    {
+     "at": "16:00:00",
+     "startAt": null,
+     "endAt": null
+    },
+    {
+     "at": "17:00:00",
+     "startAt": null,
+     "endAt": null
+    }
+   ]
+  },
+  {
+   "drupalId": "36841",
+   "times": [
+    {
+     "at": "18:00:00",
+     "startAt": null,
+     "endAt": null
+    }
+   ]
+  }
+ ]
+}

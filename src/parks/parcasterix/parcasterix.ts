@@ -1189,6 +1189,29 @@ export class ParcAsterix extends Destination {
         .filter((id) => !observed.has(id))
         .map((id) => ({id, status: 'CLOSED'}) as LiveData);
 
+    // A few attractions report `isOpen: true` with no latency on every poll,
+    // whether the park is open or not: the play areas (Getafix Play Area,
+    // Little Oaks Play Area, The Golden Boar Playground, The Asterix
+    // Adventure). On 2026-11-11, an attested closed day in the off-season, they
+    // were the only four of 36 that said open. Published as they come, they
+    // read OPERATING all winter and every night.
+    //
+    // A ride with a measured wait is a real observation and is left alone:
+    // rides do run on closed days for private events, and that is published
+    // truthfully. An open flag with no wait behind it carries no such evidence,
+    // so once the calendar says nothing is in session it is CLOSED.
+    const unmeasuredOpen = new Set(
+      latencies
+        .filter((entry) => entry.isOpen && entry.latency === null)
+        .map((entry) => String(entry.drupalId)),
+    );
+    const closeUnmeasuredOpen = (rows: LiveData[]): LiveData[] =>
+      rows.map((row) =>
+        unmeasuredOpen.has(row.id) && row.status === 'OPERATING'
+          ? ({id: row.id, status: 'CLOSED'} as LiveData)
+          : row,
+      );
+
     // Outside today's hours, before opening or after the last close. The bill
     // is not about now: before opening it is the last open day's, after
     // closing the feed serves a default programme. So neither its performances
@@ -1201,7 +1224,7 @@ export class ParcAsterix extends Destination {
     // local. A store that reads a missing row as a removal, or keeps serving
     // the last row it had, gets that stretch wrong either way.
     if (authority === 'stale') {
-      return [...liveWaitTimes, ...closeEveryShow()];
+      return [...closeUnmeasuredOpen(liveWaitTimes), ...closeEveryShow()];
     }
 
     if (!corroborated || authority === 'unknown') {
@@ -1215,7 +1238,7 @@ export class ParcAsterix extends Destination {
     // the package's, so an id the package has never carried is not left
     // advertising a performance that cannot happen.
     if (authority === 'all-dark') {
-      return [...liveWaitTimes, ...closeEveryShow()];
+      return [...closeUnmeasuredOpen(liveWaitTimes), ...closeEveryShow()];
     }
 
     const darkShows: LiveData[] = showIds
