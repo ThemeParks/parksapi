@@ -274,7 +274,6 @@ export class Tivoli extends Destination {
     req.headers = {
       ...req.headers,
       'accept-language': 'en-us',
-      'user-agent': 'Dart/3.13 (dart:io)',
     };
   }
 
@@ -395,6 +394,11 @@ export class Tivoli extends Destination {
     const parkResp = await this.fetchParkHours(from, to);
     const parkHours = await parkResp.json();
     const parkSchedule = tivoliScheduleEntries(parkHours?.hours ?? [], this.timezone);
+    // The window is 180 days. No usable park day in it is the feed failing, and
+    // publishing an empty schedule would replace the park's hours with nothing.
+    if (parkSchedule.length === 0) {
+      throw new Error(`Tivoli park hours returned no usable days between ${from} and ${to}`);
+    }
 
     const rides = await this.getRides();
     const crmIds = rides.map(r => r.properties.crmId).filter((id): id is string => Boolean(id));

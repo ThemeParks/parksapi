@@ -27,7 +27,10 @@ import {
  * hours for a week: every ride reads "Open" and carries no hours. Nothing here
  * may turn that status into an open ride.
  *
- * Fixtures are trimmed from the live responses captured on 2026-11-06.
+ * Fixtures are trimmed from the live responses captured on 2026-11-06, except
+ * the long-maintenance one, captured on 2026-11-13 (opening day): a ride in
+ * long maintenance reads `status: "LongMaintenance"` and its hours rows are
+ * `Inactive`, so it must publish no schedule.
  */
 
 const TZ = 'Europe/Copenhagen';
@@ -39,6 +42,7 @@ const foodFeed = fixture<TivoliContentFeed>('food.json');
 const parkHours = fixture<{hours: TivoliHoursRow[]}>('park-hours.json');
 const closedDay = fixture<TivoliBatchHours>('ride-hours-closed-day.json');
 const openWeek = fixture<TivoliBatchHours>('ride-hours-open-week.json');
+const longMaintenance = fixture<TivoliBatchHours>('ride-hours-long-maintenance.json');
 
 const ctx = {destinationId: 'tivoli', parkId: 'tivoligardens', timezone: TZ};
 const ride = (name: string): TivoliContentItem =>
@@ -268,6 +272,21 @@ describe('tivoliRideSchedules', () => {
     }
   });
 
+  test('a ride in long maintenance publishes no schedule, though it still has hours rows', () => {
+    // Opening day: the Bumper Cars and the Little Dragon carry a full day of
+    // hours, every row Inactive. Aquila beside them is a normal open ride.
+    const maintenance = longMaintenance.items.filter(i => i.status === 'LongMaintenance');
+    expect(maintenance).toHaveLength(2);
+    for (const m of maintenance) {
+      expect(m.hours.length).toBeGreaterThan(0);
+      expect(m.hours.every(h => h.statecode === 'Inactive')).toBe(true);
+    }
+    const ids = tivoliRideSchedules(ridesFeed.items, longMaintenance, TZ).map(s => s.id);
+    expect(ids).toEqual([ride('Aquila').id]);
+    expect(ids).not.toContain(ride('The Bumper Cars').id);
+    expect(ids).not.toContain(ride('The Little Dragon').id);
+  });
+
   test('the join ignores names: the hours API calls the ice rink by its Danish name', () => {
     const rink = openWeek.items.find(i => i.name === 'Skøjtebanen');
     expect(rink).toBeDefined();
@@ -382,6 +401,30 @@ describe('Tivoli', () => {
       errors: [{assetId: 'x', code: 'not_found'}],
     })} as any);
     await expect((park as any).buildSchedules()).rejects.toThrow(/no assets/);
+  });
+
+  // The window is 180 days, so no usable park day in it is the feed failing, not
+  // the park having no hours. Publishing `schedule: []` would replace the park's
+  // schedule with nothing, so the build fails and keeps what is already there.
+  test.each([
+    ['an empty hours list', {hours: []}],
+    ['no hours list at all', {}],
+    ['only unusable rows', {hours: parkHours.hours.map(h => ({...h, statecode: 'Inactive'}))}],
+  ])('schedules fail loudly on %s for the park', async (_label, body) => {
+    const park = make();
+    vi.spyOn(park, 'getRides').mockResolvedValue(ridesFeed.items);
+    vi.spyOn(park, 'fetchParkHours').mockResolvedValue({json: async () => body} as any);
+    const batch = vi.spyOn(park, 'fetchRideHours');
+    await expect((park as any).buildSchedules()).rejects.toThrow(/park hours/i);
+    expect(batch).not.toHaveBeenCalled();
+  });
+
+  test('requests carry the language and no hardcoded client identity', async () => {
+    const req: any = {headers: {accept: 'application/json'}};
+    await make().injectHeaders(req);
+    expect(req.headers['accept-language']).toBe('en-us');
+    expect(req.headers['accept']).toBe('application/json');
+    expect(Object.keys(req.headers).map(k => k.toLowerCase())).not.toContain('user-agent');
   });
 
   test('with no rides the park hours still publish and the batch is not called', async () => {
