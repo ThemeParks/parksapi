@@ -1181,13 +1181,50 @@ export class ParcAsterix extends Destination {
       .filter((item) => item._type === 'show' && !!item.drupal_id)
       .map((item) => String(item.drupal_id));
 
-    // Morning, before opening, on a day the park does operate: the bill is the
-    // last open day's and has not been rewritten yet. Publishing its
-    // performances would assert a passed day's programme as today's, and
-    // publishing its silences would close shows that are on today's bill once
-    // it arrives. Say nothing about shows either way until it does.
+    // Every show id this build knows of that the attraction bill does not
+    // itself observe, closed. Used when the calendar, not the bill, settles
+    // that nothing is performing.
+    const closeEveryShow = (): LiveData[] =>
+      [...new Set([...showIds, ...scheduled])]
+        .filter((id) => !observed.has(id))
+        .map((id) => ({id, status: 'CLOSED'}) as LiveData);
+
+    // A few attractions report `isOpen: true` with no latency on every poll,
+    // whether the park is open or not: the play areas (Getafix Play Area,
+    // Little Oaks Play Area, The Golden Boar Playground, The Asterix
+    // Adventure). On 2026-11-11, an attested closed day in the off-season, they
+    // were the only four of 36 that said open. Published as they come, they
+    // read OPERATING all winter and every night.
+    //
+    // A ride with a measured wait is a real observation and is left alone:
+    // rides do run on closed days for private events, and that is published
+    // truthfully. An open flag with no wait behind it carries no such evidence,
+    // so once the calendar says nothing is in session it is CLOSED.
+    const unmeasuredOpen = new Set(
+      latencies
+        .filter((entry) => entry.isOpen && entry.latency === null)
+        .map((entry) => String(entry.drupalId)),
+    );
+    const closeUnmeasuredOpen = (rows: LiveData[]): LiveData[] =>
+      rows.map((row) =>
+        unmeasuredOpen.has(row.id) && row.status === 'OPERATING'
+          ? ({id: row.id, status: 'CLOSED'} as LiveData)
+          : row,
+      );
+
+    // Outside today's hours, before opening or after the last close. The bill
+    // is not about now: before opening it is the last open day's, after
+    // closing the feed serves a default programme. So neither its performances
+    // nor its silences are published. What the calendar does settle is that
+    // the park is shut, so no show is performing, and every show is CLOSED.
+    //
+    // Leaving the shows out instead, as this once did, made them vanish from
+    // the build every evening from close to local midnight and every operating
+    // morning until opening: 2026-11-08, 23 of 67 rows gone 19:01 to 23:58
+    // local. A store that reads a missing row as a removal, or keeps serving
+    // the last row it had, gets that stretch wrong either way.
     if (authority === 'stale') {
-      return liveWaitTimes;
+      return [...closeUnmeasuredOpen(liveWaitTimes), ...closeEveryShow()];
     }
 
     if (!corroborated || authority === 'unknown') {
@@ -1201,10 +1238,7 @@ export class ParcAsterix extends Destination {
     // the package's, so an id the package has never carried is not left
     // advertising a performance that cannot happen.
     if (authority === 'all-dark') {
-      const dark = [...new Set([...showIds, ...scheduled])]
-        .filter((id) => !observed.has(id))
-        .map((id) => ({id, status: 'CLOSED'}) as LiveData);
-      return [...liveWaitTimes, ...dark];
+      return [...closeUnmeasuredOpen(liveWaitTimes), ...closeEveryShow()];
     }
 
     const darkShows: LiveData[] = showIds
