@@ -43,8 +43,17 @@ describe('rollPastMidnightClose', () => {
     expect(rollPastMidnightClose('2026-10-30T10:00:00+01:00', '2026-10-29T10:00:00+01:00', 'Europe/Rome')).toBeNull();
   });
 
-  test('a close equal to the opening is read as a 24 h day', () => {
-    expect(rollPastMidnightClose('2026-10-29T10:00:00Z', '2026-10-29T10:00:00Z', 'UTC')).toBe('2026-10-30T10:00:00+00:00');
+  test('a close equal to the opening is a zero-length entry, not a 24 h day', () => {
+    // A show performance with only a start time arrives as start == end.
+    expect(rollPastMidnightClose('2026-10-29T10:00:00Z', '2026-10-29T10:00:00Z', 'UTC')).toBeNull();
+    expect(rollPastMidnightClose('2026-11-12T10:30:00+01:00', '2026-11-12T10:30:00+01:00', 'Europe/Paris')).toBeNull();
+    // Same instant written with different offsets is still equal.
+    expect(rollPastMidnightClose('2026-11-12T10:30:00+01:00', '2026-11-12T09:30:00Z', 'Europe/Paris')).toBeNull();
+  });
+
+  test('a close one minute before the opening still rolls', () => {
+    expect(rollPastMidnightClose('2026-10-31T10:00:00+01:00', '2026-10-31T09:59:00+01:00', 'Europe/Rome'))
+      .toBe('2026-11-01T09:59:00+01:00');
   });
 });
 
@@ -71,6 +80,7 @@ describe('getSchedules', () => {
         {date: '2026-10-30', type: 'OPERATING', openingTime: '2026-10-30T17:00:00+01:00', closingTime: '2026-10-30T22:00:00+01:00'},
         {date: '2026-10-31', type: 'OPERATING', openingTime: '2026-10-31T10:00:00+01:00', closingTime: '2026-10-31T00:00:00+01:00'},
         {date: '2026-10-31', type: 'INFO', description: 'no times'},
+        {date: '2026-10-31', type: 'INFO', description: 'Performance Time', openingTime: '2026-10-31T14:00:00+01:00', closingTime: '2026-10-31T14:00:00+01:00'},
       ],
     }], 'Europe/Rome');
     const [s] = await park.getSchedules();
@@ -78,6 +88,7 @@ describe('getSchedules', () => {
       '2026-10-30T22:00:00+01:00',
       '2026-11-01T00:00:00+01:00',
       undefined,
+      '2026-10-31T14:00:00+01:00',
     ]);
     expect(s.schedule[1].date).toBe('2026-10-31');
   });
