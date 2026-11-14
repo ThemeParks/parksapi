@@ -27,14 +27,15 @@ export class Liseberg extends Destination {
   // ===== HTTP Fetch Methods =====
 
   /**
-   * Fetch attractions data (entities + live data combined).
+   * Fetch attractions data (entities + live data combined). No trailing
+   * slash: the slashed path answers 308 to this one since Nov 2026.
    * Cached 1 minute for live data freshness.
    */
   @http({cacheSeconds: 60})
   async fetchAttractions(): Promise<HTTPObj> {
     return {
       method: 'GET',
-      url: `${this.baseURL}app/attractions/`,
+      url: `${this.baseURL}app/attractions`,
       options: {json: true},
     } as any as HTTPObj;
   }
