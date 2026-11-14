@@ -108,8 +108,10 @@ function stripUndefinedDeep(value: unknown): void {
 const SCHEDULE_TYPES: ReadonlySet<string> = new Set(Object.values(ScheduleTypeEnum));
 
 /**
- * Past-midnight closes stamped with the opening date (closingTime at or before
- * openingTime) move to the next day, in place, for every park. Read literally,
+ * Past-midnight closes stamped with the opening date (closingTime before
+ * openingTime) move to the next day, in place, for every park. A close equal
+ * to the opening is a zero-length entry (a performance with only a start time)
+ * and is kept as built. Read literally,
  * such a day is an empty window: anything downstream deciding "open now" from
  * the hours sees the park closed through the whole open day. Parks did this on
  * Halloween event nights (19:00 to "00:00"/"01:00") and on a late opening to

@@ -395,12 +395,17 @@ export function localFromFakeUtc(fakeUtcStr: string, tz: string): string {
 }
 
 /**
- * A closing time at or before its opening time, less than a day before it, is
- * a past-midnight close stamped with the opening date: an event night of
- * 19:00 to "00:00" or "01:00", or a late opening to midnight, written on the
- * date it opened. Returns the same wall-clock time on the next calendar day, or
- * null when the pair needs no change (close after open, unparseable, or a close
- * a full day or more before the open, which is not this shape).
+ * A closing time before its opening time, less than a day before it, is a
+ * past-midnight close stamped with the opening date: an event night of 19:00
+ * to "00:00" or "01:00", or a late opening to midnight, written on the date it
+ * opened. Returns the same wall-clock time on the next calendar day, or null
+ * when the pair needs no change (close after open, unparseable, or a close a
+ * full day or more before the open, which is not this shape).
+ *
+ * A close equal to the opening is left alone. Sources use it for a point in
+ * time whose length is unknown, such as a show performance with only a start
+ * time, and reading it as a 24 h window would turn every such performance into
+ * a day-long one.
  *
  * With a real IANA `tz` the offset is recomputed, so a close on the night the
  * clocks change gets the right one. With no zone (or the 'UTC' default while
@@ -414,7 +419,7 @@ export function rollPastMidnightClose(openingTime: string, closingTime: string, 
   const openMs = Date.parse(openingTime);
   const closeMs = Date.parse(closingTime);
   if (!Number.isFinite(openMs) || !Number.isFinite(closeMs)) return null;
-  if (closeMs > openMs || openMs - closeMs >= 24 * 60 * 60 * 1000) return null;
+  if (closeMs >= openMs || openMs - closeMs >= 24 * 60 * 60 * 1000) return null;
   const m = closingTime.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}(?::\d{2})?)(?:\.\d+)?(Z|[+-]\d{2}:\d{2})$/i);
   if (!m) return null;
   const [, date, time, offset] = m;
