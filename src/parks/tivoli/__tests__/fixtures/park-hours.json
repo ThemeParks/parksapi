@@ -1,0 +1,98 @@
+{
+ "id": "fe29279f-346c-ee11-9ae7-6045bd905937",
+ "name": "Tivoli",
+ "status": "Open",
+ "assetType": "TivoliGarden",
+ "canBuyTickets": true,
+ "lastModified": "2024-10-02T11:50:26Z",
+ "hours": [
+  {
+   "id": "830e8390-e6ac-f111-aaab-7ced8d97552d",
+   "fromDatetime": "2026-11-13T10:00:00Z",
+   "toDatetime": "2026-11-13T22:00:00Z",
+   "assetID": "fe29279f-346c-ee11-9ae7-6045bd905937",
+   "statecode": "Active",
+   "tivoliDay": "2026-11-12T23:00:00Z"
+  },
+  {
+   "id": "e3c45a8f-e6ac-f111-aaab-000d3a27df02",
+   "fromDatetime": "2026-11-14T10:00:00Z",
+   "toDatetime": "2026-11-14T22:00:00Z",
+   "assetID": "fe29279f-346c-ee11-9ae7-6045bd905937",
+   "statecode": "Active",
+   "tivoliDay": "2026-11-13T23:00:00Z"
+  },
+  {
+   "id": "6217ce6a-e6ac-f111-aaab-7ced8d97552d",
+   "fromDatetime": "2026-11-15T10:00:00Z",
+   "toDatetime": "2026-11-15T21:00:00Z",
+   "assetID": "fe29279f-346c-ee11-9ae7-6045bd905937",
+   "statecode": "Active",
+   "tivoliDay": "2026-11-14T23:00:00Z"
+  },
+  {
+   "id": "f4fcde6b-e6ac-f111-aaab-7c1e52271e03",
+   "fromDatetime": "2026-11-16T10:00:00Z",
+   "toDatetime": "2026-11-16T21:00:00Z",
+   "assetID": "fe29279f-346c-ee11-9ae7-6045bd905937",
+   "statecode": "Active",
+   "tivoliDay": "2026-11-15T23:00:00Z"
+  },
+  {
+   "id": "9a3e436b-e6ac-f111-aaab-6045bd989c99",
+   "fromDatetime": "2026-11-17T10:00:00Z",
+   "toDatetime": "2026-11-17T21:00:00Z",
+   "assetID": "fe29279f-346c-ee11-9ae7-6045bd905937",
+   "statecode": "Active",
+   "tivoliDay": "2026-11-16T23:00:00Z"
+  },
+  {
+   "id": "f5fcde6b-e6ac-f111-aaab-7c1e52271e03",
+   "fromDatetime": "2026-11-18T10:00:00Z",
+   "toDatetime": "2026-11-18T21:00:00Z",
+   "assetID": "fe29279f-346c-ee11-9ae7-6045bd905937",
+   "statecode": "Active",
+   "tivoliDay": "2026-11-17T23:00:00Z"
+  },
+  {
+   "id": "f6fcde6b-e6ac-f111-aaab-7c1e52271e03",
+   "fromDatetime": "2026-11-19T10:00:00Z",
+   "toDatetime": "2026-11-19T21:00:00Z",
+   "assetID": "fe29279f-346c-ee11-9ae7-6045bd905937",
+   "statecode": "Active",
+   "tivoliDay": "2026-11-18T23:00:00Z"
+  },
+  {
+   "id": "e2c45a8f-e6ac-f111-aaab-000d3a27df02",
+   "fromDatetime": "2026-11-20T10:00:00Z",
+   "toDatetime": "2026-11-20T22:00:00Z",
+   "assetID": "fe29279f-346c-ee11-9ae7-6045bd905937",
+   "statecode": "Active",
+   "tivoliDay": "2026-11-19T23:00:00Z"
+  },
+  {
+   "id": "11fdde6b-e6ac-f111-aaab-7c1e52271e03",
+   "fromDatetime": "2026-12-23T10:00:00Z",
+   "toDatetime": "2026-12-23T21:00:00Z",
+   "assetID": "fe29279f-346c-ee11-9ae7-6045bd905937",
+   "statecode": "Active",
+   "tivoliDay": "2026-12-22T23:00:00Z"
+  },
+  {
+   "id": "d9883e90-e6ac-f111-aaab-6045bd989c99",
+   "fromDatetime": "2026-12-25T10:00:00Z",
+   "toDatetime": "2026-12-25T22:00:00Z",
+   "assetID": "fe29279f-346c-ee11-9ae7-6045bd905937",
+   "statecode": "Active",
+   "tivoliDay": "2026-12-24T23:00:00Z"
+  },
+  {
+   "id": "622b7d02-e6ac-f111-aaab-6045bd989c99",
+   "fromDatetime": "2026-12-31T10:00:00Z",
+   "toDatetime": "2026-12-31T23:00:00Z",
+   "assetID": "fe29279f-346c-ee11-9ae7-6045bd905937",
+   "statecode": "Active",
+   "tivoliDay": "2026-12-30T23:00:00Z"
+  }
+ ]
+}
