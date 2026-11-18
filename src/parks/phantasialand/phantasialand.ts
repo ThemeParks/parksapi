@@ -14,7 +14,6 @@ import {
 } from '@themeparks/typelib';
 import {constructDateTime, hostnameFromUrl, formatDate} from '../../datetime.js';
 import {TagBuilder} from '../../tags/index.js';
-import {decodeHtmlEntities} from '../../htmlUtils.js';
 
 /**
  * Normalise the Phantasialand API's name-ish fields. The API has at various
@@ -378,26 +377,88 @@ export class Phantasialand extends Destination {
   }
 
   /**
-   * Parse calendar JSON from schedule HTML page (cached 6 hours)
+   * Opening-hours calendar from the schedule HTML page (cached 6 hours), as a
+   * list of `{title, days_selected}` events.
    */
   @cache({ttlSeconds: 21600})
   async getCalendarJSON(): Promise<any[]> {
     const resp = await this.fetchScheduleHTML();
     const html = await resp.text();
+    return this.parseCalendar(html);
+  }
 
-    // Find data-calendar attribute
-    const match = html.match(/data-calendar='(\[.*?\])'/s);
-    if (!match) return [];
+  /**
+   * Read the calendar out of the page's Next.js data stream.
+   *
+   * The page hands its data to the browser in `self.__next_f.push([1,"<text>"])`
+   * calls. The texts of all calls joined together are lines of the form
+   * `<id>:<json>`. One line holds the block with `"blockType":"calendar-block"`
+   * and the calendar object: `calendarData` assigns date ranges to a legend
+   * label (`labelId`), `colorLegendLabels` names each label ("Park opened: 09
+   * a.m. until 06 p.m.", "Theme park closed"). Each label becomes one event
+   * with all the days of its ranges.
+   *
+   * Returns an empty list if the calendar is missing or unreadable.
+   */
+  parseCalendar(html: string): {title: string; days_selected: string[]}[] {
+    let stream = '';
+    for (const call of html.matchAll(/self\.__next_f\.push\(\[1,("(?:[^"\\]|\\.)*")\]\)/g)) {
+      try {
+        stream += JSON.parse(call[1]);
+      } catch {
+        // A piece with an invalid escape is left out.
+      }
+    }
 
-    // Clean HTML entities
-    const jsonStr = decodeHtmlEntities(match[1]);
+    const marker = stream.indexOf('"blockType":"calendar-block"');
+    if (marker === -1) {
+      console.warn('[Phantasialand] No calendar block in the schedule page');
+      return [];
+    }
+    const lineStart = stream.lastIndexOf('\n', marker) + 1;
+    const lineEnd = stream.indexOf('\n', marker);
+    const line = stream.slice(lineStart, lineEnd === -1 ? undefined : lineEnd);
 
+    let calendar: any;
     try {
-      return JSON.parse(jsonStr);
+      calendar = this.findCalendarBlock(JSON.parse(line.slice(line.indexOf(':') + 1)))?.calendar;
     } catch {
       console.warn('[Phantasialand] Failed to parse calendar JSON');
       return [];
     }
+    if (!Array.isArray(calendar?.calendarData) || !Array.isArray(calendar?.colorLegendLabels)) {
+      console.warn('[Phantasialand] Unexpected calendar structure');
+      return [];
+    }
+
+    const events = new Map<string, {title: string; days_selected: string[]}>();
+    for (const label of calendar.colorLegendLabels) {
+      events.set(label.id, {title: label.labelName ?? '', days_selected: []});
+    }
+    for (const entry of calendar.calendarData) {
+      const event = events.get(entry.labelId);
+      if (!event) continue;
+      for (const range of entry.ranges ?? []) {
+        // Walk the days in UTC so a daylight-saving change cannot skip or repeat one.
+        const last = Date.parse(`${range.endDay}T00:00:00Z`);
+        for (let day = Date.parse(`${range.startDay}T00:00:00Z`); day <= last; day += 86_400_000) {
+          event.days_selected.push(formatDate(new Date(day)));
+        }
+      }
+    }
+    return [...events.values()];
+  }
+
+  /** The object with `blockType` "calendar-block", wherever it sits in the parsed line. */
+  private findCalendarBlock(value: any): any {
+    if (value && typeof value === 'object') {
+      if (value.blockType === 'calendar-block') return value;
+      for (const child of Object.values(value)) {
+        const block = this.findCalendarBlock(child);
+        if (block) return block;
+      }
+    }
+    return null;
   }
 
   // ===== Data Builder Methods =====
@@ -669,42 +730,19 @@ export class Phantasialand extends Destination {
   /**
    * Parse opening hours from a title string.
    * Supports two formats:
-   * - AM/PM: "09 a.m. until 06 p.m."
+   * - AM/PM: "09 a.m. until 06 p.m.", "11 a.m. – 08 p.m."
    * - 24h: "11:00 – 20:00" (or with regular dash)
    */
   private parseHours(title: string): {open: string; close: string} | null {
-    // Try AM/PM format: "09 a.m. until 06 p.m."
-    const ampmMatch = title.match(/(\d{1,2})\s*a\.m\.\s*until\s*(\d{1,2})\s*p\.m\./i);
-    if (ampmMatch) {
-      const openHour = parseInt(ampmMatch[1], 10);
-      const closeHour = parseInt(ampmMatch[2], 10) + 12;
+    // 12h format: "09 a.m. until 06 p.m.", "09 a.m. until 11 a.m.", "12 p.m. until 08 p.m."
+    // or with a dash: "11 a.m. – 08 p.m."
+    const h12Match = title.match(/(\d{1,2})\s*([ap])\.m\.\s*(?:until|[–\-])\s*(\d{1,2})\s*([ap])\.m\./i);
+    if (h12Match) {
+      const to24 = (hour: string, meridiem: string) =>
+        (parseInt(hour, 10) % 12) + (meridiem.toLowerCase() === 'p' ? 12 : 0);
       return {
-        open: String(openHour).padStart(2, '0') + ':00',
-        close: String(closeHour).padStart(2, '0') + ':00',
-      };
-    }
-
-    // Try AM/AM format: "09 a.m. until 11 a.m."
-    const amamMatch = title.match(/(\d{1,2})\s*a\.m\.\s*until\s*(\d{1,2})\s*a\.m\./i);
-    if (amamMatch) {
-      const openHour = parseInt(amamMatch[1], 10);
-      const closeHour = parseInt(amamMatch[2], 10);
-      return {
-        open: String(openHour).padStart(2, '0') + ':00',
-        close: String(closeHour).padStart(2, '0') + ':00',
-      };
-    }
-
-    // Try PM/PM format: "12 p.m. until 08 p.m."
-    const pmpmMatch = title.match(/(\d{1,2})\s*p\.m\.\s*until\s*(\d{1,2})\s*p\.m\./i);
-    if (pmpmMatch) {
-      let openHour = parseInt(pmpmMatch[1], 10);
-      let closeHour = parseInt(pmpmMatch[2], 10);
-      if (openHour !== 12) openHour += 12;
-      if (closeHour !== 12) closeHour += 12;
-      return {
-        open: String(openHour).padStart(2, '0') + ':00',
-        close: String(closeHour).padStart(2, '0') + ':00',
+        open: String(to24(h12Match[1], h12Match[2])).padStart(2, '0') + ':00',
+        close: String(to24(h12Match[3], h12Match[4])).padStart(2, '0') + ':00',
       };
     }
 
