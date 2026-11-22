@@ -873,10 +873,10 @@ export class OceanParkHongKong extends Destination {
     const resp = await this.fetchAttractionsPage();
     const html = await resp.text();
     const items = extractRscArray(html, '"items":', firstItemHasKey('nodeId')) as OceanParkAttractionItem[] | null;
-    if (!items) {
-      console.warn('[OceanPark] attractions page RSC data not found; entity list and ride status will be empty this cycle');
-      return [];
-    }
+    // A page without its data block has not said the park has no rides; it
+    // changed shape or came back as something else. Reject, so nothing empty
+    // is cached and the entity build keeps the last good list.
+    if (!items) throw new Error('OceanPark: attractions page RSC data not found');
     return items;
   }
 
@@ -886,10 +886,9 @@ export class OceanParkHongKong extends Destination {
     const resp = await this.fetchDiningPage();
     const html = await resp.text();
     const tabs = extractRscArray(html, '"items":', firstItemHasKey('tab')) as OceanParkDiningTab[] | null;
-    if (!tabs) {
-      console.warn('[OceanPark] dining page RSC data not found; restaurant list will be empty this cycle');
-      return [];
-    }
+    // As getAttractionItems: a missing data block is a failure, not an
+    // empty dining list, and must not be cached for the hour.
+    if (!tabs) throw new Error('OceanPark: dining page RSC data not found');
     return tabs;
   }
 
@@ -1089,28 +1088,34 @@ export class OceanParkHongKong extends Destination {
   protected async buildEntityList(): Promise<Entity[]> {
     const today = formatDate(new Date(), TIMEZONE);
 
-    // Four independent upstream sources (SSR attractions page, SSR dining
-    // page, the daily-schedule API route, and the map subdomain) — each
-    // isolated with its own .catch() so one flaky source degrades that
-    // category to empty rather than throwing away the whole entity list.
+    // Four upstream sources: the SSR attractions page, the SSR dining page,
+    // the daily-schedule API route and the map subdomain. The first three
+    // each supply a whole category, so a failure in any of them rejects the
+    // build: an emptied category reads downstream as every entity in it
+    // having been removed, while a rejected build leaves the last good list
+    // standing. Only the map is optional, since without it entities just
+    // take the park's default location.
     const [attractionItems, diningTabs, showRoster, coordEntries] = await Promise.all([
-      this.getAttractionItems().catch((err: unknown) => {
-        console.warn(`[OceanPark] attractions fetch failed (${errMsg(err)}); no attractions this cycle`);
-        return [] as OceanParkAttractionItem[];
-      }),
-      this.getDiningTabs().catch((err: unknown) => {
-        console.warn(`[OceanPark] dining fetch failed (${errMsg(err)}); no restaurants this cycle`);
-        return [] as OceanParkDiningTab[];
-      }),
-      this.getShowRoster(today).catch((err: unknown) => {
-        console.warn(`[OceanPark] show roster failed (${errMsg(err)}); no shows this cycle`);
-        return {shows: [], failedDates: []} as OceanParkShowRoster;
-      }),
+      this.getAttractionItems(),
+      this.getDiningTabs(),
+      this.getShowRoster(today),
       this.getCoordinateMapEntries().catch((err: unknown) => {
         console.warn(`[OceanPark] coordinate map unavailable (${errMsg(err)}); entities will use default location`);
         return [] as [string, {latitude: number; longitude: number}][];
       }),
     ]);
+
+    // getShowRoster reads the window date by date and reports the dates it
+    // could not read rather than rejecting. A roster missing a date is
+    // missing the shows exclusive to it, so the entity build treats it as a
+    // failure. It is not cached, so the next build asks again. An empty
+    // programme with every date read is an answer, and builds with no shows.
+    if (showRoster.failedDates.length > 0) {
+      throw new Error(
+        `OceanPark: ${showRoster.failedDates.length}/${SHOW_ROSTER_DAYS} daily-schedule dates ` +
+        `could not be read; refusing to publish a show list missing their shows`,
+      );
+    }
 
     const coordMap = new Map(coordEntries);
 

@@ -138,6 +138,14 @@ export class Chimelong extends Destination {
   @config baseURL: string = '';
   @config timezone: string = TIMEZONE;
 
+  /**
+   * Attractions come only from the wait-time list, and no entries for
+   * Chimelong Birds Park or Chimelong Spaceship have been seen in it. Both
+   * are published for their calendars, so they may have no children. The
+   * other parks are still checked.
+   */
+  protected allowEmptyParks: readonly string[] = ['park_GZ54', 'park_ZH60'];
+
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('CHIMELONG');

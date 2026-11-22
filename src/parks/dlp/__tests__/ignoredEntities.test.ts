@@ -29,6 +29,8 @@ const BUILDINGS = [
 
 function stubbedPark(): DisneylandParis {
   const park = new DisneylandParis();
+  // The fixture only carries content for one park; the other is built empty.
+  (park as any).allowEmptyParks = ['P2'];
 
   vi.spyOn(park as any, 'getPOIData').mockResolvedValue({
     ThemePark: [

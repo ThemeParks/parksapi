@@ -1,0 +1,206 @@
+import {describe, test, expect, beforeEach, vi} from 'vitest';
+import {SixFlags} from '../sixflags.js';
+import {CacheLib} from '../../../cache.js';
+
+/**
+ * One SixFlags instance builds every park, from one /poi/park/{id} request per
+ * park. getPOI used to catch any failure, return [] and keep that [] for a
+ * day. The other parks still had rides, so the destination-wide collapse guard
+ * never fired, and the one park whose request failed was published with no
+ * rides at all: every ride in it reads downstream as removed.
+ *
+ * A failed POI request now rejects. A rejected @cache call is not stored, so
+ * the next build asks again. The one empty answer that is still accepted is a
+ * 404 on a water park's own endpoint, which is how the vendor says it keeps no
+ * separate list for that park; whether the park may then be empty is decided
+ * by the base-class check, park by park.
+ */
+
+type Poi = {
+  fimsId: string; name: string; parkId: number; venueId: number;
+  location: {latitude: string; longitude: string};
+};
+
+const ride = (fimsId: string, parkId: number, lat = '32.75', lng = '-97.07'): Poi => ({
+  fimsId, name: `Ride ${fimsId}`, parkId, venueId: 1, location: {latitude: lat, longitude: lng},
+});
+
+function notFound(parkId: number): Error {
+  return new Error(
+    `GET https://example.invalid/poi/park/${parkId}: HTTP request not OK: 404 Not Found\n` +
+    `  URL: GET https://example.invalid/poi/park/${parkId}\n`,
+  );
+}
+
+function serverError(parkId: number): Error {
+  return new Error(
+    `GET https://example.invalid/poi/park/${parkId}: HTTP request not OK: 503 Service Unavailable\n`,
+  );
+}
+
+class Probe extends SixFlags {
+  public parks: any[] = [];
+  /** What /poi/park/{id} answers: a body, or an Error to throw. */
+  public poi = new Map<number, unknown>();
+  public calls: number[] = [];
+
+  override async getParkData(): Promise<any> {
+    return this.parks;
+  }
+
+  override async fetchPOI(parkId: number): Promise<any> {
+    this.calls.push(parkId);
+    const answer = this.poi.get(parkId);
+    if (answer instanceof Error) throw answer;
+    if (answer === undefined) throw notFound(parkId);
+    return {json: async () => answer};
+  }
+
+  public resolveTz(parkId: number): Promise<{tz: string; fromCoords: boolean}> {
+    return (this as any).resolveTimezoneForPark(parkId);
+  }
+}
+
+const SFOT = {parkId: 901, code: 'SFOT', name: 'Six Flags Over Texas', waterParks: [] as any[]};
+const SFOG = {parkId: 902, code: 'SFOG', name: 'Six Flags Over Georgia', waterParks: [] as any[]};
+
+beforeEach(() => {
+  CacheLib.clearByClassName('Probe');
+  CacheLib.clearByClassName('SixFlags');
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+});
+
+describe('getPOI', () => {
+  test('rejects when the request fails, instead of answering an empty list', async () => {
+    const probe = new Probe();
+    probe.poi.set(901, serverError(901));
+    await expect(probe.getPOI(901)).rejects.toThrow(/503/);
+  });
+
+  test('does not keep a failure: the next call asks again and gets the list', async () => {
+    const probe = new Probe();
+    probe.poi.set(901, serverError(901));
+    await expect(probe.getPOI(901)).rejects.toThrow();
+
+    probe.poi.set(901, [ride('RIDE-901-1', 901)]);
+    await expect(probe.getPOI(901)).resolves.toHaveLength(1);
+    expect(probe.calls).toEqual([901, 901]);
+  });
+
+  test('rejects a 404 for a theme park: it always has a list', async () => {
+    const probe = new Probe();
+    await expect(probe.getPOI(901)).rejects.toThrow(/404/);
+  });
+
+  test('rejects an answer that is not a list', async () => {
+    const probe = new Probe();
+    probe.poi.set(901, {error: 'maintenance'});
+    await expect(probe.getPOI(901)).rejects.toThrow(/not a list/);
+  });
+
+  test('an empty list the vendor actually served is still an answer', async () => {
+    const probe = new Probe();
+    probe.poi.set(901, []);
+    await expect(probe.getPOI(901)).resolves.toEqual([]);
+  });
+});
+
+describe('entity list with one park failing', () => {
+  test('rejects the whole build rather than publish the park with no rides', async () => {
+    const probe = new Probe();
+    probe.parks = [SFOT, SFOG];
+    probe.poi.set(901, [ride('RIDE-901-1', 901)]);
+    probe.poi.set(902, serverError(902));
+    await expect(probe.getEntities()).rejects.toThrow(/503/);
+  });
+
+  test('builds both parks once the failed request recovers', async () => {
+    const probe = new Probe();
+    probe.parks = [SFOT, SFOG];
+    probe.poi.set(901, [ride('RIDE-901-1', 901)]);
+    probe.poi.set(902, serverError(902));
+    await expect(probe.getEntities()).rejects.toThrow();
+
+    probe.poi.set(902, [ride('RIDE-902-1', 902, '33.77', '-84.55')]);
+    const ids = (await probe.getEntities()).map(e => e.id);
+    expect(ids).toEqual(expect.arrayContaining(['RIDE-901-1', 'RIDE-902-1']));
+  });
+
+  // The vendor answered 200 with nothing for one park: no fetch failed, but
+  // publishing it would still remove every ride, so the base check stops it.
+  test('rejects a park whose list came back empty', async () => {
+    const probe = new Probe();
+    probe.parks = [SFOT, SFOG];
+    probe.poi.set(901, [ride('RIDE-901-1', 901)]);
+    probe.poi.set(902, []);
+    await expect(probe.getEntities()).rejects.toThrow(/sixflags_park_SFOG/);
+  });
+});
+
+describe('water parks on their own endpoint', () => {
+  const withWaterPark = (code: string, parkId: number) => ({
+    ...SFOT,
+    waterParks: [{parkId, code, name: `Water Park ${code}`, label: 'Water Park'}],
+  });
+
+  test('a 404 on the water park endpoint is an empty list, not an error', async () => {
+    const probe = new Probe();
+    probe.poi.set(901, [ride('RIDE-901-1', 901)]);
+    await expect(probe.getWaterParkPOI(944)).resolves.toEqual([]);
+  });
+
+  test('the 404 answer is remembered, so the next lookup does not ask again', async () => {
+    const probe = new Probe();
+    await probe.getWaterParkPOI(913);
+    await probe.getWaterParkPOI(913);
+    expect(probe.calls).toEqual([913]);
+  });
+
+  test('any other failure on the water park endpoint rejects', async () => {
+    const probe = new Probe();
+    probe.poi.set(944, serverError(944));
+    await expect(probe.getWaterParkPOI(944)).rejects.toThrow(/503/);
+  });
+
+  test('a water park with its own list publishes its rides', async () => {
+    const probe = new Probe();
+    probe.parks = [withWaterPark('HHOKC', 944)];
+    probe.poi.set(901, [ride('RIDE-901-1', 901)]);
+    probe.poi.set(944, [ride('RIDE-944-1', 944, '35.5', '-97.5')]);
+    const wpRide = (await probe.getEntities()).find(e => e.id === 'RIDE-944-1');
+    expect(wpRide?.parkId).toBe('sixflags_park_HHOKC');
+  });
+
+  test('a water park that 404s and is not known to be empty fails the build', async () => {
+    const probe = new Probe();
+    probe.parks = [withWaterPark('HHOKC', 944)];
+    probe.poi.set(901, [ride('RIDE-901-1', 901)]);
+    await expect(probe.getEntities()).rejects.toThrow(/sixflags_park_HHOKC/);
+  });
+
+  // No POIs for Hurricane Harbor Arlington have been seen in the vendor feed,
+  // so it is named as a park that may publish empty.
+  test('Hurricane Harbor Arlington may publish empty', async () => {
+    const probe = new Probe();
+    probe.parks = [withWaterPark('HHA', 913)];
+    probe.poi.set(901, [ride('RIDE-901-1', 901)]);
+    const ids = (await probe.getEntities()).map(e => e.id);
+    expect(ids).toContain('sixflags_park_HHA');
+    expect(ids).toContain('RIDE-901-1');
+  });
+});
+
+describe('timezone lookup when the POI request fails', () => {
+  // Live data and schedules only need the POI list for the park's zone. A
+  // failed request falls back to the instance zone for that call, and is not
+  // kept, so the next call can still find the park's real zone.
+  test('falls back without throwing, and recovers on the next call', async () => {
+    const probe = new Probe();
+    probe.parks = [SFOT];
+    probe.poi.set(901, serverError(901));
+    await expect(probe.resolveTz(901)).resolves.toEqual({tz: 'America/New_York', fromCoords: false});
+
+    probe.poi.set(901, [ride('RIDE-901-1', 901)]);
+    await expect(probe.resolveTz(901)).resolves.toEqual({tz: 'America/Chicago', fromCoords: true});
+  });
+});

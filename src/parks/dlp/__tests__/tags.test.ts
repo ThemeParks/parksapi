@@ -8,6 +8,8 @@ import {DisneylandParis} from '../disneylandparis.js';
  */
 function stubbedPark(attraction: Record<string, unknown>): DisneylandParis {
   const park = new DisneylandParis();
+  // The fixture only carries content for one park; the other is built empty.
+  (park as any).allowEmptyParks = ['P2'];
 
   vi.spyOn(park as any, 'getPOIData').mockResolvedValue({
     ThemePark: [{id: 'P1', name: 'Disneyland Park', type: 'ThemePark'}],

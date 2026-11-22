@@ -1391,31 +1391,6 @@ describe('buildEntityList', () => {
     expect(park).toBeDefined();
     expect(park!.id).toBe('oceanpark');
   });
-
-  test('an attractions-fetch failure degrades to zero attractions instead of throwing the whole build', async () => {
-    const probe = new Probe({
-      diningTabs: [{
-        tab: {id: 'restaurants', label: 'Restaurants'},
-        pageItems: [{nodeUrl: {label: "Neptune's Restaurant", url: '.../neptune-s-restaurant'}}],
-      }],
-    });
-    (probe as any).getAttractionItems = () => Promise.reject(new Error('attractions page down'));
-
-    const entities = await probe.entities();
-    expect(entities.find((e) => e.entityType === 'ATTRACTION')).toBeUndefined();
-    // The unrelated dining source still comes through.
-    expect(entities.find((e) => e.entityType === 'RESTAURANT')).toBeDefined();
-    expect(entities.find((e) => e.entityType === 'PARK')).toBeDefined();
-  });
-
-  test('a dining-fetch failure degrades to zero restaurants without losing attractions', async () => {
-    const probe = new Probe({attractions: [mkAttraction()]});
-    (probe as any).getDiningTabs = () => Promise.reject(new Error('dining page down'));
-
-    const entities = await probe.entities();
-    expect(entities.find((e) => e.entityType === 'RESTAURANT')).toBeUndefined();
-    expect(entities.find((e) => e.id === 'attraction_node-1')).toBeDefined();
-  });
 });
 
 describe('getDestinations', () => {
@@ -1902,7 +1877,10 @@ describe('show roster window', () => {
     expect(probe.requestedDates).toHaveLength(asked);
   });
 
-  test('one failed date costs only the shows exclusive to it, and is logged', async () => {
+  // A roster missing a date is missing the shows exclusive to that date, and
+  // publishing it reads downstream as those shows being removed. The entity
+  // build refuses it; the last good list stands until every date reads.
+  test('one failed date fails the entity build, and is logged', async () => {
     const probe = new Probe({
       failDates: [at(0)],
       scheduleByDate: {
@@ -1910,8 +1888,7 @@ describe('show roster window', () => {
         [at(3)]: [{title: 'Spooky Live Band'}],
       },
     });
-    await expect(probe.entities()).resolves.toBeDefined();
-    expect(showIds(await probe.entities())).toEqual(['show_spooky-live-band', 'show_sway-pole-spectacle']);
+    await expect(probe.entities()).rejects.toThrow(`1/${SHOW_ROSTER_DAYS} daily-schedule dates`);
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining(`1/${SHOW_ROSTER_DAYS}`));
   });
 
@@ -1920,16 +1897,22 @@ describe('show roster window', () => {
       failDates: [at(3)],
       scheduleByDate: {[at(3)]: [{title: 'Spooky Live Band'}]},
     });
-    expect(showIds(await probe.entities())).toEqual([]);
+    await expect(probe.entities()).rejects.toThrow();
     probe.failDates.clear();
     expect(showIds(await probe.entities())).toEqual(['show_spooky-live-band']);
   });
 
-  test('every date failing yields no shows and still builds the rest', async () => {
+  test('every date failing fails the entity build instead of dropping every show', async () => {
     const probe = new Probe({
       attractions: [mkAttraction()],
       failDates: Array.from({length: SHOW_ROSTER_DAYS}, (_, i) => at(i)),
     });
+    await expect(probe.entities()).rejects.toThrow(`${SHOW_ROSTER_DAYS}/${SHOW_ROSTER_DAYS} daily-schedule dates`);
+  });
+
+  // An empty programme is an answer, not a failure: no shows, nothing thrown.
+  test('a window with no shows scheduled builds with no shows', async () => {
+    const probe = new Probe({attractions: [mkAttraction()]});
     const entities = await probe.entities();
     expect(showIds(entities)).toEqual([]);
     expect(entities.find((e) => e.id === 'attraction_node-1')).toBeDefined();
@@ -1982,5 +1965,78 @@ describe('show roster window', () => {
     const attraction = live.find((l) => l.id === 'attraction_node-1');
     expect(attraction.status).toBe('OPERATING');
     expect(attraction.queue).toBeUndefined();
+  });
+});
+
+// ── A failed source must not publish an emptied category ────────────────────
+
+describe('entity list when a source fails', () => {
+  // Each category used to be caught on its own and emptied, so one failed
+  // page published the park with every ride (or restaurant) gone, which reads
+  // downstream as all of them being removed. The entity build now rejects and
+  // the last good list stands. Live data keeps its own per-source isolation.
+  beforeEach(() => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const restaurants = [{
+    tab: {id: 'restaurants', label: 'Restaurants'},
+    pageItems: [{nodeUrl: {label: "Neptune's Restaurant", url: '.../neptune-s-restaurant'}}],
+  }];
+
+  test('a failed attractions page fails the build', async () => {
+    const probe = new Probe({diningTabs: restaurants});
+    vi.spyOn(probe, 'getAttractionItems').mockRejectedValue(new Error('attractions page 503'));
+    await expect(probe.entities()).rejects.toThrow('attractions page 503');
+  });
+
+  test('a failed dining page fails the build', async () => {
+    const probe = new Probe({attractions: [mkAttraction()]});
+    vi.spyOn(probe, 'getDiningTabs').mockRejectedValue(new Error('dining page 503'));
+    await expect(probe.entities()).rejects.toThrow('dining page 503');
+  });
+
+  // The coordinate map only places entities; without it they take the park's
+  // default location, and none of them goes missing.
+  test('a failed coordinate map still builds every entity', async () => {
+    const probe = new Probe({attractions: [mkAttraction()], diningTabs: restaurants});
+    vi.spyOn(probe, 'getCoordinateMapEntries').mockRejectedValue(new Error('map offline'));
+    const entities = await probe.entities();
+    expect(entities.find((e) => e.id === 'attraction_node-1')).toBeDefined();
+    expect(entities.find((e) => e.entityType === 'RESTAURANT')).toBeDefined();
+  });
+
+  // A dining page that parses and lists no restaurants is an answer.
+  test('a dining page with no restaurants builds with none', async () => {
+    const probe = new Probe({attractions: [mkAttraction()], diningTabs: []});
+    const entities = await probe.entities();
+    expect(entities.filter((e) => e.entityType === 'RESTAURANT')).toEqual([]);
+  });
+
+  test('live data still publishes shows when the attractions page fails', async () => {
+    const probe = new Probe({scheduleItems: [{title: 'Animal Fun Talk', timeSlot: ['15:00:00']}]});
+    vi.spyOn(probe, 'getAttractionItems').mockRejectedValue(new Error('attractions page 503'));
+    const live = await probe.liveData();
+    expect(live.map((l: any) => l.id)).toContain('show_animal-fun-talk');
+  });
+});
+
+describe('page data that cannot be found', () => {
+  // A page whose embedded data block is missing has not said the park has no
+  // rides; the page changed shape or came back as something else. That must
+  // reject (and so not be cached), not answer an empty list.
+  test('an attractions page without its data block rejects', async () => {
+    const park = new OceanParkHongKong();
+    vi.spyOn(park, 'fetchAttractionsPage').mockResolvedValue({text: async () => '<html>maintenance</html>'} as any);
+    await expect(park.getAttractionItems()).rejects.toThrow(/attractions page/);
+  });
+
+  test('a dining page without its data block rejects', async () => {
+    const park = new OceanParkHongKong();
+    vi.spyOn(park, 'fetchDiningPage').mockResolvedValue({text: async () => '<html>maintenance</html>'} as any);
+    await expect(park.getDiningTabs()).rejects.toThrow(/dining page/);
   });
 });

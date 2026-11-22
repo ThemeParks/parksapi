@@ -336,6 +336,13 @@ export class QiddiyaCity extends Destination {
 
   timezone: string = 'Asia/Riyadh';
 
+  /**
+   * Aqua Rabia has not opened. The shared activity listing has no entries
+   * filed under its asset path yet, so the park is published with nothing
+   * beneath it until it does. Six Flags Qiddiya City is still checked.
+   */
+  protected allowEmptyParks: readonly string[] = [AQUA_RABIA_PARK_ID];
+
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('QIDDIYACITY');
