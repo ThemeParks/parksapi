@@ -16,7 +16,8 @@ import {Destination, type DestinationConstructor} from '../../destination.js';
 import crypto from 'crypto';
 import config from '../../config.js';
 import {http, type HTTPObj} from '../../http.js';
-import {cache} from '../../cache.js';
+import {cache, CacheLib} from '../../cache.js';
+import {bypassHttpCache} from '../../httpCacheBypass.js';
 import {reusable} from '../../promiseReuse.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule, ScheduleEntry, AttractionType} from '@themeparks/typelib';
@@ -761,6 +762,9 @@ function timezoneFromCoords(latitude: number, longitude: number): string {
 //
 // Keys are fimsId (= Firebase parkId). Values are the fimsId of the theme
 // park that should become their parent destination.
+/** How long the live-path timezone lookup remembers a failed POI request. */
+const POI_FAILURE_MEMORY_MS = 5 * 60 * 1000;
+
 const WATERPARK_PARENT_OVERRIDES: Record<number, number> = {
   913: 901, // Hurricane Harbor Arlington  → Six Flags Over Texas
   944: 943, // Hurricane Harbor Oklahoma City → Six Flags Frontier City
@@ -863,6 +867,9 @@ export class SixFlags extends Destination {
     return 'sixflags';
   }
 
+  /** Parks whose POI request failed on the live path, and until when to skip asking again. */
+  private readonly poiUnavailableUntil = new Map<number, number>();
+
   /** Parks already warned about an unparseable stamp, so it logs once, not every poll. */
   private unparseableStampParks = new Set<number>();
 
@@ -937,9 +944,12 @@ export class SixFlags extends Destination {
 
   /**
    * Fetch POI data for a specific park.
-   * Cached 24h at HTTP level.
+   *
+   * Not cached at the HTTP level: that cache stores any 2xx body, an empty
+   * list included, and would serve it for its whole lifetime. getPOI owns the
+   * caching and decides what is worth keeping.
    */
-  @http({cacheSeconds: 86400})
+  @http()
   async fetchPOI(parkId: number): Promise<HTTPObj> {
     return {
       method: 'GET',
@@ -1139,12 +1149,17 @@ export class SixFlags extends Destination {
    * publish that one park with no rides while the rest look healthy. A
    * rejected @cache call is not stored, so the next build asks again.
    *
+   * A list is kept for 24h. An empty list is returned but never kept: with
+   * requireChildrenPerPark one empty answer fails every entity build, so it
+   * must not outlive the request that produced it.
+   *
    * cacheVersion 2: entries written before this rejected anything could be a
-   * swallowed failure cached as [].
+   * swallowed failure cached as []. The request bypasses the HTTP cache read
+   * for the same reason, since fetchPOI used to keep its bodies for 24h.
    */
-  @cache({ttlSeconds: 86400, cacheVersion: 2})
+  @cache({callback: (pois: SixFlagsPOI[]) => (pois.length > 0 ? 86400 : 0), cacheVersion: 2})
   async getPOI(parkId: number): Promise<SixFlagsPOI[]> {
-    const resp = await this.fetchPOI(parkId);
+    const resp = await bypassHttpCache(() => this.fetchPOI(parkId));
     const data = await resp.json();
     if (!Array.isArray(data)) {
       throw new Error(`SixFlags: POI answer for park ${parkId} is not a list`);
@@ -1304,6 +1319,13 @@ export class SixFlags extends Destination {
    * a fallback zone would be published on every entity in the park.
    */
   private async resolveTimezoneForPark(parkId: number, strict = false): Promise<{tz: string; fromCoords: boolean}> {
+    // During an outage the live path would otherwise re-ask every park on
+    // every poll and log each time. Remembered here only, in memory, and
+    // never read by the strict (entity) path.
+    if (!strict && (this.poiUnavailableUntil.get(parkId) ?? 0) > Date.now()) {
+      return {tz: this.timezone, fromCoords: false};
+    }
+
     // Find which main-park this parkId belongs to (itself, or a sister water park).
     const parks = await this.getParkData();
     const owner = parks.find((p) =>
@@ -1327,7 +1349,8 @@ export class SixFlags extends Destination {
       }
     } catch (err) {
       if (strict) throw err;
-      console.warn(`[SixFlags] POI for park ${parkId} unavailable (${(err as Error)?.message?.split('\n')[0] ?? err}); using fallback timezone this call`);
+      this.poiUnavailableUntil.set(parkId, Date.now() + POI_FAILURE_MEMORY_MS);
+      console.warn(`[SixFlags] POI for park ${parkId} unavailable (${(err as Error)?.message?.split('\n')[0] ?? err}); using fallback timezone for ${POI_FAILURE_MEMORY_MS / 60000} min`);
       coords = null;
     }
 
@@ -1562,6 +1585,16 @@ export class SixFlags extends Destination {
           const wpPoi = bundledWpPoi.length > 0
             ? bundledWpPoi
             : await this.getWaterParkPOI(wp.parkId);
+
+          // Neither the theme park's list nor the water park's own endpoint
+          // had rows for it, so the build is about to fail the per-park check.
+          // The theme park's list is otherwise healthy and kept for a day; if
+          // it was the one that dropped the water park's rows, keeping it
+          // would fail every build until it expired. Drop it so the next
+          // build asks again.
+          if (wpPoi.length === 0) {
+            CacheLib.clearMatching(this.constructor.name, {contains: `:getPOI:[${park.parkId}]`});
+          }
 
           const wpLocation = parkCentroidFromPOI(wpPoi, wp.parkId) ?? parkLocation;
 

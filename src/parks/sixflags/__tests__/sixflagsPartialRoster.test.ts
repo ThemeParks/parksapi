@@ -1,4 +1,4 @@
-import {describe, test, expect, beforeEach, vi} from 'vitest';
+import {describe, test, expect, beforeEach, afterEach, vi} from 'vitest';
 import {SixFlags} from '../sixflags.js';
 import {CacheLib} from '../../../cache.js';
 
@@ -70,6 +70,10 @@ beforeEach(() => {
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe('getPOI', () => {
   test('rejects when the request fails, instead of answering an empty list', async () => {
     const probe = new Probe();
@@ -103,6 +107,25 @@ describe('getPOI', () => {
     probe.poi.set(901, []);
     await expect(probe.getPOI(901)).resolves.toEqual([]);
   });
+
+  // An empty answer is never kept, at either layer: a single empty 200 would
+  // otherwise fail every entity build until the cache expired.
+  test('an empty answer is not kept: the next call gets the recovered list', async () => {
+    const probe = new Probe();
+    probe.poi.set(901, []);
+    await probe.getPOI(901);
+    probe.poi.set(901, [ride('RIDE-901-1', 901)]);
+    await expect(probe.getPOI(901)).resolves.toHaveLength(1);
+    expect(probe.calls).toEqual([901, 901]);
+  });
+
+  test('a non-empty list is kept', async () => {
+    const probe = new Probe();
+    probe.poi.set(901, [ride('RIDE-901-1', 901)]);
+    await probe.getPOI(901);
+    await probe.getPOI(901);
+    expect(probe.calls).toEqual([901]);
+  });
 });
 
 describe('entity list with one park failing', () => {
@@ -112,6 +135,18 @@ describe('entity list with one park failing', () => {
     probe.poi.set(901, [ride('RIDE-901-1', 901)]);
     probe.poi.set(902, serverError(902));
     await expect(probe.getEntities()).rejects.toThrow(/503/);
+  });
+
+  test('an empty 200 for one park does not pin: the next build has its roster', async () => {
+    const probe = new Probe();
+    probe.parks = [SFOT, SFOG];
+    probe.poi.set(901, [ride('RIDE-901-1', 901)]);
+    probe.poi.set(902, []);
+    await expect(probe.getEntities()).rejects.toThrow(/sixflags_park_SFOG/);
+
+    probe.poi.set(902, [ride('RIDE-902-1', 902, '33.77', '-84.55')]);
+    const ids = (await probe.getEntities()).map(e => e.id);
+    expect(ids).toEqual(expect.arrayContaining(['RIDE-901-1', 'RIDE-902-1']));
   });
 
   test('builds both parks once the failed request recovers', async () => {
@@ -178,11 +213,59 @@ describe('water parks on their own endpoint', () => {
     await expect(probe.getEntities()).rejects.toThrow(/sixflags_park_HHOKC/);
   });
 
+  // The theme park's list answered but without the water park's rows. The
+  // list is otherwise healthy and would be kept for a day, so the build that
+  // finds the water park empty drops it, and the next build asks again.
+  test('a theme park list missing a bundled water park does not pin', async () => {
+    const probe = new Probe();
+    probe.parks = [withWaterPark('HHNJ', 911)];
+    probe.poi.set(901, [ride('RIDE-901-1', 901)]);
+    await expect(probe.getEntities()).rejects.toThrow(/sixflags_park_HHNJ/);
+
+    probe.poi.set(901, [ride('RIDE-901-1', 901), ride('RIDE-911-1', 911, '40.13', '-74.44')]);
+    const wpRide = (await probe.getEntities()).find(e => e.id === 'RIDE-911-1');
+    expect(wpRide?.parkId).toBe('sixflags_park_HHNJ');
+  });
+
   test('a water park that 404s fails the build whatever its code', async () => {
     const probe = new Probe();
     probe.parks = [withWaterPark('HHA', 913)];
     probe.poi.set(901, [ride('RIDE-901-1', 901)]);
     await expect(probe.getEntities()).rejects.toThrow(/sixflags_park_HHA/);
+  });
+});
+
+describe('timezone lookup during a POI outage', () => {
+  // Live data runs the lookup for every park on every poll. During an outage
+  // a failure is remembered for five minutes on this path only, so each poll
+  // does not re-ask every park and log again.
+  test('a failure is remembered for five minutes on the live path', async () => {
+    const probe = new Probe();
+    probe.parks = [SFOT];
+    probe.poi.set(901, serverError(901));
+    let now = Date.parse('2026-11-22T12:00:00Z');
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+
+    await probe.resolveTz(901);
+    await probe.resolveTz(901);
+    expect(probe.calls).toEqual([901]);
+
+    probe.poi.set(901, [ride('RIDE-901-1', 901)]);
+    now += 5 * 60 * 1000 + 1;
+    await expect(probe.resolveTz(901)).resolves.toEqual({tz: 'America/Chicago', fromCoords: true});
+    expect(probe.calls).toEqual([901, 901]);
+  });
+
+  // The entity build never takes the remembered failure as an answer.
+  test('the entity path ignores the remembered failure and asks again', async () => {
+    const probe = new Probe();
+    probe.parks = [SFOT];
+    probe.poi.set(901, serverError(901));
+    await probe.resolveTz(901);
+
+    probe.poi.set(901, [ride('RIDE-901-1', 901)]);
+    const ids = (await probe.getEntities()).map(e => e.id);
+    expect(ids).toContain('RIDE-901-1');
   });
 });
 
@@ -209,13 +292,10 @@ describe('timezone lookup when the POI request fails', () => {
   // Live data and schedules only need the POI list for the park's zone. A
   // failed request falls back to the instance zone for that call, and is not
   // kept, so the next call can still find the park's real zone.
-  test('falls back without throwing, and recovers on the next call', async () => {
+  test('falls back without throwing', async () => {
     const probe = new Probe();
     probe.parks = [SFOT];
     probe.poi.set(901, serverError(901));
     await expect(probe.resolveTz(901)).resolves.toEqual({tz: 'America/New_York', fromCoords: false});
-
-    probe.poi.set(901, [ride('RIDE-901-1', 901)]);
-    await expect(probe.resolveTz(901)).resolves.toEqual({tz: 'America/Chicago', fromCoords: true});
   });
 });
