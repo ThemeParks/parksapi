@@ -16,7 +16,8 @@ import {Destination, type DestinationConstructor} from '../../destination.js';
 import crypto from 'crypto';
 import config from '../../config.js';
 import {http, type HTTPObj} from '../../http.js';
-import {cache} from '../../cache.js';
+import {cache, CacheLib} from '../../cache.js';
+import {bypassHttpCache} from '../../httpCacheBypass.js';
 import {reusable} from '../../promiseReuse.js';
 import {destinationController} from '../../destinationRegistry.js';
 import type {Entity, LiveData, EntitySchedule, ScheduleEntry, AttractionType} from '@themeparks/typelib';
@@ -761,6 +762,9 @@ function timezoneFromCoords(latitude: number, longitude: number): string {
 //
 // Keys are fimsId (= Firebase parkId). Values are the fimsId of the theme
 // park that should become their parent destination.
+/** How long the live-path timezone lookup remembers a failed POI request. */
+const POI_FAILURE_MEMORY_MS = 5 * 60 * 1000;
+
 const WATERPARK_PARENT_OVERRIDES: Record<number, number> = {
   913: 901, // Hurricane Harbor Arlington  → Six Flags Over Texas
   944: 943, // Hurricane Harbor Oklahoma City → Six Flags Frontier City
@@ -844,6 +848,12 @@ export class SixFlags extends Destination {
   @config
   timezone: string = 'America/New_York';
 
+  /**
+   * One instance builds every park from a separate POI request per park, so
+   * a park left empty is a failed or truncated fetch, not a real state.
+   */
+  protected requireChildrenPerPark = true;
+
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('SIXFLAGS');
@@ -856,6 +866,9 @@ export class SixFlags extends Destination {
   getCacheKeyPrefix(): string {
     return 'sixflags';
   }
+
+  /** Parks whose POI request failed on the live path, and until when to skip asking again. */
+  private readonly poiUnavailableUntil = new Map<number, number>();
 
   /** Parks already warned about an unparseable stamp, so it logs once, not every poll. */
   private unparseableStampParks = new Set<number>();
@@ -931,9 +944,12 @@ export class SixFlags extends Destination {
 
   /**
    * Fetch POI data for a specific park.
-   * Cached 24h at HTTP level.
+   *
+   * Not cached at the HTTP level: that cache stores any 2xx body, an empty
+   * list included, and would serve it for its whole lifetime. getPOI owns the
+   * caching and decides what is worth keeping.
    */
-  @http({cacheSeconds: 86400})
+  @http()
   async fetchPOI(parkId: number): Promise<HTTPObj> {
     return {
       method: 'GET',
@@ -1127,16 +1143,48 @@ export class SixFlags extends Destination {
 
   /**
    * Get POI data for a specific park (cached 24h).
+   *
+   * Rejects when the request fails or the answer is not a list. One instance
+   * builds every park, so an empty list standing in for a failure would
+   * publish that one park with no rides while the rest look healthy. A
+   * rejected @cache call is not stored, so the next build asks again.
+   *
+   * A list is kept for 24h. An empty list is returned but never kept: with
+   * requireChildrenPerPark one empty answer fails every entity build, so it
+   * must not outlive the request that produced it.
+   *
+   * cacheVersion 2: entries written before this rejected anything could be a
+   * swallowed failure cached as []. The request bypasses the HTTP cache read
+   * for the same reason, since fetchPOI used to keep its bodies for 24h.
    */
-  @cache({ttlSeconds: 86400})
+  @cache({callback: (pois: SixFlagsPOI[]) => (pois.length > 0 ? 86400 : 0), cacheVersion: 2})
   async getPOI(parkId: number): Promise<SixFlagsPOI[]> {
+    const resp = await bypassHttpCache(() => this.fetchPOI(parkId));
+    const data = await resp.json();
+    if (!Array.isArray(data)) {
+      throw new Error(`SixFlags: POI answer for park ${parkId} is not a list`);
+    }
+    return data;
+  }
+
+  /**
+   * A water park's own POI list. Water parks whose rows ride along in their
+   * theme park's list answer 404 here, which means "no separate list", not
+   * a failure, so a 404 is an empty list. Any other failure rejects, as in
+   * getPOI. A water park left with nothing then fails the per-park check
+   * (requireChildrenPerPark), so the last good list stands.
+   *
+   * Cached for an hour so the timezone lookup, which runs on every live-data
+   * poll, does not re-ask an endpoint that always answers 404. A rejection
+   * is not stored.
+   */
+  @cache({ttlSeconds: 3600})
+  async getWaterParkPOI(parkId: number): Promise<SixFlagsPOI[]> {
     try {
-      const resp = await this.fetchPOI(parkId);
-      const data = await resp.json();
-      return Array.isArray(data) ? data : [];
-    } catch {
-      // Some parks (international/new) don't have POI data yet
-      return [];
+      return await this.getPOI(parkId);
+    } catch (err) {
+      if (/HTTP request not OK: 404\b/.test(String((err as Error)?.message ?? err))) return [];
+      throw err;
     }
   }
 
@@ -1255,17 +1303,29 @@ export class SixFlags extends Destination {
    * water park POIs, keyed by `parkId`) rather than fetching /poi/park/{id}
    * per park — water parks return 404 on their own POI endpoint.
    */
-  private async getTimezoneForPark(parkId: number): Promise<string> {
-    return (await this.resolveTimezoneForPark(parkId)).tz;
+  private async getTimezoneForPark(parkId: number, strict = false): Promise<string> {
+    return (await this.resolveTimezoneForPark(parkId, strict)).tz;
   }
 
   /**
    * As getTimezoneForPark, but also says whether the zone came from the
-   * park's coordinates or from the instance fallback. getPOI swallows fetch
-   * errors and caches the empty result, so one failed POI fetch can leave a
-   * Pacific park on the Eastern fallback for a day.
+   * park's coordinates or from the instance fallback. Live data and
+   * schedules only need the POI list for the zone, so a failed POI request
+   * falls back to the instance zone for this call rather than taking every
+   * park's live data down. The failure is not cached, so the next call can
+   * still find the park's real zone.
+   *
+   * `strict` is for the entity build: there the failure rejects instead, since
+   * a fallback zone would be published on every entity in the park.
    */
-  private async resolveTimezoneForPark(parkId: number): Promise<{tz: string; fromCoords: boolean}> {
+  private async resolveTimezoneForPark(parkId: number, strict = false): Promise<{tz: string; fromCoords: boolean}> {
+    // During an outage the live path would otherwise re-ask every park on
+    // every poll and log each time. Remembered here only, in memory, and
+    // never read by the strict (entity) path.
+    if (!strict && (this.poiUnavailableUntil.get(parkId) ?? 0) > Date.now()) {
+      return {tz: this.timezone, fromCoords: false};
+    }
+
     // Find which main-park this parkId belongs to (itself, or a sister water park).
     const parks = await this.getParkData();
     const owner = parks.find((p) =>
@@ -1275,15 +1335,23 @@ export class SixFlags extends Destination {
 
     // Try the owner's POI first — bundled-pattern waterparks (HHLA/HHNJ)
     // expose their coordinates here.
-    const ownerPoi = await this.getPOI(sourceParkId);
-    let coords = parkCentroidFromPOI(ownerPoi, parkId);
+    let coords: {latitude: number; longitude: number} | null;
+    try {
+      const ownerPoi = await this.getPOI(sourceParkId);
+      coords = parkCentroidFromPOI(ownerPoi, parkId);
 
-    // Standalone-pattern waterparks (HHA/HHOKC) aren't included in their
-    // parent's POI response — fall back to their own /poi/park/{wpId}
-    // endpoint, which returns POIs keyed by their own parkId.
-    if (!coords && sourceParkId !== parkId) {
-      const standalonePoi = await this.getPOI(parkId);
-      coords = parkCentroidFromPOI(standalonePoi, parkId);
+      // Standalone-pattern waterparks (HHA/HHOKC) aren't included in their
+      // parent's POI response — fall back to their own /poi/park/{wpId}
+      // endpoint, which returns POIs keyed by their own parkId.
+      if (!coords && sourceParkId !== parkId) {
+        const standalonePoi = await this.getWaterParkPOI(parkId);
+        coords = parkCentroidFromPOI(standalonePoi, parkId);
+      }
+    } catch (err) {
+      if (strict) throw err;
+      this.poiUnavailableUntil.set(parkId, Date.now() + POI_FAILURE_MEMORY_MS);
+      console.warn(`[SixFlags] POI for park ${parkId} unavailable (${(err as Error)?.message?.split('\n')[0] ?? err}); using fallback timezone for ${POI_FAILURE_MEMORY_MS / 60000} min`);
+      coords = null;
     }
 
     if (coords) return {tz: timezoneFromCoords(coords.latitude, coords.longitude), fromCoords: true};
@@ -1410,7 +1478,7 @@ export class SixFlags extends Destination {
     const destinations: Entity[] = [];
 
     for (const park of parks) {
-      const tz = await this.getTimezoneForPark(park.parkId);
+      const tz = await this.getTimezoneForPark(park.parkId, true);
       const poi = await this.getPOI(park.parkId);
       const location = parkCentroidFromPOI(poi, park.parkId);
 
@@ -1431,7 +1499,7 @@ export class SixFlags extends Destination {
     const entities: Entity[] = [];
 
     for (const park of parks) {
-      const tz = await this.getTimezoneForPark(park.parkId);
+      const tz = await this.getTimezoneForPark(park.parkId, true);
       const destinationId = `sixflags_destination_${park.code}`;
       const mainParkId = `sixflags_park_${park.code}`;
 
@@ -1463,7 +1531,7 @@ export class SixFlags extends Destination {
       // park's own /poi/park/{id} 404s on the Six Flags API, but the sister
       // items live inside the main park's POI response keyed by `parkId`.
       for (const wp of park.waterParks) {
-        const wpTz = await this.getTimezoneForPark(wp.parkId);
+        const wpTz = await this.getTimezoneForPark(wp.parkId, true);
         const wpLocation = parkCentroidFromPOI(poiData, wp.parkId) ?? parkLocation;
 
         entities.push({
@@ -1511,12 +1579,22 @@ export class SixFlags extends Destination {
         // cache cycle.
         for (const wp of park.waterParks) {
           const wpParkEntityId = `sixflags_park_${wp.code}`;
-          const wpTz = await this.getTimezoneForPark(wp.parkId);
+          const wpTz = await this.getTimezoneForPark(wp.parkId, true);
 
           const bundledWpPoi = poiData.filter(poi => poi.parkId === wp.parkId);
           const wpPoi = bundledWpPoi.length > 0
             ? bundledWpPoi
-            : await this.getPOI(wp.parkId);
+            : await this.getWaterParkPOI(wp.parkId);
+
+          // Neither the theme park's list nor the water park's own endpoint
+          // had rows for it, so the build is about to fail the per-park check.
+          // The theme park's list is otherwise healthy and kept for a day; if
+          // it was the one that dropped the water park's rows, keeping it
+          // would fail every build until it expired. Drop it so the next
+          // build asks again.
+          if (wpPoi.length === 0) {
+            CacheLib.clearMatching(this.constructor.name, {contains: `:getPOI:[${park.parkId}]`});
+          }
 
           const wpLocation = parkCentroidFromPOI(wpPoi, wp.parkId) ?? parkLocation;
 

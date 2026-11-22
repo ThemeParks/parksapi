@@ -309,6 +309,23 @@ export abstract class Destination {
   protected allowEmptyEntityList: boolean = false;
 
   /**
+   * Opt in to the per-park check in {@link getEntities}: every PARK must have
+   * at least one attraction, restaurant, show or other entity beneath it.
+   *
+   * For a class where one instance fetches each park's roster separately, so
+   * a single failed request can empty one park while its siblings keep their
+   * rides. That list still has content and passes the destination-wide
+   * collapse guard.
+   *
+   * Off by default: some destinations legitimately publish parks with no
+   * entities, some of them only intermittently, so the check cannot apply
+   * everywhere.
+   *
+   * @default false
+   */
+  protected requireChildrenPerPark: boolean = false;
+
+  /**
    * Opt-in: force-close a previously-live entity once it has been absent
    * from a full buildLiveData() snapshot for longer than
    * {@link liveEntityRetirementMs}.
@@ -1158,6 +1175,7 @@ export abstract class Destination {
     const resolved = this.resolveEntityHierarchy(merged);
 
     this.assertEntityListNotCollapsed(resolved);
+    this.assertEveryParkHasChildren(resolved);
 
     // Default attractionType for ATTRACTION entities that don't specify one
     for (const entity of resolved) {
@@ -1227,6 +1245,37 @@ export abstract class Destination {
       `restaurants or shows — only ${shape}. Refusing to publish a list that ` +
       `would read as every entity having been removed. Set ` +
       `allowEmptyEntityList if this destination genuinely has no content.`,
+    );
+  }
+
+  /**
+   * Refuse to publish an entity list in which a PARK has nothing beneath it,
+   * for a class that set {@link requireChildrenPerPark}.
+   *
+   * {@link assertEntityListNotCollapsed} only fires when the whole destination
+   * is down to structure. A class that builds several parks from one instance
+   * can lose one park's roster to a single failed request while its siblings
+   * keep their rides; every ride in the emptied park then reads downstream as
+   * removed. A park counts as populated when any entity resolves to it through
+   * the parent chain (a ride inside a land inside the park counts). Throwing
+   * skips the poll and leaves the last good list standing.
+   */
+  private assertEveryParkHasChildren(resolved: Entity[]): void {
+    if (!this.requireChildrenPerPark || this.allowEmptyEntityList) return;
+    const populated = new Set<string>();
+    for (const entity of resolved) {
+      if (entity.entityType === 'DESTINATION' || entity.entityType === 'PARK') continue;
+      if (entity.parkId) populated.add(entity.parkId);
+    }
+    const empty = resolved
+      .filter((e) => e.entityType === 'PARK' && !populated.has(e.id))
+      .map((e) => e.id);
+    if (empty.length === 0) return;
+
+    throw new Error(
+      `${this.constructor.name}: park ${empty.join(', ')} has no attractions, ` +
+      `restaurants or shows. Refusing to publish a list that would read as ` +
+      `every entity in ${empty.length === 1 ? 'that park' : 'those parks'} having been removed.`,
     );
   }
 
