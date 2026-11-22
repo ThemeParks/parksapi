@@ -139,10 +139,10 @@ export class Chimelong extends Destination {
   @config timezone: string = TIMEZONE;
 
   /**
-   * Attractions come only from the wait-time list, and no entries for
-   * Chimelong Birds Park or Chimelong Spaceship have been seen in it. Both
-   * are published for their calendars, so they may have no children. The
-   * other parks are still checked.
+   * Attractions come only from the wait-time list. Chimelong Birds Park and
+   * Chimelong Spaceship have not been observed publishing any attractions
+   * from it, so they may be published with no children. Remove a park from
+   * this list once it does. The other parks are still checked.
    */
   protected allowEmptyParks: readonly string[] = ['park_GZ54', 'park_ZH60'];
 

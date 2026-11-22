@@ -178,7 +178,7 @@ describe('water parks on their own endpoint', () => {
     await expect(probe.getEntities()).rejects.toThrow(/sixflags_park_HHOKC/);
   });
 
-  // No POIs for Hurricane Harbor Arlington have been seen in the vendor feed,
+  // Hurricane Harbor Arlington has not been observed publishing any children,
   // so it is named as a park that may publish empty.
   test('Hurricane Harbor Arlington may publish empty', async () => {
     const probe = new Probe();
@@ -191,6 +191,25 @@ describe('water parks on their own endpoint', () => {
 });
 
 describe('timezone lookup when the POI request fails', () => {
+  // The entity build reads the zone first and the POI list second. A failure
+  // on the first read must not fall back and then publish the park's whole
+  // roster in the fallback zone once the second read succeeds.
+  test('the entity build rejects rather than publish a fallback zone', async () => {
+    const probe = new Probe();
+    probe.parks = [SFOT];
+    let failures = 1;
+    const pacific = [ride('RIDE-901-1', 901, '34.42', '-118.59')];
+    probe.fetchPOI = async (parkId: number) => {
+      probe.calls.push(parkId);
+      if (failures-- > 0) throw serverError(parkId);
+      return {json: async () => pacific} as any;
+    };
+    await expect(probe.getEntities()).rejects.toThrow(/503/);
+
+    const entities = await probe.getEntities();
+    expect(entities.find(e => e.id === 'RIDE-901-1')?.timezone).toBe('America/Los_Angeles');
+  });
+
   // Live data and schedules only need the POI list for the park's zone. A
   // failed request falls back to the instance zone for that call, and is not
   // kept, so the next call can still find the park's real zone.

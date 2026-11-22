@@ -845,10 +845,10 @@ export class SixFlags extends Destination {
   timezone: string = 'America/New_York';
 
   /**
-   * No POIs for Hurricane Harbor Arlington have been seen in the vendor feed,
-   * either on its own /poi/park endpoint or in Six Flags Over Texas's list,
-   * so it is published from its schedule alone and may have no children.
-   * Every other park still has to have some.
+   * Hurricane Harbor Arlington has not been observed publishing any
+   * attractions, restaurants or shows, so it may be published with no
+   * children. Remove it from this list once it does. Every other park still
+   * has to have some.
    */
   protected allowEmptyParks: readonly string[] = ['sixflags_park_HHA'];
 
@@ -1290,8 +1290,8 @@ export class SixFlags extends Destination {
    * water park POIs, keyed by `parkId`) rather than fetching /poi/park/{id}
    * per park — water parks return 404 on their own POI endpoint.
    */
-  private async getTimezoneForPark(parkId: number): Promise<string> {
-    return (await this.resolveTimezoneForPark(parkId)).tz;
+  private async getTimezoneForPark(parkId: number, strict = false): Promise<string> {
+    return (await this.resolveTimezoneForPark(parkId, strict)).tz;
   }
 
   /**
@@ -1301,8 +1301,11 @@ export class SixFlags extends Destination {
    * falls back to the instance zone for this call rather than taking every
    * park's live data down. The failure is not cached, so the next call can
    * still find the park's real zone.
+   *
+   * `strict` is for the entity build: there the failure rejects instead, since
+   * a fallback zone would be published on every entity in the park.
    */
-  private async resolveTimezoneForPark(parkId: number): Promise<{tz: string; fromCoords: boolean}> {
+  private async resolveTimezoneForPark(parkId: number, strict = false): Promise<{tz: string; fromCoords: boolean}> {
     // Find which main-park this parkId belongs to (itself, or a sister water park).
     const parks = await this.getParkData();
     const owner = parks.find((p) =>
@@ -1325,6 +1328,7 @@ export class SixFlags extends Destination {
         coords = parkCentroidFromPOI(standalonePoi, parkId);
       }
     } catch (err) {
+      if (strict) throw err;
       console.warn(`[SixFlags] POI for park ${parkId} unavailable (${(err as Error)?.message?.split('\n')[0] ?? err}); using fallback timezone this call`);
       coords = null;
     }
@@ -1453,7 +1457,7 @@ export class SixFlags extends Destination {
     const destinations: Entity[] = [];
 
     for (const park of parks) {
-      const tz = await this.getTimezoneForPark(park.parkId);
+      const tz = await this.getTimezoneForPark(park.parkId, true);
       const poi = await this.getPOI(park.parkId);
       const location = parkCentroidFromPOI(poi, park.parkId);
 
@@ -1474,7 +1478,7 @@ export class SixFlags extends Destination {
     const entities: Entity[] = [];
 
     for (const park of parks) {
-      const tz = await this.getTimezoneForPark(park.parkId);
+      const tz = await this.getTimezoneForPark(park.parkId, true);
       const destinationId = `sixflags_destination_${park.code}`;
       const mainParkId = `sixflags_park_${park.code}`;
 
@@ -1506,7 +1510,7 @@ export class SixFlags extends Destination {
       // park's own /poi/park/{id} 404s on the Six Flags API, but the sister
       // items live inside the main park's POI response keyed by `parkId`.
       for (const wp of park.waterParks) {
-        const wpTz = await this.getTimezoneForPark(wp.parkId);
+        const wpTz = await this.getTimezoneForPark(wp.parkId, true);
         const wpLocation = parkCentroidFromPOI(poiData, wp.parkId) ?? parkLocation;
 
         entities.push({
@@ -1554,7 +1558,7 @@ export class SixFlags extends Destination {
         // cache cycle.
         for (const wp of park.waterParks) {
           const wpParkEntityId = `sixflags_park_${wp.code}`;
-          const wpTz = await this.getTimezoneForPark(wp.parkId);
+          const wpTz = await this.getTimezoneForPark(wp.parkId, true);
 
           const bundledWpPoi = poiData.filter(poi => poi.parkId === wp.parkId);
           const wpPoi = bundledWpPoi.length > 0
