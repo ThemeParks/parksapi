@@ -845,12 +845,10 @@ export class SixFlags extends Destination {
   timezone: string = 'America/New_York';
 
   /**
-   * Hurricane Harbor Arlington has not been observed publishing any
-   * attractions, restaurants or shows, so it may be published with no
-   * children. Remove it from this list once it does. Every other park still
-   * has to have some.
+   * One instance builds every park from a separate POI request per park, so
+   * a park left empty is a failed or truncated fetch, not a real state.
    */
-  protected allowEmptyParks: readonly string[] = ['sixflags_park_HHA'];
+  protected requireChildrenPerPark = true;
 
   constructor(options?: DestinationConstructor) {
     super(options);
@@ -1158,8 +1156,8 @@ export class SixFlags extends Destination {
    * A water park's own POI list. Water parks whose rows ride along in their
    * theme park's list answer 404 here, which means "no separate list", not
    * a failure, so a 404 is an empty list. Any other failure rejects, as in
-   * getPOI. Whether the water park may then be published empty is decided
-   * by the base-class park check (see allowEmptyParks).
+   * getPOI. A water park left with nothing then fails the per-park check
+   * (requireChildrenPerPark), so the last good list stands.
    *
    * Cached for an hour so the timezone lookup, which runs on every live-data
    * poll, does not re-ask an endpoint that always answers 404. A rejection

@@ -309,22 +309,21 @@ export abstract class Destination {
   protected allowEmptyEntityList: boolean = false;
 
   /**
-   * PARK ids that may be published with nothing beneath them.
+   * Opt in to the per-park check in {@link getEntities}: every PARK must have
+   * at least one attraction, restaurant, show or other entity beneath it.
    *
-   * {@link getEntities} refuses a list in which any PARK has no attraction,
-   * restaurant, show or other entity under it. A class that builds several
-   * parks can lose one park's roster to a single failed request while the
-   * others are fine, and the list then still has content, so the
-   * destination-wide guard passes it.
+   * For a class where one instance fetches each park's roster separately, so
+   * a single failed request can empty one park while its siblings keep their
+   * rides. That list still has content and passes the destination-wide
+   * collapse guard.
    *
-   * Name a park here only when upstream genuinely has nothing for it (a park
-   * listed to carry opening hours, or one that has not opened), with a comment
-   * saying why. It is a list, not a flag, so the check keeps covering every
-   * other park the class builds.
+   * Off by default: some destinations legitimately publish parks with no
+   * entities, some of them only intermittently, so the check cannot apply
+   * everywhere.
    *
-   * @default []
+   * @default false
    */
-  protected allowEmptyParks: readonly string[] = [];
+  protected requireChildrenPerPark: boolean = false;
 
   /**
    * Opt-in: force-close a previously-live entity once it has been absent
@@ -1250,40 +1249,33 @@ export abstract class Destination {
   }
 
   /**
-   * Refuse to publish an entity list in which a PARK has nothing beneath it.
+   * Refuse to publish an entity list in which a PARK has nothing beneath it,
+   * for a class that set {@link requireChildrenPerPark}.
    *
    * {@link assertEntityListNotCollapsed} only fires when the whole destination
    * is down to structure. A class that builds several parks from one instance
-   * fetches each park's roster separately, so one failed request can empty one
-   * park while its siblings keep their rides. That list still has content and
-   * passes, and every ride in the emptied park reads downstream as removed.
-   *
-   * A park counts as populated when any entity resolves to it through the
-   * parent chain (a ride inside a land inside the park counts). Throwing has
-   * the same purpose as the collapse guard: the poll is skipped and the last
-   * good list stands.
-   *
-   * Parks named in {@link allowEmptyParks} are exempt, and a destination that
-   * set {@link allowEmptyEntityList} is not checked at all.
+   * can lose one park's roster to a single failed request while its siblings
+   * keep their rides; every ride in the emptied park then reads downstream as
+   * removed. A park counts as populated when any entity resolves to it through
+   * the parent chain (a ride inside a land inside the park counts). Throwing
+   * skips the poll and leaves the last good list standing.
    */
   private assertEveryParkHasChildren(resolved: Entity[]): void {
-    if (this.allowEmptyEntityList) return;
+    if (!this.requireChildrenPerPark || this.allowEmptyEntityList) return;
     const populated = new Set<string>();
     for (const entity of resolved) {
       if (entity.entityType === 'DESTINATION' || entity.entityType === 'PARK') continue;
       if (entity.parkId) populated.add(entity.parkId);
     }
-    const allowed = new Set(this.allowEmptyParks);
     const empty = resolved
-      .filter((e) => e.entityType === 'PARK' && !populated.has(e.id) && !allowed.has(e.id))
+      .filter((e) => e.entityType === 'PARK' && !populated.has(e.id))
       .map((e) => e.id);
     if (empty.length === 0) return;
 
     throw new Error(
       `${this.constructor.name}: park ${empty.join(', ')} has no attractions, ` +
       `restaurants or shows. Refusing to publish a list that would read as ` +
-      `every entity in ${empty.length === 1 ? 'that park' : 'those parks'} having been removed. ` +
-      `Add the park id to allowEmptyParks if upstream genuinely has nothing for it.`,
+      `every entity in ${empty.length === 1 ? 'that park' : 'those parks'} having been removed.`,
     );
   }
 

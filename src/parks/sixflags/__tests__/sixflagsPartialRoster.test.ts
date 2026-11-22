@@ -12,8 +12,8 @@ import {CacheLib} from '../../../cache.js';
  * A failed POI request now rejects. A rejected @cache call is not stored, so
  * the next build asks again. The one empty answer that is still accepted is a
  * 404 on a water park's own endpoint, which is how the vendor says it keeps no
- * separate list for that park; whether the park may then be empty is decided
- * by the base-class check, park by park.
+ * separate list for that park; a park left empty then fails the base-class
+ * per-park check, which SixFlags opts in to.
  */
 
 type Poi = {
@@ -171,22 +171,18 @@ describe('water parks on their own endpoint', () => {
     expect(wpRide?.parkId).toBe('sixflags_park_HHOKC');
   });
 
-  test('a water park that 404s and is not known to be empty fails the build', async () => {
+  test('a water park that 404s with no rows in the theme park list fails the build', async () => {
     const probe = new Probe();
     probe.parks = [withWaterPark('HHOKC', 944)];
     probe.poi.set(901, [ride('RIDE-901-1', 901)]);
     await expect(probe.getEntities()).rejects.toThrow(/sixflags_park_HHOKC/);
   });
 
-  // Hurricane Harbor Arlington has not been observed publishing any children,
-  // so it is named as a park that may publish empty.
-  test('Hurricane Harbor Arlington may publish empty', async () => {
+  test('a water park that 404s fails the build whatever its code', async () => {
     const probe = new Probe();
     probe.parks = [withWaterPark('HHA', 913)];
     probe.poi.set(901, [ride('RIDE-901-1', 901)]);
-    const ids = (await probe.getEntities()).map(e => e.id);
-    expect(ids).toContain('sixflags_park_HHA');
-    expect(ids).toContain('RIDE-901-1');
+    await expect(probe.getEntities()).rejects.toThrow(/sixflags_park_HHA/);
   });
 });
 

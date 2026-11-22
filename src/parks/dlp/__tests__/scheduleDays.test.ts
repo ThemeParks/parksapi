@@ -63,8 +63,6 @@ function stubbedPark(
   rowsFor: (date: string) => unknown[] = scheduleRows,
   park = new DisneylandParis(),
 ): {park: DisneylandParis; dates: () => string[]} {
-  // The fixture only carries content for one park; the other is built empty.
-  (park as any).allowEmptyParks = ['P2'];
   vi.spyOn(park as any, 'getPOIData').mockResolvedValue(POI);
   vi.spyOn(park as any, 'getVirtualQueueData').mockResolvedValue([{queueContentId: 'P1MG03', enabled: true}]);
   const asked: string[] = [];

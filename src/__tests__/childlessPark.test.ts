@@ -9,10 +9,10 @@ import {Entity} from '@themeparks/typelib';
  * the list still has rides in it, so it passes, and every ride in the failed
  * park reads downstream as removed.
  *
- * So every PARK must have at least one entity beneath it. A park that
- * legitimately publishes nothing (one that exists to carry opening hours) is
- * named in `allowEmptyParks` on its class, park by park, so the check keeps
- * covering every other park the class builds.
+ * A class where that is a known failure mode sets requireChildrenPerPark, and
+ * then every PARK must have at least one entity beneath it. It is off by
+ * default, since some destinations legitimately publish parks with no
+ * entities, some of them only intermittently.
  */
 const DESTINATION: Entity = {
   id: 'dest', name: 'Test Resort', entityType: 'DESTINATION', timezone: 'Europe/London',
@@ -29,12 +29,20 @@ const ride = (id: string, parentId: string): Entity => ({
 class TestResort extends Destination {
   constructor(
     private readonly entities: Entity[],
-    opts: {allowEmptyParks?: string[]; allowEmptyEntityList?: boolean} = {},
+    opts: {requireChildrenPerPark?: boolean; allowEmptyEntityList?: boolean} = {},
   ) {
     super();
-    if (opts.allowEmptyParks) (this as any).allowEmptyParks = opts.allowEmptyParks;
+    (this as any).requireChildrenPerPark = opts.requireChildrenPerPark ?? true;
     if (opts.allowEmptyEntityList) (this as any).allowEmptyEntityList = true;
   }
+  async getDestinations(): Promise<Entity[]> { return [DESTINATION]; }
+  protected async buildEntityList(): Promise<Entity[]> { return this.entities; }
+  protected async buildLiveData(): Promise<any[]> { return []; }
+  protected async buildSchedules(): Promise<any[]> { return []; }
+}
+
+class Unopted extends Destination {
+  constructor(private readonly entities: Entity[]) { super(); }
   async getDestinations(): Promise<Entity[]> { return [DESTINATION]; }
   protected async buildEntityList(): Promise<Entity[]> { return this.entities; }
   protected async buildLiveData(): Promise<any[]> { return []; }
@@ -80,20 +88,17 @@ describe('park with no children', () => {
     ]).getEntities()).rejects.toThrow(/park a/i);
   });
 
-  it('lets a class name the parks that may be empty', async () => {
-    const entities = await new TestResort(
-      [park('a'), ride('a1', 'a'), park('b')],
-      {allowEmptyParks: ['b']},
-    ).getEntities();
+  it('is off unless the class opts in', async () => {
+    const entities = await new Unopted([park('a'), ride('a1', 'a'), park('b')]).getEntities();
     expect(entities.map((e) => e.id).sort()).toEqual(['a', 'a1', 'b', 'dest']);
   });
 
-  // Naming one park does not switch the check off for its siblings.
-  it('still checks the parks a class did not name', async () => {
-    await expect(new TestResort(
-      [park('a'), ride('a1', 'a'), park('b'), park('c')],
-      {allowEmptyParks: ['b']},
-    ).getEntities()).rejects.toThrow(/park c/i);
+  it('is off when a class sets it to false', async () => {
+    const entities = await new TestResort(
+      [park('a'), ride('a1', 'a'), park('b')],
+      {requireChildrenPerPark: false},
+    ).getEntities();
+    expect(entities).toHaveLength(4);
   });
 
   it('is skipped for a destination that opted out of having content at all', async () => {

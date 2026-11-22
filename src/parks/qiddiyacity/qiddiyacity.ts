@@ -336,14 +336,6 @@ export class QiddiyaCity extends Destination {
 
   timezone: string = 'Asia/Riyadh';
 
-  /**
-   * Aqua Rabia has not been observed publishing any activities from the
-   * shared listing (its own schedule and dashboard are not wired up yet), so
-   * it may be published with no children. Remove it from this list once it
-   * does. Six Flags Qiddiya City is still checked.
-   */
-  protected allowEmptyParks: readonly string[] = [AQUA_RABIA_PARK_ID];
-
   constructor(options?: DestinationConstructor) {
     super(options);
     this.addConfigPrefix('QIDDIYACITY');
