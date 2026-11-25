@@ -1,0 +1,533 @@
+{
+ "total": 33,
+ "items": [
+  {
+   "contentType": "rideEntity",
+   "id": "c959b986-ba19-40db-8a9f-ea9af46bb9fd",
+   "properties": {
+    "entityName": "Aquila",
+    "crmId": "c8c2197f-5d6c-ee11-9ae7-6045bd905937",
+    "latitude": 55.67217517053898,
+    "longitude": 12.56779697844101,
+    "minHeight": 120,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "A flight through the universe ",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "64c9160b-957c-4386-98b8-ec1ab4359d2e",
+   "properties": {
+    "entityName": "Hotel Hikari",
+    "crmId": "a3579f17-8574-f111-ab0d-70a8a56385cc",
+    "latitude": 55.672666833266966,
+    "longitude": 12.570015063400827,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": 10,
+    "mapIcon": "ride",
+    "shortDescription": "A sensory house of chaos",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "5dea6797-d105-4270-9f91-c7a71c104f49",
+   "properties": {
+    "entityName": "Ice Skating Rink",
+    "crmId": "e6ba9247-e192-ef11-8a69-7c1e5250c8f0",
+    "latitude": 55.67332965247617,
+    "longitude": 12.567776190569516,
+    "minHeight": 120,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "Glide Across the Ice",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "7a0695a1-c081-4e16-9333-32cb0e216419",
+   "properties": {
+    "entityName": "The Astronomer",
+    "crmId": "489ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.67248436469753,
+    "longitude": 12.568348226807284,
+    "minHeight": 120,
+    "minHeightWithAdult": 95,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "Aim for the stars",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "fac69dae-3f21-4967-b2cb-49f30e8ab1e9",
+   "properties": {
+    "entityName": "The Bumper Cars",
+    "crmId": "929ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.67235214973589,
+    "longitude": 12.568654241799806,
+    "minHeight": 130,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "Put the pedal to the metal",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "ed2b98f1-5357-4969-aec1-44ddda51f5be",
+   "properties": {
+    "entityName": "The Camel Trail",
+    "crmId": "7c9ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.67355745802009,
+    "longitude": 12.571007965871658,
+    "minHeight": 120,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "Ride the camel humps",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "ab82151f-b12e-4724-b59c-ad3d1ebb0daa",
+   "properties": {
+    "entityName": "The Classic Carousel",
+    "crmId": "609ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.673347973841445,
+    "longitude": 12.57117962724003,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": 3,
+    "mapIcon": "ride",
+    "shortDescription": "Pure nostalgia all around",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "67b3fa11-7a0f-4c97-8ce5-efb131b23f5c",
+   "properties": {
+    "entityName": "The Demon",
+    "crmId": "629ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.67294675815724,
+    "longitude": 12.570562353429477,
+    "minHeight": 132,
+    "minHeightWithAdult": 132,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "Adrenaline rushes through three wild loops",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "9989e1bc-1210-4092-a2d4-860204329ccb",
+   "properties": {
+    "entityName": "The Dragon Boats",
+    "crmId": "5c9ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.67315512060272,
+    "longitude": 12.57015754129418,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": 8,
+    "mapIcon": "ride",
+    "shortDescription": "A pleasant boat ride on Tivoli Lake",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "7e3220b6-94e6-44d9-8338-b1fd82f11807",
+   "properties": {
+    "entityName": "The Elf Train",
+    "crmId": "cb47c833-e192-ef11-8a69-7c1e5250c8f0",
+    "latitude": 55.6732071003876,
+    "longitude": 12.568603933221508,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": 3,
+    "mapIcon": "ride",
+    "shortDescription": "Join the cozy Christmas ride",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "6571e1cf-9c02-47af-9cf8-f45cf9798e33",
+   "properties": {
+    "entityName": "The Ferries Wheel",
+    "crmId": "1669f2f4-316d-ee11-9ae7-6045bd905937",
+    "latitude": 55.67297485137533,
+    "longitude": 12.567500623185236,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": 8,
+    "mapIcon": "ride",
+    "shortDescription": "Soaring nostalgia with breathtaking views",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "bb0d1142-1f91-4f19-85a4-94fff0a87bca",
+   "properties": {
+    "entityName": "The Flying Trunk",
+    "crmId": "509ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.67257451291854,
+    "longitude": 12.569403786192714,
+    "minHeight": 130,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "Fly the fairytales of Hand Christian Andersen",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "d9366350-554b-425f-b328-81bc4b46bada",
+   "properties": {
+    "entityName": "The Forest Carousel",
+    "crmId": "23d21540-e192-ef11-8a69-7c1e5250c8f0",
+    "latitude": 55.67376027567112,
+    "longitude": 12.56737829813833,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": 3,
+    "mapIcon": "ride",
+    "shortDescription": "Meet the adorable animals of the forest",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "fe97d900-98ca-4678-bfe7-cfbeeb5e2ba5",
+   "properties": {
+    "entityName": "The Fun House",
+    "crmId": "7beac726-e192-ef11-8a69-7c1e5250c8f0",
+    "latitude": 55.67310594841696,
+    "longitude": 12.566725084837065,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": 6,
+    "mapIcon": "ride",
+    "shortDescription": " A playful challenge packed with fun ",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "621b0078-1edb-4410-8e33-7fcbc0f36c45",
+   "properties": {
+    "entityName": "The Galley Ships",
+    "crmId": "6c9ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.67252925698564,
+    "longitude": 12.567363224960113,
+    "minHeight": 120,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "Boat rides through rough waters",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "c2677eab-23ee-4b99-927d-23e261ef06c9",
+   "properties": {
+    "entityName": "The Golden Tower",
+    "crmId": "569ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.67333814242647,
+    "longitude": 12.570773943127111,
+    "minHeight": 132,
+    "minHeightWithAdult": 132,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "Free fall from 63 metres",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "cf32f5b8-bcc6-4a47-9267-2d7063d818de",
+   "properties": {
+    "entityName": "The Lighthouse",
+    "crmId": "6a9ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.674709339260396,
+    "longitude": 12.568990181074696,
+    "minHeight": 120,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "Ascend with pedal power",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "e620ad02-51e8-42b0-90c0-48ffc94df97a",
+   "properties": {
+    "entityName": "The Little Dragon",
+    "crmId": "549ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.671933482735795,
+    "longitude": 12.567925840000893,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": 3,
+    "mapIcon": "ride",
+    "shortDescription": "A flight on the dragon’s back",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "beab375f-dc42-4f68-b075-eac9ed3d0842",
+   "properties": {
+    "entityName": "The Milky Way Express",
+    "crmId": "8a9ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.67244346110976,
+    "longitude": 12.5680003288415,
+    "minHeight": 130,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "Embark on a Tivoli space journey",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "489979a7-5248-47b8-9d6c-614c0eb2dc6f",
+   "properties": {
+    "entityName": "The Mine",
+    "crmId": "829ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.67305465194126,
+    "longitude": 12.567220795644962,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": 8,
+    "mapIcon": "ride",
+    "shortDescription": "Sail into the depths on a treasure hunt ",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "599f7a17-501e-4110-909f-0e393ba59579",
+   "properties": {
+    "entityName": "The Monsoon",
+    "crmId": "869ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.67366068717418,
+    "longitude": 12.571132018035167,
+    "minHeight": 140,
+    "minHeightWithAdult": 140,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "Get swept away by wild winds",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "e0194e26-85d9-4103-8e4e-005293205f52",
+   "properties": {
+    "entityName": "The Music Carousel",
+    "crmId": "889ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.6734048852544,
+    "longitude": 12.569090099363667,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": 3,
+    "mapIcon": "ride",
+    "shortDescription": "A merry and musical spin",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "63056a17-8ef1-4ce8-8479-f65b96925c54",
+   "properties": {
+    "entityName": "The Panda",
+    "crmId": "909ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.673198989828435,
+    "longitude": 12.570414527129172,
+    "minHeight": 90,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "A mini Golden Tower for the youngest ",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "e50bf3df-c0fa-478a-8b27-fce98efd6dea",
+   "properties": {
+    "entityName": "The Roller Coaster",
+    "crmId": "969ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.67322577033712,
+    "longitude": 12.566894073552561,
+    "minHeight": 120,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "Shrieks and squeals of delight",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "4e4f2a74-ee3e-4a4a-a0a6-5c9f072dd0e5",
+   "properties": {
+    "entityName": "The Star Flyer",
+    "crmId": "729ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.67266944529518,
+    "longitude": 12.567944633214506,
+    "minHeight": 140,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "All the fun begins closer to the stars",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "137b7a10-ccd1-45c7-b477-215ccbd412e4",
+   "properties": {
+    "entityName": "The Star Tower",
+    "crmId": "a09ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.67353514838525,
+    "longitude": 12.570641844355658,
+    "minHeight": 105,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "All the fun begins closer to the stars",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "58b21f08-09b4-4096-ae77-1c3bdb1361af",
+   "properties": {
+    "entityName": "The Swing Carousel",
+    "crmId": "a29ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.6731956027426,
+    "longitude": 12.568124151566293,
+    "minHeight": 120,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "A magical merry-go-round",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "beeaa19d-c582-4b45-aad9-1571530a6df3",
+   "properties": {
+    "entityName": "The Temple Tower",
+    "crmId": "a49ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.6731328165455,
+    "longitude": 12.570448725305633,
+    "minHeight": 120,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "Reach for the sky at the Temple Tower",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "104e54e7-d667-4a4d-90ed-62de622c4c86",
+   "properties": {
+    "entityName": "The Tivoli Aquarium",
+    "crmId": "acdd6bdb-5c6c-ee11-9ae7-6045bd905937",
+    "latitude": 55.6729943,
+    "longitude": 12.5691023,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "A spectacle of colourful fish",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "e7e3b7d0-9bcf-4cc1-9d0f-bb9229a8c92d",
+   "properties": {
+    "entityName": "The Typhoons Eye",
+    "crmId": "6fd8433c-8574-f111-ab0d-70a8a56385cc",
+    "latitude": 55.6729738238673,
+    "longitude": 12.570476303699907,
+    "minHeight": 130,
+    "minHeightWithAdult": 130,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "Feel the pull of weightlessness",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "24baa1a6-77ee-4bd7-9db6-face7b4ea032",
+   "properties": {
+    "entityName": "The Vintage Cars",
+    "crmId": "aa9ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.67283415004944,
+    "longitude": 12.569452516162205,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": 3,
+    "mapIcon": "ride",
+    "shortDescription": "A big adventure for little guests",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "cf3f6fc9-94c1-4735-a732-8a9984239cdf",
+   "properties": {
+    "entityName": "Tik Tak",
+    "crmId": "a69ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.6726277219948,
+    "longitude": 12.567741351432538,
+    "minHeight": 140,
+    "minHeightWithAdult": null,
+    "minAge": null,
+    "mapIcon": "ride",
+    "shortDescription": "Time flies, and so do you",
+    "priceCategory": null
+   }
+  },
+  {
+   "contentType": "rideEntity",
+   "id": "c692ca0f-525c-49e4-9d57-30344f65f1f5",
+   "properties": {
+    "entityName": "Villa Vendetta",
+    "crmId": "ac9ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+    "latitude": 55.67476604748274,
+    "longitude": 12.568542729571945,
+    "minHeight": null,
+    "minHeightWithAdult": null,
+    "minAge": 12,
+    "mapIcon": "ride",
+    "shortDescription": "Prepare to be spooked",
+    "priceCategory": null
+   }
+  }
+ ]
+}

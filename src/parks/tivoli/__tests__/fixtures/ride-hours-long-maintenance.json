@@ -1,0 +1,83 @@
+{
+  "errors": [],
+  "items": [
+    {
+      "id": "c8c2197f-5d6c-ee11-9ae7-6045bd905937",
+      "name": "Aquila",
+      "status": "Open",
+      "assetType": "Amusement",
+      "canBuyTickets": true,
+      "lastModified": "2026-11-13T02:16:24Z",
+      "hours": [
+        {
+          "id": "7eb96ef1-58c9-f111-aaad-6045bd8ed374",
+          "fromDatetime": "2026-11-13T10:15:00Z",
+          "toDatetime": "2026-11-13T21:50:00Z",
+          "assetID": "c8c2197f-5d6c-ee11-9ae7-6045bd905937",
+          "statecode": "Active",
+          "tivoliDay": "2026-11-12T23:00:00Z"
+        },
+        {
+          "id": "83b96ef1-58c9-f111-aaad-6045bd8ed374",
+          "fromDatetime": "2026-11-14T10:15:00Z",
+          "toDatetime": "2026-11-14T21:50:00Z",
+          "assetID": "c8c2197f-5d6c-ee11-9ae7-6045bd905937",
+          "statecode": "Active",
+          "tivoliDay": "2026-11-13T23:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": "929ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+      "name": "Radiobilerne",
+      "status": "LongMaintenance",
+      "assetType": "Amusement",
+      "canBuyTickets": false,
+      "lastModified": "2026-11-12T11:11:45Z",
+      "hours": [
+        {
+          "id": "a8afb3ed-57c9-f111-aaaf-7c1e52271e03",
+          "fromDatetime": "2026-11-13T10:15:00Z",
+          "toDatetime": "2026-11-13T21:40:00Z",
+          "assetID": "929ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+          "statecode": "Inactive",
+          "tivoliDay": "2026-11-12T23:00:00Z"
+        },
+        {
+          "id": "acafb3ed-57c9-f111-aaaf-7c1e52271e03",
+          "fromDatetime": "2026-11-14T10:15:00Z",
+          "toDatetime": "2026-11-14T21:40:00Z",
+          "assetID": "929ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+          "statecode": "Inactive",
+          "tivoliDay": "2026-11-13T23:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": "549ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+      "name": "Den Lille Drage",
+      "status": "LongMaintenance",
+      "assetType": "Amusement",
+      "canBuyTickets": false,
+      "lastModified": "2026-11-12T11:11:21Z",
+      "hours": [
+        {
+          "id": "6954663b-55c9-f111-aaad-6045bd8ed374",
+          "fromDatetime": "2026-11-13T10:15:00Z",
+          "toDatetime": "2026-11-13T18:50:00Z",
+          "assetID": "549ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+          "statecode": "Inactive",
+          "tivoliDay": "2026-11-12T23:00:00Z"
+        },
+        {
+          "id": "7354663b-55c9-f111-aaad-6045bd8ed374",
+          "fromDatetime": "2026-11-14T10:15:00Z",
+          "toDatetime": "2026-11-14T18:50:00Z",
+          "assetID": "549ad731-5f6c-ee11-9ae7-6045bd8d1c97",
+          "statecode": "Inactive",
+          "tivoliDay": "2026-11-13T23:00:00Z"
+        }
+      ]
+    }
+  ]
+}
